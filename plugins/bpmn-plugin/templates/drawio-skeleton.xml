@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Draw.io File Skeleton Template
+
+  This template provides the base structure for all generated Draw.io files
+  from BPMN conversion. Replace placeholders marked with [PLACEHOLDER] with
+  actual values.
+
+  Structure:
+  - mxfile: Root container
+  - diagram: Named diagram container
+  - mxGraphModel: Graph configuration and canvas settings
+  - root: Contains all cells (shapes and edges)
+    - Cell 0: Root cell (required)
+    - Cell 1: Default parent for top-level elements
+    - Pools, Lanes, Elements, Edges: Process content
+-->
+<mxfile host="app.diagrams.net" modified="[ISO_DATE]" agent="Claude BPMN-to-DrawIO Converter" version="22.1.0" type="device">
+  <diagram name="[DIAGRAM_NAME]" id="[DIAGRAM_ID]">
+    <mxGraphModel dx="[DX]" dy="[DY]" grid="1" gridSize="10" guides="1" tooltips="1"
+                  connect="1" arrows="1" fold="1" page="1" pageScale="1"
+                  pageWidth="[PAGE_WIDTH]" pageHeight="[PAGE_HEIGHT]" math="0" shadow="0">
+      <root>
+        <!-- Required root cells -->
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!--
+        ================================================================
+        POOLS
+        ================================================================
+        Pools are top-level containers. Use parent="1" for all pools.
+        -->
+        <!--
+        <mxCell id="pool_[ID]" value="[POOL_NAME]"
+                style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;startSize=30;"
+                vertex="1" parent="1">
+          <mxGeometry x="[X]" y="[Y]" width="[WIDTH]" height="[HEIGHT]" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!--
+        ================================================================
+        LANES
+        ================================================================
+        Lanes are children of pools. Use parent="[POOL_ID]" for lanes.
+        Lane x position starts at 30 (after pool label).
+        -->
+        <!--
+        <mxCell id="lane_[ID]" value="[LANE_NAME]"
+                style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=[FILL_COLOR];strokeColor=[STROKE_COLOR];startSize=30;"
+                vertex="1" parent="pool_[POOL_ID]">
+          <mxGeometry x="30" y="[Y]" width="[WIDTH]" height="[HEIGHT]" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!--
+        ================================================================
+        ELEMENTS (Tasks, Events, Gateways)
+        ================================================================
+        Elements are children of lanes. Use parent="[LANE_ID]".
+        Coordinates are relative to the lane geometry.
+        -->
+
+        <!-- Start Event Template -->
+        <!--
+        <mxCell id="start_[ID]" value="[NAME]"
+                style="shape=mxgraph.bpmn.shape;outline=throwing;symbol=general;fillColor=#ffffff;strokeColor=#000000;"
+                vertex="1" parent="lane_[LANE_ID]">
+          <mxGeometry x="[X]" y="[Y]" width="40" height="40" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!-- User Task Template -->
+        <!--
+        <mxCell id="task_[ID]" value="[NAME]"
+                style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;"
+                vertex="1" parent="lane_[LANE_ID]">
+          <mxGeometry x="[X]" y="[Y]" width="100" height="50" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!-- Service Task Template -->
+        <!--
+        <mxCell id="task_[ID]" value="[NAME]"
+                style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;"
+                vertex="1" parent="lane_[LANE_ID]">
+          <mxGeometry x="[X]" y="[Y]" width="100" height="50" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!-- Exclusive Gateway Template -->
+        <!--
+        <mxCell id="gw_[ID]" value="[DECISION_LABEL]"
+                style="shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;outline=none;symbol=exclusiveGw;fillColor=#ffffff;strokeColor=#000000;"
+                vertex="1" parent="lane_[LANE_ID]">
+          <mxGeometry x="[X]" y="[Y]" width="50" height="50" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!-- Parallel Gateway Template -->
+        <!--
+        <mxCell id="gw_[ID]" value="[LABEL]"
+                style="shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;outline=none;symbol=parallelGw;fillColor=#ffffff;strokeColor=#000000;"
+                vertex="1" parent="lane_[LANE_ID]">
+          <mxGeometry x="[X]" y="[Y]" width="50" height="50" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!-- End Event Template -->
+        <!--
+        <mxCell id="end_[ID]" value="[NAME]"
+                style="shape=mxgraph.bpmn.shape;outline=end;symbol=general;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;"
+                vertex="1" parent="lane_[LANE_ID]">
+          <mxGeometry x="[X]" y="[Y]" width="40" height="40" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!--
+        ================================================================
+        INTRA-LANE EDGES
+        ================================================================
+        Edges within a single lane. Use parent="[LANE_ID]" with
+        source and target attributes.
+        -->
+        <!--
+        <mxCell id="flow_[ID]" value="[LABEL]"
+                style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=block;endFill=1;"
+                edge="1" parent="lane_[LANE_ID]" source="[SOURCE_ID]" target="[TARGET_ID]">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        -->
+
+        <!--
+        ================================================================
+        CROSS-LANE EDGES (CRITICAL)
+        ================================================================
+        Edges crossing lane boundaries MUST use parent="1" with
+        absolute mxPoint coordinates, NOT source/target attributes.
+        -->
+        <!--
+        <mxCell id="flow_[ID]" value="[LABEL]"
+                style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=block;endFill=1;"
+                edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="[ABS_SOURCE_X]" y="[ABS_SOURCE_Y]" as="sourcePoint"/>
+            <mxPoint x="[ABS_TARGET_X]" y="[ABS_TARGET_Y]" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="[WAYPOINT_X]" y="[WAYPOINT_Y]"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        -->
+
+        <!--
+        ================================================================
+        MESSAGE FLOWS (Between Pools)
+        ================================================================
+        Message flows between pools. Use dashed style with open arrow.
+        Always use parent="1" with absolute coordinates.
+        -->
+        <!--
+        <mxCell id="msgflow_[ID]" value="[LABEL]"
+                style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=open;endFill=0;dashed=1;dashPattern=8 4;"
+                edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="[SOURCE_X]" y="[SOURCE_Y]" as="sourcePoint"/>
+            <mxPoint x="[TARGET_X]" y="[TARGET_Y]" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        -->
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

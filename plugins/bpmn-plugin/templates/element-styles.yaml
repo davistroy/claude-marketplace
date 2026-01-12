@@ -1,0 +1,328 @@
+# Draw.io Element Styles for BPMN Conversion
+# Maps BPMN element types to Draw.io style strings
+
+# =============================================================================
+# ELEMENT DIMENSIONS
+# =============================================================================
+dimensions:
+  event:
+    width: 40
+    height: 40
+  task:
+    width: 100
+    height: 50  # compact mode
+    height_standard: 80  # bpmn.io standard
+  gateway:
+    width: 50
+    height: 50
+  subprocess_collapsed:
+    width: 100
+    height: 80
+  subprocess_expanded:
+    min_width: 350
+    min_height: 200
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  # Start Events
+  startEvent:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=general;fillColor=#ffffff;strokeColor=#000000;"
+  startEvent_message:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=message;fillColor=#ffffff;strokeColor=#000000;"
+  startEvent_timer:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=timer;fillColor=#ffffff;strokeColor=#000000;"
+  startEvent_conditional:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=conditional;fillColor=#ffffff;strokeColor=#000000;"
+  startEvent_signal:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=signal;fillColor=#ffffff;strokeColor=#000000;"
+
+  # Intermediate Catch Events
+  intermediateCatchEvent:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=general;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateCatchEvent_message:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=message;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateCatchEvent_timer:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=timer;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateCatchEvent_conditional:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=conditional;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateCatchEvent_signal:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=signal;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateCatchEvent_link:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=link;fillColor=#ffffff;strokeColor=#000000;"
+
+  # Intermediate Throw Events
+  intermediateThrowEvent:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=general;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateThrowEvent_message:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=message;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateThrowEvent_signal:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=signal;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateThrowEvent_escalation:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=escalation;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateThrowEvent_compensation:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=compensation;fillColor=#ffffff;strokeColor=#000000;"
+  intermediateThrowEvent_link:
+    style: "shape=mxgraph.bpmn.shape;outline=throwing;symbol=link;fillColor=#ffffff;strokeColor=#000000;"
+
+  # End Events
+  endEvent:
+    style: "shape=mxgraph.bpmn.shape;outline=end;symbol=general;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;"
+  endEvent_message:
+    style: "shape=mxgraph.bpmn.shape;outline=end;symbol=message;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;"
+  endEvent_terminate:
+    style: "shape=mxgraph.bpmn.shape;outline=end;symbol=terminate;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;"
+  endEvent_error:
+    style: "shape=mxgraph.bpmn.shape;outline=end;symbol=error;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;"
+  endEvent_escalation:
+    style: "shape=mxgraph.bpmn.shape;outline=end;symbol=escalation;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;"
+  endEvent_compensation:
+    style: "shape=mxgraph.bpmn.shape;outline=end;symbol=compensation;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;"
+  endEvent_signal:
+    style: "shape=mxgraph.bpmn.shape;outline=end;symbol=signal;fillColor=#ffffff;strokeColor=#000000;strokeWidth=3;"
+
+  # Boundary Events (attached to tasks)
+  boundaryEvent:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=general;fillColor=#ffffff;strokeColor=#000000;"
+  boundaryEvent_timer:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=timer;fillColor=#ffffff;strokeColor=#000000;"
+  boundaryEvent_error:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=error;fillColor=#ffffff;strokeColor=#000000;"
+  boundaryEvent_message:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=message;fillColor=#ffffff;strokeColor=#000000;"
+  boundaryEvent_escalation:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=escalation;fillColor=#ffffff;strokeColor=#000000;"
+  boundaryEvent_compensation:
+    style: "shape=mxgraph.bpmn.shape;outline=catching;symbol=compensation;fillColor=#ffffff;strokeColor=#000000;"
+
+# =============================================================================
+# TASKS
+# =============================================================================
+tasks:
+  task:
+    style: "rounded=1;whiteSpace=wrap;html=1;"
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+
+  userTask:
+    style: "rounded=1;whiteSpace=wrap;html=1;"
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+
+  serviceTask:
+    style: "rounded=1;whiteSpace=wrap;html=1;"
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+
+  sendTask:
+    style: "rounded=1;whiteSpace=wrap;html=1;"
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+
+  receiveTask:
+    style: "rounded=1;whiteSpace=wrap;html=1;"
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+
+  scriptTask:
+    style: "rounded=1;whiteSpace=wrap;html=1;"
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+
+  manualTask:
+    style: "rounded=1;whiteSpace=wrap;html=1;"
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+
+  businessRuleTask:
+    style: "rounded=1;whiteSpace=wrap;html=1;"
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+
+  callActivity:
+    style: "rounded=1;whiteSpace=wrap;html=1;strokeWidth=3;"
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+
+  subProcess:
+    style: "rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;"
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+
+# =============================================================================
+# GATEWAYS
+# =============================================================================
+gateways:
+  exclusiveGateway:
+    style: "shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;outline=none;symbol=exclusiveGw;fillColor=#ffffff;strokeColor=#000000;"
+
+  parallelGateway:
+    style: "shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;outline=none;symbol=parallelGw;fillColor=#ffffff;strokeColor=#000000;"
+
+  inclusiveGateway:
+    style: "shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;outline=none;symbol=inclusiveGw;fillColor=#ffffff;strokeColor=#000000;"
+
+  eventBasedGateway:
+    style: "shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;outline=none;symbol=eventGw;fillColor=#ffffff;strokeColor=#000000;"
+
+  complexGateway:
+    style: "shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;outline=none;symbol=complexGw;fillColor=#ffffff;strokeColor=#000000;"
+
+# =============================================================================
+# SWIM LANES
+# =============================================================================
+swimlanes:
+  pool:
+    style: "swimlane;horizontal=0;whiteSpace=wrap;html=1;startSize=30;"
+    fill: "#f5f5f5"
+    stroke: "#666666"
+
+  lane:
+    style: "swimlane;horizontal=0;whiteSpace=wrap;html=1;startSize=30;"
+    # Colors determined by lane_colors based on lane name
+
+# Lane colors by function
+lane_colors:
+  sales:
+    patterns: ["sales", "commercial", "business development"]
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+
+  legal:
+    patterns: ["legal", "compliance", "contracts", "counsel"]
+    fill: "#d5e8d4"
+    stroke: "#82b366"
+
+  finance:
+    patterns: ["finance", "billing", "accounting", "credit"]
+    fill: "#ffe6cc"
+    stroke: "#d79b00"
+
+  security:
+    patterns: ["security", "it", "infosec", "technical"]
+    fill: "#f8cecc"
+    stroke: "#b85450"
+
+  implementation:
+    patterns: ["implementation", "delivery", "project", "professional services"]
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+
+  training:
+    patterns: ["training", "enablement", "education", "learning"]
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+
+  customer_success:
+    patterns: ["customer success", "csm", "account management"]
+    fill: "#d5e8d4"
+    stroke: "#82b366"
+
+  support:
+    patterns: ["support", "help desk", "service desk", "customer care"]
+    fill: "#f5f5f5"
+    stroke: "#666666"
+
+  external:
+    patterns: ["customer", "client", "external", "vendor", "partner"]
+    fill: "#f5f5f5"
+    stroke: "#666666"
+
+  default:
+    fill: "#f5f5f5"
+    stroke: "#666666"
+
+# =============================================================================
+# EDGES / CONNECTORS
+# =============================================================================
+edges:
+  sequenceFlow:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=block;endFill=1;"
+
+  sequenceFlow_conditional:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=block;endFill=1;startArrow=diamond;startFill=0;"
+
+  sequenceFlow_default:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=block;endFill=1;"
+    # Default flows have a tick mark near source - handled separately
+
+  messageFlow:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=open;endFill=0;dashed=1;dashPattern=8 4;"
+
+  association:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=none;dashed=1;dashPattern=3 3;"
+
+  dataAssociation:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;endArrow=open;endFill=0;dashed=1;dashPattern=3 3;"
+
+# Special edge styles
+edge_special:
+  loop_back:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;endArrow=block;endFill=1;"
+
+  critical_path:
+    style: "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;strokeWidth=2;endArrow=block;endFill=1;"
+
+# =============================================================================
+# DATA OBJECTS
+# =============================================================================
+data_objects:
+  dataObject:
+    style: "shape=mxgraph.bpmn.data;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;fillColor=#ffffff;strokeColor=#000000;"
+    width: 36
+    height: 50
+
+  dataStore:
+    style: "shape=mxgraph.bpmn.data_store;fillColor=#ffffff;strokeColor=#000000;"
+    width: 50
+    height: 50
+
+# =============================================================================
+# LAYOUT CONSTANTS
+# =============================================================================
+layout:
+  pool:
+    left_margin: 40
+    right_margin: 100
+    top_margin: 40
+    bottom_margin: 40
+    label_width: 30
+
+  lane:
+    left_offset: 30  # Lane starts 30px into pool (after pool label)
+    min_height: 100
+    branch_height: 130  # For 2-branch lanes
+    triple_height: 150  # For 3+ branch lanes
+    start_size: 30  # Lane label width
+
+  element:
+    left_margin: 60  # First element from lane left edge
+    spacing_h: 140  # Horizontal spacing between elements
+    spacing_v: 45   # Vertical spacing for branches
+
+# =============================================================================
+# CONNECTION POINTS
+# =============================================================================
+# Offsets from element (x, y) to connection points
+connection_points:
+  event:  # 40x40
+    center: [20, 20]
+    top: [20, 0]
+    right: [40, 20]
+    bottom: [20, 40]
+    left: [0, 20]
+
+  task:  # 100x50
+    center: [50, 25]
+    top: [50, 0]
+    right: [100, 25]
+    bottom: [50, 50]
+    left: [0, 25]
+
+  gateway:  # 50x50
+    center: [25, 25]
+    top: [25, 0]
+    right: [50, 25]
+    bottom: [25, 50]
+    left: [0, 25]
