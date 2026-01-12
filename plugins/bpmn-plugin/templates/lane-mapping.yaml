@@ -1,0 +1,346 @@
+# Lane Mapping Configuration
+# Maps document role patterns to BPMN lane definitions
+# Colors follow BPMN-to-DrawIO-Conversion-Standard.md
+
+# Role Categories with Pattern Matching
+role_categories:
+
+  sales:
+    lane_name: "Sales"
+    patterns:
+      - "sales"
+      - "commercial"
+      - "business development"
+      - "account executive"
+      - "sales rep"
+      - "AE"
+      - "BDR"
+      - "SDR"
+    colors:
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    description: "Sales and commercial activities"
+
+  legal:
+    lane_name: "Legal Operations"
+    patterns:
+      - "legal"
+      - "compliance"
+      - "contracts"
+      - "regulatory"
+      - "counsel"
+      - "attorney"
+      - "VP Legal"
+      - "general counsel"
+    colors:
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    description: "Legal review and compliance"
+
+  finance:
+    lane_name: "Finance"
+    patterns:
+      - "finance"
+      - "billing"
+      - "accounting"
+      - "CFO"
+      - "controller"
+      - "treasury"
+      - "AR"
+      - "AP"
+      - "accounts payable"
+      - "accounts receivable"
+      - "credit"
+    colors:
+      fill: "#ffe6cc"
+      stroke: "#d79b00"
+    description: "Financial operations and billing"
+
+  security_it:
+    lane_name: "Security/IT"
+    patterns:
+      - "security"
+      - "IT"
+      - "information technology"
+      - "infosec"
+      - "CISO"
+      - "CTO"
+      - "technical"
+      - "engineering"
+      - "DevOps"
+      - "infrastructure"
+      - "systems"
+    colors:
+      fill: "#f8cecc"
+      stroke: "#b85450"
+    description: "IT and security operations"
+
+  implementation:
+    lane_name: "Implementation"
+    patterns:
+      - "implementation"
+      - "delivery"
+      - "project"
+      - "PMO"
+      - "project manager"
+      - "implementation manager"
+      - "delivery manager"
+      - "onboarding"
+      - "solution architect"
+      - "professional services"
+    colors:
+      fill: "#e1d5e7"
+      stroke: "#9673a6"
+    description: "Implementation and project delivery"
+
+  training:
+    lane_name: "Training"
+    patterns:
+      - "training"
+      - "enablement"
+      - "education"
+      - "learning"
+      - "trainer"
+      - "L&D"
+      - "learning and development"
+    colors:
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    description: "Training and enablement"
+
+  customer_success:
+    lane_name: "Customer Success"
+    patterns:
+      - "customer success"
+      - "CSM"
+      - "account management"
+      - "client success"
+      - "relationship manager"
+      - "success manager"
+    colors:
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    description: "Customer success and account management"
+
+  support:
+    lane_name: "Support"
+    patterns:
+      - "support"
+      - "help desk"
+      - "service desk"
+      - "customer care"
+      - "contact center"
+      - "call center"
+      - "tier 1"
+      - "tier 2"
+      - "tier 3"
+      - "L1"
+      - "L2"
+      - "L3"
+    colors:
+      fill: "#f5f5f5"
+      stroke: "#666666"
+    description: "Customer support operations"
+
+  operations:
+    lane_name: "Operations"
+    patterns:
+      - "operations"
+      - "ops"
+      - "field operations"
+      - "store manager"
+      - "franchisee"
+      - "location manager"
+      - "regional manager"
+    colors:
+      fill: "#ffe6cc"
+      stroke: "#d79b00"
+    description: "Field and business operations"
+
+  social_community:
+    lane_name: "Social/Community"
+    patterns:
+      - "community manager"
+      - "social media"
+      - "social team"
+      - "social lead"
+      - "community"
+      - "social listening"
+      - "brand team"
+    colors:
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    description: "Social media and community management"
+
+  marketing:
+    lane_name: "Marketing"
+    patterns:
+      - "marketing"
+      - "PR"
+      - "public relations"
+      - "communications"
+      - "brand"
+      - "CMO"
+      - "content"
+      - "digital marketing"
+    colors:
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    description: "Marketing and communications"
+
+  analytics:
+    lane_name: "Analytics"
+    patterns:
+      - "analytics"
+      - "insights"
+      - "reporting"
+      - "data"
+      - "BI"
+      - "business intelligence"
+      - "analyst"
+    colors:
+      fill: "#e1d5e7"
+      stroke: "#9673a6"
+    description: "Analytics and business intelligence"
+
+  hr:
+    lane_name: "Human Resources"
+    patterns:
+      - "HR"
+      - "human resources"
+      - "people ops"
+      - "talent"
+      - "recruiting"
+      - "CHRO"
+    colors:
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    description: "Human resources and people operations"
+
+  product:
+    lane_name: "Product"
+    patterns:
+      - "product"
+      - "product manager"
+      - "PM"
+      - "product owner"
+      - "PO"
+    colors:
+      fill: "#e1d5e7"
+      stroke: "#9673a6"
+    description: "Product management"
+
+  executive:
+    lane_name: "Executive"
+    patterns:
+      - "executive"
+      - "CEO"
+      - "C-suite"
+      - "VP"
+      - "vice president"
+      - "director"
+      - "senior leadership"
+      - "management"
+    colors:
+      fill: "#f5f5f5"
+      stroke: "#666666"
+    description: "Executive and senior leadership"
+
+# External Pools (separate organizations)
+external_pools:
+
+  customer:
+    pool_name: "Customer"
+    patterns:
+      - "customer"
+      - "client"
+      - "buyer"
+      - "user"
+      - "end user"
+      - "consumer"
+      - "patron"
+    colors:
+      fill: "#f5f5f5"
+      stroke: "#666666"
+    is_collapsed: true  # Show as collapsed pool by default
+    description: "External customer or client"
+
+  vendor:
+    pool_name: "Vendor"
+    patterns:
+      - "vendor"
+      - "supplier"
+      - "partner"
+      - "third party"
+      - "external provider"
+      - "contractor"
+    colors:
+      fill: "#f5f5f5"
+      stroke: "#666666"
+    is_collapsed: true
+    description: "External vendor or partner"
+
+  agency:
+    pool_name: "Agency Partner"
+    patterns:
+      - "agency"
+      - "agency partner"
+      - "external agency"
+    colors:
+      fill: "#f5f5f5"
+      stroke: "#666666"
+    is_collapsed: true
+    description: "External agency partner"
+
+# Draw.io Layout Constants (from BPMN-to-DrawIO-Conversion-Standard.md)
+layout:
+  pool:
+    label_width: 30
+    left_margin: 40
+    right_margin: 100
+    top_margin: 40
+    bottom_margin: 40
+
+  lane:
+    left_offset: 30
+    min_height: 100
+    branch_height: 130
+    triple_branch_height: 150
+    start_size: 30  # Label width
+
+  element:
+    left_margin: 60
+    spacing_horizontal: 140
+    spacing_vertical: 45
+
+  dimensions:
+    task_width: 100
+    task_height: 80  # bpmn.io standard
+    task_height_compact: 50  # Draw.io compact
+    gateway_size: 50
+    event_size: 36
+
+# Color Palette for Special Purposes
+special_colors:
+  error_task:
+    fill: "#f8cecc"
+    stroke: "#b85450"
+
+  critical_path:
+    stroke: "#000000"
+    stroke_width: 2
+
+  loop_flow:
+    stroke: "#b85450"
+
+  subprocess:
+    fill: "#dae8fc"
+    stroke_width: 2
+
+# Fallback for unrecognized roles
+default:
+  lane_name: "General"
+  colors:
+    fill: "#f5f5f5"
+    stroke: "#666666"
+  description: "General activities"

@@ -2,7 +2,7 @@
   "name": "troys-plugins",
   "metadata": {
     "description": "Troy Davis Claude Code plugins",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "owner": {
     "name": "Troy Davis",
@@ -16,6 +16,14 @@
       "version": "1.1.0",
       "category": "productivity",
       "tags": ["personal","automation"]
+    },
+    {
+      "name": "bpmn-plugin",
+      "source": "./plugins/bpmn-plugin",
+      "description": "BPMN 2.0 XML generator for creating compliant workflow diagrams from natural language or markdown documents",
+      "version": "1.0.0",
+      "category": "workflow",
+      "tags": ["bpmn","workflow","xml","diagram","process-modeling"]
     }
   ]
 }

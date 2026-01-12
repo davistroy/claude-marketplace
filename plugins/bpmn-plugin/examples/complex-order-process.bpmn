@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Complex Order Processing
+
+  Description: An order fulfillment process with inventory check, payment processing,
+  and multiple outcomes including out-of-stock and payment failure scenarios.
+
+  Flow:
+  Order Received → Validate Order → [Valid?] → No → Notify Invalid → End (Cancelled)
+                                  → Yes → Check Inventory → [In Stock?] → No → Backorder Item → Notify Backorder → End (Backorder)
+                                                                        → Yes → Process Payment → [Payment OK?] → No → Notify Payment Failed → End (Failed)
+                                                                                                               → Yes → Ship Order → Notify Shipped → End (Complete)
+
+  Elements:
+  - 1 Message Start Event
+  - 7 Tasks (mix of service and send tasks)
+  - 3 Exclusive Gateways
+  - 4 End Events (different outcomes)
+-->
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    id="Definitions_OrderProcess"
+    targetNamespace="http://bpmn.io/schema/bpmn"
+    exporter="Claude BPMN Generator"
+    exporterVersion="1.1">
+
+    <bpmn:process id="Process_OrderFulfillment" name="Order Fulfillment Process" isExecutable="true">
+
+        <!-- Phase 1: Order Intake -->
+        <bpmn:startEvent id="StartEvent_OrderReceived" name="Order Received">
+            <bpmn:outgoing>Flow_Start_Validate</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MessageEventDef_Order" messageRef="Message_NewOrder"/>
+        </bpmn:startEvent>
+
+        <!-- Phase 2: Validation -->
+        <bpmn:serviceTask id="Activity_ValidateOrder" name="Validate Order">
+            <bpmn:documentation>
+                System validates order details including product SKUs, quantities, pricing accuracy,
+                and customer information. Checks for duplicate orders within 24-hour window. Verifies
+                shipping address is within serviceable region. Returns validation status with detailed
+                error codes if validation fails.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Start_Validate</bpmn:incoming>
+            <bpmn:outgoing>Flow_Validate_Gateway</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:exclusiveGateway id="Gateway_OrderValid" name="Order Valid?" default="Flow_Invalid">
+            <bpmn:incoming>Flow_Validate_Gateway</bpmn:incoming>
+            <bpmn:outgoing>Flow_Valid</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Invalid</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- Invalid Order Path -->
+        <bpmn:sendTask id="Activity_NotifyInvalid" name="Notify Customer - Invalid Order">
+            <bpmn:documentation>
+                Sends email notification to customer explaining why their order could not be processed.
+                Includes specific validation error details, suggestions for correction, and customer
+                service contact information. Logs notification for audit trail.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Invalid</bpmn:incoming>
+            <bpmn:outgoing>Flow_Invalid_End</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <bpmn:endEvent id="EndEvent_Cancelled" name="Order Cancelled">
+            <bpmn:incoming>Flow_Invalid_End</bpmn:incoming>
+            <bpmn:errorEventDefinition id="ErrorEventDef_Cancelled" errorRef="Error_InvalidOrder"/>
+        </bpmn:endEvent>
+
+        <!-- Phase 3: Inventory Check -->
+        <bpmn:serviceTask id="Activity_CheckInventory" name="Check Inventory">
+            <bpmn:documentation>
+                Queries warehouse management system for real-time inventory availability. Checks all
+                requested SKUs against available stock, considering reserved quantities and safety
+                stock levels. Returns availability status for each line item with location details.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Valid</bpmn:incoming>
+            <bpmn:outgoing>Flow_Inventory_Gateway</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:exclusiveGateway id="Gateway_InStock" name="In Stock?" default="Flow_OutOfStock">
+            <bpmn:incoming>Flow_Inventory_Gateway</bpmn:incoming>
+            <bpmn:outgoing>Flow_InStock</bpmn:outgoing>
+            <bpmn:outgoing>Flow_OutOfStock</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- Out of Stock Path -->
+        <bpmn:serviceTask id="Activity_BackorderItem" name="Create Backorder">
+            <bpmn:documentation>
+                Creates backorder record in the system for out-of-stock items. Reserves incoming inventory
+                from next shipment. Calculates estimated availability date based on supplier lead times.
+                Updates customer order status to "Backordered" with expected fulfillment date.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_OutOfStock</bpmn:incoming>
+            <bpmn:outgoing>Flow_Backorder_Notify</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:sendTask id="Activity_NotifyBackorder" name="Notify Customer - Backorder">
+            <bpmn:documentation>
+                Sends backorder notification email to customer with item details, expected availability
+                date, and options to wait, substitute, or cancel. Includes link to track backorder status.
+                Offers promotion code as goodwill gesture for the inconvenience.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Backorder_Notify</bpmn:incoming>
+            <bpmn:outgoing>Flow_Backorder_End</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <bpmn:endEvent id="EndEvent_Backorder" name="On Backorder">
+            <bpmn:incoming>Flow_Backorder_End</bpmn:incoming>
+            <bpmn:messageEventDefinition id="MessageEventDef_Backorder" messageRef="Message_Backorder"/>
+        </bpmn:endEvent>
+
+        <!-- Phase 4: Payment Processing -->
+        <bpmn:serviceTask id="Activity_ProcessPayment" name="Process Payment">
+            <bpmn:documentation>
+                Submits payment authorization request to payment gateway. Processes credit card, PayPal,
+                or stored payment method based on customer selection. Handles 3D Secure verification if
+                required. Captures authorization code and stores transaction reference for reconciliation.
+                Timeout: 30 seconds with automatic retry on network failure.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_InStock</bpmn:incoming>
+            <bpmn:outgoing>Flow_Payment_Gateway</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:exclusiveGateway id="Gateway_PaymentOK" name="Payment Successful?" default="Flow_PaymentFailed">
+            <bpmn:incoming>Flow_Payment_Gateway</bpmn:incoming>
+            <bpmn:outgoing>Flow_PaymentSuccess</bpmn:outgoing>
+            <bpmn:outgoing>Flow_PaymentFailed</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- Payment Failed Path -->
+        <bpmn:sendTask id="Activity_NotifyPaymentFailed" name="Notify Customer - Payment Failed">
+            <bpmn:documentation>
+                Sends payment failure notification email to customer. Includes reason for decline
+                (insufficient funds, expired card, fraud alert) without exposing sensitive details.
+                Provides link to update payment method and retry. Order is held for 48 hours
+                before automatic cancellation.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_PaymentFailed</bpmn:incoming>
+            <bpmn:outgoing>Flow_PaymentFailed_End</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <bpmn:endEvent id="EndEvent_PaymentFailed" name="Payment Failed">
+            <bpmn:incoming>Flow_PaymentFailed_End</bpmn:incoming>
+            <bpmn:errorEventDefinition id="ErrorEventDef_Payment" errorRef="Error_PaymentFailed"/>
+        </bpmn:endEvent>
+
+        <!-- Phase 5: Fulfillment -->
+        <bpmn:serviceTask id="Activity_ShipOrder" name="Ship Order">
+            <bpmn:documentation>
+                Initiates order fulfillment by creating pick list and packing instructions. Generates
+                shipping label with selected carrier (FedEx, UPS, USPS based on delivery preference).
+                Updates inventory allocation from reserved to shipped. Records tracking number and
+                estimated delivery date in order management system.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_PaymentSuccess</bpmn:incoming>
+            <bpmn:outgoing>Flow_Ship_Notify</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:sendTask id="Activity_NotifyShipped" name="Notify Customer - Shipped">
+            <bpmn:documentation>
+                Sends shipping confirmation email with tracking number and direct link to carrier
+                tracking page. Includes itemized packing list, estimated delivery date, and delivery
+                instructions provided by customer. Triggers SMS notification if customer opted in.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Ship_Notify</bpmn:incoming>
+            <bpmn:outgoing>Flow_Shipped_End</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <bpmn:endEvent id="EndEvent_Complete" name="Order Complete">
+            <bpmn:incoming>Flow_Shipped_End</bpmn:incoming>
+            <bpmn:messageEventDefinition id="MessageEventDef_Complete" messageRef="Message_OrderComplete"/>
+        </bpmn:endEvent>
+
+        <!-- ============ SEQUENCE FLOWS ============ -->
+        <!-- Start to Validate -->
+        <bpmn:sequenceFlow id="Flow_Start_Validate" sourceRef="StartEvent_OrderReceived" targetRef="Activity_ValidateOrder"/>
+
+        <!-- Validation Gateway -->
+        <bpmn:sequenceFlow id="Flow_Validate_Gateway" sourceRef="Activity_ValidateOrder" targetRef="Gateway_OrderValid"/>
+        <bpmn:sequenceFlow id="Flow_Valid" name="Yes" sourceRef="Gateway_OrderValid" targetRef="Activity_CheckInventory">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${orderValid == true}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_Invalid" name="No" sourceRef="Gateway_OrderValid" targetRef="Activity_NotifyInvalid"/>
+        <bpmn:sequenceFlow id="Flow_Invalid_End" sourceRef="Activity_NotifyInvalid" targetRef="EndEvent_Cancelled"/>
+
+        <!-- Inventory Gateway -->
+        <bpmn:sequenceFlow id="Flow_Inventory_Gateway" sourceRef="Activity_CheckInventory" targetRef="Gateway_InStock"/>
+        <bpmn:sequenceFlow id="Flow_InStock" name="Yes" sourceRef="Gateway_InStock" targetRef="Activity_ProcessPayment">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${inStock == true}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_OutOfStock" name="No" sourceRef="Gateway_InStock" targetRef="Activity_BackorderItem"/>
+        <bpmn:sequenceFlow id="Flow_Backorder_Notify" sourceRef="Activity_BackorderItem" targetRef="Activity_NotifyBackorder"/>
+        <bpmn:sequenceFlow id="Flow_Backorder_End" sourceRef="Activity_NotifyBackorder" targetRef="EndEvent_Backorder"/>
+
+        <!-- Payment Gateway -->
+        <bpmn:sequenceFlow id="Flow_Payment_Gateway" sourceRef="Activity_ProcessPayment" targetRef="Gateway_PaymentOK"/>
+        <bpmn:sequenceFlow id="Flow_PaymentSuccess" name="Yes" sourceRef="Gateway_PaymentOK" targetRef="Activity_ShipOrder">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentSuccessful == true}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_PaymentFailed" name="No" sourceRef="Gateway_PaymentOK" targetRef="Activity_NotifyPaymentFailed"/>
+        <bpmn:sequenceFlow id="Flow_PaymentFailed_End" sourceRef="Activity_NotifyPaymentFailed" targetRef="EndEvent_PaymentFailed"/>
+
+        <!-- Fulfillment -->
+        <bpmn:sequenceFlow id="Flow_Ship_Notify" sourceRef="Activity_ShipOrder" targetRef="Activity_NotifyShipped"/>
+        <bpmn:sequenceFlow id="Flow_Shipped_End" sourceRef="Activity_NotifyShipped" targetRef="EndEvent_Complete"/>
+
+    </bpmn:process>
+
+    <!-- ============ DEFINITIONS ============ -->
+    <bpmn:message id="Message_NewOrder" name="NewOrderMessage"/>
+    <bpmn:message id="Message_Backorder" name="BackorderNotification"/>
+    <bpmn:message id="Message_OrderComplete" name="OrderCompleteNotification"/>
+
+    <bpmn:error id="Error_InvalidOrder" name="InvalidOrderError" errorCode="ERR_INVALID_ORDER"/>
+    <bpmn:error id="Error_PaymentFailed" name="PaymentFailedError" errorCode="ERR_PAYMENT_FAILED"/>
+
+    <!-- ============ DIAGRAM INTERCHANGE ============ -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_OrderProcess">
+        <bpmndi:BPMNPlane id="BPMNPlane_OrderProcess" bpmnElement="Process_OrderFulfillment">
+
+            <!-- Row 1: Main Happy Path (y=160) -->
+            <bpmndi:BPMNShape id="StartEvent_OrderReceived_di" bpmnElement="StartEvent_OrderReceived">
+                <dc:Bounds x="152" y="162" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="132" y="205" width="76" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_ValidateOrder_di" bpmnElement="Activity_ValidateOrder">
+                <dc:Bounds x="240" y="140" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Gateway_OrderValid_di" bpmnElement="Gateway_OrderValid" isMarkerVisible="true">
+                <dc:Bounds x="395" y="155" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="388" y="125" width="64" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_CheckInventory_di" bpmnElement="Activity_CheckInventory">
+                <dc:Bounds x="500" y="140" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Gateway_InStock_di" bpmnElement="Gateway_InStock" isMarkerVisible="true">
+                <dc:Bounds x="655" y="155" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="655" y="125" width="50" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_ProcessPayment_di" bpmnElement="Activity_ProcessPayment">
+                <dc:Bounds x="760" y="140" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Gateway_PaymentOK_di" bpmnElement="Gateway_PaymentOK" isMarkerVisible="true">
+                <dc:Bounds x="915" y="155" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="896" y="125" width="88" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_ShipOrder_di" bpmnElement="Activity_ShipOrder">
+                <dc:Bounds x="1020" y="140" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_NotifyShipped_di" bpmnElement="Activity_NotifyShipped">
+                <dc:Bounds x="1170" y="140" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="EndEvent_Complete_di" bpmnElement="EndEvent_Complete">
+                <dc:Bounds x="1322" y="162" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="1302" y="205" width="76" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Row 2: Invalid Order Path (y=280) -->
+            <bpmndi:BPMNShape id="Activity_NotifyInvalid_di" bpmnElement="Activity_NotifyInvalid">
+                <dc:Bounds x="370" y="260" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
+                <dc:Bounds x="522" y="282" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="500" y="325" width="80" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Row 3: Backorder Path (y=380) -->
+            <bpmndi:BPMNShape id="Activity_BackorderItem_di" bpmnElement="Activity_BackorderItem">
+                <dc:Bounds x="630" y="360" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_NotifyBackorder_di" bpmnElement="Activity_NotifyBackorder">
+                <dc:Bounds x="780" y="360" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="EndEvent_Backorder_di" bpmnElement="EndEvent_Backorder">
+                <dc:Bounds x="932" y="382" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="918" y="425" width="64" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Row 4: Payment Failed Path (y=280) -->
+            <bpmndi:BPMNShape id="Activity_NotifyPaymentFailed_di" bpmnElement="Activity_NotifyPaymentFailed">
+                <dc:Bounds x="890" y="260" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="EndEvent_PaymentFailed_di" bpmnElement="EndEvent_PaymentFailed">
+                <dc:Bounds x="1042" y="282" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="1022" y="325" width="76" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Sequence Flow Edges -->
+            <bpmndi:BPMNEdge id="Flow_Start_Validate_di" bpmnElement="Flow_Start_Validate">
+                <di:waypoint x="188" y="180"/>
+                <di:waypoint x="240" y="180"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Validate_Gateway_di" bpmnElement="Flow_Validate_Gateway">
+                <di:waypoint x="340" y="180"/>
+                <di:waypoint x="395" y="180"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Valid_di" bpmnElement="Flow_Valid">
+                <di:waypoint x="445" y="180"/>
+                <di:waypoint x="500" y="180"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="465" y="162" width="20" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Invalid_di" bpmnElement="Flow_Invalid">
+                <di:waypoint x="420" y="205"/>
+                <di:waypoint x="420" y="260"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="428" y="223" width="15" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Invalid_End_di" bpmnElement="Flow_Invalid_End">
+                <di:waypoint x="470" y="300"/>
+                <di:waypoint x="522" y="300"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Inventory_Gateway_di" bpmnElement="Flow_Inventory_Gateway">
+                <di:waypoint x="600" y="180"/>
+                <di:waypoint x="655" y="180"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_InStock_di" bpmnElement="Flow_InStock">
+                <di:waypoint x="705" y="180"/>
+                <di:waypoint x="760" y="180"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="725" y="162" width="20" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_OutOfStock_di" bpmnElement="Flow_OutOfStock">
+                <di:waypoint x="680" y="205"/>
+                <di:waypoint x="680" y="360"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="688" y="273" width="15" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Backorder_Notify_di" bpmnElement="Flow_Backorder_Notify">
+                <di:waypoint x="730" y="400"/>
+                <di:waypoint x="780" y="400"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Backorder_End_di" bpmnElement="Flow_Backorder_End">
+                <di:waypoint x="880" y="400"/>
+                <di:waypoint x="932" y="400"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Payment_Gateway_di" bpmnElement="Flow_Payment_Gateway">
+                <di:waypoint x="860" y="180"/>
+                <di:waypoint x="915" y="180"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_PaymentSuccess_di" bpmnElement="Flow_PaymentSuccess">
+                <di:waypoint x="965" y="180"/>
+                <di:waypoint x="1020" y="180"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="985" y="162" width="20" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_PaymentFailed_di" bpmnElement="Flow_PaymentFailed">
+                <di:waypoint x="940" y="205"/>
+                <di:waypoint x="940" y="260"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="948" y="223" width="15" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_PaymentFailed_End_di" bpmnElement="Flow_PaymentFailed_End">
+                <di:waypoint x="990" y="300"/>
+                <di:waypoint x="1042" y="300"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Ship_Notify_di" bpmnElement="Flow_Ship_Notify">
+                <di:waypoint x="1120" y="180"/>
+                <di:waypoint x="1170" y="180"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Shipped_End_di" bpmnElement="Flow_Shipped_End">
+                <di:waypoint x="1270" y="180"/>
+                <di:waypoint x="1322" y="180"/>
+            </bpmndi:BPMNEdge>
+
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

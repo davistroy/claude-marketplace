@@ -1,0 +1,568 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Social Media Community Management Process
+
+  Converted from: Current_State_Business_Process_Social_Media_Community_Management.md
+
+  This BPMN demonstrates conversion from a structured markdown business process
+  document into BPMN 2.0 XML, following the md-to-bpmn skill guidelines.
+
+  Key Features:
+  - 7 phases mapped from document sections
+  - Multiple swim lanes from identified roles
+  - External customer pool for message flows
+  - Detailed documentation extracted from markdown content
+  - Draw.io compatible layout coordinates
+-->
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    id="Definitions_CommunityManagement"
+    targetNamespace="http://bpmn.io/schema/bpmn"
+    exporter="Claude BPMN Generator (md-to-bpmn)"
+    exporterVersion="2.0">
+
+    <bpmn:collaboration id="Collaboration_CommunityManagement">
+        <bpmn:participant id="Participant_Organization" name="Enterprise Social Media Operations" processRef="Process_CommunityManagement"/>
+        <bpmn:participant id="Participant_Customer" name="Customer" processRef="Process_Customer"/>
+
+        <!-- Message Flows between Organization and Customer -->
+        <bpmn:messageFlow id="MessageFlow_CustomerPost" name="Social Media Post" sourceRef="Participant_Customer" targetRef="StartEvent_InteractionReceived"/>
+        <bpmn:messageFlow id="MessageFlow_PublicResponse" name="Public Response" sourceRef="SendTask_PublishResponse" targetRef="Participant_Customer"/>
+        <bpmn:messageFlow id="MessageFlow_PrivateMessage" name="DM Follow-up" sourceRef="SendTask_PrivateFollowup" targetRef="Participant_Customer"/>
+        <bpmn:messageFlow id="MessageFlow_Resolution" name="Resolution Confirmation" sourceRef="Activity_CloseLoop" targetRef="Participant_Customer"/>
+    </bpmn:collaboration>
+
+    <bpmn:process id="Process_CommunityManagement" name="Social Media Community Management" isExecutable="true">
+
+        <!-- Lane Set: Roles extracted from document -->
+        <bpmn:laneSet id="LaneSet_Main">
+            <bpmn:lane id="Lane_CommunityManager" name="Community Manager">
+                <bpmn:flowNodeRef>StartEvent_InteractionReceived</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Activity_MonitorIntake</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Activity_ReviewTriage</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>ExclusiveGateway_CategoryRoute</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Activity_DraftResponse</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>SendTask_PublishResponse</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>SendTask_PrivateFollowup</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Activity_CloseLoop</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_SocialTeamLead" name="Social Team Lead">
+                <bpmn:flowNodeRef>ExclusiveGateway_ApprovalRequired</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Activity_ApproveResponse</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_CustomerCare" name="Customer Care">
+                <bpmn:flowNodeRef>Activity_ServiceRecovery</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Operations" name="Field Operations">
+                <bpmn:flowNodeRef>Activity_InvestigateIssue</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Activity_ImplementCorrection</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Analytics" name="Analytics/Insights">
+                <bpmn:flowNodeRef>Activity_CompileReport</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Activity_IdentifyTrends</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>EndEvent_ReportComplete</bpmn:flowNodeRef>
+            </bpmn:lane>
+        </bpmn:laneSet>
+
+        <!-- Phase 1: Monitor and Intake -->
+        <bpmn:startEvent id="StartEvent_InteractionReceived" name="Interaction Received">
+            <bpmn:documentation>
+                Process begins when a customer interaction is received on any monitored social media
+                platform. Trigger types include: comments on posts, direct messages, mentions and tags,
+                reviews, and shares with commentary. Primary platforms: Facebook, Instagram, Twitter/X,
+                and location-specific social media pages.
+            </bpmn:documentation>
+            <bpmn:outgoing>Flow_Start_Monitor</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MessageEventDef_Interaction"/>
+        </bpmn:startEvent>
+
+        <bpmn:userTask id="Activity_MonitorIntake" name="Monitor and Intake">
+            <bpmn:documentation>
+                Community Manager and Social Listening Analyst monitor social channels and location
+                pages using enterprise social management and listening tools (e.g., Sprout Social,
+                Hootsuite, Brandwatch). Incoming interactions are collected into a central inbox for
+                review. Interaction types captured include: comments on posts, direct messages,
+                mentions and tags, reviews, and shares with commentary. Volume characteristics for
+                QSR brands: a single comment per restaurant can multiply to thousands across the
+                enterprise, with peaks during meal periods, promotions, and new product launches.
+                Estimated volume: 500-2,000 interactions per week with 30-50% requiring response.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Start_Monitor</bpmn:incoming>
+            <bpmn:outgoing>Flow_Monitor_Triage</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Phase 2: Review and Triage -->
+        <bpmn:userTask id="Activity_ReviewTriage" name="Review and Triage">
+            <bpmn:documentation>
+                Community Manager and Social Team Lead manually review inbound interactions to assess
+                and categorize them. This is currently a fully manual process. Triage criteria include:
+                Topic/Intent (question, complaint, praise, general engagement), Location Relevance
+                (store-level vs enterprise-level issue), Urgency (time sensitivity), Risk Level
+                (potential for reputational or brand damage), and Sentiment (positive, negative, neutral).
+
+                Categorization buckets: 1) Location-specific service issues, 2) Digital/loyalty-related
+                inquiries, 3) Brand/marketing questions, 4) Complaints requiring escalation, 5) Spam/
+                inappropriate content, 6) General engagement.
+
+                Location tagging is a critical sub-process: approximately 60-70% require manual
+                identification or customer outreach; only 30-40% contain explicit location information.
+                Methods include: explicit mention, geographic context, account analysis, direct inquiry,
+                or zip code routing.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Monitor_Triage</bpmn:incoming>
+            <bpmn:outgoing>Flow_Triage_Route</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Phase 3: Routing and Ownership -->
+        <bpmn:exclusiveGateway id="ExclusiveGateway_CategoryRoute" name="Route by Category?" default="Flow_Route_Standard">
+            <bpmn:documentation>
+                Based on triage results, the Community Manager identifies the appropriate owner for
+                the interaction. Each category follows a different workflow and approval path.
+                Routing currently occurs outside the social platform using email, Slack, or Teams.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Triage_Route</bpmn:incoming>
+            <bpmn:outgoing>Flow_Route_Standard</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Route_ServiceIssue</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Route_LocationIssue</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- Phase 4: Response Development and Approval -->
+        <bpmn:userTask id="Activity_DraftResponse" name="Draft Response">
+            <bpmn:documentation>
+                Community Manager drafts response using existing brand guidelines, response playbooks
+                and scripts, and prior approved templates. Playbook includes standard response templates
+                for common scenarios, brand voice and tone guidelines, escalation criteria and triggers,
+                and approval requirements by scenario type. Degree of personalization: moderate -
+                templated structure with some customization for each interaction.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Route_Standard</bpmn:incoming>
+            <bpmn:incoming>Flow_Recovery_Draft</bpmn:incoming>
+            <bpmn:incoming>Flow_Investigation_Draft</bpmn:incoming>
+            <bpmn:outgoing>Flow_Draft_ApprovalCheck</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <bpmn:exclusiveGateway id="ExclusiveGateway_ApprovalRequired" name="Approval Required?" default="Flow_NoApproval">
+            <bpmn:documentation>
+                Approval requirements vary by interaction type: Routine positive engagement -
+                Community Manager self-approve; Standard complaints - Community Manager or Team Lead;
+                Sensitive issues - Brand Lead review required; High-risk/legal concerns - PR, Legal,
+                or Executive approval required.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Draft_ApprovalCheck</bpmn:incoming>
+            <bpmn:outgoing>Flow_NoApproval</bpmn:outgoing>
+            <bpmn:outgoing>Flow_NeedsApproval</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <bpmn:userTask id="Activity_ApproveResponse" name="Review and Approve Response">
+            <bpmn:documentation>
+                Social Team Lead or Brand Lead reviews drafted response for sensitive issues.
+                Verifies alignment with brand guidelines and appropriate tone. May request revisions
+                or escalate to PR/Legal if needed.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_NeedsApproval</bpmn:incoming>
+            <bpmn:outgoing>Flow_Approved_Publish</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Phase 5: Publish and/or Escalate -->
+        <bpmn:sendTask id="SendTask_PublishResponse" name="Publish Public Response">
+            <bpmn:documentation>
+                Once approved, response is published to social channels as a reply to the original
+                public comment/post, visible to all social media users. For complaints, includes
+                public acknowledgment expressing concern and brand values. Example: "I'm so sorry
+                to hear that. That's not consistent with our values at [Brand]. I've sent you a
+                direct message."
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_NoApproval</bpmn:incoming>
+            <bpmn:incoming>Flow_Approved_Publish</bpmn:incoming>
+            <bpmn:outgoing>Flow_Publish_Private</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <bpmn:sendTask id="SendTask_PrivateFollowup" name="Send Private Follow-up (DM)">
+            <bpmn:documentation>
+                Direct message sent for private follow-up to gather details and resolve. Includes:
+                asking clarifying questions (e.g., "Do you happen to know the name of the team member?"),
+                offering service recovery (gift cards, coupons), and gathering information needed for
+                internal escalation. Used to continue sensitive conversations offline.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Publish_Private</bpmn:incoming>
+            <bpmn:outgoing>Flow_Private_Escalate</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <!-- Escalation Paths -->
+        <bpmn:userTask id="Activity_ServiceRecovery" name="Handle Service Recovery">
+            <bpmn:documentation>
+                Customer Care handles escalated service recovery for complex complaints. Coordinates
+                with Community Manager on resolution approach and customer communication. May issue
+                compensation or make exceptions to policy. Current pain point: context must be
+                manually transferred to other systems, creating duplicate data entry and delays.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Route_ServiceIssue</bpmn:incoming>
+            <bpmn:outgoing>Flow_Recovery_Draft</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <bpmn:userTask id="Activity_InvestigateIssue" name="Investigate Location Issue">
+            <bpmn:documentation>
+                Store Manager or Franchisee investigates location-specific operational issues.
+                Currently receives information through email summaries, spreadsheet reports, or
+                periodic recap communications. Communication timeliness is weekly or less frequent
+                batch reporting - not real-time.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Route_LocationIssue</bpmn:incoming>
+            <bpmn:outgoing>Flow_Investigate_Correct</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <bpmn:userTask id="Activity_ImplementCorrection" name="Implement Corrective Action">
+            <bpmn:documentation>
+                Store Manager implements corrective action or service recovery at the location level.
+                Documents resolution for reporting purposes.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Investigate_Correct</bpmn:incoming>
+            <bpmn:outgoing>Flow_Investigation_Draft</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Phase 6: Resolve and Close -->
+        <bpmn:userTask id="Activity_CloseLoop" name="Close the Loop with Customer">
+            <bpmn:documentation>
+                Community Manager follows up with customer to close the loop: thank customer,
+                confirm resolution, and document for reporting. This completes the individual
+                interaction handling cycle.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Private_Escalate</bpmn:incoming>
+            <bpmn:outgoing>Flow_Close_Report</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Phase 7: Report and Review -->
+        <bpmn:userTask id="Activity_CompileReport" name="Compile Performance Report">
+            <bpmn:documentation>
+                Social Analytics/Insights Team compiles performance metrics and key themes.
+                Current reporting includes: volume of interactions by channel and location,
+                response time metrics, sentiment analysis (often manual categorization), issue
+                categorization summaries, and location-specific feedback reports. Reporting
+                cadence is monthly with basic metrics.
+
+                Pain points: significant time spent on manual spreadsheet creation, fragmented
+                data across locations and tools, limited enterprise-wide visibility, delayed
+                insights compared to real-time social signals.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Close_Report</bpmn:incoming>
+            <bpmn:outgoing>Flow_Report_Trends</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <bpmn:userTask id="Activity_IdentifyTrends" name="Identify Trends and Opportunities">
+            <bpmn:documentation>
+                Analytics team reviews trends in customer feedback, recurring issues by location
+                or topic, opportunities for operational improvement, and response performance metrics.
+                Social insights often surface issues earlier than internal reporting but are not
+                consistently integrated into operational workflows.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Report_Trends</bpmn:incoming>
+            <bpmn:outgoing>Flow_Trends_End</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <bpmn:endEvent id="EndEvent_ReportComplete" name="Reporting Cycle Complete">
+            <bpmn:documentation>
+                Monthly reporting cycle completes with insights delivered to Marketing and
+                Operations Leadership for strategic decision-making.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Trends_End</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <!-- Sequence Flows -->
+        <bpmn:sequenceFlow id="Flow_Start_Monitor" sourceRef="StartEvent_InteractionReceived" targetRef="Activity_MonitorIntake"/>
+        <bpmn:sequenceFlow id="Flow_Monitor_Triage" sourceRef="Activity_MonitorIntake" targetRef="Activity_ReviewTriage"/>
+        <bpmn:sequenceFlow id="Flow_Triage_Route" sourceRef="Activity_ReviewTriage" targetRef="ExclusiveGateway_CategoryRoute"/>
+
+        <bpmn:sequenceFlow id="Flow_Route_Standard" name="Brand/General" sourceRef="ExclusiveGateway_CategoryRoute" targetRef="Activity_DraftResponse"/>
+        <bpmn:sequenceFlow id="Flow_Route_ServiceIssue" name="Service Recovery" sourceRef="ExclusiveGateway_CategoryRoute" targetRef="Activity_ServiceRecovery">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${category == 'SERVICE_RECOVERY'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_Route_LocationIssue" name="Location Issue" sourceRef="ExclusiveGateway_CategoryRoute" targetRef="Activity_InvestigateIssue">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${category == 'LOCATION_SPECIFIC'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+
+        <bpmn:sequenceFlow id="Flow_Draft_ApprovalCheck" sourceRef="Activity_DraftResponse" targetRef="ExclusiveGateway_ApprovalRequired"/>
+        <bpmn:sequenceFlow id="Flow_NoApproval" name="Self-Approve" sourceRef="ExclusiveGateway_ApprovalRequired" targetRef="SendTask_PublishResponse"/>
+        <bpmn:sequenceFlow id="Flow_NeedsApproval" name="Needs Review" sourceRef="ExclusiveGateway_ApprovalRequired" targetRef="Activity_ApproveResponse">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${sensitivityLevel == 'HIGH'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_Approved_Publish" sourceRef="Activity_ApproveResponse" targetRef="SendTask_PublishResponse"/>
+
+        <bpmn:sequenceFlow id="Flow_Publish_Private" sourceRef="SendTask_PublishResponse" targetRef="SendTask_PrivateFollowup"/>
+        <bpmn:sequenceFlow id="Flow_Private_Escalate" sourceRef="SendTask_PrivateFollowup" targetRef="Activity_CloseLoop"/>
+
+        <bpmn:sequenceFlow id="Flow_Recovery_Draft" sourceRef="Activity_ServiceRecovery" targetRef="Activity_DraftResponse"/>
+        <bpmn:sequenceFlow id="Flow_Investigate_Correct" sourceRef="Activity_InvestigateIssue" targetRef="Activity_ImplementCorrection"/>
+        <bpmn:sequenceFlow id="Flow_Investigation_Draft" sourceRef="Activity_ImplementCorrection" targetRef="Activity_DraftResponse"/>
+
+        <bpmn:sequenceFlow id="Flow_Close_Report" sourceRef="Activity_CloseLoop" targetRef="Activity_CompileReport"/>
+        <bpmn:sequenceFlow id="Flow_Report_Trends" sourceRef="Activity_CompileReport" targetRef="Activity_IdentifyTrends"/>
+        <bpmn:sequenceFlow id="Flow_Trends_End" sourceRef="Activity_IdentifyTrends" targetRef="EndEvent_ReportComplete"/>
+
+    </bpmn:process>
+
+    <!-- Customer Process (collapsed pool placeholder) -->
+    <bpmn:process id="Process_Customer" name="Customer" isExecutable="false"/>
+
+    <!-- Diagram Interchange -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_CommunityManagement">
+        <bpmndi:BPMNPlane id="BPMNPlane_CommunityManagement" bpmnElement="Collaboration_CommunityManagement">
+
+            <!-- Pool: Organization -->
+            <bpmndi:BPMNShape id="Participant_Organization_di" bpmnElement="Participant_Organization" isHorizontal="true">
+                <dc:Bounds x="40" y="160" width="2200" height="650"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Lane: Community Manager -->
+            <bpmndi:BPMNShape id="Lane_CommunityManager_di" bpmnElement="Lane_CommunityManager" isHorizontal="true">
+                <dc:Bounds x="70" y="160" width="2170" height="180"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Lane: Social Team Lead -->
+            <bpmndi:BPMNShape id="Lane_SocialTeamLead_di" bpmnElement="Lane_SocialTeamLead" isHorizontal="true">
+                <dc:Bounds x="70" y="340" width="2170" height="100"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Lane: Customer Care -->
+            <bpmndi:BPMNShape id="Lane_CustomerCare_di" bpmnElement="Lane_CustomerCare" isHorizontal="true">
+                <dc:Bounds x="70" y="440" width="2170" height="100"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Lane: Operations -->
+            <bpmndi:BPMNShape id="Lane_Operations_di" bpmnElement="Lane_Operations" isHorizontal="true">
+                <dc:Bounds x="70" y="540" width="2170" height="130"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Lane: Analytics -->
+            <bpmndi:BPMNShape id="Lane_Analytics_di" bpmnElement="Lane_Analytics" isHorizontal="true">
+                <dc:Bounds x="70" y="670" width="2170" height="140"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Pool: Customer (collapsed) -->
+            <bpmndi:BPMNShape id="Participant_Customer_di" bpmnElement="Participant_Customer" isHorizontal="true">
+                <dc:Bounds x="40" y="40" width="2200" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Shapes for Elements -->
+            <bpmndi:BPMNShape id="StartEvent_InteractionReceived_di" bpmnElement="StartEvent_InteractionReceived">
+                <dc:Bounds x="122" y="232" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="100" y="275" width="80" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_MonitorIntake_di" bpmnElement="Activity_MonitorIntake">
+                <dc:Bounds x="210" y="210" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_ReviewTriage_di" bpmnElement="Activity_ReviewTriage">
+                <dc:Bounds x="360" y="210" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="ExclusiveGateway_CategoryRoute_di" bpmnElement="ExclusiveGateway_CategoryRoute" isMarkerVisible="true">
+                <dc:Bounds x="515" y="225" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="495" y="195" width="90" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_DraftResponse_di" bpmnElement="Activity_DraftResponse">
+                <dc:Bounds x="620" y="210" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="ExclusiveGateway_ApprovalRequired_di" bpmnElement="ExclusiveGateway_ApprovalRequired" isMarkerVisible="true">
+                <dc:Bounds x="775" y="360" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="755" y="410" width="90" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_ApproveResponse_di" bpmnElement="Activity_ApproveResponse">
+                <dc:Bounds x="880" y="350" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="SendTask_PublishResponse_di" bpmnElement="SendTask_PublishResponse">
+                <dc:Bounds x="1030" y="210" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="SendTask_PrivateFollowup_di" bpmnElement="SendTask_PrivateFollowup">
+                <dc:Bounds x="1180" y="210" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_CloseLoop_di" bpmnElement="Activity_CloseLoop">
+                <dc:Bounds x="1330" y="210" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_ServiceRecovery_di" bpmnElement="Activity_ServiceRecovery">
+                <dc:Bounds x="620" y="460" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_InvestigateIssue_di" bpmnElement="Activity_InvestigateIssue">
+                <dc:Bounds x="620" y="570" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_ImplementCorrection_di" bpmnElement="Activity_ImplementCorrection">
+                <dc:Bounds x="770" y="570" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_CompileReport_di" bpmnElement="Activity_CompileReport">
+                <dc:Bounds x="1680" y="710" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Activity_IdentifyTrends_di" bpmnElement="Activity_IdentifyTrends">
+                <dc:Bounds x="1830" y="710" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="EndEvent_ReportComplete_di" bpmnElement="EndEvent_ReportComplete">
+                <dc:Bounds x="1982" y="732" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="1960" y="775" width="80" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Sequence Flow Edges -->
+            <bpmndi:BPMNEdge id="Flow_Start_Monitor_di" bpmnElement="Flow_Start_Monitor">
+                <di:waypoint x="158" y="250"/>
+                <di:waypoint x="210" y="250"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Monitor_Triage_di" bpmnElement="Flow_Monitor_Triage">
+                <di:waypoint x="310" y="250"/>
+                <di:waypoint x="360" y="250"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Triage_Route_di" bpmnElement="Flow_Triage_Route">
+                <di:waypoint x="460" y="250"/>
+                <di:waypoint x="515" y="250"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Route_Standard_di" bpmnElement="Flow_Route_Standard">
+                <di:waypoint x="565" y="250"/>
+                <di:waypoint x="620" y="250"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="565" y="232" width="70" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Route_ServiceIssue_di" bpmnElement="Flow_Route_ServiceIssue">
+                <di:waypoint x="540" y="275"/>
+                <di:waypoint x="540" y="500"/>
+                <di:waypoint x="620" y="500"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="545" y="360" width="80" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Route_LocationIssue_di" bpmnElement="Flow_Route_LocationIssue">
+                <di:waypoint x="540" y="275"/>
+                <di:waypoint x="540" y="610"/>
+                <di:waypoint x="620" y="610"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="545" y="480" width="70" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Draft_ApprovalCheck_di" bpmnElement="Flow_Draft_ApprovalCheck">
+                <di:waypoint x="720" y="250"/>
+                <di:waypoint x="747" y="250"/>
+                <di:waypoint x="747" y="385"/>
+                <di:waypoint x="775" y="385"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_NoApproval_di" bpmnElement="Flow_NoApproval">
+                <di:waypoint x="825" y="385"/>
+                <di:waypoint x="1030" y="385"/>
+                <di:waypoint x="1030" y="290"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="900" y="367" width="60" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_NeedsApproval_di" bpmnElement="Flow_NeedsApproval">
+                <di:waypoint x="825" y="385"/>
+                <di:waypoint x="880" y="385"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="826" y="367" width="70" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Approved_Publish_di" bpmnElement="Flow_Approved_Publish">
+                <di:waypoint x="980" y="390"/>
+                <di:waypoint x="1005" y="390"/>
+                <di:waypoint x="1005" y="250"/>
+                <di:waypoint x="1030" y="250"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Publish_Private_di" bpmnElement="Flow_Publish_Private">
+                <di:waypoint x="1130" y="250"/>
+                <di:waypoint x="1180" y="250"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Private_Escalate_di" bpmnElement="Flow_Private_Escalate">
+                <di:waypoint x="1280" y="250"/>
+                <di:waypoint x="1330" y="250"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Recovery_Draft_di" bpmnElement="Flow_Recovery_Draft">
+                <di:waypoint x="720" y="500"/>
+                <di:waypoint x="670" y="500"/>
+                <di:waypoint x="670" y="290"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Investigate_Correct_di" bpmnElement="Flow_Investigate_Correct">
+                <di:waypoint x="720" y="610"/>
+                <di:waypoint x="770" y="610"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Investigation_Draft_di" bpmnElement="Flow_Investigation_Draft">
+                <di:waypoint x="820" y="570"/>
+                <di:waypoint x="820" y="320"/>
+                <di:waypoint x="670" y="320"/>
+                <di:waypoint x="670" y="290"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Close_Report_di" bpmnElement="Flow_Close_Report">
+                <di:waypoint x="1430" y="250"/>
+                <di:waypoint x="1555" y="250"/>
+                <di:waypoint x="1555" y="750"/>
+                <di:waypoint x="1680" y="750"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Report_Trends_di" bpmnElement="Flow_Report_Trends">
+                <di:waypoint x="1780" y="750"/>
+                <di:waypoint x="1830" y="750"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Trends_End_di" bpmnElement="Flow_Trends_End">
+                <di:waypoint x="1930" y="750"/>
+                <di:waypoint x="1982" y="750"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Message Flow Edges -->
+            <bpmndi:BPMNEdge id="MessageFlow_CustomerPost_di" bpmnElement="MessageFlow_CustomerPost">
+                <di:waypoint x="140" y="120"/>
+                <di:waypoint x="140" y="232"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="MessageFlow_PublicResponse_di" bpmnElement="MessageFlow_PublicResponse">
+                <di:waypoint x="1080" y="210"/>
+                <di:waypoint x="1080" y="120"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="MessageFlow_PrivateMessage_di" bpmnElement="MessageFlow_PrivateMessage">
+                <di:waypoint x="1230" y="210"/>
+                <di:waypoint x="1230" y="120"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="MessageFlow_Resolution_di" bpmnElement="MessageFlow_Resolution">
+                <di:waypoint x="1380" y="210"/>
+                <di:waypoint x="1380" y="120"/>
+            </bpmndi:BPMNEdge>
+
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

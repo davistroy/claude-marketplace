@@ -1,0 +1,763 @@
+<!--
+  BPMN 2.0 Element Templates
+
+  This file contains XML snippets for all BPMN 2.0 elements.
+  Copy and adapt these templates when generating process definitions.
+
+  Organization:
+  1. Events (Start, Intermediate, End, Boundary)
+  2. Tasks (User, Service, Script, Send, Receive, Business Rule, Manual, Call Activity)
+  3. Gateways (Exclusive, Parallel, Inclusive, Event-Based, Complex)
+  4. Subprocesses (Embedded, Event, Transaction, Call Activity)
+  5. Data Elements (Data Object, Data Store, Data Association)
+  6. Artifacts (Text Annotation, Group, Association)
+  7. Collaboration Elements (Pool, Lane, Message Flow)
+  8. Diagram Interchange Shapes and Edges
+-->
+
+<!-- =========================================================================
+     1. EVENTS
+     ========================================================================= -->
+
+<!-- ===== START EVENTS ===== -->
+
+<!-- None Start Event (Manual/Generic start) -->
+<bpmn:startEvent id="StartEvent_1" name="Process Started">
+    <bpmn:outgoing>Flow_1</bpmn:outgoing>
+</bpmn:startEvent>
+
+<!-- Message Start Event (Triggered by external message) -->
+<bpmn:startEvent id="StartEvent_Message" name="Order Received">
+    <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    <bpmn:messageEventDefinition id="MessageEventDef_Start" messageRef="Message_OrderReceived"/>
+</bpmn:startEvent>
+
+<!-- Timer Start Event (Scheduled/Recurring) -->
+<bpmn:startEvent id="StartEvent_Timer" name="Daily at 9 AM">
+    <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    <bpmn:timerEventDefinition id="TimerEventDef_Start">
+        <!-- For specific date/time -->
+        <bpmn:timeDate xsi:type="bpmn:tFormalExpression">2024-01-01T09:00:00Z</bpmn:timeDate>
+        <!-- OR for duration after instantiation -->
+        <!-- <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT1H</bpmn:timeDuration> -->
+        <!-- OR for recurring/cycle -->
+        <!-- <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P1D</bpmn:timeCycle> -->
+    </bpmn:timerEventDefinition>
+</bpmn:startEvent>
+
+<!-- Conditional Start Event (Triggered when condition becomes true) -->
+<bpmn:startEvent id="StartEvent_Conditional" name="Inventory Low">
+    <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    <bpmn:conditionalEventDefinition id="ConditionalEventDef_Start">
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">${inventoryLevel &lt; 10}</bpmn:condition>
+    </bpmn:conditionalEventDefinition>
+</bpmn:startEvent>
+
+<!-- Signal Start Event (Triggered by broadcast signal) -->
+<bpmn:startEvent id="StartEvent_Signal" name="Emergency Alert">
+    <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    <bpmn:signalEventDefinition id="SignalEventDef_Start" signalRef="Signal_Emergency"/>
+</bpmn:startEvent>
+
+<!-- ===== INTERMEDIATE CATCH EVENTS ===== -->
+
+<!-- Intermediate Message Catch Event -->
+<bpmn:intermediateCatchEvent id="Event_WaitForMessage" name="Wait for Confirmation">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:messageEventDefinition id="MessageEventDef_Catch" messageRef="Message_Confirmation"/>
+</bpmn:intermediateCatchEvent>
+
+<!-- Intermediate Timer Catch Event (Wait/Delay) -->
+<bpmn:intermediateCatchEvent id="Event_Wait" name="Wait 24 Hours">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:timerEventDefinition id="TimerEventDef_Wait">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P1D</bpmn:timeDuration>
+    </bpmn:timerEventDefinition>
+</bpmn:intermediateCatchEvent>
+
+<!-- Intermediate Conditional Catch Event -->
+<bpmn:intermediateCatchEvent id="Event_WaitCondition" name="Wait for Stock">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:conditionalEventDefinition id="ConditionalEventDef_Wait">
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">${stockAvailable == true}</bpmn:condition>
+    </bpmn:conditionalEventDefinition>
+</bpmn:intermediateCatchEvent>
+
+<!-- Intermediate Signal Catch Event -->
+<bpmn:intermediateCatchEvent id="Event_CatchSignal" name="Receive Update Signal">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:signalEventDefinition id="SignalEventDef_Catch" signalRef="Signal_Update"/>
+</bpmn:intermediateCatchEvent>
+
+<!-- Intermediate Link Catch Event (Go-to target) -->
+<bpmn:intermediateCatchEvent id="Event_LinkCatch" name="Continue Here">
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:linkEventDefinition id="LinkEventDef_Catch" name="RetryPoint"/>
+</bpmn:intermediateCatchEvent>
+
+<!-- ===== INTERMEDIATE THROW EVENTS ===== -->
+
+<!-- Intermediate Message Throw Event -->
+<bpmn:intermediateThrowEvent id="Event_SendMessage" name="Send Notification">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:messageEventDefinition id="MessageEventDef_Throw" messageRef="Message_Notification"/>
+</bpmn:intermediateThrowEvent>
+
+<!-- Intermediate Signal Throw Event (Broadcast) -->
+<bpmn:intermediateThrowEvent id="Event_ThrowSignal" name="Broadcast Update">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:signalEventDefinition id="SignalEventDef_Throw" signalRef="Signal_Update"/>
+</bpmn:intermediateThrowEvent>
+
+<!-- Intermediate Escalation Throw Event -->
+<bpmn:intermediateThrowEvent id="Event_Escalate" name="Escalate to Manager">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:escalationEventDefinition id="EscalationEventDef_Throw" escalationRef="Escalation_ToManager"/>
+</bpmn:intermediateThrowEvent>
+
+<!-- Intermediate Compensation Throw Event -->
+<bpmn:intermediateThrowEvent id="Event_Compensate" name="Trigger Compensation">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:compensateEventDefinition id="CompensateEventDef_Throw"/>
+</bpmn:intermediateThrowEvent>
+
+<!-- Intermediate Link Throw Event (Go-to source) -->
+<bpmn:intermediateThrowEvent id="Event_LinkThrow" name="Go to Retry">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:linkEventDefinition id="LinkEventDef_Throw" name="RetryPoint"/>
+</bpmn:intermediateThrowEvent>
+
+<!-- ===== END EVENTS ===== -->
+
+<!-- None End Event (Normal completion) -->
+<bpmn:endEvent id="EndEvent_1" name="Process Completed">
+    <bpmn:incoming>Flow_Last</bpmn:incoming>
+</bpmn:endEvent>
+
+<!-- Message End Event (Send message on completion) -->
+<bpmn:endEvent id="EndEvent_Message" name="Send Completion Notice">
+    <bpmn:incoming>Flow_Last</bpmn:incoming>
+    <bpmn:messageEventDefinition id="MessageEventDef_End" messageRef="Message_Complete"/>
+</bpmn:endEvent>
+
+<!-- Error End Event (Process failed) -->
+<bpmn:endEvent id="EndEvent_Error" name="Order Failed">
+    <bpmn:incoming>Flow_Last</bpmn:incoming>
+    <bpmn:errorEventDefinition id="ErrorEventDef_End" errorRef="Error_OrderFailed"/>
+</bpmn:endEvent>
+
+<!-- Escalation End Event -->
+<bpmn:endEvent id="EndEvent_Escalation" name="Escalated">
+    <bpmn:incoming>Flow_Last</bpmn:incoming>
+    <bpmn:escalationEventDefinition id="EscalationEventDef_End" escalationRef="Escalation_Unresolved"/>
+</bpmn:endEvent>
+
+<!-- Signal End Event (Broadcast on completion) -->
+<bpmn:endEvent id="EndEvent_Signal" name="Broadcast Complete">
+    <bpmn:incoming>Flow_Last</bpmn:incoming>
+    <bpmn:signalEventDefinition id="SignalEventDef_End" signalRef="Signal_ProcessComplete"/>
+</bpmn:endEvent>
+
+<!-- Terminate End Event (Stop all tokens in process) -->
+<bpmn:endEvent id="EndEvent_Terminate" name="Abort Process">
+    <bpmn:incoming>Flow_Last</bpmn:incoming>
+    <bpmn:terminateEventDefinition id="TerminateEventDef_End"/>
+</bpmn:endEvent>
+
+<!-- Compensation End Event -->
+<bpmn:endEvent id="EndEvent_Compensation" name="Compensation Complete">
+    <bpmn:incoming>Flow_Last</bpmn:incoming>
+    <bpmn:compensateEventDefinition id="CompensateEventDef_End"/>
+</bpmn:endEvent>
+
+<!-- ===== BOUNDARY EVENTS ===== -->
+
+<!-- Boundary Timer Event (Interrupting) -->
+<bpmn:boundaryEvent id="BoundaryEvent_Timer" name="Timeout" attachedToRef="Activity_Task1" cancelActivity="true">
+    <bpmn:outgoing>Flow_Timeout</bpmn:outgoing>
+    <bpmn:timerEventDefinition id="TimerEventDef_Boundary">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT2H</bpmn:timeDuration>
+    </bpmn:timerEventDefinition>
+</bpmn:boundaryEvent>
+
+<!-- Boundary Timer Event (Non-Interrupting) -->
+<bpmn:boundaryEvent id="BoundaryEvent_TimerReminder" name="Send Reminder" attachedToRef="Activity_Task1" cancelActivity="false">
+    <bpmn:outgoing>Flow_Reminder</bpmn:outgoing>
+    <bpmn:timerEventDefinition id="TimerEventDef_Reminder">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R3/PT1H</bpmn:timeCycle>
+    </bpmn:timerEventDefinition>
+</bpmn:boundaryEvent>
+
+<!-- Boundary Error Event (Always Interrupting) -->
+<bpmn:boundaryEvent id="BoundaryEvent_Error" name="Handle Error" attachedToRef="Activity_Task1">
+    <bpmn:outgoing>Flow_Error</bpmn:outgoing>
+    <bpmn:errorEventDefinition id="ErrorEventDef_Boundary" errorRef="Error_ValidationFailed"/>
+</bpmn:boundaryEvent>
+
+<!-- Boundary Message Event (Interrupting) -->
+<bpmn:boundaryEvent id="BoundaryEvent_Message" name="Cancellation Received" attachedToRef="Activity_Task1" cancelActivity="true">
+    <bpmn:outgoing>Flow_Cancelled</bpmn:outgoing>
+    <bpmn:messageEventDefinition id="MessageEventDef_Boundary" messageRef="Message_Cancel"/>
+</bpmn:boundaryEvent>
+
+<!-- Boundary Signal Event (Non-Interrupting) -->
+<bpmn:boundaryEvent id="BoundaryEvent_Signal" name="Priority Update" attachedToRef="Activity_Task1" cancelActivity="false">
+    <bpmn:outgoing>Flow_Priority</bpmn:outgoing>
+    <bpmn:signalEventDefinition id="SignalEventDef_Boundary" signalRef="Signal_Priority"/>
+</bpmn:boundaryEvent>
+
+<!-- Boundary Escalation Event -->
+<bpmn:boundaryEvent id="BoundaryEvent_Escalation" name="Escalation Caught" attachedToRef="SubProcess_1" cancelActivity="false">
+    <bpmn:outgoing>Flow_Escalation</bpmn:outgoing>
+    <bpmn:escalationEventDefinition id="EscalationEventDef_Boundary" escalationRef="Escalation_Internal"/>
+</bpmn:boundaryEvent>
+
+<!-- Boundary Compensation Event -->
+<bpmn:boundaryEvent id="BoundaryEvent_Compensation" name="Compensation" attachedToRef="Activity_Task1">
+    <bpmn:compensateEventDefinition id="CompensateEventDef_Boundary"/>
+</bpmn:boundaryEvent>
+
+
+<!-- =========================================================================
+     2. TASKS
+     ========================================================================= -->
+
+<!--
+    IMPORTANT: Every task MUST include <bpmn:documentation> for PowerPoint generation.
+    Documentation provides the bullet point content for Level 3 hierarchy.
+-->
+
+<!-- User Task (Human performer) -->
+<bpmn:userTask id="Activity_UserTask" name="Review Application">
+    <bpmn:documentation>
+        Reviewer examines the submitted application for completeness and accuracy.
+        Verifies all required documents are attached and applicant information matches
+        supporting documentation. Marks application as approved, rejected, or requires
+        additional information. Average completion time: 15 minutes.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+</bpmn:userTask>
+
+<!-- Service Task (Automated/System) -->
+<bpmn:serviceTask id="Activity_ServiceTask" name="Call Payment API">
+    <bpmn:documentation>
+        System calls the payment gateway API to process the transaction. Submits
+        payment details including amount, card token, and billing address. Handles
+        response including authorization code, decline reasons, or error codes.
+        Timeout: 30 seconds. Retry on network failure: up to 3 attempts.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+</bpmn:serviceTask>
+
+<!-- Script Task (Execute code) -->
+<bpmn:scriptTask id="Activity_ScriptTask" name="Calculate Total" scriptFormat="javascript">
+    <bpmn:documentation>
+        Calculates the order total by summing all line items. Applies quantity
+        multipliers, discounts, and tax rates. Rounds to two decimal places
+        and stores result in orderTotal variable for downstream processing.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:script><![CDATA[
+        var total = items.reduce(function(sum, item) {
+            return sum + item.price * item.quantity;
+        }, 0);
+        execution.setVariable('orderTotal', total);
+    ]]></bpmn:script>
+</bpmn:scriptTask>
+
+<!-- Send Task (Send message) -->
+<bpmn:sendTask id="Activity_SendTask" name="Send Order Confirmation">
+    <bpmn:documentation>
+        Sends order confirmation email to the customer. Includes order number,
+        itemized list, total amount, estimated delivery date, and tracking
+        information when available. Uses branded email template.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+</bpmn:sendTask>
+
+<!-- Receive Task (Wait for message) -->
+<bpmn:receiveTask id="Activity_ReceiveTask" name="Wait for Payment Confirmation">
+    <bpmn:documentation>
+        Waits for payment confirmation message from the payment processor.
+        Message contains transaction ID, authorization code, and final
+        settlement amount. Maximum wait time: 24 hours before timeout.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+</bpmn:receiveTask>
+
+<!-- Business Rule Task (DMN/Decision Table) -->
+<bpmn:businessRuleTask id="Activity_BusinessRuleTask" name="Determine Discount">
+    <bpmn:documentation>
+        Evaluates customer eligibility for discounts using the pricing rules
+        decision table. Considers customer tier, order value, promotional codes,
+        and seasonal offers. Returns applicable discount percentage.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+</bpmn:businessRuleTask>
+
+<!-- Manual Task (Physical work, not system tracked) -->
+<bpmn:manualTask id="Activity_ManualTask" name="Pack Items in Box">
+    <bpmn:documentation>
+        Warehouse staff physically packs ordered items into appropriate shipping
+        containers. Includes protective packaging materials, packing slip, and
+        any promotional inserts. Verifies item count against pick list.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+</bpmn:manualTask>
+
+<!-- Generic Task (Unspecified type) -->
+<bpmn:task id="Activity_Task" name="Process Order">
+    <bpmn:documentation>
+        Processes the incoming order through standard fulfillment workflow.
+        Validates order details, allocates inventory, and prepares for shipping.
+        Updates order status in the system upon completion.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+</bpmn:task>
+
+<!-- Call Activity (Invoke another process) -->
+<bpmn:callActivity id="Activity_CallActivity" name="Execute Payment Process" calledElement="Process_Payment">
+    <bpmn:documentation>
+        Invokes the standard payment processing subprocess. This subprocess
+        handles all payment types including credit card, ACH, and stored
+        payment methods. Returns success/failure status with transaction details.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+</bpmn:callActivity>
+
+<!-- Multi-Instance Task (Loop) - Sequential -->
+<bpmn:userTask id="Activity_MultiInstance_Sequential" name="Approve Each Item">
+    <bpmn:documentation>
+        Approver reviews and approves each item in the collection sequentially.
+        Each item is presented for individual approval with supporting details.
+        Process continues to next item only after current item is approved.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+        <bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">${itemCount}</bpmn:loopCardinality>
+    </bpmn:multiInstanceLoopCharacteristics>
+</bpmn:userTask>
+
+<!-- Multi-Instance Task (Loop) - Parallel -->
+<bpmn:serviceTask id="Activity_MultiInstance_Parallel" name="Send to All Recipients">
+    <bpmn:documentation>
+        Sends notifications to all recipients in parallel. Each recipient receives
+        personalized message with relevant details. Collects delivery status from
+        each send operation. Completes when all sends are attempted.
+    </bpmn:documentation>
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:multiInstanceLoopCharacteristics isSequential="false">
+        <bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">${recipientCount}</bpmn:loopCardinality>
+    </bpmn:multiInstanceLoopCharacteristics>
+</bpmn:serviceTask>
+
+
+<!-- =========================================================================
+     3. GATEWAYS
+     ========================================================================= -->
+
+<!-- Exclusive Gateway (XOR) - Diverging -->
+<bpmn:exclusiveGateway id="Gateway_Exclusive_Split" name="Order Valid?" default="Flow_Default">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_Yes</bpmn:outgoing>
+    <bpmn:outgoing>Flow_No</bpmn:outgoing>
+    <bpmn:outgoing>Flow_Default</bpmn:outgoing>
+</bpmn:exclusiveGateway>
+
+<!-- Exclusive Gateway (XOR) - Converging -->
+<bpmn:exclusiveGateway id="Gateway_Exclusive_Merge" name="Merge Paths">
+    <bpmn:incoming>Flow_Path1</bpmn:incoming>
+    <bpmn:incoming>Flow_Path2</bpmn:incoming>
+    <bpmn:outgoing>Flow_Continue</bpmn:outgoing>
+</bpmn:exclusiveGateway>
+
+<!-- Parallel Gateway (AND) - Diverging (Fork) -->
+<bpmn:parallelGateway id="Gateway_Parallel_Fork" name="Start Parallel Tasks">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_Branch1</bpmn:outgoing>
+    <bpmn:outgoing>Flow_Branch2</bpmn:outgoing>
+    <bpmn:outgoing>Flow_Branch3</bpmn:outgoing>
+</bpmn:parallelGateway>
+
+<!-- Parallel Gateway (AND) - Converging (Join) -->
+<bpmn:parallelGateway id="Gateway_Parallel_Join" name="Wait for All">
+    <bpmn:incoming>Flow_Branch1</bpmn:incoming>
+    <bpmn:incoming>Flow_Branch2</bpmn:incoming>
+    <bpmn:incoming>Flow_Branch3</bpmn:incoming>
+    <bpmn:outgoing>Flow_Continue</bpmn:outgoing>
+</bpmn:parallelGateway>
+
+<!-- Inclusive Gateway (OR) - Diverging -->
+<bpmn:inclusiveGateway id="Gateway_Inclusive_Split" name="Select Options" default="Flow_Default">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_Option1</bpmn:outgoing>
+    <bpmn:outgoing>Flow_Option2</bpmn:outgoing>
+    <bpmn:outgoing>Flow_Default</bpmn:outgoing>
+</bpmn:inclusiveGateway>
+
+<!-- Inclusive Gateway (OR) - Converging -->
+<bpmn:inclusiveGateway id="Gateway_Inclusive_Merge" name="Merge Selected">
+    <bpmn:incoming>Flow_Option1</bpmn:incoming>
+    <bpmn:incoming>Flow_Option2</bpmn:incoming>
+    <bpmn:outgoing>Flow_Continue</bpmn:outgoing>
+</bpmn:inclusiveGateway>
+
+<!-- Event-Based Gateway -->
+<bpmn:eventBasedGateway id="Gateway_EventBased" name="Wait for Event">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_ToMessageEvent</bpmn:outgoing>
+    <bpmn:outgoing>Flow_ToTimerEvent</bpmn:outgoing>
+</bpmn:eventBasedGateway>
+
+<!-- Complex Gateway -->
+<bpmn:complexGateway id="Gateway_Complex" name="Complex Decision" default="Flow_Default">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:incoming>Flow_2</bpmn:incoming>
+    <bpmn:outgoing>Flow_A</bpmn:outgoing>
+    <bpmn:outgoing>Flow_B</bpmn:outgoing>
+    <bpmn:outgoing>Flow_Default</bpmn:outgoing>
+    <bpmn:activationCondition xsi:type="bpmn:tFormalExpression">${activationCount >= 2}</bpmn:activationCondition>
+</bpmn:complexGateway>
+
+
+<!-- =========================================================================
+     4. SUBPROCESSES
+     ========================================================================= -->
+
+<!-- Embedded Subprocess -->
+<bpmn:subProcess id="SubProcess_Embedded" name="Handle Order Items">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+    <bpmn:startEvent id="SubStart_1" name="Start">
+        <bpmn:outgoing>SubFlow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:task id="SubTask_1" name="Process Item">
+        <bpmn:incoming>SubFlow_1</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_2</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:endEvent id="SubEnd_1" name="Done">
+        <bpmn:incoming>SubFlow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="SubFlow_1" sourceRef="SubStart_1" targetRef="SubTask_1"/>
+    <bpmn:sequenceFlow id="SubFlow_2" sourceRef="SubTask_1" targetRef="SubEnd_1"/>
+</bpmn:subProcess>
+
+<!-- Event Subprocess (Non-Interrupting) -->
+<bpmn:subProcess id="SubProcess_Event" name="Handle Cancellation" triggeredByEvent="true">
+    <bpmn:startEvent id="SubStart_Cancel" name="Cancellation Received" isInterrupting="false">
+        <bpmn:outgoing>SubFlow_Cancel1</bpmn:outgoing>
+        <bpmn:messageEventDefinition id="MsgDef_Cancel" messageRef="Message_Cancel"/>
+    </bpmn:startEvent>
+
+    <bpmn:task id="SubTask_Cancel" name="Process Cancellation">
+        <bpmn:incoming>SubFlow_Cancel1</bpmn:incoming>
+        <bpmn:outgoing>SubFlow_Cancel2</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:endEvent id="SubEnd_Cancel" name="Cancellation Handled">
+        <bpmn:incoming>SubFlow_Cancel2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="SubFlow_Cancel1" sourceRef="SubStart_Cancel" targetRef="SubTask_Cancel"/>
+    <bpmn:sequenceFlow id="SubFlow_Cancel2" sourceRef="SubTask_Cancel" targetRef="SubEnd_Cancel"/>
+</bpmn:subProcess>
+
+<!-- Transaction Subprocess -->
+<bpmn:transaction id="Transaction_Payment" name="Payment Transaction">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+    <bpmn:startEvent id="TxStart" name="Start Transaction">
+        <bpmn:outgoing>TxFlow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="TxTask_Charge" name="Charge Card">
+        <bpmn:incoming>TxFlow_1</bpmn:incoming>
+        <bpmn:outgoing>TxFlow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="TxEnd" name="Transaction Complete">
+        <bpmn:incoming>TxFlow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="TxFlow_1" sourceRef="TxStart" targetRef="TxTask_Charge"/>
+    <bpmn:sequenceFlow id="TxFlow_2" sourceRef="TxTask_Charge" targetRef="TxEnd"/>
+</bpmn:transaction>
+
+<!-- Ad-Hoc Subprocess -->
+<bpmn:adHocSubProcess id="SubProcess_AdHoc" name="Optional Tasks" ordering="Parallel">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:completionCondition xsi:type="bpmn:tFormalExpression">${allTasksComplete}</bpmn:completionCondition>
+
+    <bpmn:task id="AdHocTask_1" name="Optional Task A"/>
+    <bpmn:task id="AdHocTask_2" name="Optional Task B"/>
+</bpmn:adHocSubProcess>
+
+
+<!-- =========================================================================
+     5. DATA ELEMENTS
+     ========================================================================= -->
+
+<!-- Data Object Reference -->
+<bpmn:dataObjectReference id="DataObjectRef_Order" name="Order Data" dataObjectRef="DataObject_Order"/>
+<bpmn:dataObject id="DataObject_Order" isCollection="false"/>
+
+<!-- Data Object Collection -->
+<bpmn:dataObjectReference id="DataObjectRef_Items" name="Order Items" dataObjectRef="DataObject_Items"/>
+<bpmn:dataObject id="DataObject_Items" isCollection="true"/>
+
+<!-- Data Store Reference -->
+<bpmn:dataStoreReference id="DataStoreRef_Orders" name="Orders Database"/>
+
+<!-- Data Input Association (Read data into task) -->
+<bpmn:userTask id="Task_WithInput" name="Review Order">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:dataInputAssociation id="DataInputAssoc_1">
+        <bpmn:sourceRef>DataObjectRef_Order</bpmn:sourceRef>
+    </bpmn:dataInputAssociation>
+</bpmn:userTask>
+
+<!-- Data Output Association (Write data from task) -->
+<bpmn:userTask id="Task_WithOutput" name="Enter Order Details">
+    <bpmn:incoming>Flow_1</bpmn:incoming>
+    <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    <bpmn:dataOutputAssociation id="DataOutputAssoc_1">
+        <bpmn:targetRef>DataObjectRef_Order</bpmn:targetRef>
+    </bpmn:dataOutputAssociation>
+</bpmn:userTask>
+
+
+<!-- =========================================================================
+     6. ARTIFACTS
+     ========================================================================= -->
+
+<!-- Text Annotation -->
+<bpmn:textAnnotation id="TextAnnotation_1">
+    <bpmn:text>This step requires manager approval for orders over $1000</bpmn:text>
+</bpmn:textAnnotation>
+
+<!-- Association (connects annotation to element) -->
+<bpmn:association id="Association_1" sourceRef="TextAnnotation_1" targetRef="Activity_Approval"/>
+
+<!-- Group (visual grouping, no semantic meaning) -->
+<bpmn:group id="Group_1" categoryValueRef="CategoryValue_1"/>
+
+<!-- Category Value (for grouping) -->
+<bpmn:category id="Category_1">
+    <bpmn:categoryValue id="CategoryValue_1" value="Approval Process"/>
+</bpmn:category>
+
+
+<!-- =========================================================================
+     7. COLLABORATION ELEMENTS
+     ========================================================================= -->
+
+<!-- Collaboration Container -->
+<bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Customer" name="Customer" processRef="Process_Customer"/>
+    <bpmn:participant id="Participant_Vendor" name="Vendor" processRef="Process_Vendor"/>
+    <bpmn:messageFlow id="MessageFlow_Order" name="Place Order" sourceRef="Task_PlaceOrder" targetRef="StartEvent_OrderReceived"/>
+    <bpmn:messageFlow id="MessageFlow_Confirm" name="Confirm Order" sourceRef="Task_SendConfirmation" targetRef="Event_ReceiveConfirmation"/>
+</bpmn:collaboration>
+
+<!-- Message Definition -->
+<bpmn:message id="Message_Order" name="OrderMessage"/>
+<bpmn:message id="Message_Confirmation" name="ConfirmationMessage"/>
+
+<!-- Signal Definition -->
+<bpmn:signal id="Signal_Alert" name="AlertSignal"/>
+
+<!-- Error Definition -->
+<bpmn:error id="Error_Validation" name="ValidationError" errorCode="ERR_VALIDATION"/>
+
+<!-- Escalation Definition -->
+<bpmn:escalation id="Escalation_Manager" name="ManagerEscalation" escalationCode="ESC_MANAGER"/>
+
+
+<!-- =========================================================================
+     8. SEQUENCE FLOWS
+     ========================================================================= -->
+
+<!-- Basic Sequence Flow -->
+<bpmn:sequenceFlow id="Flow_Basic" sourceRef="Task_1" targetRef="Task_2"/>
+
+<!-- Conditional Sequence Flow -->
+<bpmn:sequenceFlow id="Flow_Conditional" name="Approved" sourceRef="Gateway_Decision" targetRef="Task_Approved">
+    <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == true}</bpmn:conditionExpression>
+</bpmn:sequenceFlow>
+
+<!-- Default Sequence Flow (marked on gateway, no condition needed) -->
+<bpmn:sequenceFlow id="Flow_Default" name="Otherwise" sourceRef="Gateway_Decision" targetRef="Task_Default"/>
+
+
+<!-- =========================================================================
+     9. DIAGRAM INTERCHANGE - SHAPES
+     ========================================================================= -->
+
+<!-- Start Event Shape -->
+<bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+    <dc:Bounds x="180" y="102" width="36" height="36"/>
+    <bpmndi:BPMNLabel>
+        <dc:Bounds x="163" y="145" width="70" height="14"/>
+    </bpmndi:BPMNLabel>
+</bpmndi:BPMNShape>
+
+<!-- End Event Shape -->
+<bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+    <dc:Bounds x="732" y="102" width="36" height="36"/>
+    <bpmndi:BPMNLabel>
+        <dc:Bounds x="710" y="145" width="80" height="14"/>
+    </bpmndi:BPMNLabel>
+</bpmndi:BPMNShape>
+
+<!-- Task Shape -->
+<bpmndi:BPMNShape id="Activity_Task_di" bpmnElement="Activity_Task">
+    <dc:Bounds x="280" y="80" width="100" height="80"/>
+</bpmndi:BPMNShape>
+
+<!-- Gateway Shape (with marker visible for exclusive) -->
+<bpmndi:BPMNShape id="Gateway_1_di" bpmnElement="Gateway_1" isMarkerVisible="true">
+    <dc:Bounds x="445" y="95" width="50" height="50"/>
+    <bpmndi:BPMNLabel>
+        <dc:Bounds x="435" y="65" width="70" height="14"/>
+    </bpmndi:BPMNLabel>
+</bpmndi:BPMNShape>
+
+<!-- Parallel Gateway Shape -->
+<bpmndi:BPMNShape id="Gateway_Parallel_di" bpmnElement="Gateway_Parallel">
+    <dc:Bounds x="445" y="95" width="50" height="50"/>
+</bpmndi:BPMNShape>
+
+<!-- Subprocess Shape (Expanded) -->
+<bpmndi:BPMNShape id="SubProcess_1_di" bpmnElement="SubProcess_1" isExpanded="true">
+    <dc:Bounds x="280" y="60" width="350" height="200"/>
+</bpmndi:BPMNShape>
+
+<!-- Subprocess Shape (Collapsed) -->
+<bpmndi:BPMNShape id="SubProcess_2_di" bpmnElement="SubProcess_2" isExpanded="false">
+    <dc:Bounds x="280" y="80" width="100" height="80"/>
+</bpmndi:BPMNShape>
+
+<!-- Pool Shape (Horizontal) -->
+<bpmndi:BPMNShape id="Participant_1_di" bpmnElement="Participant_1" isHorizontal="true">
+    <dc:Bounds x="120" y="60" width="600" height="250"/>
+    <bpmndi:BPMNLabel/>
+</bpmndi:BPMNShape>
+
+<!-- Lane Shape -->
+<bpmndi:BPMNShape id="Lane_1_di" bpmnElement="Lane_1" isHorizontal="true">
+    <dc:Bounds x="150" y="60" width="570" height="125"/>
+    <bpmndi:BPMNLabel/>
+</bpmndi:BPMNShape>
+
+<!-- Data Object Shape -->
+<bpmndi:BPMNShape id="DataObject_1_di" bpmnElement="DataObjectRef_1">
+    <dc:Bounds x="332" y="195" width="36" height="50"/>
+    <bpmndi:BPMNLabel>
+        <dc:Bounds x="320" y="252" width="60" height="14"/>
+    </bpmndi:BPMNLabel>
+</bpmndi:BPMNShape>
+
+<!-- Text Annotation Shape -->
+<bpmndi:BPMNShape id="TextAnnotation_1_di" bpmnElement="TextAnnotation_1">
+    <dc:Bounds x="380" y="170" width="100" height="30"/>
+</bpmndi:BPMNShape>
+
+<!-- Group Shape -->
+<bpmndi:BPMNShape id="Group_1_di" bpmnElement="Group_1">
+    <dc:Bounds x="260" y="50" width="300" height="150"/>
+    <bpmndi:BPMNLabel>
+        <dc:Bounds x="380" y="57" width="60" height="14"/>
+    </bpmndi:BPMNLabel>
+</bpmndi:BPMNShape>
+
+
+<!-- =========================================================================
+     10. DIAGRAM INTERCHANGE - EDGES
+     ========================================================================= -->
+
+<!-- Simple Horizontal Edge -->
+<bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+    <di:waypoint x="216" y="120"/>
+    <di:waypoint x="280" y="120"/>
+</bpmndi:BPMNEdge>
+
+<!-- Edge with Single Bend (L-shape) -->
+<bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+    <di:waypoint x="380" y="120"/>
+    <di:waypoint x="410" y="120"/>
+    <di:waypoint x="410" y="200"/>
+    <di:waypoint x="445" y="200"/>
+</bpmndi:BPMNEdge>
+
+<!-- Edge from Gateway Split (going up) -->
+<bpmndi:BPMNEdge id="Flow_Up_di" bpmnElement="Flow_Up">
+    <di:waypoint x="470" y="95"/>
+    <di:waypoint x="470" y="60"/>
+    <di:waypoint x="540" y="60"/>
+</bpmndi:BPMNEdge>
+
+<!-- Edge from Gateway Split (going down) -->
+<bpmndi:BPMNEdge id="Flow_Down_di" bpmnElement="Flow_Down">
+    <di:waypoint x="470" y="145"/>
+    <di:waypoint x="470" y="180"/>
+    <di:waypoint x="540" y="180"/>
+</bpmndi:BPMNEdge>
+
+<!-- Edge to Gateway Merge (from above) -->
+<bpmndi:BPMNEdge id="Flow_MergeUp_di" bpmnElement="Flow_MergeUp">
+    <di:waypoint x="640" y="60"/>
+    <di:waypoint x="670" y="60"/>
+    <di:waypoint x="670" y="95"/>
+</bpmndi:BPMNEdge>
+
+<!-- Edge to Gateway Merge (from below) -->
+<bpmndi:BPMNEdge id="Flow_MergeDown_di" bpmnElement="Flow_MergeDown">
+    <di:waypoint x="640" y="180"/>
+    <di:waypoint x="670" y="180"/>
+    <di:waypoint x="670" y="145"/>
+</bpmndi:BPMNEdge>
+
+<!-- Message Flow Edge -->
+<bpmndi:BPMNEdge id="MessageFlow_1_di" bpmnElement="MessageFlow_1">
+    <di:waypoint x="350" y="310"/>
+    <di:waypoint x="350" y="370"/>
+</bpmndi:BPMNEdge>
+
+<!-- Association Edge -->
+<bpmndi:BPMNEdge id="Association_1_di" bpmnElement="Association_1">
+    <di:waypoint x="380" y="185"/>
+    <di:waypoint x="350" y="160"/>
+</bpmndi:BPMNEdge>
+
+<!-- Data Association Edge -->
+<bpmndi:BPMNEdge id="DataInputAssoc_1_di" bpmnElement="DataInputAssoc_1">
+    <di:waypoint x="350" y="195"/>
+    <di:waypoint x="350" y="160"/>
+</bpmndi:BPMNEdge>
+
