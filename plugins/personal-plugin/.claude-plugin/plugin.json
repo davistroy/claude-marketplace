@@ -6,8 +6,8 @@
     "name": "Troy Davis",
     "email": "troy.e.davis@gmail.com"
   },
-  "homepage": "https://github.com/davistroy/personal-plugin",
-  "repository": "https://github.com/davistroy/personal-plugin",
+  "homepage": "https://github.com/davistroy/claude-marketplace",
+  "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
   "keywords": ["personal","automation"]
 }
