@@ -18,7 +18,9 @@ plugins/
       plugin.json           # Plugin metadata
     commands/
       arch-review.md        # Architectural audit (read-only analysis)
+      cleanup.md            # Repository cleanup and organization
       doc-review.md         # Documentation audit and cleanup
+      finish-document.md    # Extract questions, answer, update document
       transcript-analysis.md  # Meeting transcript to structured report
       define-questions.md   # Extract questions/TBDs from docs to JSON
       ask-questions.md      # Interactive Q&A session from JSON file

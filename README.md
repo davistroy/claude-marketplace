@@ -20,7 +20,9 @@ Custom commands and skills for productivity workflows.
 | Command | Description |
 |---------|-------------|
 | `/arch-review` | Deep architectural review with technical debt assessment |
+| `/cleanup` | Repository cleanup, organization, and documentation refresh |
 | `/doc-review` | Documentation audit and cleanup |
+| `/finish-document` | Extract questions, answer interactively, update document |
 | `/transcript-analysis` | Convert meeting transcripts to structured markdown |
 | `/define-questions` | Extract questions/TBDs from docs to JSON |
 | `/ask-questions` | Interactive Q&A session from JSON file |
