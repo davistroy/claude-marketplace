@@ -2,7 +2,7 @@
   "name": "troys-plugins",
   "metadata": {
     "description": "Troy Davis Claude Code plugins",
-    "version": "1.3.0"
+    "version": "1.4.0"
   },
   "owner": {
     "name": "Troy Davis",
@@ -21,7 +21,7 @@
       "name": "bpmn-plugin",
       "source": "./plugins/bpmn-plugin",
       "description": "BPMN 2.0 workflow tools: XML generation from natural language/markdown, and conversion to Draw.io format",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "category": "workflow",
       "tags": ["bpmn","workflow","xml","diagram","process-modeling","drawio"]
     }

@@ -34,6 +34,37 @@ Section 5: Decision Points (exclusive gateways)
 Section 6: Completion (end events)
 ```
 
+### 1.3 Pre-Generation Checklist (MANDATORY)
+
+Before writing ANY draw.io XML, complete ALL of these steps:
+
+#### Analysis Complete
+- [ ] Counted all pools (participant elements)
+- [ ] Counted all lanes per pool
+- [ ] Listed all elements per lane with IDs
+- [ ] Identified ALL cross-lane sequence flows
+- [ ] Identified ALL message flows between pools
+
+#### Coordinate Registry Built
+- [ ] All pool absolute positions calculated
+- [ ] All lane absolute positions calculated
+- [ ] All element absolute positions calculated
+- [ ] Registry exported/documented
+
+#### Layout Planned
+- [ ] Page dimensions calculated
+- [ ] Pool heights accommodate all lanes
+- [ ] Lane heights accommodate branching
+- [ ] Element spacing verified (no overlaps)
+
+#### Edge Inventory Complete
+- [ ] All intra-lane edges listed with source/target IDs
+- [ ] All cross-lane edges listed with source/target IDs
+- [ ] All message flows listed with source/target IDs
+- [ ] Each edge has calculated coordinates from registry
+
+**DO NOT PROCEED** to XML generation until ALL boxes are checked.
+
 ---
 
 ## 2. Draw.io XML Structure
@@ -68,10 +99,66 @@ PAGE_HEIGHT = POOL_TOP_MARGIN + TOTAL_POOL_HEIGHT + BOTTOM_MARGIN + CUSTOMER_POO
 
 Where:
 - POOL_LEFT_MARGIN = 40px
-- RIGHT_MARGIN = 100px  
+- RIGHT_MARGIN = 100px
 - POOL_TOP_MARGIN = 40px
 - BOTTOM_MARGIN = 40px
 ```
+
+### 2.3 Coordinate Registry (MANDATORY)
+
+Before generating ANY XML, build a coordinate registry that tracks absolute positions of all elements. This registry is the SINGLE SOURCE OF TRUTH for edge calculations.
+
+#### 2.3.1 Registry Structure
+
+```javascript
+const coordinateRegistry = {
+  pools: {
+    "pool_customer": { x: 40, y: 40, width: 3000, height: 120 },
+    "pool_ai_system": { x: 40, y: 180, width: 3000, height: 900 },
+    "pool_crm": { x: 40, y: 1100, width: 3000, height: 120 }
+  },
+  lanes: {
+    "lane_ai_automation": {
+      poolId: "pool_ai_system",
+      relativeY: 0,        // Y within pool (after pool label)
+      height: 300,
+      absoluteY: 180       // CALCULATED: pool.y + relativeY
+    },
+    "lane_human_review": {
+      poolId: "pool_ai_system",
+      relativeY: 300,
+      height: 300,
+      absoluteY: 480       // CALCULATED: pool.y + relativeY
+    }
+  },
+  elements: {
+    "task_normalize": {
+      laneId: "lane_ai_automation",
+      relativeX: 130,      // X within lane (after lane label)
+      relativeY: 125,      // Y within lane
+      width: 90,
+      height: 50,
+      // CALCULATED absolute positions:
+      absoluteX: 200,      // pool.x + LANE_LABEL_WIDTH + relativeX
+      absoluteY: 305,      // lane.absoluteY + relativeY
+      centerX: 245,        // absoluteX + width/2
+      centerY: 330,        // absoluteY + height/2
+      rightEdgeX: 290,     // absoluteX + width
+      bottomEdgeY: 355     // absoluteY + height
+    }
+  }
+};
+```
+
+#### 2.3.2 Registry Population Order
+
+1. **First:** Calculate all pool absolute positions
+2. **Second:** Calculate all lane absolute positions (depends on pools)
+3. **Third:** Calculate all element absolute positions (depends on lanes)
+4. **Fourth:** Generate XML using registry values
+5. **Fifth:** Calculate edge coordinates from registry
+
+**CRITICAL:** Never hardcode coordinates in XML. Always reference the registry.
 
 ---
 
@@ -96,6 +183,63 @@ Root (id="1")
 ### 3.2 Critical Rule: Cross-Lane Connections
 
 **Edges that cross lane boundaries MUST have `parent="1"` (root level)**, not the lane they originate from. This ensures proper rendering when lanes are moved or resized.
+
+### 3.3 Lane Position Calculation Table
+
+For a pool with multiple lanes, calculate lane positions systematically:
+
+| Lane | Relative Y (in pool) | Height | Absolute Y |
+|------|---------------------|--------|------------|
+| Lane 1 | 0 | 300 | POOL_Y + 0 |
+| Lane 2 | 300 | 300 | POOL_Y + 300 |
+| Lane 3 | 600 | 300 | POOL_Y + 600 |
+
+**Important:** Lane Y coordinates are relative to the pool, NOT the page.
+
+#### Example: 3-Lane Pool
+
+```
+Pool "AI System" at y=180, height=900
+
+Lane "AI Automation":
+  - y=0 (within pool)
+  - height=300
+  - absoluteY = 180 + 0 = 180
+
+Lane "Human Review":
+  - y=300 (within pool)
+  - height=300
+  - absoluteY = 180 + 300 = 480
+
+Lane "Specialists":
+  - y=600 (within pool)
+  - height=300
+  - absoluteY = 180 + 600 = 780
+```
+
+#### Lane XML with Correct Coordinates
+
+```xml
+<!-- Pool -->
+<mxCell id="pool_ai" value="AI System" ... parent="1">
+  <mxGeometry x="40" y="180" width="3000" height="900"/>
+</mxCell>
+
+<!-- Lane 1 - y=0 within pool -->
+<mxCell id="lane_ai_auto" value="AI Automation" ... parent="pool_ai">
+  <mxGeometry x="30" y="0" width="2970" height="300"/>
+</mxCell>
+
+<!-- Lane 2 - y=300 within pool (after Lane 1) -->
+<mxCell id="lane_human" value="Human Review" ... parent="pool_ai">
+  <mxGeometry x="30" y="300" width="2970" height="300"/>
+</mxCell>
+
+<!-- Lane 3 - y=600 within pool (after Lane 2) -->
+<mxCell id="lane_specialist" value="Specialists" ... parent="pool_ai">
+  <mxGeometry x="30" y="600" width="2970" height="300"/>
+</mxCell>
+```
 
 ---
 
@@ -206,6 +350,65 @@ THREE_BRANCH_LAYOUT:
   Lower path:  y = LANE_HEIGHT - 50px
 ```
 
+### 5.5 Subprocess Element Positioning
+
+Subprocesses are containers with their own internal coordinate system.
+
+#### 5.5.1 Subprocess Structure
+
+```
+Subprocess (parent = lane_id)
+├── mxGeometry defines subprocess position WITHIN LANE
+└── Internal elements (parent = subprocess_id)
+    └── mxGeometry defines position WITHIN SUBPROCESS
+```
+
+#### 5.5.2 Internal Element Coordinates
+
+Elements inside a subprocess use coordinates RELATIVE TO THE SUBPROCESS, not the lane:
+
+```xml
+<!-- Subprocess container -->
+<mxCell id="subprocess_response" value="AI Response Generation"
+        style="swimlane;horizontal=1;rounded=1;..."
+        vertex="1" parent="lane_ai_automation">
+  <mxGeometry x="1260" y="30" width="420" height="120" as="geometry"/>
+</mxCell>
+
+<!-- Internal start event - coordinates relative to subprocess -->
+<mxCell id="sub_start" value=""
+        style="ellipse;..."
+        vertex="1" parent="subprocess_response">
+  <mxGeometry x="15" y="50" width="25" height="25" as="geometry"/>
+  <!-- This places the event at (15,50) INSIDE the subprocess -->
+</mxCell>
+```
+
+#### 5.5.3 Absolute Position of Subprocess Internal Elements
+
+To calculate absolute position of an element inside a subprocess:
+
+```
+ABSOLUTE_X = POOL_X + POOL_LABEL + LANE_LABEL + SUBPROCESS_X + ELEMENT_X_IN_SUBPROCESS
+ABSOLUTE_Y = POOL_Y + LANE_Y + SUBPROCESS_Y + SUBPROCESS_HEADER + ELEMENT_Y_IN_SUBPROCESS
+
+Where:
+- SUBPROCESS_HEADER = 25px (the title bar of the subprocess)
+```
+
+#### 5.5.4 Subprocess Sizing
+
+Ensure subprocess is large enough for internal content:
+
+```
+SUBPROCESS_WIDTH = INTERNAL_FLOW_LENGTH + LEFT_PADDING + RIGHT_PADDING
+SUBPROCESS_HEIGHT = SUBPROCESS_HEADER + MAX_ELEMENT_HEIGHT + TOP_PADDING + BOTTOM_PADDING
+
+Minimums:
+- WIDTH: 300px for 3-4 internal elements
+- HEIGHT: 100px for single-row flow
+```
+
 ---
 
 ## 6. Edge (Connector) Standards
@@ -248,11 +451,64 @@ THREE_BRANCH_LAYOUT:
 </mxCell>
 ```
 
-### 6.4 Edge Labels
+### 6.4 Edge Labels (IMPORTANT)
+
+#### 6.4.1 Correct: Label as Edge Value
+
+Labels should be part of the edge's `value` attribute:
 
 ```xml
-<mxCell id="labeled_edge" value="Yes" 
-        style="edgeStyle=orthogonalEdgeStyle;...">
+<mxCell id="flow_yes" value="Yes"
+        style="edgeStyle=orthogonalEdgeStyle;..."
+        edge="1" parent="lane_id" source="gw_id" target="task_id">
+  <mxGeometry relative="1" as="geometry"/>
+</mxCell>
+```
+
+#### 6.4.2 INCORRECT: Label as Separate Element
+
+**DO NOT** create labels as separate text elements:
+
+```xml
+<!-- WRONG - Creates floating label that won't move with edge -->
+<mxCell id="label_yes" value="Yes"
+        style="text;html=1;..."
+        vertex="1" parent="lane_id">
+  <mxGeometry x="500" y="200" width="30" height="20"/>
+</mxCell>
+```
+
+#### 6.4.3 Label Positioning
+
+Control label position with style attributes:
+
+```xml
+<!-- Label at middle of edge (default) -->
+style="...;labelPosition=center;verticalLabelPosition=middle;"
+
+<!-- Label near source -->
+style="...;labelPosition=left;align=right;"
+
+<!-- Label near target -->
+style="...;labelPosition=right;align=left;"
+
+<!-- Label offset from edge -->
+style="...;labelBackgroundColor=#ffffff;spacingTop=5;"
+```
+
+#### 6.4.4 Multiple Labels (Gateway Branches)
+
+For gateways with multiple outgoing edges, each edge gets its own label:
+
+```xml
+<!-- Yes branch -->
+<mxCell id="flow_gw_yes" value="Yes" .../>
+
+<!-- No branch -->
+<mxCell id="flow_gw_no" value="No" .../>
+
+<!-- Default branch (no label needed) -->
+<mxCell id="flow_gw_default" value="" .../>
 ```
 
 ---
@@ -316,6 +572,52 @@ THREE_BRANCH_LAYOUT:
 - [ ] Add message flows between pools
 - [ ] Add loop-back/rework flows
 
+### Phase 5.5: Edge Validation (MANDATORY before Phase 6)
+
+For EVERY edge in the diagram, verify:
+
+- [ ] **Source Exists:** Source element ID exists in coordinate registry
+- [ ] **Target Exists:** Target element ID exists in coordinate registry
+- [ ] **Coordinates Calculated:** Both source and target absolute coordinates are computed
+- [ ] **Parent Correct:**
+  - Intra-lane edges: `parent="[lane_id]"`
+  - Cross-lane edges: `parent="1"`
+- [ ] **Connection Points Valid:** Edge connects to element edge, not center
+- [ ] **Waypoints Logical:** Waypoints create orthogonal (right-angle) paths
+- [ ] **No Orphan Labels:** Edge labels are in `value` attribute, not separate text elements
+
+#### Validation Script (Pseudocode)
+
+```javascript
+function validateEdge(edge, registry) {
+  const errors = [];
+
+  // Check source
+  if (!registry.elements[edge.sourceId]) {
+    errors.push(`Source element '${edge.sourceId}' not found in registry`);
+  }
+
+  // Check target
+  if (!registry.elements[edge.targetId]) {
+    errors.push(`Target element '${edge.targetId}' not found in registry`);
+  }
+
+  // Check parent for cross-lane
+  const sourceLane = registry.elements[edge.sourceId]?.laneId;
+  const targetLane = registry.elements[edge.targetId]?.laneId;
+  if (sourceLane !== targetLane && edge.parent !== "1") {
+    errors.push(`Cross-lane edge must have parent="1", found parent="${edge.parent}"`);
+  }
+
+  // Check coordinates are numbers
+  if (isNaN(edge.sourceX) || isNaN(edge.sourceY)) {
+    errors.push(`Invalid source coordinates: (${edge.sourceX}, ${edge.sourceY})`);
+  }
+
+  return errors;
+}
+```
+
 ### Phase 6: Validation
 - [ ] Open in draw.io Desktop
 - [ ] Check for overlapping elements
@@ -363,22 +665,222 @@ THREE_BRANCH_LAYOUT:
 
 **Solution:** Ensure `startSize=30` in lane style for adequate label width.
 
+### 9.6 Common Mistakes to Avoid
+
+#### Mistake 1: Using Relative Coordinates for Cross-Lane Edges
+
+**WRONG:**
+```xml
+<mxCell id="cross_edge" edge="1" parent="1">
+  <mxGeometry relative="1" as="geometry">
+    <!-- These are lane-relative, not page-absolute! -->
+    <mxPoint x="940" y="150" as="sourcePoint"/>
+    <mxPoint x="925" y="125" as="targetPoint"/>
+  </mxGeometry>
+</mxCell>
+```
+
+**RIGHT:**
+```xml
+<mxCell id="cross_edge" edge="1" parent="1">
+  <mxGeometry relative="1" as="geometry">
+    <!-- Calculated absolute coordinates -->
+    <mxPoint x="1065" y="355" as="sourcePoint"/>
+    <mxPoint x="1075" y="605" as="targetPoint"/>
+  </mxGeometry>
+</mxCell>
+```
+
+#### Mistake 2: Forgetting Pool/Lane Label Offsets
+
+**WRONG:** Element at x=100 in lane
+```
+Absolute X = 40 + 100 = 140  // Missing label offsets!
+```
+
+**RIGHT:**
+```
+Absolute X = 40 + 30 + 30 + 100 = 200  // Pool label + Lane label + element X
+```
+
+#### Mistake 3: Creating Orphan Labels
+
+**WRONG:** Separate text element for edge label
+```xml
+<mxCell id="label_g1" value="G1" style="text;..." vertex="1"/>
+```
+
+**RIGHT:** Label as edge value attribute
+```xml
+<mxCell id="flow_g1" value="G1" style="edge;..." edge="1"/>
+```
+
+#### Mistake 4: Inconsistent Parent References
+
+**WRONG:** Cross-lane edge with lane parent
+```xml
+<mxCell id="cross_edge" edge="1" parent="lane_ai_automation">
+```
+
+**RIGHT:** Cross-lane edge with root parent
+```xml
+<mxCell id="cross_edge" edge="1" parent="1">
+```
+
+#### Mistake 5: Missing Waypoints for Orthogonal Routing
+
+**WRONG:** Direct diagonal line (won't render as BPMN flow)
+```xml
+<mxCell id="edge">
+  <mxGeometry>
+    <mxPoint x="100" y="100" as="sourcePoint"/>
+    <mxPoint x="500" y="400" as="targetPoint"/>
+    <!-- No waypoints = diagonal line -->
+  </mxGeometry>
+</mxCell>
+```
+
+**RIGHT:** Orthogonal routing with waypoints
+```xml
+<mxCell id="edge">
+  <mxGeometry>
+    <mxPoint x="100" y="100" as="sourcePoint"/>
+    <mxPoint x="500" y="400" as="targetPoint"/>
+    <Array as="points">
+      <mxPoint x="300" y="100"/>  <!-- Horizontal first -->
+      <mxPoint x="300" y="400"/>  <!-- Then vertical -->
+    </Array>
+  </mxGeometry>
+</mxCell>
+```
+
+#### Mistake 6: Not Connecting All Flow Elements
+
+**WRONG:** Tasks created but not wired into sequence flow
+```xml
+<mxCell id="task_quality_audit" ... />
+<!-- No edge connecting to or from this task -->
+```
+
+**RIGHT:** Every task has incoming and outgoing edges (except start/end events)
+```xml
+<mxCell id="task_quality_audit" ... />
+<mxCell id="flow_to_audit" ... target="task_quality_audit" />
+<mxCell id="flow_from_audit" ... source="task_quality_audit" />
+```
+
 ---
 
-## 10. Absolute Coordinate Calculation
+## 10. Absolute Coordinate Calculation (CRITICAL)
 
-When creating cross-lane edges, calculate absolute coordinates:
+### 10.1 The Five Offset Components
+
+Every element position involves FIVE cumulative offsets:
 
 ```
-ABSOLUTE_X = POOL_X + LANE_X_OFFSET + ELEMENT_X_IN_LANE
-ABSOLUTE_Y = POOL_Y + LANE_Y_IN_POOL + ELEMENT_Y_IN_LANE + (ELEMENT_HEIGHT / 2)
+┌─────────────────────────────────────────────────────────────┐
+│ PAGE                                                         │
+│  ┌─ POOL_X (40px) ─────────────────────────────────────────┐│
+│  │ POOL                                                     ││
+│  │  ┌─ POOL_LABEL_WIDTH (30px) ────────────────────────────┐││
+│  │  │ LANE                                                  │││
+│  │  │  ┌─ LANE_LABEL_WIDTH (30px) ─────────────────────────┐│││
+│  │  │  │ CONTENT AREA                                       ││││
+│  │  │  │  ┌─ ELEMENT_X ──┐                                  ││││
+│  │  │  │  │   ELEMENT    │                                  ││││
+│  │  │  │  └──────────────┘                                  ││││
+```
 
-Example:
-- Pool starts at (40, 40)
-- Lane 3 is at y=340 within pool
-- Element is at (550, 40) within lane
-- Element center Y = 40 + 340 + 40 + 25 = 445 (absolute)
-- Element right edge X = 40 + 30 + 550 + 100 = 720 (absolute)
+### 10.2 Absolute X Calculation
+
+```
+ABSOLUTE_X = POOL_X + POOL_LABEL_WIDTH + LANE_LABEL_WIDTH + ELEMENT_X_IN_LANE
+
+Where:
+- POOL_X = 40 (constant for leftmost pool)
+- POOL_LABEL_WIDTH = 30 (the vertical "Pool Name" label area)
+- LANE_LABEL_WIDTH = 30 (the vertical "Lane Name" label area)
+- ELEMENT_X_IN_LANE = element's x coordinate within the lane content area
+
+SIMPLIFIED: ABSOLUTE_X = 40 + 30 + 30 + ELEMENT_X_IN_LANE = 100 + ELEMENT_X_IN_LANE
+```
+
+### 10.3 Absolute Y Calculation
+
+```
+ABSOLUTE_Y = POOL_Y + LANE_Y_IN_POOL + ELEMENT_Y_IN_LANE
+
+Where:
+- POOL_Y = vertical position of pool on page
+- LANE_Y_IN_POOL = lane's y position within pool (0 for first lane)
+- ELEMENT_Y_IN_LANE = element's y coordinate within the lane
+```
+
+### 10.4 Edge Connection Points
+
+For edges, calculate the CONNECTION POINT, not the element corner:
+
+```
+SOURCE_RIGHT_CENTER:
+  x = ABSOLUTE_X + ELEMENT_WIDTH
+  y = ABSOLUTE_Y + (ELEMENT_HEIGHT / 2)
+
+TARGET_LEFT_CENTER:
+  x = ABSOLUTE_X
+  y = ABSOLUTE_Y + (ELEMENT_HEIGHT / 2)
+
+SOURCE_BOTTOM_CENTER (for downward cross-lane):
+  x = ABSOLUTE_X + (ELEMENT_WIDTH / 2)
+  y = ABSOLUTE_Y + ELEMENT_HEIGHT
+
+TARGET_TOP_CENTER (for downward cross-lane):
+  x = ABSOLUTE_X + (ELEMENT_WIDTH / 2)
+  y = ABSOLUTE_Y
+```
+
+### 10.5 Worked Example: Cross-Lane Edge
+
+**Scenario:** Edge from "Confidence Gateway" in AI Automation Lane to "Human Verification Queue" in Human Review Lane.
+
+**Given:**
+- Pool "AI System" at (40, 180)
+- Lane "AI Automation" at y=0 within pool, height=300
+- Lane "Human Review" at y=300 within pool, height=300
+- Gateway in AI Automation at (940, 125) within lane, size 50x50
+- Task in Human Review at (925, 125) within lane, size 100x50
+
+**Calculate Gateway (source) absolute position:**
+```
+Gateway.absoluteX = 40 + 30 + 30 + 940 = 1040
+Gateway.absoluteY = 180 + 0 + 125 = 305
+Gateway.centerX = 1040 + 25 = 1065
+Gateway.centerY = 305 + 25 = 330
+Gateway.bottomCenter = (1065, 355)  // Exit point for downward edge
+```
+
+**Calculate Task (target) absolute position:**
+```
+Task.absoluteX = 40 + 30 + 30 + 925 = 1025
+Task.absoluteY = 180 + 300 + 125 = 605
+Task.centerX = 1025 + 50 = 1075
+Task.centerY = 605 + 25 = 630
+Task.topCenter = (1075, 605)  // Entry point for downward edge
+```
+
+**Edge XML:**
+```xml
+<mxCell id="flow_confidence_to_verify" value="<70%"
+        style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;endArrow=block;endFill=1;"
+        edge="1" parent="1">
+  <mxGeometry relative="1" as="geometry">
+    <mxPoint x="1065" y="355" as="sourcePoint"/>
+    <mxPoint x="1075" y="605" as="targetPoint"/>
+    <Array as="points">
+      <mxPoint x="1065" y="480"/>
+      <mxPoint x="1075" y="480"/>
+    </Array>
+  </mxGeometry>
+</mxCell>
 ```
 
 ---
@@ -429,30 +931,54 @@ Example:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-01-06 | Initial standard based on Enterprise Onboarding Process conversion |
+| 1.1 | 2026-01-12 | Added 9 sections based on AI Community Management Process conversion failure: Pre-Generation Checklist (1.3), Coordinate Registry (2.3), Lane Position Calculation (3.3), Subprocess Positioning (5.5), Edge Labels expanded (6.4), Edge Validation (8.5), Common Mistakes (9.6), Absolute Coordinate Calculation expanded (10), Quick Reference Card expanded (Appendix A) |
 
 ---
 
 ## Appendix A: Quick Reference Card
 
 ```
+COORDINATE OFFSETS (MEMORIZE THESE)
+├── POOL_X = 40px (from page left)
+├── POOL_LABEL_WIDTH = 30px (vertical pool name)
+├── LANE_LABEL_WIDTH = 30px (vertical lane name)
+├── LANE_X_START = 30px (lane content starts here within pool)
+└── TOTAL_X_OFFSET = 100px (40 + 30 + 30 = element absolute X base)
+
+ABSOLUTE COORDINATE FORMULAS
+├── Element Absolute X = 40 + 30 + 30 + element.x = 100 + element.x
+├── Element Absolute Y = pool.y + lane.relativeY + element.y
+├── Element Center X = absoluteX + (width / 2)
+├── Element Center Y = absoluteY + (height / 2)
+├── Right Edge X = absoluteX + width
+└── Bottom Edge Y = absoluteY + height
+
+EDGE PARENT RULES
+├── Same lane: parent="[lane_id]", can use source/target attributes
+├── Cross-lane: parent="1", MUST use mxPoint absolute coordinates
+└── Cross-pool: parent="1", MUST use mxPoint absolute coordinates
+
+EDGE CONNECTION POINTS
+├── Horizontal flow: right-center of source → left-center of target
+├── Downward cross-lane: bottom-center of source → top-center of target
+├── Upward cross-lane: top-center of source → bottom-center of target
+└── Always add waypoints for orthogonal (90°) routing
+
 DIMENSIONS
 ├── Task: 100x50 (standard), 90x40 (compact)
 ├── Gateway: 50x50
 ├── Event: 40x40
-├── Lane Height: 100 (simple), 130 (2-branch), 150 (3-branch)
+├── Subprocess: min 300x100, header 25px
+├── Lane Height: 100 (simple), 130 (2-branch), 150+ (3+ branch)
 └── Element Spacing: 140px horizontal, 45px vertical
 
-COLORS (Fill/Stroke)
-├── Sales: #dae8fc / #6c8ebf
-├── Legal: #d5e8d4 / #82b366
-├── Finance: #ffe6cc / #d79b00
-├── Security: #f8cecc / #b85450
-├── Implementation: #e1d5e7 / #9673a6
-└── Task (default): #fff2cc / #d6b656
-
-CRITICAL RULES
-├── Cross-lane edges: parent="1" + absolute coordinates
-├── Parallel input lanes: Start content at x=500+
-├── Branching lanes: Increase height + separate y-coords
-└── Label space: Route edges to avoid congestion
+VALIDATION CHECKLIST (BEFORE SAVING)
+├── [ ] Coordinate registry built for all elements
+├── [ ] All cross-lane edges use parent="1"
+├── [ ] All cross-lane edges use mxPoint (not source/target)
+├── [ ] All edge labels are in value attribute (not separate text)
+├── [ ] All waypoints create orthogonal (90°) paths
+├── [ ] Every task has incoming AND outgoing edges
+├── [ ] Registry coordinates match generated XML
+└── [ ] Opened in draw.io and visually verified
 ```
