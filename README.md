@@ -37,22 +37,24 @@ Custom commands and skills for productivity workflows.
 
 ### bpmn-plugin
 
-BPMN 2.0 XML generator for creating compliant workflow diagrams.
+BPMN 2.0 workflow tools for generating and converting process diagrams.
 
 **Skills:**
 | Skill | Description |
 |-------|-------------|
 | `/bpmn-generator` | Generate BPMN 2.0 XML from natural language or markdown documents |
+| `/bpmn-to-drawio` | Convert BPMN 2.0 XML files to Draw.io native format (.drawio) |
 
-The BPMN generator operates in two modes:
+**BPMN Generator** operates in two modes:
 - **Interactive Mode**: Structured Q&A to gather requirements from natural language descriptions
 - **Document Parsing Mode**: Parse markdown documents to extract process elements
 
-Generated XML includes:
-- Complete BPMN 2.0 compliant process definitions
-- Diagram Interchange (DI) data for visual rendering
-- Phase comments for PowerPoint generation compatibility
-- Layouts compatible with Draw.io, Camunda, Flowable, and bpmn.io
+**BPMN to Draw.io Converter** produces:
+- Proper swim lane structure (pools and lanes)
+- BPMN-styled shapes for all element types
+- Correct connector routing including cross-lane flows
+- Color coding by lane function
+- Editable diagrams for Draw.io Desktop and web
 
 ## Repository Structure
 

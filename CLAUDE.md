@@ -35,9 +35,10 @@ plugins/
       plugin.json           # Plugin metadata
     skills/
       bpmn-generator.md     # BPMN 2.0 XML generation from NL or markdown
+      bpmn-to-drawio.md     # Convert BPMN XML to Draw.io format
     references/             # BPMN element documentation and guides
-    templates/              # XML skeletons and lane color mappings
-    examples/               # Sample BPMN files for reference
+    templates/              # XML/Draw.io skeletons and style mappings
+    examples/               # Sample BPMN and Draw.io files
 ```
 
 ## Commands vs Skills
@@ -71,10 +72,13 @@ Example: `questions-PRD-20260110.json`, `meeting-analysis-2026-01-10.md`
 
 ## BPMN Plugin
 
-The bpmn-plugin provides BPMN 2.0 XML generation capabilities with two operating modes:
+The bpmn-plugin provides two skills for BPMN workflow management:
 
-### Interactive Mode
-Triggered by natural language descriptions without a file. Uses structured Q&A phases:
+### BPMN Generator (`/bpmn-generator`)
+
+Generates BPMN 2.0 XML with two operating modes:
+
+**Interactive Mode** - Natural language descriptions trigger structured Q&A:
 1. Process Scope (name, triggers, outcomes)
 2. Participants (pools, lanes, roles)
 3. Activities (tasks, types, documentation)
@@ -82,19 +86,29 @@ Triggered by natural language descriptions without a file. Uses structured Q&A p
 5. Events & Exceptions (timers, errors, compensation)
 6. Data & Integration (data objects, message flows)
 
-### Document Parsing Mode
-Triggered by providing a markdown file path. Extracts:
+**Document Parsing Mode** - Markdown file path triggers extraction of:
 - Process metadata from headings/frontmatter
 - Phases/stages from section structure
 - Tasks from numbered lists with type inference
 - Roles mapped to colored lanes
 - Decision points from conditional language
 
+### BPMN to Draw.io Converter (`/bpmn-to-drawio`)
+
+Converts BPMN 2.0 XML files to Draw.io native format (.drawio):
+- Proper swim lane structure (pools and lanes)
+- BPMN-styled shapes for all element types
+- Correct connector routing including cross-lane flows
+- Color coding by lane function (Sales=blue, Finance=orange, etc.)
+- Cross-lane edges use absolute coordinates for proper rendering
+
+**Critical Rule:** Edges crossing lane boundaries must have `parent="1"` (root level) with absolute `mxPoint` coordinates.
+
 ### Key Output Features
 - BPMN 2.0 compliant XML with all required namespaces
 - Diagram Interchange (DI) data for visual rendering
 - Phase comments (`<!-- Phase N: ... -->`) for PowerPoint compatibility
-- Task documentation elements for each activity
+- Draw.io files compatible with Desktop and web applications
 
 ## Adding New Plugins
 
