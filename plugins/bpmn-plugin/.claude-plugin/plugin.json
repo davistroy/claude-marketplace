@@ -1,0 +1,13 @@
+{
+  "name": "bpmn-plugin",
+  "description": "BPMN 2.0 XML generator for creating compliant workflow diagrams from natural language or markdown documents",
+  "version": "1.0.0",
+  "author": {
+    "name": "Troy Davis",
+    "email": "troy.e.davis@gmail.com"
+  },
+  "homepage": "https://github.com/davistroy/claude-marketplace",
+  "repository": "https://github.com/davistroy/claude-marketplace",
+  "license": "MIT",
+  "keywords": ["bpmn", "workflow", "xml", "diagram", "process-modeling"]
+}

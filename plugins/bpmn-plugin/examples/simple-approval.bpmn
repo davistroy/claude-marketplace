@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Simple Approval Process
+
+  Description: A straightforward document approval workflow with one decision point.
+
+  Flow:
+  Submit Request → Review Request → [Approved?] → Yes → Notify Applicant (Approved) → End
+                                               → No  → Notify Applicant (Rejected) → End
+
+  Elements:
+  - 1 Message Start Event
+  - 3 User Tasks
+  - 1 Exclusive Gateway (split)
+  - 1 Exclusive Gateway (merge)
+  - 2 Send Tasks
+  - 1 End Event
+-->
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    id="Definitions_SimpleApproval"
+    targetNamespace="http://bpmn.io/schema/bpmn"
+    exporter="Claude BPMN Generator"
+    exporterVersion="1.0">
+
+    <bpmn:process id="Process_SimpleApproval" name="Simple Approval Process" isExecutable="true">
+
+        <!-- Start Event -->
+        <bpmn:startEvent id="StartEvent_RequestReceived" name="Request Received">
+            <bpmn:outgoing>Flow_Start_Submit</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MessageEventDef_Start" messageRef="Message_Request"/>
+        </bpmn:startEvent>
+
+        <!-- Tasks -->
+        <bpmn:userTask id="Activity_SubmitRequest" name="Submit Request">
+            <bpmn:incoming>Flow_Start_Submit</bpmn:incoming>
+            <bpmn:outgoing>Flow_Submit_Review</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <bpmn:userTask id="Activity_ReviewRequest" name="Review Request">
+            <bpmn:incoming>Flow_Submit_Review</bpmn:incoming>
+            <bpmn:outgoing>Flow_Review_Gateway</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Decision Gateway -->
+        <bpmn:exclusiveGateway id="Gateway_ApprovalDecision" name="Approved?" default="Flow_Gateway_Rejected">
+            <bpmn:incoming>Flow_Review_Gateway</bpmn:incoming>
+            <bpmn:outgoing>Flow_Gateway_Approved</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Gateway_Rejected</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- Approved Path -->
+        <bpmn:sendTask id="Activity_NotifyApproved" name="Notify Applicant (Approved)">
+            <bpmn:incoming>Flow_Gateway_Approved</bpmn:incoming>
+            <bpmn:outgoing>Flow_Approved_Merge</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <!-- Rejected Path -->
+        <bpmn:sendTask id="Activity_NotifyRejected" name="Notify Applicant (Rejected)">
+            <bpmn:incoming>Flow_Gateway_Rejected</bpmn:incoming>
+            <bpmn:outgoing>Flow_Rejected_Merge</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <!-- Merge Gateway -->
+        <bpmn:exclusiveGateway id="Gateway_Merge" name="Merge">
+            <bpmn:incoming>Flow_Approved_Merge</bpmn:incoming>
+            <bpmn:incoming>Flow_Rejected_Merge</bpmn:incoming>
+            <bpmn:outgoing>Flow_Merge_End</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- End Event -->
+        <bpmn:endEvent id="EndEvent_ProcessComplete" name="Process Complete">
+            <bpmn:incoming>Flow_Merge_End</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <!-- Sequence Flows -->
+        <bpmn:sequenceFlow id="Flow_Start_Submit" sourceRef="StartEvent_RequestReceived" targetRef="Activity_SubmitRequest"/>
+        <bpmn:sequenceFlow id="Flow_Submit_Review" sourceRef="Activity_SubmitRequest" targetRef="Activity_ReviewRequest"/>
+        <bpmn:sequenceFlow id="Flow_Review_Gateway" sourceRef="Activity_ReviewRequest" targetRef="Gateway_ApprovalDecision"/>
+
+        <bpmn:sequenceFlow id="Flow_Gateway_Approved" name="Yes" sourceRef="Gateway_ApprovalDecision" targetRef="Activity_NotifyApproved">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == true}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+
+        <bpmn:sequenceFlow id="Flow_Gateway_Rejected" name="No" sourceRef="Gateway_ApprovalDecision" targetRef="Activity_NotifyRejected"/>
+
+        <bpmn:sequenceFlow id="Flow_Approved_Merge" sourceRef="Activity_NotifyApproved" targetRef="Gateway_Merge"/>
+        <bpmn:sequenceFlow id="Flow_Rejected_Merge" sourceRef="Activity_NotifyRejected" targetRef="Gateway_Merge"/>
+        <bpmn:sequenceFlow id="Flow_Merge_End" sourceRef="Gateway_Merge" targetRef="EndEvent_ProcessComplete"/>
+
+    </bpmn:process>
+
+    <!-- Message Definition -->
+    <bpmn:message id="Message_Request" name="ApprovalRequest"/>
+
+    <!-- Diagram Interchange -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_SimpleApproval">
+        <bpmndi:BPMNPlane id="BPMNPlane_SimpleApproval" bpmnElement="Process_SimpleApproval">
+
+            <!-- Start Event Shape -->
+            <bpmndi:BPMNShape id="StartEvent_RequestReceived_di" bpmnElement="StartEvent_RequestReceived">
+                <dc:Bounds x="180" y="162" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="156" y="205" width="84" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Submit Request Shape -->
+            <bpmndi:BPMNShape id="Activity_SubmitRequest_di" bpmnElement="Activity_SubmitRequest">
+                <dc:Bounds x="270" y="140" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Review Request Shape -->
+            <bpmndi:BPMNShape id="Activity_ReviewRequest_di" bpmnElement="Activity_ReviewRequest">
+                <dc:Bounds x="420" y="140" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Decision Gateway Shape -->
+            <bpmndi:BPMNShape id="Gateway_ApprovalDecision_di" bpmnElement="Gateway_ApprovalDecision" isMarkerVisible="true">
+                <dc:Bounds x="575" y="155" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="572" y="125" width="56" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Notify Approved Shape -->
+            <bpmndi:BPMNShape id="Activity_NotifyApproved_di" bpmnElement="Activity_NotifyApproved">
+                <dc:Bounds x="680" y="80" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Notify Rejected Shape -->
+            <bpmndi:BPMNShape id="Activity_NotifyRejected_di" bpmnElement="Activity_NotifyRejected">
+                <dc:Bounds x="680" y="200" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Merge Gateway Shape -->
+            <bpmndi:BPMNShape id="Gateway_Merge_di" bpmnElement="Gateway_Merge" isMarkerVisible="true">
+                <dc:Bounds x="835" y="155" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- End Event Shape -->
+            <bpmndi:BPMNShape id="EndEvent_ProcessComplete_di" bpmnElement="EndEvent_ProcessComplete">
+                <dc:Bounds x="942" y="162" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="918" y="205" width="84" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Sequence Flow Edges -->
+            <bpmndi:BPMNEdge id="Flow_Start_Submit_di" bpmnElement="Flow_Start_Submit">
+                <di:waypoint x="216" y="180"/>
+                <di:waypoint x="270" y="180"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Submit_Review_di" bpmnElement="Flow_Submit_Review">
+                <di:waypoint x="370" y="180"/>
+                <di:waypoint x="420" y="180"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Review_Gateway_di" bpmnElement="Flow_Review_Gateway">
+                <di:waypoint x="520" y="180"/>
+                <di:waypoint x="575" y="180"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Gateway_Approved_di" bpmnElement="Flow_Gateway_Approved">
+                <di:waypoint x="600" y="155"/>
+                <di:waypoint x="600" y="120"/>
+                <di:waypoint x="680" y="120"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="620" y="103" width="20" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Gateway_Rejected_di" bpmnElement="Flow_Gateway_Rejected">
+                <di:waypoint x="600" y="205"/>
+                <di:waypoint x="600" y="240"/>
+                <di:waypoint x="680" y="240"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="620" y="223" width="15" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Approved_Merge_di" bpmnElement="Flow_Approved_Merge">
+                <di:waypoint x="780" y="120"/>
+                <di:waypoint x="860" y="120"/>
+                <di:waypoint x="860" y="155"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Rejected_Merge_di" bpmnElement="Flow_Rejected_Merge">
+                <di:waypoint x="780" y="240"/>
+                <di:waypoint x="860" y="240"/>
+                <di:waypoint x="860" y="205"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Flow_Merge_End_di" bpmnElement="Flow_Merge_End">
+                <di:waypoint x="885" y="180"/>
+                <di:waypoint x="942" y="180"/>
+            </bpmndi:BPMNEdge>
+
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

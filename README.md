@@ -1,6 +1,6 @@
 # Claude Marketplace
 
-A collection of Claude Code plugins containing custom slash commands and skills for documentation review, architecture analysis, git workflows, and document processing.
+A collection of Claude Code plugins containing custom slash commands and skills for documentation review, architecture analysis, git workflows, document processing, and BPMN workflow generation.
 
 ## Installation
 
@@ -35,6 +35,25 @@ Custom commands and skills for productivity workflows.
 |-------|-------------|
 | `/ship` | Git workflow: branch, commit, push, and open PR |
 
+### bpmn-plugin
+
+BPMN 2.0 XML generator for creating compliant workflow diagrams.
+
+**Skills:**
+| Skill | Description |
+|-------|-------------|
+| `/bpmn-generator` | Generate BPMN 2.0 XML from natural language or markdown documents |
+
+The BPMN generator operates in two modes:
+- **Interactive Mode**: Structured Q&A to gather requirements from natural language descriptions
+- **Document Parsing Mode**: Parse markdown documents to extract process elements
+
+Generated XML includes:
+- Complete BPMN 2.0 compliant process definitions
+- Diagram Interchange (DI) data for visual rendering
+- Phase comments for PowerPoint generation compatibility
+- Layouts compatible with Draw.io, Camunda, Flowable, and bpmn.io
+
 ## Repository Structure
 
 ```
@@ -47,6 +66,14 @@ plugins/
       plugin.json           # Plugin metadata
     commands/               # Slash commands
     skills/                 # Proactive skills
+
+  bpmn-plugin/
+    .claude-plugin/
+      plugin.json           # Plugin metadata
+    skills/                 # BPMN generator skill
+    references/             # BPMN element documentation
+    templates/              # XML templates and lane mappings
+    examples/               # Sample BPMN files
 ```
 
 ## License

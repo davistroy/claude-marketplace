@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Parallel Processing Example - Loan Application Process
+
+  Description: A loan application process demonstrating parallel gateways
+  where multiple checks happen simultaneously before a final decision.
+
+  Flow:
+  Application Received → Review Application → [Parallel Split]
+                                                → Credit Check
+                                                → Employment Verification  → [Parallel Join] → Make Decision → [Approved?] → Yes → Disburse Funds → End (Approved)
+                                                → Collateral Assessment                                                    → No  → Send Rejection → End (Rejected)
+
+  Elements:
+  - 1 Message Start Event
+  - 6 Tasks
+  - 2 Parallel Gateways (split and join)
+  - 1 Exclusive Gateway
+  - 2 End Events
+-->
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    id="Definitions_LoanApplication"
+    targetNamespace="http://bpmn.io/schema/bpmn"
+    exporter="Claude BPMN Generator"
+    exporterVersion="1.0">
+
+    <bpmn:process id="Process_LoanApplication" name="Loan Application Process" isExecutable="true">
+
+        <!-- ============ START ============ -->
+        <bpmn:startEvent id="StartEvent_ApplicationReceived" name="Application Received">
+            <bpmn:outgoing>Flow_Start_Review</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MessageEventDef_Application" messageRef="Message_LoanApplication"/>
+        </bpmn:startEvent>
+
+        <!-- ============ INITIAL REVIEW ============ -->
+        <bpmn:userTask id="Activity_ReviewApplication" name="Review Application">
+            <bpmn:incoming>Flow_Start_Review</bpmn:incoming>
+            <bpmn:outgoing>Flow_Review_ParallelSplit</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- ============ PARALLEL SPLIT ============ -->
+        <bpmn:parallelGateway id="Gateway_ParallelSplit" name="Start Parallel Checks">
+            <bpmn:incoming>Flow_Review_ParallelSplit</bpmn:incoming>
+            <bpmn:outgoing>Flow_Split_CreditCheck</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Split_Employment</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Split_Collateral</bpmn:outgoing>
+        </bpmn:parallelGateway>
+
+        <!-- ============ PARALLEL TASKS ============ -->
+
+        <!-- Branch 1: Credit Check -->
+        <bpmn:serviceTask id="Activity_CreditCheck" name="Credit Check">
+            <bpmn:incoming>Flow_Split_CreditCheck</bpmn:incoming>
+            <bpmn:outgoing>Flow_CreditCheck_Join</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <!-- Branch 2: Employment Verification -->
+        <bpmn:serviceTask id="Activity_EmploymentVerification" name="Employment Verification">
+            <bpmn:incoming>Flow_Split_Employment</bpmn:incoming>
+            <bpmn:outgoing>Flow_Employment_Join</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <!-- Branch 3: Collateral Assessment -->
+        <bpmn:userTask id="Activity_CollateralAssessment" name="Collateral Assessment">
+            <bpmn:incoming>Flow_Split_Collateral</bpmn:incoming>
+            <bpmn:outgoing>Flow_Collateral_Join</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- ============ PARALLEL JOIN ============ -->
+        <bpmn:parallelGateway id="Gateway_ParallelJoin" name="All Checks Complete">
+            <bpmn:incoming>Flow_CreditCheck_Join</bpmn:incoming>
+            <bpmn:incoming>Flow_Employment_Join</bpmn:incoming>
+            <bpmn:incoming>Flow_Collateral_Join</bpmn:incoming>
+            <bpmn:outgoing>Flow_Join_Decision</bpmn:outgoing>
+        </bpmn:parallelGateway>
+
+        <!-- ============ DECISION ============ -->
+        <bpmn:businessRuleTask id="Activity_MakeDecision" name="Make Loan Decision">
+            <bpmn:incoming>Flow_Join_Decision</bpmn:incoming>
+            <bpmn:outgoing>Flow_Decision_Gateway</bpmn:outgoing>
+        </bpmn:businessRuleTask>
+
+        <bpmn:exclusiveGateway id="Gateway_ApprovalDecision" name="Loan Approved?" default="Flow_Rejected">
+            <bpmn:incoming>Flow_Decision_Gateway</bpmn:incoming>
+            <bpmn:outgoing>Flow_Approved</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- ============ APPROVED PATH ============ -->
+        <bpmn:serviceTask id="Activity_DisburseFunds" name="Disburse Funds">
+            <bpmn:incoming>Flow_Approved</bpmn:incoming>
+            <bpmn:outgoing>Flow_Disburse_NotifyApproved</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:sendTask id="Activity_NotifyApproved" name="Send Approval Notice">
+            <bpmn:incoming>Flow_Disburse_NotifyApproved</bpmn:incoming>
+            <bpmn:outgoing>Flow_NotifyApproved_End</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <bpmn:endEvent id="EndEvent_Approved" name="Loan Approved">
+            <bpmn:incoming>Flow_NotifyApproved_End</bpmn:incoming>
+            <bpmn:messageEventDefinition id="MessageEventDef_Approved" messageRef="Message_Approved"/>
+        </bpmn:endEvent>
+
+        <!-- ============ REJECTED PATH ============ -->
+        <bpmn:sendTask id="Activity_SendRejection" name="Send Rejection Notice">
+            <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+            <bpmn:outgoing>Flow_Rejection_End</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <bpmn:endEvent id="EndEvent_Rejected" name="Loan Rejected">
+            <bpmn:incoming>Flow_Rejection_End</bpmn:incoming>
+            <bpmn:messageEventDefinition id="MessageEventDef_Rejected" messageRef="Message_Rejected"/>
+        </bpmn:endEvent>
+
+        <!-- ============ SEQUENCE FLOWS ============ -->
+
+        <!-- Start to Review -->
+        <bpmn:sequenceFlow id="Flow_Start_Review" sourceRef="StartEvent_ApplicationReceived" targetRef="Activity_ReviewApplication"/>
+
+        <!-- Review to Parallel Split -->
+        <bpmn:sequenceFlow id="Flow_Review_ParallelSplit" sourceRef="Activity_ReviewApplication" targetRef="Gateway_ParallelSplit"/>
+
+        <!-- Parallel Split to Tasks -->
+        <bpmn:sequenceFlow id="Flow_Split_CreditCheck" sourceRef="Gateway_ParallelSplit" targetRef="Activity_CreditCheck"/>
+        <bpmn:sequenceFlow id="Flow_Split_Employment" sourceRef="Gateway_ParallelSplit" targetRef="Activity_EmploymentVerification"/>
+        <bpmn:sequenceFlow id="Flow_Split_Collateral" sourceRef="Gateway_ParallelSplit" targetRef="Activity_CollateralAssessment"/>
+
+        <!-- Tasks to Parallel Join -->
+        <bpmn:sequenceFlow id="Flow_CreditCheck_Join" sourceRef="Activity_CreditCheck" targetRef="Gateway_ParallelJoin"/>
+        <bpmn:sequenceFlow id="Flow_Employment_Join" sourceRef="Activity_EmploymentVerification" targetRef="Gateway_ParallelJoin"/>
+        <bpmn:sequenceFlow id="Flow_Collateral_Join" sourceRef="Activity_CollateralAssessment" targetRef="Gateway_ParallelJoin"/>
+
+        <!-- Join to Decision -->
+        <bpmn:sequenceFlow id="Flow_Join_Decision" sourceRef="Gateway_ParallelJoin" targetRef="Activity_MakeDecision"/>
+        <bpmn:sequenceFlow id="Flow_Decision_Gateway" sourceRef="Activity_MakeDecision" targetRef="Gateway_ApprovalDecision"/>
+
+        <!-- Approval Decision -->
+        <bpmn:sequenceFlow id="Flow_Approved" name="Yes" sourceRef="Gateway_ApprovalDecision" targetRef="Activity_DisburseFunds">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${loanApproved == true}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_Rejected" name="No" sourceRef="Gateway_ApprovalDecision" targetRef="Activity_SendRejection"/>
+
+        <!-- Approved Path -->
+        <bpmn:sequenceFlow id="Flow_Disburse_NotifyApproved" sourceRef="Activity_DisburseFunds" targetRef="Activity_NotifyApproved"/>
+        <bpmn:sequenceFlow id="Flow_NotifyApproved_End" sourceRef="Activity_NotifyApproved" targetRef="EndEvent_Approved"/>
+
+        <!-- Rejected Path -->
+        <bpmn:sequenceFlow id="Flow_Rejection_End" sourceRef="Activity_SendRejection" targetRef="EndEvent_Rejected"/>
+
+    </bpmn:process>
+
+    <!-- ============ MESSAGE DEFINITIONS ============ -->
+    <bpmn:message id="Message_LoanApplication" name="LoanApplicationMessage"/>
+    <bpmn:message id="Message_Approved" name="LoanApprovedNotification"/>
+    <bpmn:message id="Message_Rejected" name="LoanRejectedNotification"/>
+
+    <!-- ============ DIAGRAM INTERCHANGE ============ -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_LoanApplication">
+        <bpmndi:BPMNPlane id="BPMNPlane_LoanApplication" bpmnElement="Process_LoanApplication">
+
+            <!-- Start Event -->
+            <bpmndi:BPMNShape id="StartEvent_ApplicationReceived_di" bpmnElement="StartEvent_ApplicationReceived">
+                <dc:Bounds x="152" y="212" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="140" y="255" width="60" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Review Application -->
+            <bpmndi:BPMNShape id="Activity_ReviewApplication_di" bpmnElement="Activity_ReviewApplication">
+                <dc:Bounds x="240" y="190" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Parallel Split Gateway -->
+            <bpmndi:BPMNShape id="Gateway_ParallelSplit_di" bpmnElement="Gateway_ParallelSplit">
+                <dc:Bounds x="395" y="205" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="376" y="175" width="88" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Credit Check (Top Branch) -->
+            <bpmndi:BPMNShape id="Activity_CreditCheck_di" bpmnElement="Activity_CreditCheck">
+                <dc:Bounds x="500" y="80" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Employment Verification (Middle Branch) -->
+            <bpmndi:BPMNShape id="Activity_EmploymentVerification_di" bpmnElement="Activity_EmploymentVerification">
+                <dc:Bounds x="500" y="190" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Collateral Assessment (Bottom Branch) -->
+            <bpmndi:BPMNShape id="Activity_CollateralAssessment_di" bpmnElement="Activity_CollateralAssessment">
+                <dc:Bounds x="500" y="300" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Parallel Join Gateway -->
+            <bpmndi:BPMNShape id="Gateway_ParallelJoin_di" bpmnElement="Gateway_ParallelJoin">
+                <dc:Bounds x="655" y="205" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="636" y="175" width="88" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Make Decision -->
+            <bpmndi:BPMNShape id="Activity_MakeDecision_di" bpmnElement="Activity_MakeDecision">
+                <dc:Bounds x="760" y="190" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Approval Gateway -->
+            <bpmndi:BPMNShape id="Gateway_ApprovalDecision_di" bpmnElement="Gateway_ApprovalDecision" isMarkerVisible="true">
+                <dc:Bounds x="915" y="205" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="899" y="175" width="82" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Disburse Funds -->
+            <bpmndi:BPMNShape id="Activity_DisburseFunds_di" bpmnElement="Activity_DisburseFunds">
+                <dc:Bounds x="1020" y="130" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Notify Approved -->
+            <bpmndi:BPMNShape id="Activity_NotifyApproved_di" bpmnElement="Activity_NotifyApproved">
+                <dc:Bounds x="1170" y="130" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- End Approved -->
+            <bpmndi:BPMNShape id="EndEvent_Approved_di" bpmnElement="EndEvent_Approved">
+                <dc:Bounds x="1322" y="152" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="1302" y="195" width="76" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Send Rejection -->
+            <bpmndi:BPMNShape id="Activity_SendRejection_di" bpmnElement="Activity_SendRejection">
+                <dc:Bounds x="1020" y="260" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- End Rejected -->
+            <bpmndi:BPMNShape id="EndEvent_Rejected_di" bpmnElement="EndEvent_Rejected">
+                <dc:Bounds x="1172" y="282" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="1154" y="325" width="72" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- ============ EDGES ============ -->
+
+            <!-- Start to Review -->
+            <bpmndi:BPMNEdge id="Flow_Start_Review_di" bpmnElement="Flow_Start_Review">
+                <di:waypoint x="188" y="230"/>
+                <di:waypoint x="240" y="230"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Review to Parallel Split -->
+            <bpmndi:BPMNEdge id="Flow_Review_ParallelSplit_di" bpmnElement="Flow_Review_ParallelSplit">
+                <di:waypoint x="340" y="230"/>
+                <di:waypoint x="395" y="230"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Split to Credit Check -->
+            <bpmndi:BPMNEdge id="Flow_Split_CreditCheck_di" bpmnElement="Flow_Split_CreditCheck">
+                <di:waypoint x="420" y="205"/>
+                <di:waypoint x="420" y="120"/>
+                <di:waypoint x="500" y="120"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Split to Employment -->
+            <bpmndi:BPMNEdge id="Flow_Split_Employment_di" bpmnElement="Flow_Split_Employment">
+                <di:waypoint x="445" y="230"/>
+                <di:waypoint x="500" y="230"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Split to Collateral -->
+            <bpmndi:BPMNEdge id="Flow_Split_Collateral_di" bpmnElement="Flow_Split_Collateral">
+                <di:waypoint x="420" y="255"/>
+                <di:waypoint x="420" y="340"/>
+                <di:waypoint x="500" y="340"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Credit Check to Join -->
+            <bpmndi:BPMNEdge id="Flow_CreditCheck_Join_di" bpmnElement="Flow_CreditCheck_Join">
+                <di:waypoint x="600" y="120"/>
+                <di:waypoint x="680" y="120"/>
+                <di:waypoint x="680" y="205"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Employment to Join -->
+            <bpmndi:BPMNEdge id="Flow_Employment_Join_di" bpmnElement="Flow_Employment_Join">
+                <di:waypoint x="600" y="230"/>
+                <di:waypoint x="655" y="230"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Collateral to Join -->
+            <bpmndi:BPMNEdge id="Flow_Collateral_Join_di" bpmnElement="Flow_Collateral_Join">
+                <di:waypoint x="600" y="340"/>
+                <di:waypoint x="680" y="340"/>
+                <di:waypoint x="680" y="255"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Join to Decision -->
+            <bpmndi:BPMNEdge id="Flow_Join_Decision_di" bpmnElement="Flow_Join_Decision">
+                <di:waypoint x="705" y="230"/>
+                <di:waypoint x="760" y="230"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Decision to Gateway -->
+            <bpmndi:BPMNEdge id="Flow_Decision_Gateway_di" bpmnElement="Flow_Decision_Gateway">
+                <di:waypoint x="860" y="230"/>
+                <di:waypoint x="915" y="230"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Gateway to Approved -->
+            <bpmndi:BPMNEdge id="Flow_Approved_di" bpmnElement="Flow_Approved">
+                <di:waypoint x="940" y="205"/>
+                <di:waypoint x="940" y="170"/>
+                <di:waypoint x="1020" y="170"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="960" y="153" width="20" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <!-- Gateway to Rejected -->
+            <bpmndi:BPMNEdge id="Flow_Rejected_di" bpmnElement="Flow_Rejected">
+                <di:waypoint x="940" y="255"/>
+                <di:waypoint x="940" y="300"/>
+                <di:waypoint x="1020" y="300"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="960" y="283" width="15" height="14"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNEdge>
+
+            <!-- Disburse to Notify -->
+            <bpmndi:BPMNEdge id="Flow_Disburse_NotifyApproved_di" bpmnElement="Flow_Disburse_NotifyApproved">
+                <di:waypoint x="1120" y="170"/>
+                <di:waypoint x="1170" y="170"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Notify to End Approved -->
+            <bpmndi:BPMNEdge id="Flow_NotifyApproved_End_di" bpmnElement="Flow_NotifyApproved_End">
+                <di:waypoint x="1270" y="170"/>
+                <di:waypoint x="1322" y="170"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Rejection to End -->
+            <bpmndi:BPMNEdge id="Flow_Rejection_End_di" bpmnElement="Flow_Rejection_End">
+                <di:waypoint x="1120" y="300"/>
+                <di:waypoint x="1172" y="300"/>
+            </bpmndi:BPMNEdge>
+
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

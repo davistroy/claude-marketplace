@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BPMN 2.0 XML Skeleton Template
+
+  This template provides the base structure for all generated BPMN files.
+  Replace placeholders marked with [PLACEHOLDER] with actual values.
+
+  Required Namespaces:
+  - bpmn: Main BPMN 2.0 model elements
+  - bpmndi: BPMN Diagram Interchange
+  - dc: Diagram Common (bounds, dimensions)
+  - di: Diagram Interchange (waypoints)
+  - xsi: XML Schema Instance (for type definitions)
+-->
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    id="Definitions_[PROCESS_ID]"
+    targetNamespace="http://bpmn.io/schema/bpmn"
+    exporter="Claude BPMN Generator"
+    exporterVersion="1.1">
+
+    <!--
+    ============================================================================
+    COLLABORATION (Optional - for multi-pool processes)
+    ============================================================================
+    Uncomment and use when process involves multiple participants/organizations.
+    -->
+    <!--
+    <bpmn:collaboration id="Collaboration_[PROCESS_ID]">
+        <bpmn:participant id="Participant_[NAME]" name="[PARTICIPANT_NAME]" processRef="Process_[PROCESS_ID]"/>
+        <bpmn:participant id="Participant_[NAME2]" name="[PARTICIPANT_NAME2]" processRef="Process_[PROCESS_ID2]"/>
+        <bpmn:messageFlow id="MessageFlow_1" sourceRef="[ELEMENT_ID]" targetRef="[ELEMENT_ID]"/>
+    </bpmn:collaboration>
+    -->
+
+    <!--
+    ============================================================================
+    PROCESS DEFINITION
+    ============================================================================
+    Main process containing all flow elements.
+    -->
+    <bpmn:process id="Process_[PROCESS_ID]" name="[PROCESS_NAME]" isExecutable="true">
+
+        <!--
+        ========================================================================
+        LANE SET (Optional - for role-based organization)
+        ========================================================================
+        -->
+        <!--
+        <bpmn:laneSet id="LaneSet_1">
+            <bpmn:lane id="Lane_[ROLE]" name="[ROLE_NAME]">
+                <bpmn:flowNodeRef>[ELEMENT_ID]</bpmn:flowNodeRef>
+            </bpmn:lane>
+        </bpmn:laneSet>
+        -->
+
+        <!--
+        ========================================================================
+        START EVENTS
+        ========================================================================
+        -->
+        <bpmn:startEvent id="StartEvent_1" name="[START_EVENT_NAME]">
+            <bpmn:outgoing>Flow_[FIRST_FLOW_ID]</bpmn:outgoing>
+            <!-- For Message Start Event, add: -->
+            <!-- <bpmn:messageEventDefinition id="MessageEventDefinition_1" messageRef="Message_1"/> -->
+            <!-- For Timer Start Event, add: -->
+            <!-- <bpmn:timerEventDefinition id="TimerEventDefinition_1">
+                <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/PT1H</bpmn:timeCycle>
+            </bpmn:timerEventDefinition> -->
+        </bpmn:startEvent>
+
+        <!--
+        ========================================================================
+        TASKS / ACTIVITIES
+        ========================================================================
+        Add tasks in flow order. Each task needs incoming and outgoing flows.
+        -->
+        <!-- User Task Template -->
+        <bpmn:userTask id="Activity_[TASK_ID]" name="[TASK_NAME]">
+            <bpmn:incoming>Flow_[INCOMING_FLOW_ID]</bpmn:incoming>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID]</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Service Task Template -->
+        <!--
+        <bpmn:serviceTask id="Activity_[TASK_ID]" name="[TASK_NAME]">
+            <bpmn:incoming>Flow_[INCOMING_FLOW_ID]</bpmn:incoming>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID]</bpmn:outgoing>
+        </bpmn:serviceTask>
+        -->
+
+        <!-- Script Task Template -->
+        <!--
+        <bpmn:scriptTask id="Activity_[TASK_ID]" name="[TASK_NAME]" scriptFormat="javascript">
+            <bpmn:incoming>Flow_[INCOMING_FLOW_ID]</bpmn:incoming>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID]</bpmn:outgoing>
+            <bpmn:script><![CDATA[
+                // Script content here
+            ]]></bpmn:script>
+        </bpmn:scriptTask>
+        -->
+
+        <!--
+        ========================================================================
+        GATEWAYS
+        ========================================================================
+        -->
+        <!-- Exclusive Gateway (XOR) Template -->
+        <!--
+        <bpmn:exclusiveGateway id="Gateway_[GATEWAY_ID]" name="[GATEWAY_NAME]" default="Flow_[DEFAULT_FLOW_ID]">
+            <bpmn:incoming>Flow_[INCOMING_FLOW_ID]</bpmn:incoming>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID_1]</bpmn:outgoing>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID_2]</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+        -->
+
+        <!-- Parallel Gateway (AND) Template -->
+        <!--
+        <bpmn:parallelGateway id="Gateway_[GATEWAY_ID]" name="[GATEWAY_NAME]">
+            <bpmn:incoming>Flow_[INCOMING_FLOW_ID]</bpmn:incoming>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID_1]</bpmn:outgoing>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID_2]</bpmn:outgoing>
+        </bpmn:parallelGateway>
+        -->
+
+        <!-- Inclusive Gateway (OR) Template -->
+        <!--
+        <bpmn:inclusiveGateway id="Gateway_[GATEWAY_ID]" name="[GATEWAY_NAME]">
+            <bpmn:incoming>Flow_[INCOMING_FLOW_ID]</bpmn:incoming>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID_1]</bpmn:outgoing>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID_2]</bpmn:outgoing>
+        </bpmn:inclusiveGateway>
+        -->
+
+        <!--
+        ========================================================================
+        INTERMEDIATE EVENTS
+        ========================================================================
+        -->
+        <!-- Intermediate Catch Event (Timer) -->
+        <!--
+        <bpmn:intermediateCatchEvent id="Event_[EVENT_ID]" name="[EVENT_NAME]">
+            <bpmn:incoming>Flow_[INCOMING_FLOW_ID]</bpmn:incoming>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID]</bpmn:outgoing>
+            <bpmn:timerEventDefinition id="TimerEventDefinition_[ID]">
+                <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT1H</bpmn:timeDuration>
+            </bpmn:timerEventDefinition>
+        </bpmn:intermediateCatchEvent>
+        -->
+
+        <!-- Intermediate Throw Event (Message) -->
+        <!--
+        <bpmn:intermediateThrowEvent id="Event_[EVENT_ID]" name="[EVENT_NAME]">
+            <bpmn:incoming>Flow_[INCOMING_FLOW_ID]</bpmn:incoming>
+            <bpmn:outgoing>Flow_[OUTGOING_FLOW_ID]</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MessageEventDefinition_[ID]" messageRef="Message_[ID]"/>
+        </bpmn:intermediateThrowEvent>
+        -->
+
+        <!--
+        ========================================================================
+        END EVENTS
+        ========================================================================
+        -->
+        <bpmn:endEvent id="EndEvent_1" name="[END_EVENT_NAME]">
+            <bpmn:incoming>Flow_[LAST_FLOW_ID]</bpmn:incoming>
+            <!-- For Message End Event, add: -->
+            <!-- <bpmn:messageEventDefinition id="MessageEventDefinition_End" messageRef="Message_End"/> -->
+            <!-- For Error End Event, add: -->
+            <!-- <bpmn:errorEventDefinition id="ErrorEventDefinition_1" errorRef="Error_1"/> -->
+            <!-- For Terminate End Event, add: -->
+            <!-- <bpmn:terminateEventDefinition id="TerminateEventDefinition_1"/> -->
+        </bpmn:endEvent>
+
+        <!--
+        ========================================================================
+        SEQUENCE FLOWS
+        ========================================================================
+        Connect all elements with sequence flows.
+        -->
+        <bpmn:sequenceFlow id="Flow_[FLOW_ID]" sourceRef="[SOURCE_ELEMENT_ID]" targetRef="[TARGET_ELEMENT_ID]"/>
+
+        <!-- Conditional Flow Template -->
+        <!--
+        <bpmn:sequenceFlow id="Flow_[FLOW_ID]" name="[CONDITION_LABEL]" sourceRef="[GATEWAY_ID]" targetRef="[TARGET_ID]">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${[CONDITION]}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        -->
+
+        <!--
+        ========================================================================
+        DATA OBJECTS (Optional)
+        ========================================================================
+        -->
+        <!--
+        <bpmn:dataObjectReference id="DataObjectReference_1" name="[DATA_NAME]" dataObjectRef="DataObject_1"/>
+        <bpmn:dataObject id="DataObject_1"/>
+        -->
+
+    </bpmn:process>
+
+    <!--
+    ============================================================================
+    MESSAGE DEFINITIONS (Optional - for message events)
+    ============================================================================
+    -->
+    <!--
+    <bpmn:message id="Message_1" name="[MESSAGE_NAME]"/>
+    -->
+
+    <!--
+    ============================================================================
+    ERROR DEFINITIONS (Optional - for error events)
+    ============================================================================
+    -->
+    <!--
+    <bpmn:error id="Error_1" name="[ERROR_NAME]" errorCode="[ERROR_CODE]"/>
+    -->
+
+    <!--
+    ============================================================================
+    DIAGRAM INTERCHANGE
+    ============================================================================
+    Visual representation data for rendering the process diagram.
+    -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_[PROCESS_ID]">
+
+            <!-- For Collaboration, use: bpmnElement="Collaboration_[PROCESS_ID]" -->
+
+            <!--
+            ====================================================================
+            SHAPES
+            ====================================================================
+            Every flow element needs a corresponding BPMNShape.
+            -->
+
+            <!-- Start Event Shape -->
+            <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+                <dc:Bounds x="180" y="102" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="[LABEL_X]" y="[LABEL_Y]" width="[LABEL_WIDTH]" height="[LABEL_HEIGHT]"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Task Shape Template -->
+            <!--
+            <bpmndi:BPMNShape id="Activity_[TASK_ID]_di" bpmnElement="Activity_[TASK_ID]">
+                <dc:Bounds x="[X]" y="[Y]" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+            -->
+
+            <!-- Gateway Shape Template -->
+            <!--
+            <bpmndi:BPMNShape id="Gateway_[GATEWAY_ID]_di" bpmnElement="Gateway_[GATEWAY_ID]" isMarkerVisible="true">
+                <dc:Bounds x="[X]" y="[Y]" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="[LABEL_X]" y="[LABEL_Y]" width="[LABEL_WIDTH]" height="[LABEL_HEIGHT]"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            -->
+
+            <!-- End Event Shape -->
+            <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+                <dc:Bounds x="[X]" y="102" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="[LABEL_X]" y="[LABEL_Y]" width="[LABEL_WIDTH]" height="[LABEL_HEIGHT]"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!--
+            ====================================================================
+            EDGES
+            ====================================================================
+            Every sequence flow needs a corresponding BPMNEdge with waypoints.
+            -->
+
+            <!-- Sequence Flow Edge Template -->
+            <bpmndi:BPMNEdge id="Flow_[FLOW_ID]_di" bpmnElement="Flow_[FLOW_ID]">
+                <di:waypoint x="[SOURCE_X]" y="[SOURCE_Y]"/>
+                <di:waypoint x="[TARGET_X]" y="[TARGET_Y]"/>
+                <!-- For flows with bends, add intermediate waypoints -->
+            </bpmndi:BPMNEdge>
+
+            <!-- Pool Shape Template (for collaborations) -->
+            <!--
+            <bpmndi:BPMNShape id="Participant_[NAME]_di" bpmnElement="Participant_[NAME]" isHorizontal="true">
+                <dc:Bounds x="120" y="60" width="600" height="250"/>
+            </bpmndi:BPMNShape>
+            -->
+
+            <!-- Lane Shape Template -->
+            <!--
+            <bpmndi:BPMNShape id="Lane_[ROLE]_di" bpmnElement="Lane_[ROLE]" isHorizontal="true">
+                <dc:Bounds x="150" y="60" width="570" height="125"/>
+            </bpmndi:BPMNShape>
+            -->
+
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>
