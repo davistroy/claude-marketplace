@@ -1,3 +1,7 @@
+---
+description: Extract questions and open items from documents to JSON
+---
+
 # Define Questions Command
 
 Analyze the document specified by the user and extract all questions, open items, areas needing clarification, and incomplete sections into a comprehensive, downloadable JSON file.

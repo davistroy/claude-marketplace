@@ -1,3 +1,7 @@
+---
+description: Meeting transcript to structured markdown report
+---
+
 # Meeting Transcript Analysis
 
 Analyze the attached meeting transcript and produce a comprehensive markdown report.

@@ -1,3 +1,7 @@
+---
+description: Document quality evaluation with scored assessment report
+---
+
 # Document Assessment Command
 
 Perform a comprehensive evaluation of the specified document, identifying gaps, issues, missing content, and areas for improvement. Produce a detailed assessment report.
