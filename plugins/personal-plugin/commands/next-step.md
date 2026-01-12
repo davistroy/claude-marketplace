@@ -1,3 +1,7 @@
+---
+description: Analyze repo and recommend the next logical action
+---
+
 # Next Step Analysis
 
 Ultrathink and carefully review and evaluate everything in this repo. Define the next best logical step for this project and present to me, focusing on quality over speed. Make sure that the scope of this next step fits within an estimated 100K tokens or so to keep it small and within an appropriate context window.

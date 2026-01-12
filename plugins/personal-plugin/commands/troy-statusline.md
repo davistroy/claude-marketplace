@@ -1,4 +1,10 @@
+---
+description: "[Personal] Troy's custom status line setup (Windows/PowerShell)"
+---
+
 # Troy's Status Line Setup
+
+> **Note:** This command is specific to Troy's Windows environment and uses hardcoded paths. Use as a reference for creating your own status line configuration.
 
 Set up Troy's custom status line for Claude Code on Windows.
 

@@ -1,3 +1,7 @@
+---
+description: Interactive Q&A session from questions JSON file
+---
+
 # Ask Questions Command
 
 Interactively walk the user through answering questions from a JSON file produced by the `/define-questions` command.
