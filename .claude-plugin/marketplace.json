@@ -1,0 +1,21 @@
+{
+  "name": "troys-plugins",
+  "metadata": {
+    "description": "Troy Davis Claude Code plugins",
+    "version": "1.0.0"
+  },
+  "owner": {
+    "name": "Troy Davis",
+    "email": "troy.e.davis@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "personal-plugin",
+      "source": "./plugins/personal-plugin",
+      "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, and document processing",
+      "version": "1.0.0",
+      "category": "productivity",
+      "tags": ["personal","automation"]
+    }
+  ]
+}

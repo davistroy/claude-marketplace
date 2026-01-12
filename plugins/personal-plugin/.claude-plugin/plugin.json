@@ -1,0 +1,13 @@
+{
+  "name": "personal-plugin",
+  "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, and document processing",
+  "version": "1.0.0",
+  "author": {
+    "name": "Troy Davis",
+    "email": "troy.e.davis@gmail.com"
+  },
+  "homepage": "https://github.com/davistroy/personal-plugin",
+  "repository": "https://github.com/davistroy/personal-plugin",
+  "license": "MIT",
+  "keywords": ["personal","automation"]
+}
