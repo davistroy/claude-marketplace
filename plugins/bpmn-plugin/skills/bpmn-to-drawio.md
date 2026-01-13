@@ -21,67 +21,107 @@ This skill converts BPMN 2.0 XML files into Draw.io native format (.drawio) usin
 - Complete swimlane support with proper hierarchy
 - Model validation with error recovery
 
-## Quick Start
-
-The tool is bundled with this plugin at `../tools/bpmn2drawio/`. Run directly without installation:
-
-```bash
-# Set PYTHONPATH to the bundled tool's src directory
-TOOL_SRC="$(dirname "$0")/../tools/bpmn2drawio/src"
-
-# Basic conversion
-PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio
-
-# With theme
-PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --theme=blueprint
-
-# Top-to-bottom layout
-PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --direction=TB
-```
-
----
-
 ## Conversion Workflow
 
-### Step 1: Locate the Bundled Tool
+Follow these steps in order. The workflow automatically handles dependency installation.
 
-The tool is bundled at `../tools/bpmn2drawio/` relative to this skill file. Set the PYTHONPATH:
+### Step 1: Set Up Tool Path
 
-```bash
-# Absolute path example (adjust to your plugin location)
-TOOL_SRC="/path/to/plugins/bpmn-plugin/tools/bpmn2drawio/src"
-
-# Then run with:
-PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio --version
-```
-
-### Step 2: Analyze Source BPMN
-
-Before conversion, briefly analyze the BPMN file to determine appropriate options:
+The tool is bundled at `../tools/bpmn2drawio/` relative to this skill file:
 
 ```bash
-# Check file structure
-head -50 input.bpmn
+# Determine the plugin directory (adjust path as needed)
+PLUGIN_DIR="/path/to/plugins/bpmn-plugin"
+TOOL_SRC="$PLUGIN_DIR/tools/bpmn2drawio/src"
 ```
 
-Look for:
-- `<bpmndi:BPMNDiagram>` - Has DI coordinates (use `--layout=preserve`)
-- `<bpmn:participant>` - Multiple pools (complex diagram)
+### Step 2: Check and Install Python Dependencies
+
+Check for required Python packages and install any that are missing:
+
+```bash
+# Check which packages are missing
+python -c "import lxml" 2>/dev/null || echo "lxml: MISSING"
+python -c "import networkx" 2>/dev/null || echo "networkx: MISSING"
+python -c "import yaml" 2>/dev/null || echo "pyyaml: MISSING"
+python -c "import pygraphviz" 2>/dev/null || echo "pygraphviz: MISSING (requires Graphviz)"
+```
+
+**If any packages are missing (except pygraphviz), ask the user:**
+> "The following Python packages are missing: [list]. Install them now with `pip install [packages]`?"
+
+If user approves:
+```bash
+pip install lxml networkx pyyaml
+```
+
+**Note:** `pygraphviz` is handled separately in Step 3 because it requires Graphviz.
+
+### Step 3: Check Graphviz and pygraphviz
+
+Graphviz is required for automatic layout. Check if it's installed:
+
+```bash
+# Check for Graphviz
+dot -V 2>/dev/null && echo "Graphviz: OK" || echo "Graphviz: MISSING"
+```
+
+**If Graphviz is missing, ask the user:**
+> "Graphviz is not installed. It's required for automatic diagram layout. Install it now?"
+
+If user approves, install based on OS:
+
+```bash
+# Detect OS and install
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    sudo apt-get update && sudo apt-get install -y graphviz libgraphviz-dev
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    brew install graphviz
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
+    choco install graphviz -y
+fi
+```
+
+**After Graphviz is installed, install pygraphviz:**
+```bash
+pip install pygraphviz
+```
+
+**If user declines Graphviz installation:**
+- Check if BPMN file has DI coordinates (Step 4)
+- If yes: Can proceed with `--layout=preserve` (no Graphviz needed)
+- If no: Cannot proceed - Graphviz is required for layout generation
+
+### Step 4: Analyze Source BPMN
+
+Check if the BPMN file has existing layout coordinates:
+
+```bash
+# Check for DI coordinates
+grep -q "bpmndi:BPMNDiagram" input.bpmn && echo "HAS_DI=true" || echo "HAS_DI=false"
+```
+
+Also check for complexity:
+- `<bpmn:participant>` - Multiple pools
 - `<bpmn:lane>` - Swimlanes present
 
-### Step 3: Run Conversion
+**Layout decision:**
+- If `HAS_DI=true`: Can use `--layout=preserve` (Graphviz optional)
+- If `HAS_DI=false`: Must use `--layout=graphviz` (Graphviz required)
 
-**Basic conversion (auto-layout):**
+### Step 5: Run Conversion
+
+**With Graphviz available (auto-layout):**
 ```bash
 PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio
 ```
 
-**Preserve existing layout (if BPMN has DI coordinates):**
+**Without Graphviz (preserve existing layout):**
 ```bash
 PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --layout=preserve
 ```
 
-**With specific theme:**
+**With theme:**
 ```bash
 PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --theme=blueprint
 ```
@@ -91,15 +131,13 @@ PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --theme=bl
 PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --verbose
 ```
 
-### Step 4: Validate Output
+### Step 6: Validate Output
 
-After conversion, verify the output:
+Verify the conversion succeeded:
 
 ```bash
-# Check file was created
+# Check file was created and has content
 ls -la output.drawio
-
-# Verify XML structure
 head -30 output.drawio
 ```
 
@@ -209,41 +247,31 @@ bpmn2drawio input.bpmn output.drawio --config=brand-config.yaml
 
 ---
 
-## Prerequisites
+## Dependencies
 
-### Graphviz (required for automatic layout)
+Dependencies are checked and installed automatically during the conversion workflow (Steps 2-3).
 
-**Ubuntu/Debian:**
+### Python Packages
+- `lxml` - XML parsing
+- `networkx` - Graph algorithms
+- `pyyaml` - YAML configuration parsing
+- `pygraphviz` - Graphviz Python bindings (requires Graphviz)
+
+### System Dependencies
+- **Graphviz** - Required for automatic layout generation
+  - Not needed if BPMN file already has DI coordinates (use `--layout=preserve`)
+
+### Manual Installation (if needed)
+
+**Python packages:**
 ```bash
-sudo apt-get update
-sudo apt-get install graphviz libgraphviz-dev
+pip install lxml networkx pyyaml pygraphviz
 ```
 
-**macOS:**
-```bash
-brew install graphviz
-```
-
-**Windows:**
-```bash
-choco install graphviz
-```
-
-### Python Dependencies
-
-The tool requires `lxml`, `networkx`, `pygraphviz`, and `pyyaml`. Install with:
-
-```bash
-pip install lxml networkx pygraphviz pyyaml
-```
-
-Note: `pygraphviz` requires Graphviz to be installed first.
-
-### Verify Setup
-
-```bash
-PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio --version
-```
+**Graphviz:**
+- Ubuntu/Debian: `sudo apt-get install graphviz libgraphviz-dev`
+- macOS: `brew install graphviz`
+- Windows: `choco install graphviz`
 
 ---
 
@@ -349,10 +377,11 @@ for warning in warnings:
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| `command not found: bpmn2drawio` | Tool not installed | See [Installation](#installation) |
-| `pygraphviz` import error | Graphviz not installed | Install Graphviz system package |
+| `ModuleNotFoundError: bpmn2drawio` | PYTHONPATH not set | Set `PYTHONPATH="$TOOL_SRC"` before running |
+| `ModuleNotFoundError: lxml` | Missing dependency | Run `pip install lxml` |
+| `ModuleNotFoundError: pygraphviz` | Graphviz not installed | Install Graphviz first, then `pip install pygraphviz` |
 | Empty output file | Invalid BPMN input | Check BPMN file validity |
-| Overlapping elements | No DI coordinates | Use `--layout=graphviz` (default) |
+| Overlapping elements | No DI coordinates | Use `--layout=graphviz` (requires Graphviz) |
 | Wrong flow direction | Default is LR | Use `--direction=TB` for vertical |
 
 ### Validation Errors
