@@ -1,0 +1,22 @@
+# Sample brand configuration file
+base_theme: default
+
+colors:
+  events:
+    start_fill: "#e8f5e9"
+    start_stroke: "#4caf50"
+    end_fill: "#ffebee"
+    end_stroke: "#f44336"
+
+  tasks:
+    fill: "#e3f2fd"
+    stroke: "#2196f3"
+
+  gateways:
+    fill: "#fff8e1"
+    stroke: "#ffc107"
+
+fonts:
+  family: "Arial"
+  size: 11
+  color: "#212121"

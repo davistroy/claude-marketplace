@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  id="Definitions_1"
+                  targetNamespace="http://example.org/bpmn">
+  <bpmn:process id="Process_1" name="Invalid References Process" isExecutable="true">
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:task id="Task_1" name="Valid Task"/>
+    <bpmn:endEvent id="End_1" name="End"/>
+    <!-- Valid flows -->
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1"/>
+    <!-- Invalid flows - reference non-existent elements -->
+    <bpmn:sequenceFlow id="Flow_Invalid_1" sourceRef="NonExistent_Source" targetRef="Task_1"/>
+    <bpmn:sequenceFlow id="Flow_Invalid_2" sourceRef="Task_1" targetRef="NonExistent_Target"/>
+  </bpmn:process>
+</bpmn:definitions>

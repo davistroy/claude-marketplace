@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  id="Definitions_1"
+                  targetNamespace="http://example.org/bpmn">
+  <bpmn:process id="Process_1" name="All Tasks Process" isExecutable="true">
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:task id="Task_Generic" name="Generic Task"/>
+    <bpmn:userTask id="Task_User" name="User Task"/>
+    <bpmn:serviceTask id="Task_Service" name="Service Task"/>
+    <bpmn:scriptTask id="Task_Script" name="Script Task"/>
+    <bpmn:sendTask id="Task_Send" name="Send Task"/>
+    <bpmn:receiveTask id="Task_Receive" name="Receive Task"/>
+    <bpmn:businessRuleTask id="Task_BusinessRule" name="Business Rule Task"/>
+    <bpmn:manualTask id="Task_Manual" name="Manual Task"/>
+    <bpmn:endEvent id="End_1" name="End"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_Generic"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_Generic" targetRef="Task_User"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_User" targetRef="Task_Service"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_Service" targetRef="Task_Script"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_Script" targetRef="Task_Send"/>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_Send" targetRef="Task_Receive"/>
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_Receive" targetRef="Task_BusinessRule"/>
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="Task_BusinessRule" targetRef="Task_Manual"/>
+    <bpmn:sequenceFlow id="Flow_9" sourceRef="Task_Manual" targetRef="End_1"/>
+  </bpmn:process>
+</bpmn:definitions>

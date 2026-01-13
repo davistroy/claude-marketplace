@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_1"
+                  targetNamespace="http://example.org/bpmn">
+  <bpmn:process id="Process_1" name="Conditional Flow Process" isExecutable="true">
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:exclusiveGateway id="Gateway_1" name="Decision" default="Flow_Default"/>
+    <bpmn:task id="Task_Approve" name="Approve"/>
+    <bpmn:task id="Task_Reject" name="Reject"/>
+    <bpmn:task id="Task_Review" name="Review"/>
+    <bpmn:exclusiveGateway id="Gateway_2" name="Merge"/>
+    <bpmn:endEvent id="End_1" name="End"/>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Gateway_1"/>
+    <bpmn:sequenceFlow id="Flow_Approve" name="Approved" sourceRef="Gateway_1" targetRef="Task_Approve">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">status == 'approved'</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Reject" name="Rejected" sourceRef="Gateway_1" targetRef="Task_Reject">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">status == 'rejected'</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Default" name="Default" sourceRef="Gateway_1" targetRef="Task_Review"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_Approve" targetRef="Gateway_2"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_Reject" targetRef="Gateway_2"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_Review" targetRef="Gateway_2"/>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Gateway_2" targetRef="End_1"/>
+  </bpmn:process>
+</bpmn:definitions>

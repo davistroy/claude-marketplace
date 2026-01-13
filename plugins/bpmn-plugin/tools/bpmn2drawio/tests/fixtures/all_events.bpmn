@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  id="Definitions_1"
+                  targetNamespace="http://example.org/bpmn">
+  <bpmn:process id="Process_1" name="All Events Process" isExecutable="true">
+    <bpmn:startEvent id="Start_None" name="Start"/>
+    <bpmn:startEvent id="Start_Timer" name="Timer Start">
+      <bpmn:timerEventDefinition/>
+    </bpmn:startEvent>
+    <bpmn:startEvent id="Start_Message" name="Message Start">
+      <bpmn:messageEventDefinition/>
+    </bpmn:startEvent>
+    <bpmn:startEvent id="Start_Signal" name="Signal Start">
+      <bpmn:signalEventDefinition/>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_1" name="Main Task"/>
+    <bpmn:intermediateCatchEvent id="ICE_Timer" name="Timer Catch">
+      <bpmn:timerEventDefinition/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="ICE_Message" name="Message Catch">
+      <bpmn:messageEventDefinition/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateThrowEvent id="ITE_Message" name="Message Throw">
+      <bpmn:messageEventDefinition/>
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="ITE_Signal" name="Signal Throw">
+      <bpmn:signalEventDefinition/>
+    </bpmn:intermediateThrowEvent>
+    <bpmn:endEvent id="End_None" name="End"/>
+    <bpmn:endEvent id="End_Message" name="Message End">
+      <bpmn:messageEventDefinition/>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Error" name="Error End">
+      <bpmn:errorEventDefinition/>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Terminate" name="Terminate End">
+      <bpmn:terminateEventDefinition/>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_None" targetRef="Task_1"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_None"/>
+  </bpmn:process>
+</bpmn:definitions>

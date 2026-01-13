@@ -226,21 +226,19 @@ choco install graphviz
 
 ### Install bpmn2drawio
 
-**Option 1: From PyPI (when published)**
+The `bpmn2drawio` tool is bundled with this plugin. Install from the plugin's tools directory:
+
+```bash
+# Navigate to the plugin's tools directory and install
+pip install /path/to/claude-marketplace/plugins/bpmn-plugin/tools/bpmn2drawio
+
+# Or install in editable mode for development
+pip install -e /path/to/claude-marketplace/plugins/bpmn-plugin/tools/bpmn2drawio
+```
+
+**Alternative: Install from PyPI (if published)**
 ```bash
 pip install bpmn2drawio
-```
-
-**Option 2: From GitHub**
-```bash
-pip install git+https://github.com/davistroy/bpmn.git#subdirectory=bpmn2drawio
-```
-
-**Option 3: Local development install**
-```bash
-git clone https://github.com/davistroy/bpmn.git
-cd bpmn/bpmn2drawio
-pip install -e .
 ```
 
 ### Verify Installation
@@ -451,7 +449,8 @@ If the `bpmn2drawio` tool is unavailable and cannot be installed, fall back to m
 
 ## References
 
-- **GitHub Repository**: https://github.com/davistroy/bpmn/tree/main/bpmn2drawio
+- **Bundled Tool**: `../tools/bpmn2drawio/` (source code included in this plugin)
+- **Original Repository**: https://github.com/davistroy/bpmn/tree/main/bpmn2drawio
 - **Conversion Standard**: `../references/BPMN-to-DrawIO-Conversion-Standard.md`
 - **Element Styles**: `../templates/element-styles.yaml`
 - **Draw.io Skeleton**: `../templates/drawio-skeleton.xml`

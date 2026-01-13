@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_1"
+                  targetNamespace="http://example.org/bpmn">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Pool_Customer" name="Customer" processRef="Process_Customer"/>
+    <bpmn:participant id="Pool_Service" name="Service" processRef="Process_Service"/>
+    <bpmn:messageFlow id="MF_1" sourceRef="Task_Request" targetRef="Task_Receive"/>
+    <bpmn:messageFlow id="MF_2" sourceRef="Task_Process" targetRef="Task_Confirm"/>
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Customer" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Customer">
+      <bpmn:lane id="Lane_User" name="User">
+        <bpmn:flowNodeRef>Start_Customer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Request</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Manager" name="Manager">
+        <bpmn:flowNodeRef>Task_Confirm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Customer</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Customer" name="Start"/>
+    <bpmn:task id="Task_Request" name="Submit Request"/>
+    <bpmn:task id="Task_Confirm" name="Confirm Receipt"/>
+    <bpmn:endEvent id="End_Customer" name="End"/>
+    <bpmn:sequenceFlow id="Flow_C1" sourceRef="Start_Customer" targetRef="Task_Request"/>
+    <bpmn:sequenceFlow id="Flow_C2" sourceRef="Task_Confirm" targetRef="End_Customer"/>
+  </bpmn:process>
+  <bpmn:process id="Process_Service" isExecutable="true">
+    <bpmn:startEvent id="Start_Service" name="Start"/>
+    <bpmn:task id="Task_Receive" name="Receive Request"/>
+    <bpmn:task id="Task_Process" name="Process Request"/>
+    <bpmn:endEvent id="End_Service" name="End"/>
+    <bpmn:sequenceFlow id="Flow_S1" sourceRef="Start_Service" targetRef="Task_Receive"/>
+    <bpmn:sequenceFlow id="Flow_S2" sourceRef="Task_Receive" targetRef="Task_Process"/>
+    <bpmn:sequenceFlow id="Flow_S3" sourceRef="Task_Process" targetRef="End_Service"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Pool_Customer_di" bpmnElement="Pool_Customer" isHorizontal="true">
+        <dc:Bounds x="50" y="50" width="600" height="250"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_User_di" bpmnElement="Lane_User" isHorizontal="true">
+        <dc:Bounds x="80" y="50" width="570" height="125"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Manager_di" bpmnElement="Lane_Manager" isHorizontal="true">
+        <dc:Bounds x="80" y="175" width="570" height="125"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Pool_Service_di" bpmnElement="Pool_Service" isHorizontal="true">
+        <dc:Bounds x="50" y="350" width="600" height="150"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Customer_di" bpmnElement="Start_Customer">
+        <dc:Bounds x="120" y="95" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Request_di" bpmnElement="Task_Request">
+        <dc:Bounds x="220" y="73" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Confirm_di" bpmnElement="Task_Confirm">
+        <dc:Bounds x="420" y="198" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Customer_di" bpmnElement="End_Customer">
+        <dc:Bounds x="570" y="220" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

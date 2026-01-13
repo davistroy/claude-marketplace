@@ -1,7 +1,7 @@
 {
   "name": "bpmn-plugin",
-  "description": "BPMN 2.0 workflow tools: XML generation from natural language/markdown, and conversion to Draw.io format",
-  "version": "1.4.0",
+  "description": "BPMN 2.0 workflow tools: XML generation from natural language/markdown, and conversion to Draw.io format. Includes bundled bpmn2drawio Python tool.",
+  "version": "1.5.0",
   "author": {
     "name": "Troy Davis",
     "email": "troy.e.davis@gmail.com"
@@ -9,5 +9,12 @@
   "homepage": "https://github.com/davistroy/claude-marketplace",
   "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
-  "keywords": ["bpmn", "workflow", "xml", "diagram", "process-modeling", "drawio"]
+  "keywords": ["bpmn", "workflow", "xml", "diagram", "process-modeling", "drawio"],
+  "tools": {
+    "bpmn2drawio": {
+      "path": "tools/bpmn2drawio",
+      "type": "python",
+      "install": "pip install tools/bpmn2drawio"
+    }
+  }
 }

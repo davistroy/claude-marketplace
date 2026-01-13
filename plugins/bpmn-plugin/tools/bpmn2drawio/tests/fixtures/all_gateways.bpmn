@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  id="Definitions_1"
+                  targetNamespace="http://example.org/bpmn">
+  <bpmn:process id="Process_1" name="All Gateways Process" isExecutable="true">
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:exclusiveGateway id="GW_Exclusive" name="Exclusive"/>
+    <bpmn:parallelGateway id="GW_Parallel" name="Parallel"/>
+    <bpmn:inclusiveGateway id="GW_Inclusive" name="Inclusive"/>
+    <bpmn:eventBasedGateway id="GW_EventBased" name="Event Based"/>
+    <bpmn:complexGateway id="GW_Complex" name="Complex"/>
+    <bpmn:endEvent id="End_1" name="End"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="GW_Exclusive"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="GW_Exclusive" targetRef="GW_Parallel"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="GW_Parallel" targetRef="GW_Inclusive"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="GW_Inclusive" targetRef="GW_EventBased"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="GW_EventBased" targetRef="GW_Complex"/>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="GW_Complex" targetRef="End_1"/>
+  </bpmn:process>
+</bpmn:definitions>
