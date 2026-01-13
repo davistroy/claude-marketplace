@@ -75,18 +75,22 @@ class BPMNParser:
         nsmap = root.nsmap
         # Check for common BPMN namespace variations
         for prefix, uri in nsmap.items():
+            # Handle Python 3.14+ / lxml compatibility - ensure strings
+            if not isinstance(uri, str):
+                continue
             if prefix is None:
                 # Default namespace
                 if "BPMN" in uri or "bpmn" in uri.lower():
                     self.namespaces["bpmn"] = uri
-            elif "bpmn" in prefix.lower() and "di" not in prefix.lower():
-                self.namespaces["bpmn"] = uri
-            elif prefix == "bpmndi" or (prefix and "bpmndi" in prefix.lower()):
-                self.namespaces["bpmndi"] = uri
-            elif prefix == "dc":
-                self.namespaces["dc"] = uri
-            elif prefix == "di":
-                self.namespaces["di"] = uri
+            elif isinstance(prefix, str):
+                if "bpmn" in prefix.lower() and "di" not in prefix.lower():
+                    self.namespaces["bpmn"] = uri
+                elif prefix == "bpmndi" or "bpmndi" in prefix.lower():
+                    self.namespaces["bpmndi"] = uri
+                elif prefix == "dc":
+                    self.namespaces["dc"] = uri
+                elif prefix == "di":
+                    self.namespaces["di"] = uri
 
     def _parse_di(self, root: etree._Element) -> None:
         """Parse BPMN Diagram Interchange information."""
@@ -398,8 +402,11 @@ class BPMNParser:
             element_refs=element_refs,
         )
 
-    def _local_name(self, tag: str) -> str:
+    def _local_name(self, tag) -> str:
         """Get local name from a potentially namespaced tag."""
+        # Handle Python 3.14+ / lxml compatibility - ensure string
+        if not isinstance(tag, str):
+            tag = str(tag) if tag is not None else ""
         if "}" in tag:
             return tag.split("}")[1]
         return tag
