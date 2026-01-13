@@ -26,6 +26,7 @@ plugins/
       ask-questions.md      # Interactive Q&A session from JSON file
       doc-assessment.md     # Document quality evaluation with scoring
       consolidate.md        # Merge multiple document versions into one
+      wordify.md            # Convert markdown to formatted Word document
       next-step.md          # Analyze repo and recommend next action
       troy-statusline.md    # Custom status line setup (Windows/PowerShell)
     skills/
@@ -67,6 +68,7 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Workflow commands** (`ship`): Multi-step automation with confirmation points
 - **Generator commands** (`define-questions`, `transcript-analysis`): Create structured output files
 - **Synthesis commands** (`consolidate`): Merge multiple sources into optimized output
+- **Conversion commands** (`wordify`): Transform files between formats
 
 ### Output File Naming
 Commands that generate files use: `[type]-[source]-[timestamp].json` or `.md`
