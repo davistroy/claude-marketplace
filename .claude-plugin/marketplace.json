@@ -13,7 +13,7 @@
       "name": "personal-plugin",
       "source": "./plugins/personal-plugin",
       "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, and document processing",
-      "version": "1.4.0",
+      "version": "1.4.1",
       "category": "productivity",
       "tags": ["personal","automation"]
     },
