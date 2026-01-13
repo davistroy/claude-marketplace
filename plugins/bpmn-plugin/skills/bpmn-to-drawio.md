@@ -23,30 +23,37 @@ This skill converts BPMN 2.0 XML files into Draw.io native format (.drawio) usin
 
 ## Quick Start
 
+The tool is bundled with this plugin at `../tools/bpmn2drawio/`. Run directly without installation:
+
 ```bash
+# Set PYTHONPATH to the bundled tool's src directory
+TOOL_SRC="$(dirname "$0")/../tools/bpmn2drawio/src"
+
 # Basic conversion
-bpmn2drawio input.bpmn output.drawio
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio
 
 # With theme
-bpmn2drawio input.bpmn output.drawio --theme=blueprint
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --theme=blueprint
 
 # Top-to-bottom layout
-bpmn2drawio input.bpmn output.drawio --direction=TB
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --direction=TB
 ```
 
 ---
 
 ## Conversion Workflow
 
-### Step 1: Check Tool Availability
+### Step 1: Locate the Bundled Tool
 
-First, check if `bpmn2drawio` is installed:
+The tool is bundled at `../tools/bpmn2drawio/` relative to this skill file. Set the PYTHONPATH:
 
 ```bash
-bpmn2drawio --version
-```
+# Absolute path example (adjust to your plugin location)
+TOOL_SRC="/path/to/plugins/bpmn-plugin/tools/bpmn2drawio/src"
 
-If not installed, proceed to [Installation](#installation).
+# Then run with:
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio --version
+```
 
 ### Step 2: Analyze Source BPMN
 
@@ -66,22 +73,22 @@ Look for:
 
 **Basic conversion (auto-layout):**
 ```bash
-bpmn2drawio input.bpmn output.drawio
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio
 ```
 
 **Preserve existing layout (if BPMN has DI coordinates):**
 ```bash
-bpmn2drawio input.bpmn output.drawio --layout=preserve
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --layout=preserve
 ```
 
 **With specific theme:**
 ```bash
-bpmn2drawio input.bpmn output.drawio --theme=blueprint
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --theme=blueprint
 ```
 
 **Verbose output for debugging:**
 ```bash
-bpmn2drawio input.bpmn output.drawio --verbose
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --verbose
 ```
 
 ### Step 4: Validate Output
@@ -202,11 +209,9 @@ bpmn2drawio input.bpmn output.drawio --config=brand-config.yaml
 
 ---
 
-## Installation
+## Prerequisites
 
-### Prerequisites
-
-Install Graphviz (required for automatic layout):
+### Graphviz (required for automatic layout)
 
 **Ubuntu/Debian:**
 ```bash
@@ -224,27 +229,20 @@ brew install graphviz
 choco install graphviz
 ```
 
-### Install bpmn2drawio
+### Python Dependencies
 
-The `bpmn2drawio` tool is bundled with this plugin. Install from the plugin's tools directory:
+The tool requires `lxml`, `networkx`, `pygraphviz`, and `pyyaml`. Install with:
 
 ```bash
-# Navigate to the plugin's tools directory and install
-pip install /path/to/claude-marketplace/plugins/bpmn-plugin/tools/bpmn2drawio
-
-# Or install in editable mode for development
-pip install -e /path/to/claude-marketplace/plugins/bpmn-plugin/tools/bpmn2drawio
+pip install lxml networkx pygraphviz pyyaml
 ```
 
-**Alternative: Install from PyPI (if published)**
-```bash
-pip install bpmn2drawio
-```
+Note: `pygraphviz` requires Graphviz to be installed first.
 
-### Verify Installation
+### Verify Setup
 
 ```bash
-bpmn2drawio --version
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio --version
 ```
 
 ---
