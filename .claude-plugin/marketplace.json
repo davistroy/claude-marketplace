@@ -20,8 +20,8 @@
     {
       "name": "bpmn-plugin",
       "source": "./plugins/bpmn-plugin",
-      "description": "BPMN 2.0 workflow tools: XML generation from natural language/markdown, and conversion to Draw.io format with bpmn2drawio CLI",
-      "version": "1.4.0",
+      "description": "BPMN 2.0 workflow tools: XML generation from natural language/markdown, and conversion to Draw.io format. Includes bundled bpmn2drawio Python tool.",
+      "version": "1.5.0",
       "category": "workflow",
       "tags": ["bpmn","workflow","xml","diagram","process-modeling","drawio"]
     }
