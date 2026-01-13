@@ -1,5 +1,4 @@
 ---
-name: doc-review
 description: Comprehensive documentation review and cleanup across the entire project
 ---
 

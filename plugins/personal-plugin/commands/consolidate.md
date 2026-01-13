@@ -1,5 +1,4 @@
 ---
-name: consolidate
 description: Analyze multiple document variations and synthesize a superior consolidated version
 ---
 

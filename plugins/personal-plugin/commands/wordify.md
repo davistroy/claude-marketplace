@@ -1,5 +1,4 @@
 ---
-name: wordify
 description: Convert a markdown file to a nicely formatted Microsoft Word document
 ---
 

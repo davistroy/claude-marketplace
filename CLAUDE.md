@@ -59,6 +59,8 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 ---
 ```
 
+**Important:** Do NOT include a `name` field in frontmatter - the filename determines the command name. Adding `name` can prevent command discovery.
+
 ### Naming
 - Use kebab-case for command filenames
 - Commands are invoked as `/filename` (without .md extension)

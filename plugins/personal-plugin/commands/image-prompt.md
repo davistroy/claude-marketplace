@@ -1,5 +1,4 @@
 ---
-name: image-prompt
 description: Generate detailed image generator prompts from content, optimized for 11x17 landscape prints
 ---
 
