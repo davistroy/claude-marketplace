@@ -1,0 +1,1755 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions 
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+    id="Definitions_AIOptimizedCommunityManagement"
+    name="AI-Optimized Social Media Community Management"
+    targetNamespace="http://stratfieldconsulting.com/bpmn/community-management"
+    exporter="Claude AI"
+    exporterVersion="1.0">
+
+    <!-- ============================================================== -->
+    <!-- DOCUMENTATION -->
+    <!-- ============================================================== -->
+    <bpmn:documentation>
+        AI-Optimized Social Media Community Management Process
+        Version: 2.0
+        Date: January 2026
+        
+        This BPMN 2.0 process definition implements a comprehensive AI-optimized 
+        workflow for social media community management. The process consolidates
+        traditional 7-step manual workflows into 5 streamlined steps with tiered
+        autonomy based on risk classification and confidence scoring.
+        
+        Key Design Principles:
+        - Tiered Autonomy: T0-T4 risk tiers with corresponding G0-G5 approval gates
+        - Safe by Default: Auto-publish opt-in only; human gates for sensitive content
+        - Continuous Learning: RLHF feedback loops from human edits
+        - Bounded Knowledge: RAG-based responses grounded in verified content only
+        
+        Process Metrics Targets:
+        - Response Time: 15-60 minutes (from 4-24 hours)
+        - Manual Triage: 15% (from 100%)
+        - Location ID: 90%+ automated
+        - Cost per Interaction: $3-5 (from $8-12)
+    </bpmn:documentation>
+
+    <!-- ============================================================== -->
+    <!-- CATEGORY DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:category id="Category_Automation">
+        <bpmn:categoryValue id="CV_FullAuto" value="Full Automation (Level 1)"/>
+        <bpmn:categoryValue id="CV_AIAssisted" value="AI-Assisted (Level 2)"/>
+        <bpmn:categoryValue id="CV_HumanLed" value="Human-Led AI-Augmented (Level 3)"/>
+        <bpmn:categoryValue id="CV_HumanOnly" value="Human-Only (Level 4)"/>
+    </bpmn:category>
+    
+    <bpmn:category id="Category_RiskTier">
+        <bpmn:categoryValue id="CV_T0" value="T0 - Spam/Low-Value"/>
+        <bpmn:categoryValue id="CV_T1" value="T1 - Routine/Low Risk"/>
+        <bpmn:categoryValue id="CV_T2" value="T2 - Customer-Impacting"/>
+        <bpmn:categoryValue id="CV_T3" value="T3 - Sensitive/Brand Risk"/>
+        <bpmn:categoryValue id="CV_T4" value="T4 - Legal/PR/Crisis"/>
+    </bpmn:category>
+
+    <!-- ============================================================== -->
+    <!-- ITEM DEFINITIONS (Data Types) -->
+    <!-- ============================================================== -->
+    <bpmn:itemDefinition id="ItemDef_Interaction" structureRef="tns:InteractionRecord"/>
+    <bpmn:itemDefinition id="ItemDef_Classification" structureRef="tns:ClassificationResult"/>
+    <bpmn:itemDefinition id="ItemDef_LocationResult" structureRef="tns:LocationIdentification"/>
+    <bpmn:itemDefinition id="ItemDef_DraftResponse" structureRef="tns:ResponseDraft"/>
+    <bpmn:itemDefinition id="ItemDef_ApprovalDecision" structureRef="tns:ApprovalDecision"/>
+    <bpmn:itemDefinition id="ItemDef_CRMTicket" structureRef="tns:CRMTicket"/>
+    <bpmn:itemDefinition id="ItemDef_AuditRecord" structureRef="tns:AuditRecord"/>
+    <bpmn:itemDefinition id="ItemDef_AnalyticsEvent" structureRef="tns:AnalyticsEvent"/>
+
+    <!-- ============================================================== -->
+    <!-- MESSAGE DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:message id="Message_NewInteraction" name="NewSocialInteraction">
+        <bpmn:documentation>Incoming social media interaction from any monitored platform</bpmn:documentation>
+    </bpmn:message>
+    <bpmn:message id="Message_PlatformWebhook" name="PlatformWebhook">
+        <bpmn:documentation>Real-time webhook notification from social platform APIs</bpmn:documentation>
+    </bpmn:message>
+    <bpmn:message id="Message_ApprovalRequest" name="ApprovalRequest">
+        <bpmn:documentation>Request for human approval of AI-drafted response</bpmn:documentation>
+    </bpmn:message>
+    <bpmn:message id="Message_ApprovalResponse" name="ApprovalResponse">
+        <bpmn:documentation>Human decision on approval request (approve/edit/reject)</bpmn:documentation>
+    </bpmn:message>
+    <bpmn:message id="Message_EscalationAlert" name="EscalationAlert">
+        <bpmn:documentation>Alert to specialist team for high-risk escalation</bpmn:documentation>
+    </bpmn:message>
+    <bpmn:message id="Message_CRMTicketCreated" name="CRMTicketCreated">
+        <bpmn:documentation>Confirmation of ticket creation in CRM system</bpmn:documentation>
+    </bpmn:message>
+    <bpmn:message id="Message_ResolutionComplete" name="ResolutionComplete">
+        <bpmn:documentation>Notification that issue has been resolved in CRM</bpmn:documentation>
+    </bpmn:message>
+    <bpmn:message id="Message_CustomerResponse" name="CustomerResponse">
+        <bpmn:documentation>Response posted to customer via social platform</bpmn:documentation>
+    </bpmn:message>
+    <bpmn:message id="Message_CloseLoopDM" name="CloseLoopDM">
+        <bpmn:documentation>Follow-up DM to customer after resolution</bpmn:documentation>
+    </bpmn:message>
+
+    <!-- ============================================================== -->
+    <!-- SIGNAL DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:signal id="Signal_CircuitBreaker" name="CircuitBreakerActivated">
+        <bpmn:documentation>
+            Circuit breaker triggered when negative sentiment spikes >20% in 1 hour.
+            Pauses all automated publishing system-wide.
+        </bpmn:documentation>
+    </bpmn:signal>
+    <bpmn:signal id="Signal_CircuitBreakerReset" name="CircuitBreakerReset">
+        <bpmn:documentation>Circuit breaker deactivated, automated publishing resumed</bpmn:documentation>
+    </bpmn:signal>
+    <bpmn:signal id="Signal_CrisisMode" name="CrisisModeActivated">
+        <bpmn:documentation>Crisis protocol activated - all responses require PR/Legal gate</bpmn:documentation>
+    </bpmn:signal>
+    <bpmn:signal id="Signal_VolumeSpike" name="VolumeSpike">
+        <bpmn:documentation>Volume spike detected (>2x normal in 1 hour)</bpmn:documentation>
+    </bpmn:signal>
+    <bpmn:signal id="Signal_SentimentShift" name="SentimentShift">
+        <bpmn:documentation>Significant negative sentiment shift detected vs baseline</bpmn:documentation>
+    </bpmn:signal>
+
+    <!-- ============================================================== -->
+    <!-- ERROR DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:error id="Error_ClassificationFailed" name="ClassificationError" errorCode="ERR_CLASSIFICATION">
+        <bpmn:documentation>AI classification failed or returned invalid result</bpmn:documentation>
+    </bpmn:error>
+    <bpmn:error id="Error_LocationIDFailed" name="LocationIdentificationError" errorCode="ERR_LOCATION">
+        <bpmn:documentation>Unable to identify location with sufficient confidence</bpmn:documentation>
+    </bpmn:error>
+    <bpmn:error id="Error_ResponseGenFailed" name="ResponseGenerationError" errorCode="ERR_RESPONSE">
+        <bpmn:documentation>AI response generation failed after max retries</bpmn:documentation>
+    </bpmn:error>
+    <bpmn:error id="Error_CRMIntegration" name="CRMIntegrationError" errorCode="ERR_CRM">
+        <bpmn:documentation>Failed to create or update ticket in CRM system</bpmn:documentation>
+    </bpmn:error>
+    <bpmn:error id="Error_PlatformAPI" name="PlatformAPIError" errorCode="ERR_PLATFORM">
+        <bpmn:documentation>Social platform API error during publish</bpmn:documentation>
+    </bpmn:error>
+    <bpmn:error id="Error_ActorCriticLoop" name="ActorCriticLoopError" errorCode="ERR_ACTORCRITIC">
+        <bpmn:documentation>Actor-Critic validation failed after max iterations</bpmn:documentation>
+    </bpmn:error>
+
+    <!-- ============================================================== -->
+    <!-- ESCALATION DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:escalation id="Escalation_SLABreach" name="SLABreachWarning" escalationCode="ESC_SLA">
+        <bpmn:documentation>SLA threshold approaching or breached</bpmn:documentation>
+    </bpmn:escalation>
+    <bpmn:escalation id="Escalation_QualityIssue" name="QualityIssueDetected" escalationCode="ESC_QUALITY">
+        <bpmn:documentation>Quality audit identified issue requiring attention</bpmn:documentation>
+    </bpmn:escalation>
+
+    <!-- ============================================================== -->
+    <!-- RESOURCE DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:resource id="Resource_CommunityManager" name="Community Manager">
+        <bpmn:documentation>
+            Primary human reviewer for T1-T2 responses.
+            Responsible for G1 approval gate.
+            Target: Review within 30 minutes.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_TeamLead" name="Team Lead">
+        <bpmn:documentation>
+            Senior reviewer for T3 responses and exception queue.
+            Responsible for G2 approval gate oversight.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_BrandLead" name="Brand Lead">
+        <bpmn:documentation>
+            Brand voice guardian. Reviews T3 and high-profile responses.
+            Responsible for G2 approval gate.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_CustomerCare" name="Customer Care Lead">
+        <bpmn:documentation>
+            Customer service escalation handler.
+            Responsible for G3 approval gate for service issues.
+            Manages refund/compensation authorization.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_DigitalSupport" name="Digital Support Lead">
+        <bpmn:documentation>
+            App/web technical issue specialist.
+            Responsible for G3 approval gate for digital issues.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_FSQ" name="Food Safety &amp; Quality Team">
+        <bpmn:documentation>
+            Food safety specialist for product quality issues.
+            Required for any illness/allergen/contamination mentions.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_PR" name="PR/Communications">
+        <bpmn:documentation>
+            Public relations handler for media and crisis.
+            Required for G4 approval gate.
+            Manages influencer relationships.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_Legal" name="Legal Team">
+        <bpmn:documentation>
+            Legal review for lawsuit mentions and regulatory issues.
+            Required for G4/G5 approval gates.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_HR" name="HR Team">
+        <bpmn:documentation>
+            Employee relations handler.
+            Manages hiring inquiries and workplace complaints.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_Security" name="Security Team">
+        <bpmn:documentation>
+            Handles threats, harassment, and impersonation.
+            Coordinates with platform for account actions.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_Privacy" name="Privacy Office">
+        <bpmn:documentation>
+            Data protection and privacy request handler.
+            Manages GDPR/CCPA compliance.
+        </bpmn:documentation>
+    </bpmn:resource>
+    <bpmn:resource id="Resource_AIOperations" name="AI Operations Analyst">
+        <bpmn:documentation>
+            Monitors AI performance and model updates.
+            Maintains Knowledge Base and playbook.
+            Reviews exception patterns for model tuning.
+        </bpmn:documentation>
+    </bpmn:resource>
+
+    <!-- ============================================================== -->
+    <!-- DATA STORE DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:dataStore id="DataStore_InteractionDB" name="Interaction Database">
+        <bpmn:documentation>
+            Central PostgreSQL database storing all social interactions.
+            Schema includes: interaction_id, platform, author, content, 
+            metadata, classification, response, status, timestamps.
+        </bpmn:documentation>
+    </bpmn:dataStore>
+    <bpmn:dataStore id="DataStore_KnowledgeBase" name="Knowledge Base (Vector Store)">
+        <bpmn:documentation>
+            Pinecone/Weaviate vector database for RAG.
+            Contains: brand playbook, FAQs, policies, press releases,
+            approved response templates, best-performing past responses.
+        </bpmn:documentation>
+    </bpmn:dataStore>
+    <bpmn:dataStore id="DataStore_LocationDB" name="Location Database">
+        <bpmn:documentation>
+            Store/location reference database with fuzzy matching.
+            Contains: store_id, name, aliases, city, region, coordinates.
+        </bpmn:documentation>
+    </bpmn:dataStore>
+    <bpmn:dataStore id="DataStore_CRM" name="CRM System (Salesforce/Zendesk)">
+        <bpmn:documentation>
+            Customer relationship management and ticketing system.
+            Integration for escalation ticket creation and resolution tracking.
+        </bpmn:documentation>
+    </bpmn:dataStore>
+    <bpmn:dataStore id="DataStore_AuditLog" name="Audit Log">
+        <bpmn:documentation>
+            Immutable audit trail of all AI actions, human decisions,
+            edits, approvals, and rejections for compliance and RLHF.
+        </bpmn:documentation>
+    </bpmn:dataStore>
+    <bpmn:dataStore id="DataStore_Analytics" name="Analytics Data Warehouse">
+        <bpmn:documentation>
+            Real-time analytics store for dashboards and alerting.
+            Metrics: volume, sentiment, response times, accuracy, CSAT.
+        </bpmn:documentation>
+    </bpmn:dataStore>
+
+    <!-- ============================================================== -->
+    <!-- COLLABORATION: Multi-Pool Process -->
+    <!-- ============================================================== -->
+    <bpmn:collaboration id="Collaboration_CommunityManagement">
+        <bpmn:documentation>
+            AI-Optimized Social Media Community Management Collaboration
+            
+            This collaboration orchestrates interactions between:
+            - External: Customers via social platforms
+            - External: Social media platforms (Facebook, Twitter/X, Instagram)
+            - Internal: AI Orchestration System (main process)
+            - Internal: Human Oversight Teams
+            - External: CRM/Ticketing System
+        </bpmn:documentation>
+
+        <!-- External Participant: Customer -->
+        <bpmn:participant id="Participant_Customer" name="Customer" processRef="Process_CustomerInteraction">
+            <bpmn:documentation>
+                External customer interacting via social media.
+                Initiates process by posting comment, DM, or mention.
+                Receives responses via same channel.
+            </bpmn:documentation>
+        </bpmn:participant>
+
+        <!-- External Participant: Social Platform -->
+        <bpmn:participant id="Participant_Platform" name="Social Media Platforms">
+            <bpmn:documentation>
+                Facebook Graph API, Twitter/X API, Instagram API, TikTok API.
+                Provides webhooks for real-time notifications.
+                Receives response publish requests.
+            </bpmn:documentation>
+        </bpmn:participant>
+
+        <!-- Main Process Pool: AI Orchestration -->
+        <bpmn:participant id="Participant_AISystem" name="AI Community Management System" processRef="Process_AIOrchestration">
+            <bpmn:documentation>
+                Core AI orchestration system handling the 5-step process:
+                1. Automated Intake
+                2. AI Triage and Smart Routing
+                3. Response Generation and Risk-Based Approval
+                4. Integrated Resolution and Close Loop
+                5. Real-Time Analytics and Continuous Improvement
+            </bpmn:documentation>
+        </bpmn:participant>
+
+        <!-- External Participant: CRM System -->
+        <bpmn:participant id="Participant_CRM" name="CRM/Ticketing System">
+            <bpmn:documentation>
+                Salesforce Service Cloud or Zendesk for ticket management.
+                Receives escalation tickets with full context.
+                Provides resolution status updates.
+            </bpmn:documentation>
+        </bpmn:participant>
+
+        <!-- Message Flows between participants -->
+        <bpmn:messageFlow id="MsgFlow_CustomerToSystem" name="Customer Interaction" sourceRef="Participant_Customer" targetRef="Participant_AISystem" messageRef="Message_NewInteraction"/>
+        <bpmn:messageFlow id="MsgFlow_SystemToCustomer" name="Response to Customer" sourceRef="Participant_AISystem" targetRef="Participant_Customer" messageRef="Message_CustomerResponse"/>
+        <bpmn:messageFlow id="MsgFlow_PlatformWebhook" name="Platform Webhook" sourceRef="Participant_Platform" targetRef="Participant_AISystem" messageRef="Message_PlatformWebhook"/>
+        <bpmn:messageFlow id="MsgFlow_PublishResponse" name="Publish Response" sourceRef="Participant_AISystem" targetRef="Participant_Platform" messageRef="Message_CustomerResponse"/>
+        <bpmn:messageFlow id="MsgFlow_CreateTicket" name="Create Ticket" sourceRef="Participant_AISystem" targetRef="Participant_CRM" messageRef="Message_CRMTicketCreated"/>
+        <bpmn:messageFlow id="MsgFlow_ResolutionUpdate" name="Resolution Update" sourceRef="Participant_CRM" targetRef="Participant_AISystem" messageRef="Message_ResolutionComplete"/>
+    </bpmn:collaboration>
+
+    <!-- ============================================================== -->
+    <!-- MAIN PROCESS: AI Orchestration System -->
+    <!-- ============================================================== -->
+    <bpmn:process id="Process_AIOrchestration" name="AI Community Management Orchestration" isExecutable="true">
+        <bpmn:documentation>
+            Main orchestration process implementing the 5-step AI-optimized workflow.
+            
+            Automation Levels:
+            - Step 1 (Intake): Full Automation
+            - Step 2 (Triage): AI-Assisted with human exception queue
+            - Step 3 (Response): AI-Assisted with human approval gates
+            - Step 4 (Resolution): Human-Led, AI-Augmented
+            - Step 5 (Analytics): Full Automation
+            
+            SLA Targets by Risk Tier:
+            - T0: TTFA ≤5min, TTFR N/A
+            - T1: TTFA ≤10min, TTFR ≤30min
+            - T2: TTFA ≤15min, TTFR ≤60min
+            - T3: TTFA ≤10min, TTFR ≤30-60min
+            - T4: TTFA ≤5min, TTFR ≤15-30min
+        </bpmn:documentation>
+
+        <!-- Lane Set: Organizational Structure -->
+        <bpmn:laneSet id="LaneSet_Main">
+            <!-- AI Automation Lane -->
+            <bpmn:lane id="Lane_AIAutomation" name="AI Automation Layer">
+                <bpmn:documentation>
+                    Automated AI agents handling intake, classification, and response generation.
+                    Includes: Janitor Agent, Triage Agent, Support Agent (Actor), 
+                    Brand Voice Agent (Critic), Learning Agent.
+                </bpmn:documentation>
+                <bpmn:flowNodeRef>StartEvent_NewInteraction</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>StartEvent_PlatformWebhook</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_NormalizeInteraction</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_SpamFilter</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_SpamCheck</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_AutoHideSpam</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_ClassifyInteraction</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_IdentifyLocation</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_EnrichCRMContext</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_DetermineRiskTier</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_ConfidenceCheck</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_RouteToQueue</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_RiskTierRouting</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>SubProcess_ResponseGeneration</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_AutoPublishT0T1</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_ApprovalGateRouting</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_PublishApprovedResponse</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_RecordAnalytics</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_UpdateLearningModel</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>EndEvent_InteractionComplete</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>EndEvent_SpamHandled</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>BoundaryEvent_CircuitBreaker</bpmn:flowNodeRef>
+            </bpmn:lane>
+
+            <!-- Human Review Lane -->
+            <bpmn:lane id="Lane_HumanReview" name="Human Review Layer">
+                <bpmn:documentation>
+                    Human reviewers handling approval gates and exception queues.
+                    Includes: Community Manager (G1), Team Lead (G2), Brand Lead (G2).
+                </bpmn:documentation>
+                <bpmn:flowNodeRef>Task_HumanVerifyClassification</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_ReviewDraftG1</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_ReviewDraftG2</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_ApprovalDecision</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_EditResponse</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_RejectWithReason</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_QualityAuditSample</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_CaptureFeedbackForRLHF</bpmn:flowNodeRef>
+            </bpmn:lane>
+
+            <!-- Specialist Escalation Lane -->
+            <bpmn:lane id="Lane_Specialists" name="Specialist Escalation Layer">
+                <bpmn:documentation>
+                    Domain specialists handling high-risk escalations.
+                    Includes: Customer Care (G3), FSQ, Digital Support, 
+                    PR/Comms (G4), Legal (G4/G5), HR, Security, Privacy.
+                </bpmn:documentation>
+                <bpmn:flowNodeRef>Task_SpecialistReviewG3</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_PRLegalReviewG4</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_HumanOnlyDraftG5</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>SubProcess_CRMTicketCreation</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>SubProcess_CloseLoopCommunication</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_MonitorResolution</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>EndEvent_EscalationComplete</bpmn:flowNodeRef>
+            </bpmn:lane>
+        </bpmn:laneSet>
+
+        <!-- ============================================================== -->
+        <!-- DATA OBJECTS -->
+        <!-- ============================================================== -->
+        <bpmn:dataObject id="DataObject_Interaction" name="Interaction Record" itemSubjectRef="ItemDef_Interaction">
+            <bpmn:documentation>
+                Normalized social media interaction containing:
+                - interaction_id: Unique identifier
+                - platform: Source platform (Facebook, Twitter, Instagram, etc.)
+                - author_handle: Customer's social handle
+                - author_profile: Profile metadata (follower count, verified status)
+                - content: Original message text
+                - media: Attached images/videos
+                - timestamp: Original post time
+                - parent_id: Thread parent if reply
+                - metadata: Platform-specific metadata
+            </bpmn:documentation>
+        </bpmn:dataObject>
+
+        <bpmn:dataObject id="DataObject_Classification" name="Classification Result" itemSubjectRef="ItemDef_Classification">
+            <bpmn:documentation>
+                AI classification output containing:
+                - category: Primary category (PraiseThanks, FAQInfoRequest, etc.)
+                - secondary_tags: Additional topic tags
+                - intent: Detected intent (Question, Complaint, Praise, etc.)
+                - sentiment: Sentiment score and label
+                - urgency: Low, Medium, High, Critical
+                - risk_tier: T0, T1, T2, T3, T4
+                - confidence_scores: Per-dimension confidence
+                - hard_override_triggered: Boolean + trigger phrase
+                - recommended_owner: Target queue/team
+                - recommended_gate: G0-G5
+            </bpmn:documentation>
+        </bpmn:dataObject>
+
+        <bpmn:dataObject id="DataObject_Location" name="Location Identification" itemSubjectRef="ItemDef_LocationResult">
+            <bpmn:documentation>
+                Location identification result containing:
+                - location_id: Matched store/location ID
+                - location_name: Store name
+                - city: City name
+                - region: Region/district
+                - confidence: 0.0-1.0 confidence score
+                - confidence_level: High (≥0.90), Medium (0.70-0.89), Low (&lt;0.70)
+                - match_method: Explicit mention, geographic inference, profile analysis
+                - requires_verification: Boolean
+            </bpmn:documentation>
+        </bpmn:dataObject>
+
+        <bpmn:dataObject id="DataObject_DraftResponse" name="Draft Response" itemSubjectRef="ItemDef_DraftResponse">
+            <bpmn:documentation>
+                AI-generated response draft containing:
+                - draft_id: Unique identifier
+                - public_response: Text for public reply
+                - dm_response: Text for DM follow-up
+                - template_used: Template ID if applicable
+                - rag_sources: Knowledge Base articles cited
+                - confidence: Response confidence score
+                - actor_iterations: Number of Actor-Critic cycles
+                - critic_validations: List of constraint checks passed
+                - recommended_channel: PublicReply, DM, or Both
+                - approval_gate: Required approval level
+            </bpmn:documentation>
+        </bpmn:dataObject>
+
+        <bpmn:dataObject id="DataObject_ApprovalDecision" name="Approval Decision" itemSubjectRef="ItemDef_ApprovalDecision">
+            <bpmn:documentation>
+                Human approval decision containing:
+                - decision: Approve, Edit, Reject, Escalate
+                - reviewer_id: Human reviewer identifier
+                - reviewer_role: Role that approved (CM, TeamLead, etc.)
+                - gate_satisfied: Approval gate cleared
+                - edits_made: Diff of any edits to AI draft
+                - edit_reason: Why edits were made (for RLHF)
+                - rejection_reason: Why rejected (for RLHF)
+                - escalation_target: If escalated, to whom
+                - review_duration: Time spent reviewing
+                - timestamp: Decision timestamp
+            </bpmn:documentation>
+        </bpmn:dataObject>
+
+        <bpmn:dataObject id="DataObject_CRMTicket" name="CRM Ticket" itemSubjectRef="ItemDef_CRMTicket">
+            <bpmn:documentation>
+                CRM/ticketing system ticket containing:
+                - ticket_id: CRM system ticket ID
+                - customer_id: CRM customer ID (if matched)
+                - location_id: Associated store/location
+                - category: Issue category
+                - priority: Ticket priority
+                - status: Open, In Progress, Pending, Resolved
+                - summary: AI-generated issue summary
+                - transcript: Full interaction transcript
+                - recommended_actions: AI-suggested resolution steps
+                - social_link: Link back to social conversation
+                - sla_target: Resolution SLA
+                - assigned_to: Current owner
+            </bpmn:documentation>
+        </bpmn:dataObject>
+
+        <!-- Data Store References -->
+        <bpmn:dataStoreReference id="DataStoreRef_InteractionDB" name="Interaction Database" dataStoreRef="DataStore_InteractionDB"/>
+        <bpmn:dataStoreReference id="DataStoreRef_KnowledgeBase" name="Knowledge Base" dataStoreRef="DataStore_KnowledgeBase"/>
+        <bpmn:dataStoreReference id="DataStoreRef_LocationDB" name="Location Database" dataStoreRef="DataStore_LocationDB"/>
+        <bpmn:dataStoreReference id="DataStoreRef_CRM" name="CRM System" dataStoreRef="DataStore_CRM"/>
+        <bpmn:dataStoreReference id="DataStoreRef_AuditLog" name="Audit Log" dataStoreRef="DataStore_AuditLog"/>
+        <bpmn:dataStoreReference id="DataStoreRef_Analytics" name="Analytics" dataStoreRef="DataStore_Analytics"/>
+
+        <!-- ============================================================== -->
+        <!-- STEP 1: AUTOMATED INTAKE -->
+        <!-- ============================================================== -->
+        
+        <!-- Start Events -->
+        <bpmn:startEvent id="StartEvent_NewInteraction" name="New Social Interaction Received">
+            <bpmn:documentation>
+                Process initiated by new social media interaction.
+                Triggered via polling (5-minute intervals) or webhook.
+                Sources: Facebook, Twitter/X, Instagram, TikTok, Google Reviews.
+            </bpmn:documentation>
+            <bpmn:outgoing>Flow_ToNormalize</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MsgEvtDef_NewInteraction" messageRef="Message_NewInteraction"/>
+        </bpmn:startEvent>
+
+        <bpmn:startEvent id="StartEvent_PlatformWebhook" name="Platform Webhook Received">
+            <bpmn:documentation>
+                Real-time webhook from social platform API.
+                Preferred trigger method for minimum latency.
+            </bpmn:documentation>
+            <bpmn:outgoing>Flow_WebhookToNormalize</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MsgEvtDef_Webhook" messageRef="Message_PlatformWebhook"/>
+        </bpmn:startEvent>
+
+        <!-- Normalize Interaction -->
+        <bpmn:serviceTask id="Task_NormalizeInteraction" name="Normalize Interaction Data" camunda:type="external" camunda:topic="intake.normalize">
+            <bpmn:documentation>
+                Normalize interaction data from various platform formats into unified schema.
+                
+                Processing:
+                - Deduplicate against existing records
+                - Extract author metadata
+                - Parse content and media attachments
+                - Standardize timestamps to UTC
+                - Generate unique interaction_id
+                
+                Success Criteria:
+                - Zero duplicate records
+                - &lt;2 minute intake latency
+                - 99.5% capture rate
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToNormalize</bpmn:incoming>
+            <bpmn:incoming>Flow_WebhookToNormalize</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToSpamFilter</bpmn:outgoing>
+            <bpmn:dataOutputAssociation id="DataOutAssoc_Interaction">
+                <bpmn:targetRef>DataObject_Interaction</bpmn:targetRef>
+            </bpmn:dataOutputAssociation>
+            <bpmn:dataOutputAssociation id="DataOutAssoc_SaveInteraction">
+                <bpmn:targetRef>DataStoreRef_InteractionDB</bpmn:targetRef>
+            </bpmn:dataOutputAssociation>
+        </bpmn:serviceTask>
+
+        <!-- Spam Filter (Janitor Agent) -->
+        <bpmn:serviceTask id="Task_SpamFilter" name="Spam Pre-Filter (Janitor Agent)" camunda:type="external" camunda:topic="intake.spam-filter">
+            <bpmn:documentation>
+                Janitor Agent: First-pass spam and safety filtering.
+                
+                Detection Methods:
+                - Known bot patterns
+                - Spam keyword lexicon
+                - Hate speech/slur detection
+                - Phishing link detection
+                - Known bad actor database
+                
+                Reduces noise by up to 50% before human exposure.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToSpamFilter</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToSpamCheck</bpmn:outgoing>
+            <bpmn:property id="Property_SpamScore" name="spamScore"/>
+            <bpmn:property id="Property_SafetyFlags" name="safetyFlags"/>
+        </bpmn:serviceTask>
+
+        <!-- Spam Gateway -->
+        <bpmn:exclusiveGateway id="Gateway_SpamCheck" name="Spam/Safety Check">
+            <bpmn:documentation>
+                Route based on spam filter results:
+                - Spam detected → Auto-hide and log
+                - Clean → Proceed to classification
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToSpamCheck</bpmn:incoming>
+            <bpmn:outgoing>Flow_SpamDetected</bpmn:outgoing>
+            <bpmn:outgoing>Flow_CleanInteraction</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- Auto-Hide Spam (T0 Action) -->
+        <bpmn:serviceTask id="Task_AutoHideSpam" name="Auto-Hide/Report Spam (T0)" camunda:type="external" camunda:topic="moderation.auto-hide">
+            <bpmn:documentation>
+                T0 Auto-Action: Hide or report spam content.
+                
+                Actions:
+                - Hide from public view (if platform allows)
+                - Report to platform for ToS violation
+                - Log for audit sampling (5-10%)
+                - Update known bad actor database
+                
+                TTFA: ≤5 minutes
+                Approval Gate: G0 (Automation)
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_SpamDetected</bpmn:incoming>
+            <bpmn:outgoing>Flow_SpamHandled</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:endEvent id="EndEvent_SpamHandled" name="Spam Handled">
+            <bpmn:documentation>Process ends for spam/safety violations. Logged for audit.</bpmn:documentation>
+            <bpmn:incoming>Flow_SpamHandled</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <!-- ============================================================== -->
+        <!-- STEP 2: AI TRIAGE AND SMART ROUTING -->
+        <!-- ============================================================== -->
+
+        <!-- Classification (Triage Agent) -->
+        <bpmn:serviceTask id="Task_ClassifyInteraction" name="Classify Interaction (Triage Agent)" camunda:type="external" camunda:topic="triage.classify">
+            <bpmn:documentation>
+                Triage Agent: Multi-dimensional classification using LLM.
+                
+                Classification Dimensions:
+                - Category: 13 canonical categories (PraiseThanks, FAQInfoRequest, etc.)
+                - Intent: Question, Complaint, Praise, Spam, General
+                - Sentiment: Positive, Neutral, Negative, Escalated
+                - Urgency: Low, Medium, High, Critical
+                
+                Confidence Thresholds:
+                - ≥85%: Auto-route
+                - 70-89%: Route with flag
+                - &lt;70%: Route to Human Verification Queue
+                
+                Hard Override Detection:
+                - Legal keywords → Force T4
+                - Food safety keywords → Force T3 + FSQ
+                - Media keywords → Force T3 + PR
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_CleanInteraction</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToLocationID</bpmn:outgoing>
+            <bpmn:dataInputAssociation id="DataInAssoc_ClassifyInteraction">
+                <bpmn:sourceRef>DataObject_Interaction</bpmn:sourceRef>
+            </bpmn:dataInputAssociation>
+            <bpmn:dataOutputAssociation id="DataOutAssoc_Classification">
+                <bpmn:targetRef>DataObject_Classification</bpmn:targetRef>
+            </bpmn:dataOutputAssociation>
+        </bpmn:serviceTask>
+
+        <!-- Location Identification -->
+        <bpmn:serviceTask id="Task_IdentifyLocation" name="Identify Location" camunda:type="external" camunda:topic="triage.location-id">
+            <bpmn:documentation>
+                Location Identification Pipeline:
+                
+                Methods (in priority order):
+                1. Explicit Mention Detection (store name, address)
+                2. Geographic Context Extraction (city, neighborhood)
+                3. Account/Profile Analysis (user location, check-in history)
+                4. Historical Interaction Patterns
+                
+                Confidence Levels:
+                - High (≥90%): Route to Location Queue, localized response OK
+                - Medium (70-89%): Route to Central Triage, request via DM
+                - Low (&lt;70%): Central Triage only, no store reference
+                
+                Fuzzy matching enabled for store name variations.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToLocationID</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToCRMEnrich</bpmn:outgoing>
+            <bpmn:dataInputAssociation id="DataInAssoc_LocationInteraction">
+                <bpmn:sourceRef>DataObject_Interaction</bpmn:sourceRef>
+            </bpmn:dataInputAssociation>
+            <bpmn:dataInputAssociation id="DataInAssoc_LocationDB">
+                <bpmn:sourceRef>DataStoreRef_LocationDB</bpmn:sourceRef>
+            </bpmn:dataInputAssociation>
+            <bpmn:dataOutputAssociation id="DataOutAssoc_Location">
+                <bpmn:targetRef>DataObject_Location</bpmn:targetRef>
+            </bpmn:dataOutputAssociation>
+        </bpmn:serviceTask>
+
+        <!-- CRM Context Enrichment -->
+        <bpmn:serviceTask id="Task_EnrichCRMContext" name="Enrich with CRM Context" camunda:type="external" camunda:topic="triage.crm-enrich">
+            <bpmn:documentation>
+                Query CRM to enrich customer context:
+                
+                - Match social handle to CRM customer record
+                - Retrieve: VIP status, loyalty tier, lifetime value
+                - Check: Known detractor, repeat complainer, open tickets
+                - Flag: High-value customer for priority handling
+                
+                Context appended to classification for routing decisions.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToCRMEnrich</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToRiskTier</bpmn:outgoing>
+            <bpmn:dataInputAssociation id="DataInAssoc_CRMQuery">
+                <bpmn:sourceRef>DataStoreRef_CRM</bpmn:sourceRef>
+            </bpmn:dataInputAssociation>
+        </bpmn:serviceTask>
+
+        <!-- Determine Risk Tier -->
+        <bpmn:businessRuleTask id="Task_DetermineRiskTier" name="Determine Risk Tier and Approval Gate" camunda:decisionRef="Decision_RiskTierRouting">
+            <bpmn:documentation>
+                Apply routing matrix to determine Risk Tier and Approval Gate.
+                
+                Inputs:
+                - Classification result (category, sentiment, urgency)
+                - Location confidence
+                - CRM context (VIP, repeat complainer)
+                - Author profile (follower count, verified)
+                - Hard override flags
+                
+                Outputs:
+                - Risk Tier: T0, T1, T2, T3, T4
+                - Approval Gate: G0, G1, G2, G3, G4, G5
+                - Owner Queue: CommunityOps, CustomerCare, PR, Legal, etc.
+                - SLA targets: TTFA, TTFR
+                
+                Hard Override Rules Applied:
+                1. Injury/illness/allergen → min T3, add FSQ
+                2. Legal threat → min T4, Legal gate
+                3. Media/journalist → min T3, PR gate
+                4. PII in public → Privacy route
+                5. Classification &lt;70% OR location &lt;70% → Human Verification
+                6. >50K followers → Team Lead review
+                7. 3+ complaints same customer → CC Lead escalation
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToRiskTier</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToConfidenceCheck</bpmn:outgoing>
+        </bpmn:businessRuleTask>
+
+        <!-- Confidence Check Gateway -->
+        <bpmn:exclusiveGateway id="Gateway_ConfidenceCheck" name="Confidence Sufficient?">
+            <bpmn:documentation>
+                Check if classification confidence meets threshold for auto-routing.
+                
+                Routes:
+                - Confidence ≥70%: Proceed to risk tier routing
+                - Confidence &lt;70%: Route to Human Verification Queue
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToConfidenceCheck</bpmn:incoming>
+            <bpmn:outgoing>Flow_LowConfidence</bpmn:outgoing>
+            <bpmn:outgoing>Flow_HighConfidence</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- Human Verification Queue -->
+        <bpmn:userTask id="Task_HumanVerifyClassification" name="Human Verification Queue" camunda:assignee="${teamLead}">
+            <bpmn:documentation>
+                Exception queue for low-confidence classifications.
+                
+                Human reviewer:
+                - Validates or corrects AI classification
+                - Confirms or identifies location
+                - Assigns correct risk tier
+                - Captures correction for model training
+                
+                Volume Estimate: 10-15% of total
+                SLA: 30 minutes
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_LowConfidence</bpmn:incoming>
+            <bpmn:outgoing>Flow_VerifiedToRouting</bpmn:outgoing>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_TeamLead</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_CommunityManager</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+        </bpmn:userTask>
+
+        <!-- Route to Appropriate Queue -->
+        <bpmn:serviceTask id="Task_RouteToQueue" name="Route to Queue" camunda:type="external" camunda:topic="routing.assign-queue">
+            <bpmn:documentation>
+                Assign interaction to appropriate queue based on routing matrix.
+                
+                Queue Assignment Logic:
+                - Location-sensitive + High confidence → Location/Region Queue
+                - Location-sensitive + Medium/Low → Central Triage
+                - Enterprise-level (Legal, Media, Crisis) → Enterprise Queue
+                - Digital issues → Digital Support Queue
+                
+                Also applies location confidence modifiers.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_HighConfidence</bpmn:incoming>
+            <bpmn:incoming>Flow_VerifiedToRouting</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToRiskTierRouting</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <!-- Risk Tier Routing Gateway -->
+        <bpmn:exclusiveGateway id="Gateway_RiskTierRouting" name="Route by Risk Tier">
+            <bpmn:documentation>
+                Main routing gateway based on determined risk tier.
+                
+                Routes:
+                - T0: Auto-action (already handled by spam filter for most)
+                - T1: Response generation with G0 auto-publish option
+                - T2: Response generation with G1 human approval
+                - T3: Response generation with G2/G3 specialist approval
+                - T4: Direct to specialist with G4/G5 gate
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToRiskTierRouting</bpmn:incoming>
+            <bpmn:outgoing>Flow_T0T1Path</bpmn:outgoing>
+            <bpmn:outgoing>Flow_T2Path</bpmn:outgoing>
+            <bpmn:outgoing>Flow_T3Path</bpmn:outgoing>
+            <bpmn:outgoing>Flow_T4Path</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- ============================================================== -->
+        <!-- STEP 3: RESPONSE GENERATION AND APPROVAL -->
+        <!-- ============================================================== -->
+
+        <!-- Response Generation Sub-Process -->
+        <bpmn:subProcess id="SubProcess_ResponseGeneration" name="AI Response Generation (Actor-Critic)">
+            <bpmn:documentation>
+                Response generation sub-process implementing Actor-Critic architecture.
+                
+                Components:
+                - Support Agent (Actor): Generates draft using RAG
+                - Brand Voice Agent (Critic): Validates against constraints
+                
+                Workflow:
+                1. Actor generates draft from Knowledge Base
+                2. Critic validates against NeverDo constraints
+                3. If violation, Critic rejects and Actor regenerates
+                4. Max iterations before escalation to human
+                
+                Constraints (NeverDo list):
+                - Admit legal liability
+                - Promise refunds/compensation without approval
+                - Share internal processes or employee data
+                - Repeat PII in public
+                
+                Constraints (AlwaysDo list):
+                - Be respectful and concise
+                - Move sensitive issues to DM promptly
+                - Use approved templates for auto-publish
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_T0T1Path</bpmn:incoming>
+            <bpmn:incoming>Flow_T2Path</bpmn:incoming>
+            <bpmn:incoming>Flow_T3Path</bpmn:incoming>
+            <bpmn:outgoing>Flow_ResponseGenerated</bpmn:outgoing>
+
+            <!-- Sub-process Start -->
+            <bpmn:startEvent id="SubStart_ResponseGen" name="Start Response Generation"/>
+
+            <!-- RAG Retrieval -->
+            <bpmn:serviceTask id="Task_RAGRetrieval" name="Retrieve from Knowledge Base (RAG)" camunda:type="external" camunda:topic="response.rag-retrieve">
+                <bpmn:documentation>
+                    Retrieval-Augmented Generation from verified Knowledge Base.
+                    
+                    Sources:
+                    - Brand playbook and style guide
+                    - FAQ database
+                    - Approved response templates
+                    - Policy documents
+                    - Best-performing past responses
+                    
+                    Bounded Knowledge: Only retrieve from verified sources.
+                    Never improvise facts outside retrieval set.
+                </bpmn:documentation>
+            </bpmn:serviceTask>
+
+            <!-- Actor: Generate Draft -->
+            <bpmn:serviceTask id="Task_ActorGenerateDraft" name="Generate Draft (Actor)" camunda:type="external" camunda:topic="response.actor-generate">
+                <bpmn:documentation>
+                    Actor Agent: Generate response draft using LLM.
+                    
+                    Inputs:
+                    - Original interaction
+                    - Classification and context
+                    - Retrieved Knowledge Base content
+                    - Template (if applicable)
+                    - Location (if high confidence)
+                    
+                    Outputs:
+                    - Public response text
+                    - DM response text (if applicable)
+                    - Confidence score
+                    - Template ID used
+                </bpmn:documentation>
+            </bpmn:serviceTask>
+
+            <!-- Critic: Validate Draft -->
+            <bpmn:serviceTask id="Task_CriticValidate" name="Validate Draft (Critic)" camunda:type="external" camunda:topic="response.critic-validate">
+                <bpmn:documentation>
+                    Critic Agent: Validate draft against compliance constraints.
+                    
+                    Checks:
+                    - NeverDo violations (legal liability, promises, PII)
+                    - AlwaysDo compliance (tone, DM for sensitive)
+                    - Brand voice alignment
+                    - Location reference accuracy (requires ≥90% confidence)
+                    - Template compliance for auto-publish
+                    
+                    Output:
+                    - Valid: Proceed to approval gate
+                    - Invalid: Return to Actor with rejection reason
+                </bpmn:documentation>
+            </bpmn:serviceTask>
+
+            <!-- Critic Validation Gateway -->
+            <bpmn:exclusiveGateway id="Gateway_CriticDecision" name="Critic Approval?"/>
+
+            <!-- Iteration Counter Check -->
+            <bpmn:exclusiveGateway id="Gateway_IterationCheck" name="Max Iterations?">
+                <bpmn:documentation>
+                    Check if maximum Actor-Critic iterations reached.
+                    Default max: 3 iterations.
+                    If exceeded, escalate to human for manual drafting.
+                </bpmn:documentation>
+            </bpmn:exclusiveGateway>
+
+            <!-- Increment Iteration Counter -->
+            <bpmn:scriptTask id="Task_IncrementIteration" name="Increment Iteration" scriptFormat="javascript">
+                <bpmn:script>execution.setVariable("actorCriticIterations", (execution.getVariable("actorCriticIterations") || 0) + 1);</bpmn:script>
+            </bpmn:scriptTask>
+
+            <!-- Sub-process End -->
+            <bpmn:endEvent id="SubEnd_ResponseGen" name="Response Generated"/>
+
+            <!-- Error End for Max Iterations -->
+            <bpmn:endEvent id="SubEnd_ActorCriticFailed" name="Actor-Critic Failed">
+                <bpmn:errorEventDefinition id="ErrEvtDef_ActorCritic" errorRef="Error_ActorCriticLoop"/>
+            </bpmn:endEvent>
+
+            <!-- Sub-process Flows -->
+            <bpmn:sequenceFlow id="SubFlow_1" sourceRef="SubStart_ResponseGen" targetRef="Task_RAGRetrieval"/>
+            <bpmn:sequenceFlow id="SubFlow_2" sourceRef="Task_RAGRetrieval" targetRef="Task_ActorGenerateDraft"/>
+            <bpmn:sequenceFlow id="SubFlow_3" sourceRef="Task_ActorGenerateDraft" targetRef="Task_CriticValidate"/>
+            <bpmn:sequenceFlow id="SubFlow_4" sourceRef="Task_CriticValidate" targetRef="Gateway_CriticDecision"/>
+            <bpmn:sequenceFlow id="SubFlow_5_Valid" name="Valid" sourceRef="Gateway_CriticDecision" targetRef="SubEnd_ResponseGen">
+                <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${criticApproved == true}</bpmn:conditionExpression>
+            </bpmn:sequenceFlow>
+            <bpmn:sequenceFlow id="SubFlow_5_Invalid" name="Invalid" sourceRef="Gateway_CriticDecision" targetRef="Gateway_IterationCheck">
+                <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${criticApproved == false}</bpmn:conditionExpression>
+            </bpmn:sequenceFlow>
+            <bpmn:sequenceFlow id="SubFlow_6_Retry" name="Retry" sourceRef="Gateway_IterationCheck" targetRef="Task_IncrementIteration">
+                <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${actorCriticIterations &lt; 3}</bpmn:conditionExpression>
+            </bpmn:sequenceFlow>
+            <bpmn:sequenceFlow id="SubFlow_6_MaxReached" name="Max Reached" sourceRef="Gateway_IterationCheck" targetRef="SubEnd_ActorCriticFailed">
+                <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${actorCriticIterations >= 3}</bpmn:conditionExpression>
+            </bpmn:sequenceFlow>
+            <bpmn:sequenceFlow id="SubFlow_7" sourceRef="Task_IncrementIteration" targetRef="Task_ActorGenerateDraft"/>
+        </bpmn:subProcess>
+
+        <!-- Boundary Event: Actor-Critic Error -->
+        <bpmn:boundaryEvent id="BoundaryEvent_ActorCriticError" name="Actor-Critic Failed" attachedToRef="SubProcess_ResponseGeneration">
+            <bpmn:outgoing>Flow_ManualDraftRequired</bpmn:outgoing>
+            <bpmn:errorEventDefinition id="BndryErrDef_ActorCritic" errorRef="Error_ActorCriticLoop"/>
+        </bpmn:boundaryEvent>
+
+        <!-- Approval Gate Routing -->
+        <bpmn:exclusiveGateway id="Gateway_ApprovalGateRouting" name="Route by Approval Gate">
+            <bpmn:documentation>
+                Route response to appropriate approval gate.
+                
+                G0: Auto-publish (T0/T1 with template)
+                G1: Community Manager approval
+                G2: Brand Lead approval
+                G3: Specialist approval
+                G4: PR/Legal approval
+                G5: Human-only (no AI draft)
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ResponseGenerated</bpmn:incoming>
+            <bpmn:outgoing>Flow_G0AutoPublish</bpmn:outgoing>
+            <bpmn:outgoing>Flow_G1Approval</bpmn:outgoing>
+            <bpmn:outgoing>Flow_G2Approval</bpmn:outgoing>
+            <bpmn:outgoing>Flow_G3Approval</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- G0: Auto-Publish for T0/T1 -->
+        <bpmn:serviceTask id="Task_AutoPublishT0T1" name="Auto-Publish (G0)" camunda:type="external" camunda:topic="publish.auto">
+            <bpmn:documentation>
+                Automatic publishing for T0/T1 responses using approved templates.
+                
+                Requirements:
+                - Risk tier T0 or T1
+                - Template-based response only
+                - High confidence (≥90%)
+                - No hard override flags
+                
+                Subject to 10% audit sampling.
+                TTFR: ≤30 minutes
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_G0AutoPublish</bpmn:incoming>
+            <bpmn:outgoing>Flow_AutoPublished</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <!-- G1: Community Manager Approval -->
+        <bpmn:userTask id="Task_ReviewDraftG1" name="Review Draft (G1 - Community Manager)" camunda:assignee="${communityManager}">
+            <bpmn:documentation>
+                Community Manager review for G1 approval gate.
+                
+                Applies to: T1-T2 non-template responses
+                
+                UI: Decision Support Cockpit
+                - Side-by-side view (original + AI draft)
+                - Explainability panel (RAG sources cited)
+                - One-click actions: Approve, Edit, Reject
+                
+                SLA: ≤30 minutes for T2
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_G1Approval</bpmn:incoming>
+            <bpmn:outgoing>Flow_G1Reviewed</bpmn:outgoing>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_CommunityManager</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+        </bpmn:userTask>
+
+        <!-- G2: Brand Lead Approval -->
+        <bpmn:userTask id="Task_ReviewDraftG2" name="Review Draft (G2 - Brand Lead)" camunda:assignee="${brandLead}">
+            <bpmn:documentation>
+                Brand Lead review for G2 approval gate.
+                
+                Applies to: T3 responses, high-profile accounts
+                
+                Focus: Brand voice, reputation risk
+                SLA: ≤60 minutes
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_G2Approval</bpmn:incoming>
+            <bpmn:outgoing>Flow_G2Reviewed</bpmn:outgoing>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_BrandLead</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_TeamLead</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+        </bpmn:userTask>
+
+        <!-- G3: Specialist Approval -->
+        <bpmn:userTask id="Task_SpecialistReviewG3" name="Specialist Review (G3)" camunda:candidateGroups="specialists">
+            <bpmn:documentation>
+                Domain specialist review for G3 approval gate.
+                
+                Specialists by Category:
+                - StandardComplaintService: Customer Care Lead
+                - DigitalAppWebIssues: Digital Support Lead
+                - RefundCompensationRequest: Customer Care Lead
+                - ProductQualityFoodSafety: FSQ Team
+                - EmployeeHR: HR Team
+                - PrivacyDataRequest: Privacy Office
+                
+                SLA: ≤60 minutes
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_G3Approval</bpmn:incoming>
+            <bpmn:outgoing>Flow_G3Reviewed</bpmn:outgoing>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_CustomerCare</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_DigitalSupport</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_FSQ</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_HR</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_Privacy</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+        </bpmn:userTask>
+
+        <!-- T4 Path: PR/Legal Review -->
+        <bpmn:userTask id="Task_PRLegalReviewG4" name="PR/Legal Review (G4)" camunda:candidateGroups="pr,legal">
+            <bpmn:documentation>
+                PR and/or Legal review for G4 approval gate.
+                
+                Applies to:
+                - LegalRegulatory: All tiers
+                - MediaInfluencer: T2+
+                - CrisisVirality: T2+
+                - Any with legal threat keywords
+                
+                May involve Executive approval.
+                SLA: ≤30 minutes
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_T4Path</bpmn:incoming>
+            <bpmn:outgoing>Flow_G4Reviewed</bpmn:outgoing>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_PR</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_Legal</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+        </bpmn:userTask>
+
+        <!-- G5: Human-Only Draft -->
+        <bpmn:userTask id="Task_HumanOnlyDraftG5" name="Human-Only Draft (G5)" camunda:candidateGroups="pr,legal">
+            <bpmn:documentation>
+                G5 gate: AI cannot draft public copy.
+                Human drafts response from scratch.
+                AI provides summary and context only.
+                
+                Applies to:
+                - LegalRegulatory T4
+                - CrisisVirality T4
+                - EmployeeHR T4
+                - PrivacyDataRequest T4
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ManualDraftRequired</bpmn:incoming>
+            <bpmn:outgoing>Flow_G5Drafted</bpmn:outgoing>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_PR</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+            <bpmn:potentialOwner>
+                <bpmn:resourceRef>Resource_Legal</bpmn:resourceRef>
+            </bpmn:potentialOwner>
+        </bpmn:userTask>
+
+        <!-- Approval Decision Gateway -->
+        <bpmn:exclusiveGateway id="Gateway_ApprovalDecision" name="Approval Decision">
+            <bpmn:documentation>
+                Human decision on AI draft:
+                - Approve: Proceed to publish
+                - Edit: Make changes, then approve
+                - Reject: Return for regeneration with feedback
+                - Escalate: Send to higher authority
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_G1Reviewed</bpmn:incoming>
+            <bpmn:incoming>Flow_G2Reviewed</bpmn:incoming>
+            <bpmn:incoming>Flow_G3Reviewed</bpmn:incoming>
+            <bpmn:incoming>Flow_G4Reviewed</bpmn:incoming>
+            <bpmn:incoming>Flow_G5Drafted</bpmn:incoming>
+            <bpmn:outgoing>Flow_Approved</bpmn:outgoing>
+            <bpmn:outgoing>Flow_NeedsEdit</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- Edit Response -->
+        <bpmn:userTask id="Task_EditResponse" name="Edit Response">
+            <bpmn:documentation>
+                Human edits AI draft before approval.
+                
+                UI captures:
+                - Original draft
+                - Edited version
+                - Edit reason (for RLHF): Tone, Factual, Policy, etc.
+                
+                Edit data feeds Learning Agent for model improvement.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_NeedsEdit</bpmn:incoming>
+            <bpmn:outgoing>Flow_EditComplete</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Reject with Reason -->
+        <bpmn:userTask id="Task_RejectWithReason" name="Reject with Reason">
+            <bpmn:documentation>
+                Human rejects AI draft entirely.
+                
+                Captures rejection reason for RLHF:
+                - Off-brand
+                - Factually incorrect
+                - Policy violation
+                - Inappropriate tone
+                - Other (free text)
+                
+                Routes back to response generation or escalates.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+            <bpmn:outgoing>Flow_RejectionHandled</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Publish Approved Response -->
+        <bpmn:serviceTask id="Task_PublishApprovedResponse" name="Publish Response" camunda:type="external" camunda:topic="publish.response">
+            <bpmn:documentation>
+                Publish approved response to social platform.
+                
+                Channels:
+                - Public reply (if appropriate)
+                - DM (for sensitive follow-up)
+                
+                Also:
+                - Update interaction record with response
+                - Log to audit trail
+                - Trigger analytics event
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_Approved</bpmn:incoming>
+            <bpmn:incoming>Flow_EditComplete</bpmn:incoming>
+            <bpmn:incoming>Flow_AutoPublished</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToAnalytics</bpmn:outgoing>
+            <bpmn:dataOutputAssociation id="DataOutAssoc_AuditLog">
+                <bpmn:targetRef>DataStoreRef_AuditLog</bpmn:targetRef>
+            </bpmn:dataOutputAssociation>
+        </bpmn:serviceTask>
+
+        <!-- Quality Audit Sampling -->
+        <bpmn:serviceTask id="Task_QualityAuditSample" name="Quality Audit Sample Check" camunda:type="external" camunda:topic="quality.audit-sample">
+            <bpmn:documentation>
+                10% random sampling of auto-published responses.
+                
+                Checks:
+                - Classification accuracy
+                - Response appropriateness
+                - Brand voice compliance
+                - Policy adherence
+                
+                Triggers alert if error rate exceeds 5%.
+            </bpmn:documentation>
+        </bpmn:serviceTask>
+
+        <!-- Capture Feedback for RLHF -->
+        <bpmn:serviceTask id="Task_CaptureFeedbackForRLHF" name="Capture Feedback for RLHF" camunda:type="external" camunda:topic="learning.capture-feedback">
+            <bpmn:documentation>
+                Capture human feedback for Reinforcement Learning from Human Feedback.
+                
+                Data captured:
+                - Edit diffs (what was changed)
+                - Edit reasons (why changed)
+                - Rejection reasons
+                - Approval without edit (positive signal)
+                - Customer satisfaction correlation
+                
+                Fed to Learning Agent for model improvement.
+            </bpmn:documentation>
+        </bpmn:serviceTask>
+
+        <!-- ============================================================== -->
+        <!-- STEP 4: INTEGRATED RESOLUTION AND CLOSE LOOP -->
+        <!-- ============================================================== -->
+
+        <!-- CRM Ticket Creation Sub-Process -->
+        <bpmn:subProcess id="SubProcess_CRMTicketCreation" name="CRM Ticket Creation" triggeredByEvent="false">
+            <bpmn:documentation>
+                Automated ticket creation in CRM for escalated interactions.
+                
+                Triggered when:
+                - Category requires operational follow-up
+                - T3/T4 risk tier
+                - Customer requests direct contact
+                
+                Auto-populated fields:
+                - Customer identifier (social handle → CRM match)
+                - Location (if identified)
+                - Issue category and priority
+                - Full interaction transcript
+                - AI-generated issue summary
+                - Recommended resolution actions
+                - Link back to social conversation
+            </bpmn:documentation>
+
+            <bpmn:startEvent id="SubStart_Ticket" name="Start Ticket Creation"/>
+
+            <bpmn:serviceTask id="Task_CreateCRMTicket" name="Create CRM Ticket" camunda:type="external" camunda:topic="crm.create-ticket">
+                <bpmn:documentation>
+                    API call to create ticket in Salesforce/Zendesk.
+                    
+                    Ticket Contents:
+                    - customer_id: CRM match or new contact
+                    - location_id: Store/location if identified
+                    - category: From classification
+                    - priority: Based on risk tier
+                    - summary: AI-generated
+                    - transcript: Full social conversation
+                    - social_link: Deep link to platform
+                </bpmn:documentation>
+            </bpmn:serviceTask>
+
+            <bpmn:serviceTask id="Task_AssignTicket" name="Assign Ticket to Owner" camunda:type="external" camunda:topic="crm.assign-ticket">
+                <bpmn:documentation>
+                    Assign ticket based on issue type:
+                    - Service recovery → Customer Care
+                    - Location issue → Location Manager
+                    - App/digital → Digital Support
+                    - Food quality → Location + QA
+                    - Employee conduct → Location + HR
+                    - Media inquiry → PR
+                    - Legal → Legal
+                </bpmn:documentation>
+            </bpmn:serviceTask>
+
+            <bpmn:endEvent id="SubEnd_Ticket" name="Ticket Created"/>
+
+            <bpmn:sequenceFlow id="SubFlow_Ticket1" sourceRef="SubStart_Ticket" targetRef="Task_CreateCRMTicket"/>
+            <bpmn:sequenceFlow id="SubFlow_Ticket2" sourceRef="Task_CreateCRMTicket" targetRef="Task_AssignTicket"/>
+            <bpmn:sequenceFlow id="SubFlow_Ticket3" sourceRef="Task_AssignTicket" targetRef="SubEnd_Ticket"/>
+        </bpmn:subProcess>
+
+        <!-- Monitor Resolution -->
+        <bpmn:serviceTask id="Task_MonitorResolution" name="Monitor Resolution Status" camunda:type="external" camunda:topic="crm.monitor-resolution">
+            <bpmn:documentation>
+                Monitor CRM ticket status and SLA compliance.
+                
+                Actions:
+                - Track ticket status changes
+                - Send nudges for aging tickets
+                - Alert on SLA breach risk
+                - Trigger close-loop when resolved
+                
+                SLAs by issue type:
+                - Service recovery: 24 hours
+                - Location operational: 48 hours
+                - App/digital: 24 hours
+                - Food quality: 24 hours
+                - Employee conduct: 48 hours
+                - Media inquiry: 4 hours
+                - Legal: 4 hours
+            </bpmn:documentation>
+        </bpmn:serviceTask>
+
+        <!-- Close Loop Communication Sub-Process -->
+        <bpmn:subProcess id="SubProcess_CloseLoopCommunication" name="Close Loop Communication">
+            <bpmn:documentation>
+                Follow-up communication with customer after resolution.
+                
+                Triggered when CRM ticket resolved.
+                
+                Process:
+                1. AI drafts follow-up DM
+                2. Community Manager reviews and approves
+                3. Send DM to customer
+                4. Capture customer satisfaction feedback
+            </bpmn:documentation>
+
+            <bpmn:startEvent id="SubStart_CloseLoop" name="Resolution Complete">
+                <bpmn:messageEventDefinition id="MsgEvtDef_ResComplete" messageRef="Message_ResolutionComplete"/>
+            </bpmn:startEvent>
+
+            <bpmn:serviceTask id="Task_DraftCloseLoopDM" name="Draft Close-Loop DM" camunda:type="external" camunda:topic="response.close-loop-draft"/>
+
+            <bpmn:userTask id="Task_ReviewCloseLoopDM" name="Review Close-Loop DM">
+                <bpmn:potentialOwner>
+                    <bpmn:resourceRef>Resource_CommunityManager</bpmn:resourceRef>
+                </bpmn:potentialOwner>
+            </bpmn:userTask>
+
+            <bpmn:serviceTask id="Task_SendCloseLoopDM" name="Send Close-Loop DM" camunda:type="external" camunda:topic="publish.close-loop-dm"/>
+
+            <bpmn:serviceTask id="Task_CaptureCSAT" name="Capture Customer Satisfaction" camunda:type="external" camunda:topic="analytics.capture-csat"/>
+
+            <bpmn:endEvent id="SubEnd_CloseLoop" name="Close Loop Complete"/>
+
+            <bpmn:sequenceFlow id="SubFlow_CL1" sourceRef="SubStart_CloseLoop" targetRef="Task_DraftCloseLoopDM"/>
+            <bpmn:sequenceFlow id="SubFlow_CL2" sourceRef="Task_DraftCloseLoopDM" targetRef="Task_ReviewCloseLoopDM"/>
+            <bpmn:sequenceFlow id="SubFlow_CL3" sourceRef="Task_ReviewCloseLoopDM" targetRef="Task_SendCloseLoopDM"/>
+            <bpmn:sequenceFlow id="SubFlow_CL4" sourceRef="Task_SendCloseLoopDM" targetRef="Task_CaptureCSAT"/>
+            <bpmn:sequenceFlow id="SubFlow_CL5" sourceRef="Task_CaptureCSAT" targetRef="SubEnd_CloseLoop"/>
+        </bpmn:subProcess>
+
+        <!-- ============================================================== -->
+        <!-- STEP 5: REAL-TIME ANALYTICS AND CONTINUOUS IMPROVEMENT -->
+        <!-- ============================================================== -->
+
+        <!-- Record Analytics -->
+        <bpmn:serviceTask id="Task_RecordAnalytics" name="Record Analytics Event" camunda:type="external" camunda:topic="analytics.record-event">
+            <bpmn:documentation>
+                Record interaction metrics to analytics store.
+                
+                Metrics:
+                - Volume by platform, category, sentiment
+                - Response times (TTFA, TTFR)
+                - Classification accuracy
+                - Draft approval/edit/rejection rates
+                - Resolution times
+                - Customer satisfaction
+                
+                Powers real-time dashboards and alerts.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToAnalytics</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToLearning</bpmn:outgoing>
+            <bpmn:dataOutputAssociation id="DataOutAssoc_Analytics">
+                <bpmn:targetRef>DataStoreRef_Analytics</bpmn:targetRef>
+            </bpmn:dataOutputAssociation>
+        </bpmn:serviceTask>
+
+        <!-- Update Learning Model -->
+        <bpmn:serviceTask id="Task_UpdateLearningModel" name="Update Learning Model (RLHF)" camunda:type="external" camunda:topic="learning.update-model">
+            <bpmn:documentation>
+                Learning Agent: Process feedback for model improvement.
+                
+                Inputs:
+                - Human edits to AI drafts (edit patterns)
+                - Classification corrections
+                - Rejection reasons
+                - Customer satisfaction correlation
+                
+                Outputs:
+                - Model retraining data
+                - Playbook update recommendations
+                - Confidence threshold adjustments
+                
+                Weekly model and playbook update cycle.
+            </bpmn:documentation>
+            <bpmn:incoming>Flow_ToLearning</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <!-- End Events -->
+        <bpmn:endEvent id="EndEvent_InteractionComplete" name="Interaction Complete">
+            <bpmn:documentation>Normal completion of interaction handling.</bpmn:documentation>
+            <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:endEvent id="EndEvent_EscalationComplete" name="Escalation Complete">
+            <bpmn:documentation>Completion after specialist escalation handling.</bpmn:documentation>
+        </bpmn:endEvent>
+
+        <!-- Circuit Breaker Boundary Event -->
+        <bpmn:boundaryEvent id="BoundaryEvent_CircuitBreaker" name="Circuit Breaker" attachedToRef="Task_AutoPublishT0T1" cancelActivity="true">
+            <bpmn:documentation>
+                Circuit breaker interrupts auto-publishing when:
+                - Negative sentiment spikes >20% in 1 hour
+                - Crisis mode activated
+                
+                All pending auto-publishes held for human review.
+            </bpmn:documentation>
+            <bpmn:outgoing>Flow_CircuitBreakerTriggered</bpmn:outgoing>
+            <bpmn:signalEventDefinition id="SigEvtDef_CircuitBreaker" signalRef="Signal_CircuitBreaker"/>
+        </bpmn:boundaryEvent>
+
+        <!-- SLA Timer Events -->
+        <bpmn:boundaryEvent id="BoundaryEvent_SLAWarning" name="SLA Warning" attachedToRef="Task_ReviewDraftG1" cancelActivity="false">
+            <bpmn:documentation>Non-interrupting timer warning when SLA threshold approaching.</bpmn:documentation>
+            <bpmn:timerEventDefinition id="TimerEvtDef_SLAWarning">
+                <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT25M</bpmn:timeDuration>
+            </bpmn:timerEventDefinition>
+            <bpmn:escalationEventDefinition id="EscEvtDef_SLA" escalationRef="Escalation_SLABreach"/>
+        </bpmn:boundaryEvent>
+
+        <!-- ============================================================== -->
+        <!-- SEQUENCE FLOWS -->
+        <!-- ============================================================== -->
+        
+        <!-- Step 1: Intake Flows -->
+        <bpmn:sequenceFlow id="Flow_ToNormalize" sourceRef="StartEvent_NewInteraction" targetRef="Task_NormalizeInteraction"/>
+        <bpmn:sequenceFlow id="Flow_WebhookToNormalize" sourceRef="StartEvent_PlatformWebhook" targetRef="Task_NormalizeInteraction"/>
+        <bpmn:sequenceFlow id="Flow_ToSpamFilter" sourceRef="Task_NormalizeInteraction" targetRef="Task_SpamFilter"/>
+        <bpmn:sequenceFlow id="Flow_ToSpamCheck" sourceRef="Task_SpamFilter" targetRef="Gateway_SpamCheck"/>
+        <bpmn:sequenceFlow id="Flow_SpamDetected" name="Spam/Safety Issue" sourceRef="Gateway_SpamCheck" targetRef="Task_AutoHideSpam">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${spamScore > 0.8 || safetyFlags != null}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_SpamHandled" sourceRef="Task_AutoHideSpam" targetRef="EndEvent_SpamHandled"/>
+        <bpmn:sequenceFlow id="Flow_CleanInteraction" name="Clean" sourceRef="Gateway_SpamCheck" targetRef="Task_ClassifyInteraction">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${spamScore &lt;= 0.8 &amp;&amp; safetyFlags == null}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+
+        <!-- Step 2: Triage Flows -->
+        <bpmn:sequenceFlow id="Flow_ToLocationID" sourceRef="Task_ClassifyInteraction" targetRef="Task_IdentifyLocation"/>
+        <bpmn:sequenceFlow id="Flow_ToCRMEnrich" sourceRef="Task_IdentifyLocation" targetRef="Task_EnrichCRMContext"/>
+        <bpmn:sequenceFlow id="Flow_ToRiskTier" sourceRef="Task_EnrichCRMContext" targetRef="Task_DetermineRiskTier"/>
+        <bpmn:sequenceFlow id="Flow_ToConfidenceCheck" sourceRef="Task_DetermineRiskTier" targetRef="Gateway_ConfidenceCheck"/>
+        <bpmn:sequenceFlow id="Flow_LowConfidence" name="Confidence &lt;70%" sourceRef="Gateway_ConfidenceCheck" targetRef="Task_HumanVerifyClassification">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${classificationConfidence &lt; 0.70}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_HighConfidence" name="Confidence ≥70%" sourceRef="Gateway_ConfidenceCheck" targetRef="Task_RouteToQueue">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${classificationConfidence >= 0.70}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_VerifiedToRouting" sourceRef="Task_HumanVerifyClassification" targetRef="Task_RouteToQueue"/>
+        <bpmn:sequenceFlow id="Flow_ToRiskTierRouting" sourceRef="Task_RouteToQueue" targetRef="Gateway_RiskTierRouting"/>
+
+        <!-- Risk Tier Routing Flows -->
+        <bpmn:sequenceFlow id="Flow_T0T1Path" name="T0/T1" sourceRef="Gateway_RiskTierRouting" targetRef="SubProcess_ResponseGeneration">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskTier == 'T0' || riskTier == 'T1'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_T2Path" name="T2" sourceRef="Gateway_RiskTierRouting" targetRef="SubProcess_ResponseGeneration">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskTier == 'T2'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_T3Path" name="T3" sourceRef="Gateway_RiskTierRouting" targetRef="SubProcess_ResponseGeneration">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskTier == 'T3'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_T4Path" name="T4" sourceRef="Gateway_RiskTierRouting" targetRef="Task_PRLegalReviewG4">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskTier == 'T4'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+
+        <!-- Step 3: Response and Approval Flows -->
+        <bpmn:sequenceFlow id="Flow_ResponseGenerated" sourceRef="SubProcess_ResponseGeneration" targetRef="Gateway_ApprovalGateRouting"/>
+        <bpmn:sequenceFlow id="Flow_ManualDraftRequired" sourceRef="BoundaryEvent_ActorCriticError" targetRef="Task_HumanOnlyDraftG5"/>
+        <bpmn:sequenceFlow id="Flow_G0AutoPublish" name="G0 Auto" sourceRef="Gateway_ApprovalGateRouting" targetRef="Task_AutoPublishT0T1">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approvalGate == 'G0'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_G1Approval" name="G1" sourceRef="Gateway_ApprovalGateRouting" targetRef="Task_ReviewDraftG1">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approvalGate == 'G1'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_G2Approval" name="G2" sourceRef="Gateway_ApprovalGateRouting" targetRef="Task_ReviewDraftG2">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approvalGate == 'G2'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_G3Approval" name="G3" sourceRef="Gateway_ApprovalGateRouting" targetRef="Task_SpecialistReviewG3">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approvalGate == 'G3'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_AutoPublished" sourceRef="Task_AutoPublishT0T1" targetRef="Task_PublishApprovedResponse"/>
+        <bpmn:sequenceFlow id="Flow_G1Reviewed" sourceRef="Task_ReviewDraftG1" targetRef="Gateway_ApprovalDecision"/>
+        <bpmn:sequenceFlow id="Flow_G2Reviewed" sourceRef="Task_ReviewDraftG2" targetRef="Gateway_ApprovalDecision"/>
+        <bpmn:sequenceFlow id="Flow_G3Reviewed" sourceRef="Task_SpecialistReviewG3" targetRef="Gateway_ApprovalDecision"/>
+        <bpmn:sequenceFlow id="Flow_G4Reviewed" sourceRef="Task_PRLegalReviewG4" targetRef="Gateway_ApprovalDecision"/>
+        <bpmn:sequenceFlow id="Flow_G5Drafted" sourceRef="Task_HumanOnlyDraftG5" targetRef="Gateway_ApprovalDecision"/>
+
+        <!-- Approval Decision Flows -->
+        <bpmn:sequenceFlow id="Flow_Approved" name="Approve" sourceRef="Gateway_ApprovalDecision" targetRef="Task_PublishApprovedResponse">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approvalDecision == 'approve'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_NeedsEdit" name="Edit" sourceRef="Gateway_ApprovalDecision" targetRef="Task_EditResponse">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approvalDecision == 'edit'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_Rejected" name="Reject" sourceRef="Gateway_ApprovalDecision" targetRef="Task_RejectWithReason">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approvalDecision == 'reject'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_EditComplete" sourceRef="Task_EditResponse" targetRef="Task_PublishApprovedResponse"/>
+        <bpmn:sequenceFlow id="Flow_RejectionHandled" sourceRef="Task_RejectWithReason" targetRef="SubProcess_ResponseGeneration"/>
+
+        <!-- Step 4 & 5: Resolution and Analytics Flows -->
+        <bpmn:sequenceFlow id="Flow_ToAnalytics" sourceRef="Task_PublishApprovedResponse" targetRef="Task_RecordAnalytics"/>
+        <bpmn:sequenceFlow id="Flow_ToLearning" sourceRef="Task_RecordAnalytics" targetRef="Task_UpdateLearningModel"/>
+        <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_UpdateLearningModel" targetRef="EndEvent_InteractionComplete"/>
+        <bpmn:sequenceFlow id="Flow_CircuitBreakerTriggered" sourceRef="BoundaryEvent_CircuitBreaker" targetRef="Task_ReviewDraftG1"/>
+
+    </bpmn:process>
+
+    <!-- ============================================================== -->
+    <!-- EXTERNAL PROCESS: Customer Interaction -->
+    <!-- ============================================================== -->
+    <bpmn:process id="Process_CustomerInteraction" name="Customer Interaction" isExecutable="false">
+        <bpmn:documentation>
+            External process representing customer's interaction lifecycle.
+            Not executable - represents external participant.
+        </bpmn:documentation>
+        <bpmn:startEvent id="CustStart_Interact" name="Customer Posts on Social"/>
+        <bpmn:task id="CustTask_Wait" name="Wait for Response"/>
+        <bpmn:task id="CustTask_ReceiveResponse" name="Receive Response"/>
+        <bpmn:endEvent id="CustEnd_Satisfied" name="Interaction Complete"/>
+        <bpmn:sequenceFlow id="CustFlow_1" sourceRef="CustStart_Interact" targetRef="CustTask_Wait"/>
+        <bpmn:sequenceFlow id="CustFlow_2" sourceRef="CustTask_Wait" targetRef="CustTask_ReceiveResponse"/>
+        <bpmn:sequenceFlow id="CustFlow_3" sourceRef="CustTask_ReceiveResponse" targetRef="CustEnd_Satisfied"/>
+    </bpmn:process>
+
+    <!-- ============================================================== -->
+    <!-- BPMN DIAGRAM INTERCHANGE (Visual Layout) -->
+    <!-- ============================================================== -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_CommunityManagement">
+        <bpmndi:BPMNPlane id="BPMNPlane_Collaboration" bpmnElement="Collaboration_CommunityManagement">
+            
+            <!-- Customer Pool -->
+            <bpmndi:BPMNShape id="Shape_Participant_Customer" bpmnElement="Participant_Customer" isHorizontal="true">
+                <dc:Bounds x="120" y="80" width="2400" height="150"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Main AI System Pool -->
+            <bpmndi:BPMNShape id="Shape_Participant_AISystem" bpmnElement="Participant_AISystem" isHorizontal="true">
+                <dc:Bounds x="120" y="280" width="2400" height="900"/>
+            </bpmndi:BPMNShape>
+
+            <!-- AI Automation Lane -->
+            <bpmndi:BPMNShape id="Shape_Lane_AIAutomation" bpmnElement="Lane_AIAutomation" isHorizontal="true">
+                <dc:Bounds x="150" y="280" width="2370" height="300"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Human Review Lane -->
+            <bpmndi:BPMNShape id="Shape_Lane_HumanReview" bpmnElement="Lane_HumanReview" isHorizontal="true">
+                <dc:Bounds x="150" y="580" width="2370" height="300"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Specialist Lane -->
+            <bpmndi:BPMNShape id="Shape_Lane_Specialists" bpmnElement="Lane_Specialists" isHorizontal="true">
+                <dc:Bounds x="150" y="880" width="2370" height="300"/>
+            </bpmndi:BPMNShape>
+
+            <!-- CRM Pool -->
+            <bpmndi:BPMNShape id="Shape_Participant_CRM" bpmnElement="Participant_CRM" isHorizontal="true">
+                <dc:Bounds x="120" y="1230" width="2400" height="150"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Start Event: New Interaction -->
+            <bpmndi:BPMNShape id="Shape_StartEvent_NewInteraction" bpmnElement="StartEvent_NewInteraction">
+                <dc:Bounds x="200" y="362" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="175" y="405" width="86" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Start Event: Webhook -->
+            <bpmndi:BPMNShape id="Shape_StartEvent_Webhook" bpmnElement="StartEvent_PlatformWebhook">
+                <dc:Bounds x="200" y="422" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="175" y="465" width="86" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Normalize Interaction -->
+            <bpmndi:BPMNShape id="Shape_Task_Normalize" bpmnElement="Task_NormalizeInteraction">
+                <dc:Bounds x="280" y="370" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Spam Filter -->
+            <bpmndi:BPMNShape id="Shape_Task_SpamFilter" bpmnElement="Task_SpamFilter">
+                <dc:Bounds x="420" y="370" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Gateway: Spam Check -->
+            <bpmndi:BPMNShape id="Shape_Gateway_SpamCheck" bpmnElement="Gateway_SpamCheck" isMarkerVisible="true">
+                <dc:Bounds x="560" y="385" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="548" y="355" width="75" height="27"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Auto Hide Spam -->
+            <bpmndi:BPMNShape id="Shape_Task_AutoHide" bpmnElement="Task_AutoHideSpam">
+                <dc:Bounds x="560" y="470" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- End Event: Spam Handled -->
+            <bpmndi:BPMNShape id="Shape_EndEvent_Spam" bpmnElement="EndEvent_SpamHandled">
+                <dc:Bounds x="700" y="492" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Classify -->
+            <bpmndi:BPMNShape id="Shape_Task_Classify" bpmnElement="Task_ClassifyInteraction">
+                <dc:Bounds x="660" y="370" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Location ID -->
+            <bpmndi:BPMNShape id="Shape_Task_LocationID" bpmnElement="Task_IdentifyLocation">
+                <dc:Bounds x="800" y="370" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: CRM Enrich -->
+            <bpmndi:BPMNShape id="Shape_Task_CRMEnrich" bpmnElement="Task_EnrichCRMContext">
+                <dc:Bounds x="940" y="370" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Risk Tier -->
+            <bpmndi:BPMNShape id="Shape_Task_RiskTier" bpmnElement="Task_DetermineRiskTier">
+                <dc:Bounds x="1080" y="370" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Gateway: Confidence Check -->
+            <bpmndi:BPMNShape id="Shape_Gateway_Confidence" bpmnElement="Gateway_ConfidenceCheck" isMarkerVisible="true">
+                <dc:Bounds x="1220" y="385" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Gateway: Risk Tier Routing -->
+            <bpmndi:BPMNShape id="Shape_Gateway_RiskTier" bpmnElement="Gateway_RiskTierRouting" isMarkerVisible="true">
+                <dc:Bounds x="1420" y="385" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- SubProcess: Response Generation -->
+            <bpmndi:BPMNShape id="Shape_SubProcess_ResponseGen" bpmnElement="SubProcess_ResponseGeneration" isExpanded="true">
+                <dc:Bounds x="1520" y="310" width="400" height="200"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Gateway: Approval Gate Routing -->
+            <bpmndi:BPMNShape id="Shape_Gateway_ApprovalGate" bpmnElement="Gateway_ApprovalGateRouting" isMarkerVisible="true">
+                <dc:Bounds x="1960" y="385" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Auto Publish -->
+            <bpmndi:BPMNShape id="Shape_Task_AutoPublish" bpmnElement="Task_AutoPublishT0T1">
+                <dc:Bounds x="2060" y="310" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Publish Response -->
+            <bpmndi:BPMNShape id="Shape_Task_Publish" bpmnElement="Task_PublishApprovedResponse">
+                <dc:Bounds x="2200" y="370" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Task: Record Analytics -->
+            <bpmndi:BPMNShape id="Shape_Task_Analytics" bpmnElement="Task_RecordAnalytics">
+                <dc:Bounds x="2340" y="370" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- End Event: Complete -->
+            <bpmndi:BPMNShape id="Shape_EndEvent_Complete" bpmnElement="EndEvent_InteractionComplete">
+                <dc:Bounds x="2480" y="392" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Human Lane Tasks -->
+            <bpmndi:BPMNShape id="Shape_Task_HumanVerify" bpmnElement="Task_HumanVerifyClassification">
+                <dc:Bounds x="1220" y="650" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Shape_Task_ReviewG1" bpmnElement="Task_ReviewDraftG1">
+                <dc:Bounds x="2060" y="650" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Shape_Task_ReviewG2" bpmnElement="Task_ReviewDraftG2">
+                <dc:Bounds x="2060" y="750" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Shape_Gateway_ApprovalDecision" bpmnElement="Gateway_ApprovalDecision" isMarkerVisible="true">
+                <dc:Bounds x="2200" y="665" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Specialist Lane Tasks -->
+            <bpmndi:BPMNShape id="Shape_Task_G3Review" bpmnElement="Task_SpecialistReviewG3">
+                <dc:Bounds x="2060" y="950" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Shape_Task_G4Review" bpmnElement="Task_PRLegalReviewG4">
+                <dc:Bounds x="1520" y="950" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Shape_SubProcess_Ticket" bpmnElement="SubProcess_CRMTicketCreation">
+                <dc:Bounds x="1700" y="920" width="300" height="140"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Message Flows -->
+            <bpmndi:BPMNEdge id="Edge_MsgFlow_CustomerToSystem" bpmnElement="MsgFlow_CustomerToSystem">
+                <di:waypoint x="330" y="230"/>
+                <di:waypoint x="330" y="370"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Edge_MsgFlow_SystemToCustomer" bpmnElement="MsgFlow_SystemToCustomer">
+                <di:waypoint x="2250" y="370"/>
+                <di:waypoint x="2250" y="230"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Sequence Flow Edges (representative selection) -->
+            <bpmndi:BPMNEdge id="Edge_Flow_ToNormalize" bpmnElement="Flow_ToNormalize">
+                <di:waypoint x="236" y="380"/>
+                <di:waypoint x="280" y="410"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Edge_Flow_ToSpamFilter" bpmnElement="Flow_ToSpamFilter">
+                <di:waypoint x="380" y="410"/>
+                <di:waypoint x="420" y="410"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Edge_Flow_ToSpamCheck" bpmnElement="Flow_ToSpamCheck">
+                <di:waypoint x="520" y="410"/>
+                <di:waypoint x="560" y="410"/>
+            </bpmndi:BPMNEdge>
+
+            <bpmndi:BPMNEdge id="Edge_Flow_CleanInteraction" bpmnElement="Flow_CleanInteraction">
+                <di:waypoint x="610" y="410"/>
+                <di:waypoint x="660" y="410"/>
+            </bpmndi:BPMNEdge>
+
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>
