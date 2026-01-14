@@ -65,6 +65,9 @@ class BPMNParser:
         # Parse process
         self._parse_process(root, model)
 
+        # Assign lane parents now that all elements are parsed
+        self._assign_lane_parents(model)
+
         # Parse collaboration (pools and lanes)
         self._parse_collaboration(root, model)
 
@@ -165,7 +168,7 @@ class BPMNParser:
         if process is not None:
             model.process_id = process.get("id")
             model.process_name = process.get("name")
-            self._parse_process_contents(process, model)
+            self._parse_process_contents(process, model, process.get("id"))
 
         # Also check for processes referenced by participants
         for participant in root.iter():
@@ -179,12 +182,18 @@ class BPMNParser:
                         f".//*[@id='{process_ref}']"
                     )
                     if referenced_process is not None and referenced_process not in [process]:
-                        self._parse_process_contents(referenced_process, model)
+                        self._parse_process_contents(referenced_process, model, process_ref)
 
     def _parse_process_contents(
-        self, process: etree._Element, model: BPMNModel
+        self, process: etree._Element, model: BPMNModel, process_id: Optional[str] = None
     ) -> None:
-        """Parse contents of a process element."""
+        """Parse contents of a process element.
+
+        Args:
+            process: Process XML element
+            model: BPMN model to populate
+            process_id: ID of the containing process (for tracking element ownership)
+        """
         # Parse elements
         for child in process:
             # Skip comments and other non-element nodes
@@ -194,6 +203,9 @@ class BPMNParser:
 
             if tag in ALL_ELEMENT_TYPES:
                 element = self._parse_element(child, tag)
+                # Track which process this element came from
+                if process_id:
+                    element.properties["_process_id"] = process_id
                 model.elements.append(element)
 
             elif tag in FLOW_TYPES:
@@ -207,9 +219,11 @@ class BPMNParser:
             elif tag == "subProcess":
                 # Parse subprocess as element
                 element = self._parse_element(child, tag)
+                if process_id:
+                    element.properties["_process_id"] = process_id
                 model.elements.append(element)
                 # Also parse its contents
-                self._parse_process_contents(child, model)
+                self._parse_process_contents(child, model, process_id)
 
     def _parse_element(self, elem: etree._Element, elem_type: str) -> BPMNElement:
         """Parse a BPMN element."""
@@ -231,6 +245,12 @@ class BPMNParser:
 
         # Parse element-specific properties
         properties = self._parse_element_properties(elem, elem_type)
+
+        # For boundary events, capture the attachedToRef
+        if elem_type == "boundaryEvent":
+            attached_to = elem.get("attachedToRef")
+            if attached_to:
+                properties["attachedToRef"] = attached_to
 
         return BPMNElement(
             id=elem_id,
@@ -327,9 +347,36 @@ class BPMNParser:
         if not participants:
             participants = collaboration.findall(".//{*}participant")
 
+        # Build process_id to pool mapping
+        process_to_pool: Dict[str, Pool] = {}
+
         for participant in participants:
             pool = self._parse_pool(participant)
             model.pools.append(pool)
+
+            if pool.process_ref:
+                process_to_pool[pool.process_ref] = pool
+
+                # Associate lanes with this pool based on process reference
+                for lane in model.lanes:
+                    if not lane.parent_pool_id:
+                        lane.parent_pool_id = pool.id
+
+        # Associate elements with pools when they don't have lane parents
+        # This handles pools without lanes (like external system pools)
+        for element in model.elements:
+            if element.parent_id:
+                continue  # Already has a parent (lane)
+
+            # Find which process this element belongs to using the stored _process_id
+            elem_process_id = element.properties.get("_process_id")
+            if elem_process_id and elem_process_id in process_to_pool:
+                pool = process_to_pool[elem_process_id]
+                # Check if pool has lanes
+                lanes_for_pool = [l for l in model.lanes if l.parent_pool_id == pool.id]
+                if not lanes_for_pool:
+                    # Pool has no lanes - element should be direct child of pool
+                    element.parent_id = pool.id
 
         # Parse message flows
         message_flows = collaboration.findall(".//bpmn:messageFlow", self.namespaces)
@@ -361,7 +408,12 @@ class BPMNParser:
         )
 
     def _parse_lane_set(self, lane_set: etree._Element, model: BPMNModel) -> None:
-        """Parse lane set element."""
+        """Parse lane set element.
+
+        Note: Lanes are parsed to capture their element_refs, but parent_id
+        assignment is deferred to _assign_lane_parents() since elements may
+        not be parsed yet when laneSet is encountered.
+        """
         lanes = lane_set.findall(".//bpmn:lane", self.namespaces)
         if not lanes:
             lanes = lane_set.findall(".//{*}lane")
@@ -370,7 +422,16 @@ class BPMNParser:
             lane = self._parse_lane(lane_elem)
             model.lanes.append(lane)
 
-            # Update element parent IDs based on lane flowNodeRefs
+    def _assign_lane_parents(self, model: BPMNModel) -> None:
+        """Assign parent_id to elements based on lane membership.
+
+        Must be called after all elements and lanes are parsed.
+
+        Args:
+            model: BPMN model with elements and lanes
+        """
+        # Build lane element_refs lookup
+        for lane in model.lanes:
             for element in model.elements:
                 if element.id in lane.element_refs:
                     element.parent_id = lane.id
