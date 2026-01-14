@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_MixedDI"
+                  targetNamespace="http://example.org/bpmn/mixed_di">
+
+  <!--
+    MIXED DI COORDINATES TEST FIXTURE
+    Purpose: Test mixed DI handling - some elements have coordinates, some don't
+
+    Elements WITH DI coordinates:
+    - Start_1 (100, 100)
+    - Task_1 (200, 100)
+    - Gateway_1 (350, 100)
+    - Task_Yes (450, 50)
+
+    Elements WITHOUT DI coordinates:
+    - Task_No
+    - Task_2
+    - End_1
+  -->
+
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:task id="Task_1" name="First Task"/>
+    <bpmn:exclusiveGateway id="Gateway_1" name="Decision"/>
+    <bpmn:task id="Task_Yes" name="Yes Path"/>
+    <bpmn:task id="Task_No" name="No Path"/>
+    <bpmn:exclusiveGateway id="Gateway_Merge" name="Merge"/>
+    <bpmn:task id="Task_2" name="Second Task"/>
+    <bpmn:endEvent id="End_1" name="End"/>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="Gateway_1"/>
+    <bpmn:sequenceFlow id="Flow_Yes" name="Yes" sourceRef="Gateway_1" targetRef="Task_Yes"/>
+    <bpmn:sequenceFlow id="Flow_No" name="No" sourceRef="Gateway_1" targetRef="Task_No"/>
+    <bpmn:sequenceFlow id="Flow_YesMerge" sourceRef="Task_Yes" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_NoMerge" sourceRef="Task_No" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Gateway_Merge" targetRef="Task_2"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_2" targetRef="End_1"/>
+  </bpmn:process>
+
+  <!-- Partial DI - Only some elements have coordinates -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <!-- Elements WITH DI coordinates -->
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="100" y="100" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="200" y="82" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1_di" bpmnElement="Gateway_1">
+        <dc:Bounds x="350" y="97" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Yes_di" bpmnElement="Task_Yes">
+        <dc:Bounds x="450" y="20" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Elements WITHOUT DI coordinates: Task_No, Gateway_Merge, Task_2, End_1 -->
+      <!-- These are intentionally omitted to test mixed DI handling -->
+
+      <!-- Some flows with DI -->
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="136" y="118"/>
+        <di:waypoint x="200" y="122"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>
