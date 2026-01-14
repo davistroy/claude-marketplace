@@ -58,7 +58,7 @@ class PositionResolver:
             else:
                 needs_layout.append(element)
 
-        # Only calculate layout if we have connected elements needing it
+        # Only calculate layout if we have elements needing it
         if needs_layout and self.use_layout == "graphviz":
             # Find which elements without DI are connected to the main flow
             connected_ids = self._find_connected_elements(
@@ -68,9 +68,23 @@ class PositionResolver:
             connected_elements = [e for e in needs_layout if e.id in connected_ids]
             disconnected_elements = [e for e in needs_layout if e.id not in connected_ids]
 
-            # Position connected elements relative to their neighbors
-            # Don't use Graphviz as it doesn't preserve existing DI coordinates
-            if connected_elements:
+            # If we have NO elements with DI, use the layout engine for all elements
+            # (neighbor-based positioning won't work without reference points)
+            if not with_di and connected_elements:
+                positions = self.layout_engine.calculate_layout(
+                    resolved_model.elements,
+                    resolved_model.flows,
+                )
+                # Apply calculated positions
+                for element in resolved_model.elements:
+                    if element.id in positions:
+                        x, y = positions[element.id]
+                        if element.x is None:
+                            element.x = x
+                        if element.y is None:
+                            element.y = y
+            elif connected_elements:
+                # Position connected elements relative to their DI neighbors
                 self._place_connected_elements(
                     connected_elements,
                     with_di,

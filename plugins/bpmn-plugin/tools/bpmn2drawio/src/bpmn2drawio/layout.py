@@ -47,14 +47,18 @@ class LayoutEngine:
         graph = self._build_graph(elements, flows)
 
         # Apply Graphviz layout
+        used_graphviz = False
         try:
             positions = self._apply_graphviz_layout(graph, elements)
-        except Exception as e:
-            # Fall back to simple grid layout
-            positions = self._simple_grid_layout(elements)
+            used_graphviz = True
+        except Exception:
+            # Fall back to flow-based layout that respects direction and branching
+            positions = self._flow_based_layout(graph, elements)
 
         # Scale and transform positions
-        return self._scale_positions(positions, elements)
+        # Only flip Y for Graphviz (which uses Y increasing upward)
+        # Flow-based layout already has Y increasing downward
+        return self._scale_positions(positions, elements, flip_y=used_graphviz)
 
     def _build_graph(
         self,
@@ -143,6 +147,144 @@ class LayoutEngine:
 
         return positions
 
+    def _flow_based_layout(
+        self,
+        graph: nx.DiGraph,
+        elements: List[BPMNElement],
+    ) -> Dict[str, Tuple[float, float]]:
+        """Flow-based layout that respects direction and handles branching.
+
+        Uses topological sorting to assign ranks/levels to elements,
+        then positions elements based on their rank with proper spacing
+        for branches.
+
+        Args:
+            graph: NetworkX directed graph
+            elements: List of BPMN elements
+
+        Returns:
+            Dictionary mapping element ID to (x, y) position
+        """
+        if not graph.nodes():
+            return self._simple_grid_layout(elements)
+
+        # Create element lookup
+        elem_lookup = {e.id: e for e in elements}
+
+        # Assign ranks using longest path from sources
+        ranks = self._assign_ranks(graph)
+
+        # Group elements by rank
+        rank_groups: Dict[int, List[str]] = {}
+        for node_id, rank in ranks.items():
+            if rank not in rank_groups:
+                rank_groups[rank] = []
+            rank_groups[rank].append(node_id)
+
+        # Calculate positions based on direction
+        positions = {}
+        is_horizontal = self.direction in ("LR", "RL")
+        is_reversed = self.direction in ("RL", "BT")
+
+        # Spacing constants
+        rank_spacing = LayoutConstants.RANK_SEPARATION
+        node_spacing = LayoutConstants.NODE_VERTICAL_GAP if is_horizontal else LayoutConstants.NODE_HORIZONTAL_GAP
+
+        # Position each rank
+        sorted_ranks = sorted(rank_groups.keys(), reverse=is_reversed)
+        primary_pos = LayoutConstants.DIAGRAM_MARGIN
+
+        for rank in sorted_ranks:
+            nodes = rank_groups[rank]
+            secondary_pos = LayoutConstants.DIAGRAM_MARGIN
+
+            for node_id in nodes:
+                if node_id not in elem_lookup:
+                    continue
+
+                elem = elem_lookup[node_id]
+                width, height = self._get_element_dimensions(elem)
+
+                if is_horizontal:
+                    # LR/RL: primary is X, secondary is Y
+                    x = primary_pos
+                    y = secondary_pos
+                    secondary_pos += height + node_spacing
+                else:
+                    # TB/BT: primary is Y, secondary is X
+                    x = secondary_pos
+                    y = primary_pos
+                    secondary_pos += width + node_spacing
+
+                positions[node_id] = (x, y)
+
+            # Move to next rank
+            if is_horizontal:
+                max_width = max(
+                    self._get_element_dimensions(elem_lookup[n])[0]
+                    for n in nodes if n in elem_lookup
+                )
+                primary_pos += max_width + rank_spacing
+            else:
+                max_height = max(
+                    self._get_element_dimensions(elem_lookup[n])[1]
+                    for n in nodes if n in elem_lookup
+                )
+                primary_pos += max_height + rank_spacing
+
+        # Add any elements not in the graph
+        for elem in elements:
+            if elem.id not in positions:
+                positions[elem.id] = (primary_pos, LayoutConstants.DIAGRAM_MARGIN)
+                primary_pos += self._get_element_dimensions(elem)[0] + LayoutConstants.NODE_HORIZONTAL_GAP
+
+        return positions
+
+    def _assign_ranks(self, graph: nx.DiGraph) -> Dict[str, int]:
+        """Assign ranks to nodes based on longest path from sources.
+
+        Args:
+            graph: NetworkX directed graph
+
+        Returns:
+            Dictionary mapping node ID to rank (0 = source level)
+        """
+        ranks = {}
+
+        # Find source nodes (no incoming edges)
+        sources = [n for n in graph.nodes() if graph.in_degree(n) == 0]
+
+        # If no sources, use all nodes
+        if not sources:
+            sources = list(graph.nodes())
+
+        # BFS to assign ranks
+        visited = set()
+        queue = [(s, 0) for s in sources]
+
+        while queue:
+            node, rank = queue.pop(0)
+
+            if node in visited:
+                # Take the maximum rank for nodes reachable via multiple paths
+                if rank > ranks.get(node, -1):
+                    ranks[node] = rank
+                continue
+
+            visited.add(node)
+            ranks[node] = max(ranks.get(node, 0), rank)
+
+            # Add successors
+            for succ in graph.successors(node):
+                queue.append((succ, rank + 1))
+
+        # Handle disconnected nodes
+        for node in graph.nodes():
+            if node not in ranks:
+                ranks[node] = 0
+
+        return ranks
+
     def _simple_grid_layout(
         self,
         elements: List[BPMNElement],
@@ -182,15 +324,18 @@ class LayoutEngine:
         self,
         positions: Dict[str, Tuple[float, float]],
         elements: List[BPMNElement],
+        flip_y: bool = True,
     ) -> Dict[str, Tuple[float, float]]:
         """Scale and transform coordinates for Draw.io.
 
         Graphviz uses Y increasing upward, Draw.io uses Y increasing downward.
-        We flip the Y axis during transformation.
+        We flip the Y axis during transformation for Graphviz output.
+        For fallback layout, Y is already correct so we don't flip.
 
         Args:
             positions: Raw positions from layout
             elements: List of elements for dimension info
+            flip_y: Whether to flip Y axis (True for Graphviz, False for fallback)
 
         Returns:
             Scaled positions
@@ -200,14 +345,19 @@ class LayoutEngine:
 
         # Find bounds
         min_x = min(p[0] for p in positions.values())
+        min_y = min(p[1] for p in positions.values())
         max_y = max(p[1] for p in positions.values())
 
-        # Normalize to start at margin, flipping Y axis
+        # Normalize to start at margin
         scaled = {}
         for elem_id, (x, y) in positions.items():
             scaled_x = (x - min_x) * LayoutConstants.SCALE_X + LayoutConstants.DIAGRAM_MARGIN
-            # Flip Y: subtract from max to invert coordinate system
-            scaled_y = (max_y - y) * LayoutConstants.SCALE_Y + LayoutConstants.DIAGRAM_MARGIN
+            if flip_y:
+                # Flip Y: subtract from max to invert coordinate system (for Graphviz)
+                scaled_y = (max_y - y) * LayoutConstants.SCALE_Y + LayoutConstants.DIAGRAM_MARGIN
+            else:
+                # Keep Y as-is, just normalize to margin (for fallback layout)
+                scaled_y = (y - min_y) * LayoutConstants.SCALE_Y + LayoutConstants.DIAGRAM_MARGIN
             scaled[elem_id] = (scaled_x, scaled_y)
 
         return scaled
