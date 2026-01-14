@@ -1,8 +1,14 @@
 ---
-description: Deep architectural review with technical debt assessment and remediation roadmap
+description: Quick architectural audit with technical debt assessment (read-only, no files generated)
 ---
 
-You are performing a comprehensive architectural audit of this project. Execute the following systematic analysis:
+# Review Architecture
+
+Perform a quick architectural audit of this project. This command provides an in-conversation analysis without generating files. For a comprehensive analysis with saved RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md, use `/plan-improvements` instead.
+
+## Overview
+
+Execute the following systematic analysis:
 
 ## Phase 1: Codebase Reconnaissance
 1. Map the complete project structure and identify the tech stack

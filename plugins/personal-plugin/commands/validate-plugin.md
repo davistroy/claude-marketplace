@@ -107,7 +107,7 @@ For each markdown file:
 
 **Report:**
 ```
-Frontmatter Validation: commands/doc-assessment.md
+Frontmatter Validation: commands/assess-document.md
 --------------------------------------------------
 [PASS] Frontmatter delimiters present
 [PASS] Valid YAML syntax
@@ -211,7 +211,7 @@ Verify markdown parses without errors:
 
 **Report:**
 ```
-Content Validation: commands/doc-assessment.md
+Content Validation: commands/assess-document.md
 ----------------------------------------------
 [PASS] Markdown parses correctly
 ```
@@ -391,8 +391,8 @@ Errors:   0
 Warnings: 2
 
 Warnings:
-  1. commands/cleanup.md:45 - Code block missing language specifier
-  2. commands/cleanup.md:89 - Code block missing language specifier
+  1. commands/clean-repo.md:45 - Code block missing language specifier
+  2. commands/clean-repo.md:89 - Code block missing language specifier
 
 Result: PASS (with warnings)
 Exit code: 0

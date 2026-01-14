@@ -64,11 +64,11 @@ This plan organizes 19 recommendations into 4 phases, prioritizing quick wins an
 **Files Affected:** `README.md`
 **Description:**
 Update the personal-plugin commands table to include all 15 commands. Currently missing:
-- `/consolidate` - Analyze multiple document variations and synthesize
-- `/wordify` - Convert markdown to formatted Word document
-- `/image-prompt` - Generate AI image prompts from content
+- `/consolidate-documents` - Analyze multiple document variations and synthesize
+- `/convert-markdown` - Convert markdown to formatted Word document
+- `/develop-image-prompt` - Generate AI image prompts from content
 - `/plan-improvements` - Generate improvement recommendations with implementation plan
-- `/fully-test-project` - Ensure 90%+ coverage, run tests, fix, merge PR
+- `/test-project` - Ensure 90%+ coverage, run tests, fix, merge PR
 
 Cross-reference each command's frontmatter description for accuracy.
 
@@ -168,7 +168,7 @@ Actual command updates happen in Phase 2.
 **Recommendation Ref:** Q1
 **Files Affected:**
 - `plugins/personal-plugin/commands/define-questions.md`
-- `plugins/personal-plugin/commands/transcript-analysis.md`
+- `plugins/personal-plugin/commands/analyze-transcript.md`
 - Any other commands using non-standard formats
 **Description:**
 Update all commands to use `YYYYMMDD-HHMMSS` format:
@@ -182,7 +182,7 @@ Save to: reference/questions-[document-name]-[YYYYMMDD].json
 Save to: reference/questions-[document-name]-[YYYYMMDD-HHMMSS].json
 ```
 
-**transcript-analysis.md** currently uses `YYYY-MM-DD`:
+**analyze-transcript.md** currently uses `YYYY-MM-DD`:
 ```markdown
 # Before
 Output: meeting-analysis-2026-01-10.md
@@ -222,9 +222,9 @@ Add output location conventions to CLAUDE.md:
 #### 2.3 Add Argument Validation Patterns
 **Recommendation Ref:** U3
 **Files Affected:**
-- `plugins/personal-plugin/commands/doc-assessment.md`
+- `plugins/personal-plugin/commands/assess-document.md`
 - `plugins/personal-plugin/commands/finish-document.md`
-- `plugins/personal-plugin/commands/consolidate.md`
+- `plugins/personal-plugin/commands/consolidate-documents.md`
 - Other commands accepting arguments
 **Description:**
 Add input validation section to commands that accept arguments:
@@ -240,7 +240,7 @@ Add input validation section to commands that accept arguments:
 
 **Validation:**
 If required arguments missing, display:
-"Usage: /doc-assessment <document-path> [--format json|md]"
+"Usage: /assess-document <document-path> [--format json|md]"
 ```
 
 **Acceptance Criteria:**
@@ -519,8 +519,8 @@ Create `/help-commands` skill for command discovery:
 Available Commands:
 
 **Analysis (read-only)**
-- /arch-review - Deep architectural review
-- /doc-assessment - Document quality evaluation
+- /review-arch - Deep architectural review
+- /assess-document - Document quality evaluation
 
 **Interactive Workflows**
 - /ask-questions - Q&A session from JSON

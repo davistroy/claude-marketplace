@@ -6,6 +6,7 @@ Thank you for your interest in contributing to the Claude Code plugin marketplac
 
 - [Adding a New Command](#adding-a-new-command)
 - [Adding a New Skill](#adding-a-new-skill)
+- [Maintaining the Help Skill](#maintaining-the-help-skill)
 - [Command Template](#command-template)
 - [Version Management](#version-management)
 - [Pull Request Process](#pull-request-process)
@@ -23,7 +24,7 @@ Commands are user-initiated workflows that take control of the Claude Code sessi
 plugins/[plugin-name]/commands/[command-name].md
 ```
 
-Example: `plugins/personal-plugin/commands/doc-assessment.md`
+Example: `plugins/personal-plugin/commands/assess-document.md`
 
 ### Frontmatter Requirements
 
@@ -57,15 +58,15 @@ Choose the appropriate pattern for your command:
 
 | Pattern | Use When | Examples |
 |---------|----------|----------|
-| **Read-only** | Analyzing and reporting without modifications | `arch-review`, `doc-assessment` |
+| **Read-only** | Analyzing and reporting without modifications | `review-arch`, `assess-document` |
 | **Interactive** | Single-question flow requiring user input | `ask-questions` |
-| **Workflow** | Multi-step automation with confirmation points | `cleanup`, `finish-document` |
-| **Generator** | Creating structured output files | `define-questions`, `transcript-analysis` |
-| **Synthesis** | Merging multiple sources into one | `consolidate` |
-| **Conversion** | Transforming files between formats | `wordify` |
-| **Generation** | Creating prompts or content for external tools | `image-prompt` |
-| **Planning** | Analyzing codebase and generating actionable plans | `plan-improvements`, `next-step` |
-| **Testing** | Comprehensive test, fix, and ship workflows | `fully-test-project` |
+| **Workflow** | Multi-step automation with confirmation points | `clean-repo`, `finish-document` |
+| **Generator** | Creating structured output files | `define-questions`, `analyze-transcript` |
+| **Synthesis** | Merging multiple sources into one | `consolidate-documents` |
+| **Conversion** | Transforming files between formats | `convert-markdown` |
+| **Generation** | Creating prompts or content for external tools | `develop-image-prompt` |
+| **Planning** | Analyzing codebase and generating actionable plans | `plan-improvements`, `plan-next` |
+| **Testing** | Comprehensive test, fix, and ship workflows | `test-project` |
 
 See `plugins/personal-plugin/references/common-patterns.md` for detailed pattern documentation.
 
@@ -104,7 +105,7 @@ Skills are discrete actions that Claude may proactively suggest after completing
 | User explicitly requests it | Claude suggests it proactively |
 | Comprehensive workflow | Focused, single action |
 | Takes over the session | Quick operation |
-| Example: `/arch-review` | Example: `/ship` |
+| Example: `/review-arch` | Example: `/ship` |
 
 ### File Location
 
@@ -123,6 +124,52 @@ Same requirements as commands:
 description: Brief description of the skill
 ---
 ```
+
+---
+
+## Maintaining the Help Skill
+
+**IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills. This skill must be kept in sync with the plugin's contents.
+
+### When to Update Help
+
+| Action | Update Required |
+|--------|-----------------|
+| Add a command/skill | Add entry to `help.md` with description, arguments, output, example |
+| Rename a command/skill | Update the entry name in `help.md` |
+| Change arguments/output | Update the entry details in `help.md` |
+| Remove a command/skill | Remove the entry from `help.md` |
+| Create a new plugin | Create a `help.md` skill following existing patterns |
+
+### Help Skill Location
+
+```
+plugins/[plugin-name]/skills/help.md
+```
+
+### Help Entry Template
+
+Add this for each new command or skill:
+
+```markdown
+#### /command-name
+**Description:** Brief description of what it does
+**Arguments:** `<required-arg>` `[optional-arg]` - Description of arguments
+**Output:** What the command produces (files, reports, etc.)
+**Example:**
+```
+/command-name example-usage
+```
+```
+
+### Checklist
+
+Before submitting a PR that modifies commands or skills:
+
+- [ ] Updated `help.md` in the affected plugin
+- [ ] Description matches the command's frontmatter description
+- [ ] Arguments section matches the command's Input Validation
+- [ ] Example is accurate and functional
 
 ---
 

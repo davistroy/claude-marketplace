@@ -1,9 +1,9 @@
 ---
 allowed-tools: Bash(git:*), Bash(gh:*)
-description: Create branch from main, commit all changes, push, and open a PR
+description: Create branch, commit, push, open PR, auto-review, fix issues, and merge
 ---
 
-You are automating the complete git workflow to ship code changes. The user may provide a branch name and description as arguments: $ARGUMENTS
+You are automating the complete git workflow to ship code changes. After creating the PR, you will automatically review it, fix any issues, and merge it. The user may provide a branch name and description as arguments: $ARGUMENTS
 
 ## Pre-flight Checks
 1. Verify this is a git repository
@@ -55,3 +55,309 @@ After completion, display:
 - If any git command fails, stop immediately and show the error
 - If push fails due to remote rejection, suggest possible causes
 - If PR creation fails, provide the manual `gh pr create` command the user can run
+
+---
+
+## Phase 7: Auto-Review
+
+After the PR is created, automatically analyze it for issues.
+
+### 7.1 Fetch PR Information
+
+```bash
+# Get the PR number from the just-created PR
+PR_NUMBER=$(gh pr view --json number -q '.number')
+
+# Fetch the diff for analysis
+gh pr diff $PR_NUMBER
+```
+
+### 7.2 Analyze the PR
+
+Perform a comprehensive review across these dimensions:
+
+**Security Analysis (CRITICAL/WARNING)**
+- Hardcoded secrets, API keys, or credentials
+- SQL injection vulnerabilities
+- XSS vulnerabilities
+- Insecure dependencies
+- Missing input validation
+- Authentication/authorization issues
+- Sensitive data exposure in logs
+
+**Performance Analysis (WARNING)**
+- N+1 query patterns
+- Unbounded loops or recursion
+- Large file reads into memory
+- Missing pagination
+- Inefficient algorithms (O(n²) when O(n) possible)
+- Blocking operations in async contexts
+
+**Code Quality Analysis (WARNING)**
+- DRY violations (copy-paste code)
+- Functions/methods over 50 lines
+- High cyclomatic complexity
+- Inconsistent naming conventions
+- Missing error handling
+- Magic numbers without constants
+- Dead code or unused imports
+
+**Test Coverage Analysis (WARNING)**
+- New code paths without tests
+- Modified code with outdated tests
+- Missing edge case coverage
+
+**Documentation Analysis (WARNING for public APIs)**
+- Public APIs without documentation
+- Complex logic without comments
+- Missing README updates for new features
+
+### 7.3 Classify Issues
+
+Categorize each issue by severity:
+- **CRITICAL**: Must fix - blocks merge (security vulnerabilities, data integrity risks)
+- **WARNING**: Should fix - blocks merge (quality issues, missing tests)
+- **SUGGESTION**: Nice to have - does NOT block merge
+
+### 7.4 Output
+
+```
+Phase 7: Auto-Review
+====================
+PR #[number] analyzed.
+
+Issues Found:
+  Critical: [N] (must fix)
+  Warnings: [N] (should fix)
+  Suggestions: [N] (non-blocking)
+
+[If no blocking issues]
+✓ All checks passed! Proceeding to merge.
+
+[If blocking issues exist]
+Found [N] blocking issues. Starting fix loop.
+```
+
+---
+
+## Phase 8: Fix Loop
+
+If there are CRITICAL or WARNING issues, attempt to fix them automatically.
+
+### 8.1 Loop Parameters
+
+- **Maximum attempts**: 5
+- **Blocking issues**: CRITICAL + WARNING only (suggestions don't block)
+- **Exit conditions**:
+  - All blocking issues resolved → proceed to merge
+  - Unfixable issue detected → report and stop
+  - Max attempts reached → report exhaustion and stop
+
+### 8.2 Fix Loop Logic
+
+```
+FOR attempt = 1 TO 5:
+    IF no blocking issues: EXIT LOOP → go to Phase 9 (merge)
+
+    Display: "Fix Attempt [attempt] of 5"
+    Display: "[N] critical, [N] warnings remaining"
+
+    FOR each blocking issue:
+        Display: "Fixing [ID]: [title]..."
+
+        IF issue is fixable:
+            Read the affected file
+            Apply the appropriate fix
+            Mark as fixed
+        ELSE:
+            Mark as unfixable with reason
+
+    IF has unfixable issues:
+        EXIT LOOP → go to Phase 9 (failure report)
+
+    Commit fixes:
+        git add -A
+        git commit -m "fix: address PR review issues (attempt [N]/5)
+
+        Resolved:
+        - [C1] Issue description
+        - [W1] Issue description
+
+        Co-Authored-By: Claude <noreply@anthropic.com>"
+
+    Push:
+        git push
+
+    Re-analyze PR
+
+    IF all blocking issues resolved:
+        Display: "✓ All issues resolved!"
+        EXIT LOOP → go to Phase 9 (merge)
+
+IF attempt > 5 AND blocking issues remain:
+    EXIT LOOP → go to Phase 9 (exhaustion report)
+```
+
+### 8.3 Fix Strategies by Issue Type
+
+| Issue Type | Fix Approach |
+|------------|--------------|
+| Hardcoded secrets | Replace with `process.env.VAR_NAME` reference |
+| SQL injection | Convert to parameterized query |
+| XSS vulnerability | Add sanitization/escaping |
+| N+1 queries | Add eager loading or batching |
+| Long functions | Split into smaller focused functions |
+| Missing error handling | Add try/catch with appropriate handling |
+| Magic numbers | Extract to named constants |
+| Missing tests | Generate basic test stubs |
+| Missing docs | Generate JSDoc/docstring comments |
+
+### 8.4 Unfixable Issue Detection
+
+Mark an issue as "unfixable" if:
+- **Requires external changes**: Database schema, external API, infrastructure
+- **Architectural decision needed**: Multiple valid approaches, needs human choice
+- **Cyclical issue**: Same fix keeps being undone or introduces new issues
+- **Beyond scope**: Would require changes outside the PR's files
+- **False positive**: Code is actually correct, analysis was wrong
+
+When unfixable:
+```
+Unfixable: [ID] [title]
+Reason: [why it cannot be auto-fixed]
+Suggestion: [what the user should do manually]
+```
+
+---
+
+## Phase 9: Completion
+
+Three possible outcomes: success (merge), failure (unfixable), or exhaustion (max attempts).
+
+### 9.1 Success Path (All Blocking Issues Resolved)
+
+Execute merge:
+```bash
+# Squash merge and delete remote branch
+gh pr merge $PR_NUMBER --squash --delete-branch
+
+# Return to main and update
+git checkout main
+git pull
+
+# Clean up local branch if it exists
+git branch -d $BRANCH_NAME 2>/dev/null || true
+```
+
+Display:
+```
+Phase 9: Completion
+===================
+✓ PR #[number] successfully merged!
+
+Summary:
+  Branch: [branch-name]
+  Fix Attempts: [N]
+  Issues Resolved: [N] critical, [N] warnings
+  Merge Strategy: Squash
+
+Branches Cleaned:
+  ✓ origin/[branch-name] (deleted)
+  ✓ local/[branch-name] (deleted)
+
+PR URL: [url]
+```
+
+### 9.2 Failure Path (Unfixable Issues Exist)
+
+Do NOT merge. Report to user:
+```
+Phase 9: Completion (Manual Review Required)
+============================================
+✗ PR #[number] NOT merged - unfixable issues detected.
+
+Fix Attempts Made: [N]
+Issues Resolved: [N]
+Issues Remaining: [N]
+
+Unfixable Issues:
+-----------------
+
+[C1] [Issue title]
+File: [path/to/file] (lines [X-Y])
+Reason: [Why it cannot be auto-fixed]
+Suggestion: [Manual steps to resolve]
+
+[W2] [Issue title]
+File: [path/to/file] (lines [X-Y])
+Reason: [Why it cannot be auto-fixed]
+Suggestion: [Manual steps to resolve]
+
+Next Steps:
+-----------
+1. Review the unfixable issues above
+2. Make manual fixes in your editor
+3. Push additional commits to the PR
+4. Run /ship again to retry analysis and merge
+
+PR URL: [url] (still open)
+Branch: [branch-name] (preserved for manual work)
+```
+
+### 9.3 Exhaustion Path (Max Attempts Reached)
+
+Do NOT merge. Report with diagnostics:
+```
+Phase 9: Completion (Fix Loop Exhausted)
+========================================
+✗ PR #[number] NOT merged - max fix attempts (5) reached.
+
+Attempts Made: 5
+Issues Found: [N]
+Issues Resolved: [N]
+Issues Still Blocking: [N]
+
+Remaining Issues:
+-----------------
+
+[C1] [Issue title]
+File: [path/to/file]
+Status: [e.g., "Fixed 3 times but keeps returning"]
+
+Diagnostic Information:
+-----------------------
+Attempt 1: Fixed [issues], then [what happened]
+Attempt 2: Fixed [issues], then [what happened]
+...
+
+This typically indicates:
+- Generated/compiled code being modified
+- Conflicting linting rules
+- Circular dependency between fixes
+
+Recommendation:
+---------------
+1. Review the diagnostic information above
+2. Manually inspect the recurring issues
+3. Consider excluding generated files
+4. Push manual fix and run /ship again
+
+PR URL: [url] (still open)
+Branch: [branch-name] (preserved for manual work)
+```
+
+---
+
+## Summary of Workflow
+
+| Phase | Action | Outcome |
+|-------|--------|---------|
+| Pre-flight | Verify git, gh, changes | Ready to ship |
+| Step 1 | Determine branch name | Branch name confirmed |
+| Step 2 | Create branch | On new branch |
+| Step 3 | Stage and commit | Changes committed |
+| Step 4 | Push to remote | Branch pushed |
+| Step 5 | Create PR | PR opened |
+| Phase 7 | Auto-review PR | Issues identified |
+| Phase 8 | Fix loop (up to 5x) | Issues fixed or marked unfixable |
+| Phase 9 | Complete | Merged, or failure report |

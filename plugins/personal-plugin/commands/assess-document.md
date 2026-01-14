@@ -14,13 +14,13 @@ Perform a comprehensive evaluation of the specified document, identifying gaps, 
 **Validation:**
 If the document path is missing, display:
 ```
-Usage: /doc-assessment <document-path>
-Example: /doc-assessment PRD.md
+Usage: /assess-document <document-path>
+Example: /assess-document PRD.md
 ```
 
 ## Input
 
-The user will provide a document path or name after the `/doc-assessment` command (e.g., `/doc-assessment PRD.md`).
+The user will provide a document path or name after the `/assess-document` command (e.g., `/assess-document PRD.md`).
 
 ## Instructions
 
@@ -241,7 +241,7 @@ After creating the file, provide a summary including:
 ## Example Usage
 
 ```
-User: /doc-assessment PRD.md
+User: /assess-document PRD.md
 
 Claude: [Reads PRD.md, performs assessment, creates PRD-assessment-20260110-143052.md]
 

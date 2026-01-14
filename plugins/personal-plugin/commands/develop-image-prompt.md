@@ -17,10 +17,10 @@ Transform content into a comprehensive prompt for AI image generators. The resul
 **Validation:**
 If no content source is provided, display:
 ```
-Usage: /image-prompt <content-source> [--style <style-file>]
-Example: /image-prompt architecture.md
-Example: /image-prompt process-flow.md --style brand-guidelines.md
-Example: /image-prompt "microservices communication patterns"
+Usage: /develop-image-prompt <content-source> [--style <style-file>]
+Example: /develop-image-prompt architecture.md
+Example: /develop-image-prompt process-flow.md --style brand-guidelines.md
+Example: /develop-image-prompt "microservices communication patterns"
 ```
 
 ## Process
