@@ -217,3 +217,41 @@ class TestLayoutWithRealFiles:
 
         # Branch tasks should have different Y coordinates
         assert task_yes.y != task_no.y
+
+    def test_layout_complex_multi_pool(self):
+        """Test layout with complex multi-pool, multi-lane, multiple gateway types."""
+        model = parse_bpmn(FIXTURES_DIR / "complex_layout.bpmn")
+        resolved = resolve_positions(model)
+
+        # All elements should have positions
+        for element in resolved.elements:
+            assert element.has_coordinates(), f"Element {element.id} has no coordinates"
+
+        # Coordinates should be in reasonable range (not scaled to huge values)
+        for element in resolved.elements:
+            assert element.x < 10000, f"Element {element.id} x={element.x} is too large"
+            assert element.y < 10000, f"Element {element.id} y={element.y} is too large"
+            assert element.x >= 0, f"Element {element.id} x={element.x} is negative"
+            assert element.y >= 0, f"Element {element.id} y={element.y} is negative"
+
+        # Check that parallel gateway branches are separated
+        # In the Sales process, Gateway_Parallel_Split should lead to 3 tasks
+        # that have different positions
+        payment = resolved.get_element_by_id("Task_ProcessPayment")
+        invoice = resolved.get_element_by_id("Task_GenerateInvoice")
+        crm = resolved.get_element_by_id("Task_UpdateCRM")
+
+        if payment and invoice and crm:
+            # All three parallel tasks should have different positions
+            positions = {(payment.x, payment.y), (invoice.x, invoice.y), (crm.x, crm.y)}
+            assert len(positions) == 3, "Parallel tasks should have unique positions"
+
+        # Check shipping method branches in Fulfillment
+        standard = resolved.get_element_by_id("Task_StandardShip")
+        express = resolved.get_element_by_id("Task_ExpressShip")
+        freight = resolved.get_element_by_id("Task_FreightShip")
+
+        if standard and express and freight:
+            # All three shipping methods should have different Y positions
+            y_positions = {standard.y, express.y, freight.y}
+            assert len(y_positions) == 3, "Shipping method branches should have different Y positions"

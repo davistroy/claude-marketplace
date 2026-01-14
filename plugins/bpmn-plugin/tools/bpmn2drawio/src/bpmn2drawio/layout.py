@@ -56,9 +56,14 @@ class LayoutEngine:
             positions = self._flow_based_layout(graph, elements)
 
         # Scale and transform positions
-        # Only flip Y for Graphviz (which uses Y increasing upward)
-        # Flow-based layout already has Y increasing downward
-        return self._scale_positions(positions, elements, flip_y=used_graphviz)
+        # For Graphviz: flip Y (uses Y increasing upward) and scale (returns inches)
+        # For fallback: don't flip (already correct) and don't scale (already pixels)
+        return self._scale_positions(
+            positions,
+            elements,
+            flip_y=used_graphviz,
+            apply_scale=used_graphviz,
+        )
 
     def _build_graph(
         self,
@@ -325,17 +330,20 @@ class LayoutEngine:
         positions: Dict[str, Tuple[float, float]],
         elements: List[BPMNElement],
         flip_y: bool = True,
+        apply_scale: bool = True,
     ) -> Dict[str, Tuple[float, float]]:
         """Scale and transform coordinates for Draw.io.
 
         Graphviz uses Y increasing upward, Draw.io uses Y increasing downward.
         We flip the Y axis during transformation for Graphviz output.
-        For fallback layout, Y is already correct so we don't flip.
+        For fallback layout, Y is already correct and already in pixels.
 
         Args:
             positions: Raw positions from layout
             elements: List of elements for dimension info
             flip_y: Whether to flip Y axis (True for Graphviz, False for fallback)
+            apply_scale: Whether to apply SCALE_X/Y multipliers (True for Graphviz
+                        which returns inches, False for fallback which returns pixels)
 
         Returns:
             Scaled positions
@@ -348,16 +356,20 @@ class LayoutEngine:
         min_y = min(p[1] for p in positions.values())
         max_y = max(p[1] for p in positions.values())
 
+        # Scale factors (1.0 for fallback layout which already uses pixels)
+        scale_x = LayoutConstants.SCALE_X if apply_scale else 1.0
+        scale_y = LayoutConstants.SCALE_Y if apply_scale else 1.0
+
         # Normalize to start at margin
         scaled = {}
         for elem_id, (x, y) in positions.items():
-            scaled_x = (x - min_x) * LayoutConstants.SCALE_X + LayoutConstants.DIAGRAM_MARGIN
+            scaled_x = (x - min_x) * scale_x + LayoutConstants.DIAGRAM_MARGIN
             if flip_y:
                 # Flip Y: subtract from max to invert coordinate system (for Graphviz)
-                scaled_y = (max_y - y) * LayoutConstants.SCALE_Y + LayoutConstants.DIAGRAM_MARGIN
+                scaled_y = (max_y - y) * scale_y + LayoutConstants.DIAGRAM_MARGIN
             else:
                 # Keep Y as-is, just normalize to margin (for fallback layout)
-                scaled_y = (y - min_y) * LayoutConstants.SCALE_Y + LayoutConstants.DIAGRAM_MARGIN
+                scaled_y = (y - min_y) * scale_y + LayoutConstants.DIAGRAM_MARGIN
             scaled[elem_id] = (scaled_x, scaled_y)
 
         return scaled

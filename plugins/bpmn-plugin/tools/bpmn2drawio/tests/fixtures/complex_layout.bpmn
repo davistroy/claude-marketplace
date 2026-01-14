@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_Complex"
+                  targetNamespace="http://example.org/bpmn/complex">
+
+  <!-- Collaboration with multiple pools -->
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Pool_Customer" name="Customer" processRef="Process_Customer"/>
+    <bpmn:participant id="Pool_Sales" name="Sales Department" processRef="Process_Sales"/>
+    <bpmn:participant id="Pool_Fulfillment" name="Fulfillment Center" processRef="Process_Fulfillment"/>
+    <bpmn:messageFlow id="MsgFlow_1" sourceRef="Task_SubmitOrder" targetRef="Start_Sales"/>
+    <bpmn:messageFlow id="MsgFlow_2" sourceRef="Task_SendConfirmation" targetRef="Event_ReceiveConfirm"/>
+    <bpmn:messageFlow id="MsgFlow_3" sourceRef="Task_ShipOrder" targetRef="Event_ReceiveShipment"/>
+  </bpmn:collaboration>
+
+  <!-- Customer Process -->
+  <bpmn:process id="Process_Customer" name="Customer Order Process" isExecutable="false">
+    <bpmn:startEvent id="Start_Customer" name="Need Product"/>
+    <bpmn:task id="Task_BrowseCatalog" name="Browse Product Catalog"/>
+    <bpmn:task id="Task_SelectProducts" name="Select Products"/>
+    <bpmn:task id="Task_SubmitOrder" name="Submit Order"/>
+    <bpmn:intermediateCatchEvent id="Event_ReceiveConfirm" name="Receive Confirmation">
+      <bpmn:messageEventDefinition/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_WaitDelivery" name="Wait for Delivery"/>
+    <bpmn:intermediateCatchEvent id="Event_ReceiveShipment" name="Receive Shipment">
+      <bpmn:messageEventDefinition/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="End_Customer" name="Order Complete"/>
+
+    <bpmn:sequenceFlow id="Flow_C1" sourceRef="Start_Customer" targetRef="Task_BrowseCatalog"/>
+    <bpmn:sequenceFlow id="Flow_C2" sourceRef="Task_BrowseCatalog" targetRef="Task_SelectProducts"/>
+    <bpmn:sequenceFlow id="Flow_C3" sourceRef="Task_SelectProducts" targetRef="Task_SubmitOrder"/>
+    <bpmn:sequenceFlow id="Flow_C4" sourceRef="Task_SubmitOrder" targetRef="Event_ReceiveConfirm"/>
+    <bpmn:sequenceFlow id="Flow_C5" sourceRef="Event_ReceiveConfirm" targetRef="Task_WaitDelivery"/>
+    <bpmn:sequenceFlow id="Flow_C6" sourceRef="Task_WaitDelivery" targetRef="Event_ReceiveShipment"/>
+    <bpmn:sequenceFlow id="Flow_C7" sourceRef="Event_ReceiveShipment" targetRef="End_Customer"/>
+  </bpmn:process>
+
+  <!-- Sales Process with complex branching -->
+  <bpmn:process id="Process_Sales" name="Sales Order Processing" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Sales">
+      <bpmn:lane id="Lane_Reception" name="Order Reception">
+        <bpmn:flowNodeRef>Start_Sales</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidateOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Valid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RejectOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Rejected</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Processing" name="Order Processing">
+        <bpmn:flowNodeRef>Task_CheckInventory</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Stock</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_BackOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Parallel_Split</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ProcessPayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_GenerateInvoice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_UpdateCRM</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Parallel_Join</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Approval" name="Approval">
+        <bpmn:flowNodeRef>Gateway_Amount</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ManagerApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DirectorApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Approved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SendConfirmation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifyFulfillment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Sales</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_Sales" name="Order Received">
+      <bpmn:messageEventDefinition/>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_ValidateOrder" name="Validate Order Data"/>
+    <bpmn:exclusiveGateway id="Gateway_Valid" name="Order Valid?"/>
+    <bpmn:task id="Task_RejectOrder" name="Reject Order"/>
+    <bpmn:endEvent id="End_Rejected" name="Order Rejected"/>
+
+    <bpmn:task id="Task_CheckInventory" name="Check Inventory"/>
+    <bpmn:exclusiveGateway id="Gateway_Stock" name="In Stock?"/>
+    <bpmn:task id="Task_BackOrder" name="Create Back Order"/>
+
+    <bpmn:parallelGateway id="Gateway_Parallel_Split" name="Start Parallel"/>
+    <bpmn:task id="Task_ProcessPayment" name="Process Payment"/>
+    <bpmn:task id="Task_GenerateInvoice" name="Generate Invoice"/>
+    <bpmn:task id="Task_UpdateCRM" name="Update CRM Record"/>
+    <bpmn:parallelGateway id="Gateway_Parallel_Join" name="Join Parallel"/>
+
+    <bpmn:inclusiveGateway id="Gateway_Amount" name="Order Amount?"/>
+    <bpmn:task id="Task_ManagerApproval" name="Manager Approval"/>
+    <bpmn:task id="Task_DirectorApproval" name="Director Approval"/>
+    <bpmn:inclusiveGateway id="Gateway_Approved" name="Approvals Complete"/>
+
+    <bpmn:task id="Task_SendConfirmation" name="Send Order Confirmation"/>
+    <bpmn:task id="Task_NotifyFulfillment" name="Notify Fulfillment"/>
+    <bpmn:endEvent id="End_Sales" name="Sales Complete"/>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_S1" sourceRef="Start_Sales" targetRef="Task_ValidateOrder"/>
+    <bpmn:sequenceFlow id="Flow_S2" sourceRef="Task_ValidateOrder" targetRef="Gateway_Valid"/>
+    <bpmn:sequenceFlow id="Flow_S3" name="Invalid" sourceRef="Gateway_Valid" targetRef="Task_RejectOrder"/>
+    <bpmn:sequenceFlow id="Flow_S4" sourceRef="Task_RejectOrder" targetRef="End_Rejected"/>
+    <bpmn:sequenceFlow id="Flow_S5" name="Valid" sourceRef="Gateway_Valid" targetRef="Task_CheckInventory"/>
+    <bpmn:sequenceFlow id="Flow_S6" sourceRef="Task_CheckInventory" targetRef="Gateway_Stock"/>
+    <bpmn:sequenceFlow id="Flow_S7" name="No" sourceRef="Gateway_Stock" targetRef="Task_BackOrder"/>
+    <bpmn:sequenceFlow id="Flow_S8" sourceRef="Task_BackOrder" targetRef="Gateway_Parallel_Split"/>
+    <bpmn:sequenceFlow id="Flow_S9" name="Yes" sourceRef="Gateway_Stock" targetRef="Gateway_Parallel_Split"/>
+    <bpmn:sequenceFlow id="Flow_S10" sourceRef="Gateway_Parallel_Split" targetRef="Task_ProcessPayment"/>
+    <bpmn:sequenceFlow id="Flow_S11" sourceRef="Gateway_Parallel_Split" targetRef="Task_GenerateInvoice"/>
+    <bpmn:sequenceFlow id="Flow_S12" sourceRef="Gateway_Parallel_Split" targetRef="Task_UpdateCRM"/>
+    <bpmn:sequenceFlow id="Flow_S13" sourceRef="Task_ProcessPayment" targetRef="Gateway_Parallel_Join"/>
+    <bpmn:sequenceFlow id="Flow_S14" sourceRef="Task_GenerateInvoice" targetRef="Gateway_Parallel_Join"/>
+    <bpmn:sequenceFlow id="Flow_S15" sourceRef="Task_UpdateCRM" targetRef="Gateway_Parallel_Join"/>
+    <bpmn:sequenceFlow id="Flow_S16" sourceRef="Gateway_Parallel_Join" targetRef="Gateway_Amount"/>
+    <bpmn:sequenceFlow id="Flow_S17" name="&gt;$1000" sourceRef="Gateway_Amount" targetRef="Task_ManagerApproval"/>
+    <bpmn:sequenceFlow id="Flow_S18" name="&gt;$10000" sourceRef="Gateway_Amount" targetRef="Task_DirectorApproval"/>
+    <bpmn:sequenceFlow id="Flow_S19" name="&lt;=$1000" sourceRef="Gateway_Amount" targetRef="Gateway_Approved"/>
+    <bpmn:sequenceFlow id="Flow_S20" sourceRef="Task_ManagerApproval" targetRef="Gateway_Approved"/>
+    <bpmn:sequenceFlow id="Flow_S21" sourceRef="Task_DirectorApproval" targetRef="Gateway_Approved"/>
+    <bpmn:sequenceFlow id="Flow_S22" sourceRef="Gateway_Approved" targetRef="Task_SendConfirmation"/>
+    <bpmn:sequenceFlow id="Flow_S23" sourceRef="Task_SendConfirmation" targetRef="Task_NotifyFulfillment"/>
+    <bpmn:sequenceFlow id="Flow_S24" sourceRef="Task_NotifyFulfillment" targetRef="End_Sales"/>
+  </bpmn:process>
+
+  <!-- Fulfillment Process with subprocess -->
+  <bpmn:process id="Process_Fulfillment" name="Fulfillment Process" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Fulfillment">
+      <bpmn:lane id="Lane_Warehouse" name="Warehouse">
+        <bpmn:flowNodeRef>Start_Fulfillment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_LocateItems</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PickItems</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AllPicked</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReportShortage</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Packing" name="Packing">
+        <bpmn:flowNodeRef>Task_PackOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_WeighPackage</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PrintLabel</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Shipping" name="Shipping">
+        <bpmn:flowNodeRef>Gateway_ShipMethod</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_StandardShip</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ExpressShip</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_FreightShip</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ShipMerge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ShipOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_UpdateTracking</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Fulfillment</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_Fulfillment" name="Fulfillment Request">
+      <bpmn:messageEventDefinition/>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_LocateItems" name="Locate Items in Warehouse"/>
+    <bpmn:task id="Task_PickItems" name="Pick Items"/>
+    <bpmn:exclusiveGateway id="Gateway_AllPicked" name="All Items Picked?"/>
+    <bpmn:task id="Task_ReportShortage" name="Report Shortage"/>
+
+    <bpmn:task id="Task_PackOrder" name="Pack Order"/>
+    <bpmn:task id="Task_WeighPackage" name="Weigh Package"/>
+    <bpmn:task id="Task_PrintLabel" name="Print Shipping Label"/>
+
+    <bpmn:exclusiveGateway id="Gateway_ShipMethod" name="Shipping Method?"/>
+    <bpmn:task id="Task_StandardShip" name="Standard Shipping"/>
+    <bpmn:task id="Task_ExpressShip" name="Express Shipping"/>
+    <bpmn:task id="Task_FreightShip" name="Freight Shipping"/>
+    <bpmn:exclusiveGateway id="Gateway_ShipMerge" name="Merge"/>
+    <bpmn:task id="Task_ShipOrder" name="Ship Order"/>
+    <bpmn:task id="Task_UpdateTracking" name="Update Tracking Info"/>
+    <bpmn:endEvent id="End_Fulfillment" name="Fulfillment Complete"/>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_F1" sourceRef="Start_Fulfillment" targetRef="Task_LocateItems"/>
+    <bpmn:sequenceFlow id="Flow_F2" sourceRef="Task_LocateItems" targetRef="Task_PickItems"/>
+    <bpmn:sequenceFlow id="Flow_F3" sourceRef="Task_PickItems" targetRef="Gateway_AllPicked"/>
+    <bpmn:sequenceFlow id="Flow_F4" name="No" sourceRef="Gateway_AllPicked" targetRef="Task_ReportShortage"/>
+    <bpmn:sequenceFlow id="Flow_F5" sourceRef="Task_ReportShortage" targetRef="Task_PackOrder"/>
+    <bpmn:sequenceFlow id="Flow_F6" name="Yes" sourceRef="Gateway_AllPicked" targetRef="Task_PackOrder"/>
+    <bpmn:sequenceFlow id="Flow_F7" sourceRef="Task_PackOrder" targetRef="Task_WeighPackage"/>
+    <bpmn:sequenceFlow id="Flow_F8" sourceRef="Task_WeighPackage" targetRef="Task_PrintLabel"/>
+    <bpmn:sequenceFlow id="Flow_F9" sourceRef="Task_PrintLabel" targetRef="Gateway_ShipMethod"/>
+    <bpmn:sequenceFlow id="Flow_F10" name="Standard" sourceRef="Gateway_ShipMethod" targetRef="Task_StandardShip"/>
+    <bpmn:sequenceFlow id="Flow_F11" name="Express" sourceRef="Gateway_ShipMethod" targetRef="Task_ExpressShip"/>
+    <bpmn:sequenceFlow id="Flow_F12" name="Freight" sourceRef="Gateway_ShipMethod" targetRef="Task_FreightShip"/>
+    <bpmn:sequenceFlow id="Flow_F13" sourceRef="Task_StandardShip" targetRef="Gateway_ShipMerge"/>
+    <bpmn:sequenceFlow id="Flow_F14" sourceRef="Task_ExpressShip" targetRef="Gateway_ShipMerge"/>
+    <bpmn:sequenceFlow id="Flow_F15" sourceRef="Task_FreightShip" targetRef="Gateway_ShipMerge"/>
+    <bpmn:sequenceFlow id="Flow_F16" sourceRef="Gateway_ShipMerge" targetRef="Task_ShipOrder"/>
+    <bpmn:sequenceFlow id="Flow_F17" sourceRef="Task_ShipOrder" targetRef="Task_UpdateTracking"/>
+    <bpmn:sequenceFlow id="Flow_F18" sourceRef="Task_UpdateTracking" targetRef="End_Fulfillment"/>
+  </bpmn:process>
+
+</bpmn:definitions>
