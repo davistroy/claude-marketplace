@@ -24,11 +24,13 @@ classifiers = [
 dependencies = [
     "lxml>=4.9.0",
     "networkx>=3.0",
-    "pygraphviz>=1.10",
     "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
+graphviz = [
+    "pygraphviz>=1.10",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",

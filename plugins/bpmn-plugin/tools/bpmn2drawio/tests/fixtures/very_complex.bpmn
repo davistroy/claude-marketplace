@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_VeryComplex"
+                  targetNamespace="http://example.org/bpmn/very_complex">
+
+  <!--
+    VERY COMPLEX BPMN TEST FIXTURE
+    Purpose: Test pygraphviz layout engine and edge cases
+
+    Features tested:
+    - Nested gateways (gateway -> gateway -> gateway)
+    - Data objects and data stores
+    - Subprocess with internal elements
+    - Boundary events (timer, error)
+    - Event-based gateway
+    - Diamond patterns (split + merge)
+    - Inclusive gateway with multiple paths
+    - Complex gateway type
+    - 50+ elements to stress layout engine
+    - Cross-pool message flows
+    - Multiple end events
+    - Conditional and default flows
+  -->
+
+  <bpmn:collaboration id="Collab_Complex">
+    <bpmn:participant id="Pool_Main" name="Main Process Pool" processRef="Process_Main"/>
+    <bpmn:participant id="Pool_External" name="External System" processRef="Process_External"/>
+    <bpmn:messageFlow id="MsgFlow_Request" sourceRef="Task_SendRequest" targetRef="Start_External"/>
+    <bpmn:messageFlow id="MsgFlow_Response" sourceRef="Task_SendResponse" targetRef="Event_ReceiveResponse"/>
+  </bpmn:collaboration>
+
+  <!-- Main Process - Complex branching and nested gateways -->
+  <bpmn:process id="Process_Main" name="Complex Main Process" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Main">
+      <bpmn:lane id="Lane_Init" name="Initialization">
+        <bpmn:flowNodeRef>Start_Main</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Initialize</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Initial</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidateInput</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Validation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_LogError</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_ValidationError</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Processing" name="Processing">
+        <bpmn:flowNodeRef>Gateway_ProcessType</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_NestedLevel1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TypeA1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TypeA2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_NestedLevel2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TypeB1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TypeB2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TypeB3</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeNested</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TypeC</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeProcess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_Batch</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_External" name="External Integration">
+        <bpmn:flowNodeRef>Task_PrepareRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SendRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_EventBased</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_ReceiveResponse</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_Timeout</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_HandleResponse</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_HandleTimeout</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeExternal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RetryDecision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Retry</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Completion" name="Completion">
+        <bpmn:flowNodeRef>Gateway_Parallel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_UpdateDB</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SendNotification</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_GenerateReport</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ArchiveData</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_JoinParallel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Inclusive</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Audit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Compliance</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Analytics</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_JoinInclusive</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Finalize</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Success</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Cancelled</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- Data Objects -->
+    <bpmn:dataObject id="DataObject_Input" name="Input Data"/>
+    <bpmn:dataObject id="DataObject_Output" name="Output Data"/>
+    <bpmn:dataStoreReference id="DataStore_Main" name="Main Database"/>
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="Start_Main" name="Process Started">
+      <bpmn:dataOutputAssociation id="DataOut_Start">
+        <bpmn:targetRef>DataObject_Input</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:startEvent>
+
+    <!-- Initialization Tasks -->
+    <bpmn:serviceTask id="Task_Initialize" name="Initialize Process"/>
+    <bpmn:exclusiveGateway id="Gateway_Initial" name="Data Present?"/>
+    <bpmn:userTask id="Task_ValidateInput" name="Validate Input Data"/>
+    <bpmn:exclusiveGateway id="Gateway_Validation" name="Valid?"/>
+    <bpmn:serviceTask id="Task_LogError" name="Log Validation Error"/>
+    <bpmn:endEvent id="End_ValidationError" name="Validation Failed">
+      <bpmn:errorEventDefinition id="ErrorDef_Validation"/>
+    </bpmn:endEvent>
+
+    <!-- Processing Tasks - Nested Gateways (3 levels deep) -->
+    <bpmn:exclusiveGateway id="Gateway_ProcessType" name="Process Type?"/>
+
+    <!-- Nested Level 1 - Type A Processing -->
+    <bpmn:exclusiveGateway id="Gateway_NestedLevel1" name="Type A Options?"/>
+    <bpmn:serviceTask id="Task_TypeA1" name="Type A Option 1"/>
+    <bpmn:serviceTask id="Task_TypeA2" name="Type A Option 2"/>
+
+    <!-- Nested Level 2 - Type B Processing (3-way split) -->
+    <bpmn:exclusiveGateway id="Gateway_NestedLevel2" name="Type B Variant?"/>
+    <bpmn:scriptTask id="Task_TypeB1" name="Type B Variant 1"/>
+    <bpmn:scriptTask id="Task_TypeB2" name="Type B Variant 2"/>
+    <bpmn:scriptTask id="Task_TypeB3" name="Type B Variant 3"/>
+    <bpmn:exclusiveGateway id="Gateway_MergeNested" name="Merge B"/>
+
+    <!-- Type C - Simple path -->
+    <bpmn:manualTask id="Task_TypeC" name="Type C Manual Processing"/>
+
+    <bpmn:exclusiveGateway id="Gateway_MergeProcess" name="Merge Processing"/>
+
+    <!-- Subprocess with internal elements -->
+    <bpmn:subProcess id="SubProcess_Batch" name="Batch Processing">
+      <bpmn:startEvent id="SubStart_Batch" name="Batch Start"/>
+      <bpmn:task id="SubTask_Load" name="Load Batch Data"/>
+      <bpmn:task id="SubTask_Process" name="Process Batch Items"/>
+      <bpmn:task id="SubTask_Save" name="Save Results"/>
+      <bpmn:endEvent id="SubEnd_Batch" name="Batch Complete"/>
+      <bpmn:sequenceFlow id="SubFlow_1" sourceRef="SubStart_Batch" targetRef="SubTask_Load"/>
+      <bpmn:sequenceFlow id="SubFlow_2" sourceRef="SubTask_Load" targetRef="SubTask_Process"/>
+      <bpmn:sequenceFlow id="SubFlow_3" sourceRef="SubTask_Process" targetRef="SubTask_Save"/>
+      <bpmn:sequenceFlow id="SubFlow_4" sourceRef="SubTask_Save" targetRef="SubEnd_Batch"/>
+    </bpmn:subProcess>
+
+    <!-- Boundary Events on Subprocess -->
+    <bpmn:boundaryEvent id="BoundaryTimer_Batch" name="Timeout" attachedToRef="SubProcess_Batch">
+      <bpmn:timerEventDefinition id="TimerDef_Batch">
+        <bpmn:timeDuration>PT30M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:boundaryEvent id="BoundaryError_Batch" name="Error" attachedToRef="SubProcess_Batch">
+      <bpmn:errorEventDefinition id="ErrorDef_Batch"/>
+    </bpmn:boundaryEvent>
+
+    <!-- External Integration with Event-based Gateway -->
+    <bpmn:serviceTask id="Task_PrepareRequest" name="Prepare External Request"/>
+    <bpmn:sendTask id="Task_SendRequest" name="Send Request"/>
+    <bpmn:eventBasedGateway id="Gateway_EventBased" name="Wait for Response"/>
+    <bpmn:intermediateCatchEvent id="Event_ReceiveResponse" name="Response Received">
+      <bpmn:messageEventDefinition id="MsgDef_Response"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Event_Timeout" name="Timeout (5 min)">
+      <bpmn:timerEventDefinition id="TimerDef_Timeout">
+        <bpmn:timeDuration>PT5M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:receiveTask id="Task_HandleResponse" name="Handle Response"/>
+    <bpmn:serviceTask id="Task_HandleTimeout" name="Handle Timeout"/>
+    <bpmn:exclusiveGateway id="Gateway_MergeExternal" name="Merge External"/>
+    <bpmn:userTask id="Task_RetryDecision" name="Decide Retry"/>
+    <bpmn:exclusiveGateway id="Gateway_Retry" name="Retry?"/>
+
+    <!-- Parallel Gateway - 4-way split -->
+    <bpmn:parallelGateway id="Gateway_Parallel" name="Start Parallel Tasks"/>
+    <bpmn:serviceTask id="Task_UpdateDB" name="Update Database">
+      <bpmn:dataInputAssociation id="DataIn_DB">
+        <bpmn:sourceRef>DataObject_Output</bpmn:sourceRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="DataOut_DB">
+        <bpmn:targetRef>DataStore_Main</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:sendTask id="Task_SendNotification" name="Send Notification"/>
+    <bpmn:serviceTask id="Task_GenerateReport" name="Generate Report"/>
+    <bpmn:serviceTask id="Task_ArchiveData" name="Archive Data"/>
+    <bpmn:parallelGateway id="Gateway_JoinParallel" name="Join Parallel"/>
+
+    <!-- Inclusive Gateway - Conditional branching -->
+    <bpmn:inclusiveGateway id="Gateway_Inclusive" name="Required Actions?"/>
+    <bpmn:serviceTask id="Task_Audit" name="Audit Trail"/>
+    <bpmn:serviceTask id="Task_Compliance" name="Compliance Check"/>
+    <bpmn:serviceTask id="Task_Analytics" name="Analytics Update"/>
+    <bpmn:inclusiveGateway id="Gateway_JoinInclusive" name="Join Inclusive"/>
+
+    <!-- Finalization -->
+    <bpmn:serviceTask id="Task_Finalize" name="Finalize Process">
+      <bpmn:dataOutputAssociation id="DataOut_Final">
+        <bpmn:targetRef>DataObject_Output</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Success" name="Process Completed Successfully"/>
+    <bpmn:endEvent id="End_Cancelled" name="Process Cancelled">
+      <bpmn:terminateEventDefinition id="TerminateDef_Cancel"/>
+    </bpmn:endEvent>
+
+    <!-- Complex Gateway (for completeness) -->
+    <bpmn:complexGateway id="Gateway_Complex" name="Complex Decision"/>
+
+    <!-- Sequence Flows - Main Process -->
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Start_Main" targetRef="Task_Initialize"/>
+    <bpmn:sequenceFlow id="Flow_Init" sourceRef="Task_Initialize" targetRef="Gateway_Initial"/>
+    <bpmn:sequenceFlow id="Flow_NoData" name="No Data" sourceRef="Gateway_Initial" targetRef="End_ValidationError"/>
+    <bpmn:sequenceFlow id="Flow_HasData" name="Has Data" sourceRef="Gateway_Initial" targetRef="Task_ValidateInput"/>
+    <bpmn:sequenceFlow id="Flow_ToValidation" sourceRef="Task_ValidateInput" targetRef="Gateway_Validation"/>
+    <bpmn:sequenceFlow id="Flow_Invalid" name="Invalid" sourceRef="Gateway_Validation" targetRef="Task_LogError"/>
+    <bpmn:sequenceFlow id="Flow_LogToEnd" sourceRef="Task_LogError" targetRef="End_ValidationError"/>
+    <bpmn:sequenceFlow id="Flow_Valid" name="Valid" sourceRef="Gateway_Validation" targetRef="Gateway_ProcessType">
+      <bpmn:conditionExpression>valid == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Processing flows - Nested gateway branches -->
+    <bpmn:sequenceFlow id="Flow_TypeA" name="Type A" sourceRef="Gateway_ProcessType" targetRef="Gateway_NestedLevel1"/>
+    <bpmn:sequenceFlow id="Flow_TypeB" name="Type B" sourceRef="Gateway_ProcessType" targetRef="Gateway_NestedLevel2"/>
+    <bpmn:sequenceFlow id="Flow_TypeC" name="Type C" sourceRef="Gateway_ProcessType" targetRef="Task_TypeC"/>
+
+    <bpmn:sequenceFlow id="Flow_A1" name="Option 1" sourceRef="Gateway_NestedLevel1" targetRef="Task_TypeA1"/>
+    <bpmn:sequenceFlow id="Flow_A2" name="Option 2" sourceRef="Gateway_NestedLevel1" targetRef="Task_TypeA2"/>
+    <bpmn:sequenceFlow id="Flow_A1Merge" sourceRef="Task_TypeA1" targetRef="Gateway_MergeProcess"/>
+    <bpmn:sequenceFlow id="Flow_A2Merge" sourceRef="Task_TypeA2" targetRef="Gateway_MergeProcess"/>
+
+    <bpmn:sequenceFlow id="Flow_B1" name="Variant 1" sourceRef="Gateway_NestedLevel2" targetRef="Task_TypeB1"/>
+    <bpmn:sequenceFlow id="Flow_B2" name="Variant 2" sourceRef="Gateway_NestedLevel2" targetRef="Task_TypeB2"/>
+    <bpmn:sequenceFlow id="Flow_B3" name="Variant 3" sourceRef="Gateway_NestedLevel2" targetRef="Task_TypeB3"/>
+    <bpmn:sequenceFlow id="Flow_B1Merge" sourceRef="Task_TypeB1" targetRef="Gateway_MergeNested"/>
+    <bpmn:sequenceFlow id="Flow_B2Merge" sourceRef="Task_TypeB2" targetRef="Gateway_MergeNested"/>
+    <bpmn:sequenceFlow id="Flow_B3Merge" sourceRef="Task_TypeB3" targetRef="Gateway_MergeNested"/>
+    <bpmn:sequenceFlow id="Flow_BMergeProcess" sourceRef="Gateway_MergeNested" targetRef="Gateway_MergeProcess"/>
+
+    <bpmn:sequenceFlow id="Flow_CMerge" sourceRef="Task_TypeC" targetRef="Gateway_MergeProcess"/>
+
+    <!-- Subprocess flows -->
+    <bpmn:sequenceFlow id="Flow_ToSubprocess" sourceRef="Gateway_MergeProcess" targetRef="SubProcess_Batch"/>
+    <bpmn:sequenceFlow id="Flow_SubprocessDone" sourceRef="SubProcess_Batch" targetRef="Task_PrepareRequest"/>
+    <bpmn:sequenceFlow id="Flow_BoundaryTimeout" sourceRef="BoundaryTimer_Batch" targetRef="End_Cancelled"/>
+    <bpmn:sequenceFlow id="Flow_BoundaryError" sourceRef="BoundaryError_Batch" targetRef="Task_LogError"/>
+
+    <!-- External integration flows -->
+    <bpmn:sequenceFlow id="Flow_PrepareReq" sourceRef="Task_PrepareRequest" targetRef="Task_SendRequest"/>
+    <bpmn:sequenceFlow id="Flow_ToEventGW" sourceRef="Task_SendRequest" targetRef="Gateway_EventBased"/>
+    <bpmn:sequenceFlow id="Flow_EventResponse" sourceRef="Gateway_EventBased" targetRef="Event_ReceiveResponse"/>
+    <bpmn:sequenceFlow id="Flow_EventTimeout" sourceRef="Gateway_EventBased" targetRef="Event_Timeout"/>
+    <bpmn:sequenceFlow id="Flow_HandleResponse" sourceRef="Event_ReceiveResponse" targetRef="Task_HandleResponse"/>
+    <bpmn:sequenceFlow id="Flow_HandleTimeout" sourceRef="Event_Timeout" targetRef="Task_HandleTimeout"/>
+    <bpmn:sequenceFlow id="Flow_ResponseMerge" sourceRef="Task_HandleResponse" targetRef="Gateway_MergeExternal"/>
+    <bpmn:sequenceFlow id="Flow_TimeoutMerge" sourceRef="Task_HandleTimeout" targetRef="Gateway_MergeExternal"/>
+    <bpmn:sequenceFlow id="Flow_ToRetry" sourceRef="Gateway_MergeExternal" targetRef="Task_RetryDecision"/>
+    <bpmn:sequenceFlow id="Flow_RetryDecision" sourceRef="Task_RetryDecision" targetRef="Gateway_Retry"/>
+    <bpmn:sequenceFlow id="Flow_DoRetry" name="Yes" sourceRef="Gateway_Retry" targetRef="Task_PrepareRequest"/>
+    <bpmn:sequenceFlow id="Flow_NoRetry" name="No" sourceRef="Gateway_Retry" targetRef="Gateway_Parallel">
+      <bpmn:conditionExpression>retry == false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Parallel gateway flows (4-way split) -->
+    <bpmn:sequenceFlow id="Flow_ParDB" sourceRef="Gateway_Parallel" targetRef="Task_UpdateDB"/>
+    <bpmn:sequenceFlow id="Flow_ParNotify" sourceRef="Gateway_Parallel" targetRef="Task_SendNotification"/>
+    <bpmn:sequenceFlow id="Flow_ParReport" sourceRef="Gateway_Parallel" targetRef="Task_GenerateReport"/>
+    <bpmn:sequenceFlow id="Flow_ParArchive" sourceRef="Gateway_Parallel" targetRef="Task_ArchiveData"/>
+    <bpmn:sequenceFlow id="Flow_JoinDB" sourceRef="Task_UpdateDB" targetRef="Gateway_JoinParallel"/>
+    <bpmn:sequenceFlow id="Flow_JoinNotify" sourceRef="Task_SendNotification" targetRef="Gateway_JoinParallel"/>
+    <bpmn:sequenceFlow id="Flow_JoinReport" sourceRef="Task_GenerateReport" targetRef="Gateway_JoinParallel"/>
+    <bpmn:sequenceFlow id="Flow_JoinArchive" sourceRef="Task_ArchiveData" targetRef="Gateway_JoinParallel"/>
+
+    <!-- Inclusive gateway flows -->
+    <bpmn:sequenceFlow id="Flow_ToInclusive" sourceRef="Gateway_JoinParallel" targetRef="Gateway_Inclusive"/>
+    <bpmn:sequenceFlow id="Flow_IncAudit" name="Audit Required" sourceRef="Gateway_Inclusive" targetRef="Task_Audit">
+      <bpmn:conditionExpression>auditRequired == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_IncCompliance" name="Compliance Required" sourceRef="Gateway_Inclusive" targetRef="Task_Compliance">
+      <bpmn:conditionExpression>complianceRequired == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_IncAnalytics" name="Analytics Enabled" sourceRef="Gateway_Inclusive" targetRef="Task_Analytics">
+      <bpmn:conditionExpression>analyticsEnabled == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_JoinAudit" sourceRef="Task_Audit" targetRef="Gateway_JoinInclusive"/>
+    <bpmn:sequenceFlow id="Flow_JoinCompliance" sourceRef="Task_Compliance" targetRef="Gateway_JoinInclusive"/>
+    <bpmn:sequenceFlow id="Flow_JoinAnalytics" sourceRef="Task_Analytics" targetRef="Gateway_JoinInclusive"/>
+
+    <!-- Finalization flows -->
+    <bpmn:sequenceFlow id="Flow_ToFinalize" sourceRef="Gateway_JoinInclusive" targetRef="Task_Finalize"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_Finalize" targetRef="End_Success"/>
+
+    <!-- Default flow from inclusive (if no conditions match) -->
+    <bpmn:sequenceFlow id="Flow_IncDefault" sourceRef="Gateway_Inclusive" targetRef="Gateway_JoinInclusive">
+      <bpmn:conditionExpression/>
+    </bpmn:sequenceFlow>
+  </bpmn:process>
+
+  <!-- External System Process -->
+  <bpmn:process id="Process_External" name="External System" isExecutable="false">
+    <bpmn:startEvent id="Start_External" name="Request Received">
+      <bpmn:messageEventDefinition id="MsgDef_External"/>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_ProcessExternal" name="Process Request"/>
+    <bpmn:exclusiveGateway id="Gateway_ExtResult" name="Result?"/>
+    <bpmn:task id="Task_PrepareSuccess" name="Prepare Success Response"/>
+    <bpmn:task id="Task_PrepareError" name="Prepare Error Response"/>
+    <bpmn:exclusiveGateway id="Gateway_MergeExt" name="Merge"/>
+    <bpmn:sendTask id="Task_SendResponse" name="Send Response"/>
+    <bpmn:endEvent id="End_External" name="Response Sent"/>
+
+    <bpmn:sequenceFlow id="Flow_Ext1" sourceRef="Start_External" targetRef="Task_ProcessExternal"/>
+    <bpmn:sequenceFlow id="Flow_Ext2" sourceRef="Task_ProcessExternal" targetRef="Gateway_ExtResult"/>
+    <bpmn:sequenceFlow id="Flow_Ext3" name="Success" sourceRef="Gateway_ExtResult" targetRef="Task_PrepareSuccess"/>
+    <bpmn:sequenceFlow id="Flow_Ext4" name="Error" sourceRef="Gateway_ExtResult" targetRef="Task_PrepareError"/>
+    <bpmn:sequenceFlow id="Flow_Ext5" sourceRef="Task_PrepareSuccess" targetRef="Gateway_MergeExt"/>
+    <bpmn:sequenceFlow id="Flow_Ext6" sourceRef="Task_PrepareError" targetRef="Gateway_MergeExt"/>
+    <bpmn:sequenceFlow id="Flow_Ext7" sourceRef="Gateway_MergeExt" targetRef="Task_SendResponse"/>
+    <bpmn:sequenceFlow id="Flow_Ext8" sourceRef="Task_SendResponse" targetRef="End_External"/>
+  </bpmn:process>
+
+</bpmn:definitions>
