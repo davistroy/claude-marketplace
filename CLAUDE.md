@@ -21,6 +21,7 @@ plugins/
       cleanup.md            # Repository cleanup and organization
       doc-review.md         # Documentation audit and cleanup
       finish-document.md    # Extract questions, answer, update document
+      fully-test-project.md # Run all tests, fix failures, achieve 90%+ coverage, merge PR
       transcript-analysis.md  # Meeting transcript to structured report
       define-questions.md   # Extract questions/TBDs from docs to JSON
       ask-questions.md      # Interactive Q&A session from JSON file
@@ -29,6 +30,7 @@ plugins/
       wordify.md            # Convert markdown to formatted Word document
       image-prompt.md       # Generate AI image prompts from content
       next-step.md          # Analyze repo and recommend next action
+      plan-improvements.md  # Generate improvement recommendations and phased implementation plan
       troy-statusline.md    # Custom status line setup (Windows/PowerShell)
     skills/
       ship.md               # Git workflow: branch, commit, push, PR
@@ -73,6 +75,8 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Synthesis commands** (`consolidate`): Merge multiple sources into optimized output
 - **Conversion commands** (`wordify`): Transform files between formats
 - **Generation commands** (`image-prompt`): Create prompts or content for external tools
+- **Planning commands** (`plan-improvements`, `next-step`): Analyze codebase and generate actionable plans
+- **Testing commands** (`fully-test-project`): Comprehensive test, fix, and ship workflows
 
 ### Output File Naming
 Commands that generate files use: `[type]-[source]-[timestamp].json` or `.md`
