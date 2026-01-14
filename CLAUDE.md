@@ -17,27 +17,26 @@ plugins/
     .claude-plugin/
       plugin.json           # Plugin metadata
     commands/
-      arch-review.md        # Architectural audit (read-only analysis)
-      cleanup.md            # Repository cleanup and organization
-      doc-review.md         # Documentation audit and cleanup
-      finish-document.md    # Extract questions, answer, update document
-      fully-test-project.md # Run all tests, fix failures, achieve 90%+ coverage, merge PR
-      transcript-analysis.md  # Meeting transcript to structured report
-      define-questions.md   # Extract questions/TBDs from docs to JSON
-      ask-questions.md      # Interactive Q&A session from JSON file
-      doc-assessment.md     # Document quality evaluation with scoring
-      consolidate.md        # Merge multiple document versions into one
-      wordify.md            # Convert markdown to formatted Word document
-      image-prompt.md       # Generate AI image prompts from content
-      next-step.md          # Analyze repo and recommend next action
-      plan-improvements.md  # Generate improvement recommendations and phased implementation plan
-      bump-version.md       # Automate version bumping across plugin files
-      validate-plugin.md    # Validate plugin structure and content
-      review-pr.md          # Structured PR review with code analysis
-      troy-statusline.md    # Custom status line setup (Windows/PowerShell)
+      analyze-transcript.md   # Meeting transcript to structured report
+      ask-questions.md        # Interactive Q&A session from JSON file
+      assess-document.md           # Document quality evaluation with scoring
+      bump-version.md         # Automate version bumping across plugin files
+      clean-repo.md           # Repository cleanup, organization, and documentation refresh
+      consolidate-documents.md     # Merge multiple document versions into one
+      convert-markdown.md     # Convert markdown to formatted Word document
+      define-questions.md     # Extract questions/TBDs from docs to JSON
+      develop-image-prompt.md # Generate AI image prompts from content
+      finish-document.md      # Extract questions, answer, update document
+      plan-improvements.md    # Generate improvement recommendations and phased implementation plan
+      plan-next.md            # Analyze repo and recommend next action
+      review-arch.md          # Quick architectural audit (read-only, no files generated)
+      review-pr.md            # Structured PR review with code analysis
+      setup-statusline.md     # Custom status line setup (Windows/PowerShell)
+      test-project.md         # Run all tests, fix failures, achieve 90%+ coverage, merge PR
+      validate-plugin.md      # Validate plugin structure and content
     skills/
+      help.md               # Show commands/skills with usage information
       ship.md               # Git workflow: branch, commit, push, PR
-      help-commands.md      # Command discovery and help system
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
 
@@ -47,6 +46,7 @@ plugins/
     skills/
       bpmn-generator.md     # BPMN 2.0 XML generation from NL or markdown
       bpmn-to-drawio.md     # Convert BPMN XML to Draw.io format
+      help.md               # Show skills with usage information
     references/             # BPMN element documentation and guides
     templates/              # XML/Draw.io skeletons and style mappings
     examples/               # Sample BPMN and Draw.io files
@@ -74,15 +74,16 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - Commands are invoked as `/filename` (without .md extension)
 
 ### Patterns Used
-- **Read-only commands** (`arch-review`, `doc-assessment`): Analyze and report, never modify
+- **Read-only commands** (`review-arch`, `assess-document`): Analyze and report, never modify
 - **Interactive commands** (`ask-questions`): Single-question flow, wait for user input
 - **Workflow commands** (`ship`): Multi-step automation with confirmation points
-- **Generator commands** (`define-questions`, `transcript-analysis`): Create structured output files
-- **Synthesis commands** (`consolidate`): Merge multiple sources into optimized output
-- **Conversion commands** (`wordify`): Transform files between formats
-- **Generation commands** (`image-prompt`): Create prompts or content for external tools
-- **Planning commands** (`plan-improvements`, `next-step`): Analyze codebase and generate actionable plans
-- **Testing commands** (`fully-test-project`): Comprehensive test, fix, and ship workflows
+- **Generator commands** (`define-questions`, `analyze-transcript`): Create structured output files
+- **Synthesis commands** (`consolidate-documents`): Merge multiple sources into optimized output
+- **Conversion commands** (`convert-markdown`): Transform files between formats
+- **Generation commands** (`develop-image-prompt`): Create prompts or content for external tools
+- **Planning commands** (`plan-improvements`, `plan-next`): Analyze codebase and generate actionable plans
+- **Testing commands** (`test-project`): Comprehensive test, fix, and ship workflows
+- **Cleanup commands** (`clean-repo`): Repository cleanup, organization, and documentation refresh
 
 ### Output File Naming
 Commands that generate files use: `[type]-[source]-[timestamp].json` or `.md`
@@ -142,4 +143,15 @@ Converts BPMN 2.0 XML files to Draw.io native format (.drawio):
 1. Create a new directory under `plugins/`
 2. Add `.claude-plugin/plugin.json` with plugin metadata
 3. Add `commands/` and/or `skills/` directories with markdown files
-4. Register the plugin in `.claude-plugin/marketplace.json`
+4. **Create a `help.md` skill** with usage information for all commands/skills
+5. Register the plugin in `.claude-plugin/marketplace.json`
+
+## Help Skill Maintenance
+
+**IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills.
+
+When modifying a plugin:
+- **Adding a command/skill**: Update the plugin's `help.md` with the new entry
+- **Changing a command/skill**: Update the corresponding entry in `help.md`
+- **Removing a command/skill**: Remove the entry from `help.md`
+- **Creating a new plugin**: Create a `help.md` skill following the pattern in existing plugins

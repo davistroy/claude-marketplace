@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-01-14
+
+### Added
+- `/help` skill in personal-plugin with comprehensive command reference
+- `/help` skill in bpmn-plugin with skill reference
+- Documentation about help skill maintenance in CLAUDE.md and CONTRIBUTING.md
+
+### Changed
+- Renamed all commands to consistent action-object pattern:
+  - `arch-review` → `review-arch`
+  - `doc-assessment` → `assess-document`
+  - `transcript-analysis` → `analyze-transcript`
+  - `next-step` → `plan-next`
+  - `cleanup` → `clean-repo`
+  - `consolidate` → `consolidate-documents`
+  - `wordify` → `convert-markdown`
+  - `image-prompt` → `develop-image-prompt`
+  - `troy-statusline` → `setup-statusline`
+  - `fully-test-project` → `test-project`
+- Renamed `help-commands` skill to `help`
+- Merged `doc-review` command into `clean-repo` (enhanced Phase 3)
+- Updated `review-arch` description to clarify it's for quick audits vs `plan-improvements`
+
+### Removed
+- `doc-review` command (merged into `clean-repo`)
+
 ## [1.6.0] - 2026-01-14
 
 ### Added
@@ -98,7 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `troy-statusline` for custom Windows/PowerShell status line
 - `ship` skill for git workflow automation
 
-[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/davistroy/claude-marketplace/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/davistroy/claude-marketplace/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/davistroy/claude-marketplace/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/davistroy/claude-marketplace/compare/v1.4.0...v1.4.1

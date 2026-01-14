@@ -28,7 +28,7 @@ Quick wins like fixing the README can be done immediately. Strategic improvement
 
 **Current State:**
 README.md lists only 10 commands from personal-plugin, but 15 exist:
-- Missing: `/consolidate`, `/wordify`, `/image-prompt`, `/plan-improvements`, `/fully-test-project`
+- Missing: `/consolidate-documents`, `/convert-markdown`, `/develop-image-prompt`, `/plan-improvements`, `/test-project`
 
 **Recommendation:**
 Update README.md to include all 15 commands with accurate descriptions.
@@ -68,7 +68,7 @@ Add a standard `help` command that works within any command session:
 **Impact:** Users get confusing errors when arguments are wrong or missing
 
 **Current State:**
-Commands reference `$ARGUMENTS` but don't validate them. If a user runs `/doc-assessment` without a file path, the error may be unclear.
+Commands reference `$ARGUMENTS` but don't validate them. If a user runs `/assess-document` without a file path, the error may be unclear.
 
 **Recommendation:**
 Add explicit argument validation at the start of each command:
@@ -78,7 +78,7 @@ Add explicit argument validation at the start of each command:
 - Optional: `--format [json|md]` - Output format (default: md)
 
 If required arguments are missing, display:
-"Usage: /doc-assessment <document-path> [--format json|md]"
+"Usage: /assess-document <document-path> [--format json|md]"
 ```
 
 **Implementation Notes:**
@@ -224,11 +224,11 @@ Create CHANGELOG.md following Keep a Changelog format:
 ## [1.6.0] - 2026-01-14
 ### Added
 - `/plan-improvements` command for codebase analysis and planning
-- `/fully-test-project` command for comprehensive test-fix-ship workflow
+- `/test-project` command for comprehensive test-fix-ship workflow
 
 ## [1.5.0] - 2026-01-XX
 ### Added
-- `/image-prompt` command for AI image prompt generation
+- `/develop-image-prompt` command for AI image prompt generation
 ...
 ```
 

@@ -17,9 +17,9 @@ Convert a markdown file into a professionally formatted Microsoft Word document 
 **Validation:**
 If the markdown file path is missing, display:
 ```
-Usage: /wordify <markdown-file> [output-file]
-Example: /wordify docs/api-guide.md
-Example: /wordify README.md documentation.docx
+Usage: /convert-markdown <markdown-file> [output-file]
+Example: /convert-markdown docs/api-guide.md
+Example: /convert-markdown README.md documentation.docx
 ```
 
 ## Process
@@ -114,7 +114,7 @@ The generated Word document will include:
 ## Example Usage
 
 ```
-User: /wordify docs/api-guide.md
+User: /convert-markdown docs/api-guide.md
 Claude: Converting docs/api-guide.md to docs/api-guide.docx...
         ✓ Created docs/api-guide.docx (45 KB)
         - 12 headings, 5 code blocks, 2 tables

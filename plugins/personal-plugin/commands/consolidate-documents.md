@@ -19,8 +19,8 @@ You are consolidating multiple variations of a document into a single, optimized
 **Validation:**
 If fewer than two documents are provided, display:
 ```
-Usage: /consolidate <doc1-path> <doc2-path> [doc3-path...]
-Example: /consolidate draft-v1.md draft-v2.md draft-final.md
+Usage: /consolidate-documents <doc1-path> <doc2-path> [doc3-path...]
+Example: /consolidate-documents draft-v1.md draft-v2.md draft-final.md
 
 You can also paste document content directly when prompted.
 ```
