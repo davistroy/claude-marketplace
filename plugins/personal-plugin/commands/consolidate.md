@@ -6,6 +6,25 @@ description: Analyze multiple document variations and synthesize a superior cons
 
 You are consolidating multiple variations of a document into a single, optimized version. The user will provide paths to the source documents or paste their contents.
 
+## Input Validation
+
+**Required Arguments:**
+- `<document-paths>` - Two or more document paths, or pasted content
+
+**Optional Context:**
+- Baseline document specification
+- Intended audience
+- Use case description
+
+**Validation:**
+If fewer than two documents are provided, display:
+```
+Usage: /consolidate <doc1-path> <doc2-path> [doc3-path...]
+Example: /consolidate draft-v1.md draft-v2.md draft-final.md
+
+You can also paste document content directly when prompted.
+```
+
 ## Process
 
 ### Step 1: Gather Sources

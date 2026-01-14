@@ -6,6 +6,19 @@ description: Interactive Q&A session from questions JSON file
 
 Interactively walk the user through answering questions from a JSON file produced by the `/define-questions` command.
 
+## Input Validation
+
+**Required Arguments:**
+- `<questions-file>` - Path to the JSON file created by `/define-questions`
+
+**Validation:**
+If the questions file path is missing, display:
+```
+Usage: /ask-questions <questions-file>
+Example: /ask-questions questions-PRD-20260110-143052.json
+Example: /ask-questions reference/questions-requirements-20260114.json
+```
+
 ## Input
 
 The user will provide a JSON file path after the slash command (e.g., `/ask-questions questions-PRD-20260110.json`). This file must follow the structure created by `/define-questions`.
@@ -140,7 +153,7 @@ Create a file with this structure:
 
 #### C. Save the File
 
-Save as `answers-[source-document]-[timestamp].json` in the repository root.
+Save as `answers-[source-document]-YYYYMMDD-HHMMSS.json` in the repository root.
 
 Example: `answers-PRD-20260110-143052.json`
 

@@ -31,9 +31,15 @@ plugins/
       image-prompt.md       # Generate AI image prompts from content
       next-step.md          # Analyze repo and recommend next action
       plan-improvements.md  # Generate improvement recommendations and phased implementation plan
+      bump-version.md       # Automate version bumping across plugin files
+      validate-plugin.md    # Validate plugin structure and content
+      review-pr.md          # Structured PR review with code analysis
       troy-statusline.md    # Custom status line setup (Windows/PowerShell)
     skills/
       ship.md               # Git workflow: branch, commit, push, PR
+      help-commands.md      # Command discovery and help system
+    references/
+      common-patterns.md    # Shared patterns for timestamps, naming, etc.
 
   bpmn-plugin/
     .claude-plugin/
@@ -80,7 +86,16 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 
 ### Output File Naming
 Commands that generate files use: `[type]-[source]-[timestamp].json` or `.md`
-Example: `questions-PRD-20260110.json`, `meeting-analysis-2026-01-10.md`
+
+### Timestamp Format
+All generated files use `YYYYMMDD-HHMMSS` format for timestamps.
+Example: `assessment-PRD-20260114-143052.md`
+
+### Output Locations
+- Analysis reports → `reports/` directory
+- Reference data (JSON) → `reference/` directory
+- Generated documents → same directory as source
+- Temporary files → `.tmp/` (auto-cleaned)
 
 ## BPMN Plugin
 

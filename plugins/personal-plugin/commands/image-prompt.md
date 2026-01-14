@@ -6,6 +6,23 @@ description: Generate detailed image generator prompts from content, optimized f
 
 Transform content into a comprehensive prompt for AI image generators. The resulting image should visually explain the given content in rich detail, suitable for printing landscape on 11x17 paper.
 
+## Input Validation
+
+**Required Arguments:**
+- `<content-source>` - File path, pasted content, or concept description
+
+**Optional Arguments:**
+- `--style <style-file>` - Path to a style guide document with visual preferences
+
+**Validation:**
+If no content source is provided, display:
+```
+Usage: /image-prompt <content-source> [--style <style-file>]
+Example: /image-prompt architecture.md
+Example: /image-prompt process-flow.md --style brand-guidelines.md
+Example: /image-prompt "microservices communication patterns"
+```
+
 ## Process
 
 ### Step 1: Gather Inputs
@@ -92,7 +109,7 @@ Create a markdown file containing:
 
 ## Output Format
 
-Save the output as: `image-prompt-[topic]-[timestamp].md`
+Save the output as: `image-prompt-[topic]-YYYYMMDD-HHMMSS.md` (e.g., `image-prompt-architecture-20260114-143052.md`)
 
 Example structure:
 

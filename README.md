@@ -27,13 +27,22 @@ Custom commands and skills for productivity workflows.
 | `/define-questions` | Extract questions/TBDs from docs to JSON |
 | `/ask-questions` | Interactive Q&A session from JSON file |
 | `/doc-assessment` | Document quality evaluation with scoring |
+| `/consolidate` | Analyze multiple document variations and synthesize |
+| `/wordify` | Convert markdown to formatted Word document |
+| `/image-prompt` | Generate AI image prompts from content |
 | `/next-step` | Analyze repo and recommend next action |
+| `/plan-improvements` | Generate improvement recommendations with implementation plan |
+| `/fully-test-project` | Ensure 90%+ coverage, run tests, fix, merge PR |
+| `/bump-version` | Automate version bumping across plugin files with CHANGELOG |
+| `/validate-plugin` | Validate plugin structure, frontmatter, and content |
+| `/review-pr` | Structured PR review with security and code quality analysis |
 | `/troy-statusline` | Custom status line setup (Windows/PowerShell) |
 
 **Skills:**
 | Skill | Description |
 |-------|-------------|
 | `/ship` | Git workflow: branch, commit, push, and open PR |
+| `/help-commands` | Discover available commands and skills with descriptions |
 
 ### bpmn-plugin
 

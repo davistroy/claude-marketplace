@@ -6,6 +6,19 @@ description: Extract questions and open items from documents to JSON
 
 Analyze the document specified by the user and extract all questions, open items, areas needing clarification, and incomplete sections into a comprehensive, downloadable JSON file.
 
+## Input Validation
+
+**Required Arguments:**
+- `<document-path>` - Path to the document to analyze
+
+**Validation:**
+If the document path is missing, display:
+```
+Usage: /define-questions <document-path>
+Example: /define-questions PRD.md
+Example: /define-questions docs/requirements.md
+```
+
 ## Instructions
 
 1. **Read the specified document** - The user will provide a document path or name after the `/define-questions` command (e.g., `/define-questions PRD.md`). Read and analyze that document thoroughly.

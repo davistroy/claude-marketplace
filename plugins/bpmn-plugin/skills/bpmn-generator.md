@@ -1,5 +1,4 @@
 ---
-name: bpmn-generator
 description: >
   Generate BPMN 2.0 compliant XML files from natural language process descriptions
   OR from structured markdown business process documents. Use this skill when a user

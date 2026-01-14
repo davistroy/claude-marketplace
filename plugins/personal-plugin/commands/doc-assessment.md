@@ -6,6 +6,18 @@ description: Document quality evaluation with scored assessment report
 
 Perform a comprehensive evaluation of the specified document, identifying gaps, issues, missing content, and areas for improvement. Produce a detailed assessment report.
 
+## Input Validation
+
+**Required Arguments:**
+- `<document-path>` - Path to the document to assess
+
+**Validation:**
+If the document path is missing, display:
+```
+Usage: /doc-assessment <document-path>
+Example: /doc-assessment PRD.md
+```
+
 ## Input
 
 The user will provide a document path or name after the `/doc-assessment` command (e.g., `/doc-assessment PRD.md`).

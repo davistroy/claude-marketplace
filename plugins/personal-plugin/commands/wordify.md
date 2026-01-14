@@ -6,6 +6,22 @@ description: Convert a markdown file to a nicely formatted Microsoft Word docume
 
 Convert a markdown file into a professionally formatted Microsoft Word document (.docx).
 
+## Input Validation
+
+**Required Arguments:**
+- `<markdown-file>` - Path to the markdown file to convert
+
+**Optional Arguments:**
+- `<output-file>` - Desired output filename (defaults to same name with .docx extension)
+
+**Validation:**
+If the markdown file path is missing, display:
+```
+Usage: /wordify <markdown-file> [output-file]
+Example: /wordify docs/api-guide.md
+Example: /wordify README.md documentation.docx
+```
+
 ## Process
 
 ### Step 1: Identify Source File

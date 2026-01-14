@@ -6,6 +6,22 @@ description: Extract questions from a document, answer them interactively, and u
 
 Complete an incomplete document by extracting all questions/TBDs, walking through them interactively, and updating the document with the resolved answers.
 
+## Input Validation
+
+**Required Arguments:**
+- `<document-path>` - Path to the document to complete
+
+**Optional Arguments:**
+- `--auto` - Auto-select recommended answers instead of interactive Q&A (user can still override)
+
+**Validation:**
+If the document path is missing, display:
+```
+Usage: /finish-document <document-path> [--auto]
+Example: /finish-document PRD.md
+Example: /finish-document docs/requirements.md --auto
+```
+
 ## Input
 
 The user will provide a document path after the command (e.g., `/finish-document PRD.md`).

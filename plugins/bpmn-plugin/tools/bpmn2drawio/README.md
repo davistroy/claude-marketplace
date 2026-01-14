@@ -1,5 +1,9 @@
 # bpmn2drawio
 
+[![Test Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](htmlcov/index.html)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A Python library and CLI tool for converting BPMN 2.0 XML files to Draw.io diagram format.
 
 ## Features

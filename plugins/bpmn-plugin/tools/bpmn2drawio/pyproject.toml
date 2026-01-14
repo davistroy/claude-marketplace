@@ -48,6 +48,7 @@ where = ["src"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+addopts = "--cov=bpmn2drawio --cov-report=term-missing --cov-report=html"
 
 [tool.coverage.run]
 source = ["src/bpmn2drawio"]

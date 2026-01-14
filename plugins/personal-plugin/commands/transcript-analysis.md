@@ -73,4 +73,4 @@ Generate the analysis as a clean markdown document that:
 
 ## File Naming
 
-Save the analysis as `meeting-analysis-YYYY-MM-DD.md` using the meeting date if known, or today's date if not specified.
+Save the analysis as `meeting-analysis-YYYYMMDD-HHMMSS.md` using the timestamp format `YYYYMMDD-HHMMSS`. Use the meeting date if known (with current time), or the current date and time if not specified.

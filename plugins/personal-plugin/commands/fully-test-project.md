@@ -211,8 +211,9 @@ Review what will be committed. Exclude any files that shouldn't be committed.
 ### 6.2 Create Feature Branch (if on main)
 If currently on main:
 ```bash
-git checkout -b test-fixes-[timestamp]
+git checkout -b test-fixes-YYYYMMDD-HHMMSS
 ```
+Example: `test-fixes-20260114-143052`
 
 ### 6.3 Commit Changes
 Create a comprehensive commit:
