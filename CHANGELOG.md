@@ -9,14 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - 2026-01-14
 
-### Added
-- [Describe new features]
-
 ### Changed
-- [Describe changes to existing features]
-
-### Fixed
-- [Describe bug fixes]
+- Enhanced `/ship` skill with auto-review, fix loop, and merge workflow
+  - Automatically reviews PR for security, performance, code quality, test coverage, and documentation
+  - Fixes CRITICAL and WARNING issues automatically (up to 5 attempts)
+  - Squash merges PR when all blocking issues resolved
+- Improved bpmn2drawio test coverage from 87% to 92%
 
 ## [1.7.0] - 2026-01-14
 
