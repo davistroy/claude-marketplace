@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized timestamp format to `YYYYMMDD-HHMMSS` across all commands
 - Added Input Validation sections to all argument-accepting commands
 - Updated CLAUDE.md with Output Locations and Timestamp Format conventions
-- Improved bpmn2drawio test coverage from 84% to 87%
+- Improved bpmn2drawio test coverage from 84% to 92% (49 additional tests)
 
 ### Fixed
 - Removed forbidden `name` field from bpmn-generator.md and bpmn-to-drawio.md frontmatter
