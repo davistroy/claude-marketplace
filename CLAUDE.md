@@ -84,6 +84,7 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Planning commands** (`plan-improvements`, `plan-next`): Analyze codebase and generate actionable plans
 - **Testing commands** (`test-project`): Comprehensive test, fix, and ship workflows
 - **Cleanup commands** (`clean-repo`): Repository cleanup, organization, and documentation refresh
+- **Utility commands** (`bump-version`, `validate-plugin`, `setup-statusline`): Plugin/repository maintenance and configuration tasks
 
 ### Output File Naming
 Commands that generate files use: `[type]-[source]-[timestamp].json` or `.md`

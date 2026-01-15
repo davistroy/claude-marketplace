@@ -63,7 +63,7 @@ Execute the logic from `/define-questions`:
   - Dependencies or prerequisites that are undefined
   - Edge cases or scenarios not addressed
 
-- Create JSON with structure:
+- Create JSON conforming to `schemas/questions.json`:
 ```json
 {
   "questions": [
@@ -88,6 +88,8 @@ Execute the logic from `/define-questions`:
   }
 }
 ```
+
+**Schema:** Output must conform to `schemas/questions.json`
 
 **Important:** Capture `location` data for each question — this enables precise document updates later.
 
@@ -157,17 +159,52 @@ If `--auto` flag was provided:
 - User can interrupt with `pause` to switch to interactive mode
 
 ### 2.3 Session Commands
-Support during Q&A:
-- `back` / `previous` — Return to previous question
-- `go to [N]` — Jump to question N
-- `skip` — Skip current question
-- `progress` — Show answered/skipped/remaining
-- `pause` — (Auto mode) Switch to interactive
-- `auto` — (Interactive mode) Switch to auto for remaining questions
+
+Support these standard session commands during Q&A (see `references/common-patterns.md` for full specification):
+
+| Command | Aliases | Action |
+|---------|---------|--------|
+| `help` | `?`, `commands` | Show available session commands |
+| `status` | `progress` | Show answered/skipped/remaining summary |
+| `back` | `previous`, `prev` | Return to previous question |
+| `skip` | `next`, `pass` | Skip current question |
+| `quit` | `exit`, `stop` | Save progress and exit |
+| `go to [N]` | | Jump to question N |
+| `save` | | Save current progress without exiting |
+| `pause` | | (Auto mode) Switch to interactive |
+| `auto` | | (Interactive mode) Switch to auto for remaining |
+
+**When user types `help`:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Session Commands
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  help      Show this help message
+  status    Show current progress (X of Y completed)
+  back      Return to previous question
+  skip      Skip current question (can return later)
+  quit      Exit session (progress will be saved)
+
+Additional commands:
+  go to N   Jump to question number N
+  save      Save progress without exiting
+  pause     Switch from auto to interactive mode
+  auto      Switch to auto mode for remaining questions
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Implementation notes:**
+- Commands are case-insensitive
+- Check for session commands before processing input as an answer choice
+- Unknown input that is not A/B/C/D/S should trigger the help message
 
 ### 2.4 Save Answers
 After all questions are answered (or skipped), save to:
 `reference/answers-[document-name]-[timestamp].json`
+
+**Schema:** Output must conform to `schemas/answers.json`
 
 Structure:
 ```json

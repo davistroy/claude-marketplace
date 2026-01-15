@@ -5,6 +5,22 @@ description: Create branch, commit, push, open PR, auto-review, fix issues, and 
 
 You are automating the complete git workflow to ship code changes. After creating the PR, you will automatically review it, fix any issues, and merge it. The user may provide a branch name and description as arguments: $ARGUMENTS
 
+## Input Validation
+
+**Optional Arguments:**
+- `<branch-name>` - Custom branch name (default: auto-generated from changes)
+- `draft` - Create PR as draft
+- `--dry-run` - Preview all operations without making any changes
+
+**Dry-Run Mode:**
+When `--dry-run` is specified:
+- Show what branch name would be created
+- Show what files would be staged and committed
+- Show the proposed commit message
+- Show the PR title and body that would be created
+- Prefix all output with `[DRY-RUN]` to clearly indicate preview mode
+- Do NOT execute any git commands that modify state (checkout, add, commit, push, pr create)
+
 ## Pre-flight Checks
 1. Verify this is a git repository
 2. Check that the GitHub CLI (gh) is installed and authenticated

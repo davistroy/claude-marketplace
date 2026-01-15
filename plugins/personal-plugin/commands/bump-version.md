@@ -12,6 +12,18 @@ Automate version updates across all plugin configuration files. This command ens
 - `<plugin-name>` - Name of the plugin to version (e.g., `personal-plugin`, `bpmn-plugin`)
 - `<bump-type>` - Type of version bump: `major`, `minor`, or `patch`
 
+**Optional Arguments:**
+- `--dry-run` - Preview version changes without modifying any files
+
+**Dry-Run Mode:**
+When `--dry-run` is specified:
+- Show current version and calculated new version
+- Show which files would be modified with their proposed changes
+- Show the diff that would be applied to each file
+- Prefix all output with `[DRY-RUN]` to clearly indicate preview mode
+- Do NOT write any changes to disk
+- Skip the commit prompt (nothing to commit in dry-run)
+
 **Validation:**
 If arguments are missing or invalid, display:
 ```

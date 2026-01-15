@@ -11,11 +11,17 @@ Perform a comprehensive evaluation of the specified document, identifying gaps, 
 **Required Arguments:**
 - `<document-path>` - Path to the document to assess
 
+**Optional Arguments:**
+- `--format [md|json]` - Output format (default: md)
+  - `md`: Markdown report with tables and sections (default)
+  - `json`: Structured data with scores, issues array, and recommendations
+
 **Validation:**
 If the document path is missing, display:
 ```
-Usage: /assess-document <document-path>
+Usage: /assess-document <document-path> [--format md|json]
 Example: /assess-document PRD.md
+Example: /assess-document PRD.md --format json
 ```
 
 ## Input
@@ -80,7 +86,7 @@ Assess the document across these dimensions:
 
 For each issue found, capture:
 - **Category**: Which quality dimension it falls under
-- **Severity**: Critical / High / Medium / Low
+- **Severity**: CRITICAL / WARNING / SUGGESTION (see common-patterns.md)
 - **Location**: Section or line reference
 - **Description**: What the issue is
 - **Impact**: Why it matters
@@ -90,10 +96,9 @@ For each issue found, capture:
 
 | Severity | Definition |
 |----------|------------|
-| **Critical** | Blocks understanding or implementation; must be resolved immediately |
-| **High** | Significant gap or ambiguity; must be resolved before proceeding |
-| **Medium** | Notable issue that causes confusion; should be resolved |
-| **Low** | Minor improvement opportunity; nice to have |
+| **CRITICAL** | Blocks understanding or implementation; must be resolved immediately |
+| **WARNING** | Significant gap or ambiguity; should be resolved before proceeding |
+| **SUGGESTION** | Minor improvement opportunity; nice to have |
 
 ### 4. Produce the Assessment Report
 
@@ -128,10 +133,9 @@ Create a markdown file with the following structure:
 
 | Severity | Count |
 |----------|-------|
-| Critical | X |
-| High | X |
-| Medium | X |
-| Low | X |
+| CRITICAL | X |
+| WARNING | X |
+| SUGGESTION | X |
 | **Total** | **X** |
 
 ---
@@ -142,7 +146,7 @@ Create a markdown file with the following structure:
 
 ---
 
-## Critical Issues
+## CRITICAL Issues (Must Fix)
 
 [For each critical issue, provide detailed analysis]
 
@@ -157,23 +161,16 @@ Create a markdown file with the following structure:
 
 ---
 
-## High Priority Issues
+## WARNING Issues (Should Fix)
 
-### H1. [Issue Title]
+### W1. [Issue Title]
 ...
 
 ---
 
-## Medium Priority Issues
+## SUGGESTION Issues (Nice to Have)
 
-### M1. [Issue Title]
-...
-
----
-
-## Low Priority Issues
-
-### L1. [Issue Title]
+### S1. [Issue Title]
 ...
 
 ---
@@ -201,11 +198,52 @@ Create a markdown file with the following structure:
 
 ### 5. Save the Output
 
-Save the assessment to a file named: `[document-name]-assessment-[timestamp].md`
+Based on the `--format` flag:
 
+**Markdown Format (default):**
+- Save to: `[document-name]-assessment-[timestamp].md`
 - Place in the same directory as the source document
 - Use timestamp format: `YYYYMMDD-HHMMSS`
 - Example: `PRD-assessment-20260110-143052.md`
+
+**JSON Format:**
+- Save to: `[document-name]-assessment-[timestamp].json`
+- Place in the same directory as the source document
+- Structure:
+```json
+{
+  "metadata": {
+    "document": "PRD.md",
+    "assessment_date": "2026-01-10T14:30:52Z",
+    "document_version": "1.0"
+  },
+  "scores": {
+    "completeness": 4,
+    "clarity": 3,
+    "consistency": 4,
+    "specificity": 2,
+    "structure": 4,
+    "feasibility": 3,
+    "overall": 3.3
+  },
+  "summary": "Executive summary text here...",
+  "strengths": ["Strength 1", "Strength 2"],
+  "issues": [
+    {
+      "id": "C1",
+      "severity": "CRITICAL",
+      "category": "Completeness",
+      "title": "Issue title",
+      "location": "Section 3.1",
+      "description": "Detailed description",
+      "impact": "Why this matters",
+      "recommendation": "How to fix"
+    }
+  ],
+  "missing_content": ["Item 1", "Item 2"],
+  "structural_recommendations": ["Recommendation 1", "Recommendation 2"]
+}
+```
 
 ### 6. Report Results to User
 
@@ -214,6 +252,7 @@ After creating the file, provide a summary including:
 - Count of issues by severity
 - Top 3 most critical findings
 - File path where the assessment was saved
+- The format used (Markdown or JSON)
 
 ## Assessment Guidelines
 
@@ -240,6 +279,8 @@ After creating the file, provide a summary including:
 
 ## Example Usage
 
+### Markdown Format (default)
+
 ```
 User: /assess-document PRD.md
 
@@ -250,15 +291,33 @@ I've completed the assessment of PRD.md.
 **Overall Score: 3.8/5**
 
 **Issue Summary:**
-- Critical: 2
-- High: 5
-- Medium: 8
-- Low: 4
+- CRITICAL: 2
+- WARNING: 5
+- SUGGESTION: 4
 
 **Top 3 Critical Findings:**
 1. Board roles are referenced but never defined (blocks implementation)
 2. No LLM provider strategy specified (blocks technical architecture)
 3. Privacy policy wording not provided (blocks compliance review)
 
-Full assessment saved to: PRD-assessment-20260110-143052.md
+Full assessment saved to: PRD-assessment-20260110-143052.md (Markdown format)
+```
+
+### JSON Format
+
+```
+User: /assess-document PRD.md --format json
+
+Claude: [Reads PRD.md, performs assessment, creates PRD-assessment-20260110-143052.json]
+
+I've completed the assessment of PRD.md.
+
+**Overall Score: 3.8/5**
+
+**Issue Summary:**
+- CRITICAL: 2
+- WARNING: 5
+- SUGGESTION: 4
+
+Full assessment saved to: PRD-assessment-20260110-143052.json (JSON format)
 ```

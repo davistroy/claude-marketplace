@@ -19,29 +19,32 @@ Custom commands and skills for productivity workflows.
 **Commands:**
 | Command | Description |
 |---------|-------------|
-| `/analyze-transcript` | Convert meeting transcripts to structured markdown |
-| `/ask-questions` | Interactive Q&A session from JSON file |
-| `/assess-document` | Document quality evaluation with scoring |
-| `/bump-version` | Automate version bumping across plugin files with CHANGELOG |
-| `/clean-repo` | Repository cleanup, organization, and documentation refresh |
-| `/consolidate-documents` | Analyze multiple document variations and synthesize |
-| `/convert-markdown` | Convert markdown to formatted Word document |
-| `/define-questions` | Extract questions/TBDs from docs to JSON |
-| `/develop-image-prompt` | Generate AI image prompts from content |
-| `/finish-document` | Extract questions, answer interactively, update document |
-| `/plan-improvements` | Generate improvement recommendations with implementation plan |
-| `/plan-next` | Analyze repo and recommend next action |
-| `/review-arch` | Quick architectural audit (read-only, no files generated) |
-| `/review-pr` | Structured PR review with security and code quality analysis |
-| `/setup-statusline` | Custom status line setup (Windows/PowerShell) |
-| `/test-project` | Ensure 90%+ coverage, run tests, fix, merge PR |
-| `/validate-plugin` | Validate plugin structure, frontmatter, and content |
+| `/analyze-transcript` | Meeting transcript to structured markdown report |
+| `/ask-questions` | Interactive Q&A session from questions JSON file |
+| `/assess-document` | Document quality evaluation with scored assessment report |
+| `/bump-version` | Automate version bumping across plugin files with CHANGEL... |
+| `/check-updates` | Check for available plugin updates by comparing installed... |
+| `/clean-repo` | Comprehensive repository cleanup, organization, and docum... |
+| `/consolidate-documents` | Analyze multiple document variations and synthesize a sup... |
+| `/convert-markdown` | Convert a markdown file to a nicely formatted Microsoft W... |
+| `/define-questions` | Extract questions and open items from documents to JSON |
+| `/develop-image-prompt` | Generate detailed image generator prompts from content, o... |
+| `/finish-document` | Extract questions from a document, answer them interactiv... |
+| `/new-command` | Generate a new command file from a template with proper s... |
+| `/plan-improvements` | Analyze codebase and generate prioritized improvement rec... |
+| `/plan-next` | Analyze repo and recommend the next logical action |
+| `/review-arch` | Quick architectural audit with technical debt assessment ... |
+| `/review-pr` | Structured PR review with security, performance, and code... |
+| `/scaffold-plugin` | Create a new plugin with proper directory structure, meta... |
+| `/setup-statusline` | "[Personal] Troy's custom status line setup (Windows/Powe... |
+| `/test-project` | Ensure 90%+ test coverage, run all tests with sub-agents,... |
+| `/validate-plugin` | Validate plugin structure, frontmatter, and content for c... |
 
 **Skills:**
 | Skill | Description |
 |-------|-------------|
-| `/help` | Show available commands and skills with usage information |
-| `/ship` | Git workflow: branch, commit, push, and open PR |
+| `/help` | Show available commands and skills in this plugin with us... |
+| `/ship` | Create branch, commit, push, open PR, auto-review, fix is... |
 
 ### bpmn-plugin
 
@@ -50,9 +53,9 @@ BPMN 2.0 workflow tools for generating and converting process diagrams.
 **Skills:**
 | Skill | Description |
 |-------|-------------|
-| `/bpmn-generator` | Generate BPMN 2.0 XML from natural language or markdown documents |
-| `/bpmn-to-drawio` | Convert BPMN 2.0 XML files to Draw.io native format (.drawio) |
-| `/help` | Show available skills with usage information |
+| `/bpmn-generator` | Generate BPMN 2.0 compliant XML files from natural langua... |
+| `/bpmn-to-drawio` | Convert BPMN 2.0 XML files into Draw.io native format (.d... |
+| `/help` | Show available skills in this plugin with usage information |
 
 **BPMN Generator** operates in two modes:
 - **Interactive Mode**: Structured Q&A to gather requirements from natural language descriptions

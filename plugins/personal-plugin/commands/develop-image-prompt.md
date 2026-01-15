@@ -9,18 +9,41 @@ Transform content into a comprehensive prompt for AI image generators. The resul
 ## Input Validation
 
 **Required Arguments:**
-- `<content-source>` - File path, pasted content, or concept description
+- `<content-source>` - The content to visualize (see Input Types below)
 
 **Optional Arguments:**
 - `--style <style-file>` - Path to a style guide document with visual preferences
 
+**Input Types:**
+
+The `<content-source>` argument accepts three different input types:
+
+| Type | Format | Example |
+|------|--------|---------|
+| **File path** | Path to a document file | `architecture.md`, `docs/design.md` |
+| **Pasted content** | Raw content provided in chat | (paste content directly when prompted) |
+| **Concept description** | Brief description in quotes | `"microservices communication patterns"` |
+
 **Validation:**
 If no content source is provided, display:
 ```
+Error: Missing required argument
+
 Usage: /develop-image-prompt <content-source> [--style <style-file>]
-Example: /develop-image-prompt architecture.md
-Example: /develop-image-prompt process-flow.md --style brand-guidelines.md
-Example: /develop-image-prompt "microservices communication patterns"
+
+Input can be one of:
+  1. File path      - Path to a document (e.g., architecture.md)
+  2. Pasted content - Paste content directly when prompted
+  3. Concept        - Description in quotes (e.g., "user auth flow")
+
+Arguments:
+  <content-source>   Content to visualize (required)
+  --style <file>     Style guide for visual preferences (optional)
+
+Examples:
+  /develop-image-prompt architecture.md
+  /develop-image-prompt process-flow.md --style brand-guidelines.md
+  /develop-image-prompt "microservices communication patterns"
 ```
 
 ## Process
@@ -109,7 +132,11 @@ Create a markdown file containing:
 
 ## Output Format
 
-Save the output as: `image-prompt-[topic]-YYYYMMDD-HHMMSS.md` (e.g., `image-prompt-architecture-20260114-143052.md`)
+**Output Location:** Save the output to the `reports/` directory. Create the directory if it doesn't exist.
+
+**Filename Format:** `image-prompt-[topic]-YYYYMMDD-HHMMSS.md`
+
+Example: `reports/image-prompt-architecture-20260114-143052.md`
 
 Example structure:
 
