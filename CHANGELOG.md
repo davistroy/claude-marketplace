@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-01-15
+
 ### Added
 - `schemas/command.json` - JSON Schema for command frontmatter validation
 - Modular pattern files in `plugins/personal-plugin/references/patterns/`:
@@ -236,7 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `troy-statusline` for custom Windows/PowerShell status line
 - `ship` skill for git workflow automation
 
-[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/davistroy/claude-marketplace/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/davistroy/claude-marketplace/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/davistroy/claude-marketplace/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/davistroy/claude-marketplace/compare/v2.0.0...v2.1.0
