@@ -15,6 +15,7 @@ Analyze the attached meeting transcript and produce a comprehensive markdown rep
 - `--format [md|json]` - Output format (default: md)
   - `md`: Markdown report with sections and tables (default)
   - `json`: Structured data with sections, action_items, decisions arrays
+- `--preview` - Show summary and ask for confirmation before saving (see common-patterns.md)
 
 **Validation:**
 If no transcript is provided, display:
@@ -156,6 +157,35 @@ Generate a structured JSON document with this schema:
 ```
 
 Save as: `meeting-analysis-YYYYMMDD-HHMMSS.json`
+
+## Preview Mode
+
+When `--preview` is specified:
+
+1. Generate the complete analysis in memory
+2. Display summary:
+   ```
+   Preview: /analyze-transcript
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Source: meeting-notes.txt
+   Meeting: Project Kickoff (inferred)
+   Attendees: 5 identified
+
+   Content Summary:
+     Discussion points: 8
+     Action items: 12
+     Risks/issues: 3
+     Decisions made: 4
+     Open questions: 2
+
+   Output format: Markdown
+   Output file: meeting-analysis-20260114-143052.md
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Save this file? (y/n):
+   ```
+3. Wait for user confirmation before saving
+4. On 'n' or 'no': Exit without saving
 
 ## File Naming
 

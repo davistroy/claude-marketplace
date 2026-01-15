@@ -78,6 +78,42 @@ For each item include:
 - Dependencies on other remediation items
 - Estimated effort (T-shirt sizing)
 
+## Performance
+
+**Typical Duration:**
+
+| Codebase Size | Expected Time |
+|---------------|---------------|
+| Small (< 50 files) | 30-60 seconds |
+| Medium (50-200 files) | 1-3 minutes |
+| Large (200-500 files) | 3-7 minutes |
+| Very Large (500+ files) | 7-15 minutes |
+
+**Factors Affecting Performance:**
+- **File count**: Primary driver of analysis time
+- **Code complexity**: Deeply nested or tightly coupled code takes longer
+- **Language count**: Multi-language projects require broader analysis
+- **Dependency depth**: Projects with many dependencies take longer
+
+**What to Expect:**
+- Phase 1 (Reconnaissance): 20-40% of total time
+- Phase 2 (Assessment): 30-40% of total time
+- Phase 3 (Debt Inventory): 15-25% of total time
+- Phase 4 (Roadmap): 10-20% of total time
+
+**Signs of Abnormal Behavior:**
+- No output after 3 minutes on small projects
+- Stuck reading the same files repeatedly
+- Error messages about file access or parsing
+
+**If the command seems stuck:**
+1. Check for phase progress indicators
+2. Wait at least 5 minutes for medium/large codebases
+3. If no activity, interrupt and retry
+4. For very large projects, consider running on specific directories first
+
+---
+
 ## Execution Instructions
 - DO NOT MAKE ANY CHANGES - ONLY ANALYZE AND PRESENT A DETAILED PLAN
 - Start with reconnaissance and present your findings before proceeding

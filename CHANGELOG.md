@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-01-15
+
+### Added
+- `/remove-ip` command for sanitizing documents by removing company identifiers and intellectual property
+  - Supports STANDARD mode (preserve context) and STRICT mode (maximum redaction)
+  - Auto-detects company name from document content
+  - Generates detailed redaction log with risk categorization
+  - Mosaic attack protection in STRICT mode
+  - Optional web research for public information verification
+
+## [2.2.0] - 2026-01-15
+
+### Added
+- `WORKFLOWS.md` - Comprehensive workflow documentation for chaining commands
+- `TROUBLESHOOTING.md` - Solutions for 19 common issues with symptom/cause/solution format
+- `SECURITY.md` - Security model documentation and vulnerability reporting process
+- `schemas/plugin.json` - JSON Schema for plugin.json with dependency support
+- Integration test suite for Q&A workflow chain (30 tests)
+- Shared test infrastructure (`tests/conftest.py`, `tests/helpers/`)
+- GitHub Actions workflow for running tests on push/PR
+- `--preview` flag to `/define-questions`, `/analyze-transcript`, `/bpmn-generator`
+- `--force` flag to Q&A commands for bypassing schema validation
+- `--audit` flag to `/clean-repo` and `/ship` for optional JSON audit logging
+- Workflow state management with resume support for interrupted Q&A sessions
+- Plugin namespace support (`/personal-plugin:command-name` syntax)
+- Plugin dependency declaration support with semver version requirements
+- Dependency verification for external tools (pandoc, graphviz) with platform-specific instructions
+
+### Changed
+- Updated `schemas/answers.json` with status and last_question_answered fields
+- Enhanced `/validate-plugin` with namespace collision detection and dependency validation
+- Added runtime schema validation to Q&A chain commands
+- Extended `common-patterns.md` with 6 new patterns (dependency verification, performance expectations, schema validation, argument testing, output preview, workflow state management, audit logging)
+- Added testing guidance to `CONTRIBUTING.md`
+- Added performance expectations to long-running commands (`/plan-improvements`, `/test-project`, `/review-arch`)
+
+### Fixed
+- Documentation links in README.md now point to new WORKFLOWS.md, TROUBLESHOOTING.md, SECURITY.md
+
 ## [2.1.0] - 2026-01-14
 
 ### Added
@@ -160,7 +199,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `troy-statusline` for custom Windows/PowerShell status line
 - `ship` skill for git workflow automation
 
-[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/davistroy/claude-marketplace/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/davistroy/claude-marketplace/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/davistroy/claude-marketplace/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/davistroy/claude-marketplace/compare/v1.7.0...v2.0.0
 [1.7.0]: https://github.com/davistroy/claude-marketplace/compare/v1.6.0...v1.7.0

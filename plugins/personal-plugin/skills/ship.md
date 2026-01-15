@@ -11,6 +11,7 @@ You are automating the complete git workflow to ship code changes. After creatin
 - `<branch-name>` - Custom branch name (default: auto-generated from changes)
 - `draft` - Create PR as draft
 - `--dry-run` - Preview all operations without making any changes
+- `--audit` - Log all git and PR operations to `.claude-plugin/audit.log` (see common-patterns.md)
 
 **Dry-Run Mode:**
 When `--dry-run` is specified:
@@ -20,6 +21,22 @@ When `--dry-run` is specified:
 - Show the PR title and body that would be created
 - Prefix all output with `[DRY-RUN]` to clearly indicate preview mode
 - Do NOT execute any git commands that modify state (checkout, add, commit, push, pr create)
+
+**Audit Mode:**
+When `--audit` is specified:
+- Log every git and PR operation to `.claude-plugin/audit.log`
+- Each log entry is a JSON line with: timestamp, command, action, details, success
+- Create `.claude-plugin/` directory if it doesn't exist
+- Append to log file (never overwrite existing entries)
+
+Example log entries:
+```json
+{"timestamp": "2026-01-14T10:30:00Z", "command": "ship", "action": "git_checkout", "details": {"branch": "feat/new-feature"}, "success": true}
+{"timestamp": "2026-01-14T10:30:01Z", "command": "ship", "action": "git_commit", "details": {"sha": "abc1234", "message": "feat: add new feature"}, "success": true}
+{"timestamp": "2026-01-14T10:30:02Z", "command": "ship", "action": "git_push", "details": {"remote": "origin", "branch": "feat/new-feature"}, "success": true}
+{"timestamp": "2026-01-14T10:30:03Z", "command": "ship", "action": "pr_create", "details": {"number": 42, "url": "https://github.com/..."}, "success": true}
+{"timestamp": "2026-01-14T10:30:30Z", "command": "ship", "action": "pr_merge", "details": {"number": 42, "strategy": "squash"}, "success": true}
+```
 
 ## Pre-flight Checks
 1. Verify this is a git repository

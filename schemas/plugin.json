@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/claude-marketplace/schemas/plugin.json",
+  "title": "Plugin Schema",
+  "description": "JSON Schema for Claude Code plugin.json configuration files",
+  "type": "object",
+  "required": ["name", "description", "version"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique plugin identifier in kebab-case",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "examples": ["personal-plugin", "bpmn-plugin"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the plugin's purpose and functionality",
+      "minLength": 10,
+      "maxLength": 500
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version number (X.Y.Z)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.-]+)?(\\+[a-zA-Z0-9.-]+)?$",
+      "examples": ["1.0.0", "2.1.0", "1.0.0-beta.1"]
+    },
+    "author": {
+      "type": "object",
+      "description": "Plugin author information",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Author's name"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Author's email address"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Author's website or profile URL"
+        }
+      },
+      "required": ["name"]
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the plugin's homepage or documentation"
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the plugin's source code repository"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier",
+      "examples": ["MIT", "Apache-2.0", "GPL-3.0-only"]
+    },
+    "keywords": {
+      "type": "array",
+      "description": "Keywords for plugin discovery and categorization",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "uniqueItems": true
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Other plugins this plugin depends on, with semver version requirements",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Semver version requirement (e.g., '>=2.0.0', '^1.5.0', '~1.0.0', '1.0.0')",
+        "pattern": "^([<>=~^]*\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.-]+)?|\\*|latest)$"
+      },
+      "examples": [
+        {
+          "personal-plugin": ">=2.0.0",
+          "bpmn-plugin": "^1.5.0"
+        }
+      ]
+    },
+    "tools": {
+      "type": "object",
+      "description": "External tools bundled with the plugin",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the tool relative to the plugin directory"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["python", "node", "binary", "script"],
+            "description": "Type of tool for installation purposes"
+          },
+          "install": {
+            "type": "string",
+            "description": "Installation command for the tool"
+          },
+          "version": {
+            "type": "string",
+            "description": "Version of the bundled tool"
+          }
+        },
+        "required": ["path", "type"]
+      }
+    },
+    "engines": {
+      "type": "object",
+      "description": "Runtime requirements",
+      "properties": {
+        "claude-code": {
+          "type": "string",
+          "description": "Minimum Claude Code version required"
+        },
+        "python": {
+          "type": "string",
+          "description": "Python version requirement (if plugin uses Python tools)"
+        },
+        "node": {
+          "type": "string",
+          "description": "Node.js version requirement (if plugin uses Node tools)"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "name": "personal-plugin",
+      "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, and document processing",
+      "version": "2.0.0",
+      "author": {
+        "name": "Troy Davis",
+        "email": "troy.e.davis@gmail.com"
+      },
+      "homepage": "https://github.com/davistroy/claude-marketplace",
+      "repository": "https://github.com/davistroy/claude-marketplace",
+      "license": "MIT",
+      "keywords": ["personal", "automation"]
+    },
+    {
+      "name": "advanced-plugin",
+      "description": "Advanced plugin that depends on other plugins",
+      "version": "1.0.0",
+      "dependencies": {
+        "personal-plugin": ">=2.0.0",
+        "bpmn-plugin": "^1.5.0"
+      }
+    }
+  ]
+}

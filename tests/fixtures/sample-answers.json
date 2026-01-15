@@ -1,0 +1,199 @@
+{
+  "metadata": {
+    "source_questions_file": "expected-questions.json",
+    "source_document": "sample-prd.md",
+    "total_questions": 12,
+    "answered": 10,
+    "skipped": 2,
+    "started_at": "2026-01-14T11:00:00Z",
+    "completed_at": "2026-01-14T11:30:00Z",
+    "answer_summary": {
+      "recommended": 5,
+      "alternative": 2,
+      "custom": 3,
+      "skipped": 2
+    }
+  },
+  "answers": [
+    {
+      "id": 1,
+      "topic": "Features",
+      "sections": ["2. Problem Statement"],
+      "question": "What specific features should we highlight that current solutions lack?",
+      "context": "The problem statement mentions current solutions lack essential features but doesn't specify which ones.",
+      "location": {
+        "line_start": 13,
+        "line_end": 13,
+        "original_text": "[TBD: specific features to highlight]"
+      },
+      "selected_answer": "real-time collaboration, intuitive task dependencies, and unified project views",
+      "answer_type": "recommended",
+      "answered_at": "2026-01-14T11:02:00Z"
+    },
+    {
+      "id": 2,
+      "topic": "User Roles",
+      "sections": ["3.1 Primary Users"],
+      "question": "What other user roles should we target?",
+      "context": "Primary users section lists managers and coordinators but indicates additional roles may be needed.",
+      "location": {
+        "line_start": 19,
+        "line_end": 19,
+        "original_text": "[TBD: What other user roles should we target?]"
+      },
+      "selected_answer": "Team leads and department heads",
+      "answer_type": "custom",
+      "answered_at": "2026-01-14T11:04:00Z"
+    },
+    {
+      "id": 3,
+      "topic": "Features",
+      "sections": ["4.1 Task Management"],
+      "question": "Should we include custom fields in task management?",
+      "context": "The task properties list asks whether custom fields should be included.",
+      "location": {
+        "line_start": 33,
+        "line_end": 33,
+        "original_text": "[TBD: Should we include custom fields?]"
+      },
+      "selected_answer": "Yes, include up to 5 custom fields per project",
+      "answer_type": "recommended",
+      "answered_at": "2026-01-14T11:06:00Z"
+    },
+    {
+      "id": 4,
+      "topic": "Features",
+      "sections": ["4.2 Project Organization"],
+      "question": "How should we handle task dependencies?",
+      "context": "Project organization section needs decision on task dependency handling.",
+      "location": {
+        "line_start": 38,
+        "line_end": 38,
+        "original_text": "How should we handle task dependencies? [TBD]"
+      },
+      "selected_answer": "Support finish-to-start dependencies with visual indicators",
+      "answer_type": "recommended",
+      "answered_at": "2026-01-14T11:08:00Z"
+    },
+    {
+      "id": 5,
+      "topic": "Features",
+      "sections": ["4.2 Project Organization"],
+      "question": "What is the maximum project hierarchy depth?",
+      "context": "Project hierarchy depth needs to be specified, with 3 levels recommended.",
+      "location": {
+        "line_start": 39,
+        "line_end": 39,
+        "original_text": "[TBD: recommend 3 levels]"
+      },
+      "selected_answer": "3 levels (Project > Task Group > Task)",
+      "answer_type": "recommended",
+      "answered_at": "2026-01-14T11:10:00Z"
+    },
+    {
+      "id": 6,
+      "topic": "Features",
+      "sections": ["4.3 Collaboration"],
+      "question": "Should mobile push notifications be included in the notification system?",
+      "context": "Notification types include email and in-app, but mobile push needs confirmation.",
+      "location": {
+        "line_start": 47,
+        "line_end": 47,
+        "original_text": "[TBD: Mobile push notifications - confirm with mobile team]"
+      },
+      "selected_answer": "",
+      "answer_type": "skipped",
+      "answered_at": "2026-01-14T11:11:00Z"
+    },
+    {
+      "id": 7,
+      "topic": "Platform",
+      "sections": ["5.1 Platform Support"],
+      "question": "Should mobile app support iOS only initially or both iOS and Android?",
+      "context": "Mobile platform support needs to be decided for initial release.",
+      "location": {
+        "line_start": 53,
+        "line_end": 53,
+        "original_text": "[TBD: iOS only initially or both iOS and Android?]"
+      },
+      "selected_answer": "Both iOS and Android from launch",
+      "answer_type": "alternative",
+      "answered_at": "2026-01-14T11:14:00Z"
+    },
+    {
+      "id": 8,
+      "topic": "Technical Requirements",
+      "sections": ["5.2 Performance"],
+      "question": "What is the target concurrent user capacity?",
+      "context": "Performance requirements list page load and API response times but not concurrent users.",
+      "location": {
+        "line_start": 59,
+        "line_end": 59,
+        "original_text": "[TBD: What is the target concurrent user capacity?]"
+      },
+      "selected_answer": "1,000 concurrent users per organization",
+      "answer_type": "custom",
+      "answered_at": "2026-01-14T11:16:00Z"
+    },
+    {
+      "id": 9,
+      "topic": "Integrations",
+      "sections": ["5.3 Integration"],
+      "question": "Which calendar providers should be supported: Google Calendar, Outlook, or both?",
+      "context": "Calendar sync integration provider needs to be determined.",
+      "location": {
+        "line_start": 63,
+        "line_end": 63,
+        "original_text": "[TBD: Google Calendar, Outlook, or both?]"
+      },
+      "selected_answer": "Both Google Calendar and Outlook",
+      "answer_type": "recommended",
+      "answered_at": "2026-01-14T11:18:00Z"
+    },
+    {
+      "id": 10,
+      "topic": "Integrations",
+      "sections": ["5.3 Integration"],
+      "question": "What is the priority for Slack integration?",
+      "context": "Communication tool integration needs prioritization decision.",
+      "location": {
+        "line_start": 64,
+        "line_end": 64,
+        "original_text": "[TBD: Slack integration priority?]"
+      },
+      "selected_answer": "",
+      "answer_type": "skipped",
+      "answered_at": "2026-01-14T11:19:00Z"
+    },
+    {
+      "id": 11,
+      "topic": "Metrics",
+      "sections": ["6. Success Metrics"],
+      "question": "What is the target number for user adoption in the first 90 days?",
+      "context": "Success metrics table has user adoption target marked as TBD.",
+      "location": {
+        "line_start": 69,
+        "line_end": 69,
+        "original_text": "[TBD: target number]"
+      },
+      "selected_answer": "500 active users",
+      "answer_type": "custom",
+      "answered_at": "2026-01-14T11:22:00Z"
+    },
+    {
+      "id": 12,
+      "topic": "Timeline",
+      "sections": ["7. Timeline"],
+      "question": "What is the confirmed timeline for the mobile app phase?",
+      "context": "Phase 2 mobile app timeline needs confirmation.",
+      "location": {
+        "line_start": 76,
+        "line_end": 76,
+        "original_text": "[TBD: confirm timeline]"
+      },
+      "selected_answer": "Q2 2026",
+      "answer_type": "alternative",
+      "answered_at": "2026-01-14T11:24:00Z"
+    }
+  ]
+}

@@ -265,6 +265,36 @@ When estimating phase size:
 - **Enable parallelism**: Structure phases so multiple streams can work simultaneously when possible
 - **Preserve stability**: Each phase should leave the codebase in a working state
 
+## Performance
+
+**Typical Duration:**
+
+| Codebase Size | Expected Time |
+|---------------|---------------|
+| Small (< 50 files) | 1-2 minutes |
+| Medium (50-200 files) | 3-5 minutes |
+| Large (200-500 files) | 5-10 minutes |
+| Very Large (500+ files) | 10-20 minutes |
+
+**Factors Affecting Performance:**
+- **File count**: More files = longer analysis
+- **Code complexity**: Complex interdependencies slow pattern detection
+- **Language diversity**: Multiple languages require broader analysis
+- **Documentation depth**: Comprehensive recommendations take longer to formulate
+
+**Signs of Abnormal Behavior:**
+- No output activity after 5 minutes
+- Repeated file reading without progress
+- Error messages about file access
+
+**If the command seems stuck:**
+1. Check for output activity (phase progress indicators)
+2. Wait at least 10 minutes for large codebases
+3. If no activity, interrupt and try `/review-arch` for a quicker analysis
+4. Consider breaking into smaller scope (specific directories)
+
+---
+
 ## Example Usage
 
 ```

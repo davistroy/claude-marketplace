@@ -273,7 +273,105 @@ Or:
       Expected at: plugins/personal-plugin/references/common-patterns.md
 ```
 
-### Phase 5: Summary Report
+### Phase 5: Namespace Collision Detection
+
+When running with `--all`, check for command/skill naming collisions across plugins.
+
+#### 5.1 Collect All Command Names
+
+For each plugin, build a registry of command and skill names:
+
+```
+Plugin: personal-plugin
+  Commands: analyze-transcript, ask-questions, assess-document, ...
+  Skills: help, ship
+
+Plugin: bpmn-plugin
+  Commands: (none)
+  Skills: bpmn-generator, bpmn-to-drawio, help
+```
+
+#### 5.2 Detect Collisions
+
+Compare names across plugins:
+
+```
+Namespace Collision Detection
+-----------------------------
+[WARN] Collision detected: /help
+       - personal-plugin/skills/help.md
+       - bpmn-plugin/skills/help.md
+
+       Users must use explicit namespace:
+         /personal-plugin:help
+         /bpmn-plugin:help
+```
+
+If no collisions:
+```
+[PASS] No namespace collisions detected
+```
+
+#### 5.3 Single Plugin Mode
+
+When validating a single plugin (not `--all`), skip collision detection and display:
+```
+Note: Run with --all to check for naming collisions across plugins.
+```
+
+### Phase 6: Dependency Validation
+
+Check if plugin.json declares dependencies and validate them.
+
+#### 6.1 Parse Dependencies
+
+If `dependencies` field exists in plugin.json:
+```json
+{
+  "dependencies": {
+    "personal-plugin": ">=2.0.0"
+  }
+}
+```
+
+#### 6.2 Validate Dependencies
+
+For each declared dependency:
+1. Check if the plugin exists in the marketplace
+2. Parse the version requirement (semver syntax)
+3. Compare against the installed plugin version
+
+**Report:**
+```
+Dependency Validation
+---------------------
+[PASS] personal-plugin: >=2.0.0 (installed: 2.0.0)
+[FAIL] missing-plugin: ^1.0.0 (not found)
+[FAIL] outdated-plugin: >=3.0.0 (installed: 2.5.0)
+```
+
+Or if no dependencies declared:
+```
+[PASS] No dependencies declared
+```
+
+#### 6.3 Semver Validation
+
+Check that version strings follow semver patterns:
+- `>=X.Y.Z`, `<=X.Y.Z`, `>X.Y.Z`, `<X.Y.Z`
+- `^X.Y.Z` (caret range - compatible with)
+- `~X.Y.Z` (tilde range - approximately)
+- `X.Y.Z` (exact version)
+
+**Report invalid version syntax:**
+```
+[FAIL] Invalid version syntax in dependencies
+       bpmn-plugin: "latest" (not valid semver)
+
+       Valid formats: >=1.0.0, ^1.0.0, ~1.0.0, 1.0.0
+```
+
+### Phase 7: Summary Report
 
 Generate a final validation summary.
 
@@ -286,16 +384,19 @@ Structure Validation     [PASS]
 Frontmatter Validation   [PASS] (15 files checked)
 Version Synchronization  [PASS]
 Content Validation       [WARN] (2 warnings)
+Namespace Collisions     [WARN] (1 collision)  # Only with --all
+Dependency Validation    [PASS]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Issues Found:
   Errors:   0
-  Warnings: 2
+  Warnings: 3
 
 Warnings:
   1. commands/my-command.md:23 - Code block missing language specifier
   2. commands/my-command.md:67 - Code block missing language specifier
+  3. Namespace collision: /help (use /personal-plugin:help)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

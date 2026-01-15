@@ -38,6 +38,16 @@
           "minimum": 0,
           "description": "Number of questions skipped"
         },
+        "status": {
+          "type": "string",
+          "enum": ["in_progress", "completed"],
+          "description": "Current status of the Q&A session for resume support"
+        },
+        "last_question_answered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "ID of the last question answered (for resume support)"
+        },
         "started_at": {
           "type": "string",
           "format": "date-time",

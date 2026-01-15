@@ -12,6 +12,7 @@ Thank you for your interest in contributing to the Claude Code plugin marketplac
 - [Command Template](#command-template)
 - [Version Management](#version-management)
 - [Pull Request Process](#pull-request-process)
+- [Test Infrastructure](#test-infrastructure)
 - [Pre-commit Hook Setup](#pre-commit-hook-setup)
 
 ---
@@ -445,10 +446,90 @@ docs: update CONTRIBUTING with validation guide
 Before submitting a PR:
 
 1. **Validate your changes** - Run `/validate-plugin` on affected plugins
-2. **Test your commands** - Manually verify they work as expected
+2. **Test your commands** - Manually verify they work as expected (see Testing Your Command below)
 3. **Update documentation** - Keep README and CLAUDE.md current
 4. **Update CHANGELOG** - Add entry for your changes
 5. **Follow conventions** - Match existing code style and patterns
+
+---
+
+## Testing Your Command
+
+Before submitting a PR, test your command thoroughly to ensure it handles arguments correctly and provides helpful error messages.
+
+### Required Test Cases
+
+Test your command with these scenarios:
+
+#### 1. Missing Required Arguments
+```
+/your-command
+```
+(no arguments provided)
+
+**Expected:** Clear error message with usage example and argument descriptions.
+
+#### 2. Invalid Argument Values
+```
+/your-command invalid-file.xyz
+```
+
+**Expected:** Helpful error explaining what's wrong and how to fix it.
+
+#### 3. Default Optional Argument Behavior
+```
+/your-command file.md
+```
+(without optional flags like --format)
+
+**Expected:** Command uses documented default values.
+
+#### 4. All Documented Flags
+Test each flag your command supports:
+```
+/your-command file.md --dry-run
+/your-command file.md --force
+/your-command file.md --format json
+```
+
+**Expected:** Each flag behaves as documented in Input Validation section.
+
+### Test Checklist for PR Description
+
+Include this checklist in your PR description:
+
+```markdown
+## Argument Testing Results
+
+- [ ] Missing required argument shows usage with example
+- [ ] Invalid argument value shows clear error and guidance
+- [ ] Optional arguments use documented defaults
+- [ ] All documented flags work as described
+- [ ] --dry-run (if supported) produces no side effects
+- [ ] --force (if supported) overrides with warning
+- [ ] Unknown arguments show clear error
+- [ ] Error messages include example of correct usage
+```
+
+### Schema Validation Testing (if applicable)
+
+If your command generates or consumes JSON, test schema validation:
+
+```markdown
+## Schema Validation Testing
+
+- [ ] Valid output passes schema validation
+- [ ] Invalid output shows specific validation errors
+- [ ] --force flag saves despite validation errors (with warning)
+- [ ] Input validation catches malformed files
+```
+
+### Reference Documentation
+
+See `plugins/personal-plugin/references/common-patterns.md` for:
+- **Error Message Format** - Standard formats for error messages
+- **Schema Validation** - How to implement schema validation
+- **Argument Testing** - Detailed test case specifications
 
 ### PR Description Template
 
@@ -465,6 +546,150 @@ Before submitting a PR:
 ## Related Issues
 Closes #123
 ```
+
+---
+
+## Test Infrastructure
+
+This project includes a pytest-based test infrastructure for validating command behavior and schema compliance.
+
+### Directory Structure
+
+```
+tests/
+  conftest.py              # Shared pytest fixtures
+  __init__.py
+  fixtures/                # Test data files
+    sample-prd.md          # Sample document with TBD markers
+    expected-questions.json # Expected /define-questions output
+    sample-answers.json    # Sample /ask-questions output
+    expected-updated-prd.md # Expected /finish-document output
+  helpers/                 # Reusable test utilities
+    __init__.py
+    schema_validator.py    # JSON schema validation helpers
+    file_comparator.py     # File comparison utilities
+  integration/             # Integration tests
+    __init__.py
+    test_qa_workflow.py    # Q&A workflow chain tests
+```
+
+### Running Tests
+
+```bash
+# Install test dependencies
+pip install pytest jsonschema
+
+# Run all tests
+pytest tests/ -v
+
+# Run only integration tests
+pytest tests/integration/ -v
+
+# Run with verbose output and stop on first failure
+pytest tests/ -v -x
+
+# Run specific test file
+pytest tests/integration/test_qa_workflow.py -v
+
+# Run tests matching a pattern
+pytest tests/ -v -k "schema"
+```
+
+### Available Fixtures
+
+The `tests/conftest.py` file provides these pytest fixtures:
+
+| Fixture | Description |
+|---------|-------------|
+| `project_root` | Path to project root directory |
+| `schema_dir` | Path to `schemas/` directory |
+| `fixtures_dir` | Path to `tests/fixtures/` directory |
+| `questions_schema` | Loaded questions.json schema |
+| `answers_schema` | Loaded answers.json schema |
+| `sample_prd` | Contents of sample-prd.md |
+| `expected_questions` | Loaded expected-questions.json |
+| `sample_answers` | Loaded sample-answers.json |
+| `expected_updated_prd` | Contents of expected-updated-prd.md |
+
+### Test Helpers
+
+#### Schema Validation (`tests/helpers/schema_validator.py`)
+
+```python
+from tests.helpers.schema_validator import (
+    validate_against_schema,
+    get_validation_errors,
+    validate_questions_structure,
+    validate_answers_structure,
+)
+
+# Validate data against schema
+is_valid = validate_against_schema(data, schema)
+
+# Get list of specific errors
+errors = get_validation_errors(data, schema)
+
+# Validate structural requirements beyond schema
+issues = validate_questions_structure(questions_data)
+```
+
+#### File Comparison (`tests/helpers/file_comparator.py`)
+
+```python
+from tests.helpers.file_comparator import (
+    compare_files,
+    compare_markdown_content,
+    normalize_timestamps,
+    extract_tbd_markers,
+)
+
+# Compare two files, ignoring timestamps
+match, diff = compare_files(expected_path, actual_path, ignore_timestamps=True)
+
+# Extract TBD markers from markdown
+markers = extract_tbd_markers(markdown_content)
+```
+
+### Writing New Tests
+
+When adding new tests:
+
+1. **Add fixtures** to `tests/fixtures/` for test data
+2. **Create fixture loaders** in `tests/conftest.py` if needed
+3. **Use helper functions** from `tests/helpers/` for common operations
+4. **Follow pytest conventions** for test naming and organization
+
+Example test structure:
+
+```python
+import pytest
+from tests.helpers.schema_validator import validate_against_schema
+
+class TestMyFeature:
+    """Tests for my feature."""
+
+    def test_valid_input_produces_valid_output(self, my_fixture):
+        """Verify valid input produces schema-compliant output."""
+        result = process_input(my_fixture)
+        assert validate_against_schema(result, schema)
+
+    def test_invalid_input_raises_error(self):
+        """Verify invalid input produces clear error."""
+        with pytest.raises(ValueError, match="expected message"):
+            process_input(invalid_data)
+```
+
+### CI Integration
+
+Tests run automatically on GitHub Actions for:
+- All pushes to `main`
+- All pull requests targeting `main`
+
+The workflow runs tests on:
+- Python 3.10, 3.11, and 3.12
+- Ubuntu, Windows, and macOS
+
+See `.github/workflows/test.yml` for the full configuration.
 
 ---
 

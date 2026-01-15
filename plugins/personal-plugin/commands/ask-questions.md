@@ -11,10 +11,13 @@ Interactively walk the user through answering questions from a JSON file produce
 **Required Arguments:**
 - `<questions-file>` - Path to the JSON file created by `/define-questions`
 
+**Optional Arguments:**
+- `--force` - Proceed even if input or output schema validation fails (not recommended)
+
 **Validation:**
 If the questions file path is missing, display:
 ```
-Usage: /ask-questions <questions-file>
+Usage: /ask-questions <questions-file> [--force]
 Example: /ask-questions questions-PRD-20260110-143052.json
 Example: /ask-questions reference/questions-requirements-20260114.json
 ```
@@ -31,9 +34,65 @@ The user will provide a JSON file path after the slash command (e.g., `/ask-ques
 - Validate it conforms to `schemas/questions.json` schema structure
 - Verify it contains the required `questions` array and `metadata`
 - Load the original source document referenced in `metadata.source_document`
+- **Check for existing answer file** (resume support - see below)
 - Report the total number of questions to the user
 
+### 1.1 Resume Support
+
+Before starting the Q&A session, check for an incomplete previous session:
+
+1. Look for existing `answers-[source-document]-*.json` files
+2. If found with `metadata.status: "in_progress"`:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Incomplete session detected
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Previous session: answers-PRD-20260114-100000.json
+   Progress: 15 of 47 questions answered (32%)
+   Last activity: 2026-01-14T10:45:00Z
+
+   Options:
+   [R] Resume from question 16
+   [S] Start fresh (overwrites previous progress)
+   [A] Abort
+
+   Your choice (R/S/A):
+   ```
+3. On resume: Load existing answers and continue from `last_question_answered + 1`
+4. On start fresh: Backup existing file and start from question 1
+
+See `references/common-patterns.md` for full state management specification.
+
 **Input Schema:** The input file must conform to `schemas/questions.json`
+
+#### Input Validation Behavior
+
+Before proceeding with the Q&A session:
+
+1. **Load the JSON file**
+2. **Validate against `schemas/questions.json`**
+3. **If valid:** Proceed with the session
+4. **If invalid:** Report validation errors
+5. **If `--force` provided:** Proceed with a warning
+
+**Input Validation Error Message:**
+```
+Input validation failed for questions-PRD-20260114.json:
+
+Errors:
+  - metadata.source_document: Required field missing
+  - questions[2]: Missing required field 'context'
+
+The input file may have been created with an older version or manually edited.
+Use --force to proceed anyway (some features may not work correctly).
+```
+
+**Input Validation Warning (with --force):**
+```
+WARNING: Input validation failed but --force was specified.
+Proceeding with Q&A session. Some questions may not display correctly.
+```
 
 ### 2. Process Each Question ONE AT A TIME
 
@@ -189,6 +248,44 @@ Save as `answers-[source-document]-YYYYMMDD-HHMMSS.json` in the repository root.
 Example: `answers-PRD-20260110-143052.json`
 
 **Output Schema:** The output file must conform to `schemas/answers.json`
+
+#### Output Validation Behavior
+
+Before saving the answers file:
+
+1. **Generate output in memory** - Create the complete JSON structure
+2. **Validate against `schemas/answers.json`**
+3. **If valid:** Save file and report success with validation status
+4. **If invalid:** Report specific validation errors
+5. **If `--force` provided:** Save anyway with a warning
+
+**Output Validation Success Message:**
+```
+Output validated against schemas/answers.json. Saved to answers-PRD-20260114-143052.json
+
+Validation: PASSED
+- Required fields: All present
+- Field types: All correct
+```
+
+**Output Validation Error Message:**
+```
+Schema validation failed:
+
+Errors:
+  - answers[5].selected_answer: Required field missing
+  - metadata.total_questions: Must be an integer
+
+Fix these issues or use --force to save anyway (not recommended).
+```
+
+**Output Validation Warning (with --force):**
+```
+WARNING: Output validation failed but --force was specified.
+Output saved to answers-PRD-20260114-143052.json
+
+This file may not work correctly with /finish-document.
+```
 
 #### D. Display Completion Summary
 

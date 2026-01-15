@@ -334,6 +334,46 @@ If PR creation or merge fails:
 2. Provide manual commands to complete the workflow
 3. Ensure local changes are preserved
 
+## Performance
+
+**Typical Duration:**
+
+| Project Size | Expected Time |
+|--------------|---------------|
+| Small (< 50 tests) | 2-5 minutes |
+| Medium (50-200 tests) | 5-15 minutes |
+| Large (200-500 tests) | 15-30 minutes |
+| Very Large (500+ tests) | 30-60 minutes |
+
+**Factors Affecting Performance:**
+- **Test count**: More tests = longer execution
+- **Fix iterations**: Each round of fixes adds 2-5 minutes
+- **Coverage gap**: Writing new tests adds significant time
+- **Test type**: E2E tests are slower than unit tests
+- **CI complexity**: Integration with CI adds overhead
+
+**Iteration Estimates:**
+- First pass (run tests): 1-5 minutes depending on test count
+- Fix cycle (per round): 2-5 minutes
+- Coverage improvement: 5-15 minutes per 10% coverage increase
+- Documentation updates: 2-5 minutes
+- PR creation and merge: 2-5 minutes
+
+**Signs of Abnormal Behavior:**
+- Fix loop exceeding 10 iterations
+- Same test failing repeatedly with different fixes
+- Coverage not improving despite adding tests
+- Tests timing out or hanging
+
+**If the command seems stuck:**
+1. Check for fix loop iteration count
+2. Look for test timeout messages
+3. Consider interrupting and running tests manually
+4. Check for flaky tests that pass/fail randomly
+5. Review CI logs if using CI integration
+
+---
+
 ## Execution Notes
 
 - **Be methodical**: Work through failures systematically, don't rush

@@ -13,11 +13,12 @@ Complete an incomplete document by extracting all questions/TBDs, walking throug
 
 **Optional Arguments:**
 - `--auto` - Auto-select recommended answers instead of interactive Q&A (user can still override)
+- `--force` - Proceed even if schema validation fails for intermediate files (not recommended)
 
 **Validation:**
 If the document path is missing, display:
 ```
-Usage: /finish-document <document-path> [--auto]
+Usage: /finish-document <document-path> [--auto] [--force]
 Example: /finish-document PRD.md
 Example: /finish-document docs/requirements.md --auto
 ```
@@ -96,6 +97,27 @@ Execute the logic from `/define-questions`:
 ### 1.3 Save Questions File
 Save to: `reference/questions-[document-name]-[timestamp].json`
 
+#### Questions Validation Behavior
+
+Before saving the questions file:
+
+1. **Generate output in memory** - Create the complete JSON structure
+2. **Validate against `schemas/questions.json`**
+3. **If valid:** Save file and proceed to Q&A session
+4. **If invalid:** Report specific validation errors
+5. **If `--force` provided:** Save anyway with a warning
+
+**Validation Error Message:**
+```
+Schema validation failed for questions file:
+
+Errors:
+  - questions[3].id: Required field missing
+  - metadata.generated_at: Invalid date-time format
+
+Fix these issues or use --force to save anyway (not recommended).
+```
+
 ### 1.4 Report to User
 ```
 Found [X] questions/open items in [document]:
@@ -115,6 +137,33 @@ Wait for user confirmation before proceeding.
 ## Phase 2: Interactive Q&A Session
 
 Execute the logic from `/ask-questions`:
+
+### 2.0 Resume Support
+
+Before starting the Q&A session, check for an incomplete previous session:
+
+1. Look for existing `reference/answers-[document-name]-*.json` files
+2. If found with `metadata.status: "in_progress"`:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Incomplete session detected
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Previous session: reference/answers-PRD-20260114-100000.json
+   Progress: 15 of 47 questions answered (32%)
+   Last activity: 2026-01-14T10:45:00Z
+
+   Options:
+   [R] Resume from question 16
+   [S] Start fresh (overwrites previous progress)
+   [A] Abort
+
+   Your choice (R/S/A):
+   ```
+3. On resume: Load existing answers and continue from `last_question_answered + 1`
+4. On start fresh: Backup existing file and start from question 1
+
+See `references/common-patterns.md` for full state management specification.
 
 ### 2.1 Question Flow
 
@@ -205,6 +254,35 @@ After all questions are answered (or skipped), save to:
 `reference/answers-[document-name]-[timestamp].json`
 
 **Schema:** Output must conform to `schemas/answers.json`
+
+#### Output Validation Behavior
+
+Before saving the answers file:
+
+1. **Generate output in memory** - Create the complete JSON structure
+2. **Validate against `schemas/answers.json`**
+3. **If valid:** Save file and proceed to Phase 3
+4. **If invalid:** Report specific validation errors
+5. **If `--force` provided:** Save anyway with a warning
+
+**Validation Error Message:**
+```
+Schema validation failed for answers file:
+
+Errors:
+  - answers[5].selected_answer: Required field missing
+  - metadata.total_questions: Must be an integer
+
+Fix these issues or use --force to save anyway (not recommended).
+```
+
+**Validation Warning (with --force):**
+```
+WARNING: Output validation failed but --force was specified.
+Answers saved to reference/answers-PRD-20260114-150030.json
+
+Proceeding with document update. Some answers may not apply correctly.
+```
 
 Structure:
 ```json

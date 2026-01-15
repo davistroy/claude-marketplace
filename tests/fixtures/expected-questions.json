@@ -1,0 +1,174 @@
+{
+  "metadata": {
+    "source_document": "sample-prd.md",
+    "generated_at": "2026-01-14T10:00:00Z",
+    "total_questions": 12,
+    "topics_summary": [
+      "Features",
+      "User Roles",
+      "Technical Requirements",
+      "Platform",
+      "Integrations",
+      "Metrics",
+      "Timeline"
+    ]
+  },
+  "questions": [
+    {
+      "id": 1,
+      "topic": "Features",
+      "sections": ["2. Problem Statement"],
+      "text": "What specific features should we highlight that current solutions lack?",
+      "context": "The problem statement mentions current solutions lack essential features but doesn't specify which ones.",
+      "priority": "high",
+      "location": {
+        "line_start": 13,
+        "line_end": 13,
+        "original_text": "[TBD: specific features to highlight]"
+      }
+    },
+    {
+      "id": 2,
+      "topic": "User Roles",
+      "sections": ["3.1 Primary Users"],
+      "text": "What other user roles should we target?",
+      "context": "Primary users section lists managers and coordinators but indicates additional roles may be needed.",
+      "priority": "medium",
+      "location": {
+        "line_start": 19,
+        "line_end": 19,
+        "original_text": "[TBD: What other user roles should we target?]"
+      }
+    },
+    {
+      "id": 3,
+      "topic": "Features",
+      "sections": ["4.1 Task Management"],
+      "text": "Should we include custom fields in task management?",
+      "context": "The task properties list asks whether custom fields should be included.",
+      "priority": "medium",
+      "location": {
+        "line_start": 33,
+        "line_end": 33,
+        "original_text": "[TBD: Should we include custom fields?]"
+      }
+    },
+    {
+      "id": 4,
+      "topic": "Features",
+      "sections": ["4.2 Project Organization"],
+      "text": "How should we handle task dependencies?",
+      "context": "Project organization section needs decision on task dependency handling.",
+      "priority": "high",
+      "location": {
+        "line_start": 38,
+        "line_end": 38,
+        "original_text": "How should we handle task dependencies? [TBD]"
+      }
+    },
+    {
+      "id": 5,
+      "topic": "Features",
+      "sections": ["4.2 Project Organization"],
+      "text": "What is the maximum project hierarchy depth?",
+      "context": "Project hierarchy depth needs to be specified, with 3 levels recommended.",
+      "priority": "medium",
+      "location": {
+        "line_start": 39,
+        "line_end": 39,
+        "original_text": "[TBD: recommend 3 levels]"
+      }
+    },
+    {
+      "id": 6,
+      "topic": "Features",
+      "sections": ["4.3 Collaboration"],
+      "text": "Should mobile push notifications be included in the notification system?",
+      "context": "Notification types include email and in-app, but mobile push needs confirmation.",
+      "priority": "medium",
+      "location": {
+        "line_start": 47,
+        "line_end": 47,
+        "original_text": "[TBD: Mobile push notifications - confirm with mobile team]"
+      }
+    },
+    {
+      "id": 7,
+      "topic": "Platform",
+      "sections": ["5.1 Platform Support"],
+      "text": "Should mobile app support iOS only initially or both iOS and Android?",
+      "context": "Mobile platform support needs to be decided for initial release.",
+      "priority": "high",
+      "location": {
+        "line_start": 53,
+        "line_end": 53,
+        "original_text": "[TBD: iOS only initially or both iOS and Android?]"
+      }
+    },
+    {
+      "id": 8,
+      "topic": "Technical Requirements",
+      "sections": ["5.2 Performance"],
+      "text": "What is the target concurrent user capacity?",
+      "context": "Performance requirements list page load and API response times but not concurrent users.",
+      "priority": "high",
+      "location": {
+        "line_start": 59,
+        "line_end": 59,
+        "original_text": "[TBD: What is the target concurrent user capacity?]"
+      }
+    },
+    {
+      "id": 9,
+      "topic": "Integrations",
+      "sections": ["5.3 Integration"],
+      "text": "Which calendar providers should be supported: Google Calendar, Outlook, or both?",
+      "context": "Calendar sync integration provider needs to be determined.",
+      "priority": "medium",
+      "location": {
+        "line_start": 63,
+        "line_end": 63,
+        "original_text": "[TBD: Google Calendar, Outlook, or both?]"
+      }
+    },
+    {
+      "id": 10,
+      "topic": "Integrations",
+      "sections": ["5.3 Integration"],
+      "text": "What is the priority for Slack integration?",
+      "context": "Communication tool integration needs prioritization decision.",
+      "priority": "medium",
+      "location": {
+        "line_start": 64,
+        "line_end": 64,
+        "original_text": "[TBD: Slack integration priority?]"
+      }
+    },
+    {
+      "id": 11,
+      "topic": "Metrics",
+      "sections": ["6. Success Metrics"],
+      "text": "What is the target number for user adoption in the first 90 days?",
+      "context": "Success metrics table has user adoption target marked as TBD.",
+      "priority": "high",
+      "location": {
+        "line_start": 69,
+        "line_end": 69,
+        "original_text": "[TBD: target number]"
+      }
+    },
+    {
+      "id": 12,
+      "topic": "Timeline",
+      "sections": ["7. Timeline"],
+      "text": "What is the confirmed timeline for the mobile app phase?",
+      "context": "Phase 2 mobile app timeline needs confirmation.",
+      "priority": "medium",
+      "location": {
+        "line_start": 76,
+        "line_end": 76,
+        "original_text": "[TBD: confirm timeline]"
+      }
+    }
+  ]
+}
