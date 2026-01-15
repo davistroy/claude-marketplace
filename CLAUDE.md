@@ -29,6 +29,7 @@ plugins/
       finish-document.md      # Extract questions, answer, update document
       plan-improvements.md    # Generate improvement recommendations and phased implementation plan
       plan-next.md            # Analyze repo and recommend next action
+      remove-ip.md            # De-identify documents by removing company info and IP
       review-arch.md          # Quick architectural audit (read-only, no files generated)
       review-pr.md            # Structured PR review with code analysis
       setup-statusline.md     # Custom status line setup (Windows/PowerShell)
@@ -84,6 +85,7 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Planning commands** (`plan-improvements`, `plan-next`): Analyze codebase and generate actionable plans
 - **Testing commands** (`test-project`): Comprehensive test, fix, and ship workflows
 - **Cleanup commands** (`clean-repo`): Repository cleanup, organization, and documentation refresh
+- **Sanitization commands** (`remove-ip`): De-identify documents by removing company info and intellectual property
 - **Utility commands** (`bump-version`, `validate-plugin`, `setup-statusline`): Plugin/repository maintenance and configuration tasks
 
 ### Output File Naming
@@ -146,6 +148,43 @@ Converts BPMN 2.0 XML files to Draw.io native format (.drawio):
 3. Add `commands/` and/or `skills/` directories with markdown files
 4. **Create a `help.md` skill** with usage information for all commands/skills
 5. Register the plugin in `.claude-plugin/marketplace.json`
+
+## Command Namespacing
+
+Commands can be invoked with an explicit namespace for disambiguation:
+
+| Format | Example | When to Use |
+|--------|---------|-------------|
+| Explicit namespace | `/personal-plugin:review-arch` | Required if another plugin has `/review-arch` |
+| Short form | `/review-arch` | Works if only one plugin has this command |
+
+**Collision Resolution:**
+- If two plugins define commands with the same name, the short form becomes ambiguous
+- Claude Code will prompt for clarification or suggest the namespaced form
+- `/validate-plugin --all` detects naming collisions across plugins
+
+## Plugin Dependencies
+
+Plugins can declare dependencies on other plugins in their `plugin.json`:
+
+```json
+{
+  "name": "advanced-plugin",
+  "version": "1.0.0",
+  "dependencies": {
+    "personal-plugin": ">=2.0.0",
+    "bpmn-plugin": "^1.5.0"
+  }
+}
+```
+
+**Version Syntax:**
+- `>=2.0.0` - Version 2.0.0 or higher
+- `^1.5.0` - Compatible with 1.5.0 (1.5.x or 1.x.y where x >= 5)
+- `~1.5.0` - Approximately 1.5.0 (1.5.x only)
+- `1.5.0` - Exactly version 1.5.0
+
+Dependencies are validated by `/validate-plugin` but not automatically installed.
 
 ## Help Skill Maintenance
 

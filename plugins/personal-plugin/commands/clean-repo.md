@@ -10,6 +10,7 @@ Perform a thorough cleanup and organization pass on this repository. Execute eac
 
 **Optional Arguments:**
 - `--dry-run` - Preview all changes without executing them
+- `--audit` - Log all actions to `.claude-plugin/audit.log` (see common-patterns.md)
 
 **Dry-Run Mode:**
 When `--dry-run` is specified:
@@ -20,6 +21,19 @@ When `--dry-run` is specified:
 - Prefix all proposed actions with `[DRY-RUN]` to clearly indicate preview mode
 - Do NOT execute any file deletions, moves, or modifications
 - Skip all confirmation prompts (nothing will be executed anyway)
+
+**Audit Mode:**
+When `--audit` is specified:
+- Log every file deletion and move to `.claude-plugin/audit.log`
+- Each log entry is a JSON line with: timestamp, command, action, path, success
+- Create `.claude-plugin/` directory if it doesn't exist
+- Append to log file (never overwrite existing entries)
+
+Example log entries:
+```json
+{"timestamp": "2026-01-14T10:30:00Z", "command": "clean-repo", "action": "delete", "path": "temp/cache.json", "success": true}
+{"timestamp": "2026-01-14T10:30:01Z", "command": "clean-repo", "action": "move", "path": "old.md", "details": {"to": "archive/old.md"}, "success": true}
+```
 
 ## Phase 1: Artifact Cleanup
 

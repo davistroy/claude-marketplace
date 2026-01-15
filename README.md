@@ -33,6 +33,7 @@ Custom commands and skills for productivity workflows.
 | `/new-command` | Generate a new command file from a template with proper s... |
 | `/plan-improvements` | Analyze codebase and generate prioritized improvement rec... |
 | `/plan-next` | Analyze repo and recommend the next logical action |
+| `/remove-ip` | Sanitize documents by removing company identifiers and IP... |
 | `/review-arch` | Quick architectural audit with technical debt assessment ... |
 | `/review-pr` | Structured PR review with security, performance, and code... |
 | `/scaffold-plugin` | Create a new plugin with proper directory structure, meta... |
@@ -89,6 +90,12 @@ plugins/
     templates/              # XML templates and lane mappings
     examples/               # Sample BPMN files
 ```
+
+## Documentation
+
+- [WORKFLOWS.md](WORKFLOWS.md) - How to chain commands for common use cases
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Solutions to common issues
+- [SECURITY.md](SECURITY.md) - Security model and vulnerability reporting
 
 ## License
 

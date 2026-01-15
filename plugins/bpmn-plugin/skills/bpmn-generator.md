@@ -53,6 +53,36 @@ ELSE IF user provides a natural language description:
 - Questions about process design
 - No structured document provided
 
+### Preview Mode
+
+Both modes support an optional `--preview` flag:
+
+When `--preview` is specified:
+1. Generate the complete BPMN XML in memory
+2. Validate structure (namespace, elements, flows)
+3. Display summary:
+   ```
+   Preview: /bpmn-generator
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Process: Order Fulfillment
+   Source: Interactive mode
+
+   Structure Summary:
+     Pools: 1
+     Lanes: 3 (Sales, Operations, Shipping)
+     Tasks: 8 (5 user, 3 service)
+     Gateways: 2 (1 exclusive, 1 parallel)
+     Events: 2 (1 start, 1 end)
+
+   Validation: PASSED
+   Output file: order-fulfillment.bpmn
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Save this file? (y/n):
+   ```
+4. Wait for user confirmation before saving
+5. On 'n' or 'no': Exit without saving
+
 ---
 
 # PART 1: INTERACTIVE MODE

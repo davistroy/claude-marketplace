@@ -32,15 +32,29 @@ If the user hasn't provided a markdown file path, ask them to specify:
 
 ### Step 2: Validate Prerequisites
 
-Check that pandoc is installed:
+**CRITICAL:** Check that pandoc is installed BEFORE any processing:
+
 ```bash
+# Check for pandoc
 pandoc --version
 ```
 
-If pandoc is not installed, inform the user:
-- **Windows**: `winget install pandoc` or download from https://pandoc.org/installing.html
-- **macOS**: `brew install pandoc`
-- **Linux**: `sudo apt install pandoc` or equivalent
+If the pandoc check fails (command not found), display this error and stop:
+
+```
+Error: Required dependency 'pandoc' not found
+
+/convert-markdown requires pandoc for document conversion.
+
+Installation instructions:
+  Windows: winget install pandoc
+  macOS:   brew install pandoc
+  Linux:   sudo apt install pandoc
+
+After installing, run the command again.
+```
+
+**Do NOT proceed** with any file processing if pandoc is missing. The user must install pandoc first.
 
 ### Step 3: Analyze Document Structure
 

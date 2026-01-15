@@ -15,6 +15,8 @@ Analyze the document specified by the user and extract all questions, open items
 - `--format [json|csv]` - Output format (default: json)
   - `json`: Structured format with metadata (default, compatible with `/ask-questions`)
   - `csv`: Flat tabular format with columns: id, text, context, topic, sections, priority
+- `--preview` - Show summary and ask for confirmation before saving (see common-patterns.md)
+- `--force` - Save output even if schema validation fails (not recommended)
 
 **Validation:**
 If the document path is missing, display:
@@ -92,6 +94,30 @@ Example: /define-questions PRD.md --format csv
    - The file path where the output was saved
    - The format used (JSON or CSV)
 
+10. **Preview mode** - When `--preview` is specified:
+    - Generate the output in memory
+    - Validate against schema
+    - Display summary:
+      ```
+      Preview: /define-questions
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      Source: PRD.md
+      Questions found: 15
+
+      By topic:
+        Technical Architecture: 5
+        User Experience: 3
+        Data Model: 7
+
+      Schema validation: PASSED
+      Output file: questions-PRD-20260114-143052.json
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      Save this file? (y/n):
+      ```
+    - Wait for user confirmation before saving
+    - On 'n' or 'no': Exit without saving
+
 ## Example Output
 
 ### JSON Format (default)
@@ -137,10 +163,62 @@ The output JSON must conform to the schema defined in `schemas/questions.json`.
 
 **Schema Location:** `schemas/questions.json`
 
-**Validation:** Before saving, ensure the output matches the schema structure:
-- Required: `metadata.source_document`, `metadata.generated_at`, `metadata.total_questions`
-- Required per question: `id`, `text` (or `question`), `context`
-- Optional: `topic`, `category`, `sections`, `priority`, `location`
+### Schema Validation Behavior
+
+Before saving the output file, validate against `schemas/questions.json`:
+
+1. **Generate output in memory** - Create the complete JSON structure
+2. **Validate against schema** - Check all required fields and types
+3. **If valid:** Save file and report success with validation status
+4. **If invalid:** Report specific validation errors
+5. **If `--force` provided:** Save anyway with a warning
+
+**Required fields (metadata):**
+- `metadata.source_document` - Source document path
+- `metadata.generated_at` - ISO 8601 timestamp
+- `metadata.total_questions` - Integer count
+
+**Required fields (per question):**
+- `id` - Unique identifier (string or integer)
+- `text` or `question` - The question text
+- `context` - Background information
+
+**Optional fields:**
+- `topic`, `category`, `sections`, `priority`, `location`
+
+### Validation Success Message
+
+After successful validation, display:
+```
+Output validated against schemas/questions.json. Saved to questions-PRD-20260114-143052.json
+
+Validation: PASSED
+- Required fields: All present
+- Field types: All correct
+- Total questions: 15
+```
+
+### Validation Error Message
+
+If validation fails and `--force` is not provided:
+```
+Schema validation failed:
+
+Errors:
+  - questions[3].id: Required field missing
+  - questions[7].priority: Must be one of: high, medium, low
+  - metadata.generated_at: Invalid date-time format
+
+Fix these issues or use --force to save anyway (not recommended).
+```
+
+If `--force` is provided, save the file with a warning:
+```
+WARNING: Schema validation failed but --force was specified.
+Output saved to questions-PRD-20260114-143052.json
+
+This file may not work correctly with /ask-questions or /finish-document.
+```
 
 See `schemas/README.md` for validation instructions and tools.
 

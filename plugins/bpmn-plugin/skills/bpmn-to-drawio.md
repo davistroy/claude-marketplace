@@ -58,17 +58,41 @@ pip install lxml networkx pyyaml
 
 ### Step 3: Check Graphviz and pygraphviz
 
-Graphviz is required for automatic layout. Check if it's installed:
+**CRITICAL:** Graphviz is required for automatic layout. Check BEFORE any processing:
 
 ```bash
 # Check for Graphviz
 dot -V 2>/dev/null && echo "Graphviz: OK" || echo "Graphviz: MISSING"
 ```
 
-**If Graphviz is missing, ask the user:**
-> "Graphviz is not installed. It's required for automatic diagram layout. Install it now?"
+**If Graphviz is missing**, display this standardized error:
 
-If user approves, install based on OS:
+```
+Error: Required dependency 'graphviz' not found
+
+/bpmn-to-drawio requires Graphviz for automatic diagram layout.
+
+Installation instructions:
+  Windows: choco install graphviz
+  macOS:   brew install graphviz
+  Linux:   sudo apt install graphviz libgraphviz-dev
+
+After installing Graphviz, also install the Python bindings:
+  pip install pygraphviz
+
+After installing, run the command again.
+
+Note: If your BPMN file already has layout coordinates, you can skip
+Graphviz and use: /bpmn-to-drawio input.bpmn output.drawio --layout=preserve
+```
+
+**Important Decision Point:**
+
+Before showing the error, check if the BPMN file has DI coordinates (Step 4):
+- If `HAS_DI=true`: Offer the `--layout=preserve` alternative
+- If `HAS_DI=false`: Graphviz is required, display the full error
+
+**If user wants to install Graphviz**, guide them through:
 
 ```bash
 # Detect OS and install
@@ -85,11 +109,6 @@ fi
 ```bash
 pip install pygraphviz
 ```
-
-**If user declines Graphviz installation:**
-- Check if BPMN file has DI coordinates (Step 4)
-- If yes: Can proceed with `--layout=preserve` (no Graphviz needed)
-- If no: Cannot proceed - Graphviz is required for layout generation
 
 ### Step 4: Analyze Source BPMN
 

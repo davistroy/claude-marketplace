@@ -42,6 +42,7 @@ COMMANDS
 | /plan-improvements | Analyze codebase and generate prioritized improvement recommendations with... |
 | /plan-next | Analyze repo and recommend the next logical action |
 | /review-arch | Quick architectural audit with technical debt assessment (read-only, no... |
+| /remove-ip | Sanitize documents by removing company identifiers and non-public intellectual... |
 | /review-pr | Structured PR review with security, performance, and code quality analysis |
 | /scaffold-plugin | Create a new plugin with proper directory structure, metadata, and starter files |
 | /setup-statusline | "[Personal] Troy's custom status line setup (Windows/PowerShell)" |
@@ -240,6 +241,19 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /remove-ip
+**Description:** Sanitize documents by removing company identifiers and non-public intellectual property while preserving meaning
+**Arguments:** `<document-path>` [--company <name>] [--mode standard|strict] [--industry <industry>] [--audience <audience>]
+**Output:** [document-name]-sanitized-YYYYMMDD-HHMMSS.md
+**Example:**
+```
+/remove-ip internal-playbook.md
+/remove-ip strategy-doc.md --mode strict
+/remove-ip playbook.md --company "Acme Corp" --industry "Finance"
+```
+
+---
+
 #### /review-arch
 **Description:** Quick architectural audit with technical debt assessment (read-only, no...
 **Arguments:** None required
@@ -332,6 +346,26 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+## Namespace Support
+
+When another plugin defines a command with the same name, show the namespaced form:
+
+```
+personal-plugin Commands and Skills
+===================================
+
+Note: /help is also available in bpmn-plugin.
+      Use /personal-plugin:help for this plugin's help.
+
+...
+```
+
+In the table, add namespace hints for colliding commands:
+
+```
+| /help | Show available commands and skills (also: /personal-plugin:help) |
+```
+
 ## Error Handling
 
 If the requested command is not found:
@@ -339,8 +373,10 @@ If the requested command is not found:
 Command '[name]' not found in personal-plugin.
 
 Available commands:
-  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-markdown, /define-questions, /develop-image-prompt, /finish-document, /new-command, /plan-improvements, /plan-next, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
+  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-markdown, /define-questions, /develop-image-prompt, /finish-document, /new-command, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
   /help, /ship
+
+Tip: Use /personal-plugin:<command> for explicit namespace.
 ```
