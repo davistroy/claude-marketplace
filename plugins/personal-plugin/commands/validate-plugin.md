@@ -100,6 +100,57 @@ plugin.json Validation
 [PASS] Version follows semver format
 ```
 
+#### 1.3 Marketplace Schema Validation
+
+Validate that marketplace.json plugin entries only contain fields recognized by Claude Code's schema.
+
+**Valid Plugin Entry Fields:**
+- `name` (required)
+- `source` (required)
+- `description` (required)
+- `version` (required)
+- `category` (optional)
+- `tags` (optional)
+
+**Known Invalid Fields:**
+- `last_updated` - Not part of Claude Code's plugin schema
+
+**Check:**
+1. Parse `.claude-plugin/marketplace.json`
+2. For each plugin entry, check for unrecognized fields
+3. Flag any fields not in the valid fields list
+
+**Report:**
+```
+Marketplace Schema Validation
+-----------------------------
+[PASS] All plugin entries use valid schema fields
+```
+
+Or on failure:
+```
+[FAIL] marketplace.json contains invalid schema fields
+
+      Plugin 'personal-plugin' has unrecognized fields:
+        - last_updated (line 18)
+
+      Claude Code's schema does not recognize these fields.
+      This will cause "schema validation failed" errors when
+      other repositories try to install plugins from this marketplace.
+
+      Remove these fields from marketplace.json to fix.
+```
+
+**Auto-fix with --fix:**
+When `--fix` is specified, automatically remove unrecognized fields:
+```
+Auto-Fix Applied:
+  marketplace.json: Removed 'last_updated' from plugin 'personal-plugin'
+  marketplace.json: Removed 'last_updated' from plugin 'bpmn-plugin'
+
+2 invalid fields removed. Marketplace schema now valid.
+```
+
 ### Phase 2: Frontmatter Validation
 
 Check all `.md` files in commands/ and skills/ directories.
@@ -495,6 +546,7 @@ Plugin Validation: [plugin-name]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Structure Validation     [PASS]
+Marketplace Schema       [PASS]
 Frontmatter Validation   [PASS] (15 files checked)
 Version Synchronization  [PASS]
 Content Validation       [WARN] (2 warnings)
@@ -546,6 +598,7 @@ When `--fix` is specified, attempt to fix simple issues:
 | Empty description | Prompt for description |
 | Forbidden name field | Remove the field |
 | Code block without language | Add `text` as default |
+| Invalid marketplace schema fields | Remove unrecognized fields (e.g., `last_updated`) |
 
 **Report fixes:**
 ```
@@ -572,6 +625,7 @@ Plugin Validation: personal-plugin (STRICT MODE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Structure Validation     [PASS]
+Marketplace Schema       [PASS]
 Frontmatter Validation   [PASS]
 Version Synchronization  [PASS]
 Content Validation       [FAIL] (2 issues - strict mode)
@@ -836,6 +890,7 @@ Phase 1: Structure Validation
 [PASS] commands/ directory (15 files)
 [PASS] skills/ directory (1 file)
 [PASS] references/ directory (1 file)
+[PASS] Marketplace schema valid
 
 Phase 2: Frontmatter Validation
 -------------------------------
@@ -884,6 +939,7 @@ Validating All Plugins
 Plugin: personal-plugin
 -----------------------
 [PASS] Structure valid
+[PASS] Marketplace schema valid
 [PASS] Frontmatter valid (16 files)
 [PASS] Versions synchronized
 [WARN] 2 content warnings
@@ -891,6 +947,7 @@ Plugin: personal-plugin
 Plugin: bpmn-plugin
 -------------------
 [PASS] Structure valid
+[PASS] Marketplace schema valid
 [PASS] Frontmatter valid (2 files)
 [PASS] Versions synchronized
 [PASS] Content valid

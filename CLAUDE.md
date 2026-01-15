@@ -188,7 +188,7 @@ Dependencies are validated by `/validate-plugin` but not automatically installed
 
 ## Versioning Strategy
 
-This repository uses a **three-tier versioning strategy**:
+This repository uses a **two-tier versioning strategy**:
 
 ### 1. Marketplace Version (`marketplace_version` in marketplace.json)
 
@@ -211,16 +211,9 @@ Each plugin maintains its own independent version:
 - Updated using `/bump-version [plugin-name] [major|minor|patch]`
 - Reflected in both `plugins/[name]/.claude-plugin/plugin.json` and `marketplace.json`
 
-### 3. Last Updated Timestamps (`last_updated` in marketplace.json)
-
-Each plugin entry in marketplace.json includes a `last_updated` date (YYYY-MM-DD format):
-- Updated whenever the plugin version changes
-- Helps users identify recently updated plugins
-- Automatically updated by `/bump-version`
-
 ### Version Update Workflow
 
-1. **Plugin changes only**: Bump plugin version and update `last_updated`
+1. **Plugin changes only**: Bump plugin version
 2. **Marketplace infrastructure changes**: Bump `marketplace_version`
 3. **Both**: Update both independently
 
