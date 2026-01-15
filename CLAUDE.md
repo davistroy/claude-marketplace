@@ -186,6 +186,44 @@ Plugins can declare dependencies on other plugins in their `plugin.json`:
 
 Dependencies are validated by `/validate-plugin` but not automatically installed.
 
+## Versioning Strategy
+
+This repository uses a **three-tier versioning strategy**:
+
+### 1. Marketplace Version (`marketplace_version` in marketplace.json)
+
+The marketplace version tracks changes to the marketplace infrastructure itself:
+- Schema changes to marketplace.json
+- Changes to shared tooling (scripts, pre-commit hooks)
+- Repository-wide documentation updates
+
+**Not bumped for:** Individual plugin updates, new commands/skills.
+
+**Format:** Semantic versioning (MAJOR.MINOR.PATCH)
+- MAJOR: Breaking schema changes
+- MINOR: New marketplace features
+- PATCH: Bug fixes, documentation
+
+### 2. Plugin Versions (in each plugin's plugin.json and marketplace.json)
+
+Each plugin maintains its own independent version:
+- Tracks changes to that plugin's commands, skills, and references
+- Updated using `/bump-version [plugin-name] [major|minor|patch]`
+- Reflected in both `plugins/[name]/.claude-plugin/plugin.json` and `marketplace.json`
+
+### 3. Last Updated Timestamps (`last_updated` in marketplace.json)
+
+Each plugin entry in marketplace.json includes a `last_updated` date (YYYY-MM-DD format):
+- Updated whenever the plugin version changes
+- Helps users identify recently updated plugins
+- Automatically updated by `/bump-version`
+
+### Version Update Workflow
+
+1. **Plugin changes only**: Bump plugin version and update `last_updated`
+2. **Marketplace infrastructure changes**: Bump `marketplace_version`
+3. **Both**: Update both independently
+
 ## Help Skill Maintenance
 
 **IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills.

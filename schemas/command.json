@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://claude-marketplace/schemas/command.json",
+  "title": "Command Frontmatter Schema",
+  "description": "JSON Schema for validating command markdown file frontmatter",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 200,
+      "description": "Brief description shown in command list (10-200 characters)"
+    },
+    "allowed-tools": {
+      "type": "string",
+      "pattern": "^[A-Za-z]+\\([^)]+\\)$|^[A-Za-z]+$",
+      "description": "Tool restrictions in format 'ToolName(pattern)' or 'ToolName'"
+    }
+  },
+  "required": ["description"],
+  "additionalProperties": false,
+  "forbiddenProperties": {
+    "name": {
+      "error": "The 'name' field is forbidden - filename determines command name"
+    }
+  },
+  "$defs": {
+    "requiredSections": {
+      "description": "Required sections that must appear in command markdown files",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Input Validation",
+          "Instructions"
+        ]
+      }
+    },
+    "recommendedSections": {
+      "description": "Recommended sections for complete commands",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Output Format",
+          "Examples",
+          "Performance"
+        ]
+      }
+    },
+    "canonicalSectionOrder": {
+      "description": "The canonical order of sections in a command file",
+      "type": "array",
+      "items": [
+        { "const": "Frontmatter", "description": "YAML frontmatter with description, allowed-tools" },
+        { "const": "Title", "description": "# Command Name" },
+        { "const": "Description", "description": "Brief description paragraph" },
+        { "const": "Input Validation", "description": "Required and optional arguments" },
+        { "const": "Instructions", "description": "Step-by-step command instructions" },
+        { "const": "Output Format", "description": "Output file structure (if applicable)" },
+        { "const": "Examples", "description": "Usage examples" },
+        { "const": "Performance", "description": "Performance expectations (if applicable)" }
+      ]
+    },
+    "flagNamingConventions": {
+      "description": "Standard flag naming conventions",
+      "type": "object",
+      "properties": {
+        "--all": "Apply to all targets/plugins",
+        "--fix": "Attempt to auto-fix issues",
+        "--verbose": "Show detailed output",
+        "--force": "Proceed despite validation errors",
+        "--preview": "Show preview before saving",
+        "--dry-run": "Simulate without making changes",
+        "--strict": "Fail on any violation (errors and warnings)",
+        "--report": "Generate detailed compliance report",
+        "--audit": "Enable audit logging"
+      }
+    },
+    "outputNamingPattern": {
+      "description": "Pattern for output file naming",
+      "type": "string",
+      "pattern": "^\\[type\\]-\\[source\\]-\\[timestamp\\]\\.\\[ext\\]$",
+      "examples": [
+        "assessment-PRD-20260114-143052.md",
+        "questions-requirements-20260114-150000.json"
+      ]
+    },
+    "errorMessageFormat": {
+      "description": "Standard error message format",
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "const": "Error: [Brief description]\n\nExpected: [What was expected]\nReceived: [What was provided]\n\nSuggestion: [How to fix]"
+        }
+      }
+    },
+    "validationChecks": {
+      "description": "Validation checks performed by /validate-plugin --strict",
+      "type": "object",
+      "properties": {
+        "frontmatter": {
+          "description": "Frontmatter validation checks",
+          "type": "array",
+          "items": {
+            "enum": [
+              "has_description",
+              "no_name_field",
+              "valid_yaml_syntax",
+              "allowed_tools_format"
+            ]
+          }
+        },
+        "sections": {
+          "description": "Section validation checks",
+          "type": "array",
+          "items": {
+            "enum": [
+              "has_input_validation",
+              "has_instructions",
+              "follows_canonical_order"
+            ]
+          }
+        },
+        "content": {
+          "description": "Content validation checks",
+          "type": "array",
+          "items": {
+            "enum": [
+              "output_naming_compliance",
+              "error_format_compliance",
+              "flag_naming_consistency"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

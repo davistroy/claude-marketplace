@@ -1,775 +1,532 @@
 # Implementation Plan
 
-**Generated:** 2026-01-14
-**Based On:** RECOMMENDATIONS.md (post v2.1.0)
+**Generated:** 2026-01-15T09:45:00
+**Based On:** RECOMMENDATIONS.md (v2.3.0 analysis)
 **Total Phases:** 4
 
 ---
 
 ## Plan Overview
 
-This plan organizes 16 recommendations into 4 phases, prioritizing documentation and quick wins first, then building quality assurance infrastructure, and finally addressing ecosystem maturity. Each phase is designed to deliver standalone value while building toward comprehensive quality assurance.
+This plan organizes 20 recommendations into 4 phases, building from quick wins and enforcement improvements to strategic infrastructure changes. Each phase delivers standalone value while laying foundation for subsequent phases.
 
 **Phasing Strategy:**
-- **Phase 1:** Documentation & Quick Wins - Immediate user-facing improvements
-- **Phase 2:** Quality Assurance Foundation - Schema validation and testing patterns
-- **Phase 3:** Testing Infrastructure - Integration tests and shared test utilities
-- **Phase 4:** Ecosystem Maturity - Plugin system improvements and advanced UX
+- **Phase 1:** Quick Wins & Enforcement - Immediate improvements, blocking validation
+- **Phase 2:** Architecture & Patterns - Modularization, validation framework
+- **Phase 3:** Developer Experience - Templates, onboarding, testing expansion
+- **Phase 4:** Advanced Capabilities - CI/CD, maturity scorecard, analytics
 
 ### Phase Summary Table
 
 | Phase | Focus Area | Key Deliverables | Est. Tokens | Dependencies |
 |-------|------------|------------------|-------------|--------------|
-| 1 | Documentation | WORKFLOWS.md, TROUBLESHOOTING.md, SECURITY.md, dependency checks | ~40K | None |
-| 2 | Quality Foundation | Runtime schema validation, argument testing patterns | ~50K | None |
-| 3 | Testing Infrastructure | Integration tests, shared test utilities | ~70K | Phase 2 |
-| 4 | Ecosystem Maturity | Namespace support, preview mode, state management | ~60K | Phase 1 |
+| 1 | Quick Wins & Enforcement | README tables, help sync blocking, directory auto-creation | ~35K | None |
+| 2 | Architecture & Patterns | common-patterns modularization, validation framework | ~80K | Phase 1 |
+| 3 | Developer Experience | New templates, onboarding guide, core command tests | ~70K | Phase 2 |
+| 4 | Advanced Capabilities | CI/CD pipeline, maturity scorecard | ~55K | Phase 3 |
 
 ---
 
-## Phase 1: Documentation & Quick Wins
+## Phase 1: Quick Wins & Enforcement
 
-**Estimated Effort:** ~40,000 tokens (including testing/fixes)
+**Estimated Effort:** ~35,000 tokens (including testing/fixes)
 **Dependencies:** None
 **Parallelizable:** Yes - all items are independent
 
 ### Goals
-- Improve user self-service with documentation
-- Prevent cryptic errors from missing dependencies
-- Show users how to chain commands effectively
-- Build trust with security documentation
+- Complete README documentation gaps
+- Make help.md synchronization blocking
+- Ensure output directories auto-create
+- Fix BPMN plugin help descriptions
 
 ### Work Items
 
-#### 1.1 Create Workflow Documentation
-**Recommendation Ref:** W1
+#### 1.1 Complete README Command Tables
+**Recommendation Ref:** U2
 **Files Affected:**
-- `WORKFLOWS.md` (new)
-- `README.md` (add link)
+- `scripts/update-readme.py`
+- `README.md`
 
 **Description:**
-Create comprehensive workflow documentation showing how to chain commands for common use cases:
+Update README to show complete command descriptions without truncation.
 
-1. **Document Completion Workflow**
-   - `/define-questions` -> `/ask-questions` -> `/finish-document`
-   - Include file naming patterns and expected outputs
-
-2. **Code Review Workflow**
-   - `/review-pr` -> fix issues -> `/ship`
-   - Show typical iteration cycle
-
-3. **Architecture Analysis Workflow**
-   - `/review-arch` for quick analysis
-   - `/plan-improvements` for deep analysis with implementation plan
-   - Working through IMPLEMENTATION_PLAN.md phases
-
-4. **Repository Maintenance Workflow**
-   - `/validate-plugin` -> `/bump-version` -> `/ship`
-   - `/clean-repo` for periodic cleanup
-
-5. **New Command Development Workflow**
-   - `/new-command` -> test -> `/ship`
-   - Reference to CONTRIBUTING.md
+1. Review current `update-readme.py` for truncation logic
+2. Modify to show first complete sentence (natural truncation at period)
+3. Add hyperlinks to individual command files
+4. Regenerate README.md
 
 **Acceptance Criteria:**
-- [x] WORKFLOWS.md created with 5+ documented workflows
-- [x] Each workflow shows complete command sequence
-- [x] File naming patterns documented
-- [x] README.md links to WORKFLOWS.md
+- [x] Command descriptions no longer show ellipsis
+- [x] Each command links to its source file
+- [x] Table formatting remains readable
 
 ---
 
-#### 1.2 Create Troubleshooting Guide
-**Recommendation Ref:** D1
+#### 1.2 Make Help.md Synchronization Blocking
+**Recommendation Ref:** U1
 **Files Affected:**
-- `TROUBLESHOOTING.md` (new)
-- `README.md` (add link)
+- `scripts/pre-commit`
+- `plugins/personal-plugin/commands/validate-plugin.md`
 
 **Description:**
-Create troubleshooting guide covering common issues:
+Ensure help.md files cannot drift from actual commands.
 
-1. **Installation Issues**
-   - Missing Python dependencies
-   - PATH configuration problems
-   - Permission errors
-
-2. **Dependency Issues**
-   - pandoc not found (`/convert-markdown`)
-   - graphviz not found (`/bpmn-to-drawio`)
-   - Platform-specific installation instructions
-
-3. **Command Failures**
-   - Invalid argument errors
-   - File not found errors
-   - Schema validation failures
-
-4. **Output Problems**
-   - Wrong output directory
-   - Malformed JSON/XML
-   - Missing expected files
-
-5. **Workflow Issues**
-   - Interrupted sessions
-   - Resume problems
-   - State file conflicts
-
-Format: Symptom -> Cause -> Solution (with commands)
+1. Update `scripts/pre-commit` to run help.md validation
+2. Add clear error message when out of sync
+3. Document the blocking behavior in CONTRIBUTING.md
 
 **Acceptance Criteria:**
-- [x] TROUBLESHOOTING.md created with 10+ documented issues
-- [x] Each issue has symptom, cause, solution format
-- [x] Platform-specific solutions where applicable
-- [x] README.md links to TROUBLESHOOTING.md
+- [x] Pre-commit hook runs help.md validation
+- [x] Commits touching command files require synced help.md
+- [x] Error message shows how to fix (`/validate-plugin --fix`)
 
 ---
 
-#### 1.3 Create Security Documentation
-**Recommendation Ref:** D2
+#### 1.3 Implement Output Directory Auto-Creation
+**Recommendation Ref:** Q1
 **Files Affected:**
-- `SECURITY.md` (new)
-- `README.md` (add link)
-
-**Description:**
-Document security model and considerations:
-
-1. **Data Handling**
-   - What data commands process
-   - Where data is stored
-   - What gets sent to Claude API
-
-2. **Secret Detection**
-   - `/ship` auto-review scans for hardcoded secrets
-   - Other commands don't scan by default
-   - Recommendations for sensitive documents
-
-3. **Input Safety**
-   - Commands trust input files
-   - No sandboxing or isolation
-   - User responsibility for input validation
-
-4. **Output Safety**
-   - Output files may contain sensitive data
-   - `.gitignore` recommendations
-   - Backup file handling
-
-5. **Vulnerability Reporting**
-   - Contact information
-   - Response timeline expectations
-
-**Acceptance Criteria:**
-- [x] SECURITY.md created
-- [x] Honest about current limitations
-- [x] Clear vulnerability reporting process
-- [x] README.md links to SECURITY.md
-
----
-
-#### 1.4 Add Dependency Verification
-**Recommendation Ref:** E1
-**Files Affected:**
-- `plugins/personal-plugin/commands/convert-markdown.md`
-- `plugins/bpmn-plugin/skills/bpmn-to-drawio.md`
 - `plugins/personal-plugin/references/common-patterns.md`
+- `plugins/personal-plugin/commands/assess-document.md`
+- `plugins/personal-plugin/commands/define-questions.md`
+- `plugins/personal-plugin/commands/analyze-transcript.md`
 
 **Description:**
-Add dependency checks to commands requiring external tools:
+Ensure commands auto-create output directories before writing.
 
-1. Update `common-patterns.md` with dependency check pattern:
-```markdown
-## Dependency Verification
-
-Commands requiring external tools MUST check for them before processing:
-
-1. Check if tool exists: `which <tool>` or `where <tool>` (Windows)
-2. If missing, display platform-specific installation instructions
-3. Exit with clear error message
-
-Example error format:
-```
-Error: Required dependency 'pandoc' not found
-
-/convert-markdown requires pandoc for document conversion.
-
-Installation instructions:
-  Windows: winget install pandoc
-  Mac:     brew install pandoc
-  Linux:   apt install pandoc
-
-After installing, run the command again.
-```
-```
-
-2. Update `/convert-markdown` with pandoc check
-3. Update `/bpmn-to-drawio` with graphviz check
+1. Add directory auto-creation pattern to common-patterns.md
+2. Update 3 most-used generator commands with explicit mkdir step
+3. Test with fresh repo (no reports/ directory)
 
 **Acceptance Criteria:**
-- [x] Dependency check pattern documented in common-patterns.md
-- [x] `/convert-markdown` checks for pandoc before processing
-- [x] `/bpmn-to-drawio` checks for graphviz before processing
-- [x] Error messages include platform-specific installation instructions
+- [x] Pattern documented in common-patterns.md
+- [x] Commands create reports/ and reference/ as needed
+- [x] No user confirmation required for standard directories
 
 ---
 
-#### 1.5 Add Performance Expectations
-**Recommendation Ref:** D3
+#### 1.4 Improve BPMN Plugin Help Descriptions
+**Recommendation Ref:** U6
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md`
-- `plugins/personal-plugin/commands/test-project.md`
-- `plugins/personal-plugin/commands/review-arch.md`
-- `plugins/personal-plugin/references/common-patterns.md`
+- `plugins/bpmn-plugin/skills/help.md`
 
 **Description:**
-Add performance guidance to long-running commands:
+Expand BPMN skill descriptions with operating modes and examples.
 
-1. Update `common-patterns.md` with performance documentation pattern:
-```markdown
-## Performance Expectations
-
-Commands with variable duration SHOULD document expected timing:
-
-## Performance
-- Small inputs: 30-60 seconds
-- Medium inputs: 1-3 minutes
-- Large inputs: 3-10 minutes
-
-Factors affecting performance:
-- Input size and complexity
-- Number of issues/questions found
-- Network latency
-```
-
-2. Add performance section to:
-   - `/plan-improvements` - Depends on codebase size
-   - `/test-project` - Depends on test count and fix iterations
-   - `/review-arch` - Depends on codebase complexity
+1. Add full descriptions for bpmn-generator and bpmn-to-drawio
+2. Include operating modes (Interactive vs Document Parsing)
+3. Add example invocations
 
 **Acceptance Criteria:**
-- [x] Performance documentation pattern in common-patterns.md
-- [x] 3+ commands have performance expectations documented
-- [x] Guidance helps users identify abnormal behavior
+- [x] Each skill has complete description (2-3 lines)
+- [x] Operating modes documented
+- [x] Example command shown for each skill
+
+---
+
+#### 1.5 Separate Marketplace Versioning
+**Recommendation Ref:** A5
+**Files Affected:**
+- `.claude-plugin/marketplace.json`
+- `CLAUDE.md`
+
+**Description:**
+Decouple marketplace version from individual plugin versions.
+
+1. Change marketplace.json version strategy
+2. Add `last_updated` timestamp to plugin entries
+3. Document versioning strategy in CLAUDE.md
+
+**Acceptance Criteria:**
+- [x] Marketplace version independent of plugin versions
+- [x] Each plugin entry has last_updated timestamp
+- [x] Versioning strategy documented
 
 ---
 
 ### Phase 1 Testing Requirements
-- Verify all new documentation files render correctly
-- Test dependency verification catches missing tools
-- Confirm documentation links work in README
+- Run pre-commit hook with help.md out of sync
+- Run generator command in repo without reports/ directory
+- Verify README renders correctly with updated tables
 
 ### Phase 1 Completion Checklist
 - [x] All work items complete
-- [x] Documentation reviewed for accuracy
-- [x] README updated with links
+- [x] Pre-commit hook tested
+- [x] README regenerated
 - [x] CHANGELOG updated
 
 ---
 
-## Phase 2: Quality Assurance Foundation
+## Phase 2: Architecture & Patterns
 
-**Estimated Effort:** ~50,000 tokens (including testing/fixes)
-**Dependencies:** None (can run parallel to Phase 1)
-**Parallelizable:** Yes - 2.1 and 2.2 are independent
+**Estimated Effort:** ~80,000 tokens (including testing/fixes)
+**Dependencies:** Phase 1 (help sync blocking)
+**Parallelizable:** Partially - 2.1 must complete before 2.2
 
 ### Goals
-- Implement runtime schema validation
-- Document argument testing patterns
-- Establish quality assurance conventions
+- Modularize common-patterns.md for maintainability
+- Create comprehensive plugin validation framework
+- Standardize command section order
 
 ### Work Items
 
-#### 2.1 Implement Runtime Schema Validation
-**Recommendation Ref:** QA2
+#### 2.1 Modularize Common-Patterns Reference
+**Recommendation Ref:** A1
+**Files Affected:**
+- `plugins/personal-plugin/references/common-patterns.md`
+- `plugins/personal-plugin/references/patterns/` (new directory)
+
+**Description:**
+Split 892-line common-patterns.md into focused pattern files.
+
+Create new files:
+```
+references/patterns/
+  naming.md          - File and command naming (~100 lines)
+  validation.md      - Input validation and error handling (~150 lines)
+  output.md          - Output files, directories, preview (~120 lines)
+  workflow.md        - State management, resume, sessions (~180 lines)
+  testing.md         - Argument testing, dry-run (~100 lines)
+  logging.md         - Audit logging, progress reporting (~100 lines)
+```
+
+Keep common-patterns.md as index linking to each pattern file.
+
+**Acceptance Criteria:**
+- [x] 6 focused pattern files created
+- [x] common-patterns.md becomes index with links
+- [x] All content preserved (no patterns lost)
+- [x] Command templates updated to reference specific files
+
+---
+
+#### 2.2 Create Plugin Validation Framework
+**Recommendation Ref:** A2
+**Files Affected:**
+- `plugins/personal-plugin/commands/validate-plugin.md`
+- `schemas/command.json` (new)
+
+**Description:**
+Extend validate-plugin to check pattern compliance.
+
+Add validation for:
+1. Command frontmatter against schema
+2. Required sections (Input Validation, Instructions)
+3. Output naming convention compliance
+4. Error message format adherence
+5. Flag usage consistency
+
+Add new flags:
+- `--strict` - Fail on any pattern violation
+- `--report` - Generate detailed compliance report
+
+**Acceptance Criteria:**
+- [x] Command schema created
+- [x] Section order validation implemented
+- [x] `--strict` mode fails on violations
+- [x] `--report` generates compliance summary
+
+---
+
+#### 2.3 Standardize Command Section Order
+**Recommendation Ref:** A4
+**Files Affected:**
+- `plugins/personal-plugin/references/templates/*.md` (all 5 templates)
+- Selected commands needing reordering
+
+**Description:**
+Define and enforce canonical section order.
+
+Canonical order:
+1. Frontmatter (description, allowed-tools)
+2. Title (# Command Name)
+3. Brief description paragraph
+4. Input Validation
+5. Instructions
+6. Output Format (if applicable)
+7. Examples
+8. Performance (if applicable)
+
+1. Update all 5 command templates with section comments
+2. Audit existing commands for compliance
+3. Reorder any commands that deviate
+
+**Acceptance Criteria:**
+- [x] Templates updated with explicit section order
+- [x] Audit identifies non-compliant commands
+- [x] Top 5 most-used commands reordered if needed
+
+---
+
+#### 2.4 Strengthen Schema Validation Enforcement
+**Recommendation Ref:** Q2
 **Files Affected:**
 - `plugins/personal-plugin/commands/define-questions.md`
 - `plugins/personal-plugin/commands/ask-questions.md`
 - `plugins/personal-plugin/commands/finish-document.md`
-- `plugins/personal-plugin/references/common-patterns.md`
 
 **Description:**
-Add schema validation to commands that generate or consume structured data:
+Ensure consistent schema validation across Q&A workflow.
 
-1. Update `common-patterns.md` with schema validation pattern:
-```markdown
-## Schema Validation
-
-Commands generating JSON output MUST validate against schema before saving:
-
-1. Generate output in memory
-2. Validate against schema (schemas/questions.json, schemas/answers.json)
-3. If valid: Save file and report success
-4. If invalid: Report specific validation errors
-5. Offer `--force` flag to save despite validation errors
-
-Success message:
-"Output validated against schemas/questions.json. Saved to reports/questions-*.json"
-
-Error message:
-"Schema validation failed:
-  - questions[3].id: Required field missing
-  - questions[7].priority: Must be one of: high, medium, low
-
-Use --force to save anyway (not recommended)."
-```
-
-2. Update `/define-questions`:
-   - Validate output against `schemas/questions.json`
-   - Report validation status
-   - Support `--force` flag
-
-3. Update `/ask-questions`:
-   - Validate input against `schemas/questions.json`
-   - Validate output against `schemas/answers.json`
-
-4. Update `/finish-document`:
-   - Validate input against `schemas/answers.json`
+1. Audit current validation behavior in each command
+2. Ensure `--force` flag behavior is uniform
+3. Add validation status to output messages
+4. Consider adding schema for assessment output
 
 **Acceptance Criteria:**
-- [x] Schema validation pattern documented
-- [x] `/define-questions` validates output
-- [x] `/ask-questions` validates input and output
-- [x] `/finish-document` validates input
-- [x] `--force` flag documented for override
-
----
-
-#### 2.2 Document Argument Testing Patterns
-**Recommendation Ref:** QA3
-**Files Affected:**
-- `CONTRIBUTING.md`
-- `plugins/personal-plugin/references/common-patterns.md`
-
-**Description:**
-Document how to test command argument handling:
-
-1. Update `common-patterns.md` with argument testing pattern:
-```markdown
-## Argument Testing
-
-Commands SHOULD be tested for argument handling:
-
-### Required Argument Missing
-Input: `/command-name` (no arguments)
-Expected: Standard error format with usage example
-
-### Invalid Argument Value
-Input: `/command-name invalid-file.xyz`
-Expected: Clear error explaining what's wrong
-
-### Optional Argument Defaults
-Input: `/command-name file.md` (no --format)
-Expected: Default format used (documented in Input Validation)
-
-### Flag Parsing
-Input: `/command-name file.md --dry-run`
-Expected: Dry-run behavior (no side effects)
-```
-
-2. Update `CONTRIBUTING.md` with testing guidance:
-```markdown
-## Testing Your Command
-
-Before submitting a PR, test your command with:
-1. Missing required arguments
-2. Invalid argument values
-3. Default optional argument behavior
-4. All documented flags (--dry-run, --format, etc.)
-
-Document test results in PR description.
-```
-
-**Acceptance Criteria:**
-- [x] Argument testing patterns documented in common-patterns.md
-- [x] Testing guidance added to CONTRIBUTING.md
-- [x] Checklist format for PR testing
+- [x] All 3 Q&A commands validate consistently
+- [x] `--force` flag documented and working
+- [x] Validation status shown in command output
 
 ---
 
 ### Phase 2 Testing Requirements
-- Test schema validation catches invalid JSON
-- Verify validation error messages are helpful
-- Confirm `--force` flag works correctly
+- Test validation framework catches known violations
+- Verify modularized patterns are discoverable
+- Test `--strict` mode fails appropriately
 
 ### Phase 2 Completion Checklist
 - [x] All work items complete
-- [x] Schema validation working
-- [x] Testing patterns documented
+- [x] Pattern modularization verified
+- [x] Validation framework tested
 - [x] CHANGELOG updated
 
 ---
 
-## Phase 3: Testing Infrastructure
+## Phase 3: Developer Experience
 
 **Estimated Effort:** ~70,000 tokens (including testing/fixes)
-**Dependencies:** Phase 2 (schema validation)
-**Parallelizable:** Partially - 3.1 and 3.2 can run in parallel after 3.1 fixtures created
+**Dependencies:** Phase 2 (validation framework)
+**Parallelizable:** Yes - all items are independent
 
 ### Goals
-- Create integration tests for Q&A workflow
-- Establish shared test infrastructure
-- Enable CI/CD quality gates
+- Expand command templates for all pattern types
+- Create plugin developer onboarding guide
+- Add integration tests for core commands
 
 ### Work Items
 
-#### 3.1 Create Integration Tests for Q&A Chain
-**Recommendation Ref:** QA1
+#### 3.1 Expand Command Pattern Templates
+**Recommendation Ref:** D1
 **Files Affected:**
-- `tests/integration/` (new directory)
-- `tests/fixtures/` (new directory)
-- `tests/integration/test_qa_workflow.py` (new)
-- `.github/workflows/test.yml` (new or update)
+- `plugins/personal-plugin/references/templates/synthesis.md` (new)
+- `plugins/personal-plugin/references/templates/conversion.md` (new)
+- `plugins/personal-plugin/references/templates/planning.md` (new)
+- `plugins/personal-plugin/commands/new-command.md`
 
 **Description:**
-Create integration tests validating the Q&A workflow:
+Add missing templates for synthesis, conversion, and planning patterns.
 
-1. Create test fixtures:
-   - `tests/fixtures/sample-prd.md` - Sample document with questions
-   - `tests/fixtures/expected-questions.json` - Expected question extraction
-   - `tests/fixtures/sample-answers.json` - Sample answers
-   - `tests/fixtures/expected-updated-prd.md` - Expected final document
-
-2. Create integration tests:
-```python
-# tests/integration/test_qa_workflow.py
-
-def test_define_questions_output_schema():
-    """Verify /define-questions output conforms to schema"""
-    # Run command on sample document
-    # Validate output against schemas/questions.json
-
-def test_ask_questions_accepts_define_output():
-    """Verify /ask-questions can parse /define-questions output"""
-    # Load expected-questions.json
-    # Verify it can be parsed as input
-
-def test_finish_document_updates_correctly():
-    """Verify /finish-document updates document with answers"""
-    # Load sample-answers.json
-    # Run /finish-document
-    # Compare output to expected-updated-prd.md
-```
-
-3. Create GitHub Actions workflow:
-```yaml
-name: Integration Tests
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - run: pip install pytest jsonschema
-      - run: pytest tests/integration/
-```
+1. Create synthesis.md based on consolidate-documents
+2. Create conversion.md based on convert-markdown
+3. Create planning.md based on plan-improvements
+4. Update /new-command to offer template selection
 
 **Acceptance Criteria:**
-- [x] Test fixtures created
-- [x] Integration tests for Q&A workflow
-- [x] Tests validate schema compliance
-- [x] GitHub Actions workflow runs tests
+- [x] 3 new templates created with all required sections
+- [x] Templates include pattern-specific guidance
+- [x] /new-command offers 8 template options
 
 ---
 
-#### 3.2 Create Shared Test Infrastructure
-**Recommendation Ref:** QA4
+#### 3.2 Create Plugin Developer Onboarding Guide
+**Recommendation Ref:** D2
 **Files Affected:**
-- `tests/conftest.py` (new)
-- `tests/helpers/` (new directory)
-- `tests/helpers/schema_validator.py` (new)
-- `tests/helpers/file_comparator.py` (new)
-- `CONTRIBUTING.md`
+- `docs/PLUGIN-DEVELOPMENT.md` (new)
+- `CONTRIBUTING.md` (add link)
 
 **Description:**
-Create shared test utilities that can be used across plugins:
+Create step-by-step tutorial for new plugin developers.
 
-1. Create `tests/conftest.py` with common fixtures:
-```python
-import pytest
-import json
-from pathlib import Path
-
-@pytest.fixture
-def schema_dir():
-    return Path(__file__).parent.parent / "schemas"
-
-@pytest.fixture
-def fixtures_dir():
-    return Path(__file__).parent / "fixtures"
-
-@pytest.fixture
-def questions_schema(schema_dir):
-    with open(schema_dir / "questions.json") as f:
-        return json.load(f)
-```
-
-2. Create `tests/helpers/schema_validator.py`:
-```python
-from jsonschema import validate, ValidationError
-
-def validate_against_schema(data, schema):
-    """Validate JSON data against schema, return errors"""
-    try:
-        validate(instance=data, schema=schema)
-        return []
-    except ValidationError as e:
-        return [str(e)]
-```
-
-3. Create `tests/helpers/file_comparator.py`:
-```python
-def compare_files(expected_path, actual_path, ignore_timestamps=True):
-    """Compare two files, optionally ignoring timestamps"""
-    # Implementation
-```
-
-4. Update `CONTRIBUTING.md` with test infrastructure docs
+Sections:
+1. Prerequisites and setup (5 min read)
+2. Creating your first command (15 min tutorial)
+3. Testing your command locally
+4. Understanding patterns (links to pattern files)
+5. Submitting for review (PR checklist)
+6. Common mistakes and solutions
 
 **Acceptance Criteria:**
-- [x] Shared fixtures in conftest.py
-- [x] Schema validation helper
-- [x] File comparison helper
-- [x] Testing infrastructure documented
+- [x] Guide created with all 6 sections
+- [x] Tutorial uses existing command as example
+- [x] Common mistakes section complete
+- [x] CONTRIBUTING.md links to new guide
+
+---
+
+#### 3.3 Add Integration Tests for Core Commands
+**Recommendation Ref:** D3
+**Files Affected:**
+- `tests/integration/test_validate_plugin.py` (new)
+- `tests/integration/test_bump_version.py` (new)
+- `tests/fixtures/valid-plugin/` (new)
+- `tests/fixtures/invalid-plugin/` (new)
+
+**Description:**
+Add integration tests for validate-plugin and bump-version commands.
+
+1. Create test fixtures (valid and invalid plugin structures)
+2. Test validate-plugin catches known violations
+3. Test bump-version updates all version locations
+4. Add to CI pipeline
+
+**Acceptance Criteria:**
+- [x] Test fixtures created for valid/invalid plugins
+- [x] validate-plugin tests pass known-good, fail known-bad
+- [x] bump-version tests verify multi-file updates
+- [x] Tests run in CI
+
+---
+
+#### 3.4 Document Common Development Mistakes
+**Recommendation Ref:** D4
+**Files Affected:**
+- `CONTRIBUTING.md` or `TROUBLESHOOTING.md`
+
+**Description:**
+Add section documenting common development mistakes.
+
+Document:
+1. Adding `name` field to frontmatter (causes discovery issues)
+2. Forgetting to update help.md (sync drift)
+3. Using wrong output directory
+4. Missing Input Validation section
+5. Inconsistent flag naming
+
+**Acceptance Criteria:**
+- [x] 5+ common mistakes documented
+- [x] Each includes the fix
+- [x] References validation that would catch it
 
 ---
 
 ### Phase 3 Testing Requirements
-- Integration tests pass on CI
-- Test coverage reported
-- Tests catch schema violations
+- Test new templates with /new-command
+- Verify onboarding guide is followable
+- Run integration tests on CI
 
 ### Phase 3 Completion Checklist
 - [x] All work items complete
-- [x] CI pipeline running tests
-- [x] Test infrastructure documented
+- [x] Templates tested with /new-command
+- [x] Integration tests passing
 - [x] CHANGELOG updated
 
 ---
 
-## Phase 4: Ecosystem Maturity
+## Phase 4: Advanced Capabilities
 
-**Estimated Effort:** ~60,000 tokens (including testing/fixes)
-**Dependencies:** Phase 1 (workflow documentation)
-**Parallelizable:** Yes - all items are independent
+**Estimated Effort:** ~55,000 tokens (including testing/fixes)
+**Dependencies:** Phase 3 (tests for validation)
+**Parallelizable:** Yes - N1 and N2 are independent
 
 ### Goals
-- Improve plugin ecosystem readiness
-- Enhance user experience with preview and state management
-- Enable future plugin composition
+- Add CI/CD validation pipeline
+- Create plugin maturity scorecard
+- Implement interactive parameter prompting
 
 ### Work Items
 
-#### 4.1 Add Plugin Namespace Support
-**Recommendation Ref:** E2
+#### 4.1 Add CI/CD Validation Pipeline
+**Recommendation Ref:** N1
 **Files Affected:**
-- `plugins/personal-plugin/commands/validate-plugin.md`
-- `plugins/personal-plugin/skills/help.md`
-- `CLAUDE.md`
+- `.github/workflows/validate.yml` (new)
+- `README.md` (add badge)
 
 **Description:**
-Implement optional namespace support for commands:
+Create GitHub Actions workflow for automated validation.
 
-1. Document namespace convention in `CLAUDE.md`:
-```markdown
-## Command Namespacing
-
-Commands can be invoked with explicit namespace:
-- `/personal-plugin:review-arch` - Explicit namespace
-- `/review-arch` - Short form (works if unambiguous)
-
-If two plugins have commands with the same name, explicit namespace is required.
-```
-
-2. Update `/validate-plugin` to check for naming collisions:
-   - Scan all plugins for command names
-   - Warn if collision detected
-   - Suggest namespace usage
-
-3. Update `/help` to show namespace when relevant
+Workflow steps:
+1. Run `/validate-plugin --all --strict`
+2. Check help.md synchronization
+3. Run pytest tests
+4. Verify CHANGELOG updated for version changes
+5. Lint markdown files
 
 **Acceptance Criteria:**
-- [x] Namespace convention documented
-- [x] `/validate-plugin` checks for collisions
-- [x] Warning message suggests namespace usage
+- [x] Workflow file created
+- [x] All checks pass on main branch
+- [x] Status check required for merge
+- [x] Badge added to README
 
 ---
 
-#### 4.2 Add Plugin Dependency Declaration
-**Recommendation Ref:** E3
+#### 4.2 Create Plugin Maturity Scorecard
+**Recommendation Ref:** N2
 **Files Affected:**
-- `schemas/plugin.json` (new)
 - `plugins/personal-plugin/commands/validate-plugin.md`
-- `CLAUDE.md`
 
 **Description:**
-Add optional dependency declaration to plugin.json:
+Add scorecard feature to validate-plugin command.
 
-1. Create `schemas/plugin.json` with dependency support:
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "properties": {
-    "dependencies": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "string",
-        "description": "Semver version requirement"
-      }
-    }
-  }
-}
-```
+Maturity levels:
+- **Level 1 (Basic)**: Valid plugin.json, commands parse
+- **Level 2 (Standard)**: Help.md complete, all patterns followed
+- **Level 3 (Complete)**: Tests exist, all flags implemented
+- **Level 4 (Exemplary)**: Full documentation, CI validation
 
-2. Document in `CLAUDE.md`:
-```markdown
-## Plugin Dependencies
-
-Plugins can declare dependencies on other plugins:
-
-```json
-{
-  "name": "advanced-plugin",
-  "dependencies": {
-    "personal-plugin": ">=2.0.0"
-  }
-}
-```
-```
-
-3. Update `/validate-plugin` to check dependencies
+Add `--scorecard` flag to validate-plugin.
 
 **Acceptance Criteria:**
-- [x] Plugin schema with dependencies field
-- [x] Dependency syntax documented
-- [x] `/validate-plugin` validates dependencies
+- [x] Scorecard logic implemented
+- [x] 4 maturity levels defined
+- [x] Per-plugin and aggregate scores
+- [x] Output shows improvement suggestions
 
 ---
 
-#### 4.3 Add Output Preview Mode
-**Recommendation Ref:** U1
+#### 4.3 Add Interactive Parameter Prompting
+**Recommendation Ref:** U5
 **Files Affected:**
+- `plugins/personal-plugin/references/patterns/validation.md`
 - `plugins/personal-plugin/commands/define-questions.md`
-- `plugins/personal-plugin/commands/analyze-transcript.md`
-- `plugins/bpmn-plugin/skills/bpmn-generator.md`
-- `plugins/personal-plugin/references/common-patterns.md`
+- `plugins/personal-plugin/commands/assess-document.md`
 
 **Description:**
-Add `--preview` flag to commands generating structured output:
+Add prompting for missing required parameters.
 
-1. Document preview pattern in `common-patterns.md`:
-```markdown
-## Output Preview
-
-Commands generating structured output SHOULD support `--preview`:
-
-1. Generate output in memory
-2. Validate against schema
-3. Display summary (not full output):
-   "Generated 15 questions in 3 categories"
-   "Schema validation: PASSED"
-4. Ask for confirmation: "Save to reports/questions-*.json? (y/n)"
-5. Save only on confirmation
-```
-
-2. Add `--preview` to Input Validation of:
-   - `/define-questions`
-   - `/analyze-transcript`
-   - `/bpmn-generator`
+1. Document prompting pattern in validation.md
+2. Implement in 2 generator commands
+3. Add `--no-prompt` flag for scripts
 
 **Acceptance Criteria:**
-- [x] Preview pattern documented
-- [x] `--preview` flag added to 3+ commands
-- [x] Preview shows summary and validation status
-- [x] Confirmation required before save
+- [x] Prompting pattern documented
+- [x] 2 commands prompt for missing parameters
+- [x] `--no-prompt` disables prompting
 
 ---
 
-#### 4.4 Add Workflow State Management
-**Recommendation Ref:** W2
+#### 4.4 Create Quick Reference Card
+**Recommendation Ref:** U3
 **Files Affected:**
-- `plugins/personal-plugin/commands/ask-questions.md`
-- `plugins/personal-plugin/commands/finish-document.md`
-- `schemas/answers.json`
-- `plugins/personal-plugin/references/common-patterns.md`
+- `QUICK-REFERENCE.md` (new)
+- `README.md` (add link)
 
 **Description:**
-Implement resume capability for interrupted workflows:
+Create single-page quick reference for developers.
 
-1. Update `schemas/answers.json` with status field:
-```json
-{
-  "metadata": {
-    "status": { "enum": ["in_progress", "completed"] },
-    "last_question_answered": { "type": "integer" }
-  }
-}
-```
-
-2. Document state management in `common-patterns.md`:
-```markdown
-## Workflow State Management
-
-Interactive commands SHOULD support resuming:
-
-1. On start, check for existing answer file
-2. If found with status "in_progress":
-   "Found incomplete session (15/47 questions). Resume? (y/n)"
-3. If resume: Continue from last_question_answered
-4. If not resume: Offer to start fresh or abort
-```
-
-3. Update `/ask-questions` and `/finish-document` with resume logic
+Contents:
+- Command naming rules
+- Frontmatter template
+- Output file naming pattern
+- Output directory table
+- Input validation template
+- Common flags table
 
 **Acceptance Criteria:**
-- [x] Answer schema includes status field
-- [x] State management pattern documented
-- [x] `/ask-questions` supports resume
-- [x] `/finish-document` supports resume
-
----
-
-#### 4.5 Add Audit Logging
-**Recommendation Ref:** E4
-**Files Affected:**
-- `plugins/personal-plugin/references/common-patterns.md`
-- `plugins/personal-plugin/commands/clean-repo.md`
-- `plugins/personal-plugin/skills/ship.md`
-
-**Description:**
-Add optional audit logging for commands with side effects:
-
-1. Document audit logging pattern in `common-patterns.md`:
-```markdown
-## Audit Logging
-
-Commands with side effects MAY support `--audit` flag:
-
-1. Log file: `.claude-plugin/audit.log` (JSON lines)
-2. Log entry format:
-   {"timestamp": "...", "command": "clean-repo", "action": "delete", "path": "old-file.md"}
-3. Enabled via `--audit` flag
-4. Off by default for performance/privacy
-```
-
-2. Add `--audit` to `/clean-repo` and `/ship`
-3. Log significant actions (file changes, git operations)
-
-**Acceptance Criteria:**
-- [x] Audit logging pattern documented
-- [x] `/clean-repo` supports `--audit`
-- [x] `/ship` supports `--audit`
-- [x] Log format is JSON lines
+- [x] Quick reference under 100 lines
+- [x] Covers all essential patterns
+- [x] README links to quick reference
 
 ---
 
 ### Phase 4 Testing Requirements
-- Test namespace collision detection
-- Verify preview mode works correctly
-- Test resume functionality
+- Test CI workflow on PR
+- Test scorecard output accuracy
+- Verify prompting works correctly
 
 ### Phase 4 Completion Checklist
 - [x] All work items complete
-- [x] New features documented
-- [x] Examples updated
+- [x] CI pipeline active
+- [x] Scorecard working
 - [x] CHANGELOG updated
 
 ---
@@ -778,18 +535,18 @@ Commands with side effects MAY support `--audit` flag:
 
 | Work Item A | Can Run With | Notes |
 |-------------|--------------|-------|
-| 1.1 Workflow docs | 1.2 Troubleshooting | Independent docs |
-| 1.3 Security docs | 1.4 Dependency verification | Docs vs code |
-| 2.1 Schema validation | 2.2 Testing patterns | Independent |
-| 3.1 Integration tests | 3.2 Test infrastructure | After fixtures |
-| 4.1 Namespace support | 4.2 Dependencies | Independent |
-| 4.3 Preview mode | 4.4 State management | Different commands |
+| 1.1 README tables | 1.2 Help sync blocking | Independent |
+| 1.3 Directory creation | 1.4 BPMN help | Different plugins |
+| 2.1 Pattern modularization | 2.3 Section order | Can reference same files |
+| 3.1 Templates | 3.2 Onboarding guide | Templates inform guide |
+| 4.1 CI/CD pipeline | 4.2 Scorecard | Independent |
+| 4.3 Parameter prompting | 4.4 Quick reference | Independent |
 
 **Maximum Parallelism:**
 - Phase 1: 3 parallel streams (1.1+1.2, 1.3+1.4, 1.5)
-- Phase 2: 2 parallel streams (2.1, 2.2)
-- Phase 3: 2 parallel streams (3.1, 3.2 after fixtures)
-- Phase 4: 3 parallel streams (4.1+4.2, 4.3+4.4, 4.5)
+- Phase 2: 2 parallel streams (2.1+2.3, 2.2+2.4)
+- Phase 3: 2 parallel streams (3.1+3.2, 3.3+3.4)
+- Phase 4: 2 parallel streams (4.1+4.2, 4.3+4.4)
 
 ---
 
@@ -797,11 +554,10 @@ Commands with side effects MAY support `--audit` flag:
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| Schema validation breaks existing workflows | Medium | High | `--force` flag for override; document migration |
-| Integration tests flaky on CI | Medium | Medium | Use deterministic fixtures; avoid timing dependencies |
-| Resume functionality complex | Medium | Medium | Start with simple detection; iterate |
-| Namespace changes break existing usage | Low | High | Backward compatible; short form always works |
-| Audit logging performance impact | Low | Low | Off by default; opt-in only |
+| Pattern modularization breaks references | Medium | Medium | Maintain common-patterns.md as index; update templates |
+| Validation framework too strict | Medium | Low | Start with warnings; add --strict for blocking |
+| CI pipeline slows development | Low | Medium | Keep checks fast (<2 min); allow skip for docs-only |
+| Scorecard criteria unclear | Medium | Low | Start simple; iterate based on feedback |
 
 ---
 
@@ -809,24 +565,26 @@ Commands with side effects MAY support `--audit` flag:
 
 | Metric | Current | Target | Measured By |
 |--------|---------|--------|-------------|
-| Documentation completeness | 3 docs | 6 docs | File count |
-| Schema validation coverage | 0% | 100% for Q&A chain | Command audit |
-| Integration test coverage | 0% | 80% for Q&A workflow | pytest coverage |
-| Commands with --preview | 0 | 3+ | Grep for --preview |
-| Commands with --audit | 0 | 2+ | Grep for --audit |
+| README completeness | Truncated | Full descriptions | Manual review |
+| Help.md sync | Optional | Blocking | Pre-commit hook |
+| Pattern files | 1 (892 lines) | 7 (modular) | File count |
+| Command templates | 5 | 8 | Template count |
+| Test coverage | Q&A only | +validate, bump | pytest count |
+| CI validation | None | Active | GitHub status |
 
 ---
 
 ## Post-Implementation
 
 After all phases complete:
-1. Run `/validate-plugin` on entire repo
+1. Run `/validate-plugin --all --scorecard` on entire repo
 2. Update all version numbers (use `/bump-version`)
 3. Create release notes from CHANGELOG
 4. Consider additional phases for:
-   - Workflow recommendation command (W3) - deferred, lower priority
-   - Progress persistence (U2) - deferred, complex state management
+   - Audit logging (deferred - low priority)
+   - Usage analytics (deferred - privacy concerns)
+   - Cross-plugin chaining (deferred - complex)
 
 ---
 
-*Implementation plan generated by Claude on 2026-01-14*
+*Implementation plan generated by Claude on 2026-01-15T09:45:00*

@@ -15,17 +15,34 @@ Analyze the document specified by the user and extract all questions, open items
 - `--format [json|csv]` - Output format (default: json)
   - `json`: Structured format with metadata (default, compatible with `/ask-questions`)
   - `csv`: Flat tabular format with columns: id, text, context, topic, sections, priority
-- `--preview` - Show summary and ask for confirmation before saving (see common-patterns.md)
+- `--preview` - Show summary and ask for confirmation before saving (see `references/patterns/output.md`)
 - `--force` - Save output even if schema validation fails (not recommended)
+- `--no-prompt` - Disable interactive prompting for missing arguments (for scripts and CI/CD)
 
 **Validation:**
-If the document path is missing, display:
+If the document path is missing:
+
+1. **If `--no-prompt` is specified**, display the error and exit:
 ```
-Usage: /define-questions <document-path> [--format json|csv]
+Error: Missing required argument
+
+Usage: /define-questions <document-path> [--format json|csv] [--no-prompt]
 Example: /define-questions PRD.md
 Example: /define-questions docs/requirements.md
 Example: /define-questions PRD.md --format csv
 ```
+
+2. **Otherwise (default), prompt interactively**:
+```
+/define-questions requires a document path.
+
+Please provide the path to the document to analyze:
+> _
+
+(or use --no-prompt to disable interactive prompting)
+```
+
+Wait for the user to provide the document path, then proceed with analysis.
 
 ## Instructions
 
@@ -78,12 +95,20 @@ Example: /define-questions PRD.md --format csv
 
 8. **Save the output** - Based on the `--format` flag:
 
+   **Directory Creation:**
+   Before writing any output file, ensure the target directory exists:
+
+   ```bash
+   # Ensure output directory exists before writing
+   mkdir -p reference/
+   ```
+
    **JSON Format (default):**
-   - Write the JSON file to `questions-[document-name]-[timestamp].json` in the repository root
+   - Write the JSON file to `reference/questions-[document-name]-[timestamp].json`
    - Use a timestamp format like `YYYYMMDD-HHMMSS`
 
    **CSV Format:**
-   - Write the CSV file to `questions-[document-name]-[timestamp].csv` in the repository root
+   - Write the CSV file to `reference/questions-[document-name]-[timestamp].csv`
    - Include header row: `id,text,context,topic,sections,priority`
    - Escape commas and quotes properly in field values
    - Use semicolons to separate multiple sections within the sections field
@@ -230,3 +255,19 @@ See `schemas/README.md` for validation instructions and tools.
 - Preserve the original intent - don't rephrase questions in ways that change their meaning
 - The JSON must be valid and properly formatted for downstream use with AI tools
 - Output must conform to `schemas/questions.json` for compatibility with `/ask-questions` and `/finish-document`
+
+## Schema Validation Summary
+
+This command validates output against `schemas/questions.json`. See `references/patterns/validation.md` for full validation behavior.
+
+| Flag | Behavior |
+|------|----------|
+| (default) | Validate output, fail if invalid, show specific errors |
+| `--force` | Save output despite validation errors (with warning) |
+| `--preview` | Show validation status before save confirmation |
+
+**Validation Status in Output:**
+All command completions include validation status:
+- `Validation: PASSED` - All required fields present, types correct
+- `Validation: FAILED` - Errors listed, file not saved (unless `--force`)
+- `Validation: SKIPPED` - Used with `--force`, file saved with warning

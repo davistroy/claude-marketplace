@@ -6,6 +6,7 @@ Thank you for your interest in contributing to the Claude Code plugin marketplac
 
 - [Quick Start: Adding a Command](#quick-start-adding-a-command)
 - [Quick Start: Adding a Plugin](#quick-start-adding-a-plugin)
+- [Plugin Development Guide](#plugin-development-guide)
 - [Adding a New Command](#adding-a-new-command)
 - [Adding a New Skill](#adding-a-new-skill)
 - [Maintaining the Help Skill](#maintaining-the-help-skill)
@@ -104,6 +105,22 @@ python scripts/update-readme.py
 ### Step 4: Update CHANGELOG and Commit
 
 Add entry to CHANGELOG.md and commit your changes.
+
+---
+
+## Plugin Development Guide
+
+**New to plugin development?** We have a comprehensive step-by-step tutorial that walks you through creating your first command.
+
+**[Read the Plugin Development Guide](docs/PLUGIN-DEVELOPMENT.md)**
+
+The guide includes:
+1. **Prerequisites and Setup** (5 min read) - What you need to get started
+2. **Creating Your First Command** (15 min tutorial) - Hands-on walkthrough
+3. **Testing Your Command Locally** - Verification checklist
+4. **Understanding Patterns** - Links to pattern documentation
+5. **Submitting for Review** - PR checklist and template
+6. **Common Mistakes and Solutions** - Avoid the most frequent pitfalls
 
 ---
 
@@ -245,7 +262,37 @@ The script extracts:
 - **Output** from "Output" or "File Naming" sections
 - **Examples** from code blocks containing `/command-name`
 
-**Note:** The pre-commit hook runs `--check` as an optional warning. It will not block commits.
+### Pre-commit Hook Enforcement
+
+**IMPORTANT:** The pre-commit hook enforces help.md completeness to ensure all commands and skills are documented.
+
+**Blocking Behavior:**
+- When you **add a new command/skill**, the hook **blocks** if it's not documented in help.md
+- When you **modify existing files**, the hook shows an informational message but allows the commit
+
+**Why this approach?**
+- Some plugins maintain custom help content with enhanced descriptions
+- Strict exact-match checking would reject legitimate custom content
+- The hook still verifies all commands/skills are mentioned (Check 3)
+
+**If your commit is blocked due to missing documentation:**
+
+```bash
+# Option 1: Regenerate help.md files automatically
+python scripts/generate-help.py --all
+
+# Option 2: Use Claude Code (recommended)
+/validate-plugin --fix
+```
+
+Then stage the updated help.md files and commit again:
+```bash
+git add plugins/*/skills/help.md
+git commit -m "your message"
+```
+
+**Custom Help Content:**
+If you maintain enhanced help.md content (not auto-generated), the hook will show an informational message about the difference but won't block your commit as long as all commands/skills are documented.
 
 ### When to Regenerate Help
 

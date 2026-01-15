@@ -41,8 +41,8 @@ COMMANDS
 | /new-command | Generate a new command file from a template with proper structure and... |
 | /plan-improvements | Analyze codebase and generate prioritized improvement recommendations with... |
 | /plan-next | Analyze repo and recommend the next logical action |
+| /remove-ip | Sanitize documents by removing company identifiers and non-public... |
 | /review-arch | Quick architectural audit with technical debt assessment (read-only, no... |
-| /remove-ip | Sanitize documents by removing company identifiers and non-public intellectual... |
 | /review-pr | Structured PR review with security, performance, and code quality analysis |
 | /scaffold-plugin | Create a new plugin with proper directory structure, metadata, and starter files |
 | /setup-statusline | "[Personal] Troy's custom status line setup (Windows/PowerShell)" |
@@ -78,7 +78,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 #### /analyze-transcript
 **Description:** Meeting transcript to structured markdown report
 **Arguments:** <transcript-path> [--format [md|json]]
-**Output:** meeting-analysis-YYYYMMDD-HHMMSS.md
+**Output:** Generated output file
 **Example:**
 ```
 /analyze-transcript meeting-notes.txt
@@ -89,7 +89,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /ask-questions
 **Description:** Interactive Q&A session from questions JSON file
-**Arguments:** <questions-file>
+**Arguments:** <questions-file> [--force]
 **Output:** Generated output file
 **Example:**
 ```
@@ -101,7 +101,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 #### /assess-document
 **Description:** Document quality evaluation with scored assessment report
 **Arguments:** <document-path> [--format [md|json]]
-**Output:** [document-name]-assessment-[timestamp].md
+**Output:** Files in reports/
 **Example:**
 ```
 /assess-document
@@ -136,7 +136,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /clean-repo
 **Description:** Comprehensive repository cleanup, organization, and documentation refresh
-**Arguments:** [--dry-run]
+**Arguments:** [--dry-run] [--audit]
 **Output:** Generated output file
 **Example:**
 ```
@@ -164,8 +164,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Output:** In-conversation output
 **Example:**
 ```
-/convert-markdown docs/api-guide.md
-/convert-markdown README.md documentation.docx
+/convert-markdown requires pandoc for document conversion.
 ```
 
 ---
@@ -197,8 +196,8 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /finish-document
 **Description:** Extract questions from a document, answer them interactively, and update the...
-**Arguments:** <document-path> [--auto]
-**Output:** In-conversation output
+**Arguments:** <document-path> [--auto] [--force]
+**Output:** Generated output file
 **Example:**
 ```
 /finish-document PRD.md
@@ -242,12 +241,12 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /remove-ip
-**Description:** Sanitize documents by removing company identifiers and non-public intellectual property while preserving meaning
-**Arguments:** `<document-path>` [--company <name>] [--mode standard|strict] [--industry <industry>] [--audience <audience>]
-**Output:** [document-name]-sanitized-YYYYMMDD-HHMMSS.md
+**Description:** Sanitize documents by removing company identifiers and non-public...
+**Arguments:** <document-path> [--company <name>] [--mode [standard|strict]]
+**Output:** Generated output file
 **Example:**
 ```
-/remove-ip internal-playbook.md
+/remove-ip internal-process.md
 /remove-ip strategy-doc.md --mode strict
 /remove-ip playbook.md --company "Acme Corp" --industry "Finance"
 ```
@@ -337,7 +336,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /ship
 **Description:** Create branch, commit, push, open PR, auto-review, fix issues, and merge
-**Arguments:** [<branch-name>] [draft] [--dry-run]
+**Arguments:** [<branch-name>] [draft] [--dry-run] [--audit]
 **Output:** Generated output file
 **Example:**
 ```
@@ -345,26 +344,6 @@ Use this reference to provide detailed help. Read the actual command file to get
 ```
 
 ---
-
-## Namespace Support
-
-When another plugin defines a command with the same name, show the namespaced form:
-
-```
-personal-plugin Commands and Skills
-===================================
-
-Note: /help is also available in bpmn-plugin.
-      Use /personal-plugin:help for this plugin's help.
-
-...
-```
-
-In the table, add namespace hints for colliding commands:
-
-```
-| /help | Show available commands and skills (also: /personal-plugin:help) |
-```
 
 ## Error Handling
 
@@ -377,6 +356,4 @@ Available commands:
 
 Available skills:
   /help, /ship
-
-Tip: Use /personal-plugin:<command> for explicit namespace.
 ```

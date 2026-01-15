@@ -38,6 +38,7 @@ class CommandEntry:
     name: str
     description: str
     is_skill: bool
+    file_path: str = ""  # Relative path from repo root
 
 
 def parse_frontmatter(content: str) -> Dict[str, str]:
@@ -80,7 +81,34 @@ def parse_frontmatter(content: str) -> Dict[str, str]:
     return frontmatter
 
 
-def scan_plugin(plugin_path: Path) -> Tuple[List[CommandEntry], List[CommandEntry]]:
+def truncate_to_sentence(text: str, max_length: int = 120) -> str:
+    """Truncate text to first complete sentence, or at max_length if no period found.
+
+    Tries to find a natural truncation point at a sentence boundary (period followed
+    by space or end of string). If the full first sentence is shorter than max_length,
+    returns it. Otherwise, truncates at max_length with ellipsis.
+    """
+    if len(text) <= max_length:
+        return text
+
+    # Look for first sentence end (period followed by space or end)
+    # Search within max_length + some buffer to find a sentence end
+    search_limit = min(len(text), max_length + 50)
+
+    for i, char in enumerate(text[:search_limit]):
+        if char == '.':
+            # Check if this is end of sentence (followed by space, newline, or end)
+            if i + 1 >= len(text) or text[i + 1] in ' \n\t':
+                sentence = text[:i + 1]
+                if len(sentence) <= max_length:
+                    return sentence
+                break  # First sentence is too long, need to truncate
+
+    # No suitable sentence boundary found within limit, truncate with ellipsis
+    return text[:max_length - 3].rstrip() + '...'
+
+
+def scan_plugin(plugin_path: Path, repo_root: Path) -> Tuple[List[CommandEntry], List[CommandEntry]]:
     """Scan a plugin directory and return commands and skills."""
     commands = []
     skills = []
@@ -96,10 +124,13 @@ def scan_plugin(plugin_path: Path) -> Tuple[List[CommandEntry], List[CommandEntr
                 # Clean up description
                 description = ' '.join(description.split())
                 if description:
+                    # Get relative path from repo root for linking
+                    rel_path = md_file.relative_to(repo_root).as_posix()
                     commands.append(CommandEntry(
                         name=md_file.stem,
                         description=description,
-                        is_skill=False
+                        is_skill=False,
+                        file_path=rel_path
                     ))
             except Exception as e:
                 print(f"Warning: Could not read {md_file}: {e}", file=sys.stderr)
@@ -114,10 +145,13 @@ def scan_plugin(plugin_path: Path) -> Tuple[List[CommandEntry], List[CommandEntr
                 description = fm.get('description', '')
                 description = ' '.join(description.split())
                 if description:
+                    # Get relative path from repo root for linking
+                    rel_path = md_file.relative_to(repo_root).as_posix()
                     skills.append(CommandEntry(
                         name=md_file.stem,
                         description=description,
-                        is_skill=True
+                        is_skill=True,
+                        file_path=rel_path
                     ))
             except Exception as e:
                 print(f"Warning: Could not read {md_file}: {e}", file=sys.stderr)
@@ -126,7 +160,11 @@ def scan_plugin(plugin_path: Path) -> Tuple[List[CommandEntry], List[CommandEntr
 
 
 def generate_table(entries: List[CommandEntry], entry_type: str) -> str:
-    """Generate a markdown table for commands or skills."""
+    """Generate a markdown table for commands or skills.
+
+    Uses natural sentence truncation to avoid mid-word ellipsis,
+    and adds hyperlinks to the source files.
+    """
     if entry_type == 'Command':
         header = "| Command | Description |\n|---------|-------------|"
     else:
@@ -134,11 +172,16 @@ def generate_table(entries: List[CommandEntry], entry_type: str) -> str:
 
     rows = []
     for entry in entries:
-        # Truncate long descriptions for README
-        desc = entry.description
-        if len(desc) > 60:
-            desc = desc[:57] + '...'
-        rows.append(f"| `/{entry.name}` | {desc} |")
+        # Use natural sentence truncation instead of hard character cutoff
+        desc = truncate_to_sentence(entry.description, max_length=100)
+
+        # Create hyperlink to source file
+        if entry.file_path:
+            name_link = f"[`/{entry.name}`]({entry.file_path})"
+        else:
+            name_link = f"`/{entry.name}`"
+
+        rows.append(f"| {name_link} | {desc} |")
 
     return header + "\n" + "\n".join(rows)
 
@@ -255,7 +298,7 @@ def main():
         plugin_name = plugin_dir.name
         print(f"  Processing {plugin_name}...")
 
-        commands, skills = scan_plugin(plugin_dir)
+        commands, skills = scan_plugin(plugin_dir, repo_root)
 
         if args.verbose:
             print(f"    Found {len(commands)} commands, {len(skills)} skills")

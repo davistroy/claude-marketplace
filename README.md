@@ -1,5 +1,8 @@
 # Claude Marketplace
 
+[![Plugin Validation](https://github.com/davistroy/claude-marketplace/actions/workflows/validate.yml/badge.svg)](https://github.com/davistroy/claude-marketplace/actions/workflows/validate.yml)
+[![Tests](https://github.com/davistroy/claude-marketplace/actions/workflows/test.yml/badge.svg)](https://github.com/davistroy/claude-marketplace/actions/workflows/test.yml)
+
 A collection of Claude Code plugins containing custom slash commands and skills for documentation review, architecture analysis, git workflows, document processing, and BPMN workflow generation.
 
 ## Installation
@@ -19,33 +22,33 @@ Custom commands and skills for productivity workflows.
 **Commands:**
 | Command | Description |
 |---------|-------------|
-| `/analyze-transcript` | Meeting transcript to structured markdown report |
-| `/ask-questions` | Interactive Q&A session from questions JSON file |
-| `/assess-document` | Document quality evaluation with scored assessment report |
-| `/bump-version` | Automate version bumping across plugin files with CHANGEL... |
-| `/check-updates` | Check for available plugin updates by comparing installed... |
-| `/clean-repo` | Comprehensive repository cleanup, organization, and docum... |
-| `/consolidate-documents` | Analyze multiple document variations and synthesize a sup... |
-| `/convert-markdown` | Convert a markdown file to a nicely formatted Microsoft W... |
-| `/define-questions` | Extract questions and open items from documents to JSON |
-| `/develop-image-prompt` | Generate detailed image generator prompts from content, o... |
-| `/finish-document` | Extract questions from a document, answer them interactiv... |
-| `/new-command` | Generate a new command file from a template with proper s... |
-| `/plan-improvements` | Analyze codebase and generate prioritized improvement rec... |
-| `/plan-next` | Analyze repo and recommend the next logical action |
-| `/remove-ip` | Sanitize documents by removing company identifiers and IP... |
-| `/review-arch` | Quick architectural audit with technical debt assessment ... |
-| `/review-pr` | Structured PR review with security, performance, and code... |
-| `/scaffold-plugin` | Create a new plugin with proper directory structure, meta... |
-| `/setup-statusline` | "[Personal] Troy's custom status line setup (Windows/Powe... |
-| `/test-project` | Ensure 90%+ test coverage, run all tests with sub-agents,... |
-| `/validate-plugin` | Validate plugin structure, frontmatter, and content for c... |
+| [`/analyze-transcript`](plugins/personal-plugin/commands/analyze-transcript.md) | Meeting transcript to structured markdown report |
+| [`/ask-questions`](plugins/personal-plugin/commands/ask-questions.md) | Interactive Q&A session from questions JSON file |
+| [`/assess-document`](plugins/personal-plugin/commands/assess-document.md) | Document quality evaluation with scored assessment report |
+| [`/bump-version`](plugins/personal-plugin/commands/bump-version.md) | Automate version bumping across plugin files with CHANGELOG placeholder |
+| [`/check-updates`](plugins/personal-plugin/commands/check-updates.md) | Check for available plugin updates by comparing installed versions to marketplace |
+| [`/clean-repo`](plugins/personal-plugin/commands/clean-repo.md) | Comprehensive repository cleanup, organization, and documentation refresh |
+| [`/consolidate-documents`](plugins/personal-plugin/commands/consolidate-documents.md) | Analyze multiple document variations and synthesize a superior consolidated version |
+| [`/convert-markdown`](plugins/personal-plugin/commands/convert-markdown.md) | Convert a markdown file to a nicely formatted Microsoft Word document |
+| [`/define-questions`](plugins/personal-plugin/commands/define-questions.md) | Extract questions and open items from documents to JSON |
+| [`/develop-image-prompt`](plugins/personal-plugin/commands/develop-image-prompt.md) | Generate detailed image generator prompts from content, optimized for 11x17 landscape prints |
+| [`/finish-document`](plugins/personal-plugin/commands/finish-document.md) | Extract questions from a document, answer them interactively, and update the document |
+| [`/new-command`](plugins/personal-plugin/commands/new-command.md) | Generate a new command file from a template with proper structure and conventions |
+| [`/plan-improvements`](plugins/personal-plugin/commands/plan-improvements.md) | Analyze codebase and generate prioritized improvement recommendations with phased implementation... |
+| [`/plan-next`](plugins/personal-plugin/commands/plan-next.md) | Analyze repo and recommend the next logical action |
+| [`/remove-ip`](plugins/personal-plugin/commands/remove-ip.md) | Sanitize documents by removing company identifiers and non-public intellectual property while pre... |
+| [`/review-arch`](plugins/personal-plugin/commands/review-arch.md) | Quick architectural audit with technical debt assessment (read-only, no files generated) |
+| [`/review-pr`](plugins/personal-plugin/commands/review-pr.md) | Structured PR review with security, performance, and code quality analysis |
+| [`/scaffold-plugin`](plugins/personal-plugin/commands/scaffold-plugin.md) | Create a new plugin with proper directory structure, metadata, and starter files |
+| [`/setup-statusline`](plugins/personal-plugin/commands/setup-statusline.md) | "[Personal] Troy's custom status line setup (Windows/PowerShell)" |
+| [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
+| [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content for consistency and correctness |
 
 **Skills:**
 | Skill | Description |
 |-------|-------------|
-| `/help` | Show available commands and skills in this plugin with us... |
-| `/ship` | Create branch, commit, push, open PR, auto-review, fix is... |
+| [`/help`](plugins/personal-plugin/skills/help.md) | Show available commands and skills in this plugin with usage information |
+| [`/ship`](plugins/personal-plugin/skills/ship.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
 
 ### bpmn-plugin
 
@@ -54,9 +57,9 @@ BPMN 2.0 workflow tools for generating and converting process diagrams.
 **Skills:**
 | Skill | Description |
 |-------|-------------|
-| `/bpmn-generator` | Generate BPMN 2.0 compliant XML files from natural langua... |
-| `/bpmn-to-drawio` | Convert BPMN 2.0 XML files into Draw.io native format (.d... |
-| `/help` | Show available skills in this plugin with usage information |
+| [`/bpmn-generator`](plugins/bpmn-plugin/skills/bpmn-generator.md) | Generate BPMN 2.0 compliant XML files from natural language process descriptions OR from structur... |
+| [`/bpmn-to-drawio`](plugins/bpmn-plugin/skills/bpmn-to-drawio.md) | Convert BPMN 2.0 XML files into Draw.io native format (.drawio) using the bpmn2drawio Python tool. |
+| [`/help`](plugins/bpmn-plugin/skills/help.md) | Show available skills in this plugin with usage information |
 
 **BPMN Generator** operates in two modes:
 - **Interactive Mode**: Structured Q&A to gather requirements from natural language descriptions
@@ -93,6 +96,7 @@ plugins/
 
 ## Documentation
 
+- [QUICK-REFERENCE.md](QUICK-REFERENCE.md) - Essential patterns for plugin development
 - [WORKFLOWS.md](WORKFLOWS.md) - How to chain commands for common use cases
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Solutions to common issues
 - [SECURITY.md](SECURITY.md) - Security model and vulnerability reporting

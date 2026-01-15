@@ -1,0 +1,4 @@
+{
+  "name": "invalid-plugin",
+  "description": "A plugin with intentional violations for testing"
+}
