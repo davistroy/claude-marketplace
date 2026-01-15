@@ -10,7 +10,7 @@ Generate a new command file for this plugin from one of the predefined templates
 
 **Optional Arguments:**
 - `<command-name>` - Name for the new command (kebab-case)
-- `<pattern-type>` - Template pattern: read-only, interactive, workflow, generator, utility
+- `<pattern-type>` - Template pattern: read-only, interactive, workflow, generator, utility, synthesis, conversion, planning
 
 **Validation:**
 If arguments are missing, the command will prompt interactively.
@@ -81,7 +81,16 @@ Select the command pattern type:
 [5] utility      - Maintenance and validation commands
                    Examples: /validate-plugin, /bump-version
 
-Enter number (1-5) or pattern name:
+[6] synthesis    - Commands that merge multiple sources into one output
+                   Examples: /consolidate-documents
+
+[7] conversion   - Commands that transform files between formats
+                   Examples: /convert-markdown
+
+[8] planning     - Commands that analyze and generate improvement plans
+                   Examples: /plan-improvements, /plan-next
+
+Enter number (1-8) or pattern name:
 ```
 
 ### Phase 2: Generate Command File
@@ -94,6 +103,9 @@ Read the appropriate template from:
 - `plugins/personal-plugin/references/templates/workflow.md`
 - `plugins/personal-plugin/references/templates/generator.md`
 - `plugins/personal-plugin/references/templates/utility.md`
+- `plugins/personal-plugin/references/templates/synthesis.md`
+- `plugins/personal-plugin/references/templates/conversion.md`
+- `plugins/personal-plugin/references/templates/planning.md`
 
 #### 2.2 Customize Template
 
@@ -117,10 +129,15 @@ Replace placeholders in the template:
 - workflow: "Perform [description]. Execute each phase systematically."
 - generator: "Analyze the specified input and generate [description]."
 - utility: "Perform [description] to maintain repository quality."
+- synthesis: "Consolidate multiple sources into a single optimized [description]."
+- conversion: "Convert [input format] to [output format] for [description]."
+- planning: "Analyze the codebase and generate [description] with phased implementation plan."
 
-**Determine output location** (for generators):
+**Determine output location** (for generators, synthesis, planning):
 - Analysis reports -> `reports/`
 - Reference data (JSON) -> `reference/`
+- Planning documents -> repository root
+- Consolidated documents -> `reports/`
 - Other -> prompt user
 
 #### 2.3 Write Command File
@@ -191,8 +208,11 @@ Select the command pattern type:
 [3] workflow     - Multi-step automation
 [4] generator    - Output generation
 [5] utility      - Maintenance commands
+[6] synthesis    - Merge multiple sources
+[7] conversion   - Format transformation
+[8] planning     - Improvement planning
 
-Enter number (1-5) or pattern name:
+Enter number (1-8) or pattern name:
 
 User: 1
 

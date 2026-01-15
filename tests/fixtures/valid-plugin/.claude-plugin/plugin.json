@@ -1,0 +1,6 @@
+{
+  "name": "valid-plugin",
+  "description": "A valid test plugin for integration testing",
+  "version": "1.0.0",
+  "author": "Test Suite"
+}

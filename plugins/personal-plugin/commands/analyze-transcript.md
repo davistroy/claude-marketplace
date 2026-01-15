@@ -86,6 +86,15 @@ List any questions that were raised but not answered, or topics deferred for lat
 
 Based on the `--format` flag:
 
+### Directory Creation
+
+Before writing any output file, ensure the target directory exists:
+
+```bash
+# Ensure output directory exists before writing
+mkdir -p reports/
+```
+
 ### Markdown Format (default)
 
 Generate the analysis as a clean markdown document that:
@@ -96,7 +105,7 @@ Generate the analysis as a clean markdown document that:
 - Maintains a professional, objective tone
 - Highlights critical or time-sensitive items
 
-Save as: `meeting-analysis-YYYYMMDD-HHMMSS.md`
+Save as: `reports/meeting-analysis-YYYYMMDD-HHMMSS.md`
 
 ### JSON Format
 
@@ -156,7 +165,7 @@ Generate a structured JSON document with this schema:
 }
 ```
 
-Save as: `meeting-analysis-YYYYMMDD-HHMMSS.json`
+Save as: `reports/meeting-analysis-YYYYMMDD-HHMMSS.json`
 
 ## Preview Mode
 

@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `schemas/command.json` - JSON Schema for command frontmatter validation
+- Modular pattern files in `plugins/personal-plugin/references/patterns/`:
+  - `naming.md` - File and command naming conventions
+  - `validation.md` - Input validation and error handling patterns
+  - `output.md` - Output files, directories, preview patterns
+  - `workflow.md` - State management, resume, session patterns
+  - `testing.md` - Argument testing and dry-run patterns
+  - `logging.md` - Audit logging and progress reporting patterns
+- `--strict` flag to `/validate-plugin` for failing on any pattern violation
+- `--report` flag to `/validate-plugin` for generating detailed compliance reports
+- Schema Validation Summary section to Q&A commands (define-questions, ask-questions, finish-document)
+- 3 new command templates: `synthesis.md`, `conversion.md`, `planning.md`
+- `docs/PLUGIN-DEVELOPMENT.md` - Step-by-step plugin developer onboarding guide
+- Integration tests for validate-plugin and bump-version commands (37 new tests)
+- Test fixtures for valid and invalid plugin structures
+- "Common Development Mistakes" section in TROUBLESHOOTING.md (7 documented mistakes)
+- `.github/workflows/validate.yml` - CI/CD validation pipeline with plugin validation, markdown linting, and help sync checks
+- `--scorecard` flag to `/validate-plugin` for plugin maturity assessment (4 levels)
+- Interactive parameter prompting to `/define-questions` and `/assess-document` with `--no-prompt` flag
+- `QUICK-REFERENCE.md` - Single-page quick reference card for plugin developers (under 100 lines)
+
+### Changed
+- README command tables now use natural sentence truncation and hyperlink to source files
+- BPMN plugin help.md now includes full descriptions with operating modes and examples
+- Marketplace versioning decoupled from plugin versions (marketplace_version: 1.0.0)
+- Pre-commit hook now blocks commits with new commands not documented in help.md
+- Generator commands (assess-document, define-questions, analyze-transcript) now auto-create output directories
+- `common-patterns.md` converted to index linking to modular pattern files
+- All 5 command templates updated with explicit section order markers and pattern file references
+- `/validate-plugin` now includes Phase 7: Pattern Compliance Checks
+- Q&A commands now have uniform `--force` flag behavior and validation status output
+- `/new-command` now offers 8 template options (added synthesis, conversion, planning)
+- CONTRIBUTING.md now links to the plugin developer onboarding guide
+- README.md now includes CI badges and links to QUICK-REFERENCE.md
+- `/validate-plugin` now supports `--scorecard` for maturity assessment
+
 ## [2.3.0] - 2026-01-15
 
 ### Added

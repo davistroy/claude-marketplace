@@ -11,6 +11,7 @@ This guide covers common issues and their solutions when using Claude Marketplac
 3. [Command Failures](#3-command-failures)
 4. [Output Problems](#4-output-problems)
 5. [Workflow Issues](#5-workflow-issues)
+6. [Common Development Mistakes](#6-common-development-mistakes)
 
 ---
 
@@ -518,6 +519,300 @@ ls -la reports/ reference/
 3. If stuck, interrupt and try `/review-arch` for quick analysis instead.
 
 4. Consider running on a subset of the codebase first.
+
+---
+
+## 6. Common Development Mistakes
+
+This section documents common mistakes when developing plugin commands and how to fix them.
+
+---
+
+### 6.1 Adding `name` Field to Frontmatter
+
+**Symptom:** Command is not discovered by Claude Code, or shows wrong name in `/help`.
+
+**Cause:** You added a `name` field to the frontmatter.
+
+**Wrong:**
+```yaml
+---
+name: my-command
+description: My command description
+---
+```
+
+**Correct:**
+```yaml
+---
+description: My command description
+---
+```
+
+**Why this matters:** The filename determines the command name. Adding a `name` field can cause discovery issues because it conflicts with the file-based naming convention.
+
+**Fix:**
+1. Remove the `name` field from frontmatter
+2. The command name is derived from the filename (e.g., `my-command.md` becomes `/my-command`)
+
+**Validation that catches this:**
+```
+/validate-plugin personal-plugin
+```
+Look for: `[FAIL] Forbidden field 'name' found - filename determines command name`
+
+---
+
+### 6.2 Forgetting to Update help.md
+
+**Symptom:** New command works but does not appear in `/help` output.
+
+**Cause:** The plugin's `help.md` skill was not updated after adding a new command.
+
+**Problem:** You created a new command but forgot to run the help generator or manually update help.md.
+
+**Fix:**
+1. Regenerate help.md automatically:
+   ```bash
+   python scripts/generate-help.py plugins/personal-plugin
+   ```
+
+2. Or manually add an entry to `plugins/personal-plugin/skills/help.md`:
+   ```markdown
+   ### /my-new-command
+   **Description:** Brief description of what it does
+   **Arguments:** `<required-arg>` `[--optional-flag]`
+   **Output:** What the command produces
+   ```
+
+**Validation that catches this:**
+- Pre-commit hook blocks commits with undocumented commands
+- Error message: `New command/skill not documented in help.md: my-new-command`
+
+**Fix command:**
+```
+/validate-plugin --fix
+```
+
+---
+
+### 6.3 Using Wrong Output Directory
+
+**Symptom:** Output files are saved to unexpected locations or cannot be found.
+
+**Cause:** Using non-standard output directories that don't follow project conventions.
+
+**Wrong:**
+```markdown
+Save output to: output/my-report.md
+Save output to: ./results/data.json
+```
+
+**Correct:**
+```markdown
+Save output to: reports/assessment-PRD-20260115-143052.md
+Save output to: reference/questions-requirements-20260115-093000.json
+```
+
+**Standard output directories:**
+
+| Content Type | Directory |
+|--------------|-----------|
+| Analysis reports (markdown) | `reports/` |
+| Reference data (JSON) | `reference/` |
+| Planning documents | Repository root |
+| Converted files | Same directory as source |
+| Temporary files | `.tmp/` |
+
+**Fix:**
+1. Update your command to use standard directories
+2. See `plugins/personal-plugin/references/patterns/output.md` for directory conventions
+
+**Validation that catches this:**
+```
+/validate-plugin personal-plugin --strict
+```
+Look for: `[WARN] Non-standard output naming: 'output.json'`
+
+---
+
+### 6.4 Missing Input Validation Section
+
+**Symptom:** Command fails confusingly when given invalid or missing input.
+
+**Cause:** Command does not have an Input Validation section documenting arguments and error messages.
+
+**Problem:** Users don't know what arguments are required, and errors are unclear.
+
+**Wrong:**
+```markdown
+---
+description: Process a document
+---
+
+# Process Document
+
+## Instructions
+1. Read the document
+2. Process it
+```
+
+**Correct:**
+```markdown
+---
+description: Process a document
+---
+
+# Process Document
+
+## Input Validation
+
+**Required Arguments:**
+- `<document-path>` - Path to the document to process
+
+**Optional Arguments:**
+- `--format [json|md]` - Output format (default: md)
+- `--verbose` - Enable detailed output
+
+**Validation:**
+If required arguments are missing, display:
+```
+Usage: /process-document <document-path> [--format json|md]
+Example: /process-document docs/spec.md
+Example: /process-document README.md --format json
+```
+
+## Instructions
+1. Read the document
+2. Process it
+```
+
+**Fix:**
+1. Add an `## Input Validation` section before `## Instructions`
+2. Document all required and optional arguments
+3. Include example usage in the validation error message
+
+**Validation that catches this:**
+```
+/validate-plugin personal-plugin --strict
+```
+Look for: `[FAIL] Missing section: Input Validation`
+
+---
+
+### 6.5 Inconsistent Flag Naming
+
+**Symptom:** Users are confused by flags that don't follow conventions.
+
+**Cause:** Using non-standard flag names or formats.
+
+**Wrong:**
+```markdown
+--dryRun        (camelCase)
+--DRY-RUN       (uppercase)
+--dry_run       (snake_case)
+-d              (single letter without long form)
+--skipValidation (camelCase)
+```
+
+**Correct:**
+```markdown
+--dry-run       (lowercase kebab-case)
+--force         (standard flag)
+--verbose       (standard flag)
+--preview       (standard flag)
+```
+
+**Standard flags and their purposes:**
+
+| Flag | Purpose | When to Use |
+|------|---------|-------------|
+| `--dry-run` | Preview changes without executing | Workflow commands with side effects |
+| `--force` | Proceed despite validation errors | Override safety checks |
+| `--verbose` | Show detailed output | When more info might help |
+| `--preview` | Show summary before saving | Generator commands |
+| `--all` | Apply to all targets | Multi-target commands |
+| `--fix` | Auto-fix simple issues | Validation commands |
+| `--strict` | Fail on any violation | CI/CD usage |
+| `--report` | Generate report file | Analysis commands |
+
+**Fix:**
+1. Use lowercase kebab-case for all flags
+2. Prefer standard flags when they match your use case
+3. Document all flags in the Input Validation section
+
+**Validation that catches this:**
+```
+/validate-plugin personal-plugin --strict
+```
+Look for: `[WARN] Non-standard flag '--skipValidation' - Consider using '--force'`
+
+---
+
+### 6.6 Missing Required Sections
+
+**Symptom:** Command works but fails `/validate-plugin` checks.
+
+**Cause:** Command is missing required sections for its pattern type.
+
+**Required sections for all commands:**
+1. `## Input Validation` - Document arguments and error handling
+2. `## Instructions` - Step-by-step guidance for Claude
+
+**Additional sections by pattern:**
+- **Generator commands:** `## Output Format`
+- **Read-only commands:** `## Output Format` (inline report structure)
+- **Workflow commands:** `## Safety Rules`
+
+**Fix:**
+1. Add all required sections for your command's pattern type
+2. Reference the template in `plugins/personal-plugin/references/templates/`
+3. Use `/new-command` to generate properly structured commands
+
+**Validation that catches this:**
+```
+/validate-plugin personal-plugin --strict --report
+```
+Check the generated report for section compliance details.
+
+---
+
+### 6.7 Not Using Timestamp in Output Filenames
+
+**Symptom:** Output files overwrite each other or have inconsistent names.
+
+**Cause:** Using static filenames without timestamps.
+
+**Wrong:**
+```markdown
+Save to: reports/assessment.md
+Save to: reference/questions.json
+```
+
+**Correct:**
+```markdown
+Save to: reports/assessment-PRD-20260115-143052.md
+Save to: reference/questions-requirements-20260115-093000.json
+```
+
+**Filename format:** `[type]-[source]-YYYYMMDD-HHMMSS.[ext]`
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| `type` | What kind of output | `assessment`, `questions`, `consolidated` |
+| `source` | What was processed | `PRD`, `requirements`, `spec` |
+| `YYYYMMDD-HHMMSS` | Timestamp | `20260115-143052` |
+| `ext` | File extension | `md`, `json`, `docx` |
+
+**Fix:**
+1. Update output naming to include timestamp
+2. See `plugins/personal-plugin/references/patterns/naming.md` for full conventions
+
+**Validation that catches this:**
+```
+/validate-plugin personal-plugin --strict
+```
+Look for: `[WARN] Non-standard output naming`
 
 ---
 

@@ -163,7 +163,7 @@ Before starting the Q&A session, check for an incomplete previous session:
 3. On resume: Load existing answers and continue from `last_question_answered + 1`
 4. On start fresh: Backup existing file and start from question 1
 
-See `references/common-patterns.md` for full state management specification.
+See `references/patterns/workflow.md` for full state management specification.
 
 ### 2.1 Question Flow
 
@@ -209,7 +209,7 @@ If `--auto` flag was provided:
 
 ### 2.3 Session Commands
 
-Support these standard session commands during Q&A (see `references/common-patterns.md` for full specification):
+Support these standard session commands during Q&A (see `references/patterns/workflow.md` for full specification):
 
 | Command | Aliases | Action |
 |---------|---------|--------|
@@ -414,3 +414,29 @@ You can re-run `/finish-document PRD.md` to address skipped questions.
 3. **Don't lose content** — If unsure where to place an answer, append rather than replace
 4. **Keep references** — Never delete the questions/answers JSON files automatically
 5. **Atomic updates** — If document update fails partway, restore from backup
+
+## Schema Validation Summary
+
+This command validates intermediate files at each phase. See `references/patterns/validation.md` for full validation behavior.
+
+| Phase | Output | Schema |
+|-------|--------|--------|
+| 1 (Extract) | `questions-*.json` | `schemas/questions.json` |
+| 2 (Answer) | `answers-*.json` | `schemas/answers.json` |
+
+| Flag | Behavior |
+|------|----------|
+| (default) | Validate at each phase, fail if invalid, show specific errors |
+| `--force` | Proceed/save despite validation errors (with warning) |
+| `--auto` | Auto-select recommended answers (validation still applies) |
+
+**Validation Status in Output:**
+All phase completions include validation status:
+- `Validation: PASSED` - All required fields present, types correct
+- `Validation: FAILED` - Errors listed, file not saved (unless `--force`)
+- `Validation: SKIPPED` - Used with `--force`, file saved with warning
+
+**Multi-Phase Validation:**
+- Phase 1 output is validated before Phase 2 begins
+- Phase 2 output is validated before Phase 3 (document update) begins
+- Using `--force` allows progression despite validation failures, but may result in incomplete document updates

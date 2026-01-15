@@ -62,7 +62,7 @@ Before starting the Q&A session, check for an incomplete previous session:
 3. On resume: Load existing answers and continue from `last_question_answered + 1`
 4. On start fresh: Backup existing file and start from question 1
 
-See `references/common-patterns.md` for full state management specification.
+See `references/patterns/workflow.md` for full state management specification.
 
 **Input Schema:** The input file must conform to `schemas/questions.json`
 
@@ -159,7 +159,7 @@ Guidelines for generating answers:
 
 ### 3. Handle Session Commands
 
-During the session, support these standard session commands (see `references/common-patterns.md` for full specification):
+During the session, support these standard session commands (see `references/patterns/workflow.md` for full specification):
 
 | Command | Aliases | Action |
 |---------|---------|--------|
@@ -360,3 +360,28 @@ Recorded: Claude (Anthropic) for AI board members + Deepgram for transcription
 
 Proceeding to question 4...
 ```
+
+## Schema Validation Summary
+
+This command validates both input and output against their respective schemas. See `references/patterns/validation.md` for full validation behavior.
+
+| Direction | Schema | Flag Behavior |
+|-----------|--------|---------------|
+| Input | `schemas/questions.json` | Validate before session starts |
+| Output | `schemas/answers.json` | Validate before saving |
+
+| Flag | Behavior |
+|------|----------|
+| (default) | Validate input/output, fail if invalid, show specific errors |
+| `--force` | Proceed/save despite validation errors (with warning) |
+
+**Validation Status in Output:**
+All command completions include validation status:
+- `Validation: PASSED` - All required fields present, types correct
+- `Validation: FAILED` - Errors listed, file not saved (unless `--force`)
+- `Validation: SKIPPED` - Used with `--force`, file saved with warning
+
+**Downstream Compatibility:**
+- Input from `/define-questions` is validated to ensure compatibility
+- Output is validated for `/finish-document` compatibility
+- Using `--force` may result in files that don't work with downstream commands

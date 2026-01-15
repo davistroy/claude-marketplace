@@ -1,0 +1,296 @@
+name: Plugin Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate Plugins
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest jsonschema pyyaml
+
+      - name: Validate plugin.json files
+        run: |
+          python -c "
+          import json
+          from pathlib import Path
+          import sys
+
+          errors = []
+          plugins_dir = Path('plugins')
+
+          for plugin_dir in plugins_dir.iterdir():
+              if not plugin_dir.is_dir():
+                  continue
+
+              plugin_json = plugin_dir / '.claude-plugin' / 'plugin.json'
+              if not plugin_json.exists():
+                  errors.append(f'{plugin_dir.name}: Missing plugin.json')
+                  continue
+
+              try:
+                  with open(plugin_json) as f:
+                      data = json.load(f)
+
+                  # Check required fields
+                  for field in ['name', 'description', 'version']:
+                      if field not in data:
+                          errors.append(f'{plugin_dir.name}: Missing required field \"{field}\" in plugin.json')
+
+                  # Validate semver format
+                  if 'version' in data:
+                      import re
+                      if not re.match(r'^\d+\.\d+\.\d+$', data['version']):
+                          errors.append(f'{plugin_dir.name}: Invalid version format \"{data[\"version\"]}\" (expected X.Y.Z)')
+
+                  print(f'{plugin_dir.name}: plugin.json valid')
+
+              except json.JSONDecodeError as e:
+                  errors.append(f'{plugin_dir.name}: Invalid JSON in plugin.json - {e}')
+
+          if errors:
+              print('\nValidation errors:')
+              for error in errors:
+                  print(f'  - {error}')
+              sys.exit(1)
+          else:
+              print('\nAll plugin.json files are valid!')
+          "
+
+      - name: Validate command frontmatter
+        run: |
+          python -c "
+          import yaml
+          from pathlib import Path
+          import sys
+
+          errors = []
+          warnings = []
+          plugins_dir = Path('plugins')
+
+          for plugin_dir in plugins_dir.iterdir():
+              if not plugin_dir.is_dir():
+                  continue
+
+              for subdir in ['commands', 'skills']:
+                  cmd_dir = plugin_dir / subdir
+                  if not cmd_dir.exists():
+                      continue
+
+                  for md_file in cmd_dir.glob('*.md'):
+                      try:
+                          content = md_file.read_text(encoding='utf-8')
+
+                          # Check for frontmatter
+                          if not content.startswith('---'):
+                              errors.append(f'{md_file.relative_to(\".\")}: Missing frontmatter delimiters')
+                              continue
+
+                          # Extract frontmatter
+                          parts = content.split('---', 2)
+                          if len(parts) < 3:
+                              errors.append(f'{md_file.relative_to(\".\")}: Invalid frontmatter structure')
+                              continue
+
+                          frontmatter = yaml.safe_load(parts[1])
+
+                          if frontmatter is None:
+                              errors.append(f'{md_file.relative_to(\".\")}: Empty frontmatter')
+                              continue
+
+                          # Check required field
+                          if 'description' not in frontmatter:
+                              errors.append(f'{md_file.relative_to(\".\")}: Missing required field \"description\"')
+
+                          # Check forbidden field
+                          if 'name' in frontmatter:
+                              errors.append(f'{md_file.relative_to(\".\")}: Contains forbidden \"name\" field (filename determines command name)')
+
+                          print(f'{md_file.relative_to(\".\")}: frontmatter valid')
+
+                      except yaml.YAMLError as e:
+                          errors.append(f'{md_file.relative_to(\".\")}: Invalid YAML in frontmatter - {e}')
+                      except Exception as e:
+                          errors.append(f'{md_file.relative_to(\".\")}: Error reading file - {e}')
+
+          if errors:
+              print('\nValidation errors:')
+              for error in errors:
+                  print(f'  - {error}')
+              sys.exit(1)
+          else:
+              print('\nAll command frontmatter is valid!')
+          "
+
+      - name: Validate version synchronization
+        run: |
+          python -c "
+          import json
+          from pathlib import Path
+          import sys
+
+          errors = []
+
+          # Load marketplace.json
+          marketplace_path = Path('.claude-plugin/marketplace.json')
+          if not marketplace_path.exists():
+              print('No marketplace.json found, skipping version sync check')
+              sys.exit(0)
+
+          with open(marketplace_path) as f:
+              marketplace = json.load(f)
+
+          marketplace_plugins = {p['name']: p for p in marketplace.get('plugins', [])}
+
+          # Check each plugin
+          plugins_dir = Path('plugins')
+          for plugin_dir in plugins_dir.iterdir():
+              if not plugin_dir.is_dir():
+                  continue
+
+              plugin_json_path = plugin_dir / '.claude-plugin' / 'plugin.json'
+              if not plugin_json_path.exists():
+                  continue
+
+              with open(plugin_json_path) as f:
+                  plugin_data = json.load(f)
+
+              plugin_name = plugin_data.get('name', plugin_dir.name)
+              plugin_version = plugin_data.get('version')
+
+              if plugin_name in marketplace_plugins:
+                  marketplace_version = marketplace_plugins[plugin_name].get('version')
+                  if marketplace_version != plugin_version:
+                      errors.append(f'{plugin_name}: Version mismatch - plugin.json has {plugin_version}, marketplace.json has {marketplace_version}')
+                  else:
+                      print(f'{plugin_name}: Version {plugin_version} synchronized')
+              else:
+                  print(f'{plugin_name}: Not in marketplace.json (standalone plugin)')
+
+          if errors:
+              print('\nVersion synchronization errors:')
+              for error in errors:
+                  print(f'  - {error}')
+              sys.exit(1)
+          else:
+              print('\nAll versions are synchronized!')
+          "
+
+      - name: Run pytest tests
+        run: |
+          pytest tests/ -v --tb=short
+
+  lint-markdown:
+    name: Lint Markdown
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Create markdownlint config
+        run: |
+          cat > .markdownlint.json << 'EOF'
+          {
+            "default": true,
+            "MD013": false,
+            "MD033": false,
+            "MD041": false,
+            "MD024": { "siblings_only": true },
+            "MD046": false,
+            "MD007": { "indent": 2 }
+          }
+          EOF
+
+      - name: Lint markdown files
+        run: |
+          markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' || true
+
+  help-sync:
+    name: Help.md Synchronization
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check help.md synchronization
+        run: |
+          python -c "
+          from pathlib import Path
+          import sys
+
+          errors = []
+          plugins_dir = Path('plugins')
+
+          for plugin_dir in plugins_dir.iterdir():
+              if not plugin_dir.is_dir():
+                  continue
+
+              # Find help.md (could be in commands/ or skills/)
+              help_files = list(plugin_dir.glob('**/help.md'))
+              if not help_files:
+                  errors.append(f'{plugin_dir.name}: No help.md found')
+                  continue
+
+              help_content = help_files[0].read_text(encoding='utf-8')
+
+              # Get all commands and skills
+              commands = []
+              skills = []
+
+              cmd_dir = plugin_dir / 'commands'
+              if cmd_dir.exists():
+                  commands = [f.stem for f in cmd_dir.glob('*.md') if f.stem != 'help']
+
+              skills_dir = plugin_dir / 'skills'
+              if skills_dir.exists():
+                  skills = [f.stem for f in skills_dir.glob('*.md') if f.stem != 'help']
+
+              # Check if commands/skills are documented in help.md
+              all_items = commands + skills
+              missing = []
+
+              for item in all_items:
+                  # Check if the command/skill name appears in help.md
+                  if f'/{item}' not in help_content and item not in help_content:
+                      missing.append(item)
+
+              if missing:
+                  errors.append(f'{plugin_dir.name}/help.md: Missing documentation for: {', '.join(missing)}')
+              else:
+                  print(f'{plugin_dir.name}: help.md synchronized ({len(all_items)} items documented)')
+
+          if errors:
+              print('\nHelp.md synchronization errors:')
+              for error in errors:
+                  print(f'  - {error}')
+              print('\nRun /validate-plugin --fix to update help.md files')
+              sys.exit(1)
+          else:
+              print('\nAll help.md files are synchronized!')
+          "

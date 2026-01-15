@@ -93,3 +93,21 @@ def sample_answers_path(fixtures_dir: Path) -> Path:
 def expected_updated_prd_path(fixtures_dir: Path) -> Path:
     """Return the path to the expected updated PRD."""
     return fixtures_dir / "expected-updated-prd.md"
+
+
+@pytest.fixture
+def valid_plugin_dir(fixtures_dir: Path) -> Path:
+    """Return the path to the valid plugin fixture."""
+    return fixtures_dir / "valid-plugin"
+
+
+@pytest.fixture
+def invalid_plugin_dir(fixtures_dir: Path) -> Path:
+    """Return the path to the invalid plugin fixture."""
+    return fixtures_dir / "invalid-plugin"
+
+
+@pytest.fixture
+def plugins_dir(project_root: Path) -> Path:
+    """Return the plugins directory."""
+    return project_root / "plugins"

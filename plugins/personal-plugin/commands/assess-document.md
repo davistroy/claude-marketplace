@@ -15,14 +15,31 @@ Perform a comprehensive evaluation of the specified document, identifying gaps, 
 - `--format [md|json]` - Output format (default: md)
   - `md`: Markdown report with tables and sections (default)
   - `json`: Structured data with scores, issues array, and recommendations
+- `--no-prompt` - Disable interactive prompting for missing arguments (for scripts and CI/CD)
 
 **Validation:**
-If the document path is missing, display:
+If the document path is missing:
+
+1. **If `--no-prompt` is specified**, display the error and exit:
 ```
-Usage: /assess-document <document-path> [--format md|json]
+Error: Missing required argument
+
+Usage: /assess-document <document-path> [--format md|json] [--no-prompt]
 Example: /assess-document PRD.md
 Example: /assess-document PRD.md --format json
 ```
+
+2. **Otherwise (default), prompt interactively**:
+```
+/assess-document requires a document path.
+
+Please provide the path to the document to assess:
+> _
+
+(or use --no-prompt to disable interactive prompting)
+```
+
+Wait for the user to provide the document path, then proceed with assessment.
 
 ## Input
 
@@ -200,15 +217,23 @@ Create a markdown file with the following structure:
 
 Based on the `--format` flag:
 
+**Directory Creation:**
+Before writing any output file, ensure the target directory exists. If the output is going to the `reports/` directory (for centralized assessment storage), create it if needed:
+
+```bash
+# Ensure output directory exists before writing
+mkdir -p reports/
+```
+
 **Markdown Format (default):**
-- Save to: `[document-name]-assessment-[timestamp].md`
-- Place in the same directory as the source document
+- Save to: `reports/assessment-[document-name]-[timestamp].md`
+- Alternative: Place in the same directory as the source document
 - Use timestamp format: `YYYYMMDD-HHMMSS`
-- Example: `PRD-assessment-20260110-143052.md`
+- Example: `reports/assessment-PRD-20260110-143052.md`
 
 **JSON Format:**
-- Save to: `[document-name]-assessment-[timestamp].json`
-- Place in the same directory as the source document
+- Save to: `reports/assessment-[document-name]-[timestamp].json`
+- Alternative: Place in the same directory as the source document
 - Structure:
 ```json
 {
