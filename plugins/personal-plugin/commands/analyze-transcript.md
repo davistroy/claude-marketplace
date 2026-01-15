@@ -6,6 +6,26 @@ description: Meeting transcript to structured markdown report
 
 Analyze the attached meeting transcript and produce a comprehensive markdown report.
 
+## Input Validation
+
+**Required Arguments:**
+- `<transcript-path>` - Path to the transcript file or pasted content
+
+**Optional Arguments:**
+- `--format [md|json]` - Output format (default: md)
+  - `md`: Markdown report with sections and tables (default)
+  - `json`: Structured data with sections, action_items, decisions arrays
+
+**Validation:**
+If no transcript is provided, display:
+```
+Usage: /analyze-transcript <transcript-path> [--format md|json]
+Example: /analyze-transcript meeting-notes.txt
+Example: /analyze-transcript transcript.md --format json
+```
+
+You can also paste transcript content directly when prompted.
+
 ## Instructions
 
 Read the provided transcript thoroughly and create a detailed analysis document with the following sections:
@@ -63,6 +83,10 @@ List any questions that were raised but not answered, or topics deferred for lat
 
 ## Output Format
 
+Based on the `--format` flag:
+
+### Markdown Format (default)
+
 Generate the analysis as a clean markdown document that:
 - Uses clear headers and subheaders
 - Employs bullet points for readability
@@ -71,6 +95,68 @@ Generate the analysis as a clean markdown document that:
 - Maintains a professional, objective tone
 - Highlights critical or time-sensitive items
 
+Save as: `meeting-analysis-YYYYMMDD-HHMMSS.md`
+
+### JSON Format
+
+Generate a structured JSON document with this schema:
+
+```json
+{
+  "metadata": {
+    "title": "Meeting title or topic",
+    "date": "2026-01-10",
+    "attendees": ["Person 1", "Person 2"],
+    "duration": "1 hour",
+    "analyzed_at": "2026-01-10T14:30:00Z"
+  },
+  "discussion_points": [
+    {
+      "topic": "Topic name",
+      "summary": "Brief summary",
+      "details": ["Detail 1", "Detail 2"],
+      "decisions": ["Decision made"],
+      "dissenting_views": ["Any disagreements noted"]
+    }
+  ],
+  "risks_and_issues": [
+    {
+      "title": "Risk or issue name",
+      "impact": "What could be affected",
+      "mitigation": "Proposed solution",
+      "status": "Open"
+    }
+  ],
+  "action_items": [
+    {
+      "description": "Action item description",
+      "owner": "Person name",
+      "due_date": "2026-01-15",
+      "priority": "High",
+      "notes": "Additional context"
+    }
+  ],
+  "next_steps": [
+    {
+      "step": "Description",
+      "owner": "Person",
+      "dependencies": ["Dependency 1"],
+      "timeline": "Next week"
+    }
+  ],
+  "decisions_made": [
+    {
+      "decision": "What was decided",
+      "rationale": "Key reasoning",
+      "conditions": ["Any caveats"]
+    }
+  ],
+  "open_questions": ["Question 1", "Question 2"]
+}
+```
+
+Save as: `meeting-analysis-YYYYMMDD-HHMMSS.json`
+
 ## File Naming
 
-Save the analysis as `meeting-analysis-YYYYMMDD-HHMMSS.md` using the timestamp format `YYYYMMDD-HHMMSS`. Use the meeting date if known (with current time), or the current date and time if not specified.
+Use the timestamp format `YYYYMMDD-HHMMSS`. Use the meeting date if known (with current time), or the current date and time if not specified.

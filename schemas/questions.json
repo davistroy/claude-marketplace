@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/claude-marketplace/schemas/questions.json",
+  "title": "Questions Schema",
+  "description": "JSON Schema for questions output from /define-questions command",
+  "type": "object",
+  "required": ["metadata", "questions"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Information about the source document and extraction process",
+      "required": ["source_document", "generated_at", "total_questions"],
+      "properties": {
+        "source_document": {
+          "type": "string",
+          "description": "Path or name of the analyzed document"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when questions were extracted"
+        },
+        "total_questions": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of questions extracted"
+        },
+        "topics_summary": {
+          "type": "array",
+          "description": "List of unique topics identified across all questions",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "description": "Array of extracted questions and open items",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "context"],
+        "properties": {
+          "id": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "integer", "minimum": 1 }
+            ],
+            "description": "Unique identifier for the question (string or sequential integer)"
+          },
+          "text": {
+            "type": "string",
+            "description": "The question or open item text (alias: 'question')"
+          },
+          "question": {
+            "type": "string",
+            "description": "The question or open item text (alias for 'text')"
+          },
+          "context": {
+            "type": "string",
+            "description": "Background information needed to understand and answer the question"
+          },
+          "topic": {
+            "type": "string",
+            "description": "Category or topic area the question belongs to"
+          },
+          "category": {
+            "type": "string",
+            "description": "Alternative name for topic (for compatibility)"
+          },
+          "sections": {
+            "type": "array",
+            "description": "Document sections where this question is relevant",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Importance level of resolving this question"
+          },
+          "location": {
+            "type": "object",
+            "description": "Location information for document update (used by /finish-document)",
+            "properties": {
+              "line_start": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Starting line number in the source document"
+              },
+              "line_end": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Ending line number in the source document"
+              },
+              "original_text": {
+                "type": "string",
+                "description": "The original text containing the TBD/question marker"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "metadata": {
+        "source_document": "PRD.md",
+        "generated_at": "2026-01-10T14:30:00Z",
+        "total_questions": 2,
+        "topics_summary": ["Board Role Definitions", "LLM Integration"]
+      },
+      "questions": [
+        {
+          "id": 1,
+          "topic": "Board Role Definitions",
+          "sections": ["3.1 AI Board Members", "4.2 Governance Sessions"],
+          "question": "What specific expertise should each of the 5 AI board member roles embody?",
+          "context": "The PRD mentions a 5-role AI board but does not define the specific roles.",
+          "priority": "high"
+        },
+        {
+          "id": 2,
+          "topic": "LLM Integration",
+          "sections": ["5.1 Technical Architecture"],
+          "question": "Which LLM provider(s) will be used for the AI board members?",
+          "context": "The document references LLM services but does not specify providers.",
+          "priority": "medium"
+        }
+      ]
+    }
+  ]
+}

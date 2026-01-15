@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/claude-marketplace/schemas/answers.json",
+  "title": "Answers Schema",
+  "description": "JSON Schema for answers output from /ask-questions and /finish-document commands",
+  "type": "object",
+  "required": ["metadata", "answers"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Information about the Q&A session",
+      "required": ["source_document", "total_questions"],
+      "properties": {
+        "source_document": {
+          "type": "string",
+          "description": "Path or name of the original source document"
+        },
+        "source_questions_file": {
+          "type": "string",
+          "description": "Path to the questions JSON file used as input"
+        },
+        "questions_file": {
+          "type": "string",
+          "description": "Alternative name for source_questions_file (for compatibility)"
+        },
+        "total_questions": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of questions in the session"
+        },
+        "answered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of questions answered (not skipped)"
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of questions skipped"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when session started"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when session completed"
+        },
+        "answer_summary": {
+          "type": "object",
+          "description": "Breakdown of answer types selected",
+          "properties": {
+            "recommended": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of recommended answers selected"
+            },
+            "alternative": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of alternative answers selected"
+            },
+            "custom": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of custom answers provided"
+            },
+            "skipped": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of questions skipped"
+            }
+          }
+        }
+      }
+    },
+    "answers": {
+      "type": "array",
+      "description": "Array of answered questions",
+      "items": {
+        "type": "object",
+        "required": ["id", "selected_answer"],
+        "properties": {
+          "id": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "integer", "minimum": 1 }
+            ],
+            "description": "Question identifier matching the questions file"
+          },
+          "topic": {
+            "type": "string",
+            "description": "Category or topic area (from questions file)"
+          },
+          "sections": {
+            "type": "array",
+            "description": "Document sections (from questions file)",
+            "items": {
+              "type": "string"
+            }
+          },
+          "question": {
+            "type": "string",
+            "description": "The original question text"
+          },
+          "context": {
+            "type": "string",
+            "description": "Background context (from questions file)"
+          },
+          "location": {
+            "type": "object",
+            "description": "Location information for document update",
+            "properties": {
+              "line_start": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "line_end": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "original_text": {
+                "type": "string"
+              }
+            }
+          },
+          "selected_answer": {
+            "type": "string",
+            "description": "The answer selected or provided by the user"
+          },
+          "answer_type": {
+            "type": "string",
+            "enum": ["recommended", "alternative", "custom", "skipped"],
+            "description": "Type of answer: recommended (A), alternative (B/C), custom (D), or skipped (S)"
+          },
+          "answered_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp when this question was answered"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "metadata": {
+        "source_questions_file": "questions-PRD-20260110.json",
+        "source_document": "PRD.md",
+        "total_questions": 2,
+        "answered": 2,
+        "skipped": 0,
+        "started_at": "2026-01-10T14:00:00Z",
+        "completed_at": "2026-01-10T14:30:00Z",
+        "answer_summary": {
+          "recommended": 1,
+          "alternative": 1,
+          "custom": 0,
+          "skipped": 0
+        }
+      },
+      "answers": [
+        {
+          "id": 1,
+          "topic": "Board Role Definitions",
+          "sections": ["3.1 AI Board Members"],
+          "question": "What specific expertise should each of the 5 AI board member roles embody?",
+          "context": "The PRD mentions a 5-role AI board but does not define the specific roles.",
+          "selected_answer": "CFO (financial), CTO (technical), CMO (market), CPO (product), CEO (strategic)",
+          "answer_type": "recommended",
+          "answered_at": "2026-01-10T14:10:00Z"
+        },
+        {
+          "id": 2,
+          "topic": "LLM Integration",
+          "sections": ["5.1 Technical Architecture"],
+          "question": "Which LLM provider(s) will be used for the AI board members?",
+          "context": "The document references LLM services but does not specify providers.",
+          "selected_answer": "Claude (Anthropic) for AI board members + Deepgram for transcription",
+          "answer_type": "alternative",
+          "answered_at": "2026-01-10T14:20:00Z"
+        }
+      ]
+    }
+  ]
+}

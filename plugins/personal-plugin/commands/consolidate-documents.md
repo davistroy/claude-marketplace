@@ -9,18 +9,45 @@ You are consolidating multiple variations of a document into a single, optimized
 ## Input Validation
 
 **Required Arguments:**
-- `<document-paths>` - Two or more document paths, or pasted content
+- `<doc1-path>` - First document to consolidate
+- `<doc2-path>` - Second document to consolidate
+- `[doc3-path...]` - Additional documents (optional)
+
+**Minimum Requirement:** At least 2 documents must be provided.
 
 **Optional Context:**
-- Baseline document specification
-- Intended audience
-- Use case description
+- Baseline document specification (which document is primary reference)
+- Intended audience (who will use the consolidated document)
+- Use case description (how the document will be used)
+
+**Input Types:**
+
+Documents can be provided as:
+| Type | Format | Example |
+|------|--------|---------|
+| **File paths** | Space-separated paths | `draft-v1.md draft-v2.md` |
+| **Pasted content** | Paste when prompted | (provide content in chat) |
+| **URLs** | Web addresses (if fetch available) | `https://example.com/doc.md` |
 
 **Validation:**
 If fewer than two documents are provided, display:
 ```
-Usage: /consolidate-documents <doc1-path> <doc2-path> [doc3-path...]
-Example: /consolidate-documents draft-v1.md draft-v2.md draft-final.md
+Error: Insufficient documents provided
+
+Usage: /consolidate-documents <doc1> <doc2> [doc3...]
+
+This command requires at least 2 documents to compare and consolidate.
+It analyzes multiple versions/variations and synthesizes a superior combined document.
+
+Arguments:
+  <doc1>     First document (required)
+  <doc2>     Second document (required)
+  [doc3...]  Additional documents (optional)
+
+Examples:
+  /consolidate-documents draft-v1.md draft-v2.md
+  /consolidate-documents spec-a.md spec-b.md spec-c.md
+  /consolidate-documents requirements-old.md requirements-new.md updates.md
 
 You can also paste document content directly when prompted.
 ```
@@ -81,7 +108,13 @@ Rules:
 
 ### Step 5: Output
 
-Produce two sections:
+**Output Location:** Save the consolidated document to the `reports/` directory. Create the directory if it doesn't exist.
+
+**Filename Format:** `consolidated-[topic]-YYYYMMDD-HHMMSS.md`
+
+Example: `reports/consolidated-requirements-20260114-143052.md`
+
+Produce two sections in the output file:
 
 #### Consolidated Document
 The complete, merged document ready for use.
@@ -96,3 +129,5 @@ A brief section explaining:
 ## Execution
 
 Begin by asking the user for the source documents if not already provided. Then work through each step, showing your analysis before producing the final consolidated output.
+
+Before writing output, ensure the `reports/` directory exists (create it if missing).

@@ -25,9 +25,9 @@ bpmn-plugin Skills
 
 | Skill | Description |
 |-------|-------------|
-| /bpmn-generator | Generate BPMN 2.0 XML from natural language or markdown documents |
-| /bpmn-to-drawio | Convert BPMN 2.0 XML files to Draw.io native format (.drawio) |
-| /help | Show available skills with usage information |
+| /bpmn-generator | Generate BPMN 2.0 compliant XML files from natural language process... |
+| /bpmn-to-drawio | Convert BPMN 2.0 XML files into Draw.io native format (.drawio) using the... |
+| /help | Show available skills in this plugin with usage information |
 
 ---
 Use '/help <name>' for detailed help on a specific skill.
@@ -42,71 +42,38 @@ When invoked with a skill name, display detailed information.
 ---
 
 #### /bpmn-generator
-**Description:** Generate BPMN 2.0 compliant XML files from natural language process descriptions or structured markdown documents.
-
-**Arguments:**
-- Natural language description of a business process, OR
-- `<markdown-file-path>` - Path to a structured markdown document
-
-**Modes:**
-- **Interactive Mode**: Triggered by natural language descriptions. Structured Q&A gathers requirements through 6 phases: Process Scope, Participants, Activities, Flow Control, Events & Exceptions, Data & Integration.
-- **Document Parsing Mode**: Triggered by providing a markdown file path. Extracts process elements from document structure.
-
-**Output:** BPMN 2.0 compliant XML file with:
-- Complete process definitions
-- Proper namespace declarations
-- Diagram Interchange (DI) data for visual rendering
-- Phase comments for PowerPoint compatibility
+**Description:** Generate BPMN 2.0 compliant XML files from natural language process...
+**Arguments:** None required
+**Output:** Generated output file
 
 **Example:**
 ```
 /bpmn-generator
-# Then describe: "Create a BPMN for an order fulfillment process"
-
-/bpmn-generator docs/order-process.md
-# Parses markdown and generates BPMN XML
 ```
 
 ---
 
 #### /bpmn-to-drawio
-**Description:** Convert BPMN 2.0 XML files into Draw.io native format (.drawio) for visual editing.
-
-**Arguments:** `<bpmn-file-path>` - Path to the BPMN 2.0 XML file
-
-**Features:**
-- Automatic Graphviz-based layout for files without DI coordinates
-- Four built-in themes with custom YAML branding support
-- Visual markers for gateways (X, +, O) and task/event icons
-- Complete swimlane support with proper hierarchy
-- Model validation with error recovery
-
-**Requirements:**
-- Python 3.x with lxml, networkx, pyyaml
-- Graphviz and pygraphviz (for automatic layout)
-
-**Output:** `.drawio` file compatible with Draw.io Desktop and web applications
+**Description:** Convert BPMN 2.0 XML files into Draw.io native format (.drawio) using the...
+**Arguments:** None required
+**Output:** Generated output file
 
 **Example:**
 ```
-/bpmn-to-drawio process.bpmn
-# Converts BPMN XML to Draw.io format
-
-/bpmn-to-drawio order-fulfillment.xml --theme corporate
-# Uses corporate theme for styling
+/bpmn-to-drawio
 ```
 
 ---
 
 #### /help
-**Description:** Show available skills with usage information
-**Arguments:** `[skill-name]` - Optional specific skill to get help for
-**Output:** Skill list or detailed help
+**Description:** Show available skills in this plugin with usage information
+**Arguments:** None required
+**Output:** In-conversation output
 
 **Example:**
 ```
-/help
-/help bpmn-generator
+/help                          # Show all skills
+/help <skill-name>             # Show detailed help for a specific skill
 ```
 
 ---

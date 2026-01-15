@@ -3,591 +3,540 @@
 **Generated:** 2026-01-14
 **Based On:** RECOMMENDATIONS.md
 **Total Phases:** 4
-**Status:** ✅ **COMPLETE** (2026-01-14)
-
----
-
-## Implementation Summary
-
-All 4 phases have been successfully implemented:
-
-| Phase | Status | Key Deliverables |
-|-------|--------|------------------|
-| Phase 1 | ✅ Complete | README updated, frontmatter fixed, CHANGELOG created |
-| Phase 2 | ✅ Complete | Timestamps standardized, output locations documented, validation patterns added |
-| Phase 3 | ✅ Complete | CONTRIBUTING.md, bump-version, validate-plugin, pre-commit hook |
-| Phase 4 | ✅ Complete | review-pr, help-commands, 87% test coverage |
-
-**New Commands Added:** 4 (bump-version, validate-plugin, review-pr, help-commands)
-**Test Coverage:** 87% (target was 85%)
-**Documentation:** Fully updated (README, CLAUDE.md, CHANGELOG, CONTRIBUTING.md)
 
 ---
 
 ## Plan Overview
 
-This plan organizes 19 recommendations into 4 phases, prioritizing quick wins and critical fixes first, then building toward strategic improvements. Each phase is sized to complete within approximately 100,000 tokens including testing and fixes.
+This plan organizes 18 recommendations into 4 phases, prioritizing quick wins and high-impact improvements first, then building toward strategic infrastructure and new capabilities. Each phase is sized to complete within approximately 100,000 tokens including testing and fixes.
 
 **Phasing Strategy:**
-- **Phase 1:** Critical fixes and quick wins (immediate value, unblocks users)
-- **Phase 2:** Standardization and consistency (foundation for future work)
-- **Phase 3:** Developer experience improvements (reduce friction for contributors)
-- **Phase 4:** New capabilities (extend functionality)
+- **Phase 1:** Quick Wins - High impact, low effort improvements (immediate value)
+- **Phase 2:** Foundation - Schema contracts and automation infrastructure
+- **Phase 3:** Developer Experience - Tooling to reduce maintenance burden
+- **Phase 4:** New Capabilities - Additional features and integrations
 
 ### Phase Summary Table
 
 | Phase | Focus Area | Key Deliverables | Est. Tokens | Dependencies |
 |-------|------------|------------------|-------------|--------------|
-| 1 | Critical Fixes | README update, frontmatter fix, CHANGELOG | ~40K | None |
-| 2 | Standardization | Timestamps, output locations, common patterns | ~70K | Phase 1 |
-| 3 | Developer Experience | Contributing guide, version automation, validation | ~85K | Phase 2 |
-| 4 | New Capabilities | PR review command, help system, workflow basics | ~95K | Phase 3 |
+| 1 | Quick Wins | Output locations, dry-run modes, hook extension | ~50K | None |
+| 2 | Foundation | JSON schemas, help automation | ~60K | None |
+| 3 | Developer Experience | Command templates, plugin scaffolding | ~70K | Phase 2 |
+| 4 | New Capabilities | Output formats, batch execution, update checker | ~60K | Phase 2 |
 
 ---
 
-## Phase 1: Critical Fixes and Quick Wins
+## Phase 1: Quick Wins
 
-**Estimated Effort:** ~40,000 tokens (including testing/fixes)
+**Estimated Effort:** ~50,000 tokens (including testing/fixes)
 **Dependencies:** None
 **Parallelizable:** Yes - all items are independent
 
 ### Goals
-- Fix all critical issues blocking user discovery
-- Eliminate convention violations
-- Establish version history tracking
-- Maximum impact with minimal effort
+- Immediate user experience improvements
+- Safety improvements for destructive operations
+- Documentation consistency
+- Enhanced validation
 
 ### Work Items
 
-#### 1.1 Update README.md with All Commands
-**Recommendation Ref:** U1
-**Files Affected:** `README.md`
-**Description:**
-Update the personal-plugin commands table to include all 15 commands. Currently missing:
-- `/consolidate-documents` - Analyze multiple document variations and synthesize
-- `/convert-markdown` - Convert markdown to formatted Word document
-- `/develop-image-prompt` - Generate AI image prompts from content
-- `/plan-improvements` - Generate improvement recommendations with implementation plan
-- `/test-project` - Ensure 90%+ coverage, run tests, fix, merge PR
+#### 1.1 Enforce Standard Output Locations
+**Recommendation Ref:** Q1
+**Files Affected:**
+- `plugins/personal-plugin/commands/consolidate-documents.md`
+- `plugins/personal-plugin/commands/develop-image-prompt.md`
+- `plugins/personal-plugin/references/common-patterns.md`
 
-Cross-reference each command's frontmatter description for accuracy.
+**Description:**
+Audit all commands for output location compliance and update non-compliant commands:
+1. Review each command's output location specification
+2. Update `/consolidate-documents` to output to `reports/` directory
+3. Update `/develop-image-prompt` to output to `reports/` directory
+4. Add auto-creation of output directories if missing
 
 **Acceptance Criteria:**
-- [x] README lists all 15 commands from personal-plugin
-- [x] Descriptions match frontmatter in command files
-- [x] Table formatting is consistent
+- [x] All commands specify output location
+- [x] Locations follow `common-patterns.md` standards
+- [x] Directories created automatically if missing
 
 ---
 
-#### 1.2 Fix bpmn-generator.md Frontmatter
-**Recommendation Ref:** A1
-**Files Affected:** `plugins/bpmn-plugin/skills/bpmn-generator.md`
-**Description:**
-Remove the `name: bpmn-generator` field from line 2 of the frontmatter. CLAUDE.md explicitly prohibits this as it can prevent command discovery.
+#### 1.2 Add Dry-Run Mode to Destructive Commands
+**Recommendation Ref:** N1
+**Files Affected:**
+- `plugins/personal-plugin/skills/ship.md`
+- `plugins/personal-plugin/commands/clean-repo.md`
+- `plugins/personal-plugin/commands/bump-version.md`
 
-Also check `bpmn-to-drawio.md` for the same issue.
+**Description:**
+Add `--dry-run` flag to commands with side effects:
+1. `/ship --dry-run` - Show branch, commit, PR without creating
+2. `/clean-repo --dry-run` - List files to delete without deleting
+3. `/bump-version --dry-run` - Show version changes without applying
+
+Update Input Validation sections to document the flag.
 
 **Acceptance Criteria:**
-- [x] bpmn-generator.md frontmatter has no `name` field
-- [x] bpmn-to-drawio.md frontmatter has no `name` field
-- [x] Both skills still discoverable after change (test with `/bpmn-generator`)
+- [x] `--dry-run` flag documented in Input Validation
+- [x] Dry-run output clearly marked as preview
+- [x] No side effects when dry-run enabled
 
 ---
 
-#### 1.3 Create CHANGELOG.md
-**Recommendation Ref:** A2
-**Files Affected:** `CHANGELOG.md` (new file)
+#### 1.3 Extend Pre-commit Hook
+**Recommendation Ref:** D1
+**Files Affected:**
+- `scripts/pre-commit`
+
 **Description:**
-Create CHANGELOG.md following Keep a Changelog format. Reconstruct recent history from git log:
-
-```bash
-git log --oneline --since="2026-01-01"
-```
-
-Include entries for:
-- 1.6.0: plan-improvements, fully-test-project commands
-- 1.5.0: image-prompt command (estimate date from git)
-- Earlier versions as determinable
+Extend pre-commit hook to catch more issues:
+1. Check that help.md has entry for each command/skill filename
+2. Validate timestamp format in examples matches `YYYYMMDD-HHMMSS`
+3. Warn if output location pattern not found in command
 
 **Acceptance Criteria:**
-- [x] CHANGELOG.md exists in repo root
-- [x] Follows Keep a Changelog format (keepachangelog.com)
-- [x] Includes all versions from 1.0.0 to current
-- [x] Each version has date and categorized changes (Added, Changed, Fixed)
+- [x] Hook checks help.md sync
+- [x] Hook validates timestamp format
+- [x] Hook runs in < 5 seconds
+- [x] Clear error messages with suggestions
 
 ---
 
-#### 1.4 Standardize Timestamp Format Documentation
-**Recommendation Ref:** Q1 (partial)
-**Files Affected:** `CLAUDE.md`
-**Description:**
-Document the standard timestamp format in CLAUDE.md's conventions section:
+#### 1.4 Add Utility Command Category
+**Recommendation Ref:** U4
+**Files Affected:**
+- `CLAUDE.md`
 
+**Description:**
+Add "Utility commands" pattern to CLAUDE.md patterns section:
 ```markdown
-### Timestamp Format
-All generated files use `YYYYMMDD-HHMMSS` format for timestamps.
-Example: `assessment-PRD-20260114-143052.md`
+- **Utility commands** (`validate-plugin`, `bump-version`, `review-pr`): Repository maintenance and automation tools
 ```
 
-Actual command updates happen in Phase 2.
+**Acceptance Criteria:**
+- [x] New pattern category documented
+- [x] All utility commands listed
+- [x] Pattern description clear
+
+---
+
+#### 1.5 Standardize Issue Severity Naming
+**Recommendation Ref:** Q3
+**Files Affected:**
+- `plugins/personal-plugin/commands/assess-document.md`
+- `plugins/personal-plugin/commands/review-pr.md`
+- `plugins/personal-plugin/references/common-patterns.md`
+
+**Description:**
+Standardize severity levels across all assessment commands:
+- **CRITICAL** - Must be addressed immediately
+- **WARNING** - Should be addressed before completion
+- **SUGGESTION** - Optional improvement
+
+Update commands to use consistent terminology.
 
 **Acceptance Criteria:**
-- [x] CLAUDE.md documents timestamp convention
-- [x] Format specified: `YYYYMMDD-HHMMSS`
+- [x] Severity levels documented in common-patterns.md
+- [x] All assessment commands use consistent terms
+- [x] `/ship` auto-review aligns with standards
 
 ---
 
 ### Phase 1 Testing Requirements
-- Verify README renders correctly on GitHub
-- Confirm BPMN skills are discoverable after frontmatter fix
-- Validate CHANGELOG.md format with a linter or manual review
+- Test dry-run flags produce expected preview output
+- Verify pre-commit hook catches missing help entries
+- Confirm output locations follow standards
 
 ### Phase 1 Completion Checklist
 - [x] All work items complete
-- [x] README accurate and complete
-- [x] No frontmatter violations
-- [x] CHANGELOG established
-- [x] Documentation committed
+- [x] Documentation updated
+- [x] No regressions introduced (320 tests pass)
+- [x] CHANGELOG updated
 
 ---
 
-## Phase 2: Standardization and Consistency
+## Phase 2: Foundation
 
-**Estimated Effort:** ~70,000 tokens (including testing/fixes)
-**Dependencies:** Phase 1 (timestamp documentation)
-**Parallelizable:** Partially - 2.1-2.3 can run in parallel; 2.4 depends on them
+**Estimated Effort:** ~60,000 tokens (including testing/fixes)
+**Dependencies:** None (can run parallel to Phase 1)
+**Parallelizable:** Yes - 2.1 and 2.2 are independent
 
 ### Goals
-- Eliminate inconsistencies across commands
-- Establish patterns that future commands follow
-- Improve output organization
+- Establish JSON schema contracts for command chains
+- Automate help skill generation
+- Reduce documentation drift
 
 ### Work Items
 
-#### 2.1 Update Commands with Standard Timestamp Format
-**Recommendation Ref:** Q1
+#### 2.1 Define JSON Schema Contracts
+**Recommendation Ref:** A1
 **Files Affected:**
+- `schemas/questions.json` (new)
+- `schemas/answers.json` (new)
 - `plugins/personal-plugin/commands/define-questions.md`
-- `plugins/personal-plugin/commands/analyze-transcript.md`
-- Any other commands using non-standard formats
-**Description:**
-Update all commands to use `YYYYMMDD-HHMMSS` format:
-
-**define-questions.md** currently uses `YYYYMMDD`:
-```markdown
-# Before
-Save to: reference/questions-[document-name]-[YYYYMMDD].json
-
-# After
-Save to: reference/questions-[document-name]-[YYYYMMDD-HHMMSS].json
-```
-
-**analyze-transcript.md** currently uses `YYYY-MM-DD`:
-```markdown
-# Before
-Output: meeting-analysis-2026-01-10.md
-
-# After
-Output: meeting-analysis-20260110-143052.md
-```
-
-**Acceptance Criteria:**
-- [x] All commands use `YYYYMMDD-HHMMSS` format
-- [x] Output file naming is consistent
-- [x] Examples in commands updated to match
-
----
-
-#### 2.2 Document Standard Output Locations
-**Recommendation Ref:** Q2
-**Files Affected:** `CLAUDE.md`
-**Description:**
-Add output location conventions to CLAUDE.md:
-
-```markdown
-### Output Locations
-- Analysis reports → `reports/` directory
-- Reference data (JSON) → `reference/` directory
-- Generated documents → same directory as source
-- Temporary files → `.tmp/` (auto-cleaned)
-```
-
-**Acceptance Criteria:**
-- [x] CLAUDE.md documents output location conventions
-- [x] Categories are clear and comprehensive
-- [x] Exceptions/overrides documented
-
----
-
-#### 2.3 Add Argument Validation Patterns
-**Recommendation Ref:** U3
-**Files Affected:**
-- `plugins/personal-plugin/commands/assess-document.md`
+- `plugins/personal-plugin/commands/ask-questions.md`
 - `plugins/personal-plugin/commands/finish-document.md`
-- `plugins/personal-plugin/commands/consolidate-documents.md`
-- Other commands accepting arguments
+
 **Description:**
-Add input validation section to commands that accept arguments:
+Create JSON Schema definitions for command chain outputs:
 
-```markdown
-## Input Validation
-
-**Required Arguments:**
-- `<document-path>` - Path to document to assess
-
-**Optional Arguments:**
-- `--format [json|md]` - Output format (default: md)
-
-**Validation:**
-If required arguments missing, display:
-"Usage: /assess-document <document-path> [--format json|md]"
+1. Create `schemas/` directory
+2. Define `questions.json` schema:
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["metadata", "questions"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["source_document", "generated_at", "total_questions"],
+      "properties": {
+        "source_document": { "type": "string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "total_questions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "context"],
+        "properties": {
+          "id": { "type": "string" },
+          "text": { "type": "string" },
+          "context": { "type": "string" },
+          "category": { "type": "string" },
+          "priority": { "enum": ["high", "medium", "low"] }
+        }
+      }
+    }
+  }
+}
 ```
 
+3. Define `answers.json` schema similarly
+4. Update commands to reference schemas
+5. Add validation guidance to commands
+
 **Acceptance Criteria:**
-- [x] All argument-accepting commands have Input Validation section
-- [x] Required vs optional clearly marked
-- [x] Usage examples provided
-- [x] Error message format standardized
+- [x] Schema files created and valid
+- [x] Commands reference schemas
+- [x] Schema documentation in README or dedicated doc
 
 ---
 
-#### 2.4 Create Common Patterns Reference
-**Recommendation Ref:** A4 (partial)
+#### 2.2 Automate Help Skill Generation
+**Recommendation Ref:** A2
 **Files Affected:**
-- `plugins/personal-plugin/references/common-patterns.md` (new)
+- `scripts/generate-help.py` (new)
+- `plugins/personal-plugin/skills/help.md`
+- `plugins/bpmn-plugin/skills/help.md`
+
 **Description:**
-Extract repeated patterns into a shared reference document:
+Create script to auto-generate help.md from command metadata:
 
-```markdown
-# Common Command Patterns
+1. Create `scripts/generate-help.py` that:
+   - Scans `commands/*.md` and `skills/*.md`
+   - Extracts frontmatter description
+   - Extracts Input Validation section for arguments
+   - Extracts Example section
+   - Generates help.md in standard format
 
-## Timestamp Format
-YYYYMMDD-HHMMSS (e.g., 20260114-143052)
-
-## Output File Naming
-[type]-[source]-[timestamp].[ext]
-Examples:
-- assessment-PRD-20260114-143052.md
-- questions-requirements-20260114-150000.json
-
-## Progress Reporting
-Phase X of Y: [Phase Name]
-- Step 1: [Description] ✓
-- Step 2: [Description] (in progress)
-- Step 3: [Description] (pending)
-
-## Session Commands (for interactive commands)
-- `help` - Show available commands
-- `back` - Return to previous step
-- `skip` - Skip current item
-- `status` - Show progress
-- `quit` - Exit session (with save prompt)
-```
+2. Output format matches current help.md structure
+3. Add to pre-commit hook as optional check
+4. Document usage in CONTRIBUTING.md
 
 **Acceptance Criteria:**
-- [x] `references/` directory exists in personal-plugin
-- [x] common-patterns.md covers: timestamps, naming, progress, session commands
-- [x] Patterns match actual usage in commands
+- [x] Script generates valid help.md
+- [x] Output matches current help.md structure
+- [x] Script runs successfully on both plugins
+- [x] Usage documented
 
 ---
 
 ### Phase 2 Testing Requirements
-- Generate output from updated commands, verify naming
-- Confirm argument validation produces helpful errors
-- Check references are accurate
+- Validate generated JSON against schemas
+- Test help generation produces correct output
+- Verify schema validation catches invalid JSON
 
 ### Phase 2 Completion Checklist
 - [x] All work items complete
-- [x] Timestamps consistent across commands
-- [x] Output conventions documented
-- [x] Argument validation added
-- [x] Common patterns extracted
+- [x] Schemas documented
+- [x] Help generation working
+- [x] CHANGELOG updated
 
 ---
 
 ## Phase 3: Developer Experience
 
-**Estimated Effort:** ~85,000 tokens (including testing/fixes)
-**Dependencies:** Phase 2 (patterns established)
-**Parallelizable:** Yes - 3.1, 3.2, 3.3 can run in parallel; 3.4 can start once 3.1 done
+**Estimated Effort:** ~70,000 tokens (including testing/fixes)
+**Dependencies:** Phase 2 (help generation)
+**Parallelizable:** Partially - 3.1 and 3.2 can run in parallel
 
 ### Goals
-- Make it easy to contribute new commands
-- Automate repetitive version management
-- Catch errors before commit
+- Reduce boilerplate for new commands
+- Simplify plugin creation
+- Improve contribution workflow
 
 ### Work Items
 
-#### 3.1 Create CONTRIBUTING.md
-**Recommendation Ref:** D1
-**Files Affected:** `CONTRIBUTING.md` (new)
+#### 3.1 Create Command Template Generator
+**Recommendation Ref:** D2
+**Files Affected:**
+- `plugins/personal-plugin/commands/new-command.md` (new)
+- `plugins/personal-plugin/references/templates/` (new directory)
+- `plugins/personal-plugin/references/templates/read-only.md` (new)
+- `plugins/personal-plugin/references/templates/interactive.md` (new)
+- `plugins/personal-plugin/references/templates/workflow.md` (new)
+
 **Description:**
-Create contributor guidelines covering:
+Create `/new-command` skill that generates command scaffolds:
 
-1. **Adding a New Command**
-   - File location: `plugins/[plugin]/commands/[name].md`
-   - Frontmatter requirements (description, optional allowed-tools)
-   - No `name` field in frontmatter
-   - Pattern selection (read-only, interactive, workflow, etc.)
+1. Create template files for each pattern type:
+   - `read-only.md` - Analysis commands
+   - `interactive.md` - Q&A commands
+   - `workflow.md` - Multi-step commands
+   - `generator.md` - Output generation commands
+   - `utility.md` - Maintenance commands
 
-2. **Adding a New Skill**
-   - When to use skill vs command
-   - File location and structure
-
-3. **Version Management**
-   - When to bump versions
-   - Files to update (until automation exists)
-   - CHANGELOG update process
-
-4. **Pull Request Process**
-   - Branch naming
-   - Commit message format
-   - Review expectations
-
-Include a command template snippet.
+2. Create `/new-command` skill that:
+   - Asks for command name (validates kebab-case)
+   - Asks for description
+   - Asks for pattern type
+   - Generates command file from template
+   - Adds help.md entry (or reminds to run generate-help)
+   - Reminds about README and CHANGELOG
 
 **Acceptance Criteria:**
-- [x] CONTRIBUTING.md exists in repo root
-- [x] Covers command and skill creation
-- [x] Includes template/example
-- [x] References CLAUDE.md for detailed conventions
-- [x] Version management documented
+- [x] Templates exist for all pattern types
+- [x] Generated commands pass validation
+- [x] Help entries generated or reminded
+- [x] Usage documented in CONTRIBUTING.md
 
 ---
 
-#### 3.2 Create Version Bump Command
+#### 3.2 Add Plugin Scaffolding Command
 **Recommendation Ref:** A3
 **Files Affected:**
-- `plugins/personal-plugin/commands/bump-version.md` (new)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (new)
+
 **Description:**
-Create `/bump-version` command that automates version updates:
+Create `/scaffold-plugin` command for new plugin setup:
 
-```markdown
-## Usage
-/bump-version [plugin] [major|minor|patch]
-
-## Behavior
-1. Read current version from plugin.json
-2. Calculate new version based on bump type
-3. Update:
-   - plugins/[plugin]/.claude-plugin/plugin.json
-   - .claude-plugin/marketplace.json (plugin entry)
-4. Add CHANGELOG entry placeholder
-5. Report changes and prompt for commit
-```
+1. Asks for plugin name (validates naming conventions)
+2. Asks for description
+3. Creates directory structure:
+   ```
+   plugins/[name]/
+     .claude-plugin/
+       plugin.json
+     commands/
+     skills/
+       help.md
+   ```
+4. Generates template `plugin.json` with metadata
+5. Creates starter `help.md`
+6. Adds entry to `marketplace.json`
+7. Reports next steps
 
 **Acceptance Criteria:**
-- [x] Command handles major, minor, patch bumps
-- [x] Updates all required version locations
-- [x] Creates CHANGELOG placeholder
-- [x] Shows diff before committing
-- [x] Handles both personal-plugin and bpmn-plugin
+- [x] Plugin structure created correctly
+- [x] plugin.json valid
+- [x] help.md follows template
+- [x] marketplace.json updated
 
 ---
 
-#### 3.3 Create Plugin Validation Command
-**Recommendation Ref:** A5, D3
+#### 3.3 Reduce Files Touched for New Commands
+**Recommendation Ref:** D4
 **Files Affected:**
-- `plugins/personal-plugin/commands/validate-plugin.md` (new)
+- `CONTRIBUTING.md`
+- `scripts/update-readme.py` (new)
+
 **Description:**
-Create `/validate-plugin` command that checks:
+Create automation to reduce manual updates:
 
-1. **Frontmatter Validation**
-   - Valid YAML syntax
-   - `description` field present
-   - No `name` field (forbidden)
-   - `allowed-tools` valid if present
+1. Create `scripts/update-readme.py` that:
+   - Scans command/skill frontmatter
+   - Updates README.md command tables automatically
+   - Preserves non-table content
 
-2. **Structure Validation**
-   - plugin.json exists and valid
-   - Version numbers in sync
-   - All referenced files exist
+2. Update CONTRIBUTING.md with simplified workflow:
+   - Create command file
+   - Run `scripts/generate-help.py`
+   - Run `scripts/update-readme.py`
+   - Update CHANGELOG manually
 
-3. **Content Validation**
-   - Markdown parses correctly
-   - Code blocks have language specifiers
-   - No broken internal links
+3. Consider combining scripts into single `scripts/sync-docs.py`
 
 **Acceptance Criteria:**
-- [x] Command validates frontmatter
-- [x] Checks version synchronization
-- [x] Reports errors with file:line references
-- [x] Exits with error code on failures (for CI use)
-
----
-
-#### 3.4 Add Pre-commit Hook Setup Instructions
-**Recommendation Ref:** D3
-**Files Affected:** `CONTRIBUTING.md`
-**Description:**
-Add instructions to CONTRIBUTING.md for setting up pre-commit validation:
-
-```bash
-# Install pre-commit hook
-cp scripts/pre-commit .git/hooks/
-chmod +x .git/hooks/pre-commit
-```
-
-Create `scripts/pre-commit` that runs `/validate-plugin`.
-
-**Acceptance Criteria:**
-- [x] `scripts/pre-commit` exists
-- [x] Hook runs validation on staged .md files
-- [x] Instructions in CONTRIBUTING.md
-- [x] Hook is not auto-installed (opt-in)
+- [x] README tables auto-generated
+- [x] CONTRIBUTING.md updated
+- [x] Workflow simplified to 3-4 steps
 
 ---
 
 ### Phase 3 Testing Requirements
-- Create test command, verify validation catches errors
-- Test version bump with dry-run
-- Verify pre-commit hook blocks invalid commits
+- Test command generation with each pattern type
+- Verify plugin scaffolding creates valid structure
+- Confirm README updates preserve content
 
 ### Phase 3 Completion Checklist
 - [x] All work items complete
-- [x] CONTRIBUTING.md comprehensive
-- [x] Version bump automation working
-- [x] Validation command operational
-- [x] Pre-commit hook documented
+- [x] Templates validated
+- [x] Scripts documented
+- [x] CONTRIBUTING.md updated
+- [x] CHANGELOG updated
 
 ---
 
 ## Phase 4: New Capabilities
 
-**Estimated Effort:** ~95,000 tokens (including testing/fixes)
-**Dependencies:** Phase 3 (validation ensures quality)
-**Parallelizable:** Yes - 4.1 and 4.2 can run in parallel; 4.3 after both
+**Estimated Effort:** ~60,000 tokens (including testing/fixes)
+**Dependencies:** Phase 2 (schemas for format options)
+**Parallelizable:** Yes - all items are independent
 
 ### Goals
-- Add highly-requested PR review capability
-- Improve discoverability with help system
-- Improve test coverage for Python tool
+- Add requested features
+- Improve integration options
+- Enable automation workflows
 
 ### Work Items
 
-#### 4.1 Create PR Review Command
-**Recommendation Ref:** N1
+#### 4.1 Add Output Format Options
+**Recommendation Ref:** N2
 **Files Affected:**
-- `plugins/personal-plugin/commands/review-pr.md` (new)
+- `plugins/personal-plugin/commands/define-questions.md`
+- `plugins/personal-plugin/commands/assess-document.md`
+- `plugins/personal-plugin/commands/analyze-transcript.md`
+
 **Description:**
-Create `/review-pr` command that provides structured PR review:
+Add `--format` flag to relevant commands:
 
-```markdown
-## Usage
-/review-pr [PR-number-or-url]
+1. `/define-questions --format [json|csv]`
+   - JSON: Current behavior (default)
+   - CSV: Flat format with columns: id, text, context, category, priority
 
-## Workflow
-1. Fetch PR details: `gh pr view [number]`
-2. Get diff: `gh pr diff [number]`
-3. Analyze changes:
-   - Security concerns
-   - Performance implications
-   - Code style/conventions
-   - Test coverage
-   - Documentation updates needed
-4. Generate review with:
-   - Summary of changes
-   - Issues found (by severity)
-   - Suggested improvements
-   - Approval recommendation
-5. Optionally post review: `gh pr review`
-```
+2. `/assess-document --format [md|json]`
+   - MD: Current behavior (default)
+   - JSON: Structured with scores, issues array, recommendations
+
+3. `/analyze-transcript --format [md|json]`
+   - MD: Current behavior (default)
+   - JSON: Structured with sections, action items, decisions
+
+Update Input Validation sections and examples.
 
 **Acceptance Criteria:**
-- [x] Command fetches and analyzes PR
-- [x] Checks against project conventions (from CLAUDE.md)
-- [x] Categorizes findings by severity
-- [x] Offers to post review via `gh pr review`
-- [x] Works with PR number or URL
+- [x] `--format` flag works for each command
+- [x] Default behavior unchanged
+- [x] Output formats documented
+- [x] Examples updated
 
 ---
 
-#### 4.2 Create Help Commands Skill
-**Recommendation Ref:** U4
+#### 4.2 Add Interactive Help Within Commands
+**Recommendation Ref:** U1
 **Files Affected:**
-- `plugins/personal-plugin/skills/help-commands.md` (new)
+- `plugins/personal-plugin/commands/ask-questions.md`
+- `plugins/personal-plugin/commands/finish-document.md`
+- `plugins/bpmn-plugin/skills/bpmn-generator.md`
+- `plugins/personal-plugin/references/common-patterns.md`
+
 **Description:**
-Create `/help-commands` skill for command discovery:
+Standardize session commands across interactive commands:
 
-```markdown
-## Behavior
-1. Scan plugins/*/commands/*.md and plugins/*/skills/*.md
-2. Extract descriptions from frontmatter
-3. Group by category (from CLAUDE.md patterns)
-4. Display formatted list:
+1. Document standard session commands in `common-patterns.md`:
+   - `help` - Show available actions
+   - `status` / `progress` - Show current position
+   - `back` / `previous` - Return to previous step
+   - `skip` - Skip current item
+   - `quit` / `exit` - Exit with save prompt
 
-Available Commands:
-
-**Analysis (read-only)**
-- /review-arch - Deep architectural review
-- /assess-document - Document quality evaluation
-
-**Interactive Workflows**
-- /ask-questions - Q&A session from JSON
-- /finish-document - Complete incomplete docs
-
-**Generation**
-- /define-questions - Extract questions to JSON
-...
-
-Use /help-commands [name] for details on a specific command.
-```
+2. Add "Session Commands" section to each interactive command
+3. Ensure all interactive commands implement these
 
 **Acceptance Criteria:**
-- [x] Lists all commands and skills
-- [x] Groups by category
-- [x] Shows descriptions
-- [x] Supports detail view for specific command
+- [x] Session commands documented
+- [x] All interactive commands support standard commands
+- [x] Help text shown when `help` entered
 
 ---
 
-#### 4.3 Improve bpmn2drawio Test Coverage
-**Recommendation Ref:** D4
+#### 4.3 Add Plugin Update Checker
+**Recommendation Ref:** N4
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/*.py`
-- `plugins/bpmn-plugin/tools/bpmn2drawio/pyproject.toml`
+- `plugins/personal-plugin/commands/check-updates.md` (new)
+
 **Description:**
-Improve test coverage for the Python conversion tool:
+Create `/check-updates` command:
 
-1. Add coverage reporting to pyproject.toml:
-```toml
-[tool.pytest.ini_options]
-addopts = "--cov=bpmn2drawio --cov-report=term-missing --cov-report=html"
-```
+1. Reads installed plugin versions from `plugin.json` files
+2. Compares against `marketplace.json`
+3. Reports available updates:
+   ```
+   Plugin Updates Available:
 
-2. Run coverage and identify gaps:
-```bash
-cd plugins/bpmn-plugin/tools/bpmn2drawio
-pytest --cov=bpmn2drawio
-```
+   personal-plugin: 2.0.0 → 2.1.0
+   - Added /new-command skill
+   - Fixed output location consistency
 
-3. Add tests for uncovered code paths, focusing on:
-   - position_resolver.py (most complex)
-   - Edge cases in layout.py
-   - Error recovery scenarios
+   bpmn-plugin: 1.6.0 (up to date)
+   ```
 
-4. Update README with coverage badge
+4. Read-only; no automatic updates
 
 **Acceptance Criteria:**
-- [x] Coverage reporting configured
-- [x] Coverage report generated
-- [x] Coverage improved to 85%+ (achieved 87%)
-- [x] Critical paths fully covered
-- [x] Badge added to tool README
+- [x] Version comparison works
+- [x] Clear output format
+- [x] No side effects
+- [x] Handles network errors gracefully
+
+---
+
+#### 4.4 Standardize Argument Validation Messages
+**Recommendation Ref:** U2
+**Files Affected:**
+- `plugins/personal-plugin/commands/develop-image-prompt.md`
+- `plugins/personal-plugin/commands/consolidate-documents.md`
+- `plugins/personal-plugin/references/common-patterns.md`
+
+**Description:**
+Update commands with unclear argument handling:
+
+1. Document standard error format in `common-patterns.md`:
+   ```
+   Error: Missing required argument
+   Usage: /command-name <required-arg> [optional-arg]
+   Example: /command-name my-file.md
+
+   Arguments:
+     <required-arg>  Description of required argument
+     [optional-arg]  Description of optional argument (default: value)
+   ```
+
+2. Update `/develop-image-prompt` to clarify 3 input types
+3. Update `/consolidate-documents` to specify 2+ document requirement clearly
+
+**Acceptance Criteria:**
+- [x] Error format documented
+- [x] Commands show consistent errors
+- [x] Input types clearly distinguished
 
 ---
 
 ### Phase 4 Testing Requirements
-- Test PR review on actual PRs
-- Verify help-commands discovers all commands
-- Coverage report validates improvement
+- Test format options produce valid output
+- Verify session commands work in interactive modes
+- Test update checker with version mismatches
 
 ### Phase 4 Completion Checklist
 - [x] All work items complete
-- [x] PR review command functional
-- [x] Help system complete
-- [x] Test coverage improved (87%)
-- [x] All new commands validated with /validate-plugin
+- [x] New features documented
+- [x] Examples updated
+- [x] CHANGELOG updated
 
 ---
 
@@ -595,20 +544,18 @@ pytest --cov=bpmn2drawio
 
 | Work Item A | Can Run With | Notes |
 |-------------|--------------|-------|
-| 1.1 README | 1.2 Frontmatter | Independent files |
-| 1.1 README | 1.3 CHANGELOG | Independent files |
-| 1.2 Frontmatter | 1.3 CHANGELOG | Independent files |
-| 2.1 Timestamps | 2.2 Output locations | Both update different files |
-| 2.1 Timestamps | 2.3 Argument validation | Different commands |
-| 3.1 CONTRIBUTING | 3.2 Version bump | Independent |
-| 3.1 CONTRIBUTING | 3.3 Validation | Independent |
-| 4.1 PR Review | 4.2 Help Commands | Independent commands |
+| 1.1 Output locations | 1.2 Dry-run modes | Independent files |
+| 1.3 Hook extension | 1.4 Utility category | Hook vs docs |
+| 2.1 JSON schemas | 2.2 Help automation | Independent systems |
+| 3.1 Command templates | 3.2 Plugin scaffolding | Different plugins |
+| 4.1 Format options | 4.2 Interactive help | Different commands |
+| 4.3 Update checker | 4.4 Argument validation | Independent |
 
 **Maximum Parallelism:**
-- Phase 1: 3 parallel streams (1.1+1.2+1.3, then 1.4)
-- Phase 2: 3 parallel streams (2.1+2.2+2.3, then 2.4)
-- Phase 3: 3 parallel streams (3.1+3.2+3.3, then 3.4)
-- Phase 4: 2 parallel streams (4.1+4.2, then 4.3)
+- Phase 1: 3 parallel streams (1.1+1.2, 1.3+1.4, 1.5)
+- Phase 2: 2 parallel streams (2.1, 2.2)
+- Phase 3: 2 parallel streams (3.1+3.2, 3.3)
+- Phase 4: 3 parallel streams (4.1, 4.2+4.4, 4.3)
 
 ---
 
@@ -616,23 +563,23 @@ pytest --cov=bpmn2drawio
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| Frontmatter change breaks discovery | Low | High | Test immediately after change |
-| Version bump automation has edge cases | Medium | Medium | Manual review of first few bumps |
-| PR review scope creep | Medium | Low | Define clear boundaries upfront |
-| Test coverage improvement reveals bugs | Medium | Medium | Fix bugs as found; track in issues |
-| Commands reference non-existent patterns | Low | Medium | Validate references in Phase 2.4 |
+| Schema changes break existing files | Medium | High | Version schemas; provide migration guidance |
+| Help generation misses edge cases | Medium | Medium | Manual review of generated output |
+| Pre-commit hook slows workflow | Low | Medium | Keep checks under 5 seconds; allow bypass |
+| Template changes diverge from actual | Low | Medium | Generate templates from working commands |
+| Format conversion loses data | Low | High | Test with complex real-world examples |
 
 ---
 
 ## Success Metrics
 
-| Metric | Baseline | Target | Measured By |
-|--------|----------|--------|-------------|
-| Commands documented in README | 10/15 | 15/15 | Manual count |
-| Frontmatter violations | 1+ | 0 | /validate-plugin |
-| Timestamp format consistency | Mixed | 100% | Grep for timestamp patterns |
-| Version sync errors | Occasional | 0 | /validate-plugin |
-| bpmn2drawio test coverage | Unknown | 85%+ | pytest --cov |
+| Metric | Current | Target | Measured By |
+|--------|---------|--------|-------------|
+| Files touched for new command | 5+ | 2-3 | Manual count |
+| Help.md sync accuracy | Manual | Automated | Script output |
+| Commands with dry-run | 0 | 3 | Grep for --dry-run |
+| JSON schema coverage | 0% | 100% for chains | Schema file count |
+| Pre-commit validation coverage | Basic | Comprehensive | Hook check count |
 
 ---
 
@@ -640,10 +587,31 @@ pytest --cov=bpmn2drawio
 
 After all phases complete:
 1. Run `/validate-plugin` on entire repo
-2. Update all version numbers (use /bump-version)
+2. Update all version numbers (use `/bump-version`)
 3. Create release notes from CHANGELOG
-4. Consider Phase 5: Workflow composition (N3) if demand exists
+4. Consider additional phases for:
+   - Batch command execution (N3) - deferred due to complexity
+   - Command testing framework (D3) - deferred, needs schema foundation
+   - Complex algorithm refactoring (A4) - deferred, lower priority
 
 ---
 
 *Implementation plan generated by Claude on 2026-01-14*
+
+---
+
+## Implementation Complete
+
+**Completed:** 2026-01-14
+
+All 4 phases (14 work items) have been successfully implemented:
+- ✅ Phase 1: Quick Wins (5 items) - Output locations, dry-run modes, pre-commit hook, utility category, severity naming
+- ✅ Phase 2: Foundation (2 items) - JSON schemas, help automation
+- ✅ Phase 3: Developer Experience (3 items) - Command templates, plugin scaffolding, README automation
+- ✅ Phase 4: New Capabilities (4 items) - Output formats, session commands, update checker, argument validation
+
+**Verification:**
+- All 320 tests passing (92% coverage)
+- Help files up to date (verified with `python scripts/generate-help.py --all --check`)
+- README up to date (verified with `python scripts/update-readme.py --check`)
+- CHANGELOG updated with v2.1.0 release notes

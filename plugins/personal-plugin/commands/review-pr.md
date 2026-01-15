@@ -73,10 +73,10 @@ Check for:
 - Authentication/authorization changes
 - Sensitive data exposure in logs
 
-**Flag with severity:**
+**Flag with severity (see common-patterns.md):**
 - **CRITICAL**: Direct security vulnerabilities
 - **WARNING**: Potential security issues requiring review
-- **INFO**: Security-related suggestions
+- **SUGGESTION**: Security-related improvements
 
 #### 2.2 Performance Analysis
 
@@ -144,7 +144,7 @@ Create a structured review with this format:
 
 ## Issues Found
 
-### Critical (Must Fix)
+### CRITICAL Issues (Must Fix)
 
 [List critical issues that block approval]
 
@@ -153,14 +153,14 @@ Create a structured review with this format:
 **Issue:** [Description]
 **Suggestion:** [How to fix]
 
-### Warnings (Should Fix)
+### WARNING Issues (Should Fix)
 
 [List important issues that should be addressed]
 
 #### W1. [Issue Title]
 ...
 
-### Suggestions (Consider)
+### SUGGESTION Issues (Nice to Have)
 
 [List minor improvements and nice-to-haves]
 
@@ -238,9 +238,9 @@ PR: #[number] - [title]
 Recommendation: [APPROVE/REQUEST_CHANGES/COMMENT]
 
 Issues Found:
-  Critical: [count]
-  Warnings: [count]
-  Suggestions: [count]
+  CRITICAL: [count]
+  WARNING: [count]
+  SUGGESTION: [count]
 
 [If posted] Review posted to GitHub: [URL]
 [If not posted] Review saved locally.
@@ -302,14 +302,14 @@ This PR adds a comprehensive authentication module with JWT support. The impleme
 
 ## Issues Found
 
-### Critical (Must Fix)
+### CRITICAL Issues (Must Fix)
 
 #### C1. JWT Secret Hardcoded
 **File:** `src/auth/config.ts` (line 15)
 **Issue:** JWT secret is hardcoded in source code
 **Suggestion:** Move to environment variable: `process.env.JWT_SECRET`
 
-### Warnings (Should Fix)
+### WARNING Issues (Should Fix)
 
 #### W1. Missing Rate Limiting
 **File:** `src/auth/login.ts` (lines 20-45)

@@ -4,6 +4,8 @@ Thank you for your interest in contributing to the Claude Code plugin marketplac
 
 ## Table of Contents
 
+- [Quick Start: Adding a Command](#quick-start-adding-a-command)
+- [Quick Start: Adding a Plugin](#quick-start-adding-a-plugin)
 - [Adding a New Command](#adding-a-new-command)
 - [Adding a New Skill](#adding-a-new-skill)
 - [Maintaining the Help Skill](#maintaining-the-help-skill)
@@ -11,6 +13,96 @@ Thank you for your interest in contributing to the Claude Code plugin marketplac
 - [Version Management](#version-management)
 - [Pull Request Process](#pull-request-process)
 - [Pre-commit Hook Setup](#pre-commit-hook-setup)
+
+---
+
+## Quick Start: Adding a Command
+
+The simplified workflow for adding a new command is just 4 steps:
+
+### Step 1: Create the Command File
+
+Use the `/new-command` command to generate a properly structured command file:
+
+```
+/new-command
+```
+
+This will:
+- Prompt for command name (validates kebab-case)
+- Prompt for description
+- Ask which pattern type to use
+- Generate the command file from a template
+
+Alternatively, create the file manually in `plugins/[plugin-name]/commands/[command-name].md`.
+
+### Step 2: Update Documentation
+
+Run the automation scripts to update help files and README:
+
+```bash
+# Update help.md files
+python scripts/generate-help.py --all
+
+# Update README.md tables
+python scripts/update-readme.py
+```
+
+### Step 3: Update CHANGELOG
+
+Manually add an entry to `CHANGELOG.md` under `[Unreleased]`:
+
+```markdown
+### Added
+- New `/my-command` for doing something useful
+```
+
+### Step 4: Validate and Commit
+
+```bash
+# Validate the plugin
+/validate-plugin personal-plugin
+
+# Commit your changes
+git add .
+git commit -m "feat(personal-plugin): add my-command"
+```
+
+---
+
+## Quick Start: Adding a Plugin
+
+To create a new plugin with proper structure:
+
+### Step 1: Scaffold the Plugin
+
+Use the `/scaffold-plugin` command:
+
+```
+/scaffold-plugin
+```
+
+This will:
+- Prompt for plugin name
+- Prompt for description and category
+- Create the directory structure
+- Generate `plugin.json` and starter `help.md`
+- Update `marketplace.json`
+
+### Step 2: Add Commands
+
+Use `/new-command` to add commands to your new plugin.
+
+### Step 3: Update Documentation
+
+```bash
+python scripts/generate-help.py plugins/[plugin-name]
+python scripts/update-readme.py
+```
+
+### Step 4: Update CHANGELOG and Commit
+
+Add entry to CHANGELOG.md and commit your changes.
 
 ---
 
@@ -131,15 +223,38 @@ description: Brief description of the skill
 
 **IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills. This skill must be kept in sync with the plugin's contents.
 
-### When to Update Help
+### Automated Help Generation (Recommended)
 
-| Action | Update Required |
-|--------|-----------------|
-| Add a command/skill | Add entry to `help.md` with description, arguments, output, example |
-| Rename a command/skill | Update the entry name in `help.md` |
-| Change arguments/output | Update the entry details in `help.md` |
-| Remove a command/skill | Remove the entry from `help.md` |
-| Create a new plugin | Create a `help.md` skill following existing patterns |
+Use the `generate-help.py` script to automatically generate help.md files from command metadata:
+
+```bash
+# Generate help.md for a specific plugin
+python scripts/generate-help.py plugins/personal-plugin
+
+# Generate help.md for all plugins
+python scripts/generate-help.py --all
+
+# Check if help.md needs updating (no changes made)
+python scripts/generate-help.py --all --check
+```
+
+The script extracts:
+- **Description** from frontmatter
+- **Arguments** from "Input Validation" section
+- **Output** from "Output" or "File Naming" sections
+- **Examples** from code blocks containing `/command-name`
+
+**Note:** The pre-commit hook runs `--check` as an optional warning. It will not block commits.
+
+### When to Regenerate Help
+
+| Action | What to Do |
+|--------|------------|
+| Add a command/skill | Run `python scripts/generate-help.py plugins/<plugin>` |
+| Rename a command/skill | Regenerate help.md |
+| Change arguments/output | Regenerate help.md |
+| Remove a command/skill | Regenerate help.md |
+| Create a new plugin | Run generator on the new plugin |
 
 ### Help Skill Location
 
@@ -147,7 +262,9 @@ description: Brief description of the skill
 plugins/[plugin-name]/skills/help.md
 ```
 
-### Help Entry Template
+### Manual Updates (If Needed)
+
+If you need to add custom content not captured by the generator, you can still manually edit help.md. However, note that regenerating will overwrite your changes.
 
 Add this for each new command or skill:
 
@@ -166,10 +283,10 @@ Add this for each new command or skill:
 
 Before submitting a PR that modifies commands or skills:
 
-- [ ] Updated `help.md` in the affected plugin
-- [ ] Description matches the command's frontmatter description
-- [ ] Arguments section matches the command's Input Validation
-- [ ] Example is accurate and functional
+- [ ] Ran `python scripts/generate-help.py --all` to update help files
+- [ ] Verified description matches the command's frontmatter description
+- [ ] Verified arguments section matches the command's Input Validation
+- [ ] Verified examples are accurate and functional
 
 ---
 

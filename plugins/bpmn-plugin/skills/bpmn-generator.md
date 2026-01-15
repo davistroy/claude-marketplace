@@ -149,6 +149,41 @@ Process questions in this specific order:
 - Final review of proposed structure
 - Opportunity for adjustments
 
+### Session Commands
+
+Support these standard session commands during Interactive mode:
+
+| Command | Aliases | Action |
+|---------|---------|--------|
+| `help` | `?`, `commands` | Show available session commands |
+| `status` | `progress` | Show current phase and questions completed |
+| `back` | `previous`, `prev` | Return to previous question |
+| `skip` | `next`, `pass` | Skip current question (use recommended) |
+| `quit` | `exit`, `stop` | Exit without generating BPMN |
+
+**When user types `help`:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Session Commands
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  help      Show this help message
+  status    Show current phase and progress
+  back      Return to previous question
+  skip      Skip question (uses recommended answer)
+  quit      Exit without generating BPMN
+
+Press E at any question to accept recommended
+answers for all remaining questions.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Implementation notes:**
+- Commands are case-insensitive
+- Check for session commands before processing input as an answer choice
+- Unknown input that is not A/B/C/D/E should trigger the help message
+
 ### Adaptive Questioning
 
 Skip questions that don't apply:

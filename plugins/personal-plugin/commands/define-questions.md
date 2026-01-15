@@ -11,12 +11,18 @@ Analyze the document specified by the user and extract all questions, open items
 **Required Arguments:**
 - `<document-path>` - Path to the document to analyze
 
+**Optional Arguments:**
+- `--format [json|csv]` - Output format (default: json)
+  - `json`: Structured format with metadata (default, compatible with `/ask-questions`)
+  - `csv`: Flat tabular format with columns: id, text, context, topic, sections, priority
+
 **Validation:**
 If the document path is missing, display:
 ```
-Usage: /define-questions <document-path>
+Usage: /define-questions <document-path> [--format json|csv]
 Example: /define-questions PRD.md
 Example: /define-questions docs/requirements.md
+Example: /define-questions PRD.md --format csv
 ```
 
 ## Instructions
@@ -68,14 +74,27 @@ Example: /define-questions docs/requirements.md
    - What specific details are missing or unclear
    - Any constraints or requirements that affect the answer
 
-8. **Save the output** - Write the JSON file to a new file named `questions-[document-name]-[timestamp].json` in the repository root. Use a timestamp format like `YYYYMMDD-HHMMSS`.
+8. **Save the output** - Based on the `--format` flag:
+
+   **JSON Format (default):**
+   - Write the JSON file to `questions-[document-name]-[timestamp].json` in the repository root
+   - Use a timestamp format like `YYYYMMDD-HHMMSS`
+
+   **CSV Format:**
+   - Write the CSV file to `questions-[document-name]-[timestamp].csv` in the repository root
+   - Include header row: `id,text,context,topic,sections,priority`
+   - Escape commas and quotes properly in field values
+   - Use semicolons to separate multiple sections within the sections field
 
 9. **Report the results** - After creating the file, provide a summary to the user including:
    - Total number of questions identified
    - Breakdown by topic area
-   - The file path where the JSON was saved
+   - The file path where the output was saved
+   - The format used (JSON or CSV)
 
 ## Example Output
+
+### JSON Format (default)
 
 ```json
 {
@@ -104,6 +123,27 @@ Example: /define-questions docs/requirements.md
 }
 ```
 
+### CSV Format
+
+```csv
+id,text,context,topic,sections,priority
+1,"What specific expertise and personality traits should each of the 5 AI board member roles embody?","The PRD mentions a 5-role AI board for career governance but does not define the specific roles, their areas of expertise, how they should interact with each other, or their individual decision-making styles.",Board Role Definitions,"3.1 AI Board Members;4.2 Governance Sessions",high
+2,"Which LLM provider(s) will be used for the AI board members and transcription services?","The document references LLM services for voice transcription and AI board member responses but does not specify whether to use OpenAI, Anthropic, or other providers.",LLM Integration,5.1 Technical Architecture,high
+```
+
+## Output Schema
+
+The output JSON must conform to the schema defined in `schemas/questions.json`.
+
+**Schema Location:** `schemas/questions.json`
+
+**Validation:** Before saving, ensure the output matches the schema structure:
+- Required: `metadata.source_document`, `metadata.generated_at`, `metadata.total_questions`
+- Required per question: `id`, `text` (or `question`), `context`
+- Optional: `topic`, `category`, `sections`, `priority`, `location`
+
+See `schemas/README.md` for validation instructions and tools.
+
 ## Important Notes
 
 - Be thorough - it's better to capture more questions than to miss important ones
@@ -111,3 +151,4 @@ Example: /define-questions docs/requirements.md
 - Avoid duplicate questions - consolidate similar questions into one with comprehensive context
 - Preserve the original intent - don't rephrase questions in ways that change their meaning
 - The JSON must be valid and properly formatted for downstream use with AI tools
+- Output must conform to `schemas/questions.json` for compatibility with `/ask-questions` and `/finish-document`

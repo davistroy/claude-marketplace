@@ -27,30 +27,33 @@ COMMANDS
 --------
 | Command | Description |
 |---------|-------------|
-| /analyze-transcript | Convert meeting transcripts to structured markdown report |
+| /analyze-transcript | Meeting transcript to structured markdown report |
 | /ask-questions | Interactive Q&A session from questions JSON file |
 | /assess-document | Document quality evaluation with scored assessment report |
-| /bump-version | Automate version bumping across plugin files with CHANGELOG |
-| /clean-repo | Repository cleanup, organization, and documentation refresh |
-| /consolidate-documents | Analyze multiple document variations and synthesize |
-| /convert-markdown | Convert markdown to formatted Word document |
-| /define-questions | Extract questions/TBDs from docs to JSON |
-| /develop-image-prompt | Generate AI image prompts from content |
-| /finish-document | Extract questions, answer interactively, update document |
-| /plan-improvements | Generate improvement recommendations with implementation plan |
-| /plan-next | Analyze repo and recommend next action |
-| /review-arch | Quick architectural audit (read-only, no files generated) |
-| /review-pr | Structured PR review with security and code quality analysis |
-| /setup-statusline | Custom status line setup (Windows/PowerShell) |
-| /test-project | Ensure 90%+ coverage, run tests, fix, merge PR |
-| /validate-plugin | Validate plugin structure, frontmatter, and content |
+| /bump-version | Automate version bumping across plugin files with CHANGELOG placeholder |
+| /check-updates | Check for available plugin updates by comparing installed versions to... |
+| /clean-repo | Comprehensive repository cleanup, organization, and documentation refresh |
+| /consolidate-documents | Analyze multiple document variations and synthesize a superior consolidated... |
+| /convert-markdown | Convert a markdown file to a nicely formatted Microsoft Word document |
+| /define-questions | Extract questions and open items from documents to JSON |
+| /develop-image-prompt | Generate detailed image generator prompts from content, optimized for 11x17... |
+| /finish-document | Extract questions from a document, answer them interactively, and update the... |
+| /new-command | Generate a new command file from a template with proper structure and... |
+| /plan-improvements | Analyze codebase and generate prioritized improvement recommendations with... |
+| /plan-next | Analyze repo and recommend the next logical action |
+| /review-arch | Quick architectural audit with technical debt assessment (read-only, no... |
+| /review-pr | Structured PR review with security, performance, and code quality analysis |
+| /scaffold-plugin | Create a new plugin with proper directory structure, metadata, and starter files |
+| /setup-statusline | "[Personal] Troy's custom status line setup (Windows/PowerShell)" |
+| /test-project | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then... |
+| /validate-plugin | Validate plugin structure, frontmatter, and content for consistency and... |
 
 SKILLS
 ------
 | Skill | Description |
 |-------|-------------|
-| /help | Show available commands and skills with usage information |
-| /ship | Git workflow: branch, commit, push, and open PR |
+| /help | Show available commands and skills in this plugin with usage information |
+| /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
@@ -72,53 +75,68 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /analyze-transcript
-**Description:** Convert meeting transcripts to structured markdown report
-**Arguments:** Transcript content (pasted or file path)
-**Output:** `meeting-analysis-YYYYMMDD-HHMMSS.md` in current directory
+**Description:** Meeting transcript to structured markdown report
+**Arguments:** <transcript-path> [--format [md|json]]
+**Output:** meeting-analysis-YYYYMMDD-HHMMSS.md
 **Example:**
 ```
 /analyze-transcript meeting-notes.txt
+/analyze-transcript transcript.md --format json
 ```
 
 ---
 
 #### /ask-questions
 **Description:** Interactive Q&A session from questions JSON file
-**Arguments:** `<questions-file>` - Path to JSON from /define-questions
-**Output:** `answers-[source]-YYYYMMDD-HHMMSS.json`
+**Arguments:** <questions-file>
+**Output:** Generated output file
 **Example:**
 ```
-/ask-questions questions-PRD-20260114.json
+/ask-questions questions-PRD-20260110.json
 ```
 
 ---
 
 #### /assess-document
 **Description:** Document quality evaluation with scored assessment report
-**Arguments:** `<document-path>` - Path to document to assess
-**Output:** `[name]-assessment-YYYYMMDD-HHMMSS.md` in same directory as source
+**Arguments:** <document-path> [--format [md|json]]
+**Output:** [document-name]-assessment-[timestamp].md
 **Example:**
 ```
+/assess-document
 /assess-document PRD.md
 ```
 
 ---
 
 #### /bump-version
-**Description:** Automate version bumping across plugin files with CHANGELOG
-**Arguments:** `<plugin-name>` `<major|minor|patch>`
-**Output:** Updates plugin.json, marketplace.json, and CHANGELOG.md
+**Description:** Automate version bumping across plugin files with CHANGELOG placeholder
+**Arguments:** <plugin-name> <bump-type> [--dry-run]
+**Output:** In-conversation output
 **Example:**
 ```
-/bump-version personal-plugin minor
+/bump-version personal-plugin minor    # 1.6.0 -> 1.7.0
+/bump-version bpmn-plugin patch        # 1.5.0 -> 1.5.1
+/bump-version personal-plugin major    # 1.6.0 -> 2.0.0
+```
+
+---
+
+#### /check-updates
+**Description:** Check for available plugin updates by comparing installed versions to...
+**Arguments:** [--verbose]
+**Output:** Generated output file
+**Example:**
+```
+/check-updates --verbose
 ```
 
 ---
 
 #### /clean-repo
-**Description:** Repository cleanup, organization, and documentation refresh
-**Arguments:** None required
-**Output:** Cleaned repository with updated documentation
+**Description:** Comprehensive repository cleanup, organization, and documentation refresh
+**Arguments:** [--dry-run]
+**Output:** Generated output file
 **Example:**
 ```
 /clean-repo
@@ -127,65 +145,83 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /consolidate-documents
-**Description:** Analyze multiple document variations and synthesize a superior version
-**Arguments:** `<doc1-path>` `<doc2-path>` `[doc3-path...]` - Two or more documents
-**Output:** Consolidated document with consolidation notes
+**Description:** Analyze multiple document variations and synthesize a superior consolidated...
+**Arguments:** <doc1-path> <doc2-path> [doc3-path...]
+**Output:** consolidated-[topic]-YYYYMMDD-HHMMSS.md
 **Example:**
 ```
-/consolidate-documents draft-v1.md draft-v2.md draft-final.md
+/consolidate-documents draft-v1.md draft-v2.md
+/consolidate-documents spec-a.md spec-b.md spec-c.md
+/consolidate-documents requirements-old.md requirements-new.md updates.md
 ```
 
 ---
 
 #### /convert-markdown
-**Description:** Convert markdown to formatted Word document
-**Arguments:** `<markdown-file>` `[output-file]`
-**Output:** `.docx` file with formatting, TOC, and syntax highlighting
+**Description:** Convert a markdown file to a nicely formatted Microsoft Word document
+**Arguments:** <markdown-file> [<output-file>]
+**Output:** In-conversation output
 **Example:**
 ```
 /convert-markdown docs/api-guide.md
+/convert-markdown README.md documentation.docx
 ```
 
 ---
 
 #### /define-questions
 **Description:** Extract questions and open items from documents to JSON
-**Arguments:** `<document-path>` - Path to document to analyze
-**Output:** `questions-[name]-YYYYMMDD-HHMMSS.json`
+**Arguments:** <document-path> [--format [json|csv]]
+**Output:** Generated output file
 **Example:**
 ```
+/define-questions
 /define-questions PRD.md
 ```
 
 ---
 
 #### /develop-image-prompt
-**Description:** Generate detailed AI image prompts from content
-**Arguments:** `<content-source>` `[--style <style-file>]`
-**Output:** `image-prompt-[topic]-YYYYMMDD-HHMMSS.md`
+**Description:** Generate detailed image generator prompts from content, optimized for 11x17...
+**Arguments:** <content-source> [--style <style-file>]
+**Output:** Generated output file
 **Example:**
 ```
-/develop-image-prompt architecture.md --style brand-guidelines.md
+/develop-image-prompt architecture.md
+/develop-image-prompt process-flow.md --style brand-guidelines.md
+/develop-image-prompt "microservices communication patterns"
 ```
 
 ---
 
 #### /finish-document
-**Description:** Extract questions, answer interactively, update document
-**Arguments:** `<document-path>` `[--auto]`
-**Output:** Updated document with resolved questions, backup created
+**Description:** Extract questions from a document, answer them interactively, and update the...
+**Arguments:** <document-path> [--auto]
+**Output:** In-conversation output
 **Example:**
 ```
 /finish-document PRD.md
-/finish-document PRD.md --auto
+/finish-document
+/finish-document PRD.md
+```
+
+---
+
+#### /new-command
+**Description:** Generate a new command file from a template with proper structure and...
+**Arguments:** [<command-name>] [<pattern-type>]
+**Output:** plugins/personal-plugin/commands/[command-name].md
+**Example:**
+```
+/new-command
 ```
 
 ---
 
 #### /plan-improvements
-**Description:** Generate improvement recommendations with phased implementation plan
+**Description:** Analyze codebase and generate prioritized improvement recommendations with...
 **Arguments:** None required
-**Output:** `RECOMMENDATIONS.md` and `IMPLEMENTATION_PLAN.md`
+**Output:** Generated output file
 **Example:**
 ```
 /plan-improvements
@@ -196,7 +232,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 #### /plan-next
 **Description:** Analyze repo and recommend the next logical action
 **Arguments:** None required
-**Output:** In-conversation recommendation with scope and success criteria
+**Output:** Generated output file
 **Example:**
 ```
 /plan-next
@@ -205,9 +241,9 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /review-arch
-**Description:** Quick architectural audit (read-only, no files generated)
+**Description:** Quick architectural audit with technical debt assessment (read-only, no...
 **Arguments:** None required
-**Output:** In-conversation analysis with technical debt assessment
+**Output:** In-conversation output
 **Example:**
 ```
 /review-arch
@@ -216,21 +252,32 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /review-pr
-**Description:** Structured PR review with security and code quality analysis
-**Arguments:** `<pr-number-or-url>`
-**Output:** Review report, optionally posted to GitHub
+**Description:** Structured PR review with security, performance, and code quality analysis
+**Arguments:** <pr-number-or-url>
+**Output:** In-conversation output
 **Example:**
 ```
-/review-pr 123
-/review-pr https://github.com/owner/repo/pull/42
+/review-pr 123                                    # Review PR #123
+/review-pr https://github.com/owner/repo/pull/42 # Review from URL
+```
+
+---
+
+#### /scaffold-plugin
+**Description:** Create a new plugin with proper directory structure, metadata, and starter files
+**Arguments:** [<plugin-name>]
+**Output:** plugins/[plugin-name]/.claude-plugin/plugin.json
+**Example:**
+```
+/scaffold-plugin
 ```
 
 ---
 
 #### /setup-statusline
-**Description:** Custom status line setup for Windows/PowerShell
+**Description:** "[Personal] Troy's custom status line setup (Windows/PowerShell)"
 **Arguments:** None required
-**Output:** PowerShell script and settings.json configuration
+**Output:** In-conversation output
 **Example:**
 ```
 /setup-statusline
@@ -239,9 +286,9 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /test-project
-**Description:** Ensure 90%+ test coverage, run tests, fix failures, merge PR
+**Description:** Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then...
 **Arguments:** None required
-**Output:** All tests passing, PR created and merged
+**Output:** In-conversation output
 **Example:**
 ```
 /test-project
@@ -250,53 +297,38 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /validate-plugin
-**Description:** Validate plugin structure, frontmatter, and content
-**Arguments:** `<plugin-name>` `[--all]` `[--fix]` `[--verbose]`
-**Output:** Validation report with errors and warnings
+**Description:** Validate plugin structure, frontmatter, and content for consistency and...
+**Arguments:** <plugin-name> [--all] [--fix] [--verbose]
+**Output:** In-conversation output
 **Example:**
 ```
-/validate-plugin personal-plugin
-/validate-plugin --all
+/validate-plugin personal-plugin          # Validate single plugin
+/validate-plugin --all                    # Validate all plugins
+/validate-plugin bpmn-plugin --verbose    # Detailed output
 ```
 
 ---
 
 #### /help
-**Description:** Show available commands and skills with usage information
-**Arguments:** `[command-name]` - Optional specific command to get help for
-**Output:** Command list or detailed help
+**Description:** Show available commands and skills in this plugin with usage information
+**Arguments:** None required
+**Output:** In-conversation output
 **Example:**
 ```
-/help
-/help ship
+/help                          # Show all commands and skills
+/help <command-name>           # Show detailed help for a specific command
 ```
 
 ---
 
 #### /ship
-**Description:** Complete git workflow: branch, commit, push, create PR, auto-review, fix issues, and merge
-**Arguments:** `[branch-name]` `[description]`
-**Output:**
-- Creates branch, commits changes, pushes, and opens PR
-- Automatically reviews PR for security, performance, code quality, test coverage, and documentation issues
-- Fixes CRITICAL and WARNING issues automatically (up to 5 attempts)
-- Squash merges PR when all blocking issues resolved
-- If issues cannot be fixed, reports details with manual remediation steps
-
+**Description:** Create branch, commit, push, open PR, auto-review, fix issues, and merge
+**Arguments:** [<branch-name>] [draft] [--dry-run]
+**Output:** Generated output file
 **Example:**
 ```
 /ship
-/ship fix-login-bug
-/ship feature/user-export "Add CSV export for user data"
 ```
-
-**Workflow:**
-1. Pre-flight checks (git repo, gh auth, uncommitted changes)
-2. Create branch and commit
-3. Push and create PR
-4. Auto-review PR (5 analysis dimensions)
-5. Fix loop (up to 5 attempts for CRITICAL/WARNING issues)
-6. Merge on success, or report unfixable issues
 
 ---
 
@@ -307,10 +339,7 @@ If the requested command is not found:
 Command '[name]' not found in personal-plugin.
 
 Available commands:
-  /analyze-transcript, /ask-questions, /assess-document, /bump-version,
-  /clean-repo, /consolidate-documents, /convert-markdown, /define-questions,
-  /develop-image-prompt, /finish-document, /plan-improvements, /plan-next,
-  /review-arch, /review-pr, /setup-statusline, /test-project, /validate-plugin
+  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-markdown, /define-questions, /develop-image-prompt, /finish-document, /new-command, /plan-improvements, /plan-next, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
   /help, /ship

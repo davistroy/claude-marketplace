@@ -3,6 +3,15 @@
 # Pre-commit hook for claude-marketplace
 # Validates staged markdown files in the plugins directory
 #
+# Checks performed:
+#   1. Frontmatter validation (description required, name forbidden)
+#   2. Code block closure validation
+#   3. help.md sync check (commands/skills match actual files)
+#   4. Timestamp format validation (YYYYMMDD-HHMMSS)
+#   5. Help generation sync check (optional, warning only)
+#
+# Target: < 5 seconds execution time
+#
 # Installation:
 #   cp scripts/pre-commit .git/hooks/
 #   chmod +x .git/hooks/pre-commit
@@ -94,7 +103,134 @@ for FILE in $STAGED_FILES; do
     echo ""
 done
 
+# ============================================
+# Check 3: help.md Sync Validation
+# ============================================
+echo "Checking help.md sync..."
+
+# Function to extract commands/skills from a help.md file
+check_help_sync() {
+    local plugin_dir="$1"
+    local plugin_name=$(basename "$plugin_dir")
+    local help_file="$plugin_dir/skills/help.md"
+
+    if [ ! -f "$help_file" ]; then
+        echo -e "  ${YELLOW}[WARN]${NC} $plugin_name: No help.md found at $help_file"
+        WARNINGS=$((WARNINGS + 1))
+        return
+    fi
+
+    # Get actual commands (md files in commands/)
+    local commands_dir="$plugin_dir/commands"
+    if [ -d "$commands_dir" ]; then
+        for cmd_file in "$commands_dir"/*.md; do
+            if [ -f "$cmd_file" ]; then
+                local cmd_name=$(basename "$cmd_file" .md)
+                if ! grep -q "/$cmd_name" "$help_file" 2>/dev/null; then
+                    echo -e "  ${RED}[FAIL]${NC} $plugin_name: Command /$cmd_name not documented in help.md"
+                    echo -e "         Suggestion: Add /$cmd_name to $help_file"
+                    ERRORS=$((ERRORS + 1))
+                fi
+            fi
+        done
+    fi
+
+    # Get actual skills (md files in skills/, excluding help.md)
+    local skills_dir="$plugin_dir/skills"
+    if [ -d "$skills_dir" ]; then
+        for skill_file in "$skills_dir"/*.md; do
+            if [ -f "$skill_file" ] && [ "$(basename "$skill_file")" != "help.md" ]; then
+                local skill_name=$(basename "$skill_file" .md)
+                if ! grep -q "/$skill_name" "$help_file" 2>/dev/null; then
+                    echo -e "  ${RED}[FAIL]${NC} $plugin_name: Skill /$skill_name not documented in help.md"
+                    echo -e "         Suggestion: Add /$skill_name to $help_file"
+                    ERRORS=$((ERRORS + 1))
+                fi
+            fi
+        done
+    fi
+}
+
+# Check each plugin directory
+for plugin_dir in plugins/*/; do
+    if [ -d "$plugin_dir" ]; then
+        check_help_sync "$plugin_dir"
+    fi
+done
+
+echo -e "  ${GREEN}[PASS]${NC} help.md sync check complete"
+echo ""
+
+# ============================================
+# Check 4: Timestamp Format Validation
+# ============================================
+echo "Checking timestamp format in staged files..."
+
+TIMESTAMP_PATTERN='[0-9]{8}-[0-9]{6}'
+VALID_TIMESTAMP_REGEX='^[0-9]{4}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])-([01][0-9]|2[0-3])([0-5][0-9])([0-5][0-9])$'
+
+for FILE in $STAGED_FILES; do
+    if [ ! -f "$FILE" ]; then
+        continue
+    fi
+
+    # Look for timestamp-like patterns in the file
+    TIMESTAMPS=$(grep -oE "$TIMESTAMP_PATTERN" "$FILE" 2>/dev/null || true)
+
+    for ts in $TIMESTAMPS; do
+        # Validate the timestamp format (basic check for valid date/time ranges)
+        YEAR=$(echo "$ts" | cut -c1-4)
+        MONTH=$(echo "$ts" | cut -c5-6)
+        DAY=$(echo "$ts" | cut -c7-8)
+        HOUR=$(echo "$ts" | cut -c10-11)
+        MIN=$(echo "$ts" | cut -c12-13)
+        SEC=$(echo "$ts" | cut -c14-15)
+
+        # Check ranges
+        if [ "$MONTH" -lt 1 ] || [ "$MONTH" -gt 12 ] 2>/dev/null; then
+            echo -e "  ${YELLOW}[WARN]${NC} $FILE: Invalid month in timestamp '$ts'"
+            echo -e "         Expected: YYYYMMDD-HHMMSS (month 01-12)"
+            WARNINGS=$((WARNINGS + 1))
+        elif [ "$DAY" -lt 1 ] || [ "$DAY" -gt 31 ] 2>/dev/null; then
+            echo -e "  ${YELLOW}[WARN]${NC} $FILE: Invalid day in timestamp '$ts'"
+            echo -e "         Expected: YYYYMMDD-HHMMSS (day 01-31)"
+            WARNINGS=$((WARNINGS + 1))
+        elif [ "$HOUR" -gt 23 ] 2>/dev/null; then
+            echo -e "  ${YELLOW}[WARN]${NC} $FILE: Invalid hour in timestamp '$ts'"
+            echo -e "         Expected: YYYYMMDD-HHMMSS (hour 00-23)"
+            WARNINGS=$((WARNINGS + 1))
+        elif [ "$MIN" -gt 59 ] || [ "$SEC" -gt 59 ] 2>/dev/null; then
+            echo -e "  ${YELLOW}[WARN]${NC} $FILE: Invalid minute/second in timestamp '$ts'"
+            echo -e "         Expected: YYYYMMDD-HHMMSS (min/sec 00-59)"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+    done
+done
+
+echo -e "  ${GREEN}[PASS]${NC} Timestamp format check complete"
+echo ""
+
+# ============================================
+# Check 5: Help Generation Sync (Optional)
+# ============================================
+# This check is informational only - it warns but doesn't block commits
+# To regenerate: python scripts/generate-help.py --all
+
+if command -v python &> /dev/null && [ -f "scripts/generate-help.py" ]; then
+    echo "Checking help.md sync (optional)..."
+    if python scripts/generate-help.py --all --check 2>/dev/null; then
+        echo -e "  ${GREEN}[PASS]${NC} help.md files are up to date"
+    else
+        echo -e "  ${YELLOW}[WARN]${NC} help.md files may be out of sync"
+        echo -e "         Run 'python scripts/generate-help.py --all' to regenerate"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+    echo ""
+fi
+
+# ============================================
 # Summary
+# ============================================
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Validation Summary"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -110,6 +246,8 @@ if [ $ERRORS -gt 0 ]; then
     echo "  - Every command/skill needs frontmatter with 'description'"
     echo "  - Do NOT include 'name' field (filename determines command name)"
     echo "  - Ensure all code blocks are closed with \`\`\`"
+    echo "  - Update help.md when adding/removing commands or skills"
+    echo "  - Use YYYYMMDD-HHMMSS format for timestamps (e.g., 20260114-143052)"
     echo ""
     echo "To bypass this check (not recommended):"
     echo "  git commit --no-verify"

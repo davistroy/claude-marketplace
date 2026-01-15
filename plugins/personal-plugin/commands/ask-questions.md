@@ -28,9 +28,12 @@ The user will provide a JSON file path after the slash command (e.g., `/ask-ques
 ### 1. Load and Validate
 
 - Read the specified JSON file
-- Validate it contains the expected `questions` array and `metadata`
+- Validate it conforms to `schemas/questions.json` schema structure
+- Verify it contains the required `questions` array and `metadata`
 - Load the original source document referenced in `metadata.source_document`
 - Report the total number of questions to the user
+
+**Input Schema:** The input file must conform to `schemas/questions.json`
 
 ### 2. Process Each Question ONE AT A TIME
 
@@ -95,15 +98,43 @@ Guidelines for generating answers:
 - Briefly confirm the recorded answer
 - Proceed to the next question
 
-### 3. Handle Special Commands
+### 3. Handle Session Commands
 
-During the session, support these commands:
-- `back` or `previous` - Return to the previous question
-- `go to [N]` - Jump to question N
-- `skip` - Skip current question
-- `progress` - Show summary of answered/skipped/remaining
-- `save` - Save current progress to a partial file
-- `quit` - Save progress and exit (can resume later)
+During the session, support these standard session commands (see `references/common-patterns.md` for full specification):
+
+| Command | Aliases | Action |
+|---------|---------|--------|
+| `help` | `?`, `commands` | Show available session commands |
+| `status` | `progress` | Show answered/skipped/remaining summary |
+| `back` | `previous`, `prev` | Return to previous question |
+| `skip` | `next`, `pass` | Skip current question |
+| `quit` | `exit`, `stop` | Save progress and exit |
+| `go to [N]` | | Jump to question N |
+| `save` | | Save current progress without exiting |
+
+**When user types `help`:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Session Commands
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  help      Show this help message
+  status    Show current progress (X of Y completed)
+  back      Return to previous question
+  skip      Skip current question (can return later)
+  quit      Exit session (progress will be saved)
+
+Additional commands:
+  go to N   Jump to question number N
+  save      Save progress without exiting
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Implementation notes:**
+- Commands are case-insensitive
+- Check for session commands before processing input as an answer choice
+- Unknown input that is not A/B/C/D/S should trigger the help message
 
 ### 4. After All Questions Are Answered
 
@@ -156,6 +187,8 @@ Create a file with this structure:
 Save as `answers-[source-document]-YYYYMMDD-HHMMSS.json` in the repository root.
 
 Example: `answers-PRD-20260110-143052.json`
+
+**Output Schema:** The output file must conform to `schemas/answers.json`
 
 #### D. Display Completion Summary
 

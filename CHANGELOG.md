@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-01-14
+
+### Added
+- `/new-command` command for generating new command scaffolds from templates
+- `/scaffold-plugin` command for creating new plugin directory structures
+- `/check-updates` command for checking plugin version updates
+- JSON schemas for command chain contracts (`schemas/questions.json`, `schemas/answers.json`)
+- Command templates for 5 pattern types (read-only, interactive, workflow, generator, utility)
+- `scripts/generate-help.py` for automated help.md generation
+- `scripts/update-readme.py` for automated README command table updates
+- `--dry-run` flag to `/ship`, `/clean-repo`, and `/bump-version` commands
+- `--format` flag to `/define-questions` (json|csv), `/assess-document` (md|json), `/analyze-transcript` (md|json)
+- Standard session commands (help, status, back, skip, quit) to all interactive commands
+- Issue severity levels standardization (CRITICAL, WARNING, SUGGESTION)
+- Standard argument validation error formats
+
+### Changed
+- `/consolidate-documents` now outputs to `reports/` directory
+- `/develop-image-prompt` now outputs to `reports/` directory
+- Extended pre-commit hook with help.md sync and timestamp format validation
+- Updated CLAUDE.md with Utility commands pattern category
+- All assessment commands now use consistent severity naming
+
+### Fixed
+- Output location consistency across all commands
+- Argument validation messages now follow standard format
+
 ## [2.0.0] - 2026-01-14
 
 ### Changed
@@ -133,7 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `troy-statusline` for custom Windows/PowerShell status line
 - `ship` skill for git workflow automation
 
-[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/davistroy/claude-marketplace/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/davistroy/claude-marketplace/compare/v1.7.0...v2.0.0
 [1.7.0]: https://github.com/davistroy/claude-marketplace/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/davistroy/claude-marketplace/compare/v1.5.0...v1.6.0

@@ -6,6 +6,21 @@ description: Comprehensive repository cleanup, organization, and documentation r
 
 Perform a thorough cleanup and organization pass on this repository. Execute each phase systematically.
 
+## Input Validation
+
+**Optional Arguments:**
+- `--dry-run` - Preview all changes without executing them
+
+**Dry-Run Mode:**
+When `--dry-run` is specified:
+- Perform all analysis phases normally
+- Show what files would be deleted, moved, or modified
+- Show what `.gitignore` entries would be added
+- Show what documentation updates would be made
+- Prefix all proposed actions with `[DRY-RUN]` to clearly indicate preview mode
+- Do NOT execute any file deletions, moves, or modifications
+- Skip all confirmation prompts (nothing will be executed anyway)
+
 ## Phase 1: Artifact Cleanup
 
 Identify and remove files that should not be in the repository:
