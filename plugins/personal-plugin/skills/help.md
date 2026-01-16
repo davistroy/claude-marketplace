@@ -35,9 +35,11 @@ COMMANDS
 | /clean-repo | Comprehensive repository cleanup, organization, and documentation refresh |
 | /consolidate-documents | Analyze multiple document variations and synthesize a superior consolidated... |
 | /convert-markdown | Convert a markdown file to a nicely formatted Microsoft Word document |
+| /create-plan | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD,... |
 | /define-questions | Extract questions and open items from documents to JSON |
 | /develop-image-prompt | Generate detailed image generator prompts from content, optimized for 11x17... |
 | /finish-document | Extract questions from a document, answer them interactively, and update the... |
+| /implement-plan | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic... |
 | /new-command | Generate a new command file from a template with proper structure and... |
 | /plan-improvements | Analyze codebase and generate prioritized improvement recommendations with... |
 | /plan-next | Analyze repo and recommend the next logical action |
@@ -169,6 +171,19 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /create-plan
+**Description:** Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs)
+**Arguments:** [<document-paths>] [--output <path>] [--phases <n>] [--verbose]
+**Output:** IMPLEMENTATION_PLAN.md in repository root
+**Example:**
+```
+/create-plan                              # Auto-discover documents
+/create-plan PRD.md TDD.md               # Use specific documents
+/create-plan --phases 5                   # Target 5 phases
+```
+
+---
+
 #### /define-questions
 **Description:** Extract questions and open items from documents to JSON
 **Arguments:** <document-path> [--format [json|csv]]
@@ -203,6 +218,17 @@ Use this reference to provide detailed help. Read the actual command file to get
 /finish-document PRD.md
 /finish-document
 /finish-document PRD.md
+```
+
+---
+
+#### /implement-plan
+**Description:** Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing, documentation, and git workflow
+**Arguments:** None required
+**Output:** Updates IMPLEMENTATION_PLAN.md, PROGRESS.md, LEARNINGS.md; creates and merges PR
+**Example:**
+```
+/implement-plan
 ```
 
 ---
@@ -352,7 +378,7 @@ If the requested command is not found:
 Command '[name]' not found in personal-plugin.
 
 Available commands:
-  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-markdown, /define-questions, /develop-image-prompt, /finish-document, /new-command, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
+  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
   /help, /ship

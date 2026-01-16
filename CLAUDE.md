@@ -24,9 +24,11 @@ plugins/
       clean-repo.md           # Repository cleanup, organization, and documentation refresh
       consolidate-documents.md     # Merge multiple document versions into one
       convert-markdown.md     # Convert markdown to formatted Word document
+      create-plan.md          # Generate IMPLEMENTATION_PLAN.md from requirements docs
       define-questions.md     # Extract questions/TBDs from docs to JSON
       develop-image-prompt.md # Generate AI image prompts from content
       finish-document.md      # Extract questions, answer, update document
+      implement-plan.md       # Execute IMPLEMENTATION_PLAN.md via orchestrated subagents
       plan-improvements.md    # Generate improvement recommendations and phased implementation plan
       plan-next.md            # Analyze repo and recommend next action
       remove-ip.md            # De-identify documents by removing company info and IP
@@ -82,8 +84,9 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Synthesis commands** (`consolidate-documents`): Merge multiple sources into optimized output
 - **Conversion commands** (`convert-markdown`): Transform files between formats
 - **Generation commands** (`develop-image-prompt`): Create prompts or content for external tools
-- **Planning commands** (`plan-improvements`, `plan-next`): Analyze codebase and generate actionable plans
+- **Planning commands** (`create-plan`, `plan-improvements`, `plan-next`): Generate implementation plans from requirements or codebase analysis
 - **Testing commands** (`test-project`): Comprehensive test, fix, and ship workflows
+- **Orchestration commands** (`implement-plan`): Coordinate subagents for long-running multi-step execution
 - **Cleanup commands** (`clean-repo`): Repository cleanup, organization, and documentation refresh
 - **Sanitization commands** (`remove-ip`): De-identify documents by removing company info and intellectual property
 - **Utility commands** (`bump-version`, `validate-plugin`, `setup-statusline`): Plugin/repository maintenance and configuration tasks
