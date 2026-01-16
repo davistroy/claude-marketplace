@@ -51,7 +51,7 @@
     "canonicalSectionOrder": {
       "description": "The canonical order of sections in a command file",
       "type": "array",
-      "items": [
+      "prefixItems": [
         { "const": "Frontmatter", "description": "YAML frontmatter with description, allowed-tools" },
         { "const": "Title", "description": "# Command Name" },
         { "const": "Description", "description": "Brief description paragraph" },
@@ -66,15 +66,15 @@
       "description": "Standard flag naming conventions",
       "type": "object",
       "properties": {
-        "--all": "Apply to all targets/plugins",
-        "--fix": "Attempt to auto-fix issues",
-        "--verbose": "Show detailed output",
-        "--force": "Proceed despite validation errors",
-        "--preview": "Show preview before saving",
-        "--dry-run": "Simulate without making changes",
-        "--strict": "Fail on any violation (errors and warnings)",
-        "--report": "Generate detailed compliance report",
-        "--audit": "Enable audit logging"
+        "--all": { "type": "boolean", "description": "Apply to all targets/plugins" },
+        "--fix": { "type": "boolean", "description": "Attempt to auto-fix issues" },
+        "--verbose": { "type": "boolean", "description": "Show detailed output" },
+        "--force": { "type": "boolean", "description": "Proceed despite validation errors" },
+        "--preview": { "type": "boolean", "description": "Show preview before saving" },
+        "--dry-run": { "type": "boolean", "description": "Simulate without making changes" },
+        "--strict": { "type": "boolean", "description": "Fail on any violation (errors and warnings)" },
+        "--report": { "type": "boolean", "description": "Generate detailed compliance report" },
+        "--audit": { "type": "boolean", "description": "Enable audit logging" }
       }
     },
     "outputNamingPattern": {
