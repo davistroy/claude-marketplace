@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [bpmn-plugin 1.8.0] - 2026-01-16
+
+### Fixed
+- bpmn2drawio: Fix BFS rank assignment to properly re-queue successors when rank improves
+- bpmn2drawio: Add flow validation logging in layout engine for debugging
+- bpmn2drawio: Add fallback positions for elements not positioned by graphviz
+- bpmn2drawio: Add subprocess-relative coordinate adjustment for proper Draw.io rendering
+- bpmn2drawio: Improve connected element detection to include subprocess internals
+- bpmn2drawio: Add pool parent assignment for laneless pools
+
 ## [2.5.0] - 2026-01-16
 
 ### Added

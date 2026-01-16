@@ -101,6 +101,12 @@ class PositionResolver:
         # Position boundary events relative to their attached elements
         self._position_boundary_events(resolved_model)
 
+        # Adjust subprocess internal positions to be relative coordinates
+        self._adjust_subprocess_internal_positions(resolved_model)
+
+        # Assign pool parents for elements in laneless pools
+        self._assign_pool_parents_for_laneless_pools(resolved_model)
+
         # Organize elements by lanes and calculate proper lane positions
         if resolved_model.lanes:
             self._organize_by_lanes(resolved_model)
@@ -201,23 +207,41 @@ class PositionResolver:
         elements: List[BPMNElement],
         flows: list,
     ) -> Set[str]:
-        """Find elements that are connected to flows.
+        """Find elements that are connected to flows, including subprocess internals.
 
         Args:
             elements: Elements to check
             flows: All flows in model
 
         Returns:
-            Set of element IDs that participate in flows
+            Set of element IDs that participate in flows or are subprocess internals
         """
         element_ids = {e.id for e in elements}
         connected = set()
 
+        # Find elements connected via flows
         for flow in flows:
             if flow.source_ref in element_ids:
                 connected.add(flow.source_ref)
             if flow.target_ref in element_ids:
                 connected.add(flow.target_ref)
+
+        # Include subprocess internal elements (they're connected via containment)
+        # If a subprocess is connected, its internal elements should be too
+        subprocess_ids = set()
+        for e in elements:
+            if e.properties.get("_is_subprocess"):
+                subprocess_ids.add(e.id)
+
+        # Find all elements that are inside connected subprocesses
+        for e in elements:
+            subprocess_id = e.subprocess_id or e.properties.get("subprocess_id")
+            if subprocess_id:
+                # If the containing subprocess is connected, this element is connected
+                if subprocess_id in connected or subprocess_id in subprocess_ids:
+                    connected.add(e.id)
+                    # Also mark the subprocess as connected
+                    connected.add(subprocess_id)
 
         return connected
 
@@ -527,6 +551,91 @@ class PositionResolver:
                         # Position on the bottom-left edge of the attached element
                         element.x = attached.x + (attached.width or 120) - 18
                         element.y = attached.y + (attached.height or 80) - 18
+
+    def _adjust_subprocess_internal_positions(self, model: BPMNModel) -> None:
+        """Adjust subprocess internal element positions to be relative to subprocess.
+
+        In Draw.io, when an element has a parent, its coordinates are relative
+        to the parent container. This method converts absolute coordinates to
+        subprocess-relative coordinates.
+
+        Args:
+            model: BPMN model (modified in place)
+        """
+        # Build subprocess lookup
+        subprocess_lookup: Dict[str, BPMNElement] = {}
+        for element in model.elements:
+            if element.properties.get("_is_subprocess"):
+                subprocess_lookup[element.id] = element
+
+        if not subprocess_lookup:
+            return
+
+        # Adjust internal element positions
+        for element in model.elements:
+            subprocess_id = element.subprocess_id or element.properties.get("subprocess_id")
+            if subprocess_id and subprocess_id in subprocess_lookup:
+                subprocess = subprocess_lookup[subprocess_id]
+
+                # Only adjust if both have coordinates
+                if (element.x is not None and element.y is not None and
+                        subprocess.x is not None and subprocess.y is not None):
+                    # Convert to relative coordinates
+                    # Offset by subprocess header (title bar area)
+                    header_offset = 26  # Standard collapsible container header height
+                    element.x = element.x - subprocess.x
+                    element.y = element.y - subprocess.y - header_offset
+
+                    # Ensure element stays within subprocess bounds
+                    max_x = (subprocess.width or 200) - (element.width or 80)
+                    max_y = (subprocess.height or 150) - header_offset - (element.height or 60)
+                    element.x = max(0, min(element.x, max_x))
+                    element.y = max(0, min(element.y, max_y))
+
+    def _assign_pool_parents_for_laneless_pools(self, model: BPMNModel) -> None:
+        """Assign pool as parent for elements in pools without lanes.
+
+        When a pool has no lanes, elements should be direct children of the pool.
+        This ensures proper containment and relative positioning.
+
+        Args:
+            model: BPMN model (modified in place)
+        """
+        if not model.pools:
+            return
+
+        # Find pools without lanes
+        pools_with_lanes = set()
+        for lane in model.lanes:
+            if lane.parent_pool_id:
+                pools_with_lanes.add(lane.parent_pool_id)
+
+        laneless_pools = [p for p in model.pools if p.id not in pools_with_lanes]
+
+        if not laneless_pools:
+            return
+
+        # Build element lookup by process reference
+        for pool in laneless_pools:
+            if not pool.process_ref:
+                continue
+
+            # Find elements that belong to this pool's process
+            for element in model.elements:
+                # Skip if element already has a parent
+                if element.parent_id:
+                    continue
+
+                # Skip subprocess internals (they have their subprocess as parent)
+                if element.subprocess_id or element.properties.get("subprocess_id"):
+                    continue
+
+                # Assign pool as parent for elements in its process
+                # This requires knowing which elements belong to which process
+                # For now, if there's only one laneless pool and elements have no parent,
+                # assign them to that pool
+                if len(laneless_pools) == 1:
+                    element.parent_id = pool.id
 
     def _organize_by_lanes(self, model: BPMNModel) -> None:
         """Organize elements into proper lane structure with correct positioning.

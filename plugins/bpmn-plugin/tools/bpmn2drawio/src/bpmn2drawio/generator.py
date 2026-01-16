@@ -33,6 +33,7 @@ class DrawioGenerator:
         """
         self._cell_counter = 2  # Start after base cells 0 and 1
         self._element_cell_ids: Dict[str, str] = {}
+        self._subprocess_cell_ids: Dict[str, str] = {}
         self._theme = theme
 
     def generate(self, model: BPMNModel, output_path: str) -> GenerationResult:
@@ -75,6 +76,7 @@ class DrawioGenerator:
         # Reset state
         self._cell_counter = 2
         self._element_cell_ids = {}
+        self._subprocess_cell_ids = {}
 
         # Create document structure
         mxfile = self._create_mxfile()
@@ -119,8 +121,20 @@ class DrawioGenerator:
         self._pool_cell_ids = pool_cell_ids
         self._lane_cell_ids = lane_cell_ids
 
-        # Generate vertices for elements and their markers/icons
+        # Create subprocess containers first (so children can reference them)
         for element in model.elements:
+            if element.properties.get("_is_subprocess"):
+                vertex = self._create_subprocess_container(element)
+                root.append(vertex)
+                cell_id = vertex.get("id")
+                self._element_cell_ids[element.id] = cell_id
+                self._subprocess_cell_ids[element.id] = cell_id
+
+        # Generate vertices for elements and their markers/icons
+        # (skip subprocesses already created as containers)
+        for element in model.elements:
+            if element.properties.get("_is_subprocess"):
+                continue  # Already created as container
             vertex = self._create_vertex(element)
             root.append(vertex)
             cell_id = vertex.get("id")
@@ -235,7 +249,13 @@ class DrawioGenerator:
 
         # Resolve parent cell ID
         parent_cell_id = "1"
-        if element.parent_id:
+        # Check subprocess parent first
+        subprocess_id = element.properties.get("subprocess_id")
+        if subprocess_id:
+            if subprocess_id in self._subprocess_cell_ids:
+                parent_cell_id = self._subprocess_cell_ids[subprocess_id]
+        # Then check lane/pool parents
+        elif element.parent_id:
             # Check if parent is a lane
             if hasattr(self, '_lane_cell_ids') and element.parent_id in self._lane_cell_ids:
                 parent_cell_id = self._lane_cell_ids[element.parent_id]
@@ -267,6 +287,55 @@ class DrawioGenerator:
         geometry.set("y", str(y))
         geometry.set("width", str(width))
         geometry.set("height", str(height))
+        geometry.set("as", "geometry")
+
+        return cell
+
+    def _create_subprocess_container(self, element: BPMNElement) -> ET.Element:
+        """Create mxCell for subprocess as an expandable container.
+
+        Args:
+            element: BPMN subprocess element
+
+        Returns:
+            mxCell element configured as container
+        """
+        cell_id = str(self._cell_counter)
+        self._cell_counter += 1
+
+        cell = ET.Element("mxCell")
+        cell.set("id", cell_id)
+        cell.set("value", element.name or "")
+
+        # Subprocess container style - rounded rectangle with expand capability
+        style = (
+            "rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=1;"
+            "childLayout=stackLayout;horizontalStack=0;resizeParent=1;"
+            "resizeLast=0;dropTarget=1;fontStyle=1;swimlane=0;"
+            "startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;"
+        )
+        cell.set("style", style)
+        cell.set("vertex", "1")
+
+        # Resolve parent (lane, pool, or another subprocess)
+        parent_cell_id = "1"
+        subprocess_id = element.properties.get("subprocess_id")
+        if subprocess_id:
+            if subprocess_id in self._subprocess_cell_ids:
+                parent_cell_id = self._subprocess_cell_ids[subprocess_id]
+        elif element.parent_id:
+            if hasattr(self, '_lane_cell_ids') and element.parent_id in self._lane_cell_ids:
+                parent_cell_id = self._lane_cell_ids[element.parent_id]
+            elif hasattr(self, '_pool_cell_ids') and element.parent_id in self._pool_cell_ids:
+                parent_cell_id = self._pool_cell_ids[element.parent_id]
+        cell.set("parent", parent_cell_id)
+
+        # Geometry
+        geometry = ET.SubElement(cell, "mxGeometry")
+        geometry.set("x", str(element.x or 0))
+        geometry.set("y", str(element.y or 0))
+        geometry.set("width", str(element.width or 200))
+        geometry.set("height", str(element.height or 150))
         geometry.set("as", "geometry")
 
         return cell

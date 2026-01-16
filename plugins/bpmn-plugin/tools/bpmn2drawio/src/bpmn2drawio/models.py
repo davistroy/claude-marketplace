@@ -16,6 +16,7 @@ class BPMNElement:
     width: Optional[float] = None
     height: Optional[float] = None
     parent_id: Optional[str] = None  # Lane or subprocess container
+    subprocess_id: Optional[str] = None  # ID of containing subprocess if this is an internal element
     properties: Dict[str, Any] = field(default_factory=dict)
 
     def has_coordinates(self) -> bool:

@@ -192,13 +192,15 @@ def create_lane_cell(
 
 
 def resolve_parent_hierarchy(model: BPMNModel) -> Dict[str, str]:
-    """Set correct parent IDs for all elements.
+    """Resolve parent hierarchy for all elements including subprocess internals.
 
     Parent-child structure for Draw.io:
     Root (id=1)
       └── Pool (parent=1)
             └── Lane (parent=pool_id)
                   └── Task (parent=lane_id)
+                  └── Subprocess (parent=lane_id)
+                        └── Internal Task (parent=subprocess_id)
 
     Args:
         model: BPMN model
@@ -208,6 +210,7 @@ def resolve_parent_hierarchy(model: BPMNModel) -> Dict[str, str]:
     """
     hierarchy = {}
 
+    # PHASE 1: Resolve lane/pool parents
     # Build lane membership lookup
     lane_elements = {}
     for lane in model.lanes:
@@ -220,7 +223,7 @@ def resolve_parent_hierarchy(model: BPMNModel) -> Dict[str, str]:
         for lane_id in pool.lanes:
             pool_lanes[lane_id] = pool.id
 
-    # Assign parent IDs
+    # Assign parent IDs for lane/pool membership
     for element in model.elements:
         if element.id in lane_elements:
             # Element is in a lane
@@ -236,6 +239,13 @@ def resolve_parent_hierarchy(model: BPMNModel) -> Dict[str, str]:
                     break
             else:
                 hierarchy[element.id] = "1"
+
+    # PHASE 2: Resolve subprocess internal elements
+    # Elements with subprocess_id should have that subprocess as their parent
+    for element in model.elements:
+        subprocess_id = element.properties.get("subprocess_id")
+        if subprocess_id:
+            hierarchy[element.id] = subprocess_id
 
     return hierarchy
 

@@ -1,11 +1,14 @@
 """Layout engine for BPMN diagrams using Graphviz."""
 
+import logging
 from typing import Dict, List, Tuple, Optional
 import networkx as nx
 
 from .models import BPMNElement, BPMNFlow
 from .constants import ELEMENT_DIMENSIONS, LayoutConstants
 from .exceptions import LayoutError
+
+logger = logging.getLogger(__name__)
 
 
 class LayoutEngine:
@@ -86,10 +89,25 @@ class LayoutEngine:
         for element in elements:
             graph.add_node(element.id)
 
-        # Add edges
+        # Add edges with validation logging
         for flow in flows:
-            if flow.source_ref in element_ids and flow.target_ref in element_ids:
+            source_exists = flow.source_ref in element_ids
+            target_exists = flow.target_ref in element_ids
+
+            if source_exists and target_exists:
                 graph.add_edge(flow.source_ref, flow.target_ref)
+            else:
+                # Log skipped flows for debugging layout issues
+                missing = []
+                if not source_exists:
+                    missing.append(f"source={flow.source_ref}")
+                if not target_exists:
+                    missing.append(f"target={flow.target_ref}")
+                logger.debug(
+                    "Skipped flow %s: missing %s",
+                    flow.id,
+                    ", ".join(missing)
+                )
 
         return graph
 
@@ -149,6 +167,27 @@ class LayoutEngine:
             if pos:
                 x, y = map(float, pos.split(","))
                 positions[str(node)] = (x, y)
+
+        # Add fallback positions for elements not positioned by graphviz
+        # (disconnected elements, etc.)
+        fallback_x = LayoutConstants.DIAGRAM_MARGIN
+        fallback_y = LayoutConstants.DIAGRAM_MARGIN
+        if positions:
+            # Place below existing positions
+            max_y = max(p[1] for p in positions.values())
+            fallback_y = max_y + LayoutConstants.RANK_SEPARATION
+
+        for element in elements:
+            if element.id not in positions:
+                positions[element.id] = (fallback_x, fallback_y)
+                width, height = self._get_element_dimensions(element)
+                fallback_x += width + LayoutConstants.NODE_HORIZONTAL_GAP
+                logger.debug(
+                    "Assigned fallback position for element %s at (%s, %s)",
+                    element.id,
+                    fallback_x,
+                    fallback_y
+                )
 
         return positions
 
@@ -248,6 +287,9 @@ class LayoutEngine:
     def _assign_ranks(self, graph: nx.DiGraph) -> Dict[str, int]:
         """Assign ranks to nodes based on longest path from sources.
 
+        Uses BFS with re-queuing when a longer path is found to ensure
+        nodes receive the maximum rank (longest path from any source).
+
         Args:
             graph: NetworkX directed graph
 
@@ -259,29 +301,37 @@ class LayoutEngine:
         # Find source nodes (no incoming edges)
         sources = [n for n in graph.nodes() if graph.in_degree(n) == 0]
 
-        # If no sources, use all nodes
+        # If no sources (cyclic graph), use all nodes as potential sources
         if not sources:
             sources = list(graph.nodes())
 
-        # BFS to assign ranks
-        visited = set()
+        # Initialize source ranks
+        for source in sources:
+            ranks[source] = 0
+
+        # BFS with re-queuing when rank improves
         queue = [(s, 0) for s in sources]
 
         while queue:
             node, rank = queue.pop(0)
 
-            if node in visited:
-                # Take the maximum rank for nodes reachable via multiple paths
-                if rank > ranks.get(node, -1):
-                    ranks[node] = rank
+            # Skip if we already found a longer path to this node
+            current_rank = ranks.get(node, -1)
+            if rank < current_rank:
                 continue
 
-            visited.add(node)
-            ranks[node] = max(ranks.get(node, 0), rank)
+            # Update rank if this path is longer
+            if rank > current_rank:
+                ranks[node] = rank
 
-            # Add successors
+            # Process successors - re-queue if rank would improve
             for succ in graph.successors(node):
-                queue.append((succ, rank + 1))
+                new_rank = rank + 1
+                succ_current = ranks.get(succ, -1)
+                if new_rank > succ_current:
+                    ranks[succ] = new_rank
+                    # Re-queue to propagate improved rank to downstream nodes
+                    queue.append((succ, new_rank))
 
         # Handle disconnected nodes
         for node in graph.nodes():

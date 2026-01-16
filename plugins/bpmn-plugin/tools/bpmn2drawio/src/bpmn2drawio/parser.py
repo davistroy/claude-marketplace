@@ -219,11 +219,77 @@ class BPMNParser:
             elif tag == "subProcess":
                 # Parse subprocess as element
                 element = self._parse_element(child, tag)
+                element.properties["_is_subprocess"] = True  # Mark as subprocess container
                 if process_id:
                     element.properties["_process_id"] = process_id
                 model.elements.append(element)
-                # Also parse its contents
-                self._parse_process_contents(child, model, process_id)
+                # Parse subprocess contents with parent relationship
+                self._parse_subprocess_contents(child, model, element.id, process_id)
+
+    def _parse_subprocess_contents(
+        self,
+        subprocess_elem: etree._Element,
+        model: BPMNModel,
+        subprocess_id: str,
+        process_id: Optional[str] = None,
+    ) -> None:
+        """Parse contents of a subprocess, setting parent relationships.
+
+        Args:
+            subprocess_elem: Subprocess XML element
+            model: BPMN model to populate
+            subprocess_id: ID of the containing subprocess
+            process_id: ID of the parent process
+        """
+        for child in subprocess_elem:
+            if not isinstance(child.tag, str):
+                continue
+            tag = self._local_name(child.tag)
+
+            # Handle flow nodes (tasks, events, gateways)
+            if tag in ALL_ELEMENT_TYPES or tag in (
+                "task",
+                "userTask",
+                "serviceTask",
+                "sendTask",
+                "receiveTask",
+                "manualTask",
+                "businessRuleTask",
+                "scriptTask",
+                "callActivity",
+                "startEvent",
+                "endEvent",
+                "intermediateCatchEvent",
+                "intermediateThrowEvent",
+                "boundaryEvent",
+                "exclusiveGateway",
+                "parallelGateway",
+                "inclusiveGateway",
+                "eventBasedGateway",
+                "complexGateway",
+            ):
+                element = self._parse_element(child, tag)
+                element.subprocess_id = subprocess_id  # Set subprocess parent!
+                if process_id:
+                    element.properties["_process_id"] = process_id
+                model.elements.append(element)
+
+            # Handle sequence flows within subprocess
+            elif tag == "sequenceFlow":
+                flow = self._parse_flow(child, tag)
+                if flow:
+                    model.flows.append(flow)
+
+            # Handle nested subprocesses
+            elif tag == "subProcess":
+                nested = self._parse_element(child, tag)
+                nested.subprocess_id = subprocess_id  # Parent is outer subprocess
+                nested.properties["_is_subprocess"] = True
+                if process_id:
+                    nested.properties["_process_id"] = process_id
+                model.elements.append(nested)
+                # Recursively parse nested subprocess contents
+                self._parse_subprocess_contents(child, model, nested.id, process_id)
 
     def _parse_element(self, elem: etree._Element, elem_type: str) -> BPMNElement:
         """Parse a BPMN element."""
