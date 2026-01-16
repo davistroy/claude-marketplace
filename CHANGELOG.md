@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-01-16
+
+### Added
+- `/create-plan` command for generating IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD)
+  - Auto-discovers requirements documents in project
+  - Synthesizes requirements across multiple documents
+  - Generates phased implementation plan with work items and acceptance criteria
+  - Includes requirement traceability matrix
+- `/implement-plan` command for executing IMPLEMENTATION_PLAN.md via orchestrated subagents
+  - Uses Ralph Wiggum loop pattern for context-efficient execution
+  - Spawns subagents for implementation, testing, and documentation
+  - Automatic test-fix loop until all tests pass
+  - Updates PROGRESS.md and LEARNINGS.md tracking files
+  - Commits after each work item, creates PR on completion
+
+### Changed
+- Updated CLAUDE.md with new commands and "Orchestration commands" pattern category
+- Planning commands now include create-plan, plan-improvements, and plan-next
+
 ## [2.4.0] - 2026-01-15
 
 ### Added
@@ -238,7 +257,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `troy-statusline` for custom Windows/PowerShell status line
 - `ship` skill for git workflow automation
 
-[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/davistroy/claude-marketplace/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/davistroy/claude-marketplace/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/davistroy/claude-marketplace/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/davistroy/claude-marketplace/compare/v2.1.0...v2.2.0

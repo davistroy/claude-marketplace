@@ -30,9 +30,11 @@ Custom commands and skills for productivity workflows.
 | [`/clean-repo`](plugins/personal-plugin/commands/clean-repo.md) | Comprehensive repository cleanup, organization, and documentation refresh |
 | [`/consolidate-documents`](plugins/personal-plugin/commands/consolidate-documents.md) | Analyze multiple document variations and synthesize a superior consolidated version |
 | [`/convert-markdown`](plugins/personal-plugin/commands/convert-markdown.md) | Convert a markdown file to a nicely formatted Microsoft Word document |
+| [`/create-plan`](plugins/personal-plugin/commands/create-plan.md) | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs) |
 | [`/define-questions`](plugins/personal-plugin/commands/define-questions.md) | Extract questions and open items from documents to JSON |
 | [`/develop-image-prompt`](plugins/personal-plugin/commands/develop-image-prompt.md) | Generate detailed image generator prompts from content, optimized for 11x17 landscape prints |
 | [`/finish-document`](plugins/personal-plugin/commands/finish-document.md) | Extract questions from a document, answer them interactively, and update the document |
+| [`/implement-plan`](plugins/personal-plugin/commands/implement-plan.md) | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing and git workflow |
 | [`/new-command`](plugins/personal-plugin/commands/new-command.md) | Generate a new command file from a template with proper structure and conventions |
 | [`/plan-improvements`](plugins/personal-plugin/commands/plan-improvements.md) | Analyze codebase and generate prioritized improvement recommendations with phased implementation... |
 | [`/plan-next`](plugins/personal-plugin/commands/plan-next.md) | Analyze repo and recommend the next logical action |
