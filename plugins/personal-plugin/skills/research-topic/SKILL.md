@@ -1,4 +1,5 @@
 ---
+name: research-topic
 description: Orchestrate parallel deep research across multiple LLM providers and synthesize results
 ---
 

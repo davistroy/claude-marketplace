@@ -1,4 +1,5 @@
 ---
+name: ship
 allowed-tools: Bash(git:*), Bash(gh:*)
 description: Create branch, commit, push, open PR, auto-review, fix issues, and merge
 ---

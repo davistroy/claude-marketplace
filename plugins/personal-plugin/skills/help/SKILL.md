@@ -1,4 +1,5 @@
 ---
+name: help
 description: Show available commands and skills in this plugin with usage information
 ---
 

@@ -174,6 +174,34 @@ skills/
   help.md                  # ❌ Flat file - NOT discovered
 ```
 
+### Skill Frontmatter Requirements
+
+**CRITICAL:** Skills MUST include a `name` field in their YAML frontmatter. Without this field, the skill will not be registered and will not appear in the available skills list.
+
+```yaml
+---
+name: ship                    # REQUIRED: Must match directory name
+description: Brief description of what the skill does
+allowed-tools: Bash(git:*)    # Optional: Tool restrictions
+---
+```
+
+**Required fields:**
+- `name` - Must exactly match the skill's directory name (e.g., `ship` for `skills/ship/SKILL.md`)
+- `description` - Brief description shown in skill list and used for proactive suggestions
+
+**Optional fields:**
+- `allowed-tools` - Restrict which tools the skill can use
+- `version` - Skill version for tracking changes
+- `license` - License information
+
+**Example comparison:**
+
+| Working Skill | Non-Working Skill |
+|---------------|-------------------|
+| `name: ship` ✅ | (missing name) ❌ |
+| `description: Create branch...` | `description: Create branch...` |
+
 ## Command Conventions
 
 ### Frontmatter Structure

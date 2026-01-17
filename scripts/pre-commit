@@ -4,7 +4,9 @@
 # Validates staged markdown files in the plugins directory
 #
 # Checks performed:
-#   1. Frontmatter validation (description required, name forbidden)
+#   1. Frontmatter validation:
+#      - description: REQUIRED for all commands and skills
+#      - name: FORBIDDEN for commands, REQUIRED for skills
 #   2. Code block closure validation
 #   3. help.md sync check (commands/skills match actual files)
 #   4. Timestamp format validation (YYYYMMDD-HHMMSS)
@@ -79,12 +81,30 @@ for FILE in $STAGED_FILES; do
         echo -e "  ${GREEN}[PASS]${NC} description field present"
     fi
 
-    # Check for forbidden 'name' field (per CLAUDE.md)
-    if echo "$FRONTMATTER" | grep -q "^name:"; then
-        echo -e "  ${RED}[FAIL]${NC} Forbidden 'name' field found (filename determines command name)"
-        ERRORS=$((ERRORS + 1))
+    # Determine if this is a command or skill based on path
+    IS_SKILL=false
+    if echo "$FILE" | grep -q "/skills/"; then
+        IS_SKILL=true
+    fi
+
+    # Check name field: FORBIDDEN for commands, REQUIRED for skills
+    if [ "$IS_SKILL" = true ]; then
+        # Skills REQUIRE name field (needed for skill registration)
+        if echo "$FRONTMATTER" | grep -q "^name:"; then
+            echo -e "  ${GREEN}[PASS]${NC} Required 'name' field present (skill)"
+        else
+            echo -e "  ${RED}[FAIL]${NC} Missing required 'name' field in skill frontmatter"
+            echo -e "         Skills must have: name: skill-name (matching directory name)"
+            ERRORS=$((ERRORS + 1))
+        fi
     else
-        echo -e "  ${GREEN}[PASS]${NC} No forbidden 'name' field"
+        # Commands should NOT have name field (filename determines command name)
+        if echo "$FRONTMATTER" | grep -q "^name:"; then
+            echo -e "  ${RED}[FAIL]${NC} Forbidden 'name' field found (filename determines command name)"
+            ERRORS=$((ERRORS + 1))
+        else
+            echo -e "  ${GREEN}[PASS]${NC} No forbidden 'name' field (command)"
+        fi
     fi
 
     # Check for basic YAML syntax (colon after field name)
@@ -310,7 +330,8 @@ if [ $ERRORS -gt 0 ]; then
     echo ""
     echo "Tips:"
     echo "  - Every command/skill needs frontmatter with 'description'"
-    echo "  - Do NOT include 'name' field (filename determines command name)"
+    echo "  - Commands: Do NOT include 'name' field (filename determines command name)"
+    echo "  - Skills: MUST include 'name' field (required for skill registration)"
     echo "  - Ensure all code blocks are closed with \`\`\`"
     echo "  - help.md MUST be synced when changing commands/skills"
     echo "    Fix with: python scripts/generate-help.py --all"
