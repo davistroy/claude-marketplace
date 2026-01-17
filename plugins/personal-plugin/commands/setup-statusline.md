@@ -1,22 +1,34 @@
 ---
-description: "[Personal] Troy's custom status line setup (Windows/PowerShell)"
+description: "Custom status line setup (Windows/PowerShell)"
 ---
 
-# Troy's Status Line Setup
+# Custom Status Line Setup
 
-> **Note:** This command is specific to Troy's Windows environment and uses hardcoded paths. Use as a reference for creating your own status line configuration.
+> **Note:** This command sets up a custom status line for Claude Code on Windows using PowerShell. The script uses `$env:USERPROFILE` for portable paths.
 
-Set up Troy's custom status line for Claude Code on Windows.
+Set up a custom status line for Claude Code on Windows.
 
 ## Instructions
 
-1. Create the PowerShell script at `C:\Users\Troy Davis\.claude\statusline.ps1` with this content:
+1. Create the PowerShell script at `$env:USERPROFILE\.claude\statusline.ps1` with this content:
 
 ```powershell
 # Claude Code Status Line Script
 # Reads JSON input from stdin and displays formatted status line
 
-$input_data = $input | ConvertFrom-Json
+# Parse input with error handling
+try {
+    $input_data = $input | ConvertFrom-Json
+} catch {
+    Write-Host "Status line unavailable"
+    exit 0
+}
+
+# Validate required fields exist
+if ($null -eq $input_data -or $null -eq $input_data.model) {
+    Write-Host "Status line unavailable"
+    exit 0
+}
 
 # ANSI color codes
 $cyan = "`e[36m"
@@ -28,23 +40,37 @@ $blue = "`e[34m"
 $gray = "`e[90m"
 $reset = "`e[0m"
 
+# Safe integer max to prevent overflow (2^31 - 1)
+$MAX_SAFE_INT = 2147483647
+
 # Extract model display name
 $model_name = $input_data.model.display_name
+if ([string]::IsNullOrEmpty($model_name)) {
+    $model_name = "Claude"
+}
 
 # Calculate context window usage
 $usage = $input_data.context_window.current_usage
 $context_window_size = $input_data.context_window.context_window_size
 
-if ($null -ne $usage) {
-    # Calculate total current tokens from all sources
-    $input_tokens = $usage.input_tokens
-    $cache_read = $usage.cache_read_input_tokens
-    $cache_creation = $usage.cache_creation_input_tokens
-    $current_tokens = $input_tokens + $cache_read + $cache_creation
-    $output_tokens = $usage.output_tokens
+# Default context window size if not provided
+if ($null -eq $context_window_size -or $context_window_size -le 0) {
+    $context_window_size = 200000
+}
 
-    # Calculate percentage
+if ($null -ne $usage) {
+    # Safely extract token values with null coalescing and overflow protection
+    $input_tokens = if ($null -ne $usage.input_tokens) { [Math]::Min([long]$usage.input_tokens, $MAX_SAFE_INT) } else { 0 }
+    $cache_read = if ($null -ne $usage.cache_read_input_tokens) { [Math]::Min([long]$usage.cache_read_input_tokens, $MAX_SAFE_INT) } else { 0 }
+    $cache_creation = if ($null -ne $usage.cache_creation_input_tokens) { [Math]::Min([long]$usage.cache_creation_input_tokens, $MAX_SAFE_INT) } else { 0 }
+
+    # Calculate total with overflow protection (sum as long, then cap)
+    $current_tokens = [Math]::Min([long]$input_tokens + [long]$cache_read + [long]$cache_creation, $MAX_SAFE_INT)
+    $output_tokens = if ($null -ne $usage.output_tokens) { [Math]::Min([long]$usage.output_tokens, $MAX_SAFE_INT) } else { 0 }
+
+    # Calculate percentage safely
     $percentage = [math]::Round(($current_tokens / $context_window_size) * 100)
+    $percentage = [Math]::Min($percentage, 100)
 
     # Determine color based on percentage
     if ($percentage -lt 50) {
@@ -75,7 +101,10 @@ if ($null -ne $usage) {
 # Get git branch (if in git repo)
 $git_branch = ""
 $current_dir = $input_data.workspace.current_dir
-if (Test-Path (Join-Path $current_dir ".git")) {
+if ([string]::IsNullOrEmpty($current_dir)) {
+    $current_dir = (Get-Location).Path
+}
+if ((Test-Path $current_dir) -and (Test-Path (Join-Path $current_dir ".git"))) {
     try {
         Push-Location $current_dir
         $branch = git -c core.filemode=false -c advice.detachedHead=false branch --show-current 2>$null
@@ -103,16 +132,18 @@ $status_line = "${cyan}${model_name}${reset} ${gray}|${reset} ${context_section}
 Write-Host $status_line
 ```
 
-2. Update the global settings at `C:\Users\Troy Davis\.claude\settings.json` to include:
+2. Update the global settings at `$env:USERPROFILE\.claude\settings.json` to include:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "pwsh -NoProfile -File \"C:\\Users\\Troy Davis\\.claude\\statusline.ps1\""
+    "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\statusline.ps1\""
   }
 }
 ```
+
+> **Note:** The `%USERPROFILE%` environment variable will be expanded by Windows when the command runs, making this portable across different user accounts.
 
 ## Status Line Format
 
