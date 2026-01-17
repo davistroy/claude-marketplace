@@ -1,5 +1,5 @@
 ---
-description: "Custom status line setup (Windows/PowerShell)"
+description: Custom status line setup (Windows/PowerShell)
 ---
 
 # Custom Status Line Setup

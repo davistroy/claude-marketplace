@@ -48,7 +48,7 @@ COMMANDS
 | /review-arch | Quick architectural audit with technical debt assessment (read-only, no... |
 | /review-pr | Structured PR review with security, performance, and code quality analysis |
 | /scaffold-plugin | Create a new plugin with proper directory structure, metadata, and starter files |
-| /setup-statusline | "[Personal] Troy's custom status line setup (Windows/PowerShell)" |
+| /setup-statusline | Custom status line setup (Windows/PowerShell) |
 | /test-project | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then... |
 | /validate-plugin | Validate plugin structure, frontmatter, and content for consistency and... |
 
