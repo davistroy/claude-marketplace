@@ -105,6 +105,8 @@ plugins/
       ship.md               # Git workflow: branch, commit, push, PR
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
+    tools/
+      research-orchestrator/  # Python tool for multi-LLM research (run via PYTHONPATH)
 
   bpmn-plugin/
     .claude-plugin/
@@ -116,6 +118,8 @@ plugins/
     references/             # BPMN element documentation and guides
     templates/              # XML/Draw.io skeletons and style mappings
     examples/               # Sample BPMN and Draw.io files
+    tools/
+      bpmn2drawio/          # Python tool for BPMN→Draw.io conversion (run via PYTHONPATH)
 ```
 
 ## Commands vs Skills
@@ -214,6 +218,87 @@ Converts BPMN 2.0 XML files to Draw.io native format (.drawio):
 3. Add `commands/` and/or `skills/` directories with markdown files
 4. **Create a `help.md` skill** with usage information for all commands/skills
 5. Register the plugin in `.claude-plugin/marketplace.json`
+
+## Bundled Python Tools
+
+Plugins can include Python tools that commands/skills invoke at runtime. These tools must be **run from source** using `PYTHONPATH` - Claude Code's plugin schema does NOT support a `tools` field in plugin.json.
+
+### Directory Structure
+
+```
+plugins/
+  [plugin-name]/
+    tools/
+      [tool-name]/
+        pyproject.toml        # Tool metadata and dependencies
+        src/
+          [tool_module]/
+            __init__.py
+            __main__.py       # Entry point for `python -m [tool_module]`
+            cli.py            # CLI implementation
+```
+
+### What NOT to Do
+
+**DO NOT** add a `tools` field to plugin.json - it will cause installation to fail:
+
+```json
+// ❌ WRONG - causes "Unrecognized key: tools" error
+{
+  "name": "my-plugin",
+  "tools": {
+    "my-tool": { "path": "tools/my-tool" }
+  }
+}
+```
+
+### Running Tools from Source
+
+In your command/skill markdown, use `PYTHONPATH` to run the tool directly from source:
+
+```bash
+# Set up tool path using CLAUDE_PLUGIN_ROOT
+PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-/path/to/plugins/my-plugin}"
+TOOL_SRC="$PLUGIN_DIR/tools/my-tool/src"
+
+# Run the tool
+PYTHONPATH="$TOOL_SRC" python -m my_tool_module <arguments>
+```
+
+### Dependency Checking Pattern
+
+Check for and install missing Python dependencies at runtime:
+
+```bash
+# Check which packages are missing
+python -c "import package_name" 2>/dev/null || echo "package_name: MISSING"
+
+# Prompt user before installing
+# "The following packages are missing: [list]. Install with pip install [packages]?"
+
+# If approved:
+pip install package1 package2 package3
+```
+
+### System Dependency Pattern
+
+For tools requiring system dependencies (like Graphviz), check and provide installation instructions:
+
+```bash
+# Check for system dependency
+command -v dot >/dev/null 2>&1 && echo "Graphviz: OK" || echo "Graphviz: MISSING"
+```
+
+If missing, display platform-specific installation instructions:
+- Windows: `choco install graphviz`
+- macOS: `brew install graphviz`
+- Linux: `sudo apt install graphviz`
+
+### Examples
+
+See these plugins for reference implementations:
+- `personal-plugin/tools/research-orchestrator/` - Multi-provider LLM research tool
+- `bpmn-plugin/tools/bpmn2drawio/` - BPMN to Draw.io converter
 
 ## Command Namespacing
 

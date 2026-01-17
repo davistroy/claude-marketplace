@@ -9,12 +9,5 @@
   "homepage": "https://github.com/davistroy/claude-marketplace",
   "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
-  "keywords": ["personal", "automation", "research", "llm-orchestration"],
-  "tools": {
-    "research-orchestrator": {
-      "path": "tools/research-orchestrator",
-      "type": "python",
-      "install": "pip install tools/research-orchestrator"
-    }
-  }
+  "keywords": ["personal", "automation", "research", "llm-orchestration"]
 }

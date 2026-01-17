@@ -9,12 +9,5 @@
   "homepage": "https://github.com/davistroy/claude-marketplace",
   "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
-  "keywords": ["bpmn", "workflow", "xml", "diagram", "process-modeling", "drawio"],
-  "tools": {
-    "bpmn2drawio": {
-      "path": "tools/bpmn2drawio",
-      "type": "python",
-      "install": "pip install tools/bpmn2drawio"
-    }
-  }
+  "keywords": ["bpmn", "workflow", "xml", "diagram", "process-modeling", "drawio"]
 }

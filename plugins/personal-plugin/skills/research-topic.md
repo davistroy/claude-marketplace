@@ -24,7 +24,44 @@ API keys must be configured in environment variables:
 - `GOOGLE_API_KEY` - For Gemini 3 Pro Deep Research
 
 **Validation:**
-Before proceeding, verify required API keys are available for selected sources. If missing:
+Before proceeding, check and install dependencies as needed.
+
+### Step 1: Set Up Tool Path
+
+The tool is bundled at `../tools/research-orchestrator/` relative to this skill file:
+
+```bash
+# Determine the plugin directory (use ${CLAUDE_PLUGIN_ROOT} or adjust path as needed)
+PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-/path/to/plugins/personal-plugin}"
+TOOL_SRC="$PLUGIN_DIR/tools/research-orchestrator/src"
+```
+
+### Step 2: Check and Install Python Dependencies
+
+Check for required Python packages and install any that are missing:
+
+```bash
+# Check which packages are missing
+python -c "import anthropic" 2>/dev/null || echo "anthropic: MISSING"
+python -c "import openai" 2>/dev/null || echo "openai: MISSING"
+python -c "import google.generativeai" 2>/dev/null || echo "google-generativeai: MISSING"
+python -c "import httpx" 2>/dev/null || echo "httpx: MISSING"
+python -c "import dotenv" 2>/dev/null || echo "python-dotenv: MISSING"
+python -c "import pydantic" 2>/dev/null || echo "pydantic: MISSING"
+python -c "import tenacity" 2>/dev/null || echo "tenacity: MISSING"
+```
+
+**If any packages are missing, ask the user:**
+> "The following Python packages are missing: [list]. Install them now with `pip install [packages]`?"
+
+If user approves:
+```bash
+pip install anthropic openai google-generativeai httpx python-dotenv pydantic tenacity
+```
+
+### Step 3: Verify API Keys
+
+Check that API keys are available for selected sources. If missing:
 ```
 Error: Missing API key(s) for selected source(s)
 
@@ -153,10 +190,15 @@ Include relevant examples, data points, and citations where available.
 
 **API Calls:**
 
-Use the research-orchestrator tool to execute parallel API calls:
+Use the research-orchestrator tool to execute parallel API calls. Run from source using PYTHONPATH:
 
 ```bash
-research-orchestrator execute \
+# Set up tool path
+PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-/path/to/plugins/personal-plugin}"
+TOOL_SRC="$PLUGIN_DIR/tools/research-orchestrator/src"
+
+# Execute research
+PYTHONPATH="$TOOL_SRC" python -m research_orchestrator execute \
   --prompt "<research_prompt>" \
   --sources "<claude,openai,gemini>" \
   --depth "<brief|standard|comprehensive>" \
