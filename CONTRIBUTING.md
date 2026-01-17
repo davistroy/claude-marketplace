@@ -229,10 +229,10 @@ Skills are discrete actions that Claude may proactively suggest after completing
 ### File Location
 
 ```
-plugins/[plugin-name]/skills/[skill-name].md
+plugins/[plugin-name]/skills/[skill-name]/SKILL.md
 ```
 
-Example: `plugins/personal-plugin/skills/ship.md`
+Example: `plugins/personal-plugin/skills/ship/SKILL.md`
 
 ### Frontmatter
 
@@ -296,7 +296,7 @@ python scripts/generate-help.py --all
 
 Then stage the updated help.md files and commit again:
 ```bash
-git add plugins/*/skills/help.md
+git add plugins/*/skills/help/SKILL.md
 git commit -m "your message"
 ```
 
@@ -316,7 +316,7 @@ If you maintain enhanced help.md content (not auto-generated), the hook will sho
 ### Help Skill Location
 
 ```
-plugins/[plugin-name]/skills/help.md
+plugins/[plugin-name]/skills/help/SKILL.md
 ```
 
 ### Manual Updates (If Needed)

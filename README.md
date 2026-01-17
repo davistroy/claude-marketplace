@@ -71,9 +71,9 @@ Custom commands and skills for productivity workflows.
 **Skills:**
 | Skill | Description |
 |-------|-------------|
-| [`/help`](plugins/personal-plugin/skills/help.md) | Show available commands and skills in this plugin with usage information |
-| [`/research-topic`](plugins/personal-plugin/skills/research-topic.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
-| [`/ship`](plugins/personal-plugin/skills/ship.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
+| [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills in this plugin with usage information |
+| [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
+| [`/ship`](plugins/personal-plugin/skills/ship/SKILL.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
 
 ### bpmn-plugin
 
@@ -82,9 +82,9 @@ BPMN 2.0 workflow tools for generating and converting process diagrams.
 **Skills:**
 | Skill | Description |
 |-------|-------------|
-| [`/bpmn-generator`](plugins/bpmn-plugin/skills/bpmn-generator.md) | Generate BPMN 2.0 compliant XML files from natural language process descriptions OR from structur... |
-| [`/bpmn-to-drawio`](plugins/bpmn-plugin/skills/bpmn-to-drawio.md) | Convert BPMN 2.0 XML files into Draw.io native format (.drawio) using the bpmn2drawio Python tool. |
-| [`/help`](plugins/bpmn-plugin/skills/help.md) | Show available skills in this plugin with usage information |
+| [`/bpmn-generator`](plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md) | Generate BPMN 2.0 compliant XML files from natural language process descriptions OR from structur... |
+| [`/bpmn-to-drawio`](plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md) | Convert BPMN 2.0 XML files into Draw.io native format (.drawio) using the bpmn2drawio Python tool. |
+| [`/help`](plugins/bpmn-plugin/skills/help/SKILL.md) | Show available skills in this plugin with usage information |
 
 **BPMN Generator** operates in two modes:
 - **Interactive Mode**: Structured Q&A to gather requirements from natural language descriptions

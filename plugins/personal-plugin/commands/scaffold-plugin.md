@@ -126,9 +126,9 @@ Generate `plugins/[plugin-name]/.claude-plugin/plugin.json`:
 }
 ```
 
-#### 3.2 Create Starter help.md
+#### 3.2 Create Starter help Skill
 
-Generate `plugins/[plugin-name]/skills/help.md`:
+Generate `plugins/[plugin-name]/skills/help/SKILL.md`:
 
 ```markdown
 ---
@@ -282,7 +282,7 @@ Updated:
 
 **Files Created:**
 - `plugins/[plugin-name]/.claude-plugin/plugin.json`
-- `plugins/[plugin-name]/skills/help.md`
+- `plugins/[plugin-name]/skills/help/SKILL.md`
 
 **Files Updated:**
 - `.claude-plugin/marketplace.json`
@@ -292,6 +292,7 @@ Updated:
 - `plugins/[plugin-name]/.claude-plugin/`
 - `plugins/[plugin-name]/commands/`
 - `plugins/[plugin-name]/skills/`
+- `plugins/[plugin-name]/skills/help/`
 
 ## Example Usage
 

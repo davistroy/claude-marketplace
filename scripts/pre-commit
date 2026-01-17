@@ -112,10 +112,10 @@ echo "Checking help.md sync..."
 check_help_sync() {
     local plugin_dir="$1"
     local plugin_name=$(basename "$plugin_dir")
-    local help_file="$plugin_dir/skills/help.md"
+    local help_file="$plugin_dir/skills/help/SKILL.md"
 
     if [ ! -f "$help_file" ]; then
-        echo -e "  ${YELLOW}[WARN]${NC} $plugin_name: No help.md found at $help_file"
+        echo -e "  ${YELLOW}[WARN]${NC} $plugin_name: No help skill found at $help_file"
         WARNINGS=$((WARNINGS + 1))
         return
     fi
@@ -135,16 +135,23 @@ check_help_sync() {
         done
     fi
 
-    # Get actual skills (md files in skills/, excluding help.md)
+    # Get actual skills (SKILL.md files in skills/*/SKILL.md, excluding help/)
     local skills_dir="$plugin_dir/skills"
     if [ -d "$skills_dir" ]; then
-        for skill_file in "$skills_dir"/*.md; do
-            if [ -f "$skill_file" ] && [ "$(basename "$skill_file")" != "help.md" ]; then
-                local skill_name=$(basename "$skill_file" .md)
-                if ! grep -q "/$skill_name" "$help_file" 2>/dev/null; then
-                    echo -e "  ${RED}[FAIL]${NC} $plugin_name: Skill /$skill_name not documented in help.md"
-                    echo -e "         Suggestion: Add /$skill_name to $help_file"
-                    ERRORS=$((ERRORS + 1))
+        for skill_dir in "$skills_dir"/*/; do
+            if [ -d "$skill_dir" ]; then
+                local skill_name=$(basename "$skill_dir")
+                # Skip help skill
+                if [ "$skill_name" = "help" ]; then
+                    continue
+                fi
+                # Check if SKILL.md exists
+                if [ -f "$skill_dir/SKILL.md" ]; then
+                    if ! grep -q "/$skill_name" "$help_file" 2>/dev/null; then
+                        echo -e "  ${RED}[FAIL]${NC} $plugin_name: Skill /$skill_name not documented in help"
+                        echo -e "         Suggestion: Add /$skill_name to $help_file"
+                        ERRORS=$((ERRORS + 1))
+                    fi
                 fi
             fi
         done
@@ -230,7 +237,7 @@ if [ -n "$STAGED_NEW_COMMANDS" ]; then
         # Extract plugin name from path (plugins/PLUGIN_NAME/commands/...)
         plugin_name=$(echo "$new_file" | sed -n 's|plugins/\([^/]*\)/.*|\1|p')
         cmd_name=$(basename "$new_file" .md)
-        help_file="plugins/$plugin_name/skills/help.md"
+        help_file="plugins/$plugin_name/skills/help/SKILL.md"
 
         # Skip if this is help.md itself
         if [ "$cmd_name" = "help" ]; then

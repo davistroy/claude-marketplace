@@ -586,7 +586,7 @@ Look for: `[FAIL] Forbidden field 'name' found - filename determines command nam
    python scripts/generate-help.py plugins/personal-plugin
    ```
 
-2. Or manually add an entry to `plugins/personal-plugin/skills/help.md`:
+2. Or manually add an entry to `plugins/personal-plugin/skills/help/SKILL.md`:
    ```markdown
    ### /my-new-command
    **Description:** Brief description of what it does
