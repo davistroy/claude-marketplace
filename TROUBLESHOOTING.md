@@ -45,7 +45,111 @@ This guide covers common issues and their solutions when using Claude Marketplac
 
 ---
 
-### 1.2 Permission Denied During Installation
+### 1.2 Plugins Installed But Disabled
+
+**Symptom:** After installing via marketplace, commands and skills are not available. `/plugin list` shows the plugins but `/help` doesn't show commands.
+
+**Cause:** Plugins were installed but **disabled** in `~/.claude/settings.json`. The `/plugin marketplace add` command may default plugins to disabled.
+
+**Diagnosis:**
+Check `~/.claude/settings.json` for the `enabledPlugins` section:
+```json
+"enabledPlugins": {
+  "bpmn-plugin@troys-plugins": false,
+  "personal-plugin@troys-plugins": false
+}
+```
+
+**Solution:**
+1. Edit `~/.claude/settings.json`
+2. Change disabled plugins to `true`:
+   ```json
+   "enabledPlugins": {
+     "bpmn-plugin@troys-plugins": true,
+     "personal-plugin@troys-plugins": true
+   }
+   ```
+3. **Restart Claude Code** for changes to take effect
+4. Verify with `/plugin list` and `/help`
+
+**Key Insight:** Always verify the `enabledPlugins` section in settings.json after marketplace installation.
+
+---
+
+### 1.3 Skills Not Discovered (Commands Work, Skills Don't)
+
+**Symptom:** Plugin commands (like `/validate-plugin`) work, but skills (like `/ship`) are not available or don't appear in the Skill tool's available skills list.
+
+**Cause:** This issue has TWO potential causes:
+
+1. **Missing `name` field in skill frontmatter** - Skills REQUIRE a `name` field, unlike commands
+2. **Stale plugin cache** - The installed cache points to an old commit
+
+**Diagnosis:**
+
+Check if your SKILL.md files have the required `name` field:
+```bash
+# Good - has name field
+head -5 plugins/personal-plugin/skills/ship/SKILL.md
+# Should show:
+# ---
+# name: ship
+# description: ...
+# ---
+
+# Bad - missing name field
+# ---
+# description: ...  (no name!)
+# ---
+```
+
+Check if the installed cache is stale:
+```bash
+# Compare installed structure vs source
+ls ~/.claude/plugins/cache/troys-plugins/personal-plugin/*/skills/
+# Should show DIRECTORIES (help/, ship/, etc.)
+# If it shows FLAT FILES (help.md, ship.md), the cache is stale
+```
+
+**Solution:**
+
+**Fix 1: Add `name` field to skill frontmatter**
+
+Every SKILL.md file MUST have a `name` field that matches the directory name:
+
+```yaml
+---
+name: ship                    # REQUIRED: Must match directory name
+description: Brief description
+allowed-tools: Bash(git:*)    # Optional
+---
+```
+
+**Fix 2: Clear stale cache and reinstall**
+
+```bash
+# Delete the stale cache
+rm -rf ~/.claude/plugins/cache/troys-plugins/
+
+# Reinstall plugins (in a new Claude Code session)
+/plugin install personal-plugin@troys-plugins
+/plugin install bpmn-plugin@troys-plugins
+```
+
+**Key Insight:** Commands and skills have DIFFERENT frontmatter requirements:
+
+| Component | `name` Field | Why |
+|-----------|--------------|-----|
+| Commands | **FORBIDDEN** | Filename determines command name |
+| Skills | **REQUIRED** | Needed for skill registration and discovery |
+
+**Validation:** The pre-commit hook validates this:
+- Commands with `name` → FAIL
+- Skills without `name` → FAIL
+
+---
+
+### 1.4 Permission Denied During Installation
 
 **Symptom:** Installation fails with "Permission denied" or "Access denied" errors.
 
@@ -73,7 +177,7 @@ This guide covers common issues and their solutions when using Claude Marketplac
 
 ---
 
-### 1.3 Python Dependency Installation Fails
+### 1.5 Python Dependency Installation Fails
 
 **Symptom:** `pip install` fails when setting up plugin tools.
 
@@ -537,13 +641,24 @@ This section documents common mistakes when developing plugin commands and how t
 
 ---
 
-### 6.1 Adding `name` Field to Frontmatter
+### 6.1 Commands vs Skills: The `name` Field Confusion
+
+**CRITICAL:** Commands and skills have OPPOSITE requirements for the `name` field!
+
+| Component | `name` Field | Location | Example |
+|-----------|--------------|----------|---------|
+| **Commands** | FORBIDDEN | `commands/my-command.md` | Filename = command name |
+| **Skills** | REQUIRED | `skills/my-skill/SKILL.md` | Directory = skill name |
+
+---
+
+#### 6.1a Adding `name` Field to Commands (WRONG)
 
 **Symptom:** Command is not discovered by Claude Code, or shows wrong name in `/help`.
 
-**Cause:** You added a `name` field to the frontmatter.
+**Cause:** You added a `name` field to a COMMAND's frontmatter.
 
-**Wrong:**
+**Wrong (command):**
 ```yaml
 ---
 name: my-command
@@ -551,24 +666,50 @@ description: My command description
 ---
 ```
 
-**Correct:**
+**Correct (command):**
 ```yaml
 ---
 description: My command description
 ---
 ```
 
-**Why this matters:** The filename determines the command name. Adding a `name` field can cause discovery issues because it conflicts with the file-based naming convention.
+**Why:** The filename determines the command name. Adding a `name` field conflicts with file-based naming.
 
-**Fix:**
-1. Remove the `name` field from frontmatter
-2. The command name is derived from the filename (e.g., `my-command.md` becomes `/my-command`)
+---
 
-**Validation that catches this:**
+#### 6.1b Forgetting `name` Field in Skills (WRONG)
+
+**Symptom:** Skill is not discovered. Commands work but skills don't appear in the Skill tool.
+
+**Cause:** You forgot to add a `name` field to a SKILL's frontmatter.
+
+**Wrong (skill):**
+```yaml
+---
+description: My skill description
+allowed-tools: Bash(git:*)
+---
+```
+
+**Correct (skill):**
+```yaml
+---
+name: my-skill
+description: My skill description
+allowed-tools: Bash(git:*)
+---
+```
+
+**Why:** Skills REQUIRE the `name` field for Claude Code to register them. The name must match the skill's directory name.
+
+---
+
+**Validation that catches both:**
 ```
 /validate-plugin personal-plugin
 ```
-Look for: `[FAIL] Forbidden field 'name' found - filename determines command name`
+- Commands with `name`: `[FAIL] Forbidden 'name' field found`
+- Skills without `name`: `[FAIL] Missing required 'name' field`
 
 ---
 
