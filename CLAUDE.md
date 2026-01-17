@@ -38,9 +38,20 @@ plugins/
   [plugin-name]/
     .claude-plugin/
       plugin.json           # REQUIRED: Plugin metadata (name, version, description)
-    commands/               # Slash commands (*.md files)
-    skills/                 # Proactive skills (*.md files)
+    commands/               # Slash commands (*.md files, flat structure)
+    skills/                 # Proactive skills (nested directories with SKILL.md)
+      [skill-name]/
+        SKILL.md            # REQUIRED: Must be named exactly SKILL.md (uppercase)
 ```
+
+**CRITICAL: Commands vs Skills Directory Structure**
+
+| Component | Structure | Example |
+|-----------|-----------|---------|
+| Commands | Flat: `commands/name.md` | `commands/validate-plugin.md` |
+| Skills | Nested: `skills/name/SKILL.md` | `skills/ship/SKILL.md` |
+
+Skills require a **nested folder structure** where the file must be named exactly `SKILL.md` (uppercase). This is required by Claude Code for skill discovery.
 
 ### What Must NOT Change
 
@@ -100,9 +111,12 @@ plugins/
       test-project.md         # Run all tests, fix failures, achieve 90%+ coverage, merge PR
       validate-plugin.md      # Validate plugin structure and content
     skills/
-      help.md               # Show commands/skills with usage information
-      research-topic.md     # Multi-source deep research across LLM providers
-      ship.md               # Git workflow: branch, commit, push, PR
+      help/
+        SKILL.md            # Show commands/skills with usage information
+      research-topic/
+        SKILL.md            # Multi-source deep research across LLM providers
+      ship/
+        SKILL.md            # Git workflow: branch, commit, push, PR
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
     tools/
@@ -112,9 +126,12 @@ plugins/
     .claude-plugin/
       plugin.json           # Plugin metadata
     skills/
-      bpmn-generator.md     # BPMN 2.0 XML generation from NL or markdown
-      bpmn-to-drawio.md     # Convert BPMN XML to Draw.io format
-      help.md               # Show skills with usage information
+      bpmn-generator/
+        SKILL.md            # BPMN 2.0 XML generation from NL or markdown
+      bpmn-to-drawio/
+        SKILL.md            # Convert BPMN XML to Draw.io format
+      help/
+        SKILL.md            # Show skills with usage information
     references/             # BPMN element documentation and guides
     templates/              # XML/Draw.io skeletons and style mappings
     examples/               # Sample BPMN and Draw.io files
@@ -126,6 +143,36 @@ plugins/
 
 - **Commands** (`/command-name`): User-initiated workflows. Comprehensive, standalone, take control of the session.
 - **Skills** (`/skill-name`): Discrete actions Claude may proactively suggest after completing related work.
+
+### Directory Structure Differences
+
+**CRITICAL:** Commands and skills use different directory structures:
+
+| Component | Directory Structure | File Naming |
+|-----------|---------------------|-------------|
+| Commands | Flat: `commands/name.md` | Any `.md` filename becomes the command name |
+| Skills | Nested: `skills/name/SKILL.md` | **Must be `SKILL.md` (uppercase, exact)** |
+
+**Why skills need nested directories:**
+- Claude Code scans for `skills/*/SKILL.md` pattern specifically
+- The directory name becomes the skill name
+- Flat `.md` files in `skills/` are NOT discovered
+
+**Correct skill structure:**
+```
+skills/
+  ship/                    # Directory name = skill name (/ship)
+    SKILL.md               # Must be exactly this filename
+  help/
+    SKILL.md
+```
+
+**Incorrect (will NOT be discovered):**
+```
+skills/
+  ship.md                  # ❌ Flat file - NOT discovered
+  help.md                  # ❌ Flat file - NOT discovered
+```
 
 ## Command Conventions
 
@@ -215,9 +262,16 @@ Converts BPMN 2.0 XML files to Draw.io native format (.drawio):
 
 1. Create a new directory under `plugins/`
 2. Add `.claude-plugin/plugin.json` with plugin metadata
-3. Add `commands/` and/or `skills/` directories with markdown files
-4. **Create a `help.md` skill** with usage information for all commands/skills
-5. Register the plugin in `.claude-plugin/marketplace.json`
+3. Add `commands/` directory with flat `.md` files (e.g., `commands/my-command.md`)
+4. Add `skills/` directory with **nested subdirectories** containing `SKILL.md` files:
+   ```
+   skills/
+     my-skill/
+       SKILL.md    # Required: Must be exactly SKILL.md (uppercase)
+   ```
+5. **Create a `skills/help/SKILL.md`** with usage information for all commands/skills
+6. Register the plugin in `.claude-plugin/marketplace.json`
+7. Run `/validate-plugin [plugin-name]` to verify structure
 
 ## Bundled Python Tools
 
@@ -373,7 +427,9 @@ Each plugin maintains its own independent version:
 **IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills.
 
 When modifying a plugin:
-- **Adding a command/skill**: Update the plugin's `help.md` with the new entry
-- **Changing a command/skill**: Update the corresponding entry in `help.md`
-- **Removing a command/skill**: Remove the entry from `help.md`
-- **Creating a new plugin**: Create a `help.md` skill following the pattern in existing plugins
+- **Adding a command/skill**: Update the plugin's `skills/help/SKILL.md` with the new entry
+- **Changing a command/skill**: Update the corresponding entry in `skills/help/SKILL.md`
+- **Removing a command/skill**: Remove the entry from `skills/help/SKILL.md`
+- **Creating a new plugin**: Create a `skills/help/SKILL.md` skill following the pattern in existing plugins
+
+**Remember:** The help skill must be at `skills/help/SKILL.md` (not `skills/help.md`).

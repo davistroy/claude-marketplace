@@ -50,6 +50,7 @@ Custom commands and skills for productivity workflows.
 | [`/check-updates`](plugins/personal-plugin/commands/check-updates.md) | Check for available plugin updates by comparing installed versions to marketplace |
 | [`/clean-repo`](plugins/personal-plugin/commands/clean-repo.md) | Comprehensive repository cleanup, organization, and documentation refresh |
 | [`/consolidate-documents`](plugins/personal-plugin/commands/consolidate-documents.md) | Analyze multiple document variations and synthesize a superior consolidated version |
+| [`/convert-hooks`](plugins/personal-plugin/commands/convert-hooks.md) | Convert plugin hook bash scripts to PowerShell for Windows compatibility |
 | [`/convert-markdown`](plugins/personal-plugin/commands/convert-markdown.md) | Convert a markdown file to a nicely formatted Microsoft Word document |
 | [`/create-plan`](plugins/personal-plugin/commands/create-plan.md) | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs) |
 | [`/define-questions`](plugins/personal-plugin/commands/define-questions.md) | Extract questions and open items from documents to JSON |
@@ -71,6 +72,7 @@ Custom commands and skills for productivity workflows.
 | Skill | Description |
 |-------|-------------|
 | [`/help`](plugins/personal-plugin/skills/help.md) | Show available commands and skills in this plugin with usage information |
+| [`/research-topic`](plugins/personal-plugin/skills/research-topic.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | [`/ship`](plugins/personal-plugin/skills/ship.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
 
 ### bpmn-plugin

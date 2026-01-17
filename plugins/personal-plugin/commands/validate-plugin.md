@@ -63,9 +63,10 @@ plugins/[plugin-name]/
   .claude-plugin/
     plugin.json              # REQUIRED
   commands/                  # At least one of commands/ or skills/
-    *.md
+    *.md                     # Flat structure: filename becomes command name
   skills/
-    *.md
+    [skill-name]/            # REQUIRED: Nested directory structure
+      SKILL.md               # REQUIRED: Must be exactly SKILL.md (uppercase)
 ```
 
 **Report:**
@@ -74,12 +75,77 @@ Structure Validation
 --------------------
 [PASS] plugin.json exists
 [PASS] commands/ directory exists (15 files)
-[PASS] skills/ directory exists (1 file)
+[PASS] skills/ directory exists (3 skills)
 ```
 
 Or on failure:
 ```
 [FAIL] plugin.json missing at plugins/[name]/.claude-plugin/plugin.json
+```
+
+#### 1.2 Skill Directory Structure Validation
+
+**CRITICAL:** Skills must use a nested directory structure with `SKILL.md` files (not flat `.md` files).
+
+**Check for each item in skills/ directory:**
+1. Item is a directory (not a file)
+2. Directory contains `SKILL.md` (exact name, uppercase)
+
+**Valid structure:**
+```
+skills/
+  ship/
+    SKILL.md              # ✓ Correct
+  help/
+    SKILL.md              # ✓ Correct
+```
+
+**Invalid structures:**
+```
+skills/
+  ship.md                 # ✗ Flat file - NOT discovered by Claude Code
+  help.md                 # ✗ Flat file - NOT discovered by Claude Code
+  broken-skill/
+    skill.md              # ✗ Wrong filename - must be SKILL.md (uppercase)
+```
+
+**Report:**
+```
+Skill Structure Validation
+--------------------------
+[PASS] skills/ship/SKILL.md - Valid skill structure
+[PASS] skills/help/SKILL.md - Valid skill structure
+[PASS] skills/research-topic/SKILL.md - Valid skill structure
+```
+
+Or on failure:
+```
+[FAIL] Invalid skill structure detected
+
+      The following skills will NOT be discovered by Claude Code:
+
+      skills/ship.md
+        Problem: Flat file in skills/ directory
+        Fix: Move to skills/ship/SKILL.md
+
+      skills/broken-skill/skill.md
+        Problem: Wrong filename (must be SKILL.md, uppercase)
+        Fix: Rename to skills/broken-skill/SKILL.md
+
+      Skills require a nested directory structure:
+        skills/[skill-name]/SKILL.md
+
+      Run with --fix to automatically restructure skills.
+```
+
+**Auto-fix with --fix:**
+When `--fix` is specified, automatically restructure invalid skills:
+```
+Auto-Fix Applied:
+  skills/ship.md -> skills/ship/SKILL.md (created directory, moved file)
+  skills/help.md -> skills/help/SKILL.md (created directory, moved file)
+
+2 skills restructured. Skills should now be discoverable.
 ```
 
 #### 1.2 plugin.json Validation
@@ -650,6 +716,7 @@ Plugin Validation: [plugin-name]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Structure Validation     [PASS]
+Skill Structure          [PASS] (3 skills in correct format)
 Marketplace Schema       [PASS]
 Frontmatter Validation   [PASS] (15 files checked)
 Version Synchronization  [PASS]
@@ -704,6 +771,8 @@ When `--fix` is specified, attempt to fix simple issues:
 | Forbidden name field | Remove the field |
 | Code block without language | Add `text` as default |
 | Invalid marketplace schema fields | Remove unrecognized fields (e.g., `last_updated`) |
+| Flat skill file (`skills/name.md`) | Create directory, move to `skills/name/SKILL.md` |
+| Wrong skill filename (`skill.md` lowercase) | Rename to `SKILL.md` |
 
 **Report fixes:**
 ```
@@ -827,7 +896,8 @@ A plugin achieves Level 1 when:
 - `plugin.json` exists and contains valid JSON
 - Required fields present: `name`, `description`, `version`
 - Version follows semver format (X.Y.Z)
-- All command/skill `.md` files have valid frontmatter
+- All command `.md` files have valid frontmatter
+- All skills use correct directory structure (`skills/[name]/SKILL.md`)
 - YAML in frontmatter parses without errors
 
 ### Level 2 (Standard) Criteria
@@ -874,6 +944,7 @@ Level 1 (Basic)        [################] 100%
   [x] Valid plugin.json
   [x] Required fields present
   [x] Semver version format
+  [x] Skill structure correct (skills/[name]/SKILL.md)
   [x] Frontmatter parses
 
 Level 2 (Standard)     [################] 100%
@@ -993,7 +1064,8 @@ Phase 1: Structure Validation
 -----------------------------
 [PASS] plugin.json exists
 [PASS] commands/ directory (15 files)
-[PASS] skills/ directory (1 file)
+[PASS] skills/ directory (3 skills)
+[PASS] Skill structure valid (all use skills/[name]/SKILL.md format)
 [PASS] references/ directory (1 file)
 [PASS] Marketplace schema valid
 
