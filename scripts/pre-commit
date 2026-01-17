@@ -108,9 +108,9 @@ done
 # ============================================
 echo "Checking help.md sync..."
 
-# Function to extract commands/skills from a help.md file
+# Function to extract commands/skills from a help skill file
 check_help_sync() {
-    local plugin_dir="$1"
+    local plugin_dir="${1%/}"  # Remove trailing slash
     local plugin_name=$(basename "$plugin_dir")
     local help_file="$plugin_dir/skills/help/SKILL.md"
 

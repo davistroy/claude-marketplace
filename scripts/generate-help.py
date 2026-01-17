@@ -310,13 +310,19 @@ def scan_plugin_directory(plugin_path: Path) -> Tuple[List[CommandInfo], List[Co
             if info:
                 commands.append(info)
 
-    # Scan skills directory
+    # Scan skills directory (nested structure: skills/name/SKILL.md)
+    # Skip 'help' skill since we're generating it
     skills_dir = plugin_path / 'skills'
     if skills_dir.exists():
-        for md_file in sorted(skills_dir.glob('*.md')):
-            info = parse_command_file(md_file, is_skill=True)
-            if info:
-                skills.append(info)
+        for skill_subdir in sorted(skills_dir.iterdir()):
+            if skill_subdir.is_dir() and skill_subdir.name != 'help':
+                skill_file = skill_subdir / 'SKILL.md'
+                if skill_file.exists():
+                    info = parse_command_file(skill_file, is_skill=True)
+                    if info:
+                        # Use directory name as skill name
+                        info.name = skill_subdir.name
+                        skills.append(info)
 
     return commands, skills
 
@@ -551,21 +557,21 @@ def process_plugin(plugin_path: Path, check_only: bool = False) -> bool:
     else:
         content = generate_bpmn_help_content(plugin_name, skills)
 
-    # Output path
-    help_path = plugin_path / 'skills' / 'help.md'
+    # Output path (nested structure: skills/help/SKILL.md)
+    help_path = plugin_path / 'skills' / 'help' / 'SKILL.md'
 
     if check_only:
         # Compare with existing
         if help_path.exists():
             existing = help_path.read_text(encoding='utf-8')
             if existing.strip() == content.strip():
-                print(f"  help.md is up to date")
+                print(f"  help skill is up to date")
                 return True
             else:
-                print(f"  help.md needs updating")
+                print(f"  help skill needs updating")
                 return False
         else:
-            print(f"  help.md does not exist")
+            print(f"  help skill does not exist at {help_path}")
             return False
 
     # Write the file
