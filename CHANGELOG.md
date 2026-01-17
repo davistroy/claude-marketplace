@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.0.0] - 2026-01-17
+
+### Added
+- [Describe new features]
+
+### Changed
+- [Describe changes to existing features]
+
+### Fixed
+- [Describe bug fixes]
+
+## [bpmn-plugin 2.0.0] - 2026-01-17
+
+### Added
+- [Describe new features]
+
+### Changed
+- [Describe changes to existing features]
+
+### Fixed
+- [Describe bug fixes]
+
 ## [bpmn-plugin 1.8.0] - 2026-01-16
 
 ### Fixed
