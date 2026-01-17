@@ -38,18 +38,27 @@ claude-marketplace/
     personal-plugin/
       .claude-plugin/
         plugin.json         # Plugin metadata
-      commands/             # User-initiated commands
+      commands/             # User-initiated commands (FLAT files)
         assess-document.md
         new-command.md
         ...
-      skills/               # Proactive suggestions
-        help.md
-        ship.md
+      skills/               # Proactive suggestions (NESTED directories)
+        help/
+          SKILL.md          # Must be exactly SKILL.md (uppercase)
+        ship/
+          SKILL.md
       references/           # Patterns and templates
         common-patterns.md
         patterns/           # Modular pattern files
         templates/          # Command templates
 ```
+
+**CRITICAL: Commands vs Skills Structure**
+
+| Component | Structure | `name` Field |
+|-----------|-----------|--------------|
+| Commands | Flat: `commands/name.md` | **FORBIDDEN** |
+| Skills | Nested: `skills/name/SKILL.md` | **REQUIRED** |
 
 ### Key Concepts
 
@@ -261,6 +270,70 @@ All other links validated successfully.
 ### Step 4: Save Your Command
 
 Save the file to `plugins/personal-plugin/commands/check-links.md`.
+
+---
+
+## 2.5 Creating Skills (Not Commands)
+
+Skills are different from commands. While commands are user-initiated, skills are actions Claude may proactively suggest.
+
+### Skill Structure Requirements
+
+Skills MUST use a **nested directory structure**:
+
+```
+skills/
+  my-skill/           # Directory name = skill name
+    SKILL.md          # MUST be exactly SKILL.md (uppercase)
+```
+
+### Skill Frontmatter (DIFFERENT from Commands!)
+
+**CRITICAL:** Skills REQUIRE a `name` field. Commands FORBID it.
+
+```yaml
+---
+name: my-skill                # REQUIRED - must match directory name
+description: What this skill does
+allowed-tools: Bash(git:*)    # Optional - restrict tool access
+---
+```
+
+### Common Skill Mistake
+
+**Wrong:** Flat file structure (will NOT be discovered)
+```
+skills/
+  my-skill.md         # ❌ WRONG - flat file
+```
+
+**Wrong:** Missing `name` field (will NOT be registered)
+```yaml
+---
+description: My skill      # ❌ WRONG - no name field
+---
+```
+
+**Correct:**
+```
+skills/
+  my-skill/
+    SKILL.md          # ✅ Nested directory with SKILL.md
+```
+```yaml
+---
+name: my-skill        # ✅ Has required name field
+description: My skill
+---
+```
+
+### Validation
+
+The pre-commit hook validates skills:
+- Skills without `name` field → **FAIL**
+- Skills with flat file structure → **Not discovered**
+
+Run `/validate-plugin` to check your skill structure.
 
 ---
 
