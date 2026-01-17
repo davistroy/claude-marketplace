@@ -6,6 +6,64 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 This is a Claude Code plugin marketplace repository. It contains multiple plugins that extend Claude Code's functionality with specialized workflows for documentation review, architecture analysis, git workflows, document processing, and BPMN workflow generation.
 
+## Marketplace Installation (For Users)
+
+Users install plugins from this marketplace using the official Claude Code plugin system:
+
+```
+# Step 1: Add the marketplace
+/plugin marketplace add davistroy/claude-marketplace
+
+# Step 2: Install desired plugins
+/plugin install personal-plugin@troys-plugins
+/plugin install bpmn-plugin@troys-plugins
+```
+
+**Installation scopes:**
+- `--scope user` - Global installation (all projects)
+- `--scope project` - Team-shared (.claude/settings.json)
+- `--scope local` - Personal only (gitignored)
+
+## Marketplace Compatibility (For Developers)
+
+**CRITICAL:** All changes must maintain compatibility with the official Claude Code marketplace installation system. The repository structure is NOT arbitrary - it follows the required format for `/plugin marketplace add` to work.
+
+### Required Structure
+
+```
+.claude-plugin/
+  marketplace.json          # REQUIRED: Central registry - Claude Code reads this first
+
+plugins/
+  [plugin-name]/
+    .claude-plugin/
+      plugin.json           # REQUIRED: Plugin metadata (name, version, description)
+    commands/               # Slash commands (*.md files)
+    skills/                 # Proactive skills (*.md files)
+```
+
+### What Must NOT Change
+
+| Item | Why |
+|------|-----|
+| `.claude-plugin/marketplace.json` location | Claude Code expects this at repo root |
+| `plugins/[name]/.claude-plugin/plugin.json` location | Standard plugin metadata location |
+| Marketplace name `troys-plugins` | Users reference this in install commands |
+| Plugin names in marketplace.json | Must match directory names exactly |
+
+### Testing Marketplace Compatibility
+
+Before pushing changes, verify the marketplace still works:
+
+```
+# In a fresh Claude Code session:
+/plugin marketplace add davistroy/claude-marketplace
+/plugin install personal-plugin@troys-plugins
+/help
+```
+
+If `/help` shows your plugin's commands, the marketplace integration works.
+
 ## Repository Structure
 
 ```

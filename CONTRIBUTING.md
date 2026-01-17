@@ -2,6 +2,15 @@
 
 Thank you for your interest in contributing to the Claude Code plugin marketplace. This guide will help you create commands, skills, and manage versions effectively.
 
+**IMPORTANT:** All contributions must maintain compatibility with the official Claude Code marketplace installation system. Users install plugins via:
+
+```
+/plugin marketplace add davistroy/claude-marketplace
+/plugin install personal-plugin@troys-plugins
+```
+
+See [CLAUDE.md](CLAUDE.md) for required repository structure and compatibility requirements.
+
 ## Table of Contents
 
 - [Quick Start: Adding a Command](#quick-start-adding-a-command)
@@ -494,9 +503,34 @@ Before submitting a PR:
 
 1. **Validate your changes** - Run `/validate-plugin` on affected plugins
 2. **Test your commands** - Manually verify they work as expected (see Testing Your Command below)
-3. **Update documentation** - Keep README and CLAUDE.md current
-4. **Update CHANGELOG** - Add entry for your changes
-5. **Follow conventions** - Match existing code style and patterns
+3. **Test marketplace compatibility** - Verify plugins install correctly (see below)
+4. **Update documentation** - Keep README and CLAUDE.md current
+5. **Update CHANGELOG** - Add entry for your changes
+6. **Follow conventions** - Match existing code style and patterns
+
+### Marketplace Compatibility Testing
+
+**CRITICAL:** Before merging, verify your changes don't break marketplace installation.
+
+After pushing your branch to GitHub:
+
+```
+# In a fresh Claude Code session, test installation from your branch:
+/plugin marketplace add davistroy/claude-marketplace
+
+# Install and verify
+/plugin install personal-plugin@troys-plugins
+/help
+
+# Verify your new/modified commands appear and work
+```
+
+**What breaks marketplace compatibility:**
+- Moving or renaming `.claude-plugin/marketplace.json`
+- Moving or renaming `plugins/[name]/.claude-plugin/plugin.json`
+- Changing plugin names without updating marketplace.json
+- Invalid JSON in marketplace.json or plugin.json
+- Mismatched versions between plugin.json and marketplace.json
 
 ---
 
@@ -589,6 +623,11 @@ See `plugins/personal-plugin/references/common-patterns.md` for:
 - [ ] Tested `/new-command` with missing arguments
 - [ ] Verified error messages are helpful
 - [ ] Checked output file naming follows conventions
+
+## Marketplace Compatibility
+- [ ] Verified `/plugin marketplace add davistroy/claude-marketplace` works
+- [ ] Verified `/plugin install [plugin-name]@troys-plugins` works
+- [ ] Verified `/help` shows all commands after installation
 
 ## Related Issues
 Closes #123

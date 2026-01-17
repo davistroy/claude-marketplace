@@ -4,6 +4,8 @@ Welcome to the Claude Code Plugin Development Guide. This step-by-step tutorial 
 
 **Total Time:** ~25 minutes (5 min reading + 15 min tutorial + 5 min testing)
 
+> **Marketplace Note:** This repository is an official Claude Code marketplace. Users install plugins via `/plugin marketplace add davistroy/claude-marketplace`. All development must maintain compatibility with this installation method. See [CLAUDE.md](../CLAUDE.md) for required structure.
+
 ---
 
 ## Table of Contents
@@ -405,6 +407,17 @@ Before creating a pull request, complete these steps:
 - [ ] Tested with invalid input - shows helpful error
 - [ ] Tested all documented flags
 
+#### Marketplace Compatibility
+
+- [ ] Verified marketplace.json is valid JSON
+- [ ] Verified plugin.json is valid JSON
+- [ ] Tested installation works:
+  ```
+  /plugin marketplace add davistroy/claude-marketplace
+  /plugin install personal-plugin@troys-plugins
+  /help
+  ```
+
 ### Pull Request Template
 
 When creating your PR, use this template:
@@ -419,6 +432,11 @@ When creating your PR, use this template:
 - [ ] Tested without arguments - shows usage message
 - [ ] Tested with nonexistent file - shows clear error
 - [ ] Ran /validate-plugin - passed all checks
+
+## Marketplace Compatibility
+- [ ] Verified `/plugin marketplace add davistroy/claude-marketplace` works
+- [ ] Verified `/plugin install personal-plugin@troys-plugins` works
+- [ ] Verified `/help` shows all commands after installation
 
 ## Documentation
 - [ ] help.md updated
