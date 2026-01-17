@@ -43,6 +43,7 @@ COMMANDS
 | /finish-document | Extract questions from a document, answer them interactively, and update the... |
 | /implement-plan | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic... |
 | /new-command | Generate a new command file from a template with proper structure and... |
+| /new-skill | Generate a new skill file with proper nested directory structure and required... |
 | /plan-improvements | Analyze codebase and generate prioritized improvement recommendations with... |
 | /plan-next | Analyze repo and recommend the next logical action |
 | /remove-ip | Sanitize documents by removing company identifiers and non-public... |
@@ -261,6 +262,22 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /new-skill
+**Description:** Generate a new skill file with proper nested directory structure and required frontmatter
+**Arguments:** [<skill-name>]
+**Output:** plugins/personal-plugin/skills/[skill-name]/SKILL.md
+**Example:**
+```
+/new-skill                    # Interactive mode
+/new-skill quick-test         # With skill name
+```
+**Key Differences from /new-command:**
+- Creates nested directory: `skills/[name]/SKILL.md`
+- Includes required `name` field in frontmatter
+- Skills are for proactive suggestions, commands are user-initiated
+
+---
+
 #### /plan-improvements
 **Description:** Analyze codebase and generate prioritized improvement recommendations with...
 **Arguments:** None required
@@ -408,7 +425,7 @@ If the requested command is not found:
 Command '[name]' not found in personal-plugin.
 
 Available commands:
-  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
+  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
   /help, /research-topic, /ship
