@@ -34,6 +34,7 @@ COMMANDS
 | /check-updates | Check for available plugin updates by comparing installed versions to... |
 | /clean-repo | Comprehensive repository cleanup, organization, and documentation refresh |
 | /consolidate-documents | Analyze multiple document variations and synthesize a superior consolidated... |
+| /convert-hooks | Convert plugin hook bash scripts to PowerShell for Windows compatibility |
 | /convert-markdown | Convert a markdown file to a nicely formatted Microsoft Word document |
 | /create-plan | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD,... |
 | /define-questions | Extract questions and open items from documents to JSON |
@@ -168,6 +169,20 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Example:**
 ```
 /convert-markdown requires pandoc for document conversion.
+```
+
+
+---
+
+#### /convert-hooks
+**Description:** Convert plugin hook bash scripts to PowerShell for Windows compatibility
+**Arguments:** <plugin-name> [--dry-run] [--verbose] [--list]
+**Output:** PowerShell scripts and updated hooks.json
+**Example:**
+```
+/convert-hooks ralph-wiggum           # Convert hooks for a plugin
+/convert-hooks my-plugin --dry-run    # Preview changes
+/convert-hooks --list                 # Show plugins with hooks
 ```
 
 ---
@@ -392,7 +407,7 @@ If the requested command is not found:
 Command '[name]' not found in personal-plugin.
 
 Available commands:
-  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
+  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
   /help, /research-topic, /ship
