@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.1.0] - 2026-01-17
+
+### Added
+- `/validate-and-ship` skill - Automated pre-flight checks and shipping workflow
+  - Chains `/validate-plugin`, `/clean-repo`, and `/ship` in sequence
+  - Stops only on blocking errors, continues through warnings
+  - Supports `--skip-validate`, `--skip-cleanup`, `--dry-run` flags
+- Stale branch pruning in `/ship` skill completion phase
+  - Auto-prunes remote tracking branches that no longer exist
+  - Cleans local branches where upstream is gone (merged only)
+
+### Changed
+- `/ship` skill now reports pruned stale branches in completion output
+
+## [bpmn-plugin 2.1.0] - 2026-01-17
+
+### Changed
+- Version bump for consistency with personal-plugin release cycle
+
 ## [personal-plugin 3.0.0] - 2026-01-17
 
 ### Added
