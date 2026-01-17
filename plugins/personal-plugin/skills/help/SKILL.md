@@ -61,6 +61,7 @@ SKILLS
 | /help | Show available commands and skills in this plugin with usage information |
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
+| /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
@@ -418,6 +419,24 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /validate-and-ship
+**Description:** Validate plugins, clean repository, and ship changes in one automated workflow
+**Arguments:** [--skip-validate] [--skip-cleanup] [--dry-run] [<branch-name>]
+**Output:** In-conversation output with PR URL on success
+**Example:**
+```
+/validate-and-ship                      # Full workflow: validate → cleanup → ship
+/validate-and-ship feat/my-feature      # With custom branch name
+/validate-and-ship --dry-run            # Preview all phases without executing
+/validate-and-ship --skip-validate      # Skip validation, run cleanup and ship
+```
+**Workflow:**
+1. **Phase 1**: Run `/validate-plugin --all` (stops on errors, continues on warnings)
+2. **Phase 2**: Run `/clean-repo` (auto-executes artifact cleanup)
+3. **Phase 3**: Run `/ship` (full git workflow with auto-review and merge)
+
+---
+
 ## Error Handling
 
 If the requested command is not found:
@@ -428,5 +447,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
-  /help, /research-topic, /ship
+  /help, /research-topic, /ship, /validate-and-ship
 ```
