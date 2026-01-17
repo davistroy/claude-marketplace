@@ -13,10 +13,10 @@
     {
       "name": "personal-plugin",
       "source": "./plugins/personal-plugin",
-      "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, and document processing",
-      "version": "2.5.0",
+      "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
+      "version": "2.6.0",
       "category": "productivity",
-      "tags": ["personal","automation"]
+      "tags": ["personal", "automation", "research", "llm-orchestration"]
     },
     {
       "name": "bpmn-plugin",
