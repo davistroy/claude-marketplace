@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_CrossLane"
+                  targetNamespace="http://example.org/bpmn/visual_test">
+
+  <!--
+    VISUAL TEST: CR-05 - Cross Lane Sequence Flows
+    Purpose: Test orthogonal routing of sequence flows between lanes
+    Expected: Flows cross lanes cleanly with right-angle routing
+  -->
+
+  <bpmn:collaboration id="Collab_CrossLane">
+    <bpmn:participant id="Pool_Main" name="Cross-Lane Test" processRef="Process_CrossLane"/>
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_CrossLane" name="Cross Lane Process" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Main">
+      <bpmn:lane id="Lane_1" name="Lane 1 - Initiation">
+        <bpmn:flowNodeRef>Start_Process</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_L1_Init</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_L1_Return</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Process</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_2" name="Lane 2 - Processing">
+        <bpmn:flowNodeRef>Task_L2_Process</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_L2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_L2_Option</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_3" name="Lane 3 - Validation">
+        <bpmn:flowNodeRef>Task_L3_Validate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_L3_Confirm</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_4" name="Lane 4 - Completion">
+        <bpmn:flowNodeRef>Task_L4_Complete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_L4_Archive</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- Lane 1 elements -->
+    <bpmn:startEvent id="Start_Process" name="Start"/>
+    <bpmn:task id="Task_L1_Init" name="Initialize Request"/>
+    <bpmn:task id="Task_L1_Return" name="Receive Final Result"/>
+    <bpmn:endEvent id="End_Process" name="End"/>
+
+    <!-- Lane 2 elements -->
+    <bpmn:serviceTask id="Task_L2_Process" name="Process Request"/>
+    <bpmn:exclusiveGateway id="Gateway_L2" name="Need Validation?"/>
+    <bpmn:task id="Task_L2_Option" name="Skip to Complete"/>
+
+    <!-- Lane 3 elements -->
+    <bpmn:userTask id="Task_L3_Validate" name="Validate Data"/>
+    <bpmn:task id="Task_L3_Confirm" name="Confirm Validation"/>
+
+    <!-- Lane 4 elements -->
+    <bpmn:serviceTask id="Task_L4_Complete" name="Complete Processing"/>
+    <bpmn:serviceTask id="Task_L4_Archive" name="Archive Results"/>
+
+    <!-- Cross-lane flows (designed to create multiple lane crossings) -->
+
+    <!-- Lane 1 -> Lane 2 -->
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_Process" targetRef="Task_L1_Init"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_L1_Init" targetRef="Task_L2_Process"/>
+
+    <!-- Lane 2 -> Lane 3 (skip one lane) -->
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_L2_Process" targetRef="Gateway_L2"/>
+    <bpmn:sequenceFlow id="Flow_4" name="Yes" sourceRef="Gateway_L2" targetRef="Task_L3_Validate"/>
+
+    <!-- Lane 2 -> Lane 4 (skip two lanes) -->
+    <bpmn:sequenceFlow id="Flow_5" name="No" sourceRef="Gateway_L2" targetRef="Task_L2_Option"/>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_L2_Option" targetRef="Task_L4_Complete"/>
+
+    <!-- Lane 3 -> Lane 4 -->
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_L3_Validate" targetRef="Task_L3_Confirm"/>
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="Task_L3_Confirm" targetRef="Task_L4_Complete"/>
+
+    <!-- Lane 4 work -->
+    <bpmn:sequenceFlow id="Flow_9" sourceRef="Task_L4_Complete" targetRef="Task_L4_Archive"/>
+
+    <!-- Lane 4 -> Lane 1 (crossing all lanes back!) -->
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_L4_Archive" targetRef="Task_L1_Return"/>
+
+    <!-- Lane 1 finish -->
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="Task_L1_Return" targetRef="End_Process"/>
+
+  </bpmn:process>
+
+</bpmn:definitions>

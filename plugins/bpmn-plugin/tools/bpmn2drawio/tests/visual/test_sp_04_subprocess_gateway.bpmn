@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SubprocessGateway"
+                  targetNamespace="http://example.org/bpmn/visual_test">
+
+  <!--
+    VISUAL TEST: SP-04 - Subprocess with Internal Gateway
+    Purpose: Test subprocess containing gateway with boundary events
+    Expected: Subprocess box visible, internal elements contained, boundaries attached
+  -->
+
+  <bpmn:process id="Process_WithSubprocess" name="Process with Complex Subprocess" isExecutable="true">
+
+    <bpmn:startEvent id="Start_Main" name="Start"/>
+    <bpmn:task id="Task_Prepare" name="Prepare Data"/>
+
+    <!-- Main subprocess with internal gateway -->
+    <bpmn:subProcess id="SubProcess_Validation" name="Validation Subprocess">
+      <bpmn:startEvent id="SubStart" name="Sub Start"/>
+
+      <bpmn:task id="SubTask_Load" name="Load Records"/>
+
+      <bpmn:exclusiveGateway id="SubGW_Split" name="Valid?"/>
+
+      <!-- Three validation paths -->
+      <bpmn:task id="SubTask_ValidA" name="Validate Type A"/>
+      <bpmn:task id="SubTask_ValidB" name="Validate Type B"/>
+      <bpmn:task id="SubTask_ValidC" name="Validate Type C"/>
+
+      <bpmn:exclusiveGateway id="SubGW_Join" name="Merge"/>
+
+      <bpmn:task id="SubTask_Save" name="Save Results"/>
+      <bpmn:endEvent id="SubEnd" name="Sub End"/>
+
+      <!-- Internal flows -->
+      <bpmn:sequenceFlow id="SubFlow_1" sourceRef="SubStart" targetRef="SubTask_Load"/>
+      <bpmn:sequenceFlow id="SubFlow_2" sourceRef="SubTask_Load" targetRef="SubGW_Split"/>
+      <bpmn:sequenceFlow id="SubFlow_3a" name="Type A" sourceRef="SubGW_Split" targetRef="SubTask_ValidA"/>
+      <bpmn:sequenceFlow id="SubFlow_3b" name="Type B" sourceRef="SubGW_Split" targetRef="SubTask_ValidB"/>
+      <bpmn:sequenceFlow id="SubFlow_3c" name="Type C" sourceRef="SubGW_Split" targetRef="SubTask_ValidC"/>
+      <bpmn:sequenceFlow id="SubFlow_4a" sourceRef="SubTask_ValidA" targetRef="SubGW_Join"/>
+      <bpmn:sequenceFlow id="SubFlow_4b" sourceRef="SubTask_ValidB" targetRef="SubGW_Join"/>
+      <bpmn:sequenceFlow id="SubFlow_4c" sourceRef="SubTask_ValidC" targetRef="SubGW_Join"/>
+      <bpmn:sequenceFlow id="SubFlow_5" sourceRef="SubGW_Join" targetRef="SubTask_Save"/>
+      <bpmn:sequenceFlow id="SubFlow_6" sourceRef="SubTask_Save" targetRef="SubEnd"/>
+    </bpmn:subProcess>
+
+    <!-- Boundary events on subprocess -->
+    <bpmn:boundaryEvent id="Boundary_Timer" name="Timeout 30min" attachedToRef="SubProcess_Validation">
+      <bpmn:timerEventDefinition id="TimerDef_Boundary">
+        <bpmn:timeDuration>PT30M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:boundaryEvent id="Boundary_Error" name="Validation Error" attachedToRef="SubProcess_Validation">
+      <bpmn:errorEventDefinition id="ErrorDef_Boundary"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Error handling path -->
+    <bpmn:task id="Task_HandleError" name="Handle Error"/>
+    <bpmn:task id="Task_HandleTimeout" name="Handle Timeout"/>
+
+    <!-- Normal continuation -->
+    <bpmn:task id="Task_Process" name="Process Results"/>
+    <bpmn:task id="Task_Complete" name="Complete Processing"/>
+
+    <bpmn:exclusiveGateway id="GW_ErrorMerge" name="Merge"/>
+
+    <bpmn:endEvent id="End_Main" name="End"/>
+
+    <!-- Main process flows -->
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Start_Main" targetRef="Task_Prepare"/>
+    <bpmn:sequenceFlow id="Flow_ToSub" sourceRef="Task_Prepare" targetRef="SubProcess_Validation"/>
+    <bpmn:sequenceFlow id="Flow_SubDone" sourceRef="SubProcess_Validation" targetRef="Task_Process"/>
+    <bpmn:sequenceFlow id="Flow_Process" sourceRef="Task_Process" targetRef="Task_Complete"/>
+    <bpmn:sequenceFlow id="Flow_Complete" sourceRef="Task_Complete" targetRef="GW_ErrorMerge"/>
+
+    <!-- Boundary event flows -->
+    <bpmn:sequenceFlow id="Flow_Timeout" sourceRef="Boundary_Timer" targetRef="Task_HandleTimeout"/>
+    <bpmn:sequenceFlow id="Flow_Error" sourceRef="Boundary_Error" targetRef="Task_HandleError"/>
+    <bpmn:sequenceFlow id="Flow_TimeoutMerge" sourceRef="Task_HandleTimeout" targetRef="GW_ErrorMerge"/>
+    <bpmn:sequenceFlow id="Flow_ErrorMerge" sourceRef="Task_HandleError" targetRef="GW_ErrorMerge"/>
+
+    <bpmn:sequenceFlow id="Flow_End" sourceRef="GW_ErrorMerge" targetRef="End_Main"/>
+
+  </bpmn:process>
+
+</bpmn:definitions>

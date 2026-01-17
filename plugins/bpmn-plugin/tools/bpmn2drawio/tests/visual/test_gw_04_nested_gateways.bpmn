@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_NestedGateways"
+                  targetNamespace="http://example.org/bpmn/visual_test">
+
+  <!--
+    VISUAL TEST: GW-04 - Nested Gateways (3 Levels Deep)
+    Purpose: Test graphviz layout with deeply nested gateway structure
+    Expected: Clear visual hierarchy, no overlapping branches
+  -->
+
+  <bpmn:process id="Process_Nested" name="Nested Gateway Process" isExecutable="true">
+
+    <bpmn:startEvent id="Start_Process" name="Start"/>
+
+    <bpmn:task id="Task_Init" name="Initialize"/>
+
+    <!-- Level 1: XOR Gateway - 3 branches -->
+    <bpmn:exclusiveGateway id="GW_L1_Split" name="Level 1 Split"/>
+
+    <!-- Branch A: Direct path -->
+    <bpmn:task id="Task_BranchA" name="Branch A Direct"/>
+
+    <!-- Branch B: Contains Level 2 Parallel Gateway -->
+    <bpmn:parallelGateway id="GW_L2_Split" name="Level 2 Split (Parallel)"/>
+
+    <bpmn:task id="Task_B1" name="B1 Parallel Task"/>
+    <bpmn:task id="Task_B2" name="B2 Parallel Task"/>
+
+    <!-- Within B2 path: Level 3 XOR Gateway -->
+    <bpmn:exclusiveGateway id="GW_L3_Split" name="Level 3 Split"/>
+    <bpmn:task id="Task_B2a" name="B2a Option"/>
+    <bpmn:task id="Task_B2b" name="B2b Option"/>
+    <bpmn:task id="Task_B2c" name="B2c Option"/>
+    <bpmn:exclusiveGateway id="GW_L3_Join" name="Level 3 Join"/>
+
+    <bpmn:parallelGateway id="GW_L2_Join" name="Level 2 Join"/>
+
+    <!-- Branch C: Another Level 2 split -->
+    <bpmn:inclusiveGateway id="GW_L2b_Split" name="Level 2b Split (Inclusive)"/>
+    <bpmn:task id="Task_C1" name="C1 Inclusive"/>
+    <bpmn:task id="Task_C2" name="C2 Inclusive"/>
+    <bpmn:task id="Task_C3" name="C3 Inclusive"/>
+    <bpmn:inclusiveGateway id="GW_L2b_Join" name="Level 2b Join"/>
+
+    <!-- Level 1: Merge -->
+    <bpmn:exclusiveGateway id="GW_L1_Join" name="Level 1 Join"/>
+
+    <bpmn:task id="Task_Final" name="Finalize"/>
+    <bpmn:endEvent id="End_Process" name="End"/>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Start_Process" targetRef="Task_Init"/>
+    <bpmn:sequenceFlow id="Flow_ToL1" sourceRef="Task_Init" targetRef="GW_L1_Split"/>
+
+    <!-- Branch A (direct) -->
+    <bpmn:sequenceFlow id="Flow_L1_A" name="Option A" sourceRef="GW_L1_Split" targetRef="Task_BranchA"/>
+    <bpmn:sequenceFlow id="Flow_A_Join" sourceRef="Task_BranchA" targetRef="GW_L1_Join"/>
+
+    <!-- Branch B (contains L2 parallel -> L3 XOR) -->
+    <bpmn:sequenceFlow id="Flow_L1_B" name="Option B" sourceRef="GW_L1_Split" targetRef="GW_L2_Split"/>
+    <bpmn:sequenceFlow id="Flow_L2_B1" sourceRef="GW_L2_Split" targetRef="Task_B1"/>
+    <bpmn:sequenceFlow id="Flow_L2_B2" sourceRef="GW_L2_Split" targetRef="GW_L3_Split"/>
+
+    <!-- Level 3 nested XOR -->
+    <bpmn:sequenceFlow id="Flow_L3_a" name="L3 Opt A" sourceRef="GW_L3_Split" targetRef="Task_B2a"/>
+    <bpmn:sequenceFlow id="Flow_L3_b" name="L3 Opt B" sourceRef="GW_L3_Split" targetRef="Task_B2b"/>
+    <bpmn:sequenceFlow id="Flow_L3_c" name="L3 Opt C" sourceRef="GW_L3_Split" targetRef="Task_B2c"/>
+    <bpmn:sequenceFlow id="Flow_L3_a_Join" sourceRef="Task_B2a" targetRef="GW_L3_Join"/>
+    <bpmn:sequenceFlow id="Flow_L3_b_Join" sourceRef="Task_B2b" targetRef="GW_L3_Join"/>
+    <bpmn:sequenceFlow id="Flow_L3_c_Join" sourceRef="Task_B2c" targetRef="GW_L3_Join"/>
+
+    <bpmn:sequenceFlow id="Flow_B1_Join" sourceRef="Task_B1" targetRef="GW_L2_Join"/>
+    <bpmn:sequenceFlow id="Flow_L3_to_L2" sourceRef="GW_L3_Join" targetRef="GW_L2_Join"/>
+    <bpmn:sequenceFlow id="Flow_L2_to_L1" sourceRef="GW_L2_Join" targetRef="GW_L1_Join"/>
+
+    <!-- Branch C (L2b inclusive) -->
+    <bpmn:sequenceFlow id="Flow_L1_C" name="Option C" sourceRef="GW_L1_Split" targetRef="GW_L2b_Split"/>
+    <bpmn:sequenceFlow id="Flow_L2b_C1" name="If X" sourceRef="GW_L2b_Split" targetRef="Task_C1"/>
+    <bpmn:sequenceFlow id="Flow_L2b_C2" name="If Y" sourceRef="GW_L2b_Split" targetRef="Task_C2"/>
+    <bpmn:sequenceFlow id="Flow_L2b_C3" name="If Z" sourceRef="GW_L2b_Split" targetRef="Task_C3"/>
+    <bpmn:sequenceFlow id="Flow_C1_Join" sourceRef="Task_C1" targetRef="GW_L2b_Join"/>
+    <bpmn:sequenceFlow id="Flow_C2_Join" sourceRef="Task_C2" targetRef="GW_L2b_Join"/>
+    <bpmn:sequenceFlow id="Flow_C3_Join" sourceRef="Task_C3" targetRef="GW_L2b_Join"/>
+    <bpmn:sequenceFlow id="Flow_L2b_to_L1" sourceRef="GW_L2b_Join" targetRef="GW_L1_Join"/>
+
+    <!-- Final -->
+    <bpmn:sequenceFlow id="Flow_L1_Final" sourceRef="GW_L1_Join" targetRef="Task_Final"/>
+    <bpmn:sequenceFlow id="Flow_End" sourceRef="Task_Final" targetRef="End_Process"/>
+
+  </bpmn:process>
+
+</bpmn:definitions>

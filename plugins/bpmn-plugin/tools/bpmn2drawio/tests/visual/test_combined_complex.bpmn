@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_Combined"
+                  targetNamespace="http://example.org/bpmn/visual_test">
+
+  <!--
+    VISUAL TEST: Combined Complex - Ultimate Stress Test
+    Purpose: Test all layout features together
+    Features:
+    - 2 pools (with cross-pool message flows)
+    - 3 lanes in main pool
+    - Subprocess with boundary events
+    - Parallel and exclusive gateways
+    - Loop back flow
+    - 40+ elements
+  -->
+
+  <bpmn:collaboration id="Collab_Combined">
+    <bpmn:participant id="Pool_Main" name="Main Business Process" processRef="Process_Main"/>
+    <bpmn:participant id="Pool_External" name="External Partner System" processRef="Process_External"/>
+
+    <!-- Cross-pool message flows -->
+    <bpmn:messageFlow id="MsgFlow_Request" name="Send Order" sourceRef="Task_SendToPartner" targetRef="Task_ExtReceive"/>
+    <bpmn:messageFlow id="MsgFlow_Response" name="Receive Confirmation" sourceRef="Task_ExtRespond" targetRef="Event_ReceiveConfirm"/>
+    <bpmn:messageFlow id="MsgFlow_Update" name="Status Update" sourceRef="Task_ExtUpdate" targetRef="Task_ProcessUpdate"/>
+  </bpmn:collaboration>
+
+  <!-- MAIN PROCESS with 3 lanes -->
+  <bpmn:process id="Process_Main" name="Main Business Process" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Main">
+      <bpmn:lane id="Lane_Request" name="Request Handling">
+        <bpmn:flowNodeRef>Start_Main</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReceiveRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_RequestType</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_StandardRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PriorityRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_MergeRequest</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Processing" name="Order Processing">
+        <bpmn:flowNodeRef>SubProcess_Fulfillment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Parallel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_UpdateInventory</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SendToPartner</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_ReceiveConfirm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ProcessUpdate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_JoinParallel</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Completion" name="Completion">
+        <bpmn:flowNodeRef>Task_GenerateInvoice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifyCustomer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Retry</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Finalize</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Success</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Cancelled</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- Request Handling Lane -->
+    <bpmn:startEvent id="Start_Main" name="Order Received"/>
+    <bpmn:userTask id="Task_ReceiveRequest" name="Receive and Log Request"/>
+    <bpmn:exclusiveGateway id="Gateway_RequestType" name="Request Type?"/>
+    <bpmn:task id="Task_StandardRequest" name="Process Standard"/>
+    <bpmn:task id="Task_PriorityRequest" name="Process Priority"/>
+    <bpmn:exclusiveGateway id="Gateway_MergeRequest" name="Merge"/>
+
+    <!-- Processing Lane - with Subprocess -->
+    <bpmn:subProcess id="SubProcess_Fulfillment" name="Order Fulfillment">
+      <bpmn:startEvent id="SubStart_Fulfill" name="Start Fulfillment"/>
+      <bpmn:task id="SubTask_Validate" name="Validate Order"/>
+      <bpmn:task id="SubTask_Reserve" name="Reserve Items"/>
+      <bpmn:task id="SubTask_Package" name="Package Order"/>
+      <bpmn:endEvent id="SubEnd_Fulfill" name="Fulfillment Complete"/>
+      <bpmn:sequenceFlow id="SubFlow_1" sourceRef="SubStart_Fulfill" targetRef="SubTask_Validate"/>
+      <bpmn:sequenceFlow id="SubFlow_2" sourceRef="SubTask_Validate" targetRef="SubTask_Reserve"/>
+      <bpmn:sequenceFlow id="SubFlow_3" sourceRef="SubTask_Reserve" targetRef="SubTask_Package"/>
+      <bpmn:sequenceFlow id="SubFlow_4" sourceRef="SubTask_Package" targetRef="SubEnd_Fulfill"/>
+    </bpmn:subProcess>
+
+    <!-- Boundary events -->
+    <bpmn:boundaryEvent id="Boundary_FulfillError" name="Fulfillment Error" attachedToRef="SubProcess_Fulfillment">
+      <bpmn:errorEventDefinition id="ErrorDef_Fulfill"/>
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="Boundary_FulfillTimer" name="Timeout" attachedToRef="SubProcess_Fulfillment">
+      <bpmn:timerEventDefinition id="TimerDef_Fulfill">
+        <bpmn:timeDuration>PT1H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Parallel processing -->
+    <bpmn:parallelGateway id="Gateway_Parallel" name="Start Parallel"/>
+    <bpmn:serviceTask id="Task_UpdateInventory" name="Update Inventory"/>
+    <bpmn:sendTask id="Task_SendToPartner" name="Send to Partner"/>
+    <bpmn:intermediateCatchEvent id="Event_ReceiveConfirm" name="Await Confirmation">
+      <bpmn:messageEventDefinition id="MsgDef_Confirm"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="Task_ProcessUpdate" name="Process Status Update"/>
+    <bpmn:parallelGateway id="Gateway_JoinParallel" name="Join Parallel"/>
+
+    <!-- Completion Lane -->
+    <bpmn:serviceTask id="Task_GenerateInvoice" name="Generate Invoice"/>
+    <bpmn:sendTask id="Task_NotifyCustomer" name="Notify Customer"/>
+    <bpmn:exclusiveGateway id="Gateway_Retry" name="Retry Needed?"/>
+    <bpmn:task id="Task_Finalize" name="Finalize Order"/>
+    <bpmn:endEvent id="End_Success" name="Order Complete"/>
+    <bpmn:endEvent id="End_Cancelled" name="Order Cancelled">
+      <bpmn:terminateEventDefinition id="TermDef_Cancel"/>
+    </bpmn:endEvent>
+
+    <!-- Main sequence flows -->
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Start_Main" targetRef="Task_ReceiveRequest"/>
+    <bpmn:sequenceFlow id="Flow_ToGateway" sourceRef="Task_ReceiveRequest" targetRef="Gateway_RequestType"/>
+    <bpmn:sequenceFlow id="Flow_Standard" name="Standard" sourceRef="Gateway_RequestType" targetRef="Task_StandardRequest"/>
+    <bpmn:sequenceFlow id="Flow_Priority" name="Priority" sourceRef="Gateway_RequestType" targetRef="Task_PriorityRequest"/>
+    <bpmn:sequenceFlow id="Flow_StdMerge" sourceRef="Task_StandardRequest" targetRef="Gateway_MergeRequest"/>
+    <bpmn:sequenceFlow id="Flow_PriMerge" sourceRef="Task_PriorityRequest" targetRef="Gateway_MergeRequest"/>
+    <bpmn:sequenceFlow id="Flow_ToSub" sourceRef="Gateway_MergeRequest" targetRef="SubProcess_Fulfillment"/>
+
+    <!-- Subprocess to parallel -->
+    <bpmn:sequenceFlow id="Flow_SubToParallel" sourceRef="SubProcess_Fulfillment" targetRef="Gateway_Parallel"/>
+
+    <!-- Parallel paths -->
+    <bpmn:sequenceFlow id="Flow_Par1" sourceRef="Gateway_Parallel" targetRef="Task_UpdateInventory"/>
+    <bpmn:sequenceFlow id="Flow_Par2" sourceRef="Gateway_Parallel" targetRef="Task_SendToPartner"/>
+    <bpmn:sequenceFlow id="Flow_Par3" sourceRef="Task_SendToPartner" targetRef="Event_ReceiveConfirm"/>
+    <bpmn:sequenceFlow id="Flow_Par4" sourceRef="Event_ReceiveConfirm" targetRef="Task_ProcessUpdate"/>
+    <bpmn:sequenceFlow id="Flow_Join1" sourceRef="Task_UpdateInventory" targetRef="Gateway_JoinParallel"/>
+    <bpmn:sequenceFlow id="Flow_Join2" sourceRef="Task_ProcessUpdate" targetRef="Gateway_JoinParallel"/>
+
+    <!-- To completion -->
+    <bpmn:sequenceFlow id="Flow_ToInvoice" sourceRef="Gateway_JoinParallel" targetRef="Task_GenerateInvoice"/>
+    <bpmn:sequenceFlow id="Flow_ToNotify" sourceRef="Task_GenerateInvoice" targetRef="Task_NotifyCustomer"/>
+    <bpmn:sequenceFlow id="Flow_ToRetry" sourceRef="Task_NotifyCustomer" targetRef="Gateway_Retry"/>
+
+    <!-- Loop back (retry) -->
+    <bpmn:sequenceFlow id="Flow_RetryYes" name="Yes" sourceRef="Gateway_Retry" targetRef="Task_SendToPartner"/>
+    <bpmn:sequenceFlow id="Flow_RetryNo" name="No" sourceRef="Gateway_Retry" targetRef="Task_Finalize"/>
+    <bpmn:sequenceFlow id="Flow_End" sourceRef="Task_Finalize" targetRef="End_Success"/>
+
+    <!-- Boundary event flows -->
+    <bpmn:sequenceFlow id="Flow_BoundaryError" sourceRef="Boundary_FulfillError" targetRef="End_Cancelled"/>
+    <bpmn:sequenceFlow id="Flow_BoundaryTimer" sourceRef="Boundary_FulfillTimer" targetRef="End_Cancelled"/>
+
+  </bpmn:process>
+
+  <!-- EXTERNAL PARTNER PROCESS -->
+  <bpmn:process id="Process_External" name="External Partner System" isExecutable="false">
+    <bpmn:startEvent id="Start_Ext" name="Awaiting Orders"/>
+    <bpmn:receiveTask id="Task_ExtReceive" name="Receive Order Request"/>
+    <bpmn:task id="Task_ExtProcess" name="Process Order"/>
+    <bpmn:exclusiveGateway id="Gateway_ExtResult" name="Result?"/>
+    <bpmn:sendTask id="Task_ExtRespond" name="Send Confirmation"/>
+    <bpmn:task id="Task_ExtFailed" name="Handle Failure"/>
+    <bpmn:sendTask id="Task_ExtUpdate" name="Send Status Update"/>
+    <bpmn:endEvent id="End_Ext" name="Done"/>
+
+    <bpmn:sequenceFlow id="Flow_Ext1" sourceRef="Start_Ext" targetRef="Task_ExtReceive"/>
+    <bpmn:sequenceFlow id="Flow_Ext2" sourceRef="Task_ExtReceive" targetRef="Task_ExtProcess"/>
+    <bpmn:sequenceFlow id="Flow_Ext3" sourceRef="Task_ExtProcess" targetRef="Gateway_ExtResult"/>
+    <bpmn:sequenceFlow id="Flow_Ext4" name="Success" sourceRef="Gateway_ExtResult" targetRef="Task_ExtRespond"/>
+    <bpmn:sequenceFlow id="Flow_Ext5" name="Failed" sourceRef="Gateway_ExtResult" targetRef="Task_ExtFailed"/>
+    <bpmn:sequenceFlow id="Flow_Ext6" sourceRef="Task_ExtRespond" targetRef="Task_ExtUpdate"/>
+    <bpmn:sequenceFlow id="Flow_Ext7" sourceRef="Task_ExtFailed" targetRef="End_Ext"/>
+    <bpmn:sequenceFlow id="Flow_Ext8" sourceRef="Task_ExtUpdate" targetRef="End_Ext"/>
+
+  </bpmn:process>
+
+</bpmn:definitions>

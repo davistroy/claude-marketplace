@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_ManyLanes"
+                  targetNamespace="http://example.org/bpmn/visual_test">
+
+  <!--
+    VISUAL TEST: ML-03 - Many Lanes
+    Purpose: Test graphviz layout with 5 lanes in single pool
+    Expected: Lanes stacked vertically, elements properly distributed
+  -->
+
+  <bpmn:collaboration id="Collab_OrderProcess">
+    <bpmn:participant id="Pool_Order" name="Order Processing" processRef="Process_Order"/>
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_Order" name="Order Processing" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Order">
+      <bpmn:lane id="Lane_Customer" name="Customer">
+        <bpmn:flowNodeRef>Start_Order</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PlaceOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReceiveConfirmation</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sales" name="Sales">
+        <bpmn:flowNodeRef>Task_ReviewOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Approval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RejectOrder</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Warehouse" name="Warehouse">
+        <bpmn:flowNodeRef>Task_CheckInventory</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PickItems</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PackOrder</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Shipping" name="Shipping">
+        <bpmn:flowNodeRef>Task_CreateLabel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ShipOrder</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TrackDelivery</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Finance" name="Finance">
+        <bpmn:flowNodeRef>Task_ProcessPayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_GenerateInvoice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Order</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- Customer Lane -->
+    <bpmn:startEvent id="Start_Order" name="Order Received"/>
+    <bpmn:userTask id="Task_PlaceOrder" name="Place Order"/>
+    <bpmn:userTask id="Task_ReceiveConfirmation" name="Receive Confirmation"/>
+
+    <!-- Sales Lane -->
+    <bpmn:userTask id="Task_ReviewOrder" name="Review Order"/>
+    <bpmn:exclusiveGateway id="Gateway_Approval" name="Approved?"/>
+    <bpmn:serviceTask id="Task_RejectOrder" name="Reject Order"/>
+
+    <!-- Warehouse Lane -->
+    <bpmn:serviceTask id="Task_CheckInventory" name="Check Inventory"/>
+    <bpmn:manualTask id="Task_PickItems" name="Pick Items"/>
+    <bpmn:manualTask id="Task_PackOrder" name="Pack Order"/>
+
+    <!-- Shipping Lane -->
+    <bpmn:serviceTask id="Task_CreateLabel" name="Create Shipping Label"/>
+    <bpmn:manualTask id="Task_ShipOrder" name="Ship Order"/>
+    <bpmn:serviceTask id="Task_TrackDelivery" name="Track Delivery"/>
+
+    <!-- Finance Lane -->
+    <bpmn:serviceTask id="Task_ProcessPayment" name="Process Payment"/>
+    <bpmn:serviceTask id="Task_GenerateInvoice" name="Generate Invoice"/>
+    <bpmn:endEvent id="End_Order" name="Order Complete"/>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_Order" targetRef="Task_PlaceOrder"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_PlaceOrder" targetRef="Task_ReviewOrder"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_ReviewOrder" targetRef="Gateway_Approval"/>
+    <bpmn:sequenceFlow id="Flow_4" name="No" sourceRef="Gateway_Approval" targetRef="Task_RejectOrder"/>
+    <bpmn:sequenceFlow id="Flow_5" name="Yes" sourceRef="Gateway_Approval" targetRef="Task_CheckInventory"/>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_CheckInventory" targetRef="Task_PickItems"/>
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_PickItems" targetRef="Task_PackOrder"/>
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="Task_PackOrder" targetRef="Task_CreateLabel"/>
+    <bpmn:sequenceFlow id="Flow_9" sourceRef="Task_CreateLabel" targetRef="Task_ProcessPayment"/>
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_ProcessPayment" targetRef="Task_ShipOrder"/>
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="Task_ShipOrder" targetRef="Task_TrackDelivery"/>
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_TrackDelivery" targetRef="Task_ReceiveConfirmation"/>
+    <bpmn:sequenceFlow id="Flow_13" sourceRef="Task_ReceiveConfirmation" targetRef="Task_GenerateInvoice"/>
+    <bpmn:sequenceFlow id="Flow_14" sourceRef="Task_GenerateInvoice" targetRef="End_Order"/>
+    <bpmn:sequenceFlow id="Flow_15" sourceRef="Task_RejectOrder" targetRef="End_Order"/>
+  </bpmn:process>
+
+</bpmn:definitions>

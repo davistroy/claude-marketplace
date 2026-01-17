@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_CrissCross"
+                  targetNamespace="http://example.org/bpmn/visual_test">
+
+  <!--
+    VISUAL TEST: CF-03 - Criss Cross Message Flows
+    Purpose: Test message flow routing when flows cross each other
+    Expected: Message flows routed without excessive overlap
+  -->
+
+  <bpmn:collaboration id="Collab_Integration">
+    <bpmn:participant id="Pool_SystemA" name="System A" processRef="Process_SystemA"/>
+    <bpmn:participant id="Pool_SystemB" name="System B" processRef="Process_SystemB"/>
+
+    <!-- Criss-cross pattern: A1->B2, A2->B1, B1->A2, B2->A1 -->
+    <bpmn:messageFlow id="MsgFlow_A1_B2" name="Request 1" sourceRef="Task_A1_Send" targetRef="Task_B2_Receive"/>
+    <bpmn:messageFlow id="MsgFlow_A2_B1" name="Request 2" sourceRef="Task_A2_Send" targetRef="Task_B1_Receive"/>
+    <bpmn:messageFlow id="MsgFlow_B1_A2" name="Response 1" sourceRef="Task_B1_Reply" targetRef="Task_A2_Receive"/>
+    <bpmn:messageFlow id="MsgFlow_B2_A1" name="Response 2" sourceRef="Task_B2_Reply" targetRef="Task_A1_Receive"/>
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_SystemA" name="System A" isExecutable="true">
+    <bpmn:startEvent id="Start_A" name="Start A"/>
+
+    <bpmn:parallelGateway id="Gateway_A_Split" name="Split"/>
+
+    <!-- Path 1 -->
+    <bpmn:sendTask id="Task_A1_Send" name="Send Request 1"/>
+    <bpmn:receiveTask id="Task_A1_Receive" name="Receive Response 2"/>
+    <bpmn:serviceTask id="Task_A1_Process" name="Process Response 2"/>
+
+    <!-- Path 2 -->
+    <bpmn:sendTask id="Task_A2_Send" name="Send Request 2"/>
+    <bpmn:receiveTask id="Task_A2_Receive" name="Receive Response 1"/>
+    <bpmn:serviceTask id="Task_A2_Process" name="Process Response 1"/>
+
+    <bpmn:parallelGateway id="Gateway_A_Join" name="Join"/>
+    <bpmn:endEvent id="End_A" name="End A"/>
+
+    <bpmn:sequenceFlow id="Flow_A1" sourceRef="Start_A" targetRef="Gateway_A_Split"/>
+    <bpmn:sequenceFlow id="Flow_A2" sourceRef="Gateway_A_Split" targetRef="Task_A1_Send"/>
+    <bpmn:sequenceFlow id="Flow_A3" sourceRef="Gateway_A_Split" targetRef="Task_A2_Send"/>
+    <bpmn:sequenceFlow id="Flow_A4" sourceRef="Task_A1_Send" targetRef="Task_A1_Receive"/>
+    <bpmn:sequenceFlow id="Flow_A5" sourceRef="Task_A2_Send" targetRef="Task_A2_Receive"/>
+    <bpmn:sequenceFlow id="Flow_A6" sourceRef="Task_A1_Receive" targetRef="Task_A1_Process"/>
+    <bpmn:sequenceFlow id="Flow_A7" sourceRef="Task_A2_Receive" targetRef="Task_A2_Process"/>
+    <bpmn:sequenceFlow id="Flow_A8" sourceRef="Task_A1_Process" targetRef="Gateway_A_Join"/>
+    <bpmn:sequenceFlow id="Flow_A9" sourceRef="Task_A2_Process" targetRef="Gateway_A_Join"/>
+    <bpmn:sequenceFlow id="Flow_A10" sourceRef="Gateway_A_Join" targetRef="End_A"/>
+  </bpmn:process>
+
+  <bpmn:process id="Process_SystemB" name="System B" isExecutable="true">
+    <bpmn:startEvent id="Start_B" name="Start B"/>
+
+    <bpmn:parallelGateway id="Gateway_B_Split" name="Split"/>
+
+    <!-- Handler 1 -->
+    <bpmn:receiveTask id="Task_B1_Receive" name="Receive Request 2"/>
+    <bpmn:serviceTask id="Task_B1_Process" name="Process Request 2"/>
+    <bpmn:sendTask id="Task_B1_Reply" name="Send Response 1"/>
+
+    <!-- Handler 2 -->
+    <bpmn:receiveTask id="Task_B2_Receive" name="Receive Request 1"/>
+    <bpmn:serviceTask id="Task_B2_Process" name="Process Request 1"/>
+    <bpmn:sendTask id="Task_B2_Reply" name="Send Response 2"/>
+
+    <bpmn:parallelGateway id="Gateway_B_Join" name="Join"/>
+    <bpmn:endEvent id="End_B" name="End B"/>
+
+    <bpmn:sequenceFlow id="Flow_B1" sourceRef="Start_B" targetRef="Gateway_B_Split"/>
+    <bpmn:sequenceFlow id="Flow_B2" sourceRef="Gateway_B_Split" targetRef="Task_B1_Receive"/>
+    <bpmn:sequenceFlow id="Flow_B3" sourceRef="Gateway_B_Split" targetRef="Task_B2_Receive"/>
+    <bpmn:sequenceFlow id="Flow_B4" sourceRef="Task_B1_Receive" targetRef="Task_B1_Process"/>
+    <bpmn:sequenceFlow id="Flow_B5" sourceRef="Task_B2_Receive" targetRef="Task_B2_Process"/>
+    <bpmn:sequenceFlow id="Flow_B6" sourceRef="Task_B1_Process" targetRef="Task_B1_Reply"/>
+    <bpmn:sequenceFlow id="Flow_B7" sourceRef="Task_B2_Process" targetRef="Task_B2_Reply"/>
+    <bpmn:sequenceFlow id="Flow_B8" sourceRef="Task_B1_Reply" targetRef="Gateway_B_Join"/>
+    <bpmn:sequenceFlow id="Flow_B9" sourceRef="Task_B2_Reply" targetRef="Gateway_B_Join"/>
+    <bpmn:sequenceFlow id="Flow_B10" sourceRef="Gateway_B_Join" targetRef="End_B"/>
+  </bpmn:process>
+
+</bpmn:definitions>
