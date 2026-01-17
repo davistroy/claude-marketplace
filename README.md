@@ -7,10 +7,31 @@ A collection of Claude Code plugins containing custom slash commands and skills 
 
 ## Installation
 
-Add this marketplace to your Claude Code configuration:
+### Add the Marketplace
 
-```bash
-claude mcp add-plugin https://github.com/davistroy/claude-marketplace
+First, add this marketplace to Claude Code:
+
+```
+/plugin marketplace add davistroy/claude-marketplace
+```
+
+### Install Plugins
+
+Then install the plugins you want:
+
+```
+/plugin install personal-plugin@troys-plugins
+/plugin install bpmn-plugin@troys-plugins
+```
+
+### Installation Scopes
+
+You can install to different scopes:
+
+```
+/plugin install personal-plugin@troys-plugins --scope user      # Global (all projects)
+/plugin install personal-plugin@troys-plugins --scope project   # Team-shared (.claude/settings.json)
+/plugin install personal-plugin@troys-plugins --scope local     # Personal only (gitignored)
 ```
 
 ## Available Plugins

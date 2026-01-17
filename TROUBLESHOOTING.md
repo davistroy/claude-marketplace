@@ -21,18 +21,27 @@ This guide covers common issues and their solutions when using Claude Marketplac
 
 **Symptom:** Commands like `/help` don't work after installing the marketplace.
 
-**Cause:** The marketplace was not properly added to Claude Code configuration.
+**Cause:** The marketplace was not properly added or plugins were not installed.
 
 **Solution:**
-1. Verify installation:
-   ```bash
-   claude mcp list
+1. Add the marketplace:
    ```
-2. If not listed, reinstall:
-   ```bash
-   claude mcp add-plugin https://github.com/davistroy/claude-marketplace
+   /plugin marketplace add davistroy/claude-marketplace
    ```
-3. Restart Claude Code to refresh plugin registry.
+2. Verify marketplace was added:
+   ```
+   /plugin marketplace list
+   ```
+3. Install the plugins:
+   ```
+   /plugin install personal-plugin@troys-plugins
+   /plugin install bpmn-plugin@troys-plugins
+   ```
+4. Verify plugins are installed:
+   ```
+   /plugin list
+   ```
+5. If issues persist, restart Claude Code to refresh the plugin registry.
 
 ---
 
