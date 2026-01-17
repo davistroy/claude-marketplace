@@ -1,6 +1,7 @@
-"""OpenAI GPT provider for deep research with web search."""
+"""OpenAI provider for deep research with web search."""
 
 import asyncio
+import os
 import time
 from typing import Any
 
@@ -10,10 +11,15 @@ from research_orchestrator.providers.base import BaseProvider
 
 
 class OpenAIProvider(BaseProvider):
-    """OpenAI GPT provider using deep research mode with web search."""
+    """OpenAI provider using o3 deep research model with web search."""
 
-    MODEL = "gpt-5.2-pro"
+    DEFAULT_MODEL = "o3-deep-research-2025-06-26"
     POLL_INTERVAL = 5.0  # seconds between status checks
+
+    @classmethod
+    def get_model(cls) -> str:
+        """Get model from environment or use default."""
+        return os.getenv("OPENAI_MODEL", cls.DEFAULT_MODEL)
 
     def __init__(self, config: ProviderConfig, depth: Depth) -> None:
         """Initialize the OpenAI provider."""
@@ -37,23 +43,32 @@ class OpenAIProvider(BaseProvider):
         return self._client
 
     async def execute(self, prompt: str) -> ProviderResult:
-        """Execute research using OpenAI deep research with web search.
+        """Execute research using OpenAI o3 deep research with web search.
 
         OpenAI deep research runs in background mode and requires polling.
+        Uses web_search_preview tool for comprehensive web research.
         """
         self._validate_api_key()
         start_time = time.time()
 
         try:
             client = self._get_client()
-            effort = self.depth.get_openai_effort()
+            reasoning_summary = self.depth.get_openai_reasoning_summary()
 
+            # Deep research requires structured input with roles
+            # and uses web_search_preview tool type
+            model = self.get_model()
             response = client.responses.create(
-                model=self.MODEL,
+                model=model,
                 background=True,
-                tools=[{"type": "web_search_20250305", "name": "web_search"}],
-                reasoning={"effort": effort},
-                input=prompt,
+                tools=[{"type": "web_search_preview"}],
+                reasoning={"summary": reasoning_summary},
+                input=[
+                    {
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": prompt}],
+                    }
+                ],
             )
 
             response_id = response.id
@@ -105,8 +120,8 @@ class OpenAIProvider(BaseProvider):
                         duration_seconds=time.time() - start_time,
                         tokens_used=getattr(response, "usage", {}).get("total_tokens"),
                         metadata={
-                            "model": self.MODEL,
-                            "effort": self.depth.get_openai_effort(),
+                            "model": self.get_model(),
+                            "reasoning_summary": self.depth.get_openai_reasoning_summary(),
                             "response_id": response_id,
                         },
                     )

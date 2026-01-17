@@ -1,10 +1,9 @@
-"""Google Gemini provider for deep research agent."""
+"""Google Gemini provider for deep research agent using google-genai SDK."""
 
 import asyncio
+import os
 import time
 from typing import Any
-
-import httpx
 
 from research_orchestrator.config import Depth, ProviderConfig
 from research_orchestrator.models import ProviderResult, ProviderStatus
@@ -12,56 +11,71 @@ from research_orchestrator.providers.base import BaseProvider
 
 
 class GoogleProvider(BaseProvider):
-    """Google Gemini provider using deep research agent."""
+    """Google Gemini provider using deep research agent via google-genai SDK."""
 
-    AGENT = "deep-research-pro-preview-12-2025"
-    BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+    DEFAULT_AGENT = "deep-research-pro-preview-12-2025"
     POLL_INTERVAL = 5.0  # seconds between status checks
+
+    @classmethod
+    def get_agent(cls) -> str:
+        """Get agent from environment or use default."""
+        return os.getenv("GEMINI_AGENT", cls.DEFAULT_AGENT)
 
     def __init__(self, config: ProviderConfig, depth: Depth) -> None:
         """Initialize the Google provider."""
         super().__init__(config, depth)
+        self._client: Any = None
 
     @property
     def name(self) -> str:
         """Get the provider name."""
         return "gemini"
 
+    def _get_client(self) -> Any:
+        """Get or create the Google GenAI client."""
+        if self._client is None:
+            try:
+                from google import genai
+
+                self._client = genai.Client(api_key=self.config.api_key)
+            except ImportError:
+                raise ImportError(
+                    "google-genai package required. Install with: pip install google-genai"
+                )
+        return self._client
+
     async def execute(self, prompt: str) -> ProviderResult:
         """Execute research using Gemini deep research agent.
 
         Gemini deep research runs in background mode and requires polling.
+        Uses the google-genai SDK for reliable API interaction.
         """
         self._validate_api_key()
         start_time = time.time()
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.BASE_URL}/interactions",
-                    headers={"x-goog-api-key": self.config.api_key},
-                    json={
-                        "input": prompt,
-                        "agent": self.AGENT,
-                        "background": True,
-                        "agent_config": {
-                            "type": "deep-research",
-                            "thinking_summaries": "auto",
-                            "thinking_level": self.depth.get_gemini_thinking_level(),
-                        },
-                    },
-                )
-                response.raise_for_status()
-                data = response.json()
+            client = self._get_client()
 
-                interaction_id = data.get("name") or data.get("id")
-                if not interaction_id:
-                    raise ValueError("No interaction ID in response")
+            # Create interaction with deep research agent in background mode
+            # The SDK handles the API endpoint and request formatting
+            agent = self.get_agent()
+            interaction = client.aio.interactions.create(
+                input=prompt,
+                agent=agent,
+                background=True,
+            )
 
-                result = await self._poll_for_completion(interaction_id, start_time)
-                return result
+            # Run the async create call
+            interaction_result = await interaction
 
-        except httpx.TimeoutException:
+            interaction_id = interaction_result.name or interaction_result.id
+            if not interaction_id:
+                raise ValueError("No interaction ID in response")
+
+            result = await self._poll_for_completion(client, interaction_id, start_time)
+            return result
+
+        except asyncio.TimeoutError:
             return ProviderResult(
                 provider=self.name,
                 status=ProviderStatus.TIMEOUT,
@@ -77,91 +91,119 @@ class GoogleProvider(BaseProvider):
             )
 
     async def _poll_for_completion(
-        self, interaction_id: str, start_time: float
+        self, client: Any, interaction_id: str, start_time: float
     ) -> ProviderResult:
         """Poll for background interaction completion."""
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            while True:
-                elapsed = time.time() - start_time
-                if elapsed > self.config.timeout_seconds:
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed > self.config.timeout_seconds:
+                return ProviderResult(
+                    provider=self.name,
+                    status=ProviderStatus.TIMEOUT,
+                    error=f"Request timed out after {self.config.timeout_seconds}s",
+                    duration_seconds=elapsed,
+                )
+
+            try:
+                # Use SDK to get interaction status
+                interaction = await client.aio.interactions.get(name=interaction_id)
+
+                # Check for completion
+                if getattr(interaction, "done", False):
+                    content = self._extract_content(interaction)
                     return ProviderResult(
                         provider=self.name,
-                        status=ProviderStatus.TIMEOUT,
-                        error=f"Request timed out after {self.config.timeout_seconds}s",
-                        duration_seconds=elapsed,
+                        status=ProviderStatus.SUCCESS,
+                        content=content,
+                        duration_seconds=time.time() - start_time,
+                        metadata={
+                            "agent": self.get_agent(),
+                            "interaction_id": interaction_id,
+                        },
                     )
 
-                try:
-                    response = await client.get(
-                        f"{self.BASE_URL}/{interaction_id}",
-                        headers={"x-goog-api-key": self.config.api_key},
+                status = getattr(interaction, "status", "").lower()
+                if status in ("completed", "done"):
+                    content = self._extract_content(interaction)
+                    return ProviderResult(
+                        provider=self.name,
+                        status=ProviderStatus.SUCCESS,
+                        content=content,
+                        duration_seconds=time.time() - start_time,
+                        metadata={
+                            "agent": self.get_agent(),
+                            "interaction_id": interaction_id,
+                        },
                     )
-                    response.raise_for_status()
-                    data = response.json()
-
-                    status = data.get("status", "").lower()
-
-                    if status == "completed" or data.get("done"):
-                        content = self._extract_content(data)
-                        return ProviderResult(
-                            provider=self.name,
-                            status=ProviderStatus.SUCCESS,
-                            content=content,
-                            duration_seconds=time.time() - start_time,
-                            metadata={
-                                "agent": self.AGENT,
-                                "thinking_level": self.depth.get_gemini_thinking_level(),
-                                "interaction_id": interaction_id,
-                            },
-                        )
-                    elif status in ("failed", "error"):
-                        error_msg = data.get("error", {}).get("message", "Unknown error")
-                        return ProviderResult(
-                            provider=self.name,
-                            status=ProviderStatus.FAILED,
-                            error=error_msg,
-                            duration_seconds=time.time() - start_time,
-                        )
-
-                    await asyncio.sleep(self.POLL_INTERVAL)
-
-                except httpx.HTTPStatusError as e:
+                elif status in ("failed", "error", "cancelled"):
+                    error_msg = getattr(interaction, "error", None)
+                    if error_msg and hasattr(error_msg, "message"):
+                        error_msg = error_msg.message
+                    else:
+                        error_msg = str(error_msg) if error_msg else "Unknown error"
                     return ProviderResult(
                         provider=self.name,
                         status=ProviderStatus.FAILED,
-                        error=f"HTTP error: {e.response.status_code}",
-                        duration_seconds=time.time() - start_time,
-                    )
-                except Exception as e:
-                    return ProviderResult(
-                        provider=self.name,
-                        status=ProviderStatus.FAILED,
-                        error=f"Polling error: {e}",
+                        error=error_msg,
                         duration_seconds=time.time() - start_time,
                     )
 
-    def _extract_content(self, data: dict[str, Any]) -> str:
+                await asyncio.sleep(self.POLL_INTERVAL)
+
+            except Exception as e:
+                return ProviderResult(
+                    provider=self.name,
+                    status=ProviderStatus.FAILED,
+                    error=f"Polling error: {e}",
+                    duration_seconds=time.time() - start_time,
+                )
+
+    def _extract_content(self, interaction: Any) -> str:
         """Extract content from completed interaction response."""
-        if "result" in data:
-            result = data["result"]
+        # Try various response formats the SDK might return
+        if hasattr(interaction, "result"):
+            result = interaction.result
             if isinstance(result, str):
                 return result
+            if hasattr(result, "text"):
+                return result.text
+            if hasattr(result, "content"):
+                return result.content
             if isinstance(result, dict):
                 if "text" in result:
                     return result["text"]
                 if "content" in result:
                     return result["content"]
 
-        if "response" in data:
-            response = data["response"]
+        if hasattr(interaction, "response"):
+            response = interaction.response
             if isinstance(response, str):
                 return response
-            if isinstance(response, dict):
-                candidates = response.get("candidates", [])
+            if hasattr(response, "text"):
+                return response.text
+            if hasattr(response, "candidates"):
+                candidates = response.candidates
                 if candidates:
-                    content = candidates[0].get("content", {})
-                    parts = content.get("parts", [])
-                    if parts:
-                        return "\n\n".join(p.get("text", "") for p in parts if "text" in p)
+                    candidate = candidates[0]
+                    if hasattr(candidate, "content"):
+                        content = candidate.content
+                        if hasattr(content, "parts"):
+                            parts = content.parts
+                            texts = []
+                            for part in parts:
+                                if hasattr(part, "text"):
+                                    texts.append(part.text)
+                            if texts:
+                                return "\n\n".join(texts)
 
-        return str(data)
+        # Fallback: try to get any text-like attribute
+        if hasattr(interaction, "text"):
+            return interaction.text
+        if hasattr(interaction, "output"):
+            output = interaction.output
+            if isinstance(output, str):
+                return output
+            if hasattr(output, "text"):
+                return output.text
+
+        return str(interaction)
