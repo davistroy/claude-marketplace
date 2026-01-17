@@ -428,11 +428,115 @@ Check that version strings follow semver patterns:
        Valid formats: >=1.0.0, ^1.0.0, ~1.0.0, 1.0.0
 ```
 
-### Phase 7: Pattern Compliance Checks
+### Phase 7: Hook Windows Compatibility
+
+Check if the plugin has hooks that may not work on Windows due to bash script dependencies.
+
+#### 7.1 Detect Hooks Configuration
+
+**Check for hooks in these locations:**
+- `plugins/[plugin-name]/hooks/hooks.json` (in marketplace)
+- `%USERPROFILE%\.claude\plugins\cache\*/[plugin-name]/*/hooks/hooks.json` (installed)
+
+**Report:**
+```
+Hook Detection
+--------------
+[PASS] No hooks.json found (plugin has no hooks)
+```
+
+Or if hooks exist:
+```
+[INFO] hooks.json found at plugins/[plugin-name]/hooks/hooks.json
+       Checking Windows compatibility...
+```
+
+#### 7.2 Analyze Hook Commands
+
+Parse hooks.json and identify hook commands that reference bash scripts:
+
+**Bash Script Indicators:**
+- Command starts with `bash ` or `sh `
+- Command contains `/bin/bash` or `/bin/sh`
+- Command references `.sh` file extension
+- Command uses `${CLAUDE_PLUGIN_ROOT}/hooks/*.sh`
+
+**Report for each hook event:**
+```
+Hook: Stop
+  Command: bash "${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.sh"
+  [WARN] Uses bash script - may fail on Windows
+```
+
+#### 7.3 Check for PowerShell Equivalents
+
+For each bash script found, check if a PowerShell equivalent exists:
+
+**Check:**
+- If `hooks/stop-hook.sh` exists, check for `hooks/stop-hook.ps1`
+- Verify hooks.json has Windows-compatible alternative configured
+
+**Report:**
+```
+PowerShell Equivalents
+----------------------
+[PASS] stop-hook.sh has PowerShell equivalent: stop-hook.ps1
+[FAIL] pre-tool-hook.sh missing PowerShell equivalent
+```
+
+#### 7.4 Windows Compatibility Summary
+
+**If bash-only hooks detected:**
+```
+Hook Windows Compatibility
+--------------------------
+[WARN] Plugin has hooks that may not work on Windows
+
+       Bash Scripts Without PowerShell Equivalents:
+         - hooks/stop-hook.sh
+         - hooks/pre-tool-hook.sh
+
+       To fix, run:
+         /convert-hooks [plugin-name]
+
+       This will:
+         1. Convert bash scripts to PowerShell
+         2. Update hooks.json to use PowerShell on Windows
+```
+
+**If all hooks are Windows-compatible:**
+```
+[PASS] All hooks have Windows-compatible configurations
+```
+
+**If no hooks exist:**
+```
+[PASS] Plugin has no hooks configured
+```
+
+#### 7.5 Hook Script Syntax Validation
+
+For any bash scripts found, perform basic syntax validation:
+
+**Check for common issues:**
+- Shebang line present (`#!/bin/bash` or `#!/usr/bin/env bash`)
+- No Windows-incompatible paths (hardcoded `/home/`, `/usr/`, etc.)
+- No missing closing brackets/braces
+
+**Report:**
+```
+Hook Script Validation
+----------------------
+[PASS] stop-hook.sh - Valid bash syntax
+[WARN] pre-tool-hook.sh - Missing shebang line
+[WARN] post-tool-hook.sh - Contains hardcoded Unix path: /usr/local/bin
+```
+
+### Phase 8: Pattern Compliance Checks
 
 Validate commands against the schema defined in `schemas/command.json` and pattern conventions.
 
-#### 7.1 Command Frontmatter Schema Validation
+#### 8.1 Command Frontmatter Schema Validation
 
 For each command markdown file, validate frontmatter against `schemas/command.json`:
 
@@ -451,7 +555,7 @@ Command Schema Validation
 [WARN] commands/my-command.md - description too short (8 chars, minimum 10)
 ```
 
-#### 7.2 Required Sections Check
+#### 8.2 Required Sections Check
 
 Verify each command contains required sections:
 
@@ -468,7 +572,7 @@ Required Sections Validation
 [WARN] commands/other.md - Missing section: Instructions
 ```
 
-#### 7.3 Output Naming Convention Compliance
+#### 8.3 Output Naming Convention Compliance
 
 Check that commands generating output follow the naming pattern:
 `[type]-[source]-[timestamp].[ext]`
@@ -486,7 +590,7 @@ Output Naming Compliance
        Expected: [type]-[source]-YYYYMMDD-HHMMSS.[ext]
 ```
 
-#### 7.4 Error Message Format Adherence
+#### 8.4 Error Message Format Adherence
 
 Check that commands document error handling following the standard format:
 
@@ -508,7 +612,7 @@ Error Format Compliance
 [WARN] commands/my-command.md - Non-standard error format at line 45
 ```
 
-#### 7.5 Flag Usage Consistency
+#### 8.5 Flag Usage Consistency
 
 Check that flags follow naming conventions:
 
@@ -536,7 +640,7 @@ Or:
        Consider using '--force' for similar behavior
 ```
 
-### Phase 8: Summary Report
+### Phase 9: Summary Report
 
 Generate a final validation summary.
 
@@ -552,6 +656,7 @@ Version Synchronization  [PASS]
 Content Validation       [WARN] (2 warnings)
 Namespace Collisions     [WARN] (1 collision)  # Only with --all
 Dependency Validation    [PASS]
+Hook Windows Compat      [PASS]  # Or [WARN] if bash-only hooks found
 Pattern Compliance       [PASS] (all commands checked)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
