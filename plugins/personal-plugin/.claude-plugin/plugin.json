@@ -1,7 +1,7 @@
 {
   "name": "personal-plugin",
-  "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, and document processing",
-  "version": "2.5.0",
+  "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
+  "version": "2.6.0",
   "author": {
     "name": "Troy Davis",
     "email": "troy.e.davis@gmail.com"
@@ -9,5 +9,12 @@
   "homepage": "https://github.com/davistroy/claude-marketplace",
   "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
-  "keywords": ["personal","automation"]
+  "keywords": ["personal", "automation", "research", "llm-orchestration"],
+  "tools": {
+    "research-orchestrator": {
+      "path": "tools/research-orchestrator",
+      "type": "python",
+      "install": "pip install tools/research-orchestrator"
+    }
+  }
 }

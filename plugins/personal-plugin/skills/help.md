@@ -56,6 +56,7 @@ SKILLS
 | Skill | Description |
 |-------|-------------|
 | /help | Show available commands and skills in this plugin with usage information |
+| /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
 
 ---
@@ -360,6 +361,19 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /research-topic
+**Description:** Orchestrate parallel deep research across multiple LLM providers and synthesize results
+**Arguments:** <research-request> [--sources <claude,openai,gemini>] [--depth <brief|standard|comprehensive>] [--format <md|docx|both>] [--no-clarify]
+**Output:** reports/research-[topic]-YYYYMMDD-HHMMSS.md and .docx
+**Example:**
+```
+/research-topic What are the best practices for implementing RAG systems?
+/research-topic --sources claude,openai --depth comprehensive "Compare transformer architectures"
+/research-topic --depth brief --no-clarify "Current state of quantum computing"
+```
+
+---
+
 #### /ship
 **Description:** Create branch, commit, push, open PR, auto-review, fix issues, and merge
 **Arguments:** [<branch-name>] [draft] [--dry-run] [--audit]
@@ -381,5 +395,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
-  /help, /ship
+  /help, /research-topic, /ship
 ```
