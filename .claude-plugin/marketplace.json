@@ -14,7 +14,7 @@
       "name": "personal-plugin",
       "source": "./plugins/personal-plugin",
       "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
-      "version": "3.0.0",
+      "version": "3.1.0",
       "category": "productivity",
       "tags": ["personal", "automation", "research", "llm-orchestration"]
     },
@@ -22,7 +22,7 @@
       "name": "bpmn-plugin",
       "source": "./plugins/bpmn-plugin",
       "description": "BPMN 2.0 workflow tools: XML generation from natural language/markdown, and conversion to Draw.io format. Includes bundled bpmn2drawio Python tool.",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "category": "workflow",
       "tags": ["bpmn","workflow","xml","diagram","process-modeling","drawio"]
     }
