@@ -258,14 +258,22 @@ Or:
       Missing required field: description
 ```
 
-#### 2.3 Forbidden Fields
+#### 2.3 Name Field Validation (Commands vs Skills)
 
-**Check:**
-- No `name` field present (per CLAUDE.md conventions)
+**CRITICAL:** Commands and skills have OPPOSITE requirements for the `name` field:
+
+| Component | `name` Field | Reason |
+|-----------|--------------|--------|
+| Commands | **FORBIDDEN** | Filename determines command name |
+| Skills | **REQUIRED** | Needed for skill registration and discovery |
+
+**For Commands (files in `commands/`):**
+
+Check that no `name` field is present.
 
 **Report:**
 ```
-[PASS] No forbidden 'name' field
+[PASS] commands/my-command.md - No forbidden 'name' field
 ```
 
 Or:
@@ -273,6 +281,35 @@ Or:
 [FAIL] commands/my-command.md
       Forbidden field 'name' found - filename determines command name
       Remove: name: my-command
+```
+
+**For Skills (files in `skills/*/SKILL.md`):**
+
+Check that `name` field IS present and matches the directory name.
+
+**Report:**
+```
+[PASS] skills/ship/SKILL.md - Required 'name' field present and matches directory
+```
+
+Or:
+```
+[FAIL] skills/ship/SKILL.md
+      Missing required 'name' field in skill frontmatter
+      Add: name: ship
+
+      Skills REQUIRE the 'name' field for Claude Code to discover them.
+      The name must match the skill's directory name.
+```
+
+Or if name doesn't match directory:
+```
+[FAIL] skills/ship/SKILL.md
+      'name' field doesn't match directory name
+      Frontmatter: name: shipper
+      Directory: ship
+
+      Fix: Change 'name' to match directory: name: ship
 ```
 
 #### 2.4 Optional Field Validation
@@ -768,7 +805,9 @@ When `--fix` is specified, attempt to fix simple issues:
 |-------|-----------------|
 | Missing frontmatter | Add template frontmatter |
 | Empty description | Prompt for description |
-| Forbidden name field | Remove the field |
+| Forbidden name field (commands) | Remove the field |
+| Missing name field (skills) | Add `name: [directory-name]` |
+| Name doesn't match directory (skills) | Update name to match directory |
 | Code block without language | Add `text` as default |
 | Invalid marketplace schema fields | Remove unrecognized fields (e.g., `last_updated`) |
 | Flat skill file (`skills/name.md`) | Create directory, move to `skills/name/SKILL.md` |
@@ -779,8 +818,9 @@ When `--fix` is specified, attempt to fix simple issues:
 Auto-Fix Applied:
   commands/my-command.md: Removed forbidden 'name' field
   commands/other.md: Added 'text' language to code block at line 23
+  skills/my-skill/SKILL.md: Added required 'name: my-skill' field
 
-2 issues fixed. Re-run validation to confirm.
+3 issues fixed. Re-run validation to confirm.
 ```
 
 ## Strict Mode (--strict)
@@ -1074,7 +1114,8 @@ Phase 2: Frontmatter Validation
 Checking 16 markdown files...
 [PASS] All frontmatter valid
 [PASS] All descriptions present
-[PASS] No forbidden 'name' fields
+[PASS] Commands: No forbidden 'name' fields
+[PASS] Skills: All have required 'name' field matching directory
 
 Phase 3: Version Synchronization
 --------------------------------

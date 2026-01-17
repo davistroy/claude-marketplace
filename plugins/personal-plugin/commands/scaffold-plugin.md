@@ -92,9 +92,12 @@ plugins/[plugin-name]/
     plugin.json           # Plugin metadata
   commands/               # User-initiated commands (empty initially)
   skills/
-    help.md               # Help skill (required)
+    help/                 # CRITICAL: Skills use NESTED directories
+      SKILL.md            # MUST be exactly SKILL.md (uppercase)
   references/             # Reference documentation (optional)
 ```
+
+**CRITICAL:** Skills require a nested directory structure with `SKILL.md` files (not flat `.md` files). This is different from commands which use flat files.
 
 **Steps:**
 
@@ -130,8 +133,11 @@ Generate `plugins/[plugin-name]/.claude-plugin/plugin.json`:
 
 Generate `plugins/[plugin-name]/skills/help/SKILL.md`:
 
+**CRITICAL:** Skills REQUIRE a `name` field in frontmatter. Without it, the skill will NOT be discovered.
+
 ```markdown
 ---
+name: help
 description: Show available commands and skills in this plugin with usage information
 ---
 
@@ -260,21 +266,26 @@ Updated:
 1. Add your first command:
    /new-command
 
-2. Or manually create commands in:
-   plugins/[plugin-name]/commands/
+2. Add skills (proactive suggestions):
+   /new-skill
 
-3. After adding commands, update documentation:
+3. Or manually create in:
+   - Commands: plugins/[plugin-name]/commands/
+   - Skills: plugins/[plugin-name]/skills/[name]/SKILL.md
+
+4. After adding commands/skills, update documentation:
    python scripts/generate-help.py plugins/[plugin-name]
 
-4. Update README.md with plugin information
+5. Update README.md with plugin information
 
-5. Add entry to CHANGELOG.md:
+6. Add entry to CHANGELOG.md:
    ### Added
    - New [plugin-name] plugin for [description]
 
 **Useful Commands:**
 - /validate-plugin [plugin-name]  - Validate plugin structure
 - /new-command                    - Create new commands
+- /new-skill                      - Create new skills
 - /help                           - View available commands
 ```
 
