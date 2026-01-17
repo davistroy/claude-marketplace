@@ -186,34 +186,48 @@ For a fast, conversational analysis:
 ### Deep Analysis Path
 
 For comprehensive analysis with actionable plan:
+
+```
+/plan-improvements
+    |
+    v
+/create-plan RECOMMENDATIONS.md
+    |
+    v
+/implement-plan
+```
+
+### Step-by-Step
+
+#### Step 1: Generate Recommendations
 ```
 /plan-improvements
 ```
 
-**Output:**
-- `RECOMMENDATIONS.md` - Categorized improvement recommendations
-- `IMPLEMENTATION_PLAN.md` - Phased action plan with work items
+**Output:** `RECOMMENDATIONS.md` - Categorized improvement recommendations with priorities and effort estimates.
 
-### Working Through the Plan
+#### Step 2: Create Implementation Plan
+```
+/create-plan RECOMMENDATIONS.md
+```
 
-After running `/plan-improvements`:
+**Output:** `IMPLEMENTATION_PLAN.md` - Phased action plan with work items, acceptance criteria, and checkboxes.
 
-1. **Review RECOMMENDATIONS.md** for context on each recommendation
-2. **Open IMPLEMENTATION_PLAN.md** to see phased work items
-3. **Work through phases sequentially**:
-   ```
-   Phase 1: Documentation & Quick Wins
-       Work Item 1.1 -> 1.2 -> 1.3 -> ...
-       |
-       v
-   Phase 2: Quality Foundation
-       Work Item 2.1 -> 2.2 -> ...
-       |
-       v
-   [Continue through all phases]
-   ```
-4. **Mark checkboxes** in IMPLEMENTATION_PLAN.md as you complete items
-5. **Run `/ship`** after completing each phase
+#### Step 3: Execute the Plan
+```
+/implement-plan
+```
+
+This command orchestrates subagents to work through the implementation plan phases, running tests and creating commits as work completes.
+
+#### Step 4: Cleanup
+
+After implementation is complete, delete the transient planning files:
+```
+rm RECOMMENDATIONS.md IMPLEMENTATION_PLAN.md
+```
+
+These are working documents, not permanent project artifacts.
 
 ---
 
