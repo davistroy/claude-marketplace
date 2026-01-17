@@ -283,6 +283,17 @@ git pull
 git branch -d $BRANCH_NAME 2>/dev/null || true
 ```
 
+Prune stale branches:
+```bash
+# Fetch and prune remote tracking branches that no longer exist on remote
+git remote prune origin
+
+# Find local branches where upstream is gone and delete them (merged only)
+git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -d 2>/dev/null
+```
+
+**Note:** Only fully merged branches are deleted (`-d` not `-D`). Unmerged branches with deleted remotes are preserved and reported as warnings.
+
 Display:
 ```
 Phase 9: Completion
@@ -298,6 +309,13 @@ Summary:
 Branches Cleaned:
   ✓ origin/[branch-name] (deleted)
   ✓ local/[branch-name] (deleted)
+
+Stale Branches Pruned:
+  ✓ [stale-branch-1] (remote gone, merged)
+  ✓ [stale-branch-2] (remote gone, merged)
+  [If no stale branches: "None found"]
+  [If unmerged branches with gone remotes exist:]
+  ⚠ [unmerged-branch] (remote gone, NOT deleted - has unmerged changes)
 
 PR URL: [url]
 ```
@@ -394,4 +412,4 @@ Branch: [branch-name] (preserved for manual work)
 | Step 5 | Create PR | PR opened |
 | Phase 7 | Auto-review PR | Issues identified |
 | Phase 8 | Fix loop (up to 5x) | Issues fixed or marked unfixable |
-| Phase 9 | Complete | Merged, or failure report |
+| Phase 9 | Complete | Merged, branches pruned, or failure report |
