@@ -1,5 +1,6 @@
 """Anthropic Claude provider for extended thinking research."""
 
+import os
 import time
 from typing import Any
 
@@ -11,7 +12,12 @@ from research_orchestrator.providers.base import BaseProvider
 class AnthropicProvider(BaseProvider):
     """Anthropic Claude provider using extended thinking."""
 
-    MODEL = "claude-opus-4-5-20251101"
+    DEFAULT_MODEL = "claude-opus-4-5-20251101"
+
+    @classmethod
+    def get_model(cls) -> str:
+        """Get model from environment or use default."""
+        return os.getenv("ANTHROPIC_MODEL", cls.DEFAULT_MODEL)
 
     def __init__(self, config: ProviderConfig, depth: Depth) -> None:
         """Initialize the Anthropic provider."""
@@ -47,9 +53,14 @@ class AnthropicProvider(BaseProvider):
             client = self._get_client()
             budget_tokens = self.depth.get_anthropic_budget()
 
+            # max_tokens MUST be greater than budget_tokens per API requirements
+            # Add buffer for the actual response text after thinking
+            max_tokens = budget_tokens + 16000
+
+            model = self.get_model()
             response = client.messages.create(
-                model=self.MODEL,
-                max_tokens=16000,
+                model=model,
+                max_tokens=max_tokens,
                 thinking={
                     "type": "enabled",
                     "budget_tokens": budget_tokens,
@@ -67,7 +78,7 @@ class AnthropicProvider(BaseProvider):
                 duration_seconds=duration,
                 tokens_used=response.usage.output_tokens if hasattr(response, "usage") else None,
                 metadata={
-                    "model": self.MODEL,
+                    "model": model,
                     "budget_tokens": budget_tokens,
                     "stop_reason": response.stop_reason if hasattr(response, "stop_reason") else None,
                 },

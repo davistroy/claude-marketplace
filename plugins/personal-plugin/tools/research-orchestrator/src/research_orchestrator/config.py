@@ -26,11 +26,23 @@ class Depth(Enum):
         }[self]
 
     def get_openai_effort(self) -> str:
-        """Get reasoning effort for OpenAI."""
+        """Get reasoning effort for OpenAI (legacy, kept for compatibility)."""
         return {
             Depth.BRIEF: "medium",
             Depth.STANDARD: "high",
             Depth.COMPREHENSIVE: "xhigh",
+        }[self]
+
+    def get_openai_reasoning_summary(self) -> str:
+        """Get reasoning summary level for OpenAI deep research.
+
+        'detailed' provides more thorough reasoning output.
+        'auto' lets the model decide the appropriate level.
+        """
+        return {
+            Depth.BRIEF: "auto",
+            Depth.STANDARD: "detailed",
+            Depth.COMPREHENSIVE: "detailed",
         }[self]
 
     def get_gemini_thinking_level(self) -> str:

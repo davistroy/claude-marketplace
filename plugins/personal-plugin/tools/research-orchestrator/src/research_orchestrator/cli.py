@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from research_orchestrator.config import Depth, ResearchConfig
+from research_orchestrator.model_discovery import ModelDiscovery
 from research_orchestrator.orchestrator import ResearchOrchestrator
 
 
@@ -66,6 +67,15 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     subparsers.add_parser("list-depths", help="List available depth levels")
+
+    check_models_parser = subparsers.add_parser(
+        "check-models", help="Check for newer model versions"
+    )
+    check_models_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON",
+    )
 
     return parser
 
@@ -201,6 +211,51 @@ def run_list_depths(_args: argparse.Namespace) -> int:
     return 0
 
 
+def run_check_models(args: argparse.Namespace) -> int:
+    """Check for newer model versions."""
+    discovery = ModelDiscovery()
+
+    # Get current models
+    current = discovery.get_current_models()
+
+    # Check for upgrades
+    recommendations = discovery.check_for_upgrades()
+
+    if args.json:
+        output = {
+            "current_models": current,
+            "upgrades_available": len(recommendations) > 0,
+            "recommendations": [
+                {
+                    "provider": rec.provider,
+                    "current_model": rec.current_model,
+                    "recommended_model": rec.recommended_model,
+                    "current_date": rec.current_date.isoformat() if rec.current_date else None,
+                    "recommended_date": rec.recommended_date.isoformat()
+                    if rec.recommended_date
+                    else None,
+                    "reason": rec.reason,
+                }
+                for rec in recommendations
+            ],
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        print("Model Version Check")
+        print("=" * 50)
+        print("\nCurrent Models:")
+        print(f"  Anthropic: {current['anthropic']}")
+        print(f"  OpenAI:    {current['openai']}")
+        print(f"  Gemini:    {current['google']}")
+
+        if recommendations:
+            print("\n" + discovery.format_upgrade_report(recommendations))
+        else:
+            print("\n✓ All models are up to date.")
+
+    return 0
+
+
 def main() -> None:
     """Main entry point."""
     parser = create_parser()
@@ -214,6 +269,7 @@ def main() -> None:
         "execute": run_execute,
         "check-providers": run_check_providers,
         "list-depths": run_list_depths,
+        "check-models": run_check_models,
     }
 
     handler = commands.get(args.command)

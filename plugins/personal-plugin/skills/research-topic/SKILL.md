@@ -20,9 +20,16 @@ You are orchestrating parallel deep research across three LLM providers (Anthrop
 
 **Environment Requirements:**
 API keys must be configured in environment variables:
-- `ANTHROPIC_API_KEY` - For Claude Opus 4.5
-- `OPENAI_API_KEY` - For GPT-5.2 Pro
-- `GOOGLE_API_KEY` - For Gemini 3 Pro Deep Research
+- `ANTHROPIC_API_KEY` - For Claude with Extended Thinking
+- `OPENAI_API_KEY` - For OpenAI Deep Research (o3)
+- `GOOGLE_API_KEY` - For Gemini Deep Research
+
+**Optional Model Configuration (in .env):**
+- `ANTHROPIC_MODEL` - Override Claude model (default: claude-opus-4-5-20251101)
+- `OPENAI_MODEL` - Override OpenAI model (default: o3-deep-research-2025-06-26)
+- `GEMINI_AGENT` - Override Gemini agent (default: deep-research-pro-preview-12-2025)
+- `CHECK_MODEL_UPDATES` - Check for newer models on startup (default: true)
+- `AUTO_UPGRADE_MODELS` - Auto-upgrade without prompting (default: false)
 
 **Validation:**
 Before proceeding, check and install dependencies as needed.
@@ -45,8 +52,7 @@ Check for required Python packages and install any that are missing:
 # Check which packages are missing
 python -c "import anthropic" 2>/dev/null || echo "anthropic: MISSING"
 python -c "import openai" 2>/dev/null || echo "openai: MISSING"
-python -c "import google.generativeai" 2>/dev/null || echo "google-generativeai: MISSING"
-python -c "import httpx" 2>/dev/null || echo "httpx: MISSING"
+python -c "from google import genai" 2>/dev/null || echo "google-genai: MISSING"
 python -c "import dotenv" 2>/dev/null || echo "python-dotenv: MISSING"
 python -c "import pydantic" 2>/dev/null || echo "pydantic: MISSING"
 python -c "import tenacity" 2>/dev/null || echo "tenacity: MISSING"
@@ -57,7 +63,7 @@ python -c "import tenacity" 2>/dev/null || echo "tenacity: MISSING"
 
 If user approves:
 ```bash
-pip install anthropic openai google-generativeai httpx python-dotenv pydantic tenacity
+pip install anthropic openai google-genai python-dotenv pydantic tenacity
 ```
 
 ### Step 3: Verify API Keys
@@ -73,6 +79,44 @@ The following API keys are required but not found:
 
 Configure these in your environment or .env file.
 See .env.example in the plugin directory for the required format.
+```
+
+### Step 4: Check Model Versions (if CHECK_MODEL_UPDATES=true)
+
+Check for newer model versions and offer upgrades:
+
+```bash
+# Set up tool path
+PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-/path/to/plugins/personal-plugin}"
+TOOL_SRC="$PLUGIN_DIR/tools/research-orchestrator/src"
+
+# Check for model upgrades
+PYTHONPATH="$TOOL_SRC" python -m research_orchestrator check-models
+```
+
+**If newer models are found:**
+```
+Model Version Check
+===================
+Current models:
+  Anthropic: claude-opus-4-5-20251101
+  OpenAI:    o3-deep-research-2025-06-26
+  Gemini:    deep-research-pro-preview-12-2025
+
+Upgrades Available:
+  ⬆ Anthropic: claude-opus-4-5-20260115 (2026-01-15)
+    Newer model available. Update ANTHROPIC_MODEL in .env to use.
+
+Would you like to:
+1. Continue with current models
+2. Update .env to use newer models (recommended)
+```
+
+**If AUTO_UPGRADE_MODELS=true:** Skip prompt and automatically use the newest available models for this session (does not modify .env).
+
+**If no upgrades available:**
+```
+✓ All models are up to date.
 ```
 
 ## Workflow
@@ -214,11 +258,13 @@ The tool handles:
 
 **Provider Configurations:**
 
-| Provider | Model | Endpoint | Mode |
-|----------|-------|----------|------|
+| Provider | Default Model | Endpoint | Mode |
+|----------|---------------|----------|------|
 | Anthropic | claude-opus-4-5-20251101 | /v1/messages | Synchronous (extended thinking) |
-| OpenAI | gpt-5.2-pro | /v1/responses | Async (background + web_search) |
+| OpenAI | o3-deep-research-2025-06-26 | /v1/responses | Async (background + web_search_preview) |
 | Google | deep-research-pro-preview-12-2025 | /v1beta/interactions | Async (deep-research agent) |
+
+**Note:** Models can be overridden via environment variables (`ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GEMINI_AGENT`).
 
 **Progress Display:**
 ```
@@ -332,9 +378,9 @@ Generate both formats (unless `--format` specifies otherwise):
 [Actionable next steps based on research]
 
 ## Sources & Attribution
-- **Claude (Opus 4.5):** Extended thinking analysis
-- **OpenAI (GPT-5.2):** Deep research with web search
-- **Gemini (3 Pro):** Deep research agent
+- **Claude:** Extended thinking analysis (model: [configured model])
+- **OpenAI:** o3 Deep research with web search (model: [configured model])
+- **Gemini:** Deep research agent (agent: [configured agent])
 
 ## Methodology Note
 This report synthesizes research from multiple AI providers to provide
@@ -404,9 +450,11 @@ Consider using `--sources` to select specific providers for cost management.
 ## Execution
 
 1. Parse arguments and validate API key availability
-2. Run clarification loop (unless --no-clarify)
-3. Confirm research brief with user
-4. Execute parallel research via research-orchestrator tool
-5. Synthesize results using consolidate-documents approach
-6. Generate output files in both formats
-7. Display completion summary with file locations
+2. Check for missing Python dependencies (install if needed)
+3. Check for model version upgrades (if CHECK_MODEL_UPDATES=true)
+4. Run clarification loop (unless --no-clarify)
+5. Confirm research brief with user
+6. Execute parallel research via research-orchestrator tool
+7. Synthesize results using consolidate-documents approach
+8. Generate output files in both formats
+9. Display completion summary with file locations
