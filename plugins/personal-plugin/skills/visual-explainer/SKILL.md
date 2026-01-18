@@ -47,9 +47,11 @@ The system automatically selects appropriate page types based on content:
 - Windows: Folder names are sanitized to remove invalid characters (`:`, `*`, `?`, `"`, `<`, `>`, `|`)
 - All platforms: Full Unicode support in Rich terminal UI
 
-**Tested Results (5 documents, 25 images):**
-- Average scores: 0.78-0.83 (all passing with threshold 0.75)
-- Generation time: 4-6 minutes per document
+**Tested Results (4 documents, 17 images):**
+- Formats tested: URL (Substack), Markdown, DOCX
+- Average scores: 0.76-0.88 (all passing with threshold 0.75)
+- Generation time: 5-10 minutes per document (~2 min/image including analysis)
+- Only 1 retry needed across 17 images (image scored 0.72 → refined to 0.82)
 - Recommended pass threshold: 0.75-0.85 for good quality without excessive refinement
 
 ## Input Validation
@@ -135,26 +137,20 @@ TOOL_SRC="$PLUGIN_DIR/tools/visual-explainer/src"
 
 **Step 2: Check Dependencies**
 
-Run the readiness check to verify dependencies and API keys:
+The tool automatically checks dependencies when run. You can also do a dry-run to verify setup:
 
 ```bash
-PYTHONPATH="$TOOL_SRC" python -m visual_explainer check-ready
+PYTHONPATH="$TOOL_SRC" python -m visual_explainer --dry-run --input "test content"
 ```
 
-This outputs JSON with status of:
-- Python packages (httpx, anthropic, python-dotenv, pydantic, aiofiles)
-- API keys (GOOGLE_API_KEY, ANTHROPIC_API_KEY)
-- Optional packages (python-docx, PyPDF2, beautifulsoup4)
+Required packages:
+- Core: `google-genai`, `anthropic`, `httpx`, `python-dotenv`, `pydantic`, `aiofiles`, `rich`, `pillow`
+- Optional (format-specific): `python-docx` (DOCX), `PyPDF2` (PDF), `beautifulsoup4` (URLs)
 
-**If packages are missing:**
-```
-Pre-Execution Check: FAILED
-
-Missing Python packages:
-  - httpx: Install with `pip install httpx`
-  - anthropic: Install with `pip install anthropic`
-
-Would you like me to install these packages now?
+**If packages are missing, install them:**
+```bash
+pip install google-genai anthropic httpx python-dotenv pydantic aiofiles rich pillow
+pip install python-docx PyPDF2 beautifulsoup4  # Optional, for specific formats
 ```
 
 ### Phase 2: API Key Setup (if needed)
