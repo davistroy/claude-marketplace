@@ -251,46 +251,50 @@ jobs:
               if not plugin_dir.is_dir():
                   continue
 
-              # Find help.md (could be in commands/ or skills/)
-              help_files = list(plugin_dir.glob('**/help.md'))
-              if not help_files:
-                  errors.append(f'{plugin_dir.name}: No help.md found')
+              # Find help SKILL.md at skills/help/SKILL.md (per nested directory structure)
+              help_skill = plugin_dir / 'skills' / 'help' / 'SKILL.md'
+              if not help_skill.exists():
+                  errors.append(f'{plugin_dir.name}: No skills/help/SKILL.md found')
                   continue
 
-              help_content = help_files[0].read_text(encoding='utf-8')
+              help_content = help_skill.read_text(encoding='utf-8')
 
-              # Get all commands and skills
+              # Get all commands (flat structure: commands/*.md)
               commands = []
-              skills = []
-
               cmd_dir = plugin_dir / 'commands'
               if cmd_dir.exists():
                   commands = [f.stem for f in cmd_dir.glob('*.md') if f.stem != 'help']
 
+              # Get all skills (nested structure: skills/*/SKILL.md)
+              skills = []
               skills_dir = plugin_dir / 'skills'
               if skills_dir.exists():
-                  skills = [f.stem for f in skills_dir.glob('*.md') if f.stem != 'help']
+                  for skill_subdir in skills_dir.iterdir():
+                      if skill_subdir.is_dir() and skill_subdir.name != 'help':
+                          skill_file = skill_subdir / 'SKILL.md'
+                          if skill_file.exists():
+                              skills.append(skill_subdir.name)
 
-              # Check if commands/skills are documented in help.md
+              # Check if commands/skills are documented in help SKILL.md
               all_items = commands + skills
               missing = []
 
               for item in all_items:
-                  # Check if the command/skill name appears in help.md
+                  # Check if the command/skill name appears in help
                   if f'/{item}' not in help_content and item not in help_content:
                       missing.append(item)
 
               if missing:
-                  errors.append(f'{plugin_dir.name}/help.md: Missing documentation for: {', '.join(missing)}')
+                  errors.append(f'{plugin_dir.name}/skills/help/SKILL.md: Missing documentation for: {\", \".join(missing)}')
               else:
-                  print(f'{plugin_dir.name}: help.md synchronized ({len(all_items)} items documented)')
+                  print(f'{plugin_dir.name}: help SKILL.md synchronized ({len(all_items)} items documented)')
 
           if errors:
               print('\nHelp.md synchronization errors:')
               for error in errors:
                   print(f'  - {error}')
-              print('\nRun /validate-plugin --fix to update help.md files')
+              print('\nRun /validate-plugin --fix to update help files')
               sys.exit(1)
           else:
-              print('\nAll help.md files are synchronized!')
+              print('\nAll help files are synchronized!')
           "
