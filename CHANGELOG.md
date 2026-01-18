@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.7.1] - 2026-01-18
+
+### Fixed
+- visual-explainer: Image resizing for Claude's 5MB API limit (uses 3.5MB raw limit to account for base64 encoding overhead)
+- visual-explainer: Windows path sanitization - removes invalid characters (`:`, `*`, `?`, `"`, `<`, `>`, `|`) from output folder names
+
+### Added
+- visual-explainer: google-genai and Pillow dependencies in pyproject.toml
+- visual-explainer: Technical notes section in SKILL.md with API details and tested results
+- visual-explainer: DOCX conversion tip and input format handling table in SKILL.md
+- visual-explainer: `--json` output mode for programmatic use
+- visual-explainer: Image size limit and Windows path troubleshooting sections in README.md
+
+### Changed
+- visual-explainer: Uses google-genai SDK with `gemini-3-pro-image-preview` model
+- visual-explainer: Default pass threshold recommendation: 0.75-0.85 for optimal quality/iteration balance
+
 ## [bpmn-plugin 2.2.0] - 2026-01-18
 
 ### Fixed

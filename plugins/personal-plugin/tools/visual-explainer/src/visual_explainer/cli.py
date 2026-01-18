@@ -22,6 +22,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -79,7 +80,12 @@ def get_console() -> Console:
     global _console
     if _console is None:
         if RICH_AVAILABLE:
-            _console = Console()
+            # Force UTF-8 and use new Windows terminal API to avoid cp1252 encoding issues
+            import sys
+            if sys.platform == "win32":
+                _console = Console(force_terminal=True, legacy_windows=False)
+            else:
+                _console = Console()
         else:
             raise RuntimeError("Rich library not available. Install with: pip install rich")
     return _console
@@ -262,7 +268,7 @@ def display_analysis_summary(analysis: "ConceptAnalysis") -> None:
                 # Find flow connection
                 for flow in analysis.logical_flow:
                     if flow.from_concept == concept.id:
-                        console.print(f"     [dim]   └─[{flow.relationship.value}]──>[/dim]")
+                        console.print(f"     [dim]   +-[{flow.relationship.value}]-->[/dim]")
                         break
 
     console.print()
@@ -731,7 +737,9 @@ async def run_generation_pipeline(
 
     # Step 7: Create output directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    topic_slug = analysis.title.lower().replace(" ", "-")[:30]
+    # Sanitize title for Windows path compatibility (remove :, *, ?, ", <, >, |)
+    sanitized_title = re.sub(r'[<>:"/\\|?*]', '', analysis.title)
+    topic_slug = sanitized_title.lower().replace(" ", "-")[:30]
     output_dir = config.output_dir / f"visual-explainer-{topic_slug}-{timestamp}"
     output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -5,7 +5,28 @@ description: Transform text or documents into AI-generated images that explain c
 
 # Visual Concept Explainer
 
-You are orchestrating a visual concept explanation workflow that transforms text or documents into AI-generated images. The tool uses Gemini Pro 3 for 4K image generation and Claude Sonnet Vision for quality evaluation with iterative refinement.
+You are orchestrating a visual concept explanation workflow that transforms text or documents into AI-generated images. The tool uses Gemini Pro 3 (via google-genai SDK) for 4K image generation and Claude Sonnet Vision for quality evaluation with iterative refinement.
+
+## Technical Notes
+
+**Image Generation:**
+- Uses `google-genai` SDK with model `gemini-3-pro-image-preview`
+- Configuration: `response_modalities=["IMAGE"]` with `ImageConfig` for aspect ratio/size
+- 4K images are approximately 6-7.5MB each (JPEG format)
+
+**Image Evaluation:**
+- Claude Vision API has 5MB limit for base64-encoded images
+- Tool automatically resizes images >3.5MB before evaluation (accounts for base64 overhead)
+- Uses PIL/Pillow for high-quality LANCZOS resampling
+
+**Platform Compatibility:**
+- Windows: Folder names are sanitized to remove invalid characters (`:`, `*`, `?`, `"`, `<`, `>`, `|`)
+- All platforms: Full Unicode support in Rich terminal UI
+
+**Tested Results (5 documents, 25 images):**
+- Average scores: 0.78-0.83 (all passing with threshold 0.75)
+- Generation time: 4-6 minutes per document
+- Recommended pass threshold: 0.75-0.85 for good quality without excessive refinement
 
 ## Input Validation
 
@@ -29,6 +50,32 @@ You are orchestrating a visual concept explanation workflow that transforms text
 | `--resume` | null | path | Resume from checkpoint file |
 | `--dry-run` | false | flag | Show plan without generating |
 | `--setup-keys` | false | flag | Force re-run API key setup |
+| `--json` | false | flag | Output results as JSON (for programmatic use) |
+
+**Input Format Handling:**
+
+| Format | Handling |
+|--------|----------|
+| `.md`, `.txt` | Direct text extraction |
+| `.docx` | Requires `python-docx` - extracts paragraphs preserving headings |
+| `.pdf` | Requires `PyPDF2` - extracts text content |
+| URL | Requires `beautifulsoup4` - fetches and extracts main content |
+| Web content | **Best practice**: Save as markdown first for reproducibility and future reference |
+
+**DOCX Conversion Tip:**
+For best results with DOCX files, pre-convert to markdown:
+```python
+from docx import Document
+doc = Document('document.docx')
+with open('document.md', 'w') as f:
+    for para in doc.paragraphs:
+        style = para.style.name if para.style else ''
+        if style.startswith('Heading'):
+            level = int(style[-1]) if style[-1].isdigit() else 1
+            f.write('#' * level + ' ' + para.text + '\n\n')
+        else:
+            f.write(para.text + '\n\n')
+```
 
 **Environment Requirements:**
 API keys must be configured in environment variables or `.env` file:
