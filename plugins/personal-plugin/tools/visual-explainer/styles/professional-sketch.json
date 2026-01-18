@@ -1,0 +1,275 @@
+{
+  "SchemaVersion": "1.2",
+  "StyleName": "Visual_Explainer_Professional_Sketch",
+  "StyleIntent": "Hand-rendered watercolor and graphite sketch style for concept explanations. Combines the warmth of traditional media with clear communication, creating approachable and memorable visual explanations.",
+  "BlendSources": {
+    "Original": "Pencil Watercolor Architectural Rendering (graphite/ink + watercolor on textured paper)",
+    "Adapted": "Visual concept explanation focus with hand-crafted aesthetic"
+  },
+
+  "ModelAndOutputProfiles": {
+    "TargetModelHint": "gemini-2.0-flash-exp",
+    "ResolutionProfiles": {
+      "Landscape4K": { "Width": 3200, "Height": 1800, "AspectRatio": "16:9", "UseCase": "Presentations, hero images, concept explanations" },
+      "SquareHQ": { "Width": 1800, "Height": 1800, "AspectRatio": "1:1", "UseCase": "Social media, icons, focused concepts" },
+      "Portrait4K": { "Width": 1800, "Height": 3200, "AspectRatio": "9:16", "UseCase": "Mobile displays, vertical infographics" }
+    }
+  },
+
+  "Medium": {
+    "PrimaryMedia": ["GraphitePencil", "InkLiner", "Watercolor"],
+    "Paper": {
+      "Type": "ColdPressWatercolorPaper",
+      "VisibleTexture": true,
+      "TextureIntensity": "Medium",
+      "WhitePaperUsedAsHighlights": true,
+      "CleanBoardPresentationFeel": true
+    }
+  },
+
+  "DesignPrinciples": {
+    "HandCraftedWarmth": "Traditional media feel creates approachable, memorable visuals",
+    "ClarityThroughSketch": "Sketchy style focuses attention on key concepts",
+    "AuthenticImperfection": "Human touch makes complex ideas feel accessible",
+    "SelectiveDetail": "Detailed where it matters, loose elsewhere",
+    "ConceptFocused": "Every mark serves the explanation"
+  },
+
+  "Linework": {
+    "ToolLook": "GraphiteAndFineLiner",
+    "DraftingInfluence": "CleanWithHumanHand",
+    "StrokeQuality": {
+      "Confidence": "High",
+      "Wobble": "LowToMedium",
+      "Sketchiness": "Medium",
+      "GestureLines": "Occasional"
+    },
+    "LineWeight": {
+      "Variation": "High",
+      "PrimaryEdges": "MediumToBold",
+      "SecondaryDetail": "Fine",
+      "ConstructionLines": "LightAndOccasionallyVisible"
+    },
+    "DetailStrategy": {
+      "Emphasis": "KeyConceptsFirst",
+      "InteriorDetail": "IndicatedNotOverworked",
+      "LooseContext": "SupportingElementsCanFadeOrStaySuggestive"
+    },
+    "MarkMaking": {
+      "Hatching": "Selective",
+      "CrossHatching": "RareToOccasional",
+      "BrokenLines": "Common",
+      "Overdraw": "OccasionalMicroOverrunsAtCorners"
+    }
+  },
+
+  "WatercolorBehavior": {
+    "Transparency": "High",
+    "Layering": "GlazesAndOverwashes",
+    "EdgeControl": {
+      "HardEdges": "KeyConceptsAndFocalElements",
+      "SoftEdges": "BackgroundAndSupportingAreas",
+      "BloomingBackruns": "OccasionalAndWelcome"
+    },
+    "PigmentEffects": {
+      "Granulation": "Medium",
+      "SpeckleAndSpatter": "Occasional",
+      "DryBrushTexture": "Occasional"
+    },
+    "WashCoverage": {
+      "NegativeSpace": "High",
+      "SelectiveColorBlocking": true,
+      "BackgroundFadeOut": "Common",
+      "AvoidFullBleed": true
+    }
+  },
+
+  "ColorSystem": {
+    "PaletteMode": "Flexible",
+    "Background": {
+      "Base": "#FFFFFF",
+      "Role": "Clean paper white; preserve as highlight and negative space",
+      "AllowSubtlePaperTone": true
+    },
+    "PrimaryInks": [
+      {
+        "Name": "Deep Indigo",
+        "Hex": "#1E3A5F",
+        "Role": "Structural outlines, strongest edges, key linework, shadow masses"
+      },
+      {
+        "Name": "Warm Brown",
+        "Hex": "#8B5A2B",
+        "Role": "Secondary ink tones, warm depth, organic elements"
+      }
+    ],
+    "SecondaryWashes": [
+      {
+        "Name": "Sky Blue",
+        "Hex": "#87CEEB",
+        "Role": "Cool accent wash; background suggestions, fresh energy"
+      },
+      {
+        "Name": "Warm Coral",
+        "Hex": "#FF6B6B",
+        "Role": "Warm accent wash; focal highlights, emphasis zones"
+      },
+      {
+        "Name": "Sage Green",
+        "Hex": "#9DC183",
+        "Role": "Natural accent; organic concepts, growth indicators"
+      },
+      {
+        "Name": "Neutral Gray",
+        "Hex": "#A0A0A0",
+        "Role": "Neutral blocks, shadows, supporting elements"
+      }
+    ],
+    "Highlights": [
+      {
+        "Name": "Paper White",
+        "Hex": "#FFFFFF",
+        "Role": "Primary highlight; preserved paper for light-catching areas"
+      }
+    ],
+    "ColorUsageRules": {
+      "DominantMood": "WarmHandRenderedWithFreshAccents",
+      "Saturation": {
+        "Base": "LowToMedium",
+        "Accents": "Medium",
+        "MaxAccentAreaPercent": 20
+      },
+      "ProhibitedHues": [
+        "Neon colors",
+        "Oversaturated digital colors",
+        "Harsh clashing combinations"
+      ],
+      "Notes": "Colors should feel like watercolor pigments, not digital fills. Maintain warmth and approachability."
+    }
+  },
+
+  "LightingAndAtmosphere": {
+    "LightingStyle": "NaturalSoftDaylight",
+    "Mood": ["Warm", "Approachable", "Thoughtful", "Inviting"],
+    "Shadows": {
+      "ShapeLanguage": "BroadSimplified",
+      "ColorFamily": "WarmGrayOrIndigo",
+      "CastShadowEdges": "ModeratelyHardNearObjectsSofteningOutward"
+    },
+    "Atmospherics": {
+      "AerialPerspective": "Medium",
+      "BackgroundDesaturation": "Common",
+      "SoftHaze": "Occasional"
+    }
+  },
+
+  "CompositionAndLayout": {
+    "LayoutPrinciples": {
+      "WhiteSpace": "Generous; paper breathing room",
+      "Balance": "Organic but intentional",
+      "Hierarchy": "Clear flow through concepts",
+      "FadeAndFocus": "Sharp focus on key concepts, soft edges elsewhere"
+    },
+    "Framing": {
+      "WhitespaceMargins": "OftenPresent",
+      "PresentationBoardFeel": true,
+      "VignetteFeel": "NaturalFromWashFalloff"
+    },
+    "FocalHierarchy": {
+      "Primary": "Main concept with crisp linework and color",
+      "Secondary": "Supporting concepts with medium detail",
+      "Tertiary": "Context and background with loose indication"
+    }
+  },
+
+  "TextStyle": {
+    "Purpose": "ConceptLabelsAndAnnotations",
+    "GlobalTextPolicy": {
+      "AllowedText": ["Labels", "Annotations", "ShortCaptions"],
+      "LegibilityRequirement": "PerfectlyLegibleCorrectSpellingNoGarbledCharacters",
+      "TextVolume": "Minimal to Moderate"
+    },
+    "LetteringLook": {
+      "Casing": "MixedCaseNatural",
+      "TypefaceFamily": "HandDraftedBlockSans",
+      "HandDraftedNotTyped": true,
+      "Geometry": {
+        "StrokeEnds": "SlightlyRounded",
+        "Corners": "HumanSoftening",
+        "Width": "ModerateToWide",
+        "Consistency": "HighButNotPerfect"
+      }
+    },
+    "StrokeAndTooling": {
+      "Medium": ["GraphitePencil", "FinelinerOptional"],
+      "StrokeWeight": {
+        "Default": "Medium",
+        "Variation": "LowToMedium"
+      },
+      "EdgeQuality": {
+        "Crispness": "MediumHigh",
+        "GraphiteGrainVisible": "YesAtCloseRange"
+      }
+    },
+    "TextColorRules": {
+      "Preferred": ["#1E3A5F", "#8B5A2B"],
+      "Fallback": ["#A0A0A0"],
+      "Avoid": ["PureDigitalBlack", "NeonColors"]
+    },
+    "DoNot": [
+      "Vector typography",
+      "Ornate serifs",
+      "Script calligraphy",
+      "3D bevel glow",
+      "Pseudotext or lorem ipsum"
+    ]
+  },
+
+  "SurfaceAndFinish": {
+    "OverallFinish": "HandRendered",
+    "KeepHumanArtifacts": true,
+    "ImperfectionsToKeep": [
+      "UnevenWashes",
+      "PaperGrain",
+      "SlightLineWobble",
+      "OccasionalPaintBleed",
+      "GranulationSpeckle",
+      "CornerOverruns"
+    ],
+    "Avoid": [
+      "PhotorealTextures",
+      "CGI3DRenderLook",
+      "PerfectVectorLines",
+      "UniformLineWeightEverywhere",
+      "PlasticMaterials",
+      "NoiseFreeAirbrushGradients"
+    ]
+  },
+
+  "StyleControls": {
+    "DetailLevel": "Medium",
+    "Expressiveness": "MediumHigh",
+    "Cleanliness": "Medium",
+    "EdgeDiscipline": "Selective",
+    "HandRenderedFeel": "High",
+    "PaletteFlexibility": "Medium",
+    "TextStrictness": "VeryHigh"
+  },
+
+  "PromptRecipe": {
+    "StylePrefix": "Hand-rendered watercolor and graphite sketch on clean white textured watercolor paper. Clean drafting influence with human hand. Preserve white space. Warm approachable feel for concept explanation.",
+    "CoreStylePrompt": "graphite pencil and fine ink linework, varied line weight, watercolor washes with translucency and granulation, selective detail on key concepts, soft atmospheric fades, broad simplified shadows, presentation-board composition, concept explanation illustration",
+    "ColorConstraintPrompt": "warm watercolor palette: Deep Indigo (#1E3A5F) ink for structure, Warm Brown (#8B5A2B) accents, Sky Blue (#87CEEB) cool washes, Warm Coral (#FF6B6B) focal accents sparingly, Sage Green (#9DC183) for organic elements, Neutral Gray (#A0A0A0) for shadows; colors should feel like watercolor pigments not digital fills",
+    "TextEnforcementPrompt": "Only minimal labels and annotations if needed. All text must be perfectly legible, correctly spelled, and grammatically correct. Use hand-drafted block lettering in Deep Indigo or Warm Brown.",
+    "NegativePrompt": "photorealistic, 3D render, CGI, vector illustration, perfectly clean uniform lines, flat cel shading, plastic look, heavy grunge, messy collage, watermark, signature, blurry text, garbled text, pseudotext, typos, nonsensical characters, neon colors, oversaturated digital colors",
+    "QualityChecklist": [
+      "Varied line weight: bold edges for key concepts, fine for details",
+      "Translucent watercolor with visible paper texture; not fully painted everywhere",
+      "Colors feel like natural pigments, not digital fills",
+      "Atmospheric fades and soft edges present; focal elements crisp",
+      "Text (if present) is minimal and perfectly legible",
+      "Warm, approachable, hand-crafted mood",
+      "Concept is clear and understandable despite sketchy style"
+    ]
+  }
+}
