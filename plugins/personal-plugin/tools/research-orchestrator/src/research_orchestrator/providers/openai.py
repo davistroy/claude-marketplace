@@ -51,28 +51,55 @@ class OpenAIProvider(BaseProvider):
         self._validate_api_key()
         start_time = time.time()
 
+        # Try with reasoning summary first, fall back without if org not verified
+        reasoning_summary = self.depth.get_openai_reasoning_summary()
+        result = await self._execute_with_reasoning(prompt, reasoning_summary, start_time)
+
+        # Check if we got the "organization must be verified" error
+        if (
+            result.status == ProviderStatus.FAILED
+            and result.error
+            and "organization must be verified" in result.error.lower()
+        ):
+            # Retry without reasoning summary
+            self._status_update("Retrying without reasoning summary (org not verified)...")
+            result = await self._execute_with_reasoning(prompt, None, start_time)
+            if result.status == ProviderStatus.SUCCESS and result.metadata:
+                result.metadata["reasoning_summary_fallback"] = True
+
+        return result
+
+    async def _execute_with_reasoning(
+        self, prompt: str, reasoning_summary: str | None, start_time: float
+    ) -> ProviderResult:
+        """Execute the actual API call with optional reasoning summary."""
         try:
             client = self._get_client()
-            reasoning_summary = self.depth.get_openai_reasoning_summary()
-
-            # Deep research requires structured input with roles
-            # and uses web_search_preview tool type
             model = self.get_model()
-            response = client.responses.create(
-                model=model,
-                background=True,
-                tools=[{"type": "web_search_preview"}],
-                reasoning={"summary": reasoning_summary},
-                input=[
+
+            # Build request parameters
+            request_params: dict[str, Any] = {
+                "model": model,
+                "background": True,
+                "tools": [{"type": "web_search_preview"}],
+                "input": [
                     {
                         "role": "user",
                         "content": [{"type": "input_text", "text": prompt}],
                     }
                 ],
-            )
+            }
+
+            # Only add reasoning if summary is specified
+            if reasoning_summary:
+                request_params["reasoning"] = {"summary": reasoning_summary}
+
+            response = client.responses.create(**request_params)
 
             response_id = response.id
-            result = await self._poll_for_completion(client, response_id, start_time)
+            result = await self._poll_for_completion(
+                client, response_id, start_time, reasoning_summary
+            )
             return result
 
         except Exception as e:
@@ -95,7 +122,7 @@ class OpenAIProvider(BaseProvider):
             )
 
     async def _poll_for_completion(
-        self, client: Any, response_id: str, start_time: float
+        self, client: Any, response_id: str, start_time: float, reasoning_summary: str | None
     ) -> ProviderResult:
         """Poll for background response completion."""
         while True:
@@ -121,7 +148,7 @@ class OpenAIProvider(BaseProvider):
                         tokens_used=getattr(response, "usage", {}).get("total_tokens"),
                         metadata={
                             "model": self.get_model(),
-                            "reasoning_summary": self.depth.get_openai_reasoning_summary(),
+                            "reasoning_summary": reasoning_summary or "disabled",
                             "response_id": response_id,
                         },
                     )

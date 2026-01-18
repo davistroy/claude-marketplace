@@ -162,7 +162,7 @@ def save_results(output, output_dir: str) -> None:
         filename = f"research-{result.provider}-{timestamp}.md"
         filepath = output_path / filename
 
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(f"# Research Results - {result.provider.upper()}\n\n")
             f.write(f"**Generated:** {datetime.now().isoformat()}\n")
             f.write(f"**Depth:** {output.depth}\n")
