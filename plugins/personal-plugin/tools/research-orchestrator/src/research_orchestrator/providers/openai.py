@@ -178,9 +178,12 @@ class OpenAIProvider(BaseProvider):
             if isinstance(response.output, list):
                 parts = []
                 for item in response.output:
-                    if hasattr(item, "content"):
-                        parts.append(item.content)
+                    if hasattr(item, "content") and item.content:
+                        parts.append(str(item.content))
+                    elif hasattr(item, "text") and item.text:
+                        parts.append(str(item.text))
                     elif isinstance(item, str):
                         parts.append(item)
-                return "\n\n".join(parts)
+                if parts:
+                    return "\n\n".join(parts)
         return str(response)
