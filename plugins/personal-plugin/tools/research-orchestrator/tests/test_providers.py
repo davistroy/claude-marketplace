@@ -72,8 +72,29 @@ def anthropic_provider(anthropic_config):
 # ============================================================================
 
 
+class MockResponseOutputText:
+    """Mock ResponseOutputText for OpenAI response content."""
+
+    def __init__(self, text: str = "Test research result"):
+        self.text = text
+        self.annotations = []
+        self.type = "output_text"
+
+
+class MockResponseOutputMessage:
+    """Mock ResponseOutputMessage for OpenAI response."""
+
+    def __init__(self, text: str = "Test research result"):
+        self.content = [MockResponseOutputText(text)]
+        self.id = "msg_123"
+        self.type = "message"
+
+
 class MockOpenAIResponse:
-    """Mock OpenAI response object."""
+    """Mock OpenAI response object.
+
+    Matches actual structure: output contains ResponseReasoningItem and ResponseOutputMessage.
+    """
 
     def __init__(
         self,
@@ -83,13 +104,14 @@ class MockOpenAIResponse:
     ):
         self.id = response_id
         self.status = status
-        self.output = output or [MockOutputItem()]
+        # Default output mimics real structure with ResponseOutputMessage containing content list
+        self.output = output if output is not None else [MockResponseOutputMessage()]
         self.usage = {"total_tokens": 1000}
         self.error = None
 
 
 class MockOutputItem:
-    """Mock output item for OpenAI response."""
+    """Mock output item for OpenAI response (legacy, kept for compatibility)."""
 
     def __init__(self, text: str = "Test research result", content: str | None = None):
         self.text = text
@@ -276,9 +298,12 @@ class TestOpenAIProvider:
         assert content == "Direct string output"
 
     def test_openai_extract_content_list(self, openai_provider):
-        """OA-010: Extract content from list output."""
+        """OA-010: Extract content from list output (ResponseOutputMessage structure)."""
         response = MockOpenAIResponse(
-            output=[MockOutputItem("Part 1"), MockOutputItem("Part 2")]
+            output=[
+                MockResponseOutputMessage("Part 1"),
+                MockResponseOutputMessage("Part 2"),
+            ]
         )
 
         content = openai_provider._extract_content(response)
