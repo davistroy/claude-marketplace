@@ -1,7 +1,7 @@
 {
   "name": "personal-plugin",
   "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "author": {
     "name": "Troy Davis",
     "email": "troy.e.davis@gmail.com"

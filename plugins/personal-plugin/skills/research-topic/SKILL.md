@@ -17,6 +17,7 @@ You are orchestrating parallel deep research across three LLM providers (Anthrop
 - `--depth <level>` - Research depth: `brief`, `standard`, `comprehensive` (default: standard)
 - `--format <type>` - Output format: `md`, `docx`, `both` (default: both)
 - `--no-clarify` - Skip clarification loop, use request as-is
+- `--no-audience` - Skip audience profile detection, use default profile
 
 **Environment Requirements:**
 API keys must be configured in environment variables:
@@ -114,6 +115,96 @@ Please describe your research question or topic. Include any relevant context
 about scope, audience, or specific aspects you want explored.
 ```
 
+### Phase 1.5: Audience Profile Detection
+
+**Purpose:** Tailor research output to the user's profile by detecting or collecting audience information.
+
+**Step 1: Search for Existing Profile**
+
+Search for an audience/user profile in CLAUDE.md files in this priority order:
+1. **Project:** `./CLAUDE.md` or `./.claude/CLAUDE.md`
+2. **Local:** `./.claude.local/CLAUDE.md`
+3. **Global:** `~/.claude/CLAUDE.md` (Windows: `%USERPROFILE%\.claude\CLAUDE.md`)
+
+Look for sections matching these patterns (case-insensitive):
+- `# Audience Profile` or `## Audience Profile`
+- `# User Profile` or `## User Profile`
+- `# Target Audience` or `## Target Audience`
+- `# Troy Davis — Audience Profile` (or similar name-prefixed headers)
+- `# Reader Profile` or `## Reader Profile`
+
+Extract the profile content (everything under the header until the next same-level or higher header).
+
+**Step 2A: If Profile Found**
+
+Display a concise summary and confirm:
+```
+Audience Profile Detected
+=========================
+Source: [path to CLAUDE.md where found]
+
+Summary:
+  - Role: [extracted role/title]
+  - Background: [key expertise areas]
+  - Preferences: [communication style preferences]
+
+Use this profile for research? (yes/modify)
+```
+
+If user says "modify":
+- Show the full profile text
+- Let user edit inline or provide replacement text
+- Use modified version for this session only (don't save changes)
+
+**Step 2B: If No Profile Found**
+
+Prompt user to provide audience context:
+```
+No audience profile found in CLAUDE.md files.
+
+For better-tailored research, describe your target audience:
+
+Example profile (modify as needed):
+─────────────────────────────────────
+Role: Senior technology executive (Director/VP level)
+Background: Enterprise software architecture, cloud infrastructure
+Expertise: AI/ML systems, digital transformation
+Preferences:
+  - Actionable insights over theoretical discussion
+  - Data-driven analysis with concrete examples
+  - Strategic framing with ROI considerations
+Technical depth: Comfortable with technical details but values strategic clarity
+─────────────────────────────────────
+
+Enter your audience profile (or press Enter to use the example above):
+```
+
+After user provides profile (or accepts default):
+```
+Would you like to save this profile to your global CLAUDE.md for future sessions?
+This will add an "Audience Profile" section to ~/.claude/CLAUDE.md
+
+(yes/no)
+```
+
+If "yes":
+- Read existing `~/.claude/CLAUDE.md` (create if doesn't exist)
+- Append the audience profile section:
+```markdown
+
+# Audience Profile
+
+[user's profile content]
+```
+
+**Step 3: Store for Session**
+
+Store the confirmed/provided audience profile for use in Phase 4 prompt construction.
+
+**Skip Conditions:**
+- If `--no-audience` flag is provided, skip this phase entirely and use the default profile
+- If user explicitly says "skip" or "none", use the default profile
+
 ### Phase 2: Clarification Loop (max 4 rounds)
 
 **REQUIRED:** Unless `--no-clarify` is specified, you MUST run the clarification loop before proceeding to research execution. Even if the request seems clear, ask at least one round of clarifying questions to ensure the research is properly scoped.
@@ -165,16 +256,160 @@ To ensure comprehensive research, I have a few clarifying questions:
    Would you like me to install these packages now?
    ```
 
-   **Example output if API keys missing:**
+   **If API keys are missing, provide detailed setup guidance:**
+
    ```
    Pre-Execution Check: FAILED
 
    Missing API keys for selected sources:
+     - ANTHROPIC_API_KEY (required for claude source)
      - OPENAI_API_KEY (required for openai source)
+     - GOOGLE_API_KEY (required for gemini source)
+   ```
 
-   Options:
-   1. Remove openai from sources and continue with claude, gemini
-   2. Set up the API key and retry
+   **Then offer to help set them up:**
+   ```
+   Would you like me to help you set up the missing API keys?
+   I can guide you through getting each key and create a .env file for you.
+
+   (yes/skip)
+   ```
+
+   **If user says "yes", walk through each missing key:**
+
+   ---
+
+   **For ANTHROPIC_API_KEY:**
+   ```
+   ┌─────────────────────────────────────────────────────────────┐
+   │  ANTHROPIC API KEY SETUP                                   │
+   ├─────────────────────────────────────────────────────────────┤
+   │                                                             │
+   │  1. Go to: https://console.anthropic.com/settings/keys    │
+   │                                                             │
+   │  2. Sign in or create an account                           │
+   │                                                             │
+   │  3. Click "Create Key"                                     │
+   │                                                             │
+   │  4. Name it something like "research-orchestrator"         │
+   │                                                             │
+   │  5. Copy the key (starts with "sk-ant-...")                │
+   │                                                             │
+   │  Note: You need credits or a paid plan. New accounts       │
+   │  typically get $5 free credits.                            │
+   │                                                             │
+   └─────────────────────────────────────────────────────────────┘
+
+   Paste your Anthropic API key (or 'skip' to skip this provider):
+   ```
+
+   ---
+
+   **For OPENAI_API_KEY:**
+   ```
+   ┌─────────────────────────────────────────────────────────────┐
+   │  OPENAI API KEY SETUP                                      │
+   ├─────────────────────────────────────────────────────────────┤
+   │                                                             │
+   │  1. Go to: https://platform.openai.com/api-keys           │
+   │                                                             │
+   │  2. Sign in or create an account                           │
+   │                                                             │
+   │  3. Click "Create new secret key"                          │
+   │                                                             │
+   │  4. Name it something like "research-orchestrator"         │
+   │                                                             │
+   │  5. Copy the key (starts with "sk-...")                    │
+   │                                                             │
+   │  Note: o3 deep research requires a paid account with       │
+   │  sufficient credits. Check your usage limits at:           │
+   │  https://platform.openai.com/settings/organization/limits │
+   │                                                             │
+   └─────────────────────────────────────────────────────────────┘
+
+   Paste your OpenAI API key (or 'skip' to skip this provider):
+   ```
+
+   ---
+
+   **For GOOGLE_API_KEY:**
+   ```
+   ┌─────────────────────────────────────────────────────────────┐
+   │  GOOGLE API KEY SETUP (for Gemini)                         │
+   ├─────────────────────────────────────────────────────────────┤
+   │                                                             │
+   │  1. Go to: https://aistudio.google.com/apikey             │
+   │                                                             │
+   │  2. Sign in with your Google account                       │
+   │                                                             │
+   │  3. Click "Create API key"                                 │
+   │                                                             │
+   │  4. Select or create a Google Cloud project                │
+   │                                                             │
+   │  5. Copy the key (starts with "AIza...")                   │
+   │                                                             │
+   │  Note: Gemini deep research is available on paid plans.    │
+   │  Free tier has limited access. Check pricing at:           │
+   │  https://ai.google.dev/pricing                             │
+   │                                                             │
+   └─────────────────────────────────────────────────────────────┘
+
+   Paste your Google API key (or 'skip' to skip this provider):
+   ```
+
+   ---
+
+   **After collecting keys, create/update the .env file:**
+
+   Check if `.env` exists in the current working directory:
+   - If exists: Read it and preserve existing values
+   - If not: Create new file
+
+   Write the collected keys to `.env`:
+   ```
+   # Research Orchestrator API Keys
+   # Generated by /research-topic skill
+
+   ANTHROPIC_API_KEY=sk-ant-xxxxx
+   OPENAI_API_KEY=sk-xxxxx
+   GOOGLE_API_KEY=AIzaxxxxx
+   ```
+
+   **Confirm success:**
+   ```
+   ✓ API keys saved to .env
+
+   Keys configured:
+     - ANTHROPIC_API_KEY: ✓ (sk-ant-...xxxx)
+     - OPENAI_API_KEY: ✓ (sk-...xxxx)
+     - GOOGLE_API_KEY: ✓ (AIza...xxxx)
+
+   Your .env file is ready. These keys will be used for all future research sessions.
+
+   Security reminder: Never commit .env to version control.
+   Add ".env" to your .gitignore if not already present.
+   ```
+
+   **If user skipped some providers:**
+   ```
+   ✓ API keys saved to .env
+
+   Keys configured:
+     - ANTHROPIC_API_KEY: ✓ (sk-ant-...xxxx)
+     - OPENAI_API_KEY: ✗ (skipped)
+     - GOOGLE_API_KEY: ✓ (AIza...xxxx)
+
+   Research will proceed with: claude, gemini
+   You can add the OpenAI key later by editing .env or running this skill again.
+   ```
+
+   **Also check .gitignore:**
+   If `.gitignore` exists and doesn't contain `.env`, warn:
+   ```
+   ⚠ Warning: .env is not in your .gitignore file.
+   Add it to prevent accidentally committing your API keys:
+
+     echo ".env" >> .gitignore
    ```
 
 2. **If `check-ready` passed:**
@@ -192,10 +427,15 @@ Research Brief
 ==============
 Topic: [refined topic statement]
 Scope: [defined boundaries]
-Audience: [target readers]
 Depth: [brief/standard/comprehensive]
 Sources: [claude, openai, gemini - as selected]
 Deliverable: [expected output structure]
+
+Target Audience:
+  Role: [from Phase 1.5 profile]
+  Background: [key expertise areas]
+  Preferences: [communication style]
+  Source: [CLAUDE.md path or "User-provided" or "Default"]
 
 Proceed with this research brief? (yes/revise)
 ```
@@ -206,8 +446,8 @@ Wait for user confirmation. If they request revisions, incorporate changes and r
 
 Execute research calls to selected LLM providers concurrently.
 
-**Default Audience Context:**
-Unless the user specifies otherwise, the default audience is a senior technology leader with the following profile:
+**Audience Context:**
+Use the audience profile collected in Phase 1.5. If Phase 1.5 was skipped (via `--no-audience` or user chose "skip"), use this default:
 - **Role:** Senior Director/VP-level technology executive
 - **Background:** Enterprise software architecture, AI/ML systems, cloud infrastructure
 - **Interests:** Emerging technology trends, practical implementation strategies, ROI-focused analysis
@@ -215,7 +455,7 @@ Unless the user specifies otherwise, the default audience is a senior technology
 - **Technical depth:** Comfortable with technical details but values strategic framing
 
 **Craft the Research Prompt:**
-Transform the refined brief into an effective research prompt that includes audience context:
+Transform the refined brief into an effective research prompt that includes the audience profile from Phase 1.5:
 ```
 Research Request: [topic]
 
@@ -224,14 +464,13 @@ Context:
 - Depth: [level]
 
 Target Audience Profile:
-The reader is a senior technology executive (Director/VP level) with deep experience
-in enterprise software architecture, AI/ML systems, and cloud infrastructure. They are
-evaluating emerging technologies for strategic decisions and prefer:
-- Actionable, implementation-focused insights
-- Data-driven analysis with concrete examples
-- Strategic framing with ROI considerations
-- Technical depth balanced with executive-level clarity
-[Include any additional audience context from user if provided]
+[INSERT AUDIENCE PROFILE FROM PHASE 1.5 HERE]
+
+The research should be tailored to this audience's:
+- Role and decision-making context
+- Technical background and expertise level
+- Preferred communication style and format
+- Key interests and evaluation criteria
 
 Please provide a comprehensive analysis covering:
 1. [Key aspect 1]
@@ -565,13 +804,14 @@ Follow these steps in order:
 2. **Background Check** - Start `check-ready` command in background (runs parallel to clarification)
 3. **Model Check** - Check for model version upgrades (optional, skip with --skip-model-check)
 4. **Intake** - Accept research request from user
-5. **Clarification** - Run clarification loop (REQUIRED unless --no-clarify) using AskUserQuestion tool
-6. **Pre-Execution Gate** - Check background check results, show PASSED/FAILED, resolve any issues
-7. **Confirmation** - Present research brief and wait for user approval
-8. **Tool Execution** - Run research-orchestrator tool (saves individual provider files to reports/)
-9. **Read Results** - Use Read tool to read each provider output file from reports/
-10. **Synthesize** - Merge provider outputs into unified report following the Report Structure template
-11. **Write Report** - Use Write tool to save synthesized report as `research-[topic-slug]-[timestamp].md`
-12. **DOCX Generation** - If format includes docx, run pandoc to convert markdown to Word
-13. **Bug Report** - Summarize any detected bugs/anomalies, show saved bug report locations
-14. **Summary** - Display completion summary with file locations and word count
+5. **Audience Profile** - Detect profile in CLAUDE.md files, confirm or collect (skip with --no-audience)
+6. **Clarification** - Run clarification loop (REQUIRED unless --no-clarify) using AskUserQuestion tool
+7. **Pre-Execution Gate** - Check background check results, show PASSED/FAILED, resolve any issues
+8. **Confirmation** - Present research brief (including audience summary) and wait for user approval
+9. **Tool Execution** - Run research-orchestrator tool with audience-tailored prompt (saves individual provider files to reports/)
+10. **Read Results** - Use Read tool to read each provider output file from reports/
+11. **Synthesize** - Merge provider outputs into unified report following the Report Structure template
+12. **Write Report** - Use Write tool to save synthesized report as `research-[topic-slug]-[timestamp].md`
+13. **DOCX Generation** - If format includes docx, run pandoc to convert markdown to Word
+14. **Bug Report** - Summarize any detected bugs/anomalies, show saved bug report locations
+15. **Summary** - Display completion summary with file locations and word count

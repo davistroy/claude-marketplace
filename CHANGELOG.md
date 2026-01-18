@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.5.0] - 2026-01-18
+
+### Added
+- `/research-topic` skill: Audience profile detection (Phase 1.5)
+  - Searches for existing profile in project, local, and global CLAUDE.md files
+  - Allows confirmation or modification of detected profile for each session
+  - Prompts for profile creation if none found, with template
+  - Offers to save user-provided profile to global CLAUDE.md
+- `/research-topic` skill: New `--no-audience` flag to skip profile detection
+- `/research-topic` skill: Interactive API key setup wizard
+  - Detailed instructions for obtaining keys from Anthropic, OpenAI, and Google
+  - Direct links to each provider's API key management page
+  - Collects keys interactively and creates/updates .env file
+  - Shows masked key confirmation after setup
+  - Warns if .env is not in .gitignore
+
+### Changed
+- `/research-topic` skill: Research prompts now include detected/collected audience profile
+- `/research-topic` skill: Research Brief now shows Target Audience section with profile summary
+- `/research-topic` skill: Execution Summary expanded from 14 to 15 steps
+
 ## [personal-plugin 3.4.0] - 2026-01-18
 
 ### Changed

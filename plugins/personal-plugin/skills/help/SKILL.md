@@ -397,13 +397,17 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /research-topic
 **Description:** Orchestrate parallel deep research across multiple LLM providers and synthesize results
-**Arguments:** <research-request> [--sources <claude,openai,gemini>] [--depth <brief|standard|comprehensive>] [--format <md|docx|both>] [--no-clarify]
+**Arguments:** <research-request> [--sources <claude,openai,gemini>] [--depth <brief|standard|comprehensive>] [--format <md|docx|both>] [--no-clarify] [--no-audience]
 **Output:** reports/research-[topic]-YYYYMMDD-HHMMSS.md and .docx
+**Features:**
+- Detects audience profile from CLAUDE.md files (project/local/global)
+- Interactive API key setup wizard if .env missing
+- Creates .env file with collected keys
 **Example:**
 ```
 /research-topic What are the best practices for implementing RAG systems?
 /research-topic --sources claude,openai --depth comprehensive "Compare transformer architectures"
-/research-topic --depth brief --no-clarify "Current state of quantum computing"
+/research-topic --depth brief --no-clarify --no-audience "Current state of quantum computing"
 ```
 
 ---
