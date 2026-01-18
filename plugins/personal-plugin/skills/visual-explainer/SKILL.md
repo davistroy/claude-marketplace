@@ -1,11 +1,35 @@
 ---
 name: visual-explainer
-description: Transform text or documents into AI-generated images that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation
+description: Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation
 ---
 
 # Visual Concept Explainer
 
-You are orchestrating a visual concept explanation workflow that transforms text or documents into AI-generated images. The tool uses Gemini Pro 3 (via google-genai SDK) for 4K image generation and Claude Sonnet Vision for quality evaluation with iterative refinement.
+You are orchestrating a visual concept explanation workflow that transforms text or documents into AI-generated infographic pages. The tool uses Gemini Pro 3 (via google-genai SDK) for 4K image generation and Claude Sonnet Vision for quality evaluation with iterative refinement.
+
+## Infographic Mode (Recommended)
+
+The `--infographic` flag enables information-dense infographic generation optimized for 11x17 inch printing at 4K resolution. This mode:
+
+- **Adaptive page count (1-6 pages)** based on document complexity, word count, and content types
+- **Zone-based layouts** with explicit text placement, typography specifications, and content zones
+- **8 page types**: Hero Summary, Problem Landscape, Framework Overview, Framework Deep-Dive, Comparison Matrix, Dimensions/Variations, Reference/Action, Data/Evidence
+- **Information density**: Each page can hold 800-2000 words of readable text plus diagrams, tables, and charts
+
+### Page Type Selection
+
+The system automatically selects appropriate page types based on content:
+
+| Content Pattern | Page Type | Purpose |
+|----------------|-----------|---------|
+| Executive summary needed | Hero Summary | One-page overview with key stats |
+| Challenges, pain points | Problem Landscape | Issues visualization with severity |
+| Multi-step processes | Framework Overview | Visual framework with connections |
+| Deep component analysis | Framework Deep-Dive | Detailed component exploration |
+| Multiple options to compare | Comparison Matrix | Side-by-side analysis table |
+| Variations, types, categories | Dimensions/Variations | Category breakdown visualization |
+| Statistics, research data | Data/Evidence | Charts and data visualization |
+| Action items, checklists | Reference/Action | Actionable takeaways and guides |
 
 ## Technical Notes
 
@@ -39,6 +63,7 @@ You are orchestrating a visual concept explanation workflow that transforms text
 **Optional Arguments:**
 | Parameter | Default | Options | Description |
 |-----------|---------|---------|-------------|
+| `--infographic` | false | flag | **Recommended.** Generate information-dense infographic pages (11x17 format) |
 | `--max-iterations` | 5 | 1-10 | Max refinement attempts per image |
 | `--aspect-ratio` | 16:9 | 16:9, 1:1, 4:3, 9:16, 3:4 | Image aspect ratio |
 | `--resolution` | high | low, medium, high | Image quality (high=4K/3200x1800) |
@@ -430,6 +455,16 @@ The checkpoint contains:
 
 ## Examples
 
+**Infographic mode (recommended for complex documents):**
+```
+/visual-explainer --input docs/architecture-overview.md --infographic
+```
+
+**Infographic with dry-run preview:**
+```
+/visual-explainer --input whitepaper.md --infographic --dry-run
+```
+
 **Basic usage (interactive):**
 ```
 /visual-explainer
@@ -445,9 +480,9 @@ The checkpoint contains:
 /visual-explainer --input concept.txt --style professional-sketch --max-iterations 3 --aspect-ratio 1:1
 ```
 
-**High quality, comprehensive:**
+**High quality infographic:**
 ```
-/visual-explainer --input whitepaper.md --resolution high --max-iterations 7 --pass-threshold 0.90
+/visual-explainer --input whitepaper.md --infographic --resolution high --max-iterations 7 --pass-threshold 0.90
 ```
 
 **Dry run (plan only):**

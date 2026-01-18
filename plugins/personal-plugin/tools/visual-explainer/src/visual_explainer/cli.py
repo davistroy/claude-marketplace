@@ -194,6 +194,11 @@ Examples:
 
     # Mode flags
     parser.add_argument(
+        "--infographic",
+        action="store_true",
+        help="Generate information-dense infographic pages (11x17 inch format)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show generation plan without actually generating images",
@@ -242,11 +247,12 @@ def display_welcome() -> None:
     console.print()
 
 
-def display_analysis_summary(analysis: "ConceptAnalysis") -> None:
+def display_analysis_summary(analysis: "ConceptAnalysis", infographic_mode: bool = False) -> None:
     """Display a summary of the concept analysis.
 
     Args:
         analysis: The ConceptAnalysis result.
+        infographic_mode: Whether infographic mode is active.
     """
     console = get_console()
 
@@ -257,19 +263,43 @@ def display_analysis_summary(analysis: "ConceptAnalysis") -> None:
 [bold white]Target Audience:[/bold white] {analysis.target_audience}
 [bold white]Recommended Images:[/bold white] {analysis.recommended_image_count}"""
 
+    # Add page recommendation info if in infographic mode
+    if infographic_mode and analysis.page_recommendation:
+        page_rec = analysis.page_recommendation
+        summary_text += f"\n[bold white]Infographic Pages:[/bold white] {page_rec.page_count} pages recommended"
+        if analysis.content_types_detected:
+            types_str = ", ".join(ct.value for ct in analysis.content_types_detected[:5])
+            summary_text += f"\n[bold white]Content Types:[/bold white] {types_str}"
+
     console.print(Panel(summary_text, title="[bold]Concept Analysis[/bold]", border_style="green"))
 
-    # Display concept flow
-    if analysis.concepts:
-        console.print("\n[bold white]Concept Flow:[/bold white]")
-        for i, concept in enumerate(analysis.concepts, 1):
-            console.print(f"  [cyan]{i}.[/cyan] {concept.name}")
-            if i < len(analysis.concepts) and analysis.logical_flow:
-                # Find flow connection
-                for flow in analysis.logical_flow:
-                    if flow.from_concept == concept.id:
-                        console.print(f"     [dim]   +-[{flow.relationship.value}]-->[/dim]")
-                        break
+    # Display page plan if infographic mode
+    if infographic_mode and analysis.page_recommendation:
+        page_rec = analysis.page_recommendation
+        console.print("\n[bold white]Infographic Page Plan:[/bold white]")
+        for page in page_rec.pages:
+            concepts_str = ", ".join(str(c) for c in page.concepts_covered)
+            console.print(f"  [cyan]Page {page.page_number}:[/cyan] {page.title}")
+            console.print(f"    [dim]Type: {page.page_type.value}[/dim]")
+            console.print(f"    [dim]Focus: {page.content_focus[:60]}...[/dim]" if len(page.content_focus) > 60 else f"    [dim]Focus: {page.content_focus}[/dim]")
+            console.print(f"    [dim]Concepts: [{concepts_str}][/dim]")
+
+        if page_rec.compression_warnings:
+            console.print("\n[yellow]Compression Warnings:[/yellow]")
+            for warning in page_rec.compression_warnings:
+                console.print(f"  [yellow]![/yellow] {warning}")
+    else:
+        # Display concept flow (original behavior)
+        if analysis.concepts:
+            console.print("\n[bold white]Concept Flow:[/bold white]")
+            for i, concept in enumerate(analysis.concepts, 1):
+                console.print(f"  [cyan]{i}.[/cyan] {concept.name}")
+                if i < len(analysis.concepts) and analysis.logical_flow:
+                    # Find flow connection
+                    for flow in analysis.logical_flow:
+                        if flow.from_concept == concept.id:
+                            console.print(f"     [dim]   +-[{flow.relationship.value}]-->[/dim]")
+                            break
 
     console.print()
 
@@ -656,6 +686,7 @@ async def run_generation_pipeline(
     style_name: str,
     quiet: bool = False,
     json_output: bool = False,
+    infographic_mode: bool = False,
 ) -> dict:
     """Run the full generation pipeline.
 
@@ -665,6 +696,7 @@ async def run_generation_pipeline(
         style_name: Style name to use.
         quiet: Suppress progress output.
         json_output: Return JSON-compatible dict.
+        infographic_mode: If True, generate information-dense infographics.
 
     Returns:
         Dictionary with generation results.
@@ -691,33 +723,44 @@ async def run_generation_pipeline(
 
     # Step 2: Analyze concepts
     if console:
-        console.print("[dim]Analyzing document concepts...[/dim]")
+        mode_text = "infographic pages" if infographic_mode else "concepts"
+        console.print(f"[dim]Analyzing document {mode_text}...[/dim]")
 
     analysis = await analyze_document(
         config.input_source,
         config,
         internal_config,
+        infographic_mode=infographic_mode,
     )
     total_api_calls += 1  # Claude analysis call
 
     # Display analysis summary
     if console:
-        display_analysis_summary(analysis)
+        display_analysis_summary(analysis, infographic_mode=infographic_mode)
 
     # Step 3: Confirm image count (interactive mode)
     image_count = config.image_count if config.image_count > 0 else analysis.recommended_image_count
 
     # Step 4: Generate prompts
     if console:
-        console.print("[dim]Generating image prompts...[/dim]")
+        prompt_type = "infographic page" if infographic_mode else "image"
+        console.print(f"[dim]Generating {prompt_type} prompts...[/dim]")
 
     prompt_generator = PromptGenerator(internal_config=internal_config)
-    prompts = prompt_generator.generate_prompts(analysis, style, config)
-    total_api_calls += 1  # Claude prompt generation call
 
-    # Adjust prompt count if needed
-    if len(prompts) > image_count:
-        prompts = prompts[:image_count]
+    if infographic_mode and analysis.page_recommendation:
+        # Use infographic-style prompt generation
+        prompts = prompt_generator.generate_infographic_prompts(analysis, style, config)
+        # Each page plan generates one prompt, so we count API calls per page
+        total_api_calls += len(analysis.page_recommendation.pages)
+    else:
+        # Use standard prompt generation
+        prompts = prompt_generator.generate_prompts(analysis, style, config)
+        total_api_calls += 1  # Claude prompt generation call
+
+        # Adjust prompt count if needed
+        if len(prompts) > image_count:
+            prompts = prompts[:image_count]
 
     # Step 5: Handle dry run
     if config.dry_run:
@@ -1105,6 +1148,7 @@ def main() -> int:
                 style_name=style_name,
                 quiet=args.quiet,
                 json_output=args.json,
+                infographic_mode=args.infographic,
             )
         )
 

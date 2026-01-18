@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.7.2] - 2026-01-18
+
+### Added
+- visual-explainer: **Infographic mode** (`--infographic` flag) for information-dense 11x17 inch page generation
+- visual-explainer: Adaptive page count (1-6 pages) based on document complexity, word count, and content types
+- visual-explainer: 8 page types: Hero Summary, Problem Landscape, Framework Overview, Framework Deep-Dive, Comparison Matrix, Dimensions/Variations, Reference/Action, Data/Evidence
+- visual-explainer: Zone-based layout system with explicit typography specifications (headline/subhead/body/caption)
+- visual-explainer: Page templates library with predefined layouts for each page type
+- visual-explainer: Content type detection (statistics, process, comparison, hierarchy, timeline, framework, narrative, list, matrix)
+
+### Changed
+- visual-explainer: Concept analyzer now produces page recommendations with zone assignments when in infographic mode
+- visual-explainer: Prompt generator creates information-dense prompts with explicit text specifications
+- visual-explainer: CLI displays page plan summary including page types, content focus, and compression warnings
+
 ## [personal-plugin 3.7.1] - 2026-01-18
 
 ### Fixed

@@ -33,7 +33,11 @@ from .models import (
     Complexity,
     Concept,
     ConceptAnalysis,
+    ContentType,
     LogicalFlowStep,
+    PagePlan,
+    PageRecommendation,
+    PageType,
     RelationshipType,
     VisualPotential,
 )
@@ -63,16 +67,10 @@ except ImportError:
     URL_AVAILABLE = False
 
 
-# Analysis prompt template based on Appendix A.1
-ANALYSIS_PROMPT_TEMPLATE = """You are an expert at analyzing documents and extracting the core concepts for visual explanation.
+# Analysis prompt template for infographic page planning
+ANALYSIS_PROMPT_TEMPLATE = """You are an expert at analyzing documents for conversion into information-dense infographic pages.
 
-Analyze the following text and identify:
-1. The main concepts/ideas presented
-2. How these concepts relate to each other
-3. The logical flow from one concept to the next
-4. Which concepts are foundational vs. derived
-
-Consider how these concepts could be visualized effectively. Focus on concepts that have strong visual potential.
+Your goal is to extract concepts AND plan how to present them across 1-6 infographic pages (11x17 inches, 4K resolution) that can hold substantial information including text, diagrams, tables, and data visualizations.
 
 ## Document
 
@@ -80,19 +78,54 @@ Consider how these concepts could be visualized effectively. Focus on concepts t
 
 ## Your Task
 
-Provide a structured analysis in JSON format with this exact structure:
+Analyze this document and provide a comprehensive plan for infographic pages.
+
+### Content Types to Identify
+
+Detect which content types are present:
+- **statistics**: Quantitative data, percentages, metrics, specific numbers
+- **process**: Sequential steps, workflows, procedures, methodologies
+- **comparison**: Side-by-side analysis, alternatives, trade-offs, vendor comparisons
+- **hierarchy**: Org structures, taxonomies, nested relationships, failure trees
+- **timeline**: Chronological sequences, milestones, phases, evolution
+- **framework**: Conceptual models, matrices, named methodologies
+- **narrative**: Explanatory text, context, stories
+- **list**: Parallel items, bullet points, enumerated content
+- **matrix**: Multi-dimensional comparisons, grids, decision tables
+
+### Page Types Available
+
+- **hero_summary**: Executive overview - the "one page" view with core thesis, key stats, framework preview
+- **problem_landscape**: Why this matters, failure modes, risks, current state analysis
+- **framework_overview**: High-level process or methodology visualization
+- **framework_deep_dive**: Detailed breakdown of specific stages with activities
+- **comparison_matrix**: Side-by-side vendor/option analysis
+- **dimensions_variations**: How framework adapts to different contexts/scales
+- **reference_action**: Checklists, decision trees, quick reference
+- **data_evidence**: Charts, statistics, research findings
+
+### Page Count Guidelines
+
+Determine page count based on:
+- Word count: <1000 = 1 page, 1000-2500 = 2-3 pages, 2500-5000 = 3-4 pages, 5000+ = 4-6 pages
+- Content type diversity: +1 page if 3+ distinct content types
+- Nested frameworks: +1 page if framework has 4+ stages needing deep-dive
+- Operational content: +1 page if requires checklists/decision trees
+- Comparison data: +1 page if 3+ options need comparison matrix
+
+### Response Format
 
 ```json
 {{
-  "title": "Document/Concept Title",
-  "summary": "One-paragraph summary of the content",
-  "target_audience": "Who this content is for (e.g., Technical professionals, General public, Students)",
+  "title": "Document Title",
+  "summary": "One-paragraph summary",
+  "target_audience": "Who this is for",
   "concepts": [
     {{
       "id": 1,
-      "name": "Core Concept Name",
-      "description": "What this concept means and why it matters",
-      "relationships": ["concept_id:2", "concept_id:3"],
+      "name": "Concept Name",
+      "description": "What this concept means",
+      "relationships": ["concept_id:2"],
       "complexity": "simple|moderate|complex",
       "visual_potential": "high|medium|low"
     }}
@@ -100,16 +133,43 @@ Provide a structured analysis in JSON format with this exact structure:
   "logical_flow": [
     {{"from": 1, "to": 2, "relationship": "leads_to|supports|contrasts|builds_on|depends_on|contains"}}
   ],
+  "content_types_detected": ["statistics", "process", "comparison"],
+  "page_recommendation": {{
+    "page_count": 3,
+    "rationale": "Why this page count is appropriate for the content",
+    "pages": [
+      {{
+        "page_number": 1,
+        "page_type": "hero_summary",
+        "title": "Page Title",
+        "content_focus": "What this page communicates",
+        "concepts_covered": [1, 2, 3],
+        "content_types_present": ["statistics", "framework"],
+        "zone_assignments": {{
+          "hero_stat": "The key statistic to feature prominently",
+          "main_framework": "Description of the main diagram/framework to show",
+          "detail_cards": "What goes in the detail cards section"
+        }},
+        "cross_references": ["See page 2 for details"]
+      }}
+    ],
+    "compression_warnings": ["Complex topic X may need more depth than one page allows"]
+  }},
   "recommended_image_count": 3,
-  "reasoning": "Why this number of images works best for visualizing these concepts"
+  "reasoning": "Explanation of page/image count"
 }}
 ```
 
-Guidelines for image count recommendation:
-- Simple content (<500 words, 1-2 concepts): 1 image
-- Moderate content (500-2000 words, 3-5 concepts): 2-3 images
-- Complex content (2000+ words, 6+ concepts): 4-6 images
-- Consider how concepts group together visually
+### Important Guidelines
+
+1. Each page should be meaningful standalone but also connect to the sequence
+2. Hero summary page (page 1) should give the "executive overview" - if someone only sees one page
+3. Assign content to zones based on the zone's content_guidance requirements
+4. Include specific content descriptions for zone_assignments, not just "the main content"
+5. Flag compression_warnings if important content might be over-compressed
+6. Process frameworks with 4+ stages need separate deep-dive pages
+7. Comparison matrices with 3+ vendors need dedicated comparison page
+8. Operational documents (meant to be used) need reference_action page
 
 Respond with ONLY valid JSON, no markdown code fences or additional text."""
 
@@ -470,6 +530,84 @@ def _parse_relationship_type(value: str) -> RelationshipType:
         return RelationshipType.LEADS_TO
 
 
+def _parse_content_type(value: str) -> ContentType | None:
+    """Parse content type string to enum."""
+    value = value.lower().strip()
+    try:
+        return ContentType(value)
+    except ValueError:
+        return None
+
+
+def _parse_page_type(value: str) -> PageType:
+    """Parse page type string to enum."""
+    value = value.lower().strip()
+    try:
+        return PageType(value)
+    except ValueError:
+        return PageType.HERO_SUMMARY
+
+
+def _parse_content_types_list(values: list[str]) -> list[ContentType]:
+    """Parse a list of content type strings to enums."""
+    result = []
+    for v in values:
+        ct = _parse_content_type(v)
+        if ct is not None:
+            result.append(ct)
+    return result
+
+
+def _parse_page_plan(data: dict[str, Any]) -> PagePlan:
+    """Parse page plan data into PagePlan model."""
+    return PagePlan(
+        page_number=max(1, data.get("page_number", 1)),
+        page_type=_parse_page_type(data.get("page_type", "hero_summary")),
+        title=data.get("title", "Untitled Page") or "Untitled Page",
+        content_focus=data.get("content_focus", "") or "",
+        concepts_covered=data.get("concepts_covered", []),
+        content_types_present=_parse_content_types_list(
+            data.get("content_types_present", [])
+        ),
+        zone_assignments=data.get("zone_assignments", {}),
+        cross_references=data.get("cross_references", []),
+    )
+
+
+def _parse_page_recommendation(data: dict[str, Any] | None) -> PageRecommendation | None:
+    """Parse page recommendation data into PageRecommendation model."""
+    if data is None:
+        return None
+
+    pages = []
+    for page_data in data.get("pages", []):
+        pages.append(_parse_page_plan(page_data))
+
+    # Ensure at least one page if page_count > 0
+    page_count = max(1, min(6, data.get("page_count", 1)))
+    if not pages:
+        # Create a default hero page
+        pages = [
+            PagePlan(
+                page_number=1,
+                page_type=PageType.HERO_SUMMARY,
+                title="Document Overview",
+                content_focus="Executive summary of the document",
+                concepts_covered=[],
+                content_types_present=[],
+                zone_assignments={},
+                cross_references=[],
+            )
+        ]
+
+    return PageRecommendation(
+        page_count=page_count,
+        rationale=data.get("rationale", "") or "",
+        pages=pages,
+        compression_warnings=data.get("compression_warnings", []),
+    )
+
+
 def _parse_analysis_json(data: dict[str, Any]) -> ConceptAnalysis:
     """Parse raw JSON data into ConceptAnalysis model.
 
@@ -537,14 +675,35 @@ def _parse_analysis_json(data: dict[str, Any]) -> ConceptAnalysis:
     title = data.get("title", "").strip() or "Untitled Document"
     summary = data.get("summary", "").strip() or "Content analysis summary not available."
 
+    # Parse content types detected
+    content_types_detected = _parse_content_types_list(
+        data.get("content_types_detected", [])
+    )
+
+    # Parse page recommendation
+    page_recommendation = _parse_page_recommendation(
+        data.get("page_recommendation")
+    )
+
+    # If no page recommendation, use recommended_image_count for backward compatibility
+    recommended_count = data.get("recommended_image_count", 1)
+    if page_recommendation is None and recommended_count > 0:
+        # Keep legacy behavior
+        pass
+    elif page_recommendation is not None:
+        # Use page count from recommendation
+        recommended_count = page_recommendation.page_count
+
     return ConceptAnalysis(
         title=title,
         summary=summary,
         target_audience=data.get("target_audience", "General audience") or "General audience",
         concepts=concepts,
         logical_flow=logical_flow,
-        recommended_image_count=max(1, min(20, data.get("recommended_image_count", 1))),
+        content_types_detected=content_types_detected,
+        recommended_image_count=max(1, min(20, recommended_count)),
         reasoning=data.get("reasoning", ""),
+        page_recommendation=page_recommendation,
         content_hash=data.get("content_hash", ""),
         word_count=max(0, data.get("word_count", 0)),
     )
@@ -593,12 +752,14 @@ def _extract_json_from_response(text: str) -> dict[str, Any]:
 async def call_claude_for_analysis(
     content: str,
     internal_config: InternalConfig,
+    infographic_mode: bool = True,
 ) -> dict[str, Any]:
     """Call Claude API to analyze content and extract concepts.
 
     Args:
         content: The document text to analyze.
         internal_config: Internal configuration with model settings.
+        infographic_mode: If True, use infographic-focused analysis (default).
 
     Returns:
         Parsed JSON response from Claude.
@@ -638,6 +799,7 @@ async def analyze_document(
     input_source: str,
     config: GenerationConfig,
     internal_config: InternalConfig | None = None,
+    infographic_mode: bool = True,
 ) -> ConceptAnalysis:
     """Analyze a document and extract concepts for visual explanation.
 
@@ -654,9 +816,11 @@ async def analyze_document(
         input_source: Raw text, file path, or URL to analyze.
         config: User configuration (includes no_cache flag).
         internal_config: Internal config (defaults loaded if None).
+        infographic_mode: If True, analyze for infographic page layout (default).
 
     Returns:
         ConceptAnalysis with extracted concepts and flow.
+        When infographic_mode=True, includes page_recommendation.
 
     Raises:
         ValueError: If input is invalid or analysis fails.
@@ -686,7 +850,7 @@ async def analyze_document(
             return cached
 
     # Call Claude for analysis
-    raw_analysis = await call_claude_for_analysis(content, internal_config)
+    raw_analysis = await call_claude_for_analysis(content, internal_config, infographic_mode)
 
     # Add metadata
     raw_analysis["content_hash"] = content_hash
@@ -706,6 +870,7 @@ def analyze_document_sync(
     input_source: str,
     config: GenerationConfig,
     internal_config: InternalConfig | None = None,
+    infographic_mode: bool = True,
 ) -> ConceptAnalysis:
     """Synchronous wrapper for analyze_document.
 
@@ -713,10 +878,11 @@ def analyze_document_sync(
         input_source: Raw text, file path, or URL to analyze.
         config: User configuration.
         internal_config: Internal config (defaults loaded if None).
+        infographic_mode: If True, analyze for infographic page layout (default).
 
     Returns:
         ConceptAnalysis with extracted concepts and flow.
     """
     import asyncio
 
-    return asyncio.run(analyze_document(input_source, config, internal_config))
+    return asyncio.run(analyze_document(input_source, config, internal_config, infographic_mode))

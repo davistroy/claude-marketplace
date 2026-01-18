@@ -14,7 +14,7 @@
       "name": "personal-plugin",
       "source": "./plugins/personal-plugin",
       "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
-      "version": "3.7.1",
+      "version": "3.7.2",
       "category": "productivity",
       "tags": ["personal", "automation", "research", "llm-orchestration"]
     },

@@ -86,6 +86,145 @@ class EvaluationVerdict(str, Enum):
 
 
 # =============================================================================
+# Content Type and Page Planning Models (Infographic Generation)
+# =============================================================================
+
+
+class ContentType(str, Enum):
+    """Types of content that require different visual treatments."""
+
+    STATISTICS = "statistics"  # Quantitative data, percentages, metrics
+    PROCESS = "process"  # Sequential steps, workflows, procedures
+    COMPARISON = "comparison"  # Side-by-side analysis, alternatives, trade-offs
+    HIERARCHY = "hierarchy"  # Org structures, taxonomies, nested relationships
+    TIMELINE = "timeline"  # Chronological sequences, milestones, phases
+    FRAMEWORK = "framework"  # Conceptual models, matrices, named methodologies
+    NARRATIVE = "narrative"  # Explanatory text, stories, context
+    LIST = "list"  # Parallel items, bullet points, enumerated content
+    MATRIX = "matrix"  # Multi-dimensional comparisons, grids
+
+
+class PageType(str, Enum):
+    """Types of infographic pages, each with specific layout and purpose."""
+
+    HERO_SUMMARY = "hero_summary"  # Executive overview - the "one page" view
+    PROBLEM_LANDSCAPE = "problem_landscape"  # Why this matters, failure modes, risks
+    FRAMEWORK_OVERVIEW = "framework_overview"  # High-level process/methodology view
+    FRAMEWORK_DEEP_DIVE = "framework_deep_dive"  # Detailed breakdown of stages
+    COMPARISON_MATRIX = "comparison_matrix"  # Side-by-side vendor/option analysis
+    DIMENSIONS_VARIATIONS = "dimensions_variations"  # How framework adapts to contexts
+    REFERENCE_ACTION = "reference_action"  # Checklists, decision trees, quick reference
+    DATA_EVIDENCE = "data_evidence"  # Charts, statistics, research findings
+
+
+class ContentZone(BaseModel):
+    """A content zone within a page layout.
+
+    Each page is divided into zones that hold different types of content.
+    Zones are specified as percentages of the page area.
+
+    Attributes:
+        name: Identifier for this zone (e.g., "hero_stat", "main_diagram").
+        position: Position descriptor (e.g., "top_left", "center", "right_rail").
+        width_percent: Width as percentage of page (5-100).
+        height_percent: Height as percentage of page (5-100).
+        content_type: Primary content type for this zone.
+        content_guidance: Specific guidance for what goes in this zone.
+        typography_scale: Relative text size ("headline", "subhead", "body", "caption").
+    """
+
+    name: str = Field(description="Zone identifier")
+    position: str = Field(description="Position descriptor")
+    width_percent: int = Field(ge=5, le=100, description="Width as percentage")
+    height_percent: int = Field(ge=5, le=100, description="Height as percentage")
+    content_type: ContentType = Field(description="Primary content type")
+    content_guidance: str = Field(description="What goes in this zone")
+    typography_scale: Literal["headline", "subhead", "body", "caption"] = Field(
+        default="body",
+        description="Relative text size for this zone",
+    )
+
+
+class PageLayout(BaseModel):
+    """Layout template for a specific page type.
+
+    Defines the structure of zones and their arrangement for
+    generating information-dense infographic pages.
+
+    Attributes:
+        page_type: Type of page this layout is for.
+        description: What this layout is designed for.
+        zones: List of content zones that make up the page.
+        design_notes: Additional design guidance for this layout.
+    """
+
+    page_type: PageType = Field(description="Page type this layout serves")
+    description: str = Field(description="Purpose of this layout")
+    zones: list[ContentZone] = Field(description="Content zones in this layout")
+    design_notes: str = Field(default="", description="Additional design guidance")
+
+
+class PagePlan(BaseModel):
+    """Plan for a single infographic page.
+
+    Maps content from the document to a specific page layout.
+
+    Attributes:
+        page_number: Position in the page sequence (1-indexed).
+        page_type: Type of page layout to use.
+        title: Title for this page.
+        content_focus: What this page should communicate.
+        concepts_covered: Which concept IDs this page addresses.
+        content_types_present: What types of content appear on this page.
+        zone_assignments: Mapping of zone names to content descriptions.
+        cross_references: References to other pages for navigation.
+    """
+
+    page_number: int = Field(ge=1, description="Position in sequence")
+    page_type: PageType = Field(description="Layout type to use")
+    title: str = Field(description="Page title")
+    content_focus: str = Field(description="Primary message of this page")
+    concepts_covered: list[int] = Field(
+        default_factory=list,
+        description="Concept IDs addressed",
+    )
+    content_types_present: list[ContentType] = Field(
+        default_factory=list,
+        description="Content types on this page",
+    )
+    zone_assignments: dict[str, str] = Field(
+        default_factory=dict,
+        description="Zone name -> content description",
+    )
+    cross_references: list[str] = Field(
+        default_factory=list,
+        description="References to other pages",
+    )
+
+
+class PageRecommendation(BaseModel):
+    """Recommendation for page count and structure.
+
+    Output from the analysis phase that determines how many pages
+    are needed and what type each should be.
+
+    Attributes:
+        page_count: Recommended number of pages (1-6).
+        rationale: Explanation for the recommendation.
+        pages: Planned page structures.
+        compression_warnings: Alerts about content that may be compressed.
+    """
+
+    page_count: int = Field(ge=1, le=6, description="Recommended page count")
+    rationale: str = Field(description="Why this page count is appropriate")
+    pages: list[PagePlan] = Field(description="Plan for each page")
+    compression_warnings: list[str] = Field(
+        default_factory=list,
+        description="Content that may be over-compressed",
+    )
+
+
+# =============================================================================
 # Concept Analysis Models (Phase 2 - Document Analysis)
 # =============================================================================
 
@@ -162,8 +301,10 @@ class ConceptAnalysis(BaseModel):
         target_audience: Who this content is intended for.
         concepts: List of extracted concepts.
         logical_flow: Relationships between concepts in order.
-        recommended_image_count: Suggested number of images (1-20).
+        content_types_detected: Types of content found in the document.
+        recommended_image_count: Suggested number of images (1-20) - legacy field.
         reasoning: Explanation for the recommendation.
+        page_recommendation: Structured page planning recommendation.
         content_hash: SHA-256 hash of source content for caching.
         word_count: Word count of the analyzed document.
     """
@@ -183,15 +324,23 @@ class ConceptAnalysis(BaseModel):
         default_factory=list,
         description="Flow between concepts",
     )
+    content_types_detected: list[ContentType] = Field(
+        default_factory=list,
+        description="Types of content found in document",
+    )
     recommended_image_count: int = Field(
         default=1,
         ge=1,
         le=20,
-        description="Recommended number of images",
+        description="Recommended number of images (legacy, use page_recommendation)",
     )
     reasoning: str = Field(
         default="",
         description="Explanation for image count recommendation",
+    )
+    page_recommendation: PageRecommendation | None = Field(
+        default=None,
+        description="Structured page planning recommendation",
     )
     content_hash: str = Field(
         default="",
