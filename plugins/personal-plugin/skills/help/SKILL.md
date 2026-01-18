@@ -62,6 +62,7 @@ SKILLS
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
 | /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
+| /visual-explainer | Transform text or documents into AI-generated images that explain concepts visually |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
@@ -441,6 +442,26 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /visual-explainer
+**Description:** Transform text or documents into AI-generated images that explain concepts visually
+**Arguments:** <input> [--style <name>] [--output-dir <path>] [--max-iterations <n>] [--pass-threshold <0-1>] [--image-count <n>] [--aspect-ratio <ratio>] [--resolution <level>] [--no-cache] [--dry-run] [--resume <checkpoint>] [--setup-keys]
+**Output:** visual-explainer-[topic]-[timestamp]/ directory with images, metadata, and summary
+**Features:**
+- Uses Gemini Pro 3 for 4K image generation
+- Claude Sonnet Vision for quality evaluation
+- Iterative refinement with escalating strategies
+- Checkpoint/resume for long-running generations
+- Interactive mode for style and image count selection
+**Example:**
+```
+/visual-explainer "How does photosynthesis work?"
+/visual-explainer architecture.md --style professional-sketch --image-count 5
+/visual-explainer --resume checkpoint.json
+/visual-explainer --dry-run "Explain microservices patterns"
+```
+
+---
+
 ## Error Handling
 
 If the requested command is not found:
@@ -451,5 +472,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
-  /help, /research-topic, /ship, /validate-and-ship
+  /help, /research-topic, /ship, /validate-and-ship, /visual-explainer
 ```
