@@ -201,7 +201,19 @@ class BPMNParser:
                 continue
             tag = self._local_name(child.tag)
 
-            if tag in ALL_ELEMENT_TYPES:
+            # Handle subProcess FIRST (before generic ALL_ELEMENT_TYPES check)
+            # because subProcess is in TASK_TYPES but needs special handling
+            if tag == "subProcess":
+                # Parse subprocess as element
+                element = self._parse_element(child, tag)
+                element.properties["_is_subprocess"] = True  # Mark as subprocess container
+                if process_id:
+                    element.properties["_process_id"] = process_id
+                model.elements.append(element)
+                # Parse subprocess contents with parent relationship
+                self._parse_subprocess_contents(child, model, element.id, process_id)
+
+            elif tag in ALL_ELEMENT_TYPES:
                 element = self._parse_element(child, tag)
                 # Track which process this element came from
                 if process_id:
@@ -214,17 +226,7 @@ class BPMNParser:
                     model.flows.append(flow)
 
             elif tag == "laneSet":
-                self._parse_lane_set(child, model)
-
-            elif tag == "subProcess":
-                # Parse subprocess as element
-                element = self._parse_element(child, tag)
-                element.properties["_is_subprocess"] = True  # Mark as subprocess container
-                if process_id:
-                    element.properties["_process_id"] = process_id
-                model.elements.append(element)
-                # Parse subprocess contents with parent relationship
-                self._parse_subprocess_contents(child, model, element.id, process_id)
+                self._parse_lane_set(child, model, process_id)
 
     def _parse_subprocess_contents(
         self,
@@ -246,8 +248,20 @@ class BPMNParser:
                 continue
             tag = self._local_name(child.tag)
 
+            # Handle nested subprocesses FIRST (before generic ALL_ELEMENT_TYPES check)
+            # because subProcess is in TASK_TYPES but needs special handling
+            if tag == "subProcess":
+                nested = self._parse_element(child, tag)
+                nested.subprocess_id = subprocess_id  # Parent is outer subprocess
+                nested.properties["_is_subprocess"] = True
+                if process_id:
+                    nested.properties["_process_id"] = process_id
+                model.elements.append(nested)
+                # Recursively parse nested subprocess contents
+                self._parse_subprocess_contents(child, model, nested.id, process_id)
+
             # Handle flow nodes (tasks, events, gateways)
-            if tag in ALL_ELEMENT_TYPES or tag in (
+            elif tag in ALL_ELEMENT_TYPES or tag in (
                 "task",
                 "userTask",
                 "serviceTask",
@@ -279,17 +293,6 @@ class BPMNParser:
                 flow = self._parse_flow(child, tag)
                 if flow:
                     model.flows.append(flow)
-
-            # Handle nested subprocesses
-            elif tag == "subProcess":
-                nested = self._parse_element(child, tag)
-                nested.subprocess_id = subprocess_id  # Parent is outer subprocess
-                nested.properties["_is_subprocess"] = True
-                if process_id:
-                    nested.properties["_process_id"] = process_id
-                model.elements.append(nested)
-                # Recursively parse nested subprocess contents
-                self._parse_subprocess_contents(child, model, nested.id, process_id)
 
     def _parse_element(self, elem: etree._Element, elem_type: str) -> BPMNElement:
         """Parse a BPMN element."""
@@ -423,10 +426,11 @@ class BPMNParser:
             if pool.process_ref:
                 process_to_pool[pool.process_ref] = pool
 
-                # Associate lanes with this pool based on process reference
-                for lane in model.lanes:
-                    if not lane.parent_pool_id:
-                        lane.parent_pool_id = pool.id
+        # Associate lanes with their correct pools based on process_id
+        for lane in model.lanes:
+            if not lane.parent_pool_id and lane.process_id:
+                if lane.process_id in process_to_pool:
+                    lane.parent_pool_id = process_to_pool[lane.process_id].id
 
         # Associate elements with pools when they don't have lane parents
         # This handles pools without lanes (like external system pools)
@@ -473,19 +477,26 @@ class BPMNParser:
             height=di_info.get("height"),
         )
 
-    def _parse_lane_set(self, lane_set: etree._Element, model: BPMNModel) -> None:
+    def _parse_lane_set(
+        self, lane_set: etree._Element, model: BPMNModel, process_id: Optional[str] = None
+    ) -> None:
         """Parse lane set element.
 
         Note: Lanes are parsed to capture their element_refs, but parent_id
         assignment is deferred to _assign_lane_parents() since elements may
         not be parsed yet when laneSet is encountered.
+
+        Args:
+            lane_set: Lane set XML element
+            model: BPMN model to populate
+            process_id: ID of the process containing this lane set
         """
         lanes = lane_set.findall(".//bpmn:lane", self.namespaces)
         if not lanes:
             lanes = lane_set.findall(".//{*}lane")
 
         for lane_elem in lanes:
-            lane = self._parse_lane(lane_elem)
+            lane = self._parse_lane(lane_elem, process_id)
             model.lanes.append(lane)
 
     def _assign_lane_parents(self, model: BPMNModel) -> None:
@@ -502,8 +513,18 @@ class BPMNParser:
                 if element.id in lane.element_refs:
                     element.parent_id = lane.id
 
-    def _parse_lane(self, lane_elem: etree._Element) -> Lane:
-        """Parse a lane element."""
+    def _parse_lane(
+        self, lane_elem: etree._Element, process_id: Optional[str] = None
+    ) -> Lane:
+        """Parse a lane element.
+
+        Args:
+            lane_elem: Lane XML element
+            process_id: ID of the process containing this lane
+
+        Returns:
+            Parsed Lane object
+        """
         lane_id = lane_elem.get("id", "")
         lane_name = lane_elem.get("name")
 
@@ -522,6 +543,7 @@ class BPMNParser:
         return Lane(
             id=lane_id,
             name=lane_name,
+            process_id=process_id,
             x=di_info.get("x"),
             y=di_info.get("y"),
             width=di_info.get("width"),

@@ -523,11 +523,18 @@ class PositionResolver:
         Boundary events should be placed on the edge of the element they're
         attached to (typically a subprocess or task).
 
+        In Draw.io, boundary events should:
+        1. Have parent set to the attached element (for subprocesses)
+        2. Have coordinates relative to the parent element
+
         Args:
             model: BPMN model with elements
         """
         # Build element lookup
         elem_lookup = {e.id: e for e in model.elements}
+
+        # Track boundary events and their positions for spacing
+        attached_boundary_counts: Dict[str, int] = {}
 
         for element in model.elements:
             if element.type == "boundaryEvent":
@@ -547,10 +554,28 @@ class PositionResolver:
 
                 if attached_id and attached_id in elem_lookup:
                     attached = elem_lookup[attached_id]
-                    if attached.x is not None and attached.y is not None:
-                        # Position on the bottom-left edge of the attached element
-                        element.x = attached.x + (attached.width or 120) - 18
-                        element.y = attached.y + (attached.height or 80) - 18
+
+                    # Set parent_id to the attached element
+                    element.parent_id = attached_id
+
+                    # Track which boundary this is (for spacing multiple boundaries)
+                    boundary_index = attached_boundary_counts.get(attached_id, 0)
+                    attached_boundary_counts[attached_id] = boundary_index + 1
+
+                    # Position on the bottom edge of the attached element, spaced apart
+                    # Coordinates are RELATIVE to the parent element
+                    event_width = element.width or 36
+                    event_height = element.height or 36
+                    attached_width = attached.width or 120
+                    attached_height = attached.height or 80
+
+                    # Space boundary events along the bottom edge
+                    spacing = 50
+                    x_offset = 20 + (boundary_index * spacing)
+
+                    # Position at bottom edge, hanging below
+                    element.x = x_offset
+                    element.y = attached_height - (event_height / 2)
 
     def _adjust_subprocess_internal_positions(self, model: BPMNModel) -> None:
         """Adjust subprocess internal element positions to be relative to subprocess.
@@ -653,6 +678,21 @@ class PositionResolver:
         if not model.lanes:
             return
 
+        # Check if we should preserve DI coordinates
+        # In preserve mode with existing DI, just convert absolute to relative
+        preserve_di = self.use_layout == "preserve" and model.has_di_coordinates
+
+        # Check if lanes have DI coordinates
+        lanes_have_di = all(
+            lane.x is not None and lane.y is not None and
+            lane.width is not None and lane.height is not None
+            for lane in model.lanes
+        )
+
+        if preserve_di and lanes_have_di:
+            self._preserve_lane_positions(model)
+            return
+
         # Build lane element mapping
         lane_elements: Dict[str, List[BPMNElement]] = {}
         for lane in model.lanes:
@@ -693,28 +733,34 @@ class PositionResolver:
             )
             lane_heights[lane_id] = max(lane_min_height, max_elem_height + lane_padding * 3)
 
-        # Determine lane order (use order from model.lanes)
-        lane_order = [lane.id for lane in model.lanes]
+        # Group lanes by their parent pool
+        pool_lanes: Dict[str, List[Lane]] = {}
+        for lane in model.lanes:
+            pool_id = lane.parent_pool_id or "default"
+            if pool_id not in pool_lanes:
+                pool_lanes[pool_id] = []
+            pool_lanes[pool_id].append(lane)
 
-        # Position lanes stacked vertically
-        pool_y_start = 50.0
-        current_y = pool_y_start
-        lane_y_positions: Dict[str, float] = {}
-
-        for lane_id in lane_order:
-            if lane_id in lane_heights:
-                lane_y_positions[lane_id] = current_y
-                current_y += lane_heights[lane_id]
-
-        total_height = current_y - pool_y_start
-
-        # Update lane positions and dimensions
+        # Calculate lane width
         lane_width = max_x - min_x + lane_padding * 2
 
+        # Position lanes within each pool, starting at Y=0 relative to pool
+        lane_y_positions: Dict[str, float] = {}
+        pool_heights: Dict[str, float] = {}
+
+        for pool_id, lanes_in_pool in pool_lanes.items():
+            current_y = 0.0  # Start at 0 for each pool (relative positioning)
+            for lane in lanes_in_pool:
+                if lane.id in lane_heights:
+                    lane_y_positions[lane.id] = current_y
+                    current_y += lane_heights[lane.id]
+            pool_heights[pool_id] = current_y
+
+        # Update lane positions and dimensions
         for lane in model.lanes:
             if lane.id in lane_y_positions:
                 lane.x = pool_header_width
-                lane.y = lane_y_positions[lane.id] - pool_y_start  # Relative to pool
+                lane.y = lane_y_positions[lane.id]  # Already relative to pool (starts at 0)
                 lane.width = lane_width
                 lane.height = lane_heights.get(lane.id, lane_min_height)
 
@@ -763,47 +809,30 @@ class PositionResolver:
                     if element.x is not None:
                         element.x = element.x - min_x + lane_padding
 
-        # Update pool dimensions to fit content
+        # Update pool dimensions to fit content - position pools vertically stacked
+        pool_y_start = 50.0
+        current_pool_y = pool_y_start
+
         for pool in model.pools:
             pool.x = 50.0
-            pool.y = pool_y_start
-            pool.width = lane_width + pool_header_width
-            pool.height = total_height
+            pool.y = current_pool_y
+            pool.width = lane_width + pool_header_width if lane_width > 0 else 600
 
-            # Set lanes' parent pool ID
-            for lane in model.lanes:
-                if not lane.parent_pool_id:
-                    lane.parent_pool_id = pool.id
-
-        # Handle multiple pools (position them vertically stacked)
-        if len(model.pools) > 1:
-            # First pool has been sized based on lanes, now handle other pools
-            main_pool = model.pools[0] if model.pools else None
-            current_pool_y = (main_pool.y or pool_y_start) + (main_pool.height or 200) + 50
-
-            for pool in model.pools[1:]:
-                pool.x = 50.0
-                pool.y = current_pool_y
-
-                # Find lanes for this pool
-                pool_lanes = [l for l in model.lanes if l.parent_pool_id == pool.id]
-
-                if pool_lanes:
-                    pool_height = sum(lane_heights.get(l.id, lane_min_height) for l in pool_lanes)
+            # Get height from calculated pool_heights, or calculate for laneless pools
+            if pool.id in pool_heights and pool_heights[pool.id] > 0:
+                pool.height = pool_heights[pool.id]
+            else:
+                # Pool without lanes - size based on its elements
+                pool_elements = [e for e in model.elements
+                                 if e.parent_id == pool.id]
+                if pool_elements:
+                    max_elem_height = max((e.height or 80) for e in pool_elements)
+                    pool.height = max_elem_height + lane_padding * 3
                 else:
-                    # Pool without lanes - size based on its elements
-                    pool_elements = [e for e in model.elements
-                                     if e.parent_id == pool.id or
-                                     (e.parent_id is None and pool.process_ref == model.process_id)]
-                    if pool_elements:
-                        max_elem_height = max((e.height or 80) for e in pool_elements)
-                        pool_height = max_elem_height + lane_padding * 3
-                    else:
-                        pool_height = 150
+                    pool.height = 150
 
-                pool.height = max(pool_height, 150)
-                pool.width = lane_width + pool_header_width if lane_width else 600
-                current_pool_y += pool.height + 50
+            pool.height = max(pool.height, 150)
+            current_pool_y += pool.height + 50  # Gap between pools
 
         # Handle elements in pools without lanes (position them relative to pool)
         for pool in model.pools:
@@ -820,6 +849,96 @@ class PositionResolver:
                         element.x = element.x - min_x + lane_padding + pool_header_width
                     if element.y is not None and pool.height:
                         element.y = pool.height / 2 - (element.height or 80) / 2
+
+    def _preserve_lane_positions(self, model: BPMNModel) -> None:
+        """Preserve DI coordinates by converting absolute to lane-relative.
+
+        When BPMN has DI coordinates, this method converts the absolute
+        coordinates to lane-relative coordinates for proper Draw.io rendering.
+
+        In BPMN DI:
+        - Pools and lanes have absolute coordinates
+        - Elements have absolute coordinates
+
+        In Draw.io:
+        - Pools have absolute coordinates (parent="1")
+        - Lanes have relative coordinates to their pool
+        - Elements have relative coordinates to their lane
+
+        Args:
+            model: BPMN model with DI coordinates
+        """
+        pool_header_width = LayoutConstants.POOL_HEADER_WIDTH
+
+        # Build lookup for lanes
+        lane_lookup = {lane.id: lane for lane in model.lanes}
+
+        # Build lane element mapping
+        lane_elements: Dict[str, List[BPMNElement]] = {}
+        for lane in model.lanes:
+            lane_elements[lane.id] = []
+
+        for element in model.elements:
+            if element.parent_id and element.parent_id in lane_elements:
+                lane_elements[element.parent_id].append(element)
+
+        # Find the parent pool for each lane
+        pool_lookup = {pool.id: pool for pool in model.pools}
+
+        # Process each pool
+        for pool in model.pools:
+            if pool.x is None or pool.y is None:
+                continue
+
+            pool_x = pool.x
+            pool_y = pool.y
+
+            # Find lanes belonging to this pool
+            pool_lanes = [l for l in model.lanes if l.parent_pool_id == pool.id]
+
+            for lane in pool_lanes:
+                if lane.x is None or lane.y is None:
+                    continue
+
+                # In BPMN, lane coordinates are absolute
+                # In Draw.io, lane coordinates should be relative to pool
+                # Lane x is relative to pool (typically starts at pool_header_width)
+                # Lane y is relative to pool start
+                lane_abs_x = lane.x
+                lane_abs_y = lane.y
+
+                # Convert to relative coordinates
+                lane.x = lane_abs_x - pool_x
+                lane.y = lane_abs_y - pool_y
+
+                # Process elements in this lane
+                elements = lane_elements.get(lane.id, [])
+                for element in elements:
+                    if element.x is not None:
+                        # Element X relative to lane
+                        # In BPMN: element.x is absolute
+                        # In Draw.io: element.x should be relative to lane
+                        element.x = element.x - lane_abs_x
+                    if element.y is not None:
+                        # Element Y relative to lane
+                        element.y = element.y - lane_abs_y
+
+        # Handle elements in pools without lanes
+        for pool in model.pools:
+            if pool.x is None or pool.y is None:
+                continue
+
+            pool_lanes = [l for l in model.lanes if l.parent_pool_id == pool.id]
+            if pool_lanes:
+                continue  # Handled above
+
+            # Find elements directly in this pool
+            for element in model.elements:
+                if element.parent_id == pool.id:
+                    if element.x is not None:
+                        element.x = element.x - pool.x
+                    if element.y is not None:
+                        element.y = element.y - pool.y
 
 
 def resolve_positions(
