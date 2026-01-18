@@ -39,7 +39,7 @@ class ResearchOrchestrator:
         if not provider_class:
             raise ValueError(f"Unknown provider: {config.name}")
 
-        return provider_class(config, depth)
+        return provider_class(config, depth, self._on_status_update)
 
     def _update_status(self, provider: str, message: str) -> None:
         """Send status update if callback is configured."""
