@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.6.1] - 2026-01-18
+
+### Changed
+- `/research-topic` skill: Increased default timeout from 720s to 1800s (30 minutes) for deep research APIs
+- `/research-topic` skill: Enhanced terminal UI with StreamingUI for real-time progress visibility
+- `/research-topic` skill: Added `PYTHONUNBUFFERED=1` and `STREAMING_UI=1` environment variables for proper output streaming
+
+### Fixed
+- Research execution now displays live progress updates instead of buffered output
+
+## [personal-plugin 3.6.0] - 2026-01-18
+
+### Added
+- `/research-topic` skill: Rich terminal UI with progress panels and status indicators
+- `/research-topic` skill: Bug reporting system with automatic anomaly detection
+- `/research-topic` skill: Parallel dependency checking (runs in background during clarification)
+
+### Changed
+- `/research-topic` skill: Dependency check now starts immediately and runs parallel to user interaction
+
 ## [personal-plugin 3.5.0] - 2026-01-18
 
 ### Added
