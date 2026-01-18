@@ -1,0 +1,1227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    id="Definitions_EdgeCaseTest"
+    name="Comprehensive Edge Case Test"
+    targetNamespace="http://test.example.com/bpmn/edge-cases"
+    exporter="Claude AI"
+    exporterVersion="1.0">
+
+    <!-- ============================================================== -->
+    <!-- MESSAGE DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:message id="Message_Request" name="Request"/>
+    <bpmn:message id="Message_Response" name="Response"/>
+    <bpmn:message id="Message_Notification" name="Notification"/>
+    <bpmn:message id="Message_Confirmation" name="Confirmation"/>
+    <bpmn:message id="Message_Escalation" name="Escalation"/>
+
+    <!-- ============================================================== -->
+    <!-- SIGNAL DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:signal id="Signal_Alert" name="SystemAlert"/>
+    <bpmn:signal id="Signal_Complete" name="ProcessComplete"/>
+    <bpmn:signal id="Signal_Cancel" name="CancelOperation"/>
+
+    <!-- ============================================================== -->
+    <!-- ERROR DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:error id="Error_Validation" name="ValidationError" errorCode="ERR_VALIDATION"/>
+    <bpmn:error id="Error_Timeout" name="TimeoutError" errorCode="ERR_TIMEOUT"/>
+    <bpmn:error id="Error_System" name="SystemError" errorCode="ERR_SYSTEM"/>
+
+    <!-- ============================================================== -->
+    <!-- ESCALATION DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:escalation id="Escalation_Warning" name="Warning" escalationCode="ESC_WARN"/>
+    <bpmn:escalation id="Escalation_Critical" name="Critical" escalationCode="ESC_CRIT"/>
+
+    <!-- ============================================================== -->
+    <!-- DATA STORE DEFINITIONS -->
+    <!-- ============================================================== -->
+    <bpmn:dataStore id="DataStore_MainDB" name="Main Database"/>
+    <bpmn:dataStore id="DataStore_Cache" name="Redis Cache"/>
+    <bpmn:dataStore id="DataStore_Archive" name="Archive Storage"/>
+
+    <!-- ============================================================== -->
+    <!-- COLLABORATION: Multi-Pool Process -->
+    <!-- ============================================================== -->
+    <bpmn:collaboration id="Collaboration_EdgeCaseTest">
+
+        <!-- Pool 1: Customer (External, no process ref - BLACK BOX) -->
+        <bpmn:participant id="Pool_Customer" name="External Customer">
+            <!-- This pool has NO processRef - it's a black box -->
+        </bpmn:participant>
+
+        <!-- Pool 2: Main System with Lanes -->
+        <bpmn:participant id="Pool_MainSystem" name="Main Processing System" processRef="Process_Main"/>
+
+        <!-- Pool 3: Secondary System with Lanes -->
+        <bpmn:participant id="Pool_Secondary" name="Secondary Services" processRef="Process_Secondary"/>
+
+        <!-- Pool 4: External API (no lanes, single partition) -->
+        <bpmn:participant id="Pool_ExternalAPI" name="External API Gateway" processRef="Process_ExternalAPI"/>
+
+        <!-- Pool 5: Audit System -->
+        <bpmn:participant id="Pool_Audit" name="Audit and Compliance" processRef="Process_Audit"/>
+
+        <!-- Pool 6: Legacy System (minimal) -->
+        <bpmn:participant id="Pool_Legacy" name="Legacy Backend" processRef="Process_Legacy"/>
+
+        <!-- Message Flows (Cross-Pool) -->
+        <bpmn:messageFlow id="MsgFlow_1" name="Initial Request" sourceRef="Pool_Customer" targetRef="Start_Message_Main" messageRef="Message_Request"/>
+        <bpmn:messageFlow id="MsgFlow_2" name="Response to Customer" sourceRef="Task_SendResponse" targetRef="Pool_Customer" messageRef="Message_Response"/>
+        <bpmn:messageFlow id="MsgFlow_3" name="API Call" sourceRef="Task_CallExternalAPI" targetRef="Start_API" messageRef="Message_Request"/>
+        <bpmn:messageFlow id="MsgFlow_4" name="API Response" sourceRef="Task_APIRespond" targetRef="Event_CatchAPIResponse" messageRef="Message_Response"/>
+        <bpmn:messageFlow id="MsgFlow_5" name="Audit Notification" sourceRef="Task_LogAudit" targetRef="Start_Audit" messageRef="Message_Notification"/>
+        <bpmn:messageFlow id="MsgFlow_6" name="Legacy Sync" sourceRef="Task_SyncData" targetRef="Pool_Legacy" messageRef="Message_Request"/>
+
+    </bpmn:collaboration>
+
+    <!-- ============================================================== -->
+    <!-- PROCESS 1: Main Processing System (with lanes) -->
+    <!-- ============================================================== -->
+    <bpmn:process id="Process_Main" name="Main Processing" isExecutable="true">
+
+        <bpmn:laneSet id="LaneSet_Main">
+            <!-- Lane 1: Reception -->
+            <bpmn:lane id="Lane_Reception" name="Reception Layer">
+                <bpmn:flowNodeRef>Start_Message_Main</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Start_Timer_Scheduled</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Start_Signal_Alert</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_ReceiveRequest</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_RequestType</bpmn:flowNodeRef>
+            </bpmn:lane>
+
+            <!-- Lane 2: Validation -->
+            <bpmn:lane id="Lane_Validation" name="Validation Layer">
+                <bpmn:flowNodeRef>Task_ValidateInput</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_ValidationResult</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_RejectInvalid</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>End_Rejected</bpmn:flowNodeRef>
+            </bpmn:lane>
+
+            <!-- Lane 3: Processing -->
+            <bpmn:lane id="Lane_Processing" name="Core Processing">
+                <bpmn:flowNodeRef>SubProcess_MainProcessing</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_ProcessingOutcome</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Event_CatchAPIResponse</bpmn:flowNodeRef>
+            </bpmn:lane>
+
+            <!-- Lane 4: Business Rules -->
+            <bpmn:lane id="Lane_BusinessRules" name="Business Rules Engine">
+                <bpmn:flowNodeRef>Task_ApplyBusinessRules</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_RulesDecision</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_HandleException</bpmn:flowNodeRef>
+            </bpmn:lane>
+
+            <!-- Lane 5: Response -->
+            <bpmn:lane id="Lane_Response" name="Response Handler">
+                <bpmn:flowNodeRef>Task_PrepareResponse</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_SendResponse</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>End_Success</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>End_Error</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>End_Terminate</bpmn:flowNodeRef>
+            </bpmn:lane>
+
+            <!-- Lane 6: Integration -->
+            <bpmn:lane id="Lane_Integration" name="External Integration">
+                <bpmn:flowNodeRef>Task_CallExternalAPI</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_SyncData</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_LogAudit</bpmn:flowNodeRef>
+            </bpmn:lane>
+        </bpmn:laneSet>
+
+        <!-- ============== START EVENTS ============== -->
+
+        <!-- Message Start -->
+        <bpmn:startEvent id="Start_Message_Main" name="Message Received">
+            <bpmn:outgoing>Flow_1</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MsgEvtDef_Start" messageRef="Message_Request"/>
+        </bpmn:startEvent>
+
+        <!-- Timer Start -->
+        <bpmn:startEvent id="Start_Timer_Scheduled" name="Scheduled Trigger">
+            <bpmn:outgoing>Flow_TimerToReceive</bpmn:outgoing>
+            <bpmn:timerEventDefinition id="TimerEvtDef_Start">
+                <bpmn:timeCycle>0 0 * * * ?</bpmn:timeCycle>
+            </bpmn:timerEventDefinition>
+        </bpmn:startEvent>
+
+        <!-- Signal Start -->
+        <bpmn:startEvent id="Start_Signal_Alert" name="Alert Signal">
+            <bpmn:outgoing>Flow_SignalToReceive</bpmn:outgoing>
+            <bpmn:signalEventDefinition id="SignalEvtDef_Start" signalRef="Signal_Alert"/>
+        </bpmn:startEvent>
+
+        <!-- ============== RECEPTION TASKS ============== -->
+
+        <bpmn:receiveTask id="Task_ReceiveRequest" name="Receive and Parse Request">
+            <bpmn:incoming>Flow_1</bpmn:incoming>
+            <bpmn:incoming>Flow_TimerToReceive</bpmn:incoming>
+            <bpmn:incoming>Flow_SignalToReceive</bpmn:incoming>
+            <bpmn:outgoing>Flow_2</bpmn:outgoing>
+        </bpmn:receiveTask>
+
+        <!-- XOR Gateway with 4+ outgoing flows -->
+        <bpmn:exclusiveGateway id="Gateway_RequestType" name="Request Type?" default="Flow_Default">
+            <bpmn:incoming>Flow_2</bpmn:incoming>
+            <bpmn:outgoing>Flow_TypeA</bpmn:outgoing>
+            <bpmn:outgoing>Flow_TypeB</bpmn:outgoing>
+            <bpmn:outgoing>Flow_TypeC</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Default</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <!-- ============== VALIDATION TASKS ============== -->
+
+        <bpmn:userTask id="Task_ValidateInput" name="Validate Input Data">
+            <bpmn:incoming>Flow_TypeA</bpmn:incoming>
+            <bpmn:incoming>Flow_TypeB</bpmn:incoming>
+            <bpmn:incoming>Flow_TypeC</bpmn:incoming>
+            <bpmn:incoming>Flow_Default</bpmn:incoming>
+            <bpmn:outgoing>Flow_3</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <!-- Inclusive Gateway (OR) with 3+ outgoing -->
+        <bpmn:inclusiveGateway id="Gateway_ValidationResult" name="Validation Result?">
+            <bpmn:incoming>Flow_3</bpmn:incoming>
+            <bpmn:outgoing>Flow_Valid</bpmn:outgoing>
+            <bpmn:outgoing>Flow_PartialValid</bpmn:outgoing>
+            <bpmn:outgoing>Flow_Invalid</bpmn:outgoing>
+        </bpmn:inclusiveGateway>
+
+        <bpmn:serviceTask id="Task_RejectInvalid" name="Reject Invalid Request">
+            <bpmn:incoming>Flow_Invalid</bpmn:incoming>
+            <bpmn:outgoing>Flow_ToRejected</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:endEvent id="End_Rejected" name="Request Rejected">
+            <bpmn:incoming>Flow_ToRejected</bpmn:incoming>
+            <bpmn:errorEventDefinition id="ErrEvtDef_Rejected" errorRef="Error_Validation"/>
+        </bpmn:endEvent>
+
+        <!-- ============== MAIN PROCESSING SUBPROCESS ============== -->
+
+        <bpmn:subProcess id="SubProcess_MainProcessing" name="Main Processing Workflow">
+            <bpmn:incoming>Flow_Valid</bpmn:incoming>
+            <bpmn:incoming>Flow_PartialValid</bpmn:incoming>
+            <bpmn:outgoing>Flow_ProcessingComplete</bpmn:outgoing>
+
+            <!-- Subprocess Start -->
+            <bpmn:startEvent id="SubStart_Main" name="Begin Processing"/>
+
+            <!-- Parallel Gateway (AND) with 3+ outgoing -->
+            <bpmn:parallelGateway id="Gateway_Parallel_Split" name="Execute in Parallel">
+                <bpmn:incoming>SubFlow_1</bpmn:incoming>
+                <bpmn:outgoing>SubFlow_P1</bpmn:outgoing>
+                <bpmn:outgoing>SubFlow_P2</bpmn:outgoing>
+                <bpmn:outgoing>SubFlow_P3</bpmn:outgoing>
+            </bpmn:parallelGateway>
+
+            <!-- Parallel Branch 1: Script Task -->
+            <bpmn:scriptTask id="Task_Script_Transform" name="Transform Data" scriptFormat="javascript">
+                <bpmn:incoming>SubFlow_P1</bpmn:incoming>
+                <bpmn:outgoing>SubFlow_P1_End</bpmn:outgoing>
+                <bpmn:script>return data.transform();</bpmn:script>
+            </bpmn:scriptTask>
+
+            <!-- Parallel Branch 2: Business Rule Task -->
+            <bpmn:businessRuleTask id="Task_BusinessRule" name="Apply Decision Table">
+                <bpmn:incoming>SubFlow_P2</bpmn:incoming>
+                <bpmn:outgoing>SubFlow_P2_End</bpmn:outgoing>
+            </bpmn:businessRuleTask>
+
+            <!-- Parallel Branch 3: Manual Task -->
+            <bpmn:manualTask id="Task_ManualReview" name="Manual Review Required">
+                <bpmn:incoming>SubFlow_P3</bpmn:incoming>
+                <bpmn:outgoing>SubFlow_P3_End</bpmn:outgoing>
+            </bpmn:manualTask>
+
+            <!-- Parallel Join -->
+            <bpmn:parallelGateway id="Gateway_Parallel_Join" name="Synchronize">
+                <bpmn:incoming>SubFlow_P1_End</bpmn:incoming>
+                <bpmn:incoming>SubFlow_P2_End</bpmn:incoming>
+                <bpmn:incoming>SubFlow_P3_End</bpmn:incoming>
+                <bpmn:outgoing>SubFlow_AfterParallel</bpmn:outgoing>
+            </bpmn:parallelGateway>
+
+            <!-- Nested Subprocess (Level 2) -->
+            <bpmn:subProcess id="SubProcess_Nested" name="Nested Calculation Engine">
+                <bpmn:incoming>SubFlow_AfterParallel</bpmn:incoming>
+                <bpmn:outgoing>SubFlow_AfterNested</bpmn:outgoing>
+
+                <bpmn:startEvent id="SubStart_Nested" name="Start Calculation"/>
+
+                <bpmn:serviceTask id="Task_Calculate" name="Run Calculation">
+                    <bpmn:multiInstanceLoopCharacteristics isSequential="false"/>
+                </bpmn:serviceTask>
+
+                <bpmn:endEvent id="SubEnd_Nested" name="Calculation Complete"/>
+
+                <bpmn:sequenceFlow id="NestedFlow_1" sourceRef="SubStart_Nested" targetRef="Task_Calculate"/>
+                <bpmn:sequenceFlow id="NestedFlow_2" sourceRef="Task_Calculate" targetRef="SubEnd_Nested"/>
+            </bpmn:subProcess>
+
+            <!-- Subprocess End -->
+            <bpmn:endEvent id="SubEnd_Main" name="Processing Complete"/>
+
+            <!-- Subprocess Internal Flows -->
+            <bpmn:sequenceFlow id="SubFlow_1" sourceRef="SubStart_Main" targetRef="Gateway_Parallel_Split"/>
+            <bpmn:sequenceFlow id="SubFlow_P1" sourceRef="Gateway_Parallel_Split" targetRef="Task_Script_Transform"/>
+            <bpmn:sequenceFlow id="SubFlow_P2" sourceRef="Gateway_Parallel_Split" targetRef="Task_BusinessRule"/>
+            <bpmn:sequenceFlow id="SubFlow_P3" sourceRef="Gateway_Parallel_Split" targetRef="Task_ManualReview"/>
+            <bpmn:sequenceFlow id="SubFlow_P1_End" sourceRef="Task_Script_Transform" targetRef="Gateway_Parallel_Join"/>
+            <bpmn:sequenceFlow id="SubFlow_P2_End" sourceRef="Task_BusinessRule" targetRef="Gateway_Parallel_Join"/>
+            <bpmn:sequenceFlow id="SubFlow_P3_End" sourceRef="Task_ManualReview" targetRef="Gateway_Parallel_Join"/>
+            <bpmn:sequenceFlow id="SubFlow_AfterParallel" sourceRef="Gateway_Parallel_Join" targetRef="SubProcess_Nested"/>
+            <bpmn:sequenceFlow id="SubFlow_AfterNested" sourceRef="SubProcess_Nested" targetRef="SubEnd_Main"/>
+        </bpmn:subProcess>
+
+        <!-- Boundary Events on Subprocess -->
+        <bpmn:boundaryEvent id="Boundary_Timer" name="Timeout" attachedToRef="SubProcess_MainProcessing" cancelActivity="true">
+            <bpmn:outgoing>Flow_TimeoutPath</bpmn:outgoing>
+            <bpmn:timerEventDefinition id="TimerDef_Boundary">
+                <bpmn:timeDuration>PT30M</bpmn:timeDuration>
+            </bpmn:timerEventDefinition>
+        </bpmn:boundaryEvent>
+
+        <bpmn:boundaryEvent id="Boundary_Error" name="Error Caught" attachedToRef="SubProcess_MainProcessing" cancelActivity="true">
+            <bpmn:outgoing>Flow_ErrorPath</bpmn:outgoing>
+            <bpmn:errorEventDefinition id="ErrDef_Boundary" errorRef="Error_System"/>
+        </bpmn:boundaryEvent>
+
+        <bpmn:boundaryEvent id="Boundary_Message_NonInterrupt" name="Update Received" attachedToRef="SubProcess_MainProcessing" cancelActivity="false">
+            <bpmn:outgoing>Flow_UpdatePath</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MsgDef_Boundary" messageRef="Message_Notification"/>
+        </bpmn:boundaryEvent>
+
+        <!-- ============== PROCESSING OUTCOME ============== -->
+
+        <!-- Event-Based Gateway -->
+        <bpmn:eventBasedGateway id="Gateway_ProcessingOutcome" name="Wait for Outcome">
+            <bpmn:incoming>Flow_ProcessingComplete</bpmn:incoming>
+            <bpmn:outgoing>Flow_WaitAPI</bpmn:outgoing>
+            <bpmn:outgoing>Flow_WaitTimer</bpmn:outgoing>
+            <bpmn:outgoing>Flow_WaitSignal</bpmn:outgoing>
+        </bpmn:eventBasedGateway>
+
+        <!-- Intermediate Catch Events for Event-Based Gateway -->
+        <bpmn:intermediateCatchEvent id="Event_CatchAPIResponse" name="API Response">
+            <bpmn:incoming>Flow_WaitAPI</bpmn:incoming>
+            <bpmn:outgoing>Flow_APIReceived</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MsgDef_Catch" messageRef="Message_Response"/>
+        </bpmn:intermediateCatchEvent>
+
+        <bpmn:intermediateCatchEvent id="Event_CatchTimeout" name="Timeout Elapsed">
+            <bpmn:incoming>Flow_WaitTimer</bpmn:incoming>
+            <bpmn:outgoing>Flow_TimeoutElapsed</bpmn:outgoing>
+            <bpmn:timerEventDefinition id="TimerDef_Catch">
+                <bpmn:timeDuration>PT5M</bpmn:timeDuration>
+            </bpmn:timerEventDefinition>
+        </bpmn:intermediateCatchEvent>
+
+        <bpmn:intermediateCatchEvent id="Event_CatchSignal" name="Cancel Signal">
+            <bpmn:incoming>Flow_WaitSignal</bpmn:incoming>
+            <bpmn:outgoing>Flow_SignalReceived</bpmn:outgoing>
+            <bpmn:signalEventDefinition id="SignalDef_Catch" signalRef="Signal_Cancel"/>
+        </bpmn:intermediateCatchEvent>
+
+        <!-- ============== BUSINESS RULES ============== -->
+
+        <bpmn:businessRuleTask id="Task_ApplyBusinessRules" name="Apply Business Rules Engine">
+            <bpmn:incoming>Flow_APIReceived</bpmn:incoming>
+            <bpmn:incoming>Flow_TimeoutElapsed</bpmn:incoming>
+            <bpmn:outgoing>Flow_RulesApplied</bpmn:outgoing>
+        </bpmn:businessRuleTask>
+
+        <!-- Complex Gateway -->
+        <bpmn:complexGateway id="Gateway_RulesDecision" name="Complex Decision" default="Flow_RulesDefault">
+            <bpmn:incoming>Flow_RulesApplied</bpmn:incoming>
+            <bpmn:outgoing>Flow_RulesApprove</bpmn:outgoing>
+            <bpmn:outgoing>Flow_RulesReview</bpmn:outgoing>
+            <bpmn:outgoing>Flow_RulesReject</bpmn:outgoing>
+            <bpmn:outgoing>Flow_RulesDefault</bpmn:outgoing>
+        </bpmn:complexGateway>
+
+        <bpmn:serviceTask id="Task_HandleException" name="Handle Exception Case">
+            <bpmn:incoming>Flow_RulesReject</bpmn:incoming>
+            <bpmn:incoming>Flow_SignalReceived</bpmn:incoming>
+            <bpmn:outgoing>Flow_ExceptionHandled</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <!-- ============== RESPONSE HANDLING ============== -->
+
+        <bpmn:serviceTask id="Task_PrepareResponse" name="Prepare Response">
+            <bpmn:incoming>Flow_RulesApprove</bpmn:incoming>
+            <bpmn:incoming>Flow_RulesReview</bpmn:incoming>
+            <bpmn:incoming>Flow_RulesDefault</bpmn:incoming>
+            <bpmn:outgoing>Flow_ResponseReady</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:sendTask id="Task_SendResponse" name="Send Response to Customer">
+            <bpmn:incoming>Flow_ResponseReady</bpmn:incoming>
+            <bpmn:outgoing>Flow_ResponseSent</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <!-- ============== INTEGRATION TASKS ============== -->
+
+        <bpmn:serviceTask id="Task_CallExternalAPI" name="Call External API">
+            <bpmn:incoming>Flow_UpdatePath</bpmn:incoming>
+            <bpmn:outgoing>Flow_APICallComplete</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:serviceTask id="Task_SyncData" name="Synchronize with Legacy">
+            <bpmn:incoming>Flow_ResponseSent</bpmn:incoming>
+            <bpmn:outgoing>Flow_Synced</bpmn:outgoing>
+            <bpmn:standardLoopCharacteristics/>
+        </bpmn:serviceTask>
+
+        <bpmn:serviceTask id="Task_LogAudit" name="Log to Audit System">
+            <bpmn:incoming>Flow_Synced</bpmn:incoming>
+            <bpmn:outgoing>Flow_Logged</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <!-- ============== END EVENTS ============== -->
+
+        <!-- Success End -->
+        <bpmn:endEvent id="End_Success" name="Completed Successfully">
+            <bpmn:incoming>Flow_Logged</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <!-- Error End -->
+        <bpmn:endEvent id="End_Error" name="Error Occurred">
+            <bpmn:incoming>Flow_TimeoutPath</bpmn:incoming>
+            <bpmn:incoming>Flow_ErrorPath</bpmn:incoming>
+            <bpmn:incoming>Flow_ExceptionHandled</bpmn:incoming>
+            <bpmn:errorEventDefinition id="ErrDef_End" errorRef="Error_System"/>
+        </bpmn:endEvent>
+
+        <!-- Terminate End -->
+        <bpmn:endEvent id="End_Terminate" name="Process Terminated">
+            <bpmn:terminateEventDefinition id="TermDef_End"/>
+        </bpmn:endEvent>
+
+        <!-- ============== DATA OBJECTS ============== -->
+
+        <bpmn:dataObject id="DataObject_Request" name="Request Data">
+            <bpmn:dataState id="DS_Request" name="Validated"/>
+        </bpmn:dataObject>
+
+        <bpmn:dataObject id="DataObject_Response" name="Response Payload"/>
+
+        <bpmn:dataObjectReference id="DataObjectRef_Config" name="Configuration Settings" dataObjectRef="DataObject_Request"/>
+
+        <bpmn:dataStoreReference id="DataStoreRef_MainDB" name="Main Database" dataStoreRef="DataStore_MainDB"/>
+
+        <!-- ============== TEXT ANNOTATIONS ============== -->
+
+        <bpmn:textAnnotation id="Annotation_1">
+            <bpmn:text>This is a very long annotation text that should test text wrapping capabilities and label rendering in the Draw.io output. It contains multiple sentences to ensure the converter handles long text properly.</bpmn:text>
+        </bpmn:textAnnotation>
+
+        <bpmn:textAnnotation id="Annotation_2">
+            <bpmn:text>XY</bpmn:text>
+        </bpmn:textAnnotation>
+
+        <bpmn:association id="Assoc_1" sourceRef="Task_ValidateInput" targetRef="Annotation_1"/>
+        <bpmn:association id="Assoc_2" sourceRef="Gateway_RulesDecision" targetRef="Annotation_2"/>
+
+        <!-- ============== SEQUENCE FLOWS ============== -->
+
+        <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_Message_Main" targetRef="Task_ReceiveRequest"/>
+        <bpmn:sequenceFlow id="Flow_TimerToReceive" sourceRef="Start_Timer_Scheduled" targetRef="Task_ReceiveRequest"/>
+        <bpmn:sequenceFlow id="Flow_SignalToReceive" sourceRef="Start_Signal_Alert" targetRef="Task_ReceiveRequest"/>
+        <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_ReceiveRequest" targetRef="Gateway_RequestType"/>
+
+        <!-- Conditional flows from XOR Gateway -->
+        <bpmn:sequenceFlow id="Flow_TypeA" name="Type A" sourceRef="Gateway_RequestType" targetRef="Task_ValidateInput">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${type == 'A'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_TypeB" name="Type B" sourceRef="Gateway_RequestType" targetRef="Task_ValidateInput">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${type == 'B'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_TypeC" name="Type C" sourceRef="Gateway_RequestType" targetRef="Task_ValidateInput">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${type == 'C'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_Default" name="Other (Default)" sourceRef="Gateway_RequestType" targetRef="Task_ValidateInput"/>
+
+        <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_ValidateInput" targetRef="Gateway_ValidationResult"/>
+
+        <bpmn:sequenceFlow id="Flow_Valid" name="Valid" sourceRef="Gateway_ValidationResult" targetRef="SubProcess_MainProcessing">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${valid == true}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_PartialValid" name="Partial" sourceRef="Gateway_ValidationResult" targetRef="SubProcess_MainProcessing">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${partial == true}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_Invalid" name="Invalid" sourceRef="Gateway_ValidationResult" targetRef="Task_RejectInvalid">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${valid == false}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_ToRejected" sourceRef="Task_RejectInvalid" targetRef="End_Rejected"/>
+
+        <!-- Boundary event flows -->
+        <bpmn:sequenceFlow id="Flow_TimeoutPath" sourceRef="Boundary_Timer" targetRef="End_Error"/>
+        <bpmn:sequenceFlow id="Flow_ErrorPath" sourceRef="Boundary_Error" targetRef="End_Error"/>
+        <bpmn:sequenceFlow id="Flow_UpdatePath" sourceRef="Boundary_Message_NonInterrupt" targetRef="Task_CallExternalAPI"/>
+
+        <bpmn:sequenceFlow id="Flow_ProcessingComplete" sourceRef="SubProcess_MainProcessing" targetRef="Gateway_ProcessingOutcome"/>
+
+        <bpmn:sequenceFlow id="Flow_WaitAPI" sourceRef="Gateway_ProcessingOutcome" targetRef="Event_CatchAPIResponse"/>
+        <bpmn:sequenceFlow id="Flow_WaitTimer" sourceRef="Gateway_ProcessingOutcome" targetRef="Event_CatchTimeout"/>
+        <bpmn:sequenceFlow id="Flow_WaitSignal" sourceRef="Gateway_ProcessingOutcome" targetRef="Event_CatchSignal"/>
+
+        <bpmn:sequenceFlow id="Flow_APIReceived" sourceRef="Event_CatchAPIResponse" targetRef="Task_ApplyBusinessRules"/>
+        <bpmn:sequenceFlow id="Flow_TimeoutElapsed" sourceRef="Event_CatchTimeout" targetRef="Task_ApplyBusinessRules"/>
+        <bpmn:sequenceFlow id="Flow_SignalReceived" sourceRef="Event_CatchSignal" targetRef="Task_HandleException"/>
+
+        <bpmn:sequenceFlow id="Flow_RulesApplied" sourceRef="Task_ApplyBusinessRules" targetRef="Gateway_RulesDecision"/>
+
+        <bpmn:sequenceFlow id="Flow_RulesApprove" name="Approve" sourceRef="Gateway_RulesDecision" targetRef="Task_PrepareResponse">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == 'approve'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_RulesReview" name="Review" sourceRef="Gateway_RulesDecision" targetRef="Task_PrepareResponse">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == 'review'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_RulesReject" name="Reject" sourceRef="Gateway_RulesDecision" targetRef="Task_HandleException">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decision == 'reject'}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+        <bpmn:sequenceFlow id="Flow_RulesDefault" name="Default" sourceRef="Gateway_RulesDecision" targetRef="Task_PrepareResponse"/>
+
+        <bpmn:sequenceFlow id="Flow_ExceptionHandled" sourceRef="Task_HandleException" targetRef="End_Error"/>
+
+        <bpmn:sequenceFlow id="Flow_ResponseReady" sourceRef="Task_PrepareResponse" targetRef="Task_SendResponse"/>
+        <bpmn:sequenceFlow id="Flow_ResponseSent" sourceRef="Task_SendResponse" targetRef="Task_SyncData"/>
+        <bpmn:sequenceFlow id="Flow_Synced" sourceRef="Task_SyncData" targetRef="Task_LogAudit"/>
+        <bpmn:sequenceFlow id="Flow_Logged" sourceRef="Task_LogAudit" targetRef="End_Success"/>
+        <bpmn:sequenceFlow id="Flow_APICallComplete" sourceRef="Task_CallExternalAPI" targetRef="End_Terminate"/>
+
+        <!-- Data Associations -->
+        <bpmn:dataInputAssociation id="DataIn_1">
+            <bpmn:sourceRef>DataObjectRef_Config</bpmn:sourceRef>
+            <bpmn:targetRef>Task_ValidateInput</bpmn:targetRef>
+        </bpmn:dataInputAssociation>
+
+        <bpmn:dataOutputAssociation id="DataOut_1">
+            <bpmn:sourceRef>Task_PrepareResponse</bpmn:sourceRef>
+            <bpmn:targetRef>DataObject_Response</bpmn:targetRef>
+        </bpmn:dataOutputAssociation>
+
+    </bpmn:process>
+
+    <!-- ============================================================== -->
+    <!-- PROCESS 2: Secondary Services -->
+    <!-- ============================================================== -->
+    <bpmn:process id="Process_Secondary" name="Secondary Services" isExecutable="true">
+
+        <bpmn:laneSet id="LaneSet_Secondary">
+            <bpmn:lane id="Lane_Sec_Processing" name="Data Processing">
+                <bpmn:flowNodeRef>Start_Secondary</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_ProcessData</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Sec_Storage" name="Data Storage">
+                <bpmn:flowNodeRef>Task_StoreData</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>End_Secondary</bpmn:flowNodeRef>
+            </bpmn:lane>
+        </bpmn:laneSet>
+
+        <bpmn:startEvent id="Start_Secondary" name="Start">
+            <bpmn:outgoing>SecFlow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+
+        <bpmn:serviceTask id="Task_ProcessData" name="Process Data Batch">
+            <bpmn:incoming>SecFlow_1</bpmn:incoming>
+            <bpmn:outgoing>SecFlow_2</bpmn:outgoing>
+            <bpmn:multiInstanceLoopCharacteristics isSequential="true"/>
+        </bpmn:serviceTask>
+
+        <bpmn:serviceTask id="Task_StoreData" name="Store Results">
+            <bpmn:incoming>SecFlow_2</bpmn:incoming>
+            <bpmn:outgoing>SecFlow_3</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:endEvent id="End_Secondary" name="Completed">
+            <bpmn:incoming>SecFlow_3</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:sequenceFlow id="SecFlow_1" sourceRef="Start_Secondary" targetRef="Task_ProcessData"/>
+        <bpmn:sequenceFlow id="SecFlow_2" sourceRef="Task_ProcessData" targetRef="Task_StoreData"/>
+        <bpmn:sequenceFlow id="SecFlow_3" sourceRef="Task_StoreData" targetRef="End_Secondary"/>
+
+    </bpmn:process>
+
+    <!-- ============================================================== -->
+    <!-- PROCESS 3: External API (NO lanes - direct pool containment) -->
+    <!-- ============================================================== -->
+    <bpmn:process id="Process_ExternalAPI" name="External API" isExecutable="false">
+
+        <bpmn:startEvent id="Start_API" name="API Request">
+            <bpmn:outgoing>APIFlow_1</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MsgDef_APIStart" messageRef="Message_Request"/>
+        </bpmn:startEvent>
+
+        <bpmn:serviceTask id="Task_ProcessAPI" name="Process API Request">
+            <bpmn:incoming>APIFlow_1</bpmn:incoming>
+            <bpmn:outgoing>APIFlow_2</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:sendTask id="Task_APIRespond" name="Send Response">
+            <bpmn:incoming>APIFlow_2</bpmn:incoming>
+            <bpmn:outgoing>APIFlow_3</bpmn:outgoing>
+        </bpmn:sendTask>
+
+        <bpmn:endEvent id="End_API" name="API Complete">
+            <bpmn:incoming>APIFlow_3</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:sequenceFlow id="APIFlow_1" sourceRef="Start_API" targetRef="Task_ProcessAPI"/>
+        <bpmn:sequenceFlow id="APIFlow_2" sourceRef="Task_ProcessAPI" targetRef="Task_APIRespond"/>
+        <bpmn:sequenceFlow id="APIFlow_3" sourceRef="Task_APIRespond" targetRef="End_API"/>
+
+    </bpmn:process>
+
+    <!-- ============================================================== -->
+    <!-- PROCESS 4: Audit System -->
+    <!-- ============================================================== -->
+    <bpmn:process id="Process_Audit" name="Audit Process" isExecutable="true">
+
+        <bpmn:laneSet id="LaneSet_Audit">
+            <bpmn:lane id="Lane_Audit_Receive" name="Audit Reception">
+                <bpmn:flowNodeRef>Start_Audit</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_RecordAudit</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Audit_Archive" name="Audit Archive">
+                <bpmn:flowNodeRef>Task_ArchiveAudit</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>End_Audit</bpmn:flowNodeRef>
+            </bpmn:lane>
+        </bpmn:laneSet>
+
+        <bpmn:startEvent id="Start_Audit" name="Audit Event">
+            <bpmn:outgoing>AuditFlow_1</bpmn:outgoing>
+            <bpmn:messageEventDefinition id="MsgDef_AuditStart" messageRef="Message_Notification"/>
+        </bpmn:startEvent>
+
+        <bpmn:serviceTask id="Task_RecordAudit" name="Record Audit Entry">
+            <bpmn:incoming>AuditFlow_1</bpmn:incoming>
+            <bpmn:outgoing>AuditFlow_2</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:serviceTask id="Task_ArchiveAudit" name="Archive to Long-Term Storage">
+            <bpmn:incoming>AuditFlow_2</bpmn:incoming>
+            <bpmn:outgoing>AuditFlow_3</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:endEvent id="End_Audit" name="Audit Logged">
+            <bpmn:incoming>AuditFlow_3</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:sequenceFlow id="AuditFlow_1" sourceRef="Start_Audit" targetRef="Task_RecordAudit"/>
+        <bpmn:sequenceFlow id="AuditFlow_2" sourceRef="Task_RecordAudit" targetRef="Task_ArchiveAudit"/>
+        <bpmn:sequenceFlow id="AuditFlow_3" sourceRef="Task_ArchiveAudit" targetRef="End_Audit"/>
+
+    </bpmn:process>
+
+    <!-- ============================================================== -->
+    <!-- PROCESS 5: Legacy System (minimal) -->
+    <!-- ============================================================== -->
+    <bpmn:process id="Process_Legacy" name="Legacy Backend" isExecutable="false">
+        <!-- Empty process - black box participant -->
+    </bpmn:process>
+
+    <!-- ============================================================== -->
+    <!-- DIAGRAM INTERCHANGE (DI) DATA -->
+    <!-- ============================================================== -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_EdgeCase">
+        <bpmndi:BPMNPlane id="BPMNPlane_EdgeCase" bpmnElement="Collaboration_EdgeCaseTest">
+
+            <!-- Pool 1: Customer (External) -->
+            <bpmndi:BPMNShape id="Pool_Customer_di" bpmnElement="Pool_Customer" isHorizontal="true">
+                <dc:Bounds x="50" y="50" width="2200" height="100"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Pool 2: Main System -->
+            <bpmndi:BPMNShape id="Pool_MainSystem_di" bpmnElement="Pool_MainSystem" isHorizontal="true">
+                <dc:Bounds x="50" y="180" width="2200" height="900"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Lanes in Main System -->
+            <bpmndi:BPMNShape id="Lane_Reception_di" bpmnElement="Lane_Reception" isHorizontal="true">
+                <dc:Bounds x="90" y="180" width="2160" height="140"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Validation_di" bpmnElement="Lane_Validation" isHorizontal="true">
+                <dc:Bounds x="90" y="320" width="2160" height="140"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Processing_di" bpmnElement="Lane_Processing" isHorizontal="true">
+                <dc:Bounds x="90" y="460" width="2160" height="200"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_BusinessRules_di" bpmnElement="Lane_BusinessRules" isHorizontal="true">
+                <dc:Bounds x="90" y="660" width="2160" height="140"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Response_di" bpmnElement="Lane_Response" isHorizontal="true">
+                <dc:Bounds x="90" y="800" width="2160" height="140"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Integration_di" bpmnElement="Lane_Integration" isHorizontal="true">
+                <dc:Bounds x="90" y="940" width="2160" height="140"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Pool 3: Secondary -->
+            <bpmndi:BPMNShape id="Pool_Secondary_di" bpmnElement="Pool_Secondary" isHorizontal="true">
+                <dc:Bounds x="50" y="1110" width="800" height="250"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Lane_Sec_Processing_di" bpmnElement="Lane_Sec_Processing" isHorizontal="true">
+                <dc:Bounds x="90" y="1110" width="760" height="125"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Sec_Storage_di" bpmnElement="Lane_Sec_Storage" isHorizontal="true">
+                <dc:Bounds x="90" y="1235" width="760" height="125"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Pool 4: External API (no lanes) -->
+            <bpmndi:BPMNShape id="Pool_ExternalAPI_di" bpmnElement="Pool_ExternalAPI" isHorizontal="true">
+                <dc:Bounds x="900" y="1110" width="600" height="150"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Pool 5: Audit -->
+            <bpmndi:BPMNShape id="Pool_Audit_di" bpmnElement="Pool_Audit" isHorizontal="true">
+                <dc:Bounds x="1550" y="1110" width="700" height="250"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Lane_Audit_Receive_di" bpmnElement="Lane_Audit_Receive" isHorizontal="true">
+                <dc:Bounds x="1590" y="1110" width="660" height="125"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Audit_Archive_di" bpmnElement="Lane_Audit_Archive" isHorizontal="true">
+                <dc:Bounds x="1590" y="1235" width="660" height="125"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Pool 6: Legacy (minimal) -->
+            <bpmndi:BPMNShape id="Pool_Legacy_di" bpmnElement="Pool_Legacy" isHorizontal="true">
+                <dc:Bounds x="50" y="1390" width="400" height="100"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Start Events - Main -->
+            <bpmndi:BPMNShape id="Start_Message_Main_di" bpmnElement="Start_Message_Main">
+                <dc:Bounds x="152" y="222" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Start_Timer_Scheduled_di" bpmnElement="Start_Timer_Scheduled">
+                <dc:Bounds x="152" y="262" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Start_Signal_Alert_di" bpmnElement="Start_Signal_Alert">
+                <dc:Bounds x="152" y="302" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Reception Tasks -->
+            <bpmndi:BPMNShape id="Task_ReceiveRequest_di" bpmnElement="Task_ReceiveRequest">
+                <dc:Bounds x="250" y="220" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_RequestType_di" bpmnElement="Gateway_RequestType" isMarkerVisible="true">
+                <dc:Bounds x="415" y="235" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Validation Tasks -->
+            <bpmndi:BPMNShape id="Task_ValidateInput_di" bpmnElement="Task_ValidateInput">
+                <dc:Bounds x="540" y="350" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_ValidationResult_di" bpmnElement="Gateway_ValidationResult">
+                <dc:Bounds x="715" y="365" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_RejectInvalid_di" bpmnElement="Task_RejectInvalid">
+                <dc:Bounds x="820" y="350" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="End_Rejected_di" bpmnElement="End_Rejected">
+                <dc:Bounds x="982" y="372" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Main Processing Subprocess -->
+            <bpmndi:BPMNShape id="SubProcess_MainProcessing_di" bpmnElement="SubProcess_MainProcessing" isExpanded="true">
+                <dc:Bounds x="250" y="490" width="700" height="140"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Elements inside subprocess - positioned relative to subprocess bounds -->
+            <bpmndi:BPMNShape id="SubStart_Main_di" bpmnElement="SubStart_Main">
+                <dc:Bounds x="280" y="542" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_Parallel_Split_di" bpmnElement="Gateway_Parallel_Split">
+                <dc:Bounds x="355" y="535" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_Script_Transform_di" bpmnElement="Task_Script_Transform">
+                <dc:Bounds x="440" y="495" width="100" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_BusinessRule_di" bpmnElement="Task_BusinessRule">
+                <dc:Bounds x="440" y="545" width="100" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_ManualReview_di" bpmnElement="Task_ManualReview">
+                <dc:Bounds x="440" y="595" width="100" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_Parallel_Join_di" bpmnElement="Gateway_Parallel_Join">
+                <dc:Bounds x="575" y="535" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="SubProcess_Nested_di" bpmnElement="SubProcess_Nested" isExpanded="true">
+                <dc:Bounds x="660" y="510" width="200" height="100"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="SubStart_Nested_di" bpmnElement="SubStart_Nested">
+                <dc:Bounds x="680" y="545" width="30" height="30"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_Calculate_di" bpmnElement="Task_Calculate">
+                <dc:Bounds x="730" y="535" width="80" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="SubEnd_Nested_di" bpmnElement="SubEnd_Nested">
+                <dc:Bounds x="830" y="545" width="30" height="30"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="SubEnd_Main_di" bpmnElement="SubEnd_Main">
+                <dc:Bounds x="892" y="542" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Boundary Events -->
+            <bpmndi:BPMNShape id="Boundary_Timer_di" bpmnElement="Boundary_Timer">
+                <dc:Bounds x="432" y="612" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Boundary_Error_di" bpmnElement="Boundary_Error">
+                <dc:Bounds x="532" y="612" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Boundary_Message_NonInterrupt_di" bpmnElement="Boundary_Message_NonInterrupt">
+                <dc:Bounds x="632" y="612" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Event-Based Gateway and Catch Events -->
+            <bpmndi:BPMNShape id="Gateway_ProcessingOutcome_di" bpmnElement="Gateway_ProcessingOutcome">
+                <dc:Bounds x="1020" y="535" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Event_CatchAPIResponse_di" bpmnElement="Event_CatchAPIResponse">
+                <dc:Bounds x="1122" y="497" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Event_CatchTimeout_di" bpmnElement="Event_CatchTimeout">
+                <dc:Bounds x="1122" y="542" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Event_CatchSignal_di" bpmnElement="Event_CatchSignal">
+                <dc:Bounds x="1122" y="587" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Business Rules -->
+            <bpmndi:BPMNShape id="Task_ApplyBusinessRules_di" bpmnElement="Task_ApplyBusinessRules">
+                <dc:Bounds x="1200" y="700" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_RulesDecision_di" bpmnElement="Gateway_RulesDecision">
+                <dc:Bounds x="1375" y="715" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_HandleException_di" bpmnElement="Task_HandleException">
+                <dc:Bounds x="1480" y="700" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Response Tasks -->
+            <bpmndi:BPMNShape id="Task_PrepareResponse_di" bpmnElement="Task_PrepareResponse">
+                <dc:Bounds x="1480" y="830" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_SendResponse_di" bpmnElement="Task_SendResponse">
+                <dc:Bounds x="1650" y="830" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Integration Tasks -->
+            <bpmndi:BPMNShape id="Task_CallExternalAPI_di" bpmnElement="Task_CallExternalAPI">
+                <dc:Bounds x="750" y="970" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_SyncData_di" bpmnElement="Task_SyncData">
+                <dc:Bounds x="1820" y="970" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_LogAudit_di" bpmnElement="Task_LogAudit">
+                <dc:Bounds x="1980" y="970" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+
+            <!-- End Events -->
+            <bpmndi:BPMNShape id="End_Success_di" bpmnElement="End_Success">
+                <dc:Bounds x="2152" y="852" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="End_Error_di" bpmnElement="End_Error">
+                <dc:Bounds x="1652" y="722" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="End_Terminate_di" bpmnElement="End_Terminate">
+                <dc:Bounds x="912" y="992" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Data Objects -->
+            <bpmndi:BPMNShape id="DataObject_Request_di" bpmnElement="DataObject_Request">
+                <dc:Bounds x="572" y="445" width="36" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="DataObject_Response_di" bpmnElement="DataObject_Response">
+                <dc:Bounds x="1612" y="930" width="36" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="DataObjectRef_Config_di" bpmnElement="DataObjectRef_Config">
+                <dc:Bounds x="482" y="445" width="36" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="DataStoreRef_MainDB_di" bpmnElement="DataStoreRef_MainDB">
+                <dc:Bounds x="1905" y="1050" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Text Annotations -->
+            <bpmndi:BPMNShape id="Annotation_1_di" bpmnElement="Annotation_1">
+                <dc:Bounds x="700" y="280" width="200" height="60"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Annotation_2_di" bpmnElement="Annotation_2">
+                <dc:Bounds x="1340" y="780" width="30" height="20"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Secondary Process Elements -->
+            <bpmndi:BPMNShape id="Start_Secondary_di" bpmnElement="Start_Secondary">
+                <dc:Bounds x="152" y="1152" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_ProcessData_di" bpmnElement="Task_ProcessData">
+                <dc:Bounds x="250" y="1130" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_StoreData_di" bpmnElement="Task_StoreData">
+                <dc:Bounds x="250" y="1260" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="End_Secondary_di" bpmnElement="End_Secondary">
+                <dc:Bounds x="432" y="1282" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- External API Elements (no lanes) -->
+            <bpmndi:BPMNShape id="Start_API_di" bpmnElement="Start_API">
+                <dc:Bounds x="952" y="1162" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_ProcessAPI_di" bpmnElement="Task_ProcessAPI">
+                <dc:Bounds x="1040" y="1140" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_APIRespond_di" bpmnElement="Task_APIRespond">
+                <dc:Bounds x="1210" y="1140" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="End_API_di" bpmnElement="End_API">
+                <dc:Bounds x="1382" y="1162" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Audit Elements -->
+            <bpmndi:BPMNShape id="Start_Audit_di" bpmnElement="Start_Audit">
+                <dc:Bounds x="1652" y="1152" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_RecordAudit_di" bpmnElement="Task_RecordAudit">
+                <dc:Bounds x="1740" y="1130" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_ArchiveAudit_di" bpmnElement="Task_ArchiveAudit">
+                <dc:Bounds x="1740" y="1260" width="120" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="End_Audit_di" bpmnElement="End_Audit">
+                <dc:Bounds x="1912" y="1282" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- Message Flow Edges -->
+            <bpmndi:BPMNEdge id="MsgFlow_1_di" bpmnElement="MsgFlow_1">
+                <di:waypoint x="170" y="150"/>
+                <di:waypoint x="170" y="222"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="MsgFlow_2_di" bpmnElement="MsgFlow_2">
+                <di:waypoint x="1710" y="830"/>
+                <di:waypoint x="1710" y="150"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="MsgFlow_3_di" bpmnElement="MsgFlow_3">
+                <di:waypoint x="810" y="1050"/>
+                <di:waypoint x="810" y="1100"/>
+                <di:waypoint x="970" y="1100"/>
+                <di:waypoint x="970" y="1162"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="MsgFlow_4_di" bpmnElement="MsgFlow_4">
+                <di:waypoint x="1270" y="1140"/>
+                <di:waypoint x="1270" y="515"/>
+                <di:waypoint x="1158" y="515"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="MsgFlow_5_di" bpmnElement="MsgFlow_5">
+                <di:waypoint x="2040" y="1050"/>
+                <di:waypoint x="2040" y="1090"/>
+                <di:waypoint x="1670" y="1090"/>
+                <di:waypoint x="1670" y="1152"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="MsgFlow_6_di" bpmnElement="MsgFlow_6">
+                <di:waypoint x="1880" y="1050"/>
+                <di:waypoint x="1880" y="1380"/>
+                <di:waypoint x="450" y="1380"/>
+                <di:waypoint x="450" y="1390"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Sequence Flow Edges - Main Process -->
+            <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+                <di:waypoint x="188" y="240"/>
+                <di:waypoint x="250" y="240"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_TimerToReceive_di" bpmnElement="Flow_TimerToReceive">
+                <di:waypoint x="188" y="280"/>
+                <di:waypoint x="220" y="280"/>
+                <di:waypoint x="220" y="260"/>
+                <di:waypoint x="250" y="260"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_SignalToReceive_di" bpmnElement="Flow_SignalToReceive">
+                <di:waypoint x="188" y="320"/>
+                <di:waypoint x="220" y="320"/>
+                <di:waypoint x="220" y="280"/>
+                <di:waypoint x="250" y="280"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+                <di:waypoint x="370" y="260"/>
+                <di:waypoint x="415" y="260"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_TypeA_di" bpmnElement="Flow_TypeA">
+                <di:waypoint x="440" y="285"/>
+                <di:waypoint x="440" y="390"/>
+                <di:waypoint x="540" y="390"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_TypeB_di" bpmnElement="Flow_TypeB">
+                <di:waypoint x="465" y="260"/>
+                <di:waypoint x="490" y="260"/>
+                <di:waypoint x="490" y="380"/>
+                <di:waypoint x="540" y="380"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_TypeC_di" bpmnElement="Flow_TypeC">
+                <di:waypoint x="440" y="235"/>
+                <di:waypoint x="440" y="200"/>
+                <di:waypoint x="510" y="200"/>
+                <di:waypoint x="510" y="370"/>
+                <di:waypoint x="540" y="370"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_Default_di" bpmnElement="Flow_Default">
+                <di:waypoint x="440" y="235"/>
+                <di:waypoint x="440" y="195"/>
+                <di:waypoint x="530" y="195"/>
+                <di:waypoint x="530" y="360"/>
+                <di:waypoint x="540" y="360"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+                <di:waypoint x="660" y="390"/>
+                <di:waypoint x="715" y="390"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_Valid_di" bpmnElement="Flow_Valid">
+                <di:waypoint x="740" y="415"/>
+                <di:waypoint x="740" y="560"/>
+                <di:waypoint x="250" y="560"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_PartialValid_di" bpmnElement="Flow_PartialValid">
+                <di:waypoint x="765" y="390"/>
+                <di:waypoint x="780" y="390"/>
+                <di:waypoint x="780" y="580"/>
+                <di:waypoint x="250" y="580"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_Invalid_di" bpmnElement="Flow_Invalid">
+                <di:waypoint x="765" y="390"/>
+                <di:waypoint x="820" y="390"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_ToRejected_di" bpmnElement="Flow_ToRejected">
+                <di:waypoint x="940" y="390"/>
+                <di:waypoint x="982" y="390"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_TimeoutPath_di" bpmnElement="Flow_TimeoutPath">
+                <di:waypoint x="450" y="648"/>
+                <di:waypoint x="450" y="740"/>
+                <di:waypoint x="1652" y="740"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_ErrorPath_di" bpmnElement="Flow_ErrorPath">
+                <di:waypoint x="550" y="648"/>
+                <di:waypoint x="550" y="760"/>
+                <di:waypoint x="1670" y="760"/>
+                <di:waypoint x="1670" y="758"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_UpdatePath_di" bpmnElement="Flow_UpdatePath">
+                <di:waypoint x="650" y="648"/>
+                <di:waypoint x="650" y="1010"/>
+                <di:waypoint x="750" y="1010"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_ProcessingComplete_di" bpmnElement="Flow_ProcessingComplete">
+                <di:waypoint x="950" y="560"/>
+                <di:waypoint x="1020" y="560"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_WaitAPI_di" bpmnElement="Flow_WaitAPI">
+                <di:waypoint x="1070" y="560"/>
+                <di:waypoint x="1096" y="560"/>
+                <di:waypoint x="1096" y="515"/>
+                <di:waypoint x="1122" y="515"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_WaitTimer_di" bpmnElement="Flow_WaitTimer">
+                <di:waypoint x="1070" y="560"/>
+                <di:waypoint x="1122" y="560"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_WaitSignal_di" bpmnElement="Flow_WaitSignal">
+                <di:waypoint x="1070" y="560"/>
+                <di:waypoint x="1096" y="560"/>
+                <di:waypoint x="1096" y="605"/>
+                <di:waypoint x="1122" y="605"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_APIReceived_di" bpmnElement="Flow_APIReceived">
+                <di:waypoint x="1158" y="515"/>
+                <di:waypoint x="1180" y="515"/>
+                <di:waypoint x="1180" y="740"/>
+                <di:waypoint x="1200" y="740"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_TimeoutElapsed_di" bpmnElement="Flow_TimeoutElapsed">
+                <di:waypoint x="1158" y="560"/>
+                <di:waypoint x="1190" y="560"/>
+                <di:waypoint x="1190" y="730"/>
+                <di:waypoint x="1200" y="730"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_SignalReceived_di" bpmnElement="Flow_SignalReceived">
+                <di:waypoint x="1158" y="605"/>
+                <di:waypoint x="1540" y="605"/>
+                <di:waypoint x="1540" y="700"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_RulesApplied_di" bpmnElement="Flow_RulesApplied">
+                <di:waypoint x="1320" y="740"/>
+                <di:waypoint x="1375" y="740"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_RulesApprove_di" bpmnElement="Flow_RulesApprove">
+                <di:waypoint x="1400" y="765"/>
+                <di:waypoint x="1400" y="870"/>
+                <di:waypoint x="1480" y="870"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_RulesReview_di" bpmnElement="Flow_RulesReview">
+                <di:waypoint x="1425" y="740"/>
+                <di:waypoint x="1452" y="740"/>
+                <di:waypoint x="1452" y="850"/>
+                <di:waypoint x="1480" y="850"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_RulesReject_di" bpmnElement="Flow_RulesReject">
+                <di:waypoint x="1425" y="740"/>
+                <di:waypoint x="1480" y="740"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_RulesDefault_di" bpmnElement="Flow_RulesDefault">
+                <di:waypoint x="1400" y="715"/>
+                <di:waypoint x="1400" y="680"/>
+                <di:waypoint x="1460" y="680"/>
+                <di:waypoint x="1460" y="830"/>
+                <di:waypoint x="1480" y="830"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_ExceptionHandled_di" bpmnElement="Flow_ExceptionHandled">
+                <di:waypoint x="1600" y="740"/>
+                <di:waypoint x="1652" y="740"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_ResponseReady_di" bpmnElement="Flow_ResponseReady">
+                <di:waypoint x="1600" y="870"/>
+                <di:waypoint x="1650" y="870"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_ResponseSent_di" bpmnElement="Flow_ResponseSent">
+                <di:waypoint x="1770" y="870"/>
+                <di:waypoint x="1880" y="870"/>
+                <di:waypoint x="1880" y="970"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_Synced_di" bpmnElement="Flow_Synced">
+                <di:waypoint x="1940" y="1010"/>
+                <di:waypoint x="1980" y="1010"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_Logged_di" bpmnElement="Flow_Logged">
+                <di:waypoint x="2100" y="1010"/>
+                <di:waypoint x="2170" y="1010"/>
+                <di:waypoint x="2170" y="888"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_APICallComplete_di" bpmnElement="Flow_APICallComplete">
+                <di:waypoint x="870" y="1010"/>
+                <di:waypoint x="912" y="1010"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Subprocess Internal Flows -->
+            <bpmndi:BPMNEdge id="SubFlow_1_di" bpmnElement="SubFlow_1">
+                <di:waypoint x="316" y="560"/>
+                <di:waypoint x="355" y="560"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SubFlow_P1_di" bpmnElement="SubFlow_P1">
+                <di:waypoint x="380" y="535"/>
+                <di:waypoint x="380" y="520"/>
+                <di:waypoint x="440" y="520"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SubFlow_P2_di" bpmnElement="SubFlow_P2">
+                <di:waypoint x="405" y="560"/>
+                <di:waypoint x="422" y="560"/>
+                <di:waypoint x="422" y="570"/>
+                <di:waypoint x="440" y="570"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SubFlow_P3_di" bpmnElement="SubFlow_P3">
+                <di:waypoint x="380" y="585"/>
+                <di:waypoint x="380" y="620"/>
+                <di:waypoint x="440" y="620"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SubFlow_P1_End_di" bpmnElement="SubFlow_P1_End">
+                <di:waypoint x="540" y="520"/>
+                <di:waypoint x="557" y="520"/>
+                <di:waypoint x="557" y="535"/>
+                <di:waypoint x="575" y="535"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SubFlow_P2_End_di" bpmnElement="SubFlow_P2_End">
+                <di:waypoint x="540" y="570"/>
+                <di:waypoint x="557" y="570"/>
+                <di:waypoint x="557" y="560"/>
+                <di:waypoint x="575" y="560"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SubFlow_P3_End_di" bpmnElement="SubFlow_P3_End">
+                <di:waypoint x="540" y="620"/>
+                <di:waypoint x="557" y="620"/>
+                <di:waypoint x="557" y="585"/>
+                <di:waypoint x="575" y="585"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SubFlow_AfterParallel_di" bpmnElement="SubFlow_AfterParallel">
+                <di:waypoint x="625" y="560"/>
+                <di:waypoint x="660" y="560"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SubFlow_AfterNested_di" bpmnElement="SubFlow_AfterNested">
+                <di:waypoint x="860" y="560"/>
+                <di:waypoint x="892" y="560"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Nested Subprocess Flows -->
+            <bpmndi:BPMNEdge id="NestedFlow_1_di" bpmnElement="NestedFlow_1">
+                <di:waypoint x="710" y="560"/>
+                <di:waypoint x="730" y="560"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="NestedFlow_2_di" bpmnElement="NestedFlow_2">
+                <di:waypoint x="810" y="560"/>
+                <di:waypoint x="830" y="560"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Secondary Process Flows -->
+            <bpmndi:BPMNEdge id="SecFlow_1_di" bpmnElement="SecFlow_1">
+                <di:waypoint x="188" y="1170"/>
+                <di:waypoint x="250" y="1170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SecFlow_2_di" bpmnElement="SecFlow_2">
+                <di:waypoint x="310" y="1210"/>
+                <di:waypoint x="310" y="1260"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="SecFlow_3_di" bpmnElement="SecFlow_3">
+                <di:waypoint x="370" y="1300"/>
+                <di:waypoint x="432" y="1300"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- API Process Flows -->
+            <bpmndi:BPMNEdge id="APIFlow_1_di" bpmnElement="APIFlow_1">
+                <di:waypoint x="988" y="1180"/>
+                <di:waypoint x="1040" y="1180"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="APIFlow_2_di" bpmnElement="APIFlow_2">
+                <di:waypoint x="1160" y="1180"/>
+                <di:waypoint x="1210" y="1180"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="APIFlow_3_di" bpmnElement="APIFlow_3">
+                <di:waypoint x="1330" y="1180"/>
+                <di:waypoint x="1382" y="1180"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Audit Process Flows -->
+            <bpmndi:BPMNEdge id="AuditFlow_1_di" bpmnElement="AuditFlow_1">
+                <di:waypoint x="1688" y="1170"/>
+                <di:waypoint x="1740" y="1170"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="AuditFlow_2_di" bpmnElement="AuditFlow_2">
+                <di:waypoint x="1800" y="1210"/>
+                <di:waypoint x="1800" y="1260"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="AuditFlow_3_di" bpmnElement="AuditFlow_3">
+                <di:waypoint x="1860" y="1300"/>
+                <di:waypoint x="1912" y="1300"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- Association Edges -->
+            <bpmndi:BPMNEdge id="Assoc_1_di" bpmnElement="Assoc_1">
+                <di:waypoint x="640" y="350"/>
+                <di:waypoint x="700" y="320"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Assoc_2_di" bpmnElement="Assoc_2">
+                <di:waypoint x="1385" y="760"/>
+                <di:waypoint x="1360" y="780"/>
+            </bpmndi:BPMNEdge>
+
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

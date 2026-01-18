@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BPMN Edge Case Test Viewer</title>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #graph { width: 100vw; height: 100vh; }
+    </style>
+    <script src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
+</head>
+<body>
+    <div id="graph" class="mxgraph" data-mxgraph="">
+    </div>
+    <script>
+        fetch('comprehensive_edge_case_test.drawio')
+            .then(r => r.text())
+            .then(xml => {
+                document.getElementById('graph').setAttribute('data-mxgraph', JSON.stringify({
+                    highlight: "#0000ff",
+                    nav: true,
+                    resize: true,
+                    xml: xml,
+                    toolbar: "zoom layers lightbox",
+                    page: 0
+                }));
+                // Trigger graph rendering
+                if (typeof GraphViewer !== 'undefined') {
+                    GraphViewer.processElements();
+                }
+            });
+    </script>
+</body>
+</html>

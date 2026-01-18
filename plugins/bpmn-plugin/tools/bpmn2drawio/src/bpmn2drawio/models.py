@@ -78,6 +78,7 @@ class Lane:
     id: str
     name: Optional[str] = None
     parent_pool_id: str = ""
+    process_id: Optional[str] = None  # ID of the process containing this lane
     x: Optional[float] = None
     y: Optional[float] = None
     width: Optional[float] = None

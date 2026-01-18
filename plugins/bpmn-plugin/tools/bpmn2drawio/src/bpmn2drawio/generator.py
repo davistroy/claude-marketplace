@@ -249,21 +249,25 @@ class DrawioGenerator:
 
         # Resolve parent cell ID
         parent_cell_id = "1"
-        # Check subprocess parent first
+        # Check subprocess parent first (for elements inside subprocesses)
         subprocess_id = element.properties.get("subprocess_id")
         if subprocess_id:
             if subprocess_id in self._subprocess_cell_ids:
                 parent_cell_id = self._subprocess_cell_ids[subprocess_id]
-        # Then check lane/pool parents
+        # Then check element.parent_id
         elif element.parent_id:
+            # Check if parent is a subprocess (for boundary events attached to subprocesses)
+            if element.parent_id in self._subprocess_cell_ids:
+                parent_cell_id = self._subprocess_cell_ids[element.parent_id]
             # Check if parent is a lane
-            if hasattr(self, '_lane_cell_ids') and element.parent_id in self._lane_cell_ids:
+            elif hasattr(self, '_lane_cell_ids') and element.parent_id in self._lane_cell_ids:
                 parent_cell_id = self._lane_cell_ids[element.parent_id]
             # Check if parent is a pool
             elif hasattr(self, '_pool_cell_ids') and element.parent_id in self._pool_cell_ids:
                 parent_cell_id = self._pool_cell_ids[element.parent_id]
-            else:
-                parent_cell_id = element.parent_id
+            # Fallback to element_cell_ids (for elements parented to other elements)
+            elif element.parent_id in self._element_cell_ids:
+                parent_cell_id = self._element_cell_ids[element.parent_id]
 
         cell.set("parent", parent_cell_id)
 
@@ -319,11 +323,13 @@ class DrawioGenerator:
 
         # Resolve parent (lane, pool, or another subprocess)
         parent_cell_id = "1"
-        subprocess_id = element.properties.get("subprocess_id")
+        # Check for parent subprocess first (for nested subprocesses)
+        subprocess_id = element.subprocess_id or element.properties.get("subprocess_id")
         if subprocess_id:
             if subprocess_id in self._subprocess_cell_ids:
                 parent_cell_id = self._subprocess_cell_ids[subprocess_id]
-        elif element.parent_id:
+        # Then check parent_id for lane/pool
+        if parent_cell_id == "1" and element.parent_id:
             if hasattr(self, '_lane_cell_ids') and element.parent_id in self._lane_cell_ids:
                 parent_cell_id = self._lane_cell_ids[element.parent_id]
             elif hasattr(self, '_pool_cell_ids') and element.parent_id in self._pool_cell_ids:

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [bpmn-plugin 2.2.0] - 2026-01-18
+
+### Fixed
+- bpmn2drawio: Lane-to-pool assignment now correctly tracks process_id for proper pool matching
+- bpmn2drawio: Lane Y positions now start at 0 within each pool instead of cumulative across all pools
+- bpmn2drawio: Subprocess parsing order fixed to set _is_subprocess property before generic element handling
+- bpmn2drawio: Nested subprocess parsing now correctly sets _is_subprocess property
+- bpmn2drawio: Boundary events now correctly parented to their attached subprocess with relative coordinates
+- bpmn2drawio: Boundary event parent resolution in generator now checks subprocess cell IDs
+- bpmn2drawio: Added missing boundaryEvent, subProcess, and callActivity styles to themes.py
+- bpmn2drawio: Nested subprocess parent resolution now uses element.subprocess_id attribute
+
+### Added
+- Comprehensive edge case test file (examples/comprehensive_edge_case_test.bpmn)
+- Converter fixes documentation (references/converter-fixes-20260118-123946.md)
+
 ## [personal-plugin 3.6.1] - 2026-01-18
 
 ### Changed
