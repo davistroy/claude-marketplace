@@ -173,6 +173,142 @@ Apply these updates to all documentation:
 - Create missing documentation files if the project lacks them (README, CONTRIBUTING, etc.)
 - Note any significant architectural decisions that should be documented
 
+### 3.7 CHANGELOG Currency Check
+
+Verify CHANGELOG.md reflects recent repository activity:
+
+**Analysis Steps:**
+1. Parse CHANGELOG.md to identify the most recent version entry and its date
+2. Run `git log --oneline --since="[last changelog date]"` to find commits since last update
+3. Categorize commits by type (feat, fix, chore, docs, etc.) using conventional commit prefixes
+4. Compare against CHANGELOG entries to identify gaps
+
+**Check for:**
+- Missing entries for significant commits (features, fixes, breaking changes)
+- "Unreleased" section that should be converted to a version
+- Version entries without dates
+- Entries referencing PRs/issues that don't exist
+
+**Report:**
+```
+CHANGELOG Currency
+------------------
+Last entry: v2.3.0 (2026-01-10)
+Commits since: 12
+  - 5 feat commits (3 documented, 2 missing)
+  - 4 fix commits (4 documented)
+  - 3 chore commits (not required)
+
+Missing entries:
+  - feat: add research-topic skill (abc1234)
+  - feat: add validate-and-ship skill (def5678)
+
+Recommendation: Add missing feature entries before next release
+```
+
+**Actions:**
+1. List missing CHANGELOG entries with commit references
+2. Suggest additions in proper CHANGELOG format
+3. Flag if "Unreleased" section has accumulated significant changes
+
+### 3.8 TROUBLESHOOTING Staleness Audit
+
+Review TROUBLESHOOTING.md (and similar files like FAQ.md, KNOWN-ISSUES.md) for resolved issues:
+
+**Analysis Steps:**
+1. Parse each troubleshooting item/section
+2. For each issue, attempt to verify if it still exists:
+   - Check if referenced files/paths still exist
+   - Check if referenced error messages appear in current code
+   - Cross-reference with closed GitHub issues if issue numbers are mentioned
+   - Look for fixes in recent commits that address the described problem
+
+**Staleness Indicators:**
+- References files or directories that no longer exist
+- Describes behavior in code that has been refactored
+- Mentions versions older than 2 major versions back
+- Links to closed/resolved GitHub issues
+- Workarounds for bugs that have been fixed
+
+**Report:**
+```
+TROUBLESHOOTING Staleness Audit
+-------------------------------
+Items analyzed: 8
+Current: 5
+Potentially stale: 3
+
+Potentially Stale Items:
+  1. "Plugin not found after installation" (line 45)
+     Reason: References old plugin path structure changed in v2.0
+     Related: PR #28 fixed plugin discovery
+
+  2. "Windows path errors" (line 72)
+     Reason: Linked issue #15 is closed as fixed
+     Related: Commit abc1234 resolved path handling
+
+  3. "Research tool missing dependencies" (line 95)
+     Reason: pyproject.toml now includes all deps
+     Related: v2.1.0 added dependency auto-check
+
+Recommendation: Review and remove resolved items
+```
+
+**Actions:**
+1. Flag items that appear to be resolved
+2. Suggest removal or archival of stale troubleshooting entries
+3. Confirm with user before removing any items
+
+### 3.9 README Subdirectory Audit
+
+Find and validate all README.md files throughout the repository:
+
+**Discovery:**
+```bash
+find . -name "README.md" -type f
+```
+
+**For each README found, verify:**
+1. **File references exist**: Check that referenced files (scripts, configs, examples) still exist
+2. **Command examples work**: Verify CLI commands and code snippets reference actual functionality
+3. **Installation instructions current**: Check dependency versions, install commands
+4. **Links valid**: Verify internal links point to existing files
+5. **Feature descriptions accurate**: Cross-reference described features with actual implementation
+
+**Common Issues:**
+- Tool READMEs referencing old CLI arguments
+- Example code using deprecated APIs
+- Installation instructions with outdated dependency versions
+- Screenshots or diagrams showing old UI/structure
+- "Coming soon" features that were implemented or abandoned
+
+**Report:**
+```
+README Subdirectory Audit
+-------------------------
+READMEs found: 4
+  - ./README.md (root)
+  - ./plugins/bpmn-plugin/tools/bpmn2drawio/README.md
+  - ./plugins/personal-plugin/tools/research-orchestrator/README.md
+  - ./schemas/README.md
+
+Issues Found:
+  plugins/personal-plugin/tools/research-orchestrator/README.md:
+    Line 34: References --legacy flag (removed in v2.0)
+    Line 56: Example uses old provider names
+
+  schemas/README.md:
+    Line 12: Links to schemas/plugin.schema.json (file is plugin.json)
+
+Recommendation: Update outdated references
+```
+
+**Actions:**
+1. List all README locations with issue counts
+2. Detail specific outdated references with line numbers
+3. Propose corrections for simple issues
+4. Flag complex issues for manual review
+
 ## Phase 4: Configuration Consistency
 
 ### Package Metadata

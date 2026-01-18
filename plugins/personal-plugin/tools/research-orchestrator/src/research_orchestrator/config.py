@@ -7,7 +7,8 @@ from typing import Literal
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Use override=True to ensure .env file takes precedence over existing env vars
+load_dotenv(override=True)
 
 
 class Depth(Enum):

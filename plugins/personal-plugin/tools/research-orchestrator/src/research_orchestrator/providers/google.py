@@ -58,19 +58,28 @@ class GoogleProvider(BaseProvider):
 
             # Create interaction with deep research agent in background mode
             # The SDK handles the API endpoint and request formatting
+            # Note: store=True is required when using background=True per Google docs
             agent = self.get_agent()
             interaction = client.aio.interactions.create(
                 input=prompt,
                 agent=agent,
                 background=True,
+                store=True,
             )
 
             # Run the async create call
             interaction_result = await interaction
 
-            interaction_id = interaction_result.name or interaction_result.id
+            # Get interaction ID - try multiple possible attribute names
+            interaction_id = (
+                getattr(interaction_result, 'name', None) or
+                getattr(interaction_result, 'id', None) or
+                getattr(interaction_result, 'interaction_id', None)
+            )
             if not interaction_id:
-                raise ValueError("No interaction ID in response")
+                # Debug: show what attributes are available
+                attrs = [a for a in dir(interaction_result) if not a.startswith('_')]
+                raise ValueError(f"No interaction ID in response. Available attrs: {attrs[:10]}")
 
             result = await self._poll_for_completion(client, interaction_id, start_time)
             return result
@@ -105,8 +114,8 @@ class GoogleProvider(BaseProvider):
                 )
 
             try:
-                # Use SDK to get interaction status
-                interaction = await client.aio.interactions.get(name=interaction_id)
+                # Use SDK to get interaction status (pass ID as positional arg)
+                interaction = await client.aio.interactions.get(interaction_id)
 
                 # Check for completion
                 if getattr(interaction, "done", False):
@@ -160,6 +169,16 @@ class GoogleProvider(BaseProvider):
 
     def _extract_content(self, interaction: Any) -> str:
         """Extract content from completed interaction response."""
+        # Per Google docs: interaction.outputs[-1].text is the primary format
+        if hasattr(interaction, "outputs") and interaction.outputs:
+            last_output = interaction.outputs[-1]
+            if hasattr(last_output, "text"):
+                return last_output.text
+            if hasattr(last_output, "content"):
+                return last_output.content
+            if isinstance(last_output, str):
+                return last_output
+
         # Try various response formats the SDK might return
         if hasattr(interaction, "result"):
             result = interaction.result
