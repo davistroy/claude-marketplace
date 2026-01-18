@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.3.0] - 2026-01-18
+
+### Fixed
+- Cache deployment issue: v3.2.0 source code fixes were not deployed to marketplace cache
+  - OpenAI and Gemini providers now properly call `_status_update` method from BaseProvider
+  - Users should reinstall plugin to get the fixed version: `/plugin install personal-plugin@troys-plugins --force`
+
 ## [personal-plugin 3.2.0] - 2026-01-17
 
 ### Added
