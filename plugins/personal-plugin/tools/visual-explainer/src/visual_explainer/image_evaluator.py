@@ -14,12 +14,19 @@ The evaluator:
 from __future__ import annotations
 
 import base64
+import io
 import json
 import logging
 import re
 from typing import Any
 
 import anthropic
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 from .models import CriteriaScores, EvaluationResult, EvaluationVerdict
 
@@ -37,6 +44,92 @@ class ImageEvaluationError(Exception):
     """Raised when image evaluation fails."""
 
     pass
+
+
+# Claude API image size limit (5MB for base64-encoded data)
+# Since base64 increases size by ~33%, we use 3.5MB raw limit to stay under 5MB after encoding
+CLAUDE_IMAGE_SIZE_LIMIT = int(3.5 * 1024 * 1024)  # 3.5MB raw to stay under 5MB base64
+
+
+def resize_image_for_claude(image_bytes: bytes, max_size_bytes: int = CLAUDE_IMAGE_SIZE_LIMIT) -> bytes:
+    """Resize image if it exceeds Claude's API size limit.
+
+    Claude Vision API has a 5MB limit per image. This function resizes
+    images that exceed this limit while maintaining aspect ratio.
+
+    Args:
+        image_bytes: Raw image bytes (JPEG or PNG).
+        max_size_bytes: Maximum allowed size in bytes (default: 5MB).
+
+    Returns:
+        Image bytes, resized if necessary.
+
+    Raises:
+        ImageEvaluationError: If PIL is not available or resize fails.
+    """
+    # If image is already small enough, return as-is
+    if len(image_bytes) <= max_size_bytes:
+        return image_bytes
+
+    if not PIL_AVAILABLE:
+        raise ImageEvaluationError(
+            f"Image is {len(image_bytes) / 1024 / 1024:.1f}MB, exceeds {max_size_bytes / 1024 / 1024:.1f}MB limit. "
+            "Install Pillow to enable automatic resizing: pip install Pillow"
+        )
+
+    logger.info(
+        f"Resizing image from {len(image_bytes) / 1024 / 1024:.1f}MB "
+        f"(limit: {max_size_bytes / 1024 / 1024:.1f}MB)"
+    )
+
+    try:
+        # Open image from bytes
+        img = Image.open(io.BytesIO(image_bytes))
+        original_format = img.format or "JPEG"
+
+        # Calculate resize ratio to get under limit
+        # Start with 80% size reduction per iteration
+        quality = 85
+        scale = 0.75
+
+        while True:
+            # Resize image
+            new_width = int(img.width * scale)
+            new_height = int(img.height * scale)
+
+            resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # Save to bytes
+            output = io.BytesIO()
+            if original_format.upper() == "PNG":
+                resized.save(output, format="PNG", optimize=True)
+            else:
+                resized.save(output, format="JPEG", quality=quality, optimize=True)
+
+            result_bytes = output.getvalue()
+
+            if len(result_bytes) <= max_size_bytes:
+                logger.info(
+                    f"Resized image to {new_width}x{new_height}, "
+                    f"{len(result_bytes) / 1024 / 1024:.1f}MB"
+                )
+                return result_bytes
+
+            # Reduce scale for next iteration
+            scale *= 0.8
+            if scale < 0.1:
+                # If we've scaled down too much, reduce quality instead
+                quality -= 10
+                scale = 0.75
+                if quality < 20:
+                    raise ImageEvaluationError(
+                        f"Unable to resize image below {max_size_bytes / 1024 / 1024:.1f}MB limit"
+                    )
+
+    except Exception as e:
+        if isinstance(e, ImageEvaluationError):
+            raise
+        raise ImageEvaluationError(f"Failed to resize image: {e}") from e
 
 
 class ImageEvaluator:
@@ -123,14 +216,17 @@ class ImageEvaluator:
             ImageEvaluationError: If evaluation fails (API error, parse error, etc.).
         """
         try:
+            # Resize image if necessary (Claude has 5MB limit)
+            processed_image = resize_image_for_claude(image_bytes)
+
             # Build the evaluation prompt
             prompt = self._build_evaluation_prompt(intent, criteria, context)
 
             # Encode image as base64
-            image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+            image_b64 = base64.standard_b64encode(processed_image).decode("utf-8")
 
             # Determine media type (assume JPEG since Gemini returns JPEG)
-            media_type = self._detect_media_type(image_bytes)
+            media_type = self._detect_media_type(processed_image)
 
             # Call Claude Vision API
             response = self.client.messages.create(

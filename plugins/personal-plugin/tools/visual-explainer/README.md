@@ -67,6 +67,8 @@ pip install -e ".[all]"
 - pydantic (data validation)
 - aiofiles (async file I/O)
 - rich (terminal UI)
+- google-genai (Gemini image generation SDK)
+- Pillow (image resizing for Claude evaluation)
 
 **Optional:**
 - python-docx (DOCX reading)
@@ -592,6 +594,27 @@ The `summary.md` file provides a human-readable overview:
 3. For complex DOCX: Try exporting as plain text
 4. Check file isn't corrupted (try opening in native app)
 
+### Image Size Limit Issues
+
+#### "Image exceeds 5 MB maximum" Error
+
+**Symptoms**: Evaluation fails with Claude API error about image size.
+
+**Solution**: This should be automatically handled by the tool's image resizing. If you see this error:
+1. Verify Pillow is installed: `pip install Pillow`
+2. The tool resizes images >3.5MB before sending to Claude (accounts for base64 encoding overhead)
+3. High-resolution 4K images are typically 6-7.5MB - resizing preserves quality while meeting API limits
+
+### Windows Path Issues
+
+#### "The directory name is invalid" Error
+
+**Symptoms**: Generation fails immediately when creating output directory.
+
+**Solution**: This is caused by invalid characters in document titles (e.g., colons). The tool automatically sanitizes folder names, but if you see this:
+1. Check your document title for characters: `:`, `*`, `?`, `"`, `<`, `>`, `|`
+2. These are now automatically removed from folder names
+
 ### Common Warnings
 
 | Warning | Meaning | Action |
@@ -600,6 +623,7 @@ The `summary.md` file provides a human-readable overview:
 | "Low visual potential" | Concept hard to visualize | Consider simpler metaphors |
 | "Max iterations reached" | Couldn't achieve pass threshold | Best attempt selected automatically |
 | "Large document" | Input exceeds optimal size | May summarize before analysis |
+| "Resizing image" | Image exceeds Claude's 5MB limit | Normal - automatic quality preservation |
 
 ---
 
