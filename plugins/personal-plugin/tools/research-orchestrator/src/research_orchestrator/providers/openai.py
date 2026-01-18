@@ -125,6 +125,7 @@ class OpenAIProvider(BaseProvider):
         self, client: Any, response_id: str, start_time: float, reasoning_summary: str | None
     ) -> ProviderResult:
         """Poll for background response completion."""
+        last_status_update = 0.0
         while True:
             elapsed = time.time() - start_time
             if elapsed > self.config.timeout_seconds:
@@ -134,6 +135,11 @@ class OpenAIProvider(BaseProvider):
                     error=f"Request timed out after {self.config.timeout_seconds}s",
                     duration_seconds=elapsed,
                 )
+
+            # Emit progress update every 30 seconds
+            if elapsed - last_status_update >= 30.0:
+                self._status_update(f"Polling... ({elapsed:.0f}s elapsed)")
+                last_status_update = elapsed
 
             try:
                 response = client.responses.retrieve(response_id)

@@ -66,7 +66,7 @@ class ProviderConfig:
 
     name: ProviderName
     api_key: str | None = None
-    timeout_seconds: float = 180.0
+    timeout_seconds: float = 720.0
     max_retries: int = 3
 
     @property
@@ -83,7 +83,7 @@ class ResearchConfig:
     sources: list[ProviderName] = field(default_factory=lambda: ["claude", "openai", "gemini"])
     depth: Depth = Depth.STANDARD
     output_dir: str = "./reports"
-    timeout_seconds: float = 180.0
+    timeout_seconds: float = 720.0
     max_retries: int = 3
 
     def __post_init__(self) -> None:

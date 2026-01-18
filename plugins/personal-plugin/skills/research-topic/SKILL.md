@@ -81,9 +81,9 @@ Configure these in your environment or .env file.
 See .env.example in the plugin directory for the required format.
 ```
 
-### Step 4: Check Model Versions (if CHECK_MODEL_UPDATES=true)
+### Step 4: Check Model Versions (RECOMMENDED)
 
-Check for newer model versions and offer upgrades:
+**Execute this step** to check for newer model versions and offer upgrades. Skip only if the user explicitly requests to bypass with `--skip-model-check`:
 
 ```bash
 # Set up tool path
@@ -133,7 +133,9 @@ about scope, audience, or specific aspects you want explored.
 
 ### Phase 2: Clarification Loop (max 4 rounds)
 
-Unless `--no-clarify` is specified, analyze the request for ambiguities and ask clarifying questions.
+**REQUIRED:** Unless `--no-clarify` is specified, you MUST run the clarification loop before proceeding to research execution. Even if the request seems clear, ask at least one round of clarifying questions to ensure the research is properly scoped.
+
+Analyze the request for ambiguities and ask clarifying questions using the AskUserQuestion tool.
 
 **Dimensions to Clarify:**
 | Dimension | Question Type |
@@ -253,7 +255,8 @@ PYTHONPATH="$TOOL_SRC" python -m research_orchestrator execute \
 The tool handles:
 - Parallel execution across providers
 - Polling for async APIs (OpenAI and Google deep research)
-- Timeout handling (120+ seconds for deep research)
+- Timeout handling (default 720s for deep research - these APIs can take 5-10 minutes)
+- Progress updates every 30 seconds during polling
 - Error recovery (continue with available sources if one fails)
 
 **Provider Configurations:**
@@ -311,7 +314,7 @@ If one or more APIs fail:
 ```
 Note: Research completed with partial results.
   - Claude: Success
-  - OpenAI: Failed (timeout after 180s)
+  - OpenAI: Failed (timeout after 720s)
   - Gemini: Success
 
 The synthesis below is based on available sources. Consider re-running
@@ -411,7 +414,7 @@ Sections: [N]
 | Missing API key | List missing keys, abort with setup instructions |
 | Single API failure | Continue with available sources, note in output |
 | All APIs fail | Abort with error details, suggest troubleshooting |
-| Timeout (>180s) | Cancel that source, continue with others |
+| Timeout (>720s) | Cancel that source, continue with others |
 | Rate limit | Retry with exponential backoff (2s, 4s, 8s, 16s) |
 | Invalid response | Log error, exclude from synthesis |
 
@@ -451,10 +454,10 @@ Consider using `--sources` to select specific providers for cost management.
 
 1. Parse arguments and validate API key availability
 2. Check for missing Python dependencies (install if needed)
-3. Check for model version upgrades (if CHECK_MODEL_UPDATES=true)
-4. Run clarification loop (unless --no-clarify)
+3. Check for model version upgrades (recommended, skip with --skip-model-check)
+4. **Run clarification loop** (REQUIRED unless --no-clarify) - ask at least one round of questions
 5. Confirm research brief with user
-6. Execute parallel research via research-orchestrator tool
+6. Execute parallel research via research-orchestrator tool (default timeout: 720s)
 7. Synthesize results using consolidate-documents approach
 8. Generate output files in both formats
 9. Display completion summary with file locations

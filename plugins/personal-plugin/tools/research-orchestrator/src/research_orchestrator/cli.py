@@ -58,8 +58,8 @@ def create_parser() -> argparse.ArgumentParser:
     execute_parser.add_argument(
         "--timeout",
         type=float,
-        default=180.0,
-        help="Timeout in seconds per provider (default: 180)",
+        default=720.0,
+        help="Timeout in seconds per provider (default: 720 for deep research)",
     )
 
     subparsers.add_parser(

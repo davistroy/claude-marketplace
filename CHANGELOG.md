@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.2.0] - 2026-01-17
+
+### Added
+- Progress updates during polling for OpenAI and Gemini deep research (every 30s)
+
+### Changed
+- Increased default timeout from 180s to 720s for deep research APIs (OpenAI/Gemini can take 5-10 minutes)
+- Clarification loop now REQUIRED in `/research-topic` skill unless `--no-clarify` specified
+- Model version check step changed from conditional to recommended (skip with `--skip-model-check`)
+
+### Fixed
+- OpenAI and Gemini deep research timeout failures (300s was insufficient)
+- Gemini SDK experimental API warnings now suppressed
+- Documentation inconsistencies for timeout values (now consistently 720s)
+
 ## [personal-plugin 3.1.0] - 2026-01-17
 
 ### Added
