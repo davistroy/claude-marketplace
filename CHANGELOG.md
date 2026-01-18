@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.8.0] - 2026-01-18
+
+### Changed
+- visual-explainer: Updated skill documentation to reflect actual CLI behavior (removed non-existent `check-ready` command)
+- visual-explainer: Updated tested results with latest testing data (4 documents, 17 images, multiple formats)
+- visual-explainer: Added `google-genai` to core dependency list in documentation
+
+### Fixed
+- visual-explainer: Skill documentation now matches actual tool CLI options
+
 ## [personal-plugin 3.7.2] - 2026-01-18
 
 ### Added
