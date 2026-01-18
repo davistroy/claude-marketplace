@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.4.0] - 2026-01-18
+
+### Changed
+- `/research-topic` skill: Clarified tool vs Claude responsibilities with new section
+- `/research-topic` skill: Phase 5 now explicitly instructs Claude to read and synthesize provider outputs
+- `/research-topic` skill: Phase 6 now explicitly instructs Claude to write synthesized markdown and generate DOCX via pandoc
+- `/research-topic` skill: Execution Summary expanded from 9 to 11 explicit steps
+
+### Fixed
+- Research topic skill now properly guides Claude through post-tool-execution steps (synthesis and output generation)
+
 ## [personal-plugin 3.3.0] - 2026-01-18
 
 ### Fixed

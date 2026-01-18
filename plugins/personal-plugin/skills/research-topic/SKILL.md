@@ -119,6 +119,19 @@ Would you like to:
 ✓ All models are up to date.
 ```
 
+## Tool vs Claude Responsibilities
+
+Understanding what the Python tool handles vs what you (Claude) must do:
+
+| Component | Responsibility | What It Does |
+|-----------|----------------|--------------|
+| **research-orchestrator (Python tool)** | Parallel API execution | Calls Claude, OpenAI, Gemini APIs concurrently; polls async APIs; saves individual provider outputs to `reports/research-[provider]-[timestamp].md` |
+| **You (Claude)** | Clarification & Confirmation | Phases 1-3: Ask clarifying questions, confirm research brief with user |
+| **You (Claude)** | Synthesis | Phase 5: Read provider outputs, merge into unified report following template |
+| **You (Claude)** | Output Generation | Phase 6: Write synthesized report, generate DOCX via pandoc |
+
+The tool is a helper for the parallel API calls. All user interaction, synthesis, and final output generation is your responsibility.
+
 ## Workflow
 
 ### Phase 1: Intake
@@ -285,32 +298,41 @@ Status:
 
 ### Phase 5: Synthesis
 
-Once all (or available) responses are received, synthesize using the /consolidate-documents approach.
+Once the research-orchestrator tool completes, **you (Claude) must synthesize the results**.
 
-**Synthesis Steps:**
+The tool saves individual provider responses to `reports/research-[provider]-[timestamp].md`. You must now read these files and create a unified synthesized report.
 
-1. **Save Raw Responses:**
-   Save each provider's response to temporary files:
-   - `.tmp/research-claude-[timestamp].md`
-   - `.tmp/research-openai-[timestamp].md`
-   - `.tmp/research-gemini-[timestamp].md`
+**Step 5.1: Read Provider Outputs**
 
-2. **Invoke Consolidation:**
-   Use the consolidate-documents skill internally to merge responses:
-   - Identify consensus findings across sources
-   - Highlight contradictions or unique insights (attributed by source)
-   - Structure output to directly answer the research question
-   - Include source attribution section
+After the tool completes, read each generated file:
 
-3. **Synthesis Criteria (priority order):**
-   - **Accuracy**: Cross-validate facts across sources
-   - **Completeness**: Preserve unique insights from each source
-   - **Coherence**: Unified narrative, not a patchwork
-   - **Attribution**: Clear source labels for claims
-   - **Actionability**: Practical takeaways highlighted
+```bash
+# The tool output shows the saved file paths, e.g.:
+# Saved: reports/research-claude-20260118-005325.md
+# Saved: reports/research-openai-20260118-005325.md
+# Saved: reports/research-gemini-20260118-005325.md
+```
+
+Use the Read tool to read each provider's output file.
+
+**Step 5.2: Synthesize into Unified Report**
+
+Apply the consolidate-documents approach to merge the provider responses:
+
+1. **Identify Consensus:** Find facts and recommendations that appear across multiple sources
+2. **Note Contradictions:** Where sources disagree, present both perspectives with source attribution
+3. **Preserve Unique Insights:** Include valuable information that only appears in one source (attributed)
+4. **Structure for the Research Question:** Organize around directly answering the user's original question
+
+**Synthesis Criteria (priority order):**
+- **Accuracy**: Cross-validate facts across sources
+- **Completeness**: Preserve unique insights from each source
+- **Coherence**: Unified narrative, not a patchwork
+- **Attribution**: Clear source labels for claims (e.g., "[Claude]", "[OpenAI]", "[Gemini]")
+- **Actionability**: Practical takeaways highlighted
 
 **Handling Partial Results:**
-If one or more APIs fail:
+If one or more APIs failed:
 ```
 Note: Research completed with partial results.
   - Claude: Success
@@ -323,13 +345,39 @@ with --sources claude,gemini to retry the failed provider.
 
 ### Phase 6: Output
 
-**Output Location:** `reports/` directory (create if doesn't exist)
+**You (Claude) must write the synthesized report and optionally generate DOCX.**
 
-**Filename Format:** `research-[topic-slug]-YYYYMMDD-HHMMSS.[ext]`
+**Step 6.1: Write Synthesized Markdown**
 
-Generate both formats (unless `--format` specifies otherwise):
-- `research-[topic]-YYYYMMDD-HHMMSS.md` - Markdown report
-- `research-[topic]-YYYYMMDD-HHMMSS.docx` - Word document (via pandoc)
+Create the synthesized report file using the Write tool:
+- **Location:** `reports/` directory (create if doesn't exist)
+- **Filename:** `research-[topic-slug]-YYYYMMDD-HHMMSS.md`
+
+The topic-slug should be a URL-friendly version of the topic (lowercase, hyphens, no special chars).
+
+**Step 6.2: Generate DOCX (if requested)**
+
+If `--format docx` or `--format both` (default), generate a Word document using pandoc:
+
+```bash
+# Check if pandoc is available
+command -v pandoc >/dev/null 2>&1 || echo "pandoc not installed"
+
+# If pandoc is available, convert to DOCX
+pandoc "reports/research-[topic-slug]-YYYYMMDD-HHMMSS.md" \
+  -o "reports/research-[topic-slug]-YYYYMMDD-HHMMSS.docx" \
+  --from markdown --to docx
+```
+
+If pandoc is not installed, inform the user:
+```
+Note: DOCX output requires pandoc. Install with:
+  - Windows: choco install pandoc
+  - macOS: brew install pandoc
+  - Linux: sudo apt install pandoc
+
+Markdown report has been generated. Run the pandoc command above to create DOCX.
+```
 
 **Report Structure:**
 
@@ -450,14 +498,18 @@ Consider using `--sources` to select specific providers for cost management.
   "Current state of quantum computing for optimization problems"
 ```
 
-## Execution
+## Execution Summary
 
-1. Parse arguments and validate API key availability
-2. Check for missing Python dependencies (install if needed)
-3. Check for model version upgrades (recommended, skip with --skip-model-check)
-4. **Run clarification loop** (REQUIRED unless --no-clarify) - ask at least one round of questions
-5. Confirm research brief with user
-6. Execute parallel research via research-orchestrator tool (default timeout: 720s)
-7. Synthesize results using consolidate-documents approach
-8. Generate output files in both formats
-9. Display completion summary with file locations
+Follow these steps in order:
+
+1. **Setup** - Parse arguments and validate API key availability
+2. **Dependencies** - Check for missing Python dependencies (install if needed)
+3. **Model Check** - Check for model version upgrades (recommended, skip with --skip-model-check)
+4. **Clarification** - Run clarification loop (REQUIRED unless --no-clarify) using AskUserQuestion tool
+5. **Confirmation** - Present research brief and wait for user approval
+6. **Tool Execution** - Run research-orchestrator tool (saves individual provider files to reports/)
+7. **Read Results** - Use Read tool to read each provider output file from reports/
+8. **Synthesize** - Merge provider outputs into unified report following the Report Structure template
+9. **Write Report** - Use Write tool to save synthesized report as `research-[topic-slug]-[timestamp].md`
+10. **DOCX Generation** - If format includes docx, run pandoc to convert markdown to Word
+11. **Summary** - Display completion summary with file locations and word count
