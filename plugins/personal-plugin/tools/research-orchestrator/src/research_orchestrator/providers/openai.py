@@ -3,7 +3,7 @@
 import asyncio
 import os
 import time
-from typing import Any
+from typing import Any, Callable
 
 from research_orchestrator.config import Depth, ProviderConfig
 from research_orchestrator.models import ProviderResult, ProviderStatus
@@ -21,9 +21,14 @@ class OpenAIProvider(BaseProvider):
         """Get model from environment or use default."""
         return os.getenv("OPENAI_MODEL", cls.DEFAULT_MODEL)
 
-    def __init__(self, config: ProviderConfig, depth: Depth) -> None:
+    def __init__(
+        self,
+        config: ProviderConfig,
+        depth: Depth,
+        on_status_update: Callable[[str, str], None] | None = None,
+    ) -> None:
         """Initialize the OpenAI provider."""
-        super().__init__(config, depth)
+        super().__init__(config, depth, on_status_update)
         self._client: Any = None
 
     @property

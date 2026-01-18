@@ -210,3 +210,6 @@ nul
 
 # Development notes
 bugs/
+
+# Generated research output
+reports/

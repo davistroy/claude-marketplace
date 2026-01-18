@@ -11,6 +11,8 @@ warnings.filterwarnings("ignore", module="google.genai")
 warnings.filterwarnings("ignore", message=".*Interactions usage is experimental.*")
 warnings.filterwarnings("ignore", message=".*Async interactions client cannot use aiohttp.*")
 
+from typing import Callable
+
 from research_orchestrator.config import Depth, ProviderConfig
 from research_orchestrator.models import ProviderResult, ProviderStatus
 from research_orchestrator.providers.base import BaseProvider
@@ -27,9 +29,14 @@ class GoogleProvider(BaseProvider):
         """Get agent from environment or use default."""
         return os.getenv("GEMINI_AGENT", cls.DEFAULT_AGENT)
 
-    def __init__(self, config: ProviderConfig, depth: Depth) -> None:
+    def __init__(
+        self,
+        config: ProviderConfig,
+        depth: Depth,
+        on_status_update: Callable[[str, str], None] | None = None,
+    ) -> None:
         """Initialize the Google provider."""
-        super().__init__(config, depth)
+        super().__init__(config, depth, on_status_update)
         self._client: Any = None
 
     @property
