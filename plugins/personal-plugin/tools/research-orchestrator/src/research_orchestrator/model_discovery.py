@@ -226,10 +226,11 @@ class ModelDiscovery:
 
         # Google may not have a public list API for agents
         # We'll check known agent patterns
+        # Note: Only include actually available agents - speculative future agents
+        # cause errors when the model_discovery recommends them
         known_agents = [
             "deep-research-pro-preview-12-2025",
-            "deep-research-pro-preview-01-2026",  # Possible future
-            "deep-research-pro-preview-02-2026",
+            # Add new agents here as they become available
         ]
 
         for agent_id in known_agents:

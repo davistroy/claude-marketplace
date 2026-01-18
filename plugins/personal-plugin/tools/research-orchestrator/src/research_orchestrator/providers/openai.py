@@ -151,12 +151,20 @@ class OpenAIProvider(BaseProvider):
 
                 if response.status == "completed":
                     content = self._extract_content(response)
+                    # Extract tokens_used safely - usage may be an object or dict
+                    usage = getattr(response, "usage", None)
+                    tokens_used = None
+                    if usage is not None:
+                        if hasattr(usage, "total_tokens"):
+                            tokens_used = usage.total_tokens
+                        elif isinstance(usage, dict):
+                            tokens_used = usage.get("total_tokens")
                     return ProviderResult(
                         provider=self.name,
                         status=ProviderStatus.SUCCESS,
                         content=content,
                         duration_seconds=time.time() - start_time,
-                        tokens_used=getattr(response, "usage", {}).get("total_tokens"),
+                        tokens_used=tokens_used,
                         metadata={
                             "model": self.get_model(),
                             "reasoning_summary": reasoning_summary or "disabled",
@@ -182,16 +190,32 @@ class OpenAIProvider(BaseProvider):
                 )
 
     def _extract_content(self, response: Any) -> str:
-        """Extract content from completed response."""
+        """Extract content from completed response.
+
+        OpenAI deep research returns output as a list containing:
+        - ResponseReasoningItem (reasoning, may have content=None)
+        - ResponseOutputMessage (final output, content is list of ResponseOutputText)
+
+        We extract text from ResponseOutputText objects nested in content lists.
+        """
         if hasattr(response, "output"):
             if isinstance(response.output, str):
                 return response.output
             if isinstance(response.output, list):
                 parts = []
                 for item in response.output:
-                    if hasattr(item, "content") and item.content:
-                        parts.append(str(item.content))
-                    elif hasattr(item, "text") and item.text:
+                    # Check for content attribute that contains ResponseOutputText list
+                    if hasattr(item, "content") and item.content is not None:
+                        content = item.content
+                        if isinstance(content, list):
+                            # Iterate through content items (ResponseOutputText objects)
+                            for content_item in content:
+                                if hasattr(content_item, "text") and content_item.text is not None:
+                                    parts.append(str(content_item.text))
+                        elif isinstance(content, str):
+                            parts.append(content)
+                    # Direct text attribute (less common but handle it)
+                    elif hasattr(item, "text") and item.text is not None:
                         parts.append(str(item.text))
                     elif isinstance(item, str):
                         parts.append(item)
