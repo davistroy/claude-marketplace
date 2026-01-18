@@ -335,9 +335,10 @@ class InternalConfig(BaseModel):
 class ColorDefinition(BaseModel):
     """Color definition within a style."""
 
-    name: str = Field(description="Human-readable color name")
+    name: str = Field(alias="Name", description="Human-readable color name")
     hex: str = Field(alias="Hex", description="Hex color code")
     role: str = Field(alias="Role", description="How this color should be used")
+    usage_guidance: str | None = Field(alias="UsageGuidance", default=None, description="Usage guidance for this color")
 
     model_config = {"populate_by_name": True}
 
@@ -356,8 +357,9 @@ class ColorSystem(BaseModel):
     """Color system configuration."""
 
     palette_mode: str = Field(alias="PaletteMode", default="Strict")
-    background: dict[str, str] = Field(alias="Background", default_factory=dict)
+    background: dict[str, Any] = Field(alias="Background", default_factory=dict)
     primary_colors: list[ColorDefinition] = Field(alias="PrimaryColors", default_factory=list)
+    secondary_colors: list[ColorDefinition] = Field(alias="SecondaryColors", default_factory=list)
     color_usage_rules: dict[str, Any] = Field(alias="ColorUsageRules", default_factory=dict)
 
     model_config = {"populate_by_name": True}
