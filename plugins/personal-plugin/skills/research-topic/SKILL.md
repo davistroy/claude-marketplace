@@ -504,19 +504,24 @@ Use the research-orchestrator tool to execute parallel API calls. Run from sourc
 PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-/path/to/plugins/personal-plugin}"
 TOOL_SRC="$PLUGIN_DIR/tools/research-orchestrator/src"
 
-# Execute research
-PYTHONPATH="$TOOL_SRC" python -m research_orchestrator execute \
+# Execute research with streaming UI for real-time progress visibility
+PYTHONUNBUFFERED=1 STREAMING_UI=1 PYTHONPATH="$TOOL_SRC" python -u -m research_orchestrator execute \
   --prompt "<research_prompt>" \
   --sources "<claude,openai,gemini>" \
   --depth "<brief|standard|comprehensive>" \
   --output-dir "<reports_directory>"
 ```
 
+**Environment Variables for UI:**
+- `PYTHONUNBUFFERED=1` - Ensures output is not buffered
+- `STREAMING_UI=1` - Uses line-by-line streaming output for visibility in Claude Code
+- `python -u` - Additional unbuffered flag for Python
+
 The tool handles:
 - Parallel execution across providers
 - Polling for async APIs (OpenAI and Google deep research)
-- Timeout handling (default 720s for deep research - these APIs can take 5-10 minutes)
-- Progress updates every 30 seconds during polling
+- Timeout handling (default 1800s = 30 minutes for deep research)
+- Real-time progress updates with status indicators
 - Error recovery (continue with available sources if one fails)
 
 **Provider Configurations:**
