@@ -4,17 +4,15 @@ import asyncio
 import os
 import time
 import warnings
-from typing import Any
+from typing import Any, Callable
 
 # Suppress experimental API warnings from google-genai SDK
 warnings.filterwarnings("ignore", module="google.genai")
 warnings.filterwarnings("ignore", message=".*Interactions usage is experimental.*")
 warnings.filterwarnings("ignore", message=".*Async interactions client cannot use aiohttp.*")
 
-from typing import Callable
-
 from research_orchestrator.config import Depth, ProviderConfig
-from research_orchestrator.models import ProviderResult, ProviderStatus
+from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus
 from research_orchestrator.providers.base import BaseProvider
 
 
@@ -67,18 +65,27 @@ class GoogleProvider(BaseProvider):
         start_time = time.time()
 
         try:
+            # Phase: INITIALIZING
+            self._phase_update(ProviderPhase.INITIALIZING, "Creating Gemini client")
             client = self._get_client()
+
+            agent = self.get_agent()
+
+            # Phase: CONNECTING
+            self._phase_update(ProviderPhase.CONNECTING, f"Connecting to {agent}")
 
             # Create interaction with deep research agent in background mode
             # The SDK handles the API endpoint and request formatting
             # Note: store=True is required when using background=True per Google docs
-            agent = self.get_agent()
             interaction = client.aio.interactions.create(
                 input=prompt,
                 agent=agent,
                 background=True,
                 store=True,
             )
+
+            # Phase: RESEARCHING
+            self._phase_update(ProviderPhase.RESEARCHING, "Initiating deep research")
 
             # Run the async create call
             interaction_result = await interaction
@@ -98,6 +105,10 @@ class GoogleProvider(BaseProvider):
             return result
 
         except asyncio.TimeoutError:
+            self._phase_update(
+                ProviderPhase.FAILED,
+                f"Timeout after {self.config.timeout_seconds}s"
+            )
             return ProviderResult(
                 provider=self.name,
                 status=ProviderStatus.TIMEOUT,
@@ -105,6 +116,7 @@ class GoogleProvider(BaseProvider):
                 duration_seconds=time.time() - start_time,
             )
         except Exception as e:
+            self._phase_update(ProviderPhase.FAILED, str(e)[:50])
             return ProviderResult(
                 provider=self.name,
                 status=ProviderStatus.FAILED,
@@ -117,9 +129,11 @@ class GoogleProvider(BaseProvider):
     ) -> ProviderResult:
         """Poll for background interaction completion."""
         last_status_update = 0.0
+        poll_count = 0
         while True:
             elapsed = time.time() - start_time
             if elapsed > self.config.timeout_seconds:
+                self._phase_update(ProviderPhase.FAILED, f"Timeout after {elapsed:.0f}s")
                 return ProviderResult(
                     provider=self.name,
                     status=ProviderStatus.TIMEOUT,
@@ -129,7 +143,11 @@ class GoogleProvider(BaseProvider):
 
             # Emit progress update every 30 seconds
             if elapsed - last_status_update >= 30.0:
-                self._status_update(f"Polling... ({elapsed:.0f}s elapsed)")
+                poll_count += 1
+                self._phase_update(
+                    ProviderPhase.POLLING,
+                    f"Checking status ({elapsed:.0f}s elapsed)"
+                )
                 last_status_update = elapsed
 
             try:
@@ -138,12 +156,19 @@ class GoogleProvider(BaseProvider):
 
                 # Check for completion
                 if getattr(interaction, "done", False):
+                    # Phase: PROCESSING
+                    self._phase_update(ProviderPhase.PROCESSING, "Extracting content")
                     content = self._extract_content(interaction)
+                    duration = time.time() - start_time
+
+                    # Phase: COMPLETED
+                    self._phase_update(ProviderPhase.COMPLETED, f"Done ({duration:.1f}s)")
+
                     return ProviderResult(
                         provider=self.name,
                         status=ProviderStatus.SUCCESS,
                         content=content,
-                        duration_seconds=time.time() - start_time,
+                        duration_seconds=duration,
                         metadata={
                             "agent": self.get_agent(),
                             "interaction_id": interaction_id,
@@ -152,12 +177,19 @@ class GoogleProvider(BaseProvider):
 
                 status = getattr(interaction, "status", "").lower()
                 if status in ("completed", "done"):
+                    # Phase: PROCESSING
+                    self._phase_update(ProviderPhase.PROCESSING, "Extracting content")
                     content = self._extract_content(interaction)
+                    duration = time.time() - start_time
+
+                    # Phase: COMPLETED
+                    self._phase_update(ProviderPhase.COMPLETED, f"Done ({duration:.1f}s)")
+
                     return ProviderResult(
                         provider=self.name,
                         status=ProviderStatus.SUCCESS,
                         content=content,
-                        duration_seconds=time.time() - start_time,
+                        duration_seconds=duration,
                         metadata={
                             "agent": self.get_agent(),
                             "interaction_id": interaction_id,
@@ -169,6 +201,7 @@ class GoogleProvider(BaseProvider):
                         error_msg = error_msg.message
                     else:
                         error_msg = str(error_msg) if error_msg else "Unknown error"
+                    self._phase_update(ProviderPhase.FAILED, str(error_msg)[:50])
                     return ProviderResult(
                         provider=self.name,
                         status=ProviderStatus.FAILED,
@@ -179,6 +212,7 @@ class GoogleProvider(BaseProvider):
                 await asyncio.sleep(self.POLL_INTERVAL)
 
             except Exception as e:
+                self._phase_update(ProviderPhase.FAILED, f"Polling error: {str(e)[:30]}")
                 return ProviderResult(
                     provider=self.name,
                     status=ProviderStatus.FAILED,

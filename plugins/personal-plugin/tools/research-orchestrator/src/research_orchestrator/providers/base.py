@@ -1,10 +1,18 @@
 """Base provider interface for research execution."""
 
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, Union
 
 from research_orchestrator.config import Depth, ProviderConfig
-from research_orchestrator.models import ProviderResult
+from research_orchestrator.models import ProviderPhase, ProviderResult
+
+# Type alias for status callbacks
+# New signature: (provider_name, phase, message)
+# Legacy signature: (provider_name, message) - still supported for backwards compatibility
+StatusCallback = Union[
+    Callable[[str, ProviderPhase, str], None],
+    Callable[[str, str], None],
+]
 
 
 class BaseProvider(ABC):
@@ -14,7 +22,7 @@ class BaseProvider(ABC):
         self,
         config: ProviderConfig,
         depth: Depth,
-        on_status_update: Callable[[str, str], None] | None = None,
+        on_status_update: StatusCallback | None = None,
     ) -> None:
         """Initialize the provider.
 
@@ -22,7 +30,8 @@ class BaseProvider(ABC):
             config: Provider configuration including API key and timeout.
             depth: Research depth level.
             on_status_update: Optional callback for status updates.
-                Called with (provider_name, status_message).
+                New signature: (provider_name, phase, message)
+                Legacy signature: (provider_name, message) also supported.
         """
         self.config = config
         self.depth = depth
@@ -51,15 +60,35 @@ class BaseProvider(ABC):
         if not self.config.api_key:
             raise ValueError(f"API key not configured for {self.name}")
 
+    def _phase_update(self, phase: ProviderPhase, message: str = "") -> None:
+        """Emit a phase update with granular status tracking.
+
+        This is the primary method for status updates. It provides structured
+        phase information along with a status message.
+
+        Args:
+            phase: Current execution phase.
+            message: Status message to emit.
+        """
+        if self._on_status_update:
+            # Try new signature first (provider, phase, message)
+            try:
+                self._on_status_update(self.name, phase, message)
+            except TypeError:
+                # Fall back to legacy signature (provider, message)
+                phase_label = phase.value
+                legacy_msg = f"[{phase_label}] {message}" if message else f"[{phase_label}]"
+                self._on_status_update(self.name, legacy_msg)
+
     def _status_update(self, message: str) -> None:
         """Emit a status update during long-running operations.
 
-        This method is called by providers during polling loops to report
-        progress. If a callback is configured, it will be invoked with the
-        provider name and message.
+        DEPRECATED: Use _phase_update() instead for granular phase tracking.
+
+        This method is kept for backwards compatibility. It wraps the message
+        with a generic RESEARCHING phase.
 
         Args:
             message: Status message to emit.
         """
-        if self._on_status_update:
-            self._on_status_update(self.name, message)
+        self._phase_update(ProviderPhase.RESEARCHING, message)

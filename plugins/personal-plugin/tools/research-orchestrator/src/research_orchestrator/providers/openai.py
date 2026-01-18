@@ -6,7 +6,7 @@ import time
 from typing import Any, Callable
 
 from research_orchestrator.config import Depth, ProviderConfig
-from research_orchestrator.models import ProviderResult, ProviderStatus
+from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus
 from research_orchestrator.providers.base import BaseProvider
 
 
@@ -56,6 +56,9 @@ class OpenAIProvider(BaseProvider):
         self._validate_api_key()
         start_time = time.time()
 
+        # Phase: INITIALIZING
+        self._phase_update(ProviderPhase.INITIALIZING, "Creating OpenAI client")
+
         # Try with reasoning summary first, fall back without if org not verified
         reasoning_summary = self.depth.get_openai_reasoning_summary()
         result = await self._execute_with_reasoning(prompt, reasoning_summary, start_time)
@@ -67,7 +70,10 @@ class OpenAIProvider(BaseProvider):
             and "organization must be verified" in result.error.lower()
         ):
             # Retry without reasoning summary
-            self._status_update("Retrying without reasoning summary (org not verified)...")
+            self._phase_update(
+                ProviderPhase.CONNECTING,
+                "Retrying without reasoning summary"
+            )
             result = await self._execute_with_reasoning(prompt, None, start_time)
             if result.status == ProviderStatus.SUCCESS and result.metadata:
                 result.metadata["reasoning_summary_fallback"] = True
@@ -81,6 +87,9 @@ class OpenAIProvider(BaseProvider):
         try:
             client = self._get_client()
             model = self.get_model()
+
+            # Phase: CONNECTING
+            self._phase_update(ProviderPhase.CONNECTING, f"Connecting to {model}")
 
             # Build request parameters
             request_params: dict[str, Any] = {
@@ -99,6 +108,9 @@ class OpenAIProvider(BaseProvider):
             if reasoning_summary:
                 request_params["reasoning"] = {"summary": reasoning_summary}
 
+            # Phase: RESEARCHING
+            self._phase_update(ProviderPhase.RESEARCHING, "Initiating deep research")
+
             response = client.responses.create(**request_params)
 
             response_id = response.id
@@ -110,6 +122,9 @@ class OpenAIProvider(BaseProvider):
         except Exception as e:
             duration = time.time() - start_time
             error_msg = str(e)
+
+            # Phase: FAILED
+            self._phase_update(ProviderPhase.FAILED, error_msg[:50])
 
             if "timeout" in error_msg.lower():
                 return ProviderResult(
@@ -131,9 +146,11 @@ class OpenAIProvider(BaseProvider):
     ) -> ProviderResult:
         """Poll for background response completion."""
         last_status_update = 0.0
+        poll_count = 0
         while True:
             elapsed = time.time() - start_time
             if elapsed > self.config.timeout_seconds:
+                self._phase_update(ProviderPhase.FAILED, f"Timeout after {elapsed:.0f}s")
                 return ProviderResult(
                     provider=self.name,
                     status=ProviderStatus.TIMEOUT,
@@ -143,14 +160,25 @@ class OpenAIProvider(BaseProvider):
 
             # Emit progress update every 30 seconds
             if elapsed - last_status_update >= 30.0:
-                self._status_update(f"Polling... ({elapsed:.0f}s elapsed)")
+                poll_count += 1
+                self._phase_update(
+                    ProviderPhase.POLLING,
+                    f"Checking status ({elapsed:.0f}s elapsed)"
+                )
                 last_status_update = elapsed
 
             try:
                 response = client.responses.retrieve(response_id)
 
                 if response.status == "completed":
+                    # Phase: PROCESSING
+                    self._phase_update(ProviderPhase.PROCESSING, "Extracting content")
                     content = self._extract_content(response)
+                    duration = time.time() - start_time
+
+                    # Phase: COMPLETED
+                    self._phase_update(ProviderPhase.COMPLETED, f"Done ({duration:.1f}s)")
+
                     # Extract tokens_used safely - usage may be an object or dict
                     usage = getattr(response, "usage", None)
                     tokens_used = None
@@ -163,7 +191,7 @@ class OpenAIProvider(BaseProvider):
                         provider=self.name,
                         status=ProviderStatus.SUCCESS,
                         content=content,
-                        duration_seconds=time.time() - start_time,
+                        duration_seconds=duration,
                         tokens_used=tokens_used,
                         metadata={
                             "model": self.get_model(),
@@ -172,16 +200,19 @@ class OpenAIProvider(BaseProvider):
                         },
                     )
                 elif response.status == "failed":
+                    error_msg = getattr(response, "error", "Unknown error")
+                    self._phase_update(ProviderPhase.FAILED, str(error_msg)[:50])
                     return ProviderResult(
                         provider=self.name,
                         status=ProviderStatus.FAILED,
-                        error=getattr(response, "error", "Unknown error"),
+                        error=error_msg,
                         duration_seconds=time.time() - start_time,
                     )
 
                 await asyncio.sleep(self.POLL_INTERVAL)
 
             except Exception as e:
+                self._phase_update(ProviderPhase.FAILED, f"Polling error: {str(e)[:30]}")
                 return ProviderResult(
                     provider=self.name,
                     status=ProviderStatus.FAILED,

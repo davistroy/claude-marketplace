@@ -5,7 +5,7 @@ import time
 from typing import Any, Callable
 
 from research_orchestrator.config import Depth, ProviderConfig
-from research_orchestrator.models import ProviderResult, ProviderStatus
+from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus
 from research_orchestrator.providers.base import BaseProvider
 
 
@@ -55,6 +55,8 @@ class AnthropicProvider(BaseProvider):
         start_time = time.time()
 
         try:
+            # Phase: INITIALIZING
+            self._phase_update(ProviderPhase.INITIALIZING, "Creating Anthropic client")
             client = self._get_client()
             budget_tokens = self.depth.get_anthropic_budget()
 
@@ -63,7 +65,20 @@ class AnthropicProvider(BaseProvider):
             max_tokens = budget_tokens + 16000
 
             model = self.get_model()
-            response = client.messages.create(
+
+            # Phase: CONNECTING
+            self._phase_update(ProviderPhase.CONNECTING, f"Opening stream to {model}")
+
+            # Phase: THINKING
+            self._phase_update(
+                ProviderPhase.THINKING,
+                f"Extended thinking ({budget_tokens:,} token budget)"
+            )
+
+            # Use streaming for extended thinking to avoid 10-minute timeout
+            # on long-running requests (especially with large budget_tokens)
+            # See: https://github.com/anthropics/anthropic-sdk-python#long-requests
+            with client.messages.stream(
                 model=model,
                 max_tokens=max_tokens,
                 thinking={
@@ -71,10 +86,16 @@ class AnthropicProvider(BaseProvider):
                     "budget_tokens": budget_tokens,
                 },
                 messages=[{"role": "user", "content": prompt}],
-            )
+            ) as stream:
+                response = stream.get_final_message()
 
+            # Phase: PROCESSING
+            self._phase_update(ProviderPhase.PROCESSING, "Extracting content")
             content = self._extract_content(response)
             duration = time.time() - start_time
+
+            # Phase: COMPLETED
+            self._phase_update(ProviderPhase.COMPLETED, f"Done ({duration:.1f}s)")
 
             return ProviderResult(
                 provider=self.name,
@@ -91,6 +112,8 @@ class AnthropicProvider(BaseProvider):
 
         except Exception as e:
             duration = time.time() - start_time
+            # Phase: FAILED
+            self._phase_update(ProviderPhase.FAILED, str(e)[:50])
             return ProviderResult(
                 provider=self.name,
                 status=ProviderStatus.FAILED,

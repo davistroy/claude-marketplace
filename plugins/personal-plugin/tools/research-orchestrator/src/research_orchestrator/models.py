@@ -16,6 +16,63 @@ class ProviderStatus(Enum):
     TIMEOUT = "timeout"
 
 
+class ProviderPhase(Enum):
+    """Granular phase tracking for provider execution."""
+
+    INITIALIZING = "initializing"
+    CONNECTING = "connecting"
+    THINKING = "thinking"
+    RESEARCHING = "researching"
+    POLLING = "polling"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class BugCategory(Enum):
+    """Categories of bugs/anomalies detected during research."""
+
+    API_ERROR = "api_error"
+    TIMEOUT = "timeout"
+    EMPTY_RESPONSE = "empty_response"
+    TRUNCATED = "truncated"
+    MALFORMED = "malformed"
+    PARTIAL_FAILURE = "partial_failure"
+
+
+@dataclass
+class BugReport:
+    """Report of a detected bug/anomaly during research."""
+
+    id: str
+    timestamp: datetime
+    category: BugCategory
+    provider: str
+    severity: str  # "warning", "error", "critical"
+    prompt_preview: str
+    depth: str
+    error_message: str | None = None
+    duration_seconds: float | None = None
+    model_version: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat(),
+            "category": self.category.value,
+            "provider": self.provider,
+            "severity": self.severity,
+            "prompt_preview": self.prompt_preview,
+            "depth": self.depth,
+            "error_message": self.error_message,
+            "duration_seconds": self.duration_seconds,
+            "model_version": self.model_version,
+            "metadata": self.metadata,
+        }
+
+
 @dataclass
 class ProviderResult:
     """Result from a single provider's research execution."""
@@ -43,6 +100,7 @@ class ResearchOutput:
     timestamp: datetime = field(default_factory=datetime.now)
     total_duration_seconds: float = 0.0
     depth: str = "standard"
+    bugs: list[BugReport] = field(default_factory=list)
 
     @property
     def successful_results(self) -> list[ProviderResult]:
@@ -83,4 +141,5 @@ class ResearchOutput:
                 }
                 for r in self.results
             ],
+            "bugs": [b.to_dict() for b in self.bugs],
         }

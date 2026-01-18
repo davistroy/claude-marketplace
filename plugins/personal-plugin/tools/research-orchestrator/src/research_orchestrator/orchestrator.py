@@ -2,14 +2,21 @@
 
 import asyncio
 import time
-from typing import Callable
+from typing import Callable, Union
 
+from research_orchestrator.bug_reporter import BugReporter
 from research_orchestrator.config import Depth, ProviderConfig, ResearchConfig
-from research_orchestrator.models import ProviderResult, ProviderStatus, ResearchOutput
+from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus, ResearchOutput
 from research_orchestrator.providers.anthropic import AnthropicProvider
 from research_orchestrator.providers.base import BaseProvider
 from research_orchestrator.providers.google import GoogleProvider
 from research_orchestrator.providers.openai import OpenAIProvider
+
+# Type alias for status callbacks
+StatusCallback = Union[
+    Callable[[str, ProviderPhase, str], None],
+    Callable[[str, str], None],
+]
 
 
 class ResearchOrchestrator:
@@ -17,15 +24,19 @@ class ResearchOrchestrator:
 
     def __init__(
         self,
-        on_status_update: Callable[[str, str], None] | None = None,
+        on_status_update: StatusCallback | None = None,
+        bug_reporter: BugReporter | None = None,
     ) -> None:
         """Initialize the orchestrator.
 
         Args:
             on_status_update: Optional callback for status updates.
-                Called with (provider_name, status_message).
+                New signature: (provider_name, phase, message)
+                Legacy signature: (provider_name, message) also supported.
+            bug_reporter: Optional BugReporter for detecting anomalies.
         """
         self._on_status_update = on_status_update
+        self._bug_reporter = bug_reporter
 
     def _get_provider(self, config: ProviderConfig, depth: Depth) -> BaseProvider:
         """Get the appropriate provider instance."""
@@ -41,9 +52,28 @@ class ResearchOrchestrator:
 
         return provider_class(config, depth, self._on_status_update)
 
-    def _update_status(self, provider: str, message: str) -> None:
-        """Send status update if callback is configured."""
+    def _update_status(
+        self,
+        provider: str,
+        message: str,
+        phase: ProviderPhase | None = None,
+    ) -> None:
+        """Send status update if callback is configured.
+
+        Args:
+            provider: Provider name.
+            message: Status message.
+            phase: Optional phase (for new callback signature).
+        """
         if self._on_status_update:
+            if phase is not None:
+                # Try new signature first (provider, phase, message)
+                try:
+                    self._on_status_update(provider, phase, message)
+                    return
+                except TypeError:
+                    pass
+            # Fall back to legacy signature (provider, message)
             self._on_status_update(provider, message)
 
     async def execute(self, config: ResearchConfig) -> ResearchOutput:
@@ -100,7 +130,11 @@ class ResearchOrchestrator:
         tasks = []
         for provider_config in available_configs:
             provider = self._get_provider(provider_config, config.depth)
-            self._update_status(provider.name, "Starting...")
+            self._update_status(
+                provider.name,
+                "Starting...",
+                phase=ProviderPhase.INITIALIZING
+            )
             tasks.append(self._execute_with_status(provider, config.prompt))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -119,25 +153,62 @@ class ResearchOrchestrator:
             else:
                 processed_results.append(result)
 
-        return ResearchOutput(
+        # Build research output
+        output = ResearchOutput(
             prompt=config.prompt,
             results=processed_results,
             depth=config.depth.value,
             total_duration_seconds=time.time() - start_time,
         )
 
+        # Run bug detection if reporter is configured
+        if self._bug_reporter:
+            # Detect bugs in individual results
+            for result in processed_results:
+                self._bug_reporter.detect_and_report(
+                    result=result,
+                    prompt=config.prompt,
+                    depth=config.depth.value,
+                )
+
+            # Analyze for systemic issues
+            self._bug_reporter.analyze_output(output)
+
+            # Attach bugs to output
+            output.bugs = list(self._bug_reporter.bugs)
+
+        return output
+
     async def _execute_with_status(
         self, provider: BaseProvider, prompt: str
     ) -> ProviderResult:
         """Execute provider with status updates."""
-        self._update_status(provider.name, "Executing...")
+        self._update_status(
+            provider.name,
+            "Executing...",
+            phase=ProviderPhase.RESEARCHING
+        )
         try:
             result = await provider.execute(prompt)
-            status_msg = "Completed" if result.is_success else f"Failed: {result.error}"
-            self._update_status(provider.name, status_msg)
+            if result.is_success:
+                self._update_status(
+                    provider.name,
+                    "Completed",
+                    phase=ProviderPhase.COMPLETED
+                )
+            else:
+                self._update_status(
+                    provider.name,
+                    f"Failed: {result.error}",
+                    phase=ProviderPhase.FAILED
+                )
             return result
         except Exception as e:
-            self._update_status(provider.name, f"Error: {e}")
+            self._update_status(
+                provider.name,
+                f"Error: {e}",
+                phase=ProviderPhase.FAILED
+            )
             raise
 
     async def check_providers(self, sources: list[str] | None = None) -> dict[str, bool]:

@@ -32,65 +32,35 @@ API keys must be configured in environment variables:
 - `AUTO_UPGRADE_MODELS` - Auto-upgrade without prompting (default: false)
 
 **Validation:**
-Before proceeding, check and install dependencies as needed.
+Before proceeding, run the background dependency check and handle any issues.
 
-### Step 1: Set Up Tool Path
+### Step 1: Set Up Tool Path and Start Background Check
 
-The tool is bundled at `../tools/research-orchestrator/` relative to this skill file:
+The tool is bundled at `../tools/research-orchestrator/` relative to this skill file.
+
+**IMPORTANT:** Start the dependency check in the background IMMEDIATELY so it runs in parallel with clarification:
 
 ```bash
 # Determine the plugin directory (use ${CLAUDE_PLUGIN_ROOT} or adjust path as needed)
 PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-/path/to/plugins/personal-plugin}"
 TOOL_SRC="$PLUGIN_DIR/tools/research-orchestrator/src"
+
+# Start background check (run_in_background=true)
+PYTHONPATH="$TOOL_SRC" python -m research_orchestrator check-ready
 ```
 
-### Step 2: Check and Install Python Dependencies
+This outputs JSON with the status of:
+- Python packages (anthropic, openai, google-genai, rich, python-dotenv, pydantic, tenacity)
+- API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY)
+- Optional tools (pandoc)
 
-Check for required Python packages and install any that are missing:
+**Do NOT wait for this to complete** - proceed immediately to Phase 1 (Intake) and Phase 2 (Clarification). You will check the results before execution.
+
+### Step 2: Check Model Versions (OPTIONAL)
+
+**Execute this step** if user has not specified `--skip-model-check`:
 
 ```bash
-# Check which packages are missing
-python -c "import anthropic" 2>/dev/null || echo "anthropic: MISSING"
-python -c "import openai" 2>/dev/null || echo "openai: MISSING"
-python -c "from google import genai" 2>/dev/null || echo "google-genai: MISSING"
-python -c "import dotenv" 2>/dev/null || echo "python-dotenv: MISSING"
-python -c "import pydantic" 2>/dev/null || echo "pydantic: MISSING"
-python -c "import tenacity" 2>/dev/null || echo "tenacity: MISSING"
-```
-
-**If any packages are missing, ask the user:**
-> "The following Python packages are missing: [list]. Install them now with `pip install [packages]`?"
-
-If user approves:
-```bash
-pip install anthropic openai google-genai python-dotenv pydantic tenacity
-```
-
-### Step 3: Verify API Keys
-
-Check that API keys are available for selected sources. If missing:
-```
-Error: Missing API key(s) for selected source(s)
-
-The following API keys are required but not found:
-  - ANTHROPIC_API_KEY (for Claude)
-  - OPENAI_API_KEY (for OpenAI)
-  - GOOGLE_API_KEY (for Gemini)
-
-Configure these in your environment or .env file.
-See .env.example in the plugin directory for the required format.
-```
-
-### Step 4: Check Model Versions (RECOMMENDED)
-
-**Execute this step** to check for newer model versions and offer upgrades. Skip only if the user explicitly requests to bypass with `--skip-model-check`:
-
-```bash
-# Set up tool path
-PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-/path/to/plugins/personal-plugin}"
-TOOL_SRC="$PLUGIN_DIR/tools/research-orchestrator/src"
-
-# Check for model upgrades
 PYTHONPATH="$TOOL_SRC" python -m research_orchestrator check-models
 ```
 
@@ -175,9 +145,47 @@ To ensure comprehensive research, I have a few clarifying questions:
 3. Depth: Do you want a summary overview or detailed analysis with citations?
 ```
 
-### Phase 3: Confirmation
+### Phase 3: Pre-Execution Gate
 
-Present the refined research brief to the user:
+**BEFORE presenting the research brief**, check the results of the background dependency check:
+
+1. **If `check-ready` returned failures:**
+   - Show which packages are missing
+   - Show which API keys are not configured
+   - Ask user to fix issues before proceeding
+
+   **Example output if packages missing:**
+   ```
+   Pre-Execution Check: FAILED
+
+   Missing Python packages:
+     - rich: Install with `pip install rich`
+     - google-genai: Install with `pip install google-genai`
+
+   Would you like me to install these packages now?
+   ```
+
+   **Example output if API keys missing:**
+   ```
+   Pre-Execution Check: FAILED
+
+   Missing API keys for selected sources:
+     - OPENAI_API_KEY (required for openai source)
+
+   Options:
+   1. Remove openai from sources and continue with claude, gemini
+   2. Set up the API key and retry
+   ```
+
+2. **If `check-ready` passed:**
+   ```
+   Pre-Execution Check: PASSED
+
+   All dependencies installed
+   API keys configured for: claude, openai, gemini
+   ```
+
+3. **Present the research brief:**
 
 ```
 Research Brief
@@ -455,6 +463,57 @@ Word Count: [N] words
 Sections: [N]
 ```
 
+### Phase 7: Bug Report Summary
+
+After research completes, check if any bugs/anomalies were detected during execution.
+
+**The tool automatically detects:**
+- API errors (failed provider calls)
+- Timeouts (requests exceeding 720s)
+- Empty responses (less than 100 characters)
+- Truncated content (detected via truncation indicators)
+- Suspiciously short responses for the depth level
+- Partial failures (some providers failed)
+
+**If bugs were detected:**
+```
+Bug Report Summary
+==================
+Detected [N] issues during research execution:
+
+[warning] OPENAI: Response shorter than expected for comprehensive depth (2847 < 3000 chars)
+[error] GEMINI: Request timed out after 720s
+
+Bug reports saved to: reports/bugs/
+  - bug-20260118-143052-openai.json
+  - bug-20260118-143055-gemini.json
+
+These issues may affect research quality. Review the individual provider reports for details.
+```
+
+**If no bugs detected:**
+```
+Bug Report Summary
+==================
+No issues detected. All providers responded normally.
+```
+
+**Bug report JSON format:**
+```json
+{
+  "id": "bug-20260118-143052-openai",
+  "timestamp": "2026-01-18T14:30:52Z",
+  "category": "timeout",
+  "provider": "openai",
+  "severity": "error",
+  "prompt_preview": "Research the impact of...",
+  "depth": "comprehensive",
+  "error_message": "Request timed out after 720s",
+  "duration_seconds": 720.3,
+  "model_version": "o3-deep-research-2025-06-26"
+}
+```
+
 ## Error Handling
 
 | Error | Response |
@@ -502,14 +561,17 @@ Consider using `--sources` to select specific providers for cost management.
 
 Follow these steps in order:
 
-1. **Setup** - Parse arguments and validate API key availability
-2. **Dependencies** - Check for missing Python dependencies (install if needed)
-3. **Model Check** - Check for model version upgrades (recommended, skip with --skip-model-check)
-4. **Clarification** - Run clarification loop (REQUIRED unless --no-clarify) using AskUserQuestion tool
-5. **Confirmation** - Present research brief and wait for user approval
-6. **Tool Execution** - Run research-orchestrator tool (saves individual provider files to reports/)
-7. **Read Results** - Use Read tool to read each provider output file from reports/
-8. **Synthesize** - Merge provider outputs into unified report following the Report Structure template
-9. **Write Report** - Use Write tool to save synthesized report as `research-[topic-slug]-[timestamp].md`
-10. **DOCX Generation** - If format includes docx, run pandoc to convert markdown to Word
-11. **Summary** - Display completion summary with file locations and word count
+1. **Setup** - Parse arguments, set up tool path
+2. **Background Check** - Start `check-ready` command in background (runs parallel to clarification)
+3. **Model Check** - Check for model version upgrades (optional, skip with --skip-model-check)
+4. **Intake** - Accept research request from user
+5. **Clarification** - Run clarification loop (REQUIRED unless --no-clarify) using AskUserQuestion tool
+6. **Pre-Execution Gate** - Check background check results, show PASSED/FAILED, resolve any issues
+7. **Confirmation** - Present research brief and wait for user approval
+8. **Tool Execution** - Run research-orchestrator tool (saves individual provider files to reports/)
+9. **Read Results** - Use Read tool to read each provider output file from reports/
+10. **Synthesize** - Merge provider outputs into unified report following the Report Structure template
+11. **Write Report** - Use Write tool to save synthesized report as `research-[topic-slug]-[timestamp].md`
+12. **DOCX Generation** - If format includes docx, run pandoc to convert markdown to Word
+13. **Bug Report** - Summarize any detected bugs/anomalies, show saved bug report locations
+14. **Summary** - Display completion summary with file locations and word count

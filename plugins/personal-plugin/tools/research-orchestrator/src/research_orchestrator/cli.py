@@ -8,9 +8,19 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from research_orchestrator.bug_reporter import BugReporter
 from research_orchestrator.config import Depth, ResearchConfig
 from research_orchestrator.model_discovery import ModelDiscovery
+from research_orchestrator.models import ProviderPhase
 from research_orchestrator.orchestrator import ResearchOrchestrator
+
+# Try to import Rich UI
+try:
+    from research_orchestrator.ui import RichUI, create_status_callback, RICH_AVAILABLE
+except ImportError:
+    RICH_AVAILABLE = False
+    RichUI = None
+    create_status_callback = None
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -77,12 +87,27 @@ def create_parser() -> argparse.ArgumentParser:
         help="Output results as JSON",
     )
 
+    # check-ready command
+    check_ready_parser = subparsers.add_parser(
+        "check-ready", help="Check if all dependencies and API keys are configured"
+    )
+    check_ready_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON (default for this command)",
+    )
+
     return parser
 
 
-def status_callback(provider: str, message: str) -> None:
-    """Print status updates to stderr."""
+def status_callback_legacy(provider: str, message: str) -> None:
+    """Print status updates to stderr (legacy format)."""
     print(f"[{provider}] {message}", file=sys.stderr)
+
+
+def status_callback_phase(provider: str, phase: ProviderPhase, message: str) -> None:
+    """Print status updates to stderr with phase info."""
+    print(f"[{provider}] [{phase.value}] {message}", file=sys.stderr)
 
 
 def run_execute(args: argparse.Namespace) -> int:
@@ -108,17 +133,46 @@ def run_execute(args: argparse.Namespace) -> int:
             print(f"  - {key}", file=sys.stderr)
         print("Research will only use providers with available keys.", file=sys.stderr)
 
-    if not args.json:
-        orchestrator = ResearchOrchestrator(on_status_update=status_callback)
-    else:
-        orchestrator = ResearchOrchestrator()
-
-    output = asyncio.run(orchestrator.execute(config))
+    # Set up bug reporter
+    bug_reporter = BugReporter(bugs_dir=Path(args.output_dir) / "bugs")
 
     if args.json:
+        # JSON mode: no status updates
+        orchestrator = ResearchOrchestrator(bug_reporter=bug_reporter)
+        output = asyncio.run(orchestrator.execute(config))
         print(json.dumps(output.to_dict(), indent=2))
-    else:
+    elif RICH_AVAILABLE and RichUI is not None:
+        # Rich UI mode
+        ui = RichUI(providers=sources)
+        callback = create_status_callback(ui)
+        orchestrator = ResearchOrchestrator(
+            on_status_update=callback,
+            bug_reporter=bug_reporter
+        )
+
+        with ui:
+            output = asyncio.run(orchestrator.execute(config))
+
+        ui.print_summary()
         print_results(output, args.output_dir)
+    else:
+        # Fallback: simple text output
+        orchestrator = ResearchOrchestrator(
+            on_status_update=status_callback_phase,
+            bug_reporter=bug_reporter
+        )
+        output = asyncio.run(orchestrator.execute(config))
+        print_results(output, args.output_dir)
+
+    # Save bug reports if any were detected
+    if bug_reporter.bugs:
+        saved_paths = bug_reporter.save_bugs()
+        if saved_paths:
+            print(f"\nBug reports saved: {len(saved_paths)} files", file=sys.stderr)
+            for path in saved_paths[:3]:  # Show first 3
+                print(f"  - {path}", file=sys.stderr)
+            if len(saved_paths) > 3:
+                print(f"  ... and {len(saved_paths) - 3} more", file=sys.stderr)
 
     return 0 if output.success_count > 0 else 1
 
@@ -256,6 +310,78 @@ def run_check_models(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_check_ready(args: argparse.Namespace) -> int:
+    """Check if all dependencies and API keys are configured."""
+    import importlib
+    import shutil
+
+    result = {
+        "python_packages": {},
+        "api_keys": {},
+        "optional_tools": {},
+    }
+
+    # Check Python packages
+    packages = [
+        ("anthropic", "anthropic"),
+        ("openai", "openai"),
+        ("google-genai", "google.genai"),
+        ("rich", "rich"),
+        ("python-dotenv", "dotenv"),
+        ("pydantic", "pydantic"),
+        ("tenacity", "tenacity"),
+    ]
+
+    for package_name, import_name in packages:
+        try:
+            # Use importlib for proper nested module handling
+            mod = importlib.import_module(import_name)
+
+            # Try to get version
+            version = getattr(mod, "__version__", "unknown")
+            result["python_packages"][package_name] = {"ok": True, "version": version}
+        except (ImportError, ModuleNotFoundError):
+            result["python_packages"][package_name] = {"ok": False, "version": None}
+
+    # Check API keys
+    api_keys = [
+        ("ANTHROPIC_API_KEY", "claude"),
+        ("OPENAI_API_KEY", "openai"),
+        ("GOOGLE_API_KEY", "gemini"),
+    ]
+
+    for key_name, provider in api_keys:
+        value = os.getenv(key_name)
+        is_present = bool(value and len(value) > 0)
+        result["api_keys"][key_name] = {
+            "ok": is_present,
+            "present": is_present,
+            "provider": provider,
+        }
+
+    # Check optional tools
+    optional_tools = [
+        ("pandoc", "Document conversion"),
+    ]
+
+    for tool_name, description in optional_tools:
+        tool_path = shutil.which(tool_name)
+        result["optional_tools"][tool_name] = {
+            "ok": tool_path is not None,
+            "path": tool_path,
+            "description": description,
+        }
+
+    # Always output as JSON (this command is meant for programmatic use)
+    print(json.dumps(result, indent=2))
+
+    # Return success if all required packages and at least one API key are available
+    all_packages_ok = all(p["ok"] for p in result["python_packages"].values())
+    any_api_key_ok = any(k["ok"] for k in result["api_keys"].values())
+
+    return 0 if (all_packages_ok and any_api_key_ok) else 1
+
+
 def main() -> None:
     """Main entry point."""
     parser = create_parser()
@@ -270,6 +396,7 @@ def main() -> None:
         "check-providers": run_check_providers,
         "list-depths": run_list_depths,
         "check-models": run_check_models,
+        "check-ready": run_check_ready,
     }
 
     handler = commands.get(args.command)
