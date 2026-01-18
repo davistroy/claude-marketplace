@@ -1,0 +1,232 @@
+{
+  "SchemaVersion": "1.2",
+  "StyleName": "Visual_Explainer_Professional_Clean",
+  "StyleIntent": "Create clean, modern, professional concept explanation graphics with clear visual hierarchy, generous white space, and friendly approachable aesthetics suitable for presentations and documentation.",
+  "BlendSources": {
+    "Original": "Clean Professional Presentation Style (modern graphics, warm hospitality, delightful details)",
+    "BrandVoice": "The Clear Communicator (Welcoming, Professional, Accessible)"
+  },
+
+  "ModelAndOutputProfiles": {
+    "TargetModelHint": "gemini-2.0-flash-exp",
+    "ResolutionProfiles": {
+      "Landscape4K": { "Width": 3200, "Height": 1800, "AspectRatio": "16:9", "UseCase": "Presentations, hero images, concept explanations" },
+      "SquareHQ": { "Width": 1800, "Height": 1800, "AspectRatio": "1:1", "UseCase": "Social media, icons, focused concepts" },
+      "Portrait4K": { "Width": 1800, "Height": 3200, "AspectRatio": "9:16", "UseCase": "Mobile displays, vertical infographics" }
+    }
+  },
+
+  "Medium": {
+    "PrimaryStyle": "CleanDigitalIllustration",
+    "RenderingApproach": "ProfessionalGraphicDesign",
+    "Aesthetic": ["Modern", "Clean", "Approachable", "Polished"],
+    "Background": {
+      "Type": "CleanMinimal",
+      "BaseColor": "#FFFFFF",
+      "AllowSubtleTexture": true,
+      "TextureIntensity": "VeryLight",
+      "CleanlinessIsVirtue": true
+    }
+  },
+
+  "DesignPrinciples": {
+    "ClarityFirst": "Visual explanations must be immediately understandable",
+    "VisualHierarchy": "Guide the eye through concepts in logical order",
+    "AccessibleDesign": "Work for diverse audiences and contexts",
+    "DelightfulDetail": "Add small, unexpected moments of visual interest",
+    "CleanlinessIsVirtue": "Crisp, organized, uncluttered layouts with breathing room",
+    "ConceptFocused": "Every element serves the explanation; no decorative clutter"
+  },
+
+  "ColorSystem": {
+    "PaletteMode": "Flexible",
+    "Background": {
+      "Base": "#FFFFFF",
+      "Role": "Clean white background; primary canvas for all content",
+      "AllowSubtleTone": false
+    },
+    "PrimaryColors": [
+      {
+        "Name": "Deep Blue",
+        "Hex": "#1E3A5F",
+        "Role": "Structural color; headlines, major elements, strong graphic accents",
+        "UsageGuidance": "Professional foundation; main content color"
+      },
+      {
+        "Name": "Accent Blue",
+        "Hex": "#3B82F6",
+        "Role": "Primary accent; key emphasis, interactive elements, highlights",
+        "UsageGuidance": "Draw attention to key concepts"
+      }
+    ],
+    "SecondaryColors": [
+      {
+        "Name": "Success Green",
+        "Hex": "#10B981",
+        "Role": "Positive indicators, success states, growth concepts",
+        "UsageGuidance": "Use for positive outcomes or confirmations"
+      },
+      {
+        "Name": "Warning Amber",
+        "Hex": "#F59E0B",
+        "Role": "Caution indicators, attention areas, energy concepts",
+        "UsageGuidance": "Highlight areas needing attention"
+      },
+      {
+        "Name": "Neutral Gray",
+        "Hex": "#64748B",
+        "Role": "Secondary text, borders, subtle backgrounds, supporting elements",
+        "UsageGuidance": "Functional neutral; body text and structure"
+      }
+    ],
+    "ColorUsageRules": {
+      "DominantMood": "CleanProfessionalWithStrategicAccents",
+      "WhiteSpace": "Generous; cleanliness is a virtue",
+      "AccentUsage": {
+        "MaxAreaPercent": 20,
+        "Intent": "Strategic emphasis - not overwhelming",
+        "Placement": "Key concepts, focal points, important relationships"
+      },
+      "ProhibitedHues": [
+        "Neon colors",
+        "Muddy browns",
+        "Harsh clashing combinations",
+        "Oversaturated palettes"
+      ],
+      "Notes": "Maintain clean, professional palette. Colors should aid understanding, not distract. White space is generous."
+    }
+  },
+
+  "Typography": {
+    "PrimaryTypeface": {
+      "Name": "Clean Sans Serif",
+      "Weights": ["Bold", "Medium", "Regular", "Light"],
+      "Usage": {
+        "Bold": "Headlines, emphasis, key concepts",
+        "Medium": "Subheadings, important labels",
+        "Regular": "Body copy, standard text, captions",
+        "Light": "Subtle supporting text, fine details"
+      },
+      "CharacterTraits": "Friendly, approachable, modern, clean, highly readable"
+    },
+    "TypographyPrinciples": {
+      "Readability": "VeryHigh",
+      "Hierarchy": "Clear and intentional",
+      "Spacing": "Generous; allow text to breathe",
+      "Alignment": "Clean and organized; typically left-aligned or centered with purpose"
+    }
+  },
+
+  "TextStyle": {
+    "Purpose": "ConceptExplanationLabelsAndAnnotations",
+    "GlobalTextPolicy": {
+      "AllowedText": ["Headlines", "Labels", "Annotations", "ShortExplanations"],
+      "LegibilityRequirement": "PerfectlyLegibleCorrectSpellingNoGarbledCharacters",
+      "TextVolume": "Moderate; sufficient for clarity, never crowded"
+    },
+    "LetteringLook": {
+      "TypefaceFamily": "CleanSansSerif",
+      "Geometry": {
+        "StrokeEnds": "SlightlyRounded",
+        "Corners": "SoftAndApproachable",
+        "Curves": "WarmAndNatural",
+        "Weight": "MediumBoldForHeadlines",
+        "Spacing": "GenerousAndBreathable"
+      }
+    },
+    "TextColorRules": {
+      "Headlines": ["#1E3A5F", "#3B82F6"],
+      "BodyText": ["#64748B", "#1E3A5F"],
+      "Accents": ["#3B82F6", "#10B981"],
+      "Avoid": ["PureBlack", "MuddyColors", "LowContrastCombinations"]
+    },
+    "DoNot": [
+      "Script fonts",
+      "Ornate serifs",
+      "Condensed or extended distortions",
+      "3D effects, bevels, glows",
+      "Garbled pseudo-text"
+    ]
+  },
+
+  "VisualElements": {
+    "IconStyle": {
+      "StrokeWeight": "Uniform",
+      "DetailLevel": "Simple and clear",
+      "Style": "Outlined or minimal filled",
+      "Usage": "Support concepts; never decorative clutter"
+    },
+    "GraphicDevices": {
+      "Connectors": "Clean lines showing relationships",
+      "Containers": "Rounded rectangles for grouping",
+      "Highlights": "Subtle shadows or glows for emphasis"
+    },
+    "DiagramElements": {
+      "Arrows": "Clean, clear directional indicators",
+      "Boxes": "Consistent styling for concept containers",
+      "Lines": "Varied weights for hierarchy"
+    }
+  },
+
+  "LightingAndAtmosphere": {
+    "LightingStyle": "BrightCleanEven",
+    "Mood": ["Professional", "Clear", "Inviting", "Focused"],
+    "Shadows": {
+      "Intensity": "Soft",
+      "Purpose": "Depth and separation",
+      "Edges": "SoftAndSubtle"
+    },
+    "Atmospherics": {
+      "Brightness": "HighButNotOverexposed",
+      "Clarity": "VeryHigh; cleanliness is a virtue",
+      "Depth": "Subtle layering for visual interest"
+    }
+  },
+
+  "CompositionAndLayout": {
+    "LayoutPrinciples": {
+      "WhiteSpace": "Generous; critical to clarity",
+      "Balance": "Professional and organized",
+      "Hierarchy": "Clear visual flow; guide the eye through concepts",
+      "Breathing": "Elements have room; never cramped or cluttered"
+    },
+    "Framing": {
+      "Margins": "GenerousAndConsistent",
+      "Alignment": "CleanGridBased",
+      "FocalPoints": "ClearAndIntentional"
+    },
+    "FocalHierarchy": {
+      "Primary": "Main concept or headline",
+      "Secondary": "Supporting concepts and relationships",
+      "Tertiary": "Details, annotations, supplementary info"
+    }
+  },
+
+  "StyleControls": {
+    "DetailLevel": "MediumHigh",
+    "Cleanliness": "VeryHigh",
+    "Professionalism": "High",
+    "Approachability": "High",
+    "Simplicity": "High",
+    "ColorDiscipline": "High",
+    "WhiteSpaceDiscipline": "VeryHigh",
+    "TextStrictness": "VeryHigh"
+  },
+
+  "PromptRecipe": {
+    "StylePrefix": "Clean, professional concept explanation graphic. Modern digital illustration style with generous white space, clear visual hierarchy, and friendly approachable aesthetics.",
+    "CoreStylePrompt": "modern professional illustration, clean sans-serif typography influence, clean lines, organized layout, bright even lighting, clear visual hierarchy, generous breathing room, concept-focused design, accessible and understandable",
+    "ColorConstraintPrompt": "professional color palette: Deep Blue (#1E3A5F) for structure, Accent Blue (#3B82F6) for emphasis, optional Success Green (#10B981) and Warning Amber (#F59E0B) for semantic meaning, Neutral Gray (#64748B) for supporting elements, white (#FFFFFF) background with generous margins; no neon, no muddy colors, no harsh clashing combinations",
+    "TextEnforcementPrompt": "Text must be perfectly legible, correctly spelled, and grammatically correct. Use clean sans serif typography. Allow generous spacing. Headlines in Deep Blue or Accent Blue.",
+    "NegativePrompt": "cluttered, messy, dirty, muddy colors, neon, garish, gradients, 3D effects, bevels, glows, script fonts, ornate decoration, cramped spacing, low contrast, hard to read, garbled text, typos, dark backgrounds, grungy textures, photorealistic, overly detailed, busy patterns",
+    "QualityChecklist": [
+      "Generous white space; layout feels clean and organized",
+      "Clear visual hierarchy guides the eye through concepts",
+      "Colors used strategically to aid understanding",
+      "Typography is clean, friendly, and perfectly legible",
+      "Overall mood: professional, clear, approachable",
+      "Concept is immediately understandable",
+      "No clutter; every element serves the explanation"
+    ]
+  }
+}

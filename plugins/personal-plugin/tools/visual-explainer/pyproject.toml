@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "visual-explainer"
+version = "0.1.0"
+description = "Transform text or documents into AI-generated images that explain concepts visually"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+keywords = ["visual", "explainer", "image-generation", "ai", "gemini", "claude", "education"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Multimedia :: Graphics",
+]
+dependencies = [
+    "httpx>=0.25.0",
+    "anthropic>=0.40.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "aiofiles>=23.0.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+docx = [
+    "python-docx>=1.0.0",
+]
+pdf = [
+    "PyPDF2>=3.0.0",
+]
+web = [
+    "beautifulsoup4>=4.12.0",
+]
+all = [
+    "python-docx>=1.0.0",
+    "PyPDF2>=3.0.0",
+    "beautifulsoup4>=4.12.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.23.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+    "respx>=0.21.0",
+]
+
+[project.scripts]
+visual-explainer = "visual_explainer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = "--cov=visual_explainer --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/visual_explainer"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "B", "UP"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
