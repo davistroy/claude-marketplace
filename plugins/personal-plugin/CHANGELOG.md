@@ -6,6 +6,18 @@ description: Version history and release notes for personal-plugin
 
 All notable changes to personal-plugin will be documented in this file.
 
+## [3.7.0] - 2026-01-18
+
+### Added
+- Visual Concept Explainer skill (`/visual-explainer`) - transforms text/documents into AI-generated explanatory images
+- Gemini Pro 3 integration for 4K image generation
+- Claude Sonnet Vision integration for quality evaluation
+- Iterative refinement with escalating strategies (up to 5 attempts)
+- Checkpoint/resume support for long-running generations
+- Bundled styles: professional-clean and professional-sketch
+- Multiple input formats: .md, .txt, .docx, .pdf, URLs
+- Comprehensive test suite (195 tests)
+
 ## [3.6.0] - 2026-01-18
 
 ### Added
