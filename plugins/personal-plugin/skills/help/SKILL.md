@@ -144,11 +144,13 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /clean-repo
 **Description:** Comprehensive repository cleanup, organization, and documentation refresh
-**Arguments:** [--dry-run] [--audit]
-**Output:** Generated output file
+**Arguments:** [--dry-run] [--audit] [--docs-only]
+**Output:** In-conversation report with cleanup summary
 **Example:**
 ```
-/clean-repo
+/clean-repo                    # Full cleanup with documentation sync
+/clean-repo --docs-only        # Focus only on documentation updates
+/clean-repo --dry-run          # Preview changes without executing
 ```
 
 ---
