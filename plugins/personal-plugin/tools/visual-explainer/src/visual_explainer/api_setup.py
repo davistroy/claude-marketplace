@@ -15,6 +15,50 @@ from typing import TypedDict
 
 import httpx
 
+# Set PYTHONIOENCODING for Windows console compatibility
+if "PYTHONIOENCODING" not in os.environ:
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+
+
+def is_interactive() -> bool:
+    """Check if we're running in an interactive terminal.
+
+    Returns:
+        True if stdin is a TTY and we can prompt for input.
+    """
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def supports_unicode() -> bool:
+    """Check if the console supports Unicode characters.
+
+    Returns:
+        True if Unicode characters should render correctly.
+    """
+    if sys.platform == "win32":
+        # Windows Terminal sets WT_SESSION
+        if os.environ.get("WT_SESSION"):
+            return True
+        # ConEmu sets ConEmuANSI
+        if os.environ.get("ConEmuANSI"):
+            return True
+        # VS Code terminal
+        if os.environ.get("TERM_PROGRAM") == "vscode":
+            return True
+        # Check for UTF-8 code page (65001)
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            code_page = kernel32.GetConsoleOutputCP()
+            if code_page == 65001:
+                return True
+        except Exception:
+            pass
+        return False
+
+    encoding = sys.stdout.encoding or ""
+    return encoding.lower() in ("utf-8", "utf8")
+
 # Try to import Rich for formatted output
 try:
     from rich.console import Console
@@ -59,11 +103,28 @@ _console: Console | None = None
 
 
 def get_console() -> Console:
-    """Get or create the Rich console instance."""
+    """Get or create the Rich console instance.
+
+    Configures the console appropriately for:
+    - Interactive vs non-interactive mode
+    - Windows vs Unix platforms
+    - Unicode vs ASCII-only terminals
+    """
     global _console
     if _console is None:
         if RICH_AVAILABLE:
-            _console = Console()
+            interactive = is_interactive()
+            unicode_support = supports_unicode()
+
+            if sys.platform == "win32":
+                _console = Console(
+                    force_terminal=interactive,
+                    legacy_windows=not unicode_support,
+                )
+            else:
+                _console = Console(
+                    force_terminal=interactive,
+                )
         else:
             raise RuntimeError("Rich library not available. Install with: pip install rich")
     return _console
@@ -373,8 +434,10 @@ def display_cost_information() -> None:
     console.print("  [dim]*[/dim] Medium doc, 3 images, avg 2.3 attempts: [green]~$0.95[/green]")
     console.print("  [dim]*[/dim] Complex doc, 5 images, avg 3 attempts: [yellow]~$2.10[/yellow]")
 
-    console.print("\n[dim]Press Enter to continue...[/dim]")
-    input()
+    # Only wait for input in interactive mode
+    if is_interactive():
+        console.print("\n[dim]Press Enter to continue...[/dim]")
+        input()
 
 
 def display_env_file_created(path: Path, google_key: str | None, anthropic_key: str | None) -> None:
@@ -469,7 +532,18 @@ async def run_setup_wizard(
 
     Returns:
         Setup result with key statuses and file creation info.
+
+    Raises:
+        RuntimeError: If called in non-interactive mode.
     """
+    # Non-interactive mode: cannot run wizard
+    if not is_interactive():
+        raise RuntimeError(
+            "Cannot run API key setup wizard in non-interactive mode. "
+            "Set GOOGLE_API_KEY and ANTHROPIC_API_KEY environment variables, "
+            "or run interactively with: visual-explainer --setup-keys"
+        )
+
     console = get_console()
 
     # Check current key status
@@ -570,11 +644,12 @@ def check_keys_and_prompt_if_missing() -> bool:
     This is the main entry point for CLI integration. It checks if
     keys are present and valid, and runs the setup wizard if needed.
 
+    In non-interactive mode, this only checks for key presence without
+    prompting, and returns False if keys are missing.
+
     Returns:
         True if all required keys are available, False otherwise.
     """
-    console = get_console()
-
     # Load .env file if present
     from dotenv import load_dotenv
 
@@ -590,7 +665,20 @@ def check_keys_and_prompt_if_missing() -> bool:
     if google_ok and anthropic_ok:
         return True
 
-    # Missing keys - offer setup
+    # Non-interactive mode: cannot prompt, just report status
+    if not is_interactive():
+        missing = []
+        if not google_ok:
+            missing.append("GOOGLE_API_KEY")
+        if not anthropic_ok:
+            missing.append("ANTHROPIC_API_KEY")
+        print(f"Missing required API keys: {', '.join(missing)}")
+        print("Set environment variables or run: visual-explainer --setup-keys")
+        return False
+
+    # Interactive mode: offer setup wizard
+    console = get_console()
+
     console.print()
     console.print("[yellow]Missing required API keys detected.[/yellow]")
 
@@ -627,6 +715,14 @@ def handle_setup_keys_flag() -> int:
     Returns:
         Exit code (0 for success, 1 for failure/skip).
     """
+    # Check for non-interactive mode first
+    if not is_interactive():
+        print("Error: --setup-keys requires an interactive terminal.")
+        print("Set environment variables instead:")
+        print("  export GOOGLE_API_KEY=your-google-api-key")
+        print("  export ANTHROPIC_API_KEY=your-anthropic-api-key")
+        return 1
+
     console = get_console()
 
     try:

@@ -33,6 +33,54 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv(override=True)
 
+# Set PYTHONIOENCODING for Windows console compatibility
+if "PYTHONIOENCODING" not in os.environ:
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+
+
+def is_interactive() -> bool:
+    """Check if we're running in an interactive terminal.
+
+    Returns:
+        True if stdin is a TTY and we can prompt for input.
+    """
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def supports_unicode() -> bool:
+    """Check if the console supports Unicode characters.
+
+    Returns:
+        True if Unicode spinners/characters should render correctly.
+    """
+    # On Windows, check for modern terminal (Windows Terminal, ConEmu, etc.)
+    if sys.platform == "win32":
+        # Windows Terminal sets WT_SESSION
+        if os.environ.get("WT_SESSION"):
+            return True
+        # ConEmu sets ConEmuANSI
+        if os.environ.get("ConEmuANSI"):
+            return True
+        # VS Code terminal
+        if os.environ.get("TERM_PROGRAM") == "vscode":
+            return True
+        # Check for UTF-8 code page (65001) or modern consoles
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            # Get console output code page
+            code_page = kernel32.GetConsoleOutputCP()
+            if code_page == 65001:  # UTF-8
+                return True
+        except Exception:
+            pass
+        # Default to ASCII for legacy Windows cmd.exe
+        return False
+
+    # On Unix-like systems, check encoding
+    encoding = sys.stdout.encoding or ""
+    return encoding.lower() in ("utf-8", "utf8")
+
 # Try to import Rich for formatted output
 try:
     from rich.console import Console
@@ -76,16 +124,32 @@ _console: Console | None = None
 
 
 def get_console() -> Console:
-    """Get or create the Rich console instance."""
+    """Get or create the Rich console instance.
+
+    Configures the console appropriately for:
+    - Interactive vs non-interactive mode
+    - Windows vs Unix platforms
+    - Unicode vs ASCII-only terminals
+    """
     global _console
     if _console is None:
         if RICH_AVAILABLE:
-            # Force UTF-8 and use new Windows terminal API to avoid cp1252 encoding issues
-            import sys
+            # Determine terminal capabilities
+            interactive = is_interactive()
+            unicode_support = supports_unicode()
+
             if sys.platform == "win32":
-                _console = Console(force_terminal=True, legacy_windows=False)
+                # Windows: use legacy_windows=False for modern terminals,
+                # but don't force_terminal when not interactive
+                _console = Console(
+                    force_terminal=interactive,
+                    legacy_windows=not unicode_support,
+                )
             else:
-                _console = Console()
+                # Unix: configure based on interactivity
+                _console = Console(
+                    force_terminal=interactive,
+                )
         else:
             raise RuntimeError("Rich library not available. Install with: pip install rich")
     return _console
@@ -309,7 +373,12 @@ def prompt_for_style() -> str | None:
 
     Returns:
         Style name/path or None for default.
+        Returns "professional-clean" when running non-interactively.
     """
+    # Non-interactive mode: return default without prompting
+    if not is_interactive():
+        return "professional-clean"
+
     console = get_console()
 
     console.print("[bold white]Visual Style:[/bold white] What style would you prefer?")
@@ -340,7 +409,12 @@ def prompt_for_image_count(recommended: int) -> int:
 
     Returns:
         Confirmed image count.
+        Returns recommended count when running non-interactively.
     """
+    # Non-interactive mode: return recommended without prompting
+    if not is_interactive():
+        return recommended
+
     console = get_console()
 
     console.print(f"[bold white]Image Count:[/bold white] Would you like to:")
@@ -366,7 +440,17 @@ def prompt_for_input() -> str:
 
     Returns:
         Input text, file path, or URL.
+
+    Raises:
+        RuntimeError: If called in non-interactive mode (use --input flag instead).
     """
+    # Non-interactive mode: cannot prompt for input
+    if not is_interactive():
+        raise RuntimeError(
+            "Cannot prompt for input in non-interactive mode. "
+            "Use --input or -i flag to provide input."
+        )
+
     console = get_console()
 
     console.print("[bold white]Please provide your input in one of these formats:[/bold white]")
@@ -488,6 +572,9 @@ def estimate_cost(image_count: int, max_iterations: int) -> str:
 class GenerationProgress:
     """Track and display generation progress using Rich."""
 
+    # ASCII spinner characters for terminals without Unicode support
+    ASCII_SPINNER = "-\\|/"
+
     def __init__(self, total_images: int, max_iterations: int, quiet: bool = False):
         """Initialize progress tracker.
 
@@ -504,12 +591,19 @@ class GenerationProgress:
         self.current_image = 0
         self.current_attempt = 0
         self.task_id: TaskID | None = None
+        self._use_unicode = supports_unicode()
 
     def __enter__(self) -> "GenerationProgress":
         """Enter context manager."""
         if not self.quiet and RICH_AVAILABLE:
+            # Use ASCII spinner on terminals without Unicode support
+            if self._use_unicode:
+                spinner_column = SpinnerColumn()
+            else:
+                spinner_column = SpinnerColumn(spinner_name="line")
+
             self.progress = Progress(
-                SpinnerColumn(),
+                spinner_column,
                 TextColumn("[progress.description]{task.description}"),
                 BarColumn(),
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
@@ -1075,6 +1169,12 @@ def main() -> int:
             print(json.dumps({"error": "No input provided. Use --input or -i flag."}))
             return 1
 
+        # Non-interactive mode without input is an error
+        if not is_interactive():
+            print("Error: No input provided and not running interactively.")
+            print("Use --input or -i flag to provide input.")
+            return 1
+
         if not RICH_AVAILABLE:
             print("Interactive mode requires Rich library. Install with: pip install rich")
             print("Or provide input with: visual-explainer --input <text|file|url>")
@@ -1101,10 +1201,25 @@ def main() -> int:
         # Check for API keys before proceeding
         from visual_explainer.api_setup import check_keys_and_prompt_if_missing
 
-        if not args.json and not check_keys_and_prompt_if_missing():
+        # Skip interactive key prompts in non-interactive mode
+        if not args.json and is_interactive() and not check_keys_and_prompt_if_missing():
             print("\nCannot proceed without API keys configured.")
             print("Run: visual-explainer --setup-keys")
             return 1
+        elif not args.json and not is_interactive():
+            # In non-interactive mode, just check if keys exist
+            from visual_explainer.api_setup import check_api_keys
+            status = check_api_keys()
+            if not status["google"]["present"] or not status["anthropic"]["present"]:
+                print("Error: Missing required API keys.")
+                missing = []
+                if not status["google"]["present"]:
+                    missing.append("GOOGLE_API_KEY")
+                if not status["anthropic"]["present"]:
+                    missing.append("ANTHROPIC_API_KEY")
+                print(f"Missing: {', '.join(missing)}")
+                print("Set environment variables or run: visual-explainer --setup-keys")
+                return 1
 
     # Build configuration
     try:
@@ -1131,9 +1246,9 @@ def main() -> int:
     # Load internal config
     internal_config = InternalConfig.from_env()
 
-    # Determine style (interactive selection if not specified and not quiet/json)
+    # Determine style (interactive selection if not specified and in interactive mode)
     style_name = args.style
-    if style_name is None and not args.quiet and not args.json and RICH_AVAILABLE:
+    if style_name is None and not args.quiet and not args.json and RICH_AVAILABLE and is_interactive():
         style_name = prompt_for_style()
 
     if style_name is None:

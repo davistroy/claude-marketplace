@@ -213,3 +213,6 @@ bugs/
 
 # Generated research output
 reports/
+
+# Visual explainer output
+output/

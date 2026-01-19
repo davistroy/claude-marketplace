@@ -6,6 +6,24 @@ description: Version history and release notes for personal-plugin
 
 All notable changes to personal-plugin will be documented in this file.
 
+## [3.9.0] - 2026-01-19
+
+### Added
+- Non-interactive mode detection for visual-explainer CLI (enables use from scripts, CI, and agents)
+- Windows console encoding fixes with ASCII spinner fallback for legacy terminals
+- Unicode support detection with graceful degradation
+
+### Changed
+- Visual-explainer now returns sensible defaults when stdin is not a TTY
+- API key setup wizard skips prompts in non-interactive mode with clear error messages
+
+## [3.8.0] - 2026-01-18
+
+### Added
+- Infographic mode for visual-explainer (`--infographic` flag)
+- Information-dense 11x17 inch page generation
+- Multi-page content distribution algorithm
+
 ## [3.7.0] - 2026-01-18
 
 ### Added
