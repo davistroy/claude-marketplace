@@ -1,7 +1,3 @@
----
-description: Visual Explainer tool documentation - transforms text into AI-generated explanatory images
----
-
 # Visual Explainer
 
 A Python tool that transforms text or documents into AI-generated images that explain concepts visually. Uses Gemini Pro 3 for 4K image generation and Claude Sonnet Vision for quality evaluation with iterative refinement.

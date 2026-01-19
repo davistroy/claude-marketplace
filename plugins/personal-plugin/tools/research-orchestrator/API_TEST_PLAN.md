@@ -1,7 +1,3 @@
----
-description: Test plan for OpenAI and Gemini API provider modules
----
-
 # API Test Plan: OpenAI and Gemini Provider Modules
 
 **Date:** 2026-01-17
