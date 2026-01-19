@@ -1,10 +1,12 @@
----
-description: Version history and release notes for personal-plugin
----
-
 # Changelog
 
 All notable changes to personal-plugin will be documented in this file.
+
+## [3.8.0] - 2026-01-19
+
+### Fixed
+- Removed YAML frontmatter from CHANGELOG.md that could cause plugin parser issues
+- Fixed potential Bun crash caused by CHANGELOG.md being incorrectly parsed as a command file
 
 ## [3.7.0] - 2026-01-18
 
