@@ -2,6 +2,17 @@
 
 All notable changes to personal-plugin will be documented in this file.
 
+## [3.10.0] - 2026-01-19
+
+### Added
+- Phase 0: Deep Repository Analysis in `/clean-repo` command (required before cleanup)
+- `--docs-only` flag for documentation-focused repository cleanup
+
+### Changed
+- `/clean-repo` now requires thorough codebase understanding before any actions
+- Documentation sync is now action-oriented (applies updates immediately)
+- Streamlined command structure with verification checklists
+
 ## [3.9.0] - 2026-01-19
 
 ### Added
