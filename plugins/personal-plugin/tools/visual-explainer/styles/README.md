@@ -1,7 +1,3 @@
----
-description: Style configuration documentation for Visual Explainer bundled styles
----
-
 # Visual Explainer Style Configuration Guide
 
 This directory contains style configuration files that control the visual appearance of generated concept explanation images.
