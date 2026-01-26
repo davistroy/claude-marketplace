@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.11.0] - 2026-01-26
+
+### Added
+- `/ship` skill: Gitea platform support with `tea` CLI auto-detection
+  - Phase 0 platform detection parses git remote to select GitHub (`gh`) or Gitea (`tea`)
+  - Platform-conditional commands for PR creation, review, and merge
+  - Draft PR limitation documented (tea CLI does not support `--draft`)
+  - Gitea branch cleanup after merge (tea doesn't auto-delete branches)
+- `/validate-and-ship` skill: Added `tea` CLI to allowed tools and stopping conditions
+
+### Changed
+- `/ship` skill: `allowed-tools` now includes `Bash(tea:*)`
+- `/validate-and-ship` skill: `allowed-tools` now includes `Bash(tea:*)`
+- Help skill updated with Gitea platform support notes for `/ship`
+
 ## [personal-plugin 3.8.0] - 2026-01-18
 
 ### Changed

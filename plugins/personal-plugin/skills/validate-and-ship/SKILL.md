@@ -1,6 +1,6 @@
 ---
 name: validate-and-ship
-allowed-tools: Bash(git:*), Bash(gh:*), Glob, Grep, Read, Edit, Write
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Glob, Grep, Read, Edit, Write
 description: Validate plugins, clean repository, and ship changes in one automated workflow
 ---
 
@@ -226,7 +226,7 @@ The workflow stops only when:
 |-----------|-------|-----------------|
 | Validation errors | 1 | Fix plugin structure/content |
 | User declines file operation | 2 | Approve or skip the operation |
-| No git/gh CLI available | 3 | Install required tools |
+| No git/gh/tea CLI available | 3 | Install required tools |
 | Unfixable PR issues | 3 | Manual code fixes needed |
 | Max fix attempts reached | 3 | Review recurring issues |
 
