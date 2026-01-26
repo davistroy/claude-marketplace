@@ -60,7 +60,7 @@ SKILLS
 |-------|-------------|
 | /help | Show available commands and skills in this plugin with usage information |
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
-| /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
+| /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge (GitHub and Gitea) |
 | /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
 | /visual-explainer | Transform text or documents into AI-generated images that explain concepts visually |
 
@@ -416,8 +416,9 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /ship
-**Description:** Create branch, commit, push, open PR, auto-review, fix issues, and merge
+**Description:** Create branch, commit, push, open PR, auto-review, fix issues, and merge (GitHub and Gitea)
 **Arguments:** [<branch-name>] [draft] [--dry-run] [--audit]
+**Platform:** Auto-detects GitHub (gh) or Gitea (tea) from git remote
 **Output:** Generated output file
 **Example:**
 ```

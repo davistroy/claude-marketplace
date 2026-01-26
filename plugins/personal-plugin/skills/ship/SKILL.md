@@ -1,6 +1,6 @@
 ---
 name: ship
-allowed-tools: Bash(git:*), Bash(gh:*)
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*)
 description: Create branch, commit, push, open PR, auto-review, fix issues, and merge
 ---
 
@@ -41,9 +41,25 @@ Example log entries:
 
 ## Pre-flight Checks
 1. Verify this is a git repository
-2. Check that the GitHub CLI (gh) is installed and authenticated
-3. Confirm there are uncommitted changes (staged or unstaged) - if not, abort with a clear message
-4. Confirm the current branch is `main` - if not, ask the user if they want to proceed from the current branch or abort
+2. Confirm there are uncommitted changes (staged or unstaged) - if not, abort with a clear message
+3. Confirm the current branch is `main` - if not, ask the user if they want to proceed from the current branch or abort
+
+## Phase 0: Platform Detection
+
+Detect the git hosting platform and select the appropriate CLI:
+
+1. Parse `git remote -v` for the push remote URL
+2. **If URL contains `github.com`** → set `PLATFORM=github`
+   - Verify `gh auth status` succeeds
+   - If `gh` is not installed or not authenticated, abort with install/auth instructions
+3. **Otherwise** → set `PLATFORM=gitea`
+   - Verify `tea login list` shows a login matching the remote URL's host
+   - If `tea` is not installed, abort with: `Install tea CLI: https://gitea.com/gitea/tea`
+   - If no matching login exists, abort with: `Run: tea login add --url <host-url> --name <name> --token <token>`
+4. Store the platform choice for all subsequent steps
+5. Display: `Platform detected: [GitHub|Gitea] (using [gh|tea] CLI)`
+
+**Draft PR limitation:** The `tea` CLI does not support `--draft` for PR creation. When the `draft` argument is passed on a Gitea repo, warn the user that draft PRs are not supported on Gitea and create a normal PR instead.
 
 ## Execution Steps
 
@@ -70,14 +86,26 @@ git push -u origin <branch-name>
 ```
 
 ### Step 5: Create Pull Request
-- Use the GitHub CLI to create the PR: `gh pr create`
 - Set the PR title to match or expand on the commit message
 - Generate a PR body that includes:
   - Summary of what changed and why
   - Key files modified
   - Any testing notes if apparent from the changes
 - Target branch: `main`
-- Open the PR as a draft if the user included "draft" in their arguments
+
+**GitHub:**
+```bash
+gh pr create --title "..." --body "..." [--draft]
+```
+
+**Gitea:**
+```bash
+tea pr create --title "..." --description "..."
+# Note: --draft is not supported by tea CLI
+# If user requested draft, warn and create normal PR
+```
+
+- Open the PR as a draft if the user included "draft" in their arguments (GitHub only)
 
 ## Output
 After completion, display:
@@ -88,7 +116,7 @@ After completion, display:
 ## Error Handling
 - If any git command fails, stop immediately and show the error
 - If push fails due to remote rejection, suggest possible causes
-- If PR creation fails, provide the manual `gh pr create` command the user can run
+- If PR creation fails, provide the manual `gh pr create` or `tea pr create` command the user can run
 
 ---
 
@@ -98,12 +126,22 @@ After the PR is created, automatically analyze it for issues.
 
 ### 7.1 Fetch PR Information
 
+**GitHub:**
 ```bash
 # Get the PR number from the just-created PR
 PR_NUMBER=$(gh pr view --json number -q '.number')
 
 # Fetch the diff for analysis
 gh pr diff $PR_NUMBER
+```
+
+**Gitea:**
+```bash
+# Get the PR number (parse from tea pr create output, or list open PRs)
+PR_NUMBER=$(tea pr list --output json --fields index --state open | jq '.[0].index')
+
+# Fetch the diff for analysis
+tea pr view $PR_NUMBER --fields diff --output simple
 ```
 
 ### 7.2 Analyze the PR
@@ -272,10 +310,14 @@ Three possible outcomes: success (merge), failure (unfixable), or exhaustion (ma
 
 Execute merge:
 ```bash
-# Squash merge and delete remote branch
+# --- GitHub ---
 gh pr merge $PR_NUMBER --squash --delete-branch
 
-# Return to main and update
+# --- Gitea ---
+tea pr merge $PR_NUMBER --style squash
+git push origin --delete $BRANCH_NAME   # tea doesn't auto-delete the branch
+
+# --- Both platforms ---
 git checkout main
 git pull
 
@@ -404,7 +446,8 @@ Branch: [branch-name] (preserved for manual work)
 
 | Phase | Action | Outcome |
 |-------|--------|---------|
-| Pre-flight | Verify git, gh, changes | Ready to ship |
+| Pre-flight | Verify git, gh/tea, changes | Ready to ship |
+| Phase 0 | Detect platform (GitHub/Gitea) | CLI selected |
 | Step 1 | Determine branch name | Branch name confirmed |
 | Step 2 | Create branch | On new branch |
 | Step 3 | Stage and commit | Changes committed |
