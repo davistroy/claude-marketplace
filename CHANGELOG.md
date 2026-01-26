@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.12.0] - 2026-01-26
+
+### Added
+- Help skill updated with `/unlock` skill listing and detailed usage documentation
+
+### Changed
+- Version bump to 3.12.0
+
+### Removed
+- `SHIP_GITEA_PLAN.md` planning document (completed, no longer needed)
+
+## [personal-plugin 3.11.1] - 2026-01-26
+
+### Added
+- `/unlock` skill: Unlock Bitwarden vault and load project secrets into environment
+  - Reads master password from `~\.claude\.env` (local, not in repo)
+  - Auto-detects project name from working directory
+  - Loads secrets from `dev/<project>/api-keys` in Bitwarden
+  - Recovered from plugin cache (was installed but missing from source repo)
+
 ## [personal-plugin 3.11.0] - 2026-01-26
 
 ### Added

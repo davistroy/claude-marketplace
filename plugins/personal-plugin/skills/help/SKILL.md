@@ -61,6 +61,7 @@ SKILLS
 | /help | Show available commands and skills in this plugin with usage information |
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge (GitHub and Gitea) |
+| /unlock | Unlock Bitwarden session and load project secrets into environment |
 | /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
 | /visual-explainer | Transform text or documents into AI-generated images that explain concepts visually |
 
@@ -427,6 +428,19 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /unlock
+**Description:** Unlock Bitwarden session and load project secrets into environment
+**Arguments:** None required
+**Output:** In-conversation output (environment variables set)
+**Example:**
+```
+/unlock
+# Vault unlocked successfully!
+# Loaded 3 secret(s) for 'slide-generator'
+```
+
+---
+
 #### /validate-and-ship
 **Description:** Validate plugins, clean repository, and ship changes in one automated workflow
 **Arguments:** [--skip-validate] [--skip-cleanup] [--dry-run] [<branch-name>]
@@ -475,5 +489,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
-  /help, /research-topic, /ship, /validate-and-ship, /visual-explainer
+  /help, /research-topic, /ship, /unlock, /validate-and-ship, /visual-explainer
 ```
