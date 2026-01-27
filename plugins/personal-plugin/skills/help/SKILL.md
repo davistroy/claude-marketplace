@@ -61,6 +61,7 @@ SKILLS
 | /help | Show available commands and skills in this plugin with usage information |
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge (GitHub and Gitea) |
+| /summarize-feedback | Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document |
 | /unlock | Unlock Bitwarden session and load project secrets into environment |
 | /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
 | /visual-explainer | Transform text or documents into AI-generated images that explain concepts visually |
@@ -428,6 +429,21 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /summarize-feedback
+**Description:** Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
+**Arguments:** employee_name="..." [days=N] [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [output_path="..."]
+**Output:** ./output/Feedback_Summary_{Name}_{datetime}.docx
+**Prerequisites:** Notion MCP server, python-docx>=1.0
+**Example:**
+```
+/summarize-feedback employee_name="Sarah Chen"
+/summarize-feedback employee_name="Sarah Chen" days=180
+/summarize-feedback employee_name="Sarah Chen" start_date=2025-07-01 end_date=2026-01-27
+/summarize-feedback employee_name="Sarah Chen" output_path="./reviews/sarah_q4.docx"
+```
+
+---
+
 #### /unlock
 **Description:** Unlock Bitwarden session and load project secrets into environment
 **Arguments:** None required
@@ -489,5 +505,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
-  /help, /research-topic, /ship, /unlock, /validate-and-ship, /visual-explainer
+  /help, /research-topic, /ship, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
 ```

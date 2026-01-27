@@ -2,6 +2,12 @@
 
 All notable changes to personal-plugin will be documented in this file.
 
+## [3.13.0] - 2026-01-27
+
+### Added
+- `/summarize-feedback` skill: Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
+- Bundled `feedback-docx-generator` Python tool for .docx document generation
+
 ## [3.10.0] - 2026-01-19
 
 ### Added

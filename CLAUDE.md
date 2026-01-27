@@ -117,9 +117,12 @@ plugins/
         SKILL.md            # Multi-source deep research across LLM providers
       ship/
         SKILL.md            # Git workflow: branch, commit, push, PR
+      summarize-feedback/
+        SKILL.md            # Synthesize Notion feedback into .docx assessment
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
     tools/
+      feedback-docx-generator/ # Python tool for feedback assessment .docx generation (run via PYTHONPATH)
       research-orchestrator/  # Python tool for multi-LLM research (run via PYTHONPATH)
 
   bpmn-plugin/
@@ -379,6 +382,7 @@ If missing, display platform-specific installation instructions:
 ### Examples
 
 See these plugins for reference implementations:
+- `personal-plugin/tools/feedback-docx-generator/` - Feedback assessment .docx generator
 - `personal-plugin/tools/research-orchestrator/` - Multi-provider LLM research tool
 - `bpmn-plugin/tools/bpmn2drawio/` - BPMN to Draw.io converter
 
