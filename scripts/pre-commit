@@ -30,8 +30,8 @@ NC='\033[0m' # No Color
 echo "Running plugin validation pre-commit hook..."
 echo ""
 
-# Get list of staged .md files in plugins/ (excluding references/ which are documentation)
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^plugins/.*\.md$' | grep -v '/references/' || true)
+# Get list of staged .md files in plugins/ commands and skills only (excluding CHANGELOG, README, references)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^plugins/[^/]+/(commands/.*\.md|skills/[^/]+/SKILL\.md)$' || true)
 
 if [ -z "$STAGED_FILES" ]; then
     echo -e "${GREEN}No plugin markdown files staged. Skipping validation.${NC}"
