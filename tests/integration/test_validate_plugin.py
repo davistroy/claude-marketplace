@@ -73,8 +73,13 @@ def validate_plugin_json(plugin_dir: Path) -> list:
     return errors
 
 
-def validate_frontmatter(file_path: Path) -> list:
-    """Validate frontmatter of a markdown file and return list of errors."""
+def validate_frontmatter(file_path: Path, is_skill: bool = False) -> list:
+    """Validate frontmatter of a markdown file and return list of errors.
+
+    Args:
+        file_path: Path to the markdown file
+        is_skill: If True, validate as skill (name required). If False, validate as command (name forbidden).
+    """
     errors = []
 
     with open(file_path, encoding="utf-8") as f:
@@ -86,9 +91,14 @@ def validate_frontmatter(file_path: Path) -> list:
     if "description" not in frontmatter:
         errors.append(f"{file_path.name}: Missing required field 'description'")
 
-    # Check for forbidden name field
-    if "name" in frontmatter:
-        errors.append(f"{file_path.name}: Forbidden field 'name' found")
+    if is_skill:
+        # Skills MUST have a name field
+        if "name" not in frontmatter:
+            errors.append(f"{file_path.name}: Missing required field 'name'")
+    else:
+        # Commands must NOT have a name field
+        if "name" in frontmatter:
+            errors.append(f"{file_path.name}: Forbidden field 'name' found")
 
     return errors
 
@@ -177,14 +187,14 @@ class TestValidPluginValidation:
         assert skills_dir.exists(), "skills directory should exist"
 
     def test_help_skill_exists(self, valid_plugin_dir: Path):
-        """Verify valid plugin has help.md skill."""
-        help_file = valid_plugin_dir / "skills" / "help.md"
-        assert help_file.exists(), "help.md skill should exist"
+        """Verify valid plugin has help skill."""
+        help_file = valid_plugin_dir / "skills" / "help" / "SKILL.md"
+        assert help_file.exists(), "skills/help/SKILL.md should exist"
 
     def test_help_skill_has_valid_frontmatter(self, valid_plugin_dir: Path):
-        """Verify help.md has valid frontmatter."""
-        help_file = valid_plugin_dir / "skills" / "help.md"
-        errors = validate_frontmatter(help_file)
+        """Verify help skill has valid frontmatter."""
+        help_file = valid_plugin_dir / "skills" / "help" / "SKILL.md"
+        errors = validate_frontmatter(help_file, is_skill=True)
         assert errors == [], f"Help frontmatter errors: {errors}"
 
 
@@ -287,10 +297,10 @@ class TestStrictModeValidation:
             all_errors.extend(validate_frontmatter(md_file))
             all_errors.extend(validate_required_sections(md_file))
 
-        # Skills validation
+        # Skills validation (skills use nested directories with SKILL.md)
         skills_dir = valid_plugin_dir / "skills"
-        for md_file in skills_dir.glob("*.md"):
-            all_errors.extend(validate_frontmatter(md_file))
+        for skill_file in skills_dir.glob("*/SKILL.md"):
+            all_errors.extend(validate_frontmatter(skill_file, is_skill=True))
 
         assert all_errors == [], f"Valid plugin should have no errors: {all_errors}"
 
