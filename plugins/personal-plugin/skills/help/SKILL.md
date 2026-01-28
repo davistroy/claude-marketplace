@@ -60,6 +60,7 @@ SKILLS
 |-------|-------------|
 | /help | Show available commands and skills in this plugin with usage information |
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
+| /security-analysis | Comprehensive security vulnerability scanning and analysis with technology-specific patterns |
 | /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge (GitHub and Gitea) |
 | /summarize-feedback | Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document |
 | /unlock | Unlock Bitwarden session and load project secrets into environment |
@@ -417,6 +418,23 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /security-analysis
+**Description:** Comprehensive security vulnerability scanning and analysis with technology-specific patterns
+**Arguments:** None required (auto-detects technology stack)
+**Output:** Security Analysis Report (in-conversation or markdown)
+**Features:**
+- Auto-detects technology stack (Node.js, Python, Java, PHP, Go, .NET, Rust, React, Vue, NestJS, Next.js, React Native)
+- OWASP Top 10 vulnerability scanning
+- Dependency vulnerability analysis with native audit tools
+- Context-aware risk assessment with CVSS scoring
+- Remediation roadmap with prioritized fixes
+**Example:**
+```
+/security-analysis
+```
+
+---
+
 #### /ship
 **Description:** Create branch, commit, push, open PR, auto-review, fix issues, and merge (GitHub and Gitea)
 **Arguments:** [<branch-name>] [draft] [--dry-run] [--audit]
@@ -505,5 +523,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
-  /help, /research-topic, /ship, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
+  /help, /research-topic, /security-analysis, /ship, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
 ```
