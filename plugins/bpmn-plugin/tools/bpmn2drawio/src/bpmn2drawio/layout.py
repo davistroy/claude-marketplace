@@ -289,6 +289,7 @@ class LayoutEngine:
 
         Uses BFS with re-queuing when a longer path is found to ensure
         nodes receive the maximum rank (longest path from any source).
+        Handles cyclic graphs by limiting iterations.
 
         Args:
             graph: NetworkX directed graph
@@ -297,6 +298,10 @@ class LayoutEngine:
             Dictionary mapping node ID to rank (0 = source level)
         """
         ranks = {}
+        num_nodes = graph.number_of_nodes()
+
+        if num_nodes == 0:
+            return ranks
 
         # Find source nodes (no incoming edges)
         sources = [n for n in graph.nodes() if graph.in_degree(n) == 0]
@@ -310,9 +315,13 @@ class LayoutEngine:
             ranks[source] = 0
 
         # BFS with re-queuing when rank improves
+        # Limit iterations to prevent infinite loops in cyclic graphs
         queue = [(s, 0) for s in sources]
+        max_iterations = num_nodes * num_nodes  # O(n^2) worst case for DAG
+        iterations = 0
 
-        while queue:
+        while queue and iterations < max_iterations:
+            iterations += 1
             node, rank = queue.pop(0)
 
             # Skip if we already found a longer path to this node
@@ -325,13 +334,21 @@ class LayoutEngine:
                 ranks[node] = rank
 
             # Process successors - re-queue if rank would improve
+            # Cap rank to prevent unbounded growth in cycles
+            max_rank = num_nodes - 1
             for succ in graph.successors(node):
-                new_rank = rank + 1
+                new_rank = min(rank + 1, max_rank)
                 succ_current = ranks.get(succ, -1)
                 if new_rank > succ_current:
                     ranks[succ] = new_rank
                     # Re-queue to propagate improved rank to downstream nodes
                     queue.append((succ, new_rank))
+
+        if iterations >= max_iterations:
+            logger.warning(
+                "Rank assignment reached iteration limit (%d), graph may have cycles",
+                max_iterations
+            )
 
         # Handle disconnected nodes
         for node in graph.nodes():
