@@ -62,7 +62,7 @@ SKILLS
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge (GitHub and Gitea) |
 | /summarize-feedback | Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document |
-| /unlock | Unlock Bitwarden session and load project secrets into environment |
+| /unlock | Load secrets from Bitwarden Secrets Manager into environment using bws CLI |
 | /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
 | /visual-explainer | Transform text or documents into AI-generated images that explain concepts visually |
 
@@ -445,14 +445,17 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /unlock
-**Description:** Unlock Bitwarden session and load project secrets into environment
+**Description:** Load secrets from Bitwarden Secrets Manager into environment using bws CLI
 **Arguments:** None required
 **Output:** In-conversation output (environment variables set)
 **Example:**
 ```
 /unlock
-# Vault unlocked successfully!
-# Loaded 3 secret(s) for 'slide-generator'
+# Loaded 8 secret(s) from Bitwarden Secrets Manager:
+#   ANTHROPIC_API_KEY
+#   OPENAI_API_KEY
+#   GOOGLE_API_KEY
+#   ...
 ```
 
 ---
