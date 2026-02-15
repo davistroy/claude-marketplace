@@ -22,7 +22,7 @@ If arguments are missing, display:
 Usage: /convert-hooks <plugin-name> [--dry-run] [--verbose] [--list]
 
 Examples:
-  /convert-hooks ralph-wiggum           # Convert hooks for ralph-wiggum plugin
+  /convert-hooks my-plugin           # Convert hooks for my-plugin plugin
   /convert-hooks my-plugin --dry-run    # Preview changes without modifying
   /convert-hooks --list                 # Show all plugins with hooks
 
@@ -50,7 +50,7 @@ Plugin cache locations checked:
 
 2. **Search for the plugin:**
    - Look in subdirectories matching pattern: `*/[plugin-name]/*/`
-   - Plugin may be under a registry namespace (e.g., `claude-code-plugins/ralph-wiggum/1.0.0/`)
+   - Plugin may be under a registry namespace (e.g., `claude-code-plugins/my-plugin/1.0.0/`)
    - Find the most recent version if multiple exist
 
 3. **Verify plugin has hooks:**
@@ -163,13 +163,13 @@ When complex constructs are detected, add TODO comments in the PowerShell output
 ## Example Usage
 
 ```
-User: /convert-hooks ralph-wiggum
+User: /convert-hooks my-plugin
 
 Claude:
 Plugin Discovery
 ----------------
-Plugin: ralph-wiggum
-Location: C:\Users\...\ralph-wiggum\1.0.0
+Plugin: my-plugin
+Location: C:\Users\...\my-plugin\1.0.0
 Hooks Config: hooks/hooks.json
 
 Hooks Analysis

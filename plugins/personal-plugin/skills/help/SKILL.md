@@ -189,7 +189,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Output:** PowerShell scripts and updated hooks.json
 **Example:**
 ```
-/convert-hooks ralph-wiggum           # Convert hooks for a plugin
+/convert-hooks my-plugin              # Convert hooks for a plugin
 /convert-hooks my-plugin --dry-run    # Preview changes
 /convert-hooks --list                 # Show plugins with hooks
 ```

@@ -244,7 +244,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Generates phased implementation plan with work items and acceptance criteria
   - Includes requirement traceability matrix
 - `/implement-plan` command for executing IMPLEMENTATION_PLAN.md via orchestrated subagents
-  - Uses Ralph Wiggum loop pattern for context-efficient execution
+  - Uses subagent orchestration pattern for context-efficient execution
   - Spawns subagents for implementation, testing, and documentation
   - Automatic test-fix loop until all tests pass
   - Updates PROGRESS.md and LEARNINGS.md tracking files
