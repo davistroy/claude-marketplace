@@ -101,6 +101,7 @@ plugins/
       finish-document.md      # Extract questions, answer, update document
       implement-plan.md       # Execute IMPLEMENTATION_PLAN.md via orchestrated subagents
       new-command.md          # Generate new command file from template
+      new-skill.md            # Generate new skill with nested directory structure and frontmatter
       plan-improvements.md    # Generate improvement recommendations and phased implementation plan
       plan-next.md            # Analyze repo and recommend next action
       remove-ip.md            # De-identify documents by removing company info and IP
@@ -115,15 +116,24 @@ plugins/
         SKILL.md            # Show commands/skills with usage information
       research-topic/
         SKILL.md            # Multi-source deep research across LLM providers
+      security-analysis/
+        SKILL.md            # Comprehensive security analysis with tech stack detection
       ship/
         SKILL.md            # Git workflow: branch, commit, push, PR
       summarize-feedback/
         SKILL.md            # Synthesize Notion feedback into .docx assessment
+      unlock/
+        SKILL.md            # Load Bitwarden secrets into environment via bws CLI
+      validate-and-ship/
+        SKILL.md            # Validate plugins, clean repo, and ship in one workflow
+      visual-explainer/
+        SKILL.md            # Transform text/docs into AI-generated visual explanations
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
     tools/
       feedback-docx-generator/ # Python tool for feedback assessment .docx generation (run via PYTHONPATH)
       research-orchestrator/  # Python tool for multi-LLM research (run via PYTHONPATH)
+      visual-explainer/       # Python tool for AI image generation from documents (run via PYTHONPATH)
 
   bpmn-plugin/
     .claude-plugin/
