@@ -1,65 +1,115 @@
 ---
 name: unlock
-description: Unlock Bitwarden session and load project secrets into environment
+description: Load secrets from Bitwarden Secrets Manager into environment using bws CLI
+allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(powershell*), Bash(python:*)
 ---
 
 # Unlock Skill
 
-Automatically unlock your Bitwarden vault and load project-specific secrets into the current environment. Fully automated - no manual password entry required.
+Load project secrets from Bitwarden Secrets Manager into the current environment using the `bws` CLI. Fully stateless — no vault unlock or session tokens required.
 
-## Purpose
+## Configuration
 
-This skill provides a one-command workflow for accessing project secrets:
-1. Reads master password from `~\.claude\.env`
-2. Unlocks Bitwarden vault automatically (if locked)
-3. Auto-detects current project name from working directory
-4. Loads secrets from Bitwarden into environment variables
-
-## Security Model
-
-**Automated approach:**
-- Master password stored in `~\.claude\.env` (local file, not in repo)
-- Password is passed via environment variable, immediately cleared after use
-- Session tokens are cached for subsequent operations
+| Item | Value |
+|------|-------|
+| BWS project ID | `5022ea9c-e711-4f4e-bf5f-b3df0181a41d` |
+| Access token env var | `TROY` |
+| bws install docs | https://bitwarden.com/help/secrets-manager-cli/ |
 
 ## Implementation
 
-When the user invokes `/unlock`, execute the unlock-and-load script:
+When the user invokes `/unlock`, follow these steps:
 
+### Step 1: Detect platform and locate bws
+
+**Windows (win32):**
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\scripts\unlock-and-load.ps1"
+where.exe bws 2>$null || (Test-Path "$env:USERPROFILE\bin\bws.exe")
 ```
 
-**The script will:**
-1. Check Bitwarden vault status
-2. If locked, read password from `~\.claude\.env` and unlock automatically
-3. Auto-detect project name from current directory
-4. Load secrets from `dev/<PROJECT_NAME>/api-keys` in Bitwarden
-5. Set them as environment variables in the current session
+**Linux/macOS:**
+```bash
+command -v bws || test -x "$HOME/bin/bws"
+```
+
+If not found, tell the user to install bws from https://bitwarden.com/help/secrets-manager-cli/  and stop.
+
+### Step 2: Get access token
+
+The access token is stored in the `TROY` environment variable.
+
+**Windows** — check process env first, then Windows user env:
+```powershell
+$token = $env:TROY
+if (-not $token) { $token = [System.Environment]::GetEnvironmentVariable('TROY', 'User') }
+```
+
+**Linux/macOS** — check process env:
+```bash
+TOKEN="$TROY"
+```
+
+If empty, tell the user:
+- **Windows:** Set via `[System.Environment]::SetEnvironmentVariable('TROY', 'your-token', 'User')`
+- **Linux/macOS:** Add `export TROY="your-token"` to `~/.bashrc` or `~/.zshrc`
+
+Then stop.
+
+### Step 3: Fetch secrets and export
+
+Run bws with the access token set for that single command, then parse the JSON output and export each secret as an environment variable.
+
+**Windows:**
+```powershell
+$env:BWS_ACCESS_TOKEN = $token
+$json = bws secret list 5022ea9c-e711-4f4e-bf5f-b3df0181a41d 2>&1
+Remove-Item env:BWS_ACCESS_TOKEN -ErrorAction SilentlyContinue
+$secrets = $json | ConvertFrom-Json
+foreach ($s in $secrets) {
+    [System.Environment]::SetEnvironmentVariable($s.key, $s.value, 'Process')
+}
+```
+
+**Linux/macOS:**
+```bash
+JSON=$(BWS_ACCESS_TOKEN="$TOKEN" bws secret list 5022ea9c-e711-4f4e-bf5f-b3df0181a41d 2>&1)
+# Parse with python (available on all systems)
+eval "$(echo "$JSON" | python3 -c "
+import json, sys
+for s in json.load(sys.stdin):
+    k, v = s['key'], s['value']
+    print(f'export {k}=\"{v}\"')
+")"
+```
+
+### Step 4: Report results
+
+Print the count and list of secret names loaded (never print values). Example output:
+
+```
+Loaded 8 secret(s) from Bitwarden Secrets Manager:
+  ANTHROPIC_API_KEY
+  OPENAI_API_KEY
+  GOOGLE_API_KEY
+  NOTION_API_KEY
+  PUSHOVER_API_TOKEN
+  PUSHOVER_USER_KEY
+  NOTION_VOICE_CAPTURES_DB_ID
+  NOTION_WEEKLY_SUMMARIES_DB_ID
+```
 
 ## Error Handling
 
-### Password File Not Found
-If `~\.claude\.env` doesn't exist or doesn't contain `BITWARDEN_MASTER_PASSWORD`:
-- Create the file with: `BITWARDEN_MASTER_PASSWORD=your-password-here`
+| Error | Action |
+|-------|--------|
+| `bws` not found | Print install URL and stop |
+| `TROY` env var empty | Print platform-specific setup instructions and stop |
+| `bws secret list` fails | Print the error output from bws and stop |
+| JSON parse fails | Print raw output for debugging and stop |
 
-### Project Not Found in Bitwarden
-If no secrets exist for the current project:
-- Script will show available `dev/*` items
-- Create new item via: `~\.claude\scripts\store-secrets.ps1 <PROJECT_NAME>`
+## Security Notes
 
-## Usage Examples
-
-```powershell
-cd C:\projects\slide-generator
-/unlock
-# Vault unlocked successfully!
-# Loaded 3 secret(s) for 'slide-generator'
-```
-
-## Related Scripts
-
-- `~\.claude\scripts\unlock-and-load.ps1` - Combined unlock + load script
-- `~\.claude\scripts\get-secrets.ps1` - Load secrets (requires unlocked vault)
-- `~\.claude\scripts\store-secrets.ps1` - Create/update Bitwarden items
-- `~\.claude\.env` - Contains `BITWARDEN_MASTER_PASSWORD`
+- Access token is set in env only for the duration of the `bws` call, then cleared
+- Secret **values** are never printed — only key names
+- No files are written — secrets exist only in process environment
+- The project ID is not sensitive — it's useless without the access token

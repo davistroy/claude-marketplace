@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 3.14.0] - 2026-02-15
+
+### Changed
+- `/implement-plan` command: Removed Ralph Wiggum loop dependency, replaced with native subagent orchestration pattern
+  - Main agent now acts as thin loop controller using Task tool directly
+  - Added explicit "Context Window Discipline" rules table
+  - Instructions use blockquoted subagent prompts with `subagent_type: "general-purpose"`
+  - Progress tracking via TaskCreate/TaskUpdate instead of external loop state
+  - Added "Do not stop early" directive to ensure full plan completion
+
 ## [personal-plugin 3.12.0] - 2026-01-26
 
 ### Added
