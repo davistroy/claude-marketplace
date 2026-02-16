@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -56,7 +55,7 @@ class TestDiscoverBundledStyles:
         """Test that style values are Path objects."""
         clear_style_cache()
         styles = discover_bundled_styles()
-        for name, path in styles.items():
+        for _name, path in styles.items():
             assert isinstance(path, Path)
             assert path.suffix == ".json"
 
@@ -140,7 +139,10 @@ class TestLoadStyle:
 
         with pytest.raises(StyleLoadError) as exc_info:
             load_style(str(style_path))
-        assert "validation" in str(exc_info.value).lower() or "stylename" in str(exc_info.value).lower()
+        assert (
+            "validation" in str(exc_info.value).lower()
+            or "stylename" in str(exc_info.value).lower()
+        )
 
     def test_caches_loaded_style(self):
         """Test that loaded styles are cached."""
@@ -184,10 +186,7 @@ class TestGetDefaultStyle:
         style = get_default_style()
         assert style.prompt_recipe is not None
         # Check that at least some prompt content exists
-        assert (
-            style.prompt_recipe.core_style_prompt != ""
-            or style.prompt_recipe.style_prefix != ""
-        )
+        assert style.prompt_recipe.core_style_prompt != "" or style.prompt_recipe.style_prefix != ""
 
 
 class TestGetPromptRecipe:

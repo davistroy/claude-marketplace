@@ -67,6 +67,7 @@ def supports_unicode() -> bool:
         # Check for UTF-8 code page (65001) or modern consoles
         try:
             import ctypes
+
             kernel32 = ctypes.windll.kernel32
             # Get console output code page
             code_page = kernel32.GetConsoleOutputCP()
@@ -81,6 +82,7 @@ def supports_unicode() -> bool:
     encoding = sys.stdout.encoding or ""
     return encoding.lower() in ("utf-8", "utf8")
 
+
 # Try to import Rich for formatted output
 try:
     from rich.console import Console
@@ -93,19 +95,16 @@ try:
         TextColumn,
         TimeElapsedColumn,
     )
-    from rich.prompt import Confirm, Prompt
+    from rich.prompt import Prompt
     from rich.table import Table
-    from rich.text import Text
 
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
 
-from visual_explainer.config import (
-    AspectRatio,
+from visual_explainer.config import (  # noqa: E402
     GenerationConfig,
     InternalConfig,
-    Resolution,
 )
 
 if TYPE_CHECKING:
@@ -153,6 +152,54 @@ def get_console() -> Console:
         else:
             raise RuntimeError("Rich library not available. Install with: pip install rich")
     return _console
+
+
+def _bounded_float(min_val: float, max_val: float, label: str):
+    """Create an argparse type validator for bounded floats.
+
+    Args:
+        min_val: Minimum allowed value (inclusive).
+        max_val: Maximum allowed value (inclusive).
+        label: Label for error messages.
+
+    Returns:
+        Validator function for argparse type parameter.
+    """
+
+    def validator(value: str) -> float:
+        fval = float(value)
+        if fval < min_val or fval > max_val:
+            raise argparse.ArgumentTypeError(
+                f"{label} must be between {min_val} and {max_val}, got {fval}"
+            )
+        return fval
+
+    validator.__name__ = f"float[{min_val}-{max_val}]"
+    return validator
+
+
+def _bounded_int(min_val: int, max_val: int, label: str):
+    """Create an argparse type validator for bounded integers.
+
+    Args:
+        min_val: Minimum allowed value (inclusive).
+        max_val: Maximum allowed value (inclusive).
+        label: Label for error messages.
+
+    Returns:
+        Validator function for argparse type parameter.
+    """
+
+    def validator(value: str) -> int:
+        ival = int(value)
+        if ival < min_val or ival > max_val:
+            raise argparse.ArgumentTypeError(
+                f"{label} must be between {min_val} and {max_val}, got {ival}"
+            )
+        return ival
+
+    validator.__name__ = f"int[{min_val}-{max_val}]"
+    return validator
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -207,13 +254,13 @@ Examples:
     # Generation parameters
     parser.add_argument(
         "--max-iterations",
-        type=int,
+        type=_bounded_int(1, 20, "max-iterations"),
         default=5,
-        help="Max refinement attempts per image (default: 5, range: 1-10)",
+        help="Max refinement attempts per image (default: 5, range: 1-20)",
     )
     parser.add_argument(
         "--pass-threshold",
-        type=float,
+        type=_bounded_float(0.0, 1.0, "pass-threshold"),
         default=0.85,
         help="Min evaluation score to pass (default: 0.85, range: 0.0-1.0)",
     )
@@ -239,7 +286,7 @@ Examples:
     )
     parser.add_argument(
         "--concurrency",
-        type=int,
+        type=_bounded_int(1, 10, "concurrency"),
         default=3,
         help="Max concurrent image generations (default: 3, range: 1-10)",
     )
@@ -311,7 +358,7 @@ def display_welcome() -> None:
     console.print()
 
 
-def display_analysis_summary(analysis: "ConceptAnalysis", infographic_mode: bool = False) -> None:
+def display_analysis_summary(analysis: ConceptAnalysis, infographic_mode: bool = False) -> None:
     """Display a summary of the concept analysis.
 
     Args:
@@ -330,7 +377,9 @@ def display_analysis_summary(analysis: "ConceptAnalysis", infographic_mode: bool
     # Add page recommendation info if in infographic mode
     if infographic_mode and analysis.page_recommendation:
         page_rec = analysis.page_recommendation
-        summary_text += f"\n[bold white]Infographic Pages:[/bold white] {page_rec.page_count} pages recommended"
+        summary_text += (
+            f"\n[bold white]Infographic Pages:[/bold white] {page_rec.page_count} pages recommended"
+        )
         if analysis.content_types_detected:
             types_str = ", ".join(ct.value for ct in analysis.content_types_detected[:5])
             summary_text += f"\n[bold white]Content Types:[/bold white] {types_str}"
@@ -345,7 +394,11 @@ def display_analysis_summary(analysis: "ConceptAnalysis", infographic_mode: bool
             concepts_str = ", ".join(str(c) for c in page.concepts_covered)
             console.print(f"  [cyan]Page {page.page_number}:[/cyan] {page.title}")
             console.print(f"    [dim]Type: {page.page_type.value}[/dim]")
-            console.print(f"    [dim]Focus: {page.content_focus[:60]}...[/dim]" if len(page.content_focus) > 60 else f"    [dim]Focus: {page.content_focus}[/dim]")
+            console.print(
+                f"    [dim]Focus: {page.content_focus[:60]}...[/dim]"
+                if len(page.content_focus) > 60
+                else f"    [dim]Focus: {page.content_focus}[/dim]"
+            )
             console.print(f"    [dim]Concepts: [{concepts_str}][/dim]")
 
         if page_rec.compression_warnings:
@@ -382,8 +435,12 @@ def prompt_for_style() -> str | None:
     console = get_console()
 
     console.print("[bold white]Visual Style:[/bold white] What style would you prefer?")
-    console.print("  [cyan]1.[/cyan] Professional Clean (Recommended) - Clean, corporate-ready with warm accents")
-    console.print("  [cyan]2.[/cyan] Professional Sketch - Hand-drawn sketch aesthetic, creative feel")
+    console.print(
+        "  [cyan]1.[/cyan] Professional Clean (Recommended) - Clean, corporate-ready with warm accents"
+    )
+    console.print(
+        "  [cyan]2.[/cyan] Professional Sketch - Hand-drawn sketch aesthetic, creative feel"
+    )
     console.print("  [cyan]3.[/cyan] Custom - Provide path to your own style JSON")
     console.print("  [cyan]4.[/cyan] Skip (use Professional Clean default)")
     console.print()
@@ -417,7 +474,7 @@ def prompt_for_image_count(recommended: int) -> int:
 
     console = get_console()
 
-    console.print(f"[bold white]Image Count:[/bold white] Would you like to:")
+    console.print("[bold white]Image Count:[/bold white] Would you like to:")
     console.print(f"  [cyan]1.[/cyan] Proceed with {recommended} images (Recommended)")
     console.print("  [cyan]2.[/cyan] Use fewer images (condense concepts)")
     console.print("  [cyan]3.[/cyan] Use more images (expand detail)")
@@ -478,8 +535,8 @@ def prompt_for_input() -> str:
 
 
 def display_dry_run_plan(
-    analysis: "ConceptAnalysis",
-    prompts: list["ImagePrompt"],
+    analysis: ConceptAnalysis,
+    prompts: list[ImagePrompt],
     config: GenerationConfig,
     style_name: str,
 ) -> None:
@@ -506,7 +563,12 @@ def display_dry_run_plan(
     config_table.add_column("Setting", style="cyan")
     config_table.add_column("Value")
 
-    config_table.add_row("Input", str(config.input_source)[:60] + "..." if len(config.input_source) > 60 else config.input_source)
+    config_table.add_row(
+        "Input",
+        str(config.input_source)[:60] + "..."
+        if len(config.input_source) > 60
+        else config.input_source,
+    )
     config_table.add_row("Style", style_name)
     config_table.add_row("Aspect Ratio", config.aspect_ratio.value)
     config_table.add_row("Resolution", config.resolution.value)
@@ -526,7 +588,11 @@ def display_dry_run_plan(
 
     for prompt in prompts:
         concepts_str = ", ".join(str(c) for c in prompt.concepts_covered)
-        intent_preview = prompt.visual_intent[:40] + "..." if len(prompt.visual_intent) > 40 else prompt.visual_intent
+        intent_preview = (
+            prompt.visual_intent[:40] + "..."
+            if len(prompt.visual_intent) > 40
+            else prompt.visual_intent
+        )
         images_table.add_row(
             str(prompt.image_number),
             prompt.title,
@@ -593,7 +659,7 @@ class GenerationProgress:
         self.task_id: TaskID | None = None
         self._use_unicode = supports_unicode()
 
-    def __enter__(self) -> "GenerationProgress":
+    def __enter__(self) -> GenerationProgress:
         """Enter context manager."""
         if not self.quiet and RICH_AVAILABLE:
             # Use ASCII spinner on terminals without Unicode support
@@ -670,7 +736,7 @@ class GenerationProgress:
         elif self.console:
             self.console.print(f"  [dim]{status}[/dim]")
 
-    def show_evaluation(self, result: "EvaluationResult") -> None:
+    def show_evaluation(self, result: EvaluationResult) -> None:
         """Display evaluation results.
 
         Args:
@@ -688,10 +754,14 @@ class GenerationProgress:
             }
             color = verdict_colors.get(result.verdict.value, "white")
 
-            self.console.print(f"  [dim]Evaluation:[/dim]")
-            self.console.print(f"    - Concept clarity: {result.criteria_scores.concept_clarity:.0%}")
+            self.console.print("  [dim]Evaluation:[/dim]")
+            self.console.print(
+                f"    - Concept clarity: {result.criteria_scores.concept_clarity:.0%}"
+            )
             self.console.print(f"    - Visual appeal: {result.criteria_scores.visual_appeal:.0%}")
-            self.console.print(f"    - Audience fit: {result.criteria_scores.audience_appropriateness:.0%}")
+            self.console.print(
+                f"    - Audience fit: {result.criteria_scores.audience_appropriateness:.0%}"
+            )
             self.console.print(f"    - Flow: {result.criteria_scores.flow_continuity:.0%}")
             self.console.print(
                 f"  [bold]Overall: {result.overall_score:.0%} — [{color}]{result.verdict.value}[/{color}][/bold]"
@@ -715,7 +785,7 @@ class GenerationProgress:
 
 
 def display_completion_summary(
-    image_results: list["ImageResult"],
+    image_results: list[ImageResult],
     output_dir: Path,
     total_duration: float,
     total_api_calls: int,
@@ -750,13 +820,16 @@ def display_completion_summary(
     results_table.add_row("Average quality score", f"{avg_score:.0%}")
     results_table.add_row("Total duration", f"{total_duration:.1f}s")
     results_table.add_row("API calls", str(total_api_calls))
-    results_table.add_row("Estimated cost", estimate_cost(len(image_results), total_attempts // max(len(image_results), 1)))
+    results_table.add_row(
+        "Estimated cost",
+        estimate_cost(len(image_results), total_attempts // max(len(image_results), 1)),
+    )
 
     console.print(results_table)
     console.print()
 
     # Output location
-    console.print(f"[bold white]Output saved to:[/bold white]")
+    console.print("[bold white]Output saved to:[/bold white]")
     console.print(f"  {output_dir}")
     console.print()
 
@@ -765,7 +838,9 @@ def display_completion_summary(
         console.print("[bold white]Final images:[/bold white]")
         for result in successful:
             score_pct = f"{(result.final_score or 0):.0%}"
-            console.print(f"  [cyan]{result.image_number}.[/cyan] {result.title} (Score: {score_pct})")
+            console.print(
+                f"  [cyan]{result.image_number}.[/cyan] {result.title} (Score: {score_pct})"
+            )
 
     if failed:
         console.print()
@@ -875,7 +950,7 @@ async def run_generation_pipeline(
     # Step 7: Create output directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     # Sanitize title for Windows path compatibility (remove :, *, ?, ", <, >, |)
-    sanitized_title = re.sub(r'[<>:"/\\|?*]', '', analysis.title)
+    sanitized_title = re.sub(r'[<>:"/\\|?*]', "", analysis.title)
     topic_slug = sanitized_title.lower().replace(" ", "-")[:30]
     output_dir = config.output_dir / f"visual-explainer-{topic_slug}-{timestamp}"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -996,6 +1071,7 @@ async def run_generation_pipeline(
                 # Create final.jpg copy/link
                 final_path = image_dir / "final.jpg"
                 import shutil
+
                 shutil.copy2(best_image_path, final_path)
 
                 progress.complete_image(prompt.image_number, best_attempt, best_score)
@@ -1011,8 +1087,12 @@ async def run_generation_pipeline(
     for result in image_results:
         if result.status == "complete" and result.final_path:
             src = Path(result.final_path)
-            dst = all_images_dir / f"{result.image_number:02d}-{result.title.lower().replace(' ', '-')[:30]}.jpg"
+            dst = (
+                all_images_dir
+                / f"{result.image_number:02d}-{result.title.lower().replace(' ', '-')[:30]}.jpg"
+            )
             import shutil
+
             shutil.copy2(src, dst)
 
     # Step 10: Save metadata
@@ -1057,26 +1137,28 @@ async def run_generation_pipeline(
 
     # Generate summary.md
     summary_lines = [
-        f"# Visual Explainer Results",
-        f"",
+        "# Visual Explainer Results",
+        "",
         f"**Generated:** {datetime.now().isoformat()}",
         f"**Document:** {analysis.title}",
         f"**Style:** {style_display_name}",
-        f"",
-        f"## Summary",
-        f"",
+        "",
+        "## Summary",
+        "",
         f"- Images generated: {len([r for r in image_results if r.status == 'complete'])} of {len(prompts)}",
         f"- Total attempts: {sum(r.total_attempts for r in image_results)}",
         f"- Average score: {sum(r.final_score or 0 for r in image_results if r.status == 'complete') / max(1, len([r for r in image_results if r.status == 'complete'])):.0%}",
-        f"",
-        f"## Images",
-        f"",
+        "",
+        "## Images",
+        "",
     ]
 
     for result in image_results:
         status_icon = "check" if result.status == "complete" else "x"
         score_str = f"{(result.final_score or 0):.0%}" if result.final_score else "N/A"
-        summary_lines.append(f"- [{status_icon}] **{result.image_number}. {result.title}** - Score: {score_str}")
+        summary_lines.append(
+            f"- [{status_icon}] **{result.image_number}. {result.title}** - Score: {score_str}"
+        )
 
     summary_file = output_dir / "summary.md"
     summary_file.write_text("\n".join(summary_lines), encoding="utf-8")
@@ -1122,8 +1204,8 @@ async def load_checkpoint_and_resume(checkpoint_path: Path, config: GenerationCo
 
     # TODO: Implement full checkpoint resume logic
     # For now, display what would be resumed
-    console.print(f"[yellow]Resume functionality coming soon.[/yellow]")
-    console.print(f"Checkpoint contains:")
+    console.print("[yellow]Resume functionality coming soon.[/yellow]")
+    console.print("Checkpoint contains:")
     console.print(f"  - Generation ID: {checkpoint.get('generation_id', 'unknown')}")
     console.print(f"  - Images completed: {checkpoint.get('images_completed', 0)}")
     console.print(f"  - Images remaining: {checkpoint.get('images_remaining', 0)}")
@@ -1209,6 +1291,7 @@ def main() -> int:
         elif not args.json and not is_interactive():
             # In non-interactive mode, just check if keys exist
             from visual_explainer.api_setup import check_api_keys
+
             status = check_api_keys()
             if not status["google"]["present"] or not status["anthropic"]["present"]:
                 print("Error: Missing required API keys.")
@@ -1248,7 +1331,13 @@ def main() -> int:
 
     # Determine style (interactive selection if not specified and in interactive mode)
     style_name = args.style
-    if style_name is None and not args.quiet and not args.json and RICH_AVAILABLE and is_interactive():
+    if (
+        style_name is None
+        and not args.quiet
+        and not args.json
+        and RICH_AVAILABLE
+        and is_interactive()
+    ):
         style_name = prompt_for_style()
 
     if style_name is None:

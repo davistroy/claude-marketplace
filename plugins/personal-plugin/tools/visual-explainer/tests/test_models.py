@@ -12,25 +12,16 @@ import pytest
 from pydantic import ValidationError
 
 from visual_explainer.models import (
-    CacheMetadata,
     Complexity,
     Concept,
-    ConceptAnalysis,
     ConfigMetadata,
     CriteriaScores,
     EvaluationResult,
     EvaluationVerdict,
-    FlowConnection,
     GenerationMetadata,
-    ImageAttempt,
-    ImageMetadataEntry,
-    ImagePrompt,
     ImageResult,
     InputMetadata,
-    LogicalFlowStep,
-    PromptDetails,
     RelationshipType,
-    ResultsMetadata,
     VisualPotential,
 )
 
@@ -82,7 +73,10 @@ class TestEnums:
     def test_verdict_from_score_custom_threshold(self):
         """Test verdict with custom pass threshold."""
         assert EvaluationVerdict.from_score(0.75, pass_threshold=0.70) == EvaluationVerdict.PASS
-        assert EvaluationVerdict.from_score(0.75, pass_threshold=0.80) == EvaluationVerdict.NEEDS_REFINEMENT
+        assert (
+            EvaluationVerdict.from_score(0.75, pass_threshold=0.80)
+            == EvaluationVerdict.NEEDS_REFINEMENT
+        )
 
 
 class TestConcept:
@@ -174,19 +168,23 @@ class TestCriteriaScores:
 
     def test_from_dict(self):
         """Test creating from dict."""
-        scores = CriteriaScores.from_dict({
-            "concept_clarity": 0.85,
-            "visual_appeal": 0.90,
-            "audience_appropriateness": 0.80,
-            "flow_continuity": 0.75,
-        })
+        scores = CriteriaScores.from_dict(
+            {
+                "concept_clarity": 0.85,
+                "visual_appeal": 0.90,
+                "audience_appropriateness": 0.80,
+                "flow_continuity": 0.75,
+            }
+        )
         assert scores.concept_clarity == 0.85
 
     def test_from_dict_missing_keys(self):
         """Test creating from dict with missing keys."""
-        scores = CriteriaScores.from_dict({
-            "concept_clarity": 0.85,
-        })
+        scores = CriteriaScores.from_dict(
+            {
+                "concept_clarity": 0.85,
+            }
+        )
         assert scores.concept_clarity == 0.85
         assert scores.visual_appeal == 0.0
 

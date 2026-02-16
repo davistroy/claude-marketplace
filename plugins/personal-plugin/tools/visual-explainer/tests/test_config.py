@@ -11,10 +11,10 @@ import pytest
 from pydantic import ValidationError
 
 from visual_explainer.config import (
+    DEFAULT_STYLE,
     AspectRatio,
     ColorDefinition,
     ColorSystem,
-    DEFAULT_STYLE,
     GenerationConfig,
     InternalConfig,
     PromptRecipe,
@@ -369,9 +369,7 @@ class TestStyleConfig:
             ColorSystem=ColorSystem(
                 PaletteMode="Flexible",
                 Background={"Base": "#FFFFFF"},
-                PrimaryColors=[
-                    ColorDefinition(Name="Blue", Hex="#3B82F6", Role="Primary")
-                ],
+                PrimaryColors=[ColorDefinition(Name="Blue", Hex="#3B82F6", Role="Primary")],
             ),
             DesignPrinciples={"Clarity": "First"},
             PromptRecipe=PromptRecipe(

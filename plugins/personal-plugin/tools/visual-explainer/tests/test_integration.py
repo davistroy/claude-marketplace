@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -29,18 +28,15 @@ from visual_explainer.config import (
     AspectRatio,
     GenerationConfig,
     InternalConfig,
-    Resolution,
     StyleConfig,
 )
 from visual_explainer.image_evaluator import ImageEvaluator
 from visual_explainer.image_generator import (
-    GenerationResult,
-    GenerationStatus,
     GeminiImageGenerator,
+    GenerationStatus,
 )
 from visual_explainer.models import (
     ConceptAnalysis,
-    CriteriaScores,
     EvaluationResult,
     EvaluationVerdict,
     ImagePrompt,
@@ -48,7 +44,6 @@ from visual_explainer.models import (
 )
 from visual_explainer.output import CheckpointState, OutputManager, finalize_output
 from visual_explainer.prompt_generator import PromptGenerator
-
 
 # =============================================================================
 # Test Markers
@@ -60,6 +55,7 @@ pytestmark = [pytest.mark.integration]
 # =============================================================================
 # Mock Response Builders
 # =============================================================================
+
 
 def create_mock_gemini_response(image_b64: str) -> dict[str, Any]:
     """Create a mock Gemini API success response."""
@@ -77,12 +73,14 @@ def create_mock_gemini_rate_limit_response() -> httpx.Response:
     return httpx.Response(
         status_code=429,
         headers={"Retry-After": "5"},
-        content=json.dumps({
-            "error": {
-                "code": 429,
-                "message": "Rate limit exceeded",
+        content=json.dumps(
+            {
+                "error": {
+                    "code": 429,
+                    "message": "Rate limit exceeded",
+                }
             }
-        }).encode(),
+        ).encode(),
     )
 
 
@@ -106,6 +104,7 @@ def create_mock_gemini_safety_block() -> dict[str, Any]:
 # Integration Test: Full Pipeline
 # =============================================================================
 
+
 class TestFullPipeline:
     """Integration tests for the complete generation pipeline."""
 
@@ -128,15 +127,26 @@ class TestFullPipeline:
         # Mock concept analysis call
         mock_analysis_response = MagicMock()
         mock_analysis_response.content = [
-            MagicMock(text=json.dumps({
-                "title": sample_concept_analysis.title,
-                "summary": sample_concept_analysis.summary,
-                "target_audience": sample_concept_analysis.target_audience,
-                "concepts": [c.model_dump() for c in sample_concept_analysis.concepts],
-                "logical_flow": [{"from": f.from_concept, "to": f.to_concept, "relationship": f.relationship.value} for f in sample_concept_analysis.logical_flow],
-                "recommended_image_count": sample_concept_analysis.recommended_image_count,
-                "reasoning": sample_concept_analysis.reasoning,
-            }))
+            MagicMock(
+                text=json.dumps(
+                    {
+                        "title": sample_concept_analysis.title,
+                        "summary": sample_concept_analysis.summary,
+                        "target_audience": sample_concept_analysis.target_audience,
+                        "concepts": [c.model_dump() for c in sample_concept_analysis.concepts],
+                        "logical_flow": [
+                            {
+                                "from": f.from_concept,
+                                "to": f.to_concept,
+                                "relationship": f.relationship.value,
+                            }
+                            for f in sample_concept_analysis.logical_flow
+                        ],
+                        "recommended_image_count": sample_concept_analysis.recommended_image_count,
+                        "reasoning": sample_concept_analysis.reasoning,
+                    }
+                )
+            )
         ]
 
         # Mock prompt generation call
@@ -172,7 +182,9 @@ class TestFullPipeline:
         )
 
         with patch("anthropic.Anthropic", return_value=mock_anthropic_client):
-            with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_gemini_response):
+            with patch(
+                "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_gemini_response
+            ):
                 # Import and run pipeline components
                 from visual_explainer.concept_analyzer import analyze_document
 
@@ -230,7 +242,11 @@ class TestFullPipeline:
 
                 assert isinstance(eval_result, EvaluationResult)
                 assert eval_result.overall_score >= 0.0
-                assert eval_result.verdict in [EvaluationVerdict.PASS, EvaluationVerdict.NEEDS_REFINEMENT, EvaluationVerdict.FAIL]
+                assert eval_result.verdict in [
+                    EvaluationVerdict.PASS,
+                    EvaluationVerdict.NEEDS_REFINEMENT,
+                    EvaluationVerdict.FAIL,
+                ]
 
     @pytest.mark.asyncio
     async def test_pipeline_creates_correct_output_structure(
@@ -293,6 +309,7 @@ class TestFullPipeline:
 # =============================================================================
 # Integration Test: Retry Logic
 # =============================================================================
+
 
 class TestRetryLogic:
     """Integration tests for retry logic with rate limits and failures."""
@@ -444,6 +461,7 @@ class TestRetryLogic:
 # Integration Test: Checkpoint and Resume
 # =============================================================================
 
+
 class TestCheckpointResume:
     """Integration tests for checkpoint save/load and resume functionality."""
 
@@ -491,7 +509,10 @@ class TestCheckpointResume:
         assert loaded.total_images == 3
         assert 1 in loaded.completed_images
         # Note: JSON serialization converts int keys to strings
-        assert loaded.image_results.get(1, loaded.image_results.get("1", {})).get("final_score") == 0.88
+        assert (
+            loaded.image_results.get(1, loaded.image_results.get("1", {})).get("final_score")
+            == 0.88
+        )
 
     @pytest.mark.asyncio
     async def test_resume_from_checkpoint(
@@ -501,7 +522,7 @@ class TestCheckpointResume:
     ):
         """Test resuming generation from a checkpoint file."""
         # Load checkpoint
-        with open(checkpoint_file, "r", encoding="utf-8") as f:
+        with open(checkpoint_file, encoding="utf-8") as f:
             checkpoint_data = json.load(f)
 
         # Verify checkpoint data
@@ -542,7 +563,7 @@ class TestCheckpointResume:
         )
 
         # Complete first image
-        image_dir = await output_manager.create_image_directory(1)
+        await output_manager.create_image_directory(1)
         await output_manager.save_attempt_image(1, 1, sample_image_bytes)
         checkpoint.mark_image_complete(1, {"status": "complete", "final_score": 0.85})
 
@@ -552,7 +573,7 @@ class TestCheckpointResume:
         await output_manager.save_attempt_image(2, 1, sample_image_bytes)
 
         # Save checkpoint
-        checkpoint_path = await output_manager.save_checkpoint(checkpoint)
+        await output_manager.save_checkpoint(checkpoint)
 
         # Verify checkpoint preserves state
         loaded = await output_manager.load_checkpoint()
@@ -593,6 +614,7 @@ class TestCheckpointResume:
 # =============================================================================
 # Integration Test: Error Recovery
 # =============================================================================
+
 
 class TestErrorRecovery:
     """Integration tests for error recovery scenarios."""
@@ -668,8 +690,6 @@ class TestErrorRecovery:
 
             # Some should succeed, some fail
             successes = [r for r in results if r.status == GenerationStatus.SUCCESS]
-            failures = [r for r in results if r.status != GenerationStatus.SUCCESS]
-
             assert len(successes) >= 1
             # Due to retry logic, we might have different counts
             assert len(results) == 3
@@ -689,19 +709,27 @@ class TestErrorRecovery:
             call_count[0] += 1
             if call_count[0] == 1:
                 raise Exception("API temporarily unavailable")
-            return MagicMock(content=[MagicMock(text=json.dumps({
-                "overall_score": 0.85,
-                "criteria_scores": {
-                    "concept_clarity": 0.85,
-                    "visual_appeal": 0.85,
-                    "audience_appropriateness": 0.85,
-                    "flow_continuity": 0.85,
-                },
-                "strengths": ["Good"],
-                "weaknesses": [],
-                "missing_elements": [],
-                "refinement_suggestions": [],
-            }))])
+            return MagicMock(
+                content=[
+                    MagicMock(
+                        text=json.dumps(
+                            {
+                                "overall_score": 0.85,
+                                "criteria_scores": {
+                                    "concept_clarity": 0.85,
+                                    "visual_appeal": 0.85,
+                                    "audience_appropriateness": 0.85,
+                                    "flow_continuity": 0.85,
+                                },
+                                "strengths": ["Good"],
+                                "weaknesses": [],
+                                "missing_elements": [],
+                                "refinement_suggestions": [],
+                            }
+                        )
+                    )
+                ]
+            )
 
         mock_anthropic.messages.create = mock_create
 
@@ -710,6 +738,7 @@ class TestErrorRecovery:
 
             # First evaluation fails
             from visual_explainer.image_evaluator import ImageEvaluationError
+
             with pytest.raises(ImageEvaluationError):
                 evaluator.evaluate_image(
                     image_bytes=sample_image_bytes,
@@ -761,6 +790,7 @@ class TestErrorRecovery:
 # =============================================================================
 # Integration Test: Output Verification
 # =============================================================================
+
 
 class TestOutputVerification:
     """Integration tests for output directory structure verification."""
@@ -876,6 +906,7 @@ class TestOutputVerification:
 # Integration Test: Concurrent Generation
 # =============================================================================
 
+
 class TestConcurrentGeneration:
     """Integration tests for concurrent image generation."""
 
@@ -926,6 +957,7 @@ class TestConcurrentGeneration:
 # Integration Test: Prompt Refinement Loop
 # =============================================================================
 
+
 class TestPromptRefinement:
     """Integration tests for the prompt refinement loop."""
 
@@ -938,15 +970,21 @@ class TestPromptRefinement:
         """Test that refinement strategy escalates with attempt number."""
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
-        mock_response.content = [MagicMock(text=json.dumps({
-            "main_prompt": "Refined prompt",
-            "style_guidance": "Refined style",
-            "composition": "Refined composition",
-            "color_palette": "Refined colors",
-            "avoid": "Refined avoid",
-            "success_criteria": ["Refined criteria"],
-            "refinement_reasoning": "Made changes based on feedback",
-        }))]
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        "main_prompt": "Refined prompt",
+                        "style_guidance": "Refined style",
+                        "composition": "Refined composition",
+                        "color_palette": "Refined colors",
+                        "avoid": "Refined avoid",
+                        "success_criteria": ["Refined criteria"],
+                        "refinement_reasoning": "Made changes based on feedback",
+                    }
+                )
+            )
+        ]
         mock_anthropic.messages.create = MagicMock(return_value=mock_response)
 
         with patch("anthropic.Anthropic", return_value=mock_anthropic):
@@ -973,15 +1011,21 @@ class TestPromptRefinement:
         """Test that refinement preserves image metadata."""
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
-        mock_response.content = [MagicMock(text=json.dumps({
-            "main_prompt": "Completely new prompt",
-            "style_guidance": "New style",
-            "composition": "New composition",
-            "color_palette": "New colors",
-            "avoid": "New avoid",
-            "success_criteria": ["New criteria"],
-            "refinement_reasoning": "Major changes",
-        }))]
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        "main_prompt": "Completely new prompt",
+                        "style_guidance": "New style",
+                        "composition": "New composition",
+                        "color_palette": "New colors",
+                        "avoid": "New avoid",
+                        "success_criteria": ["New criteria"],
+                        "refinement_reasoning": "Major changes",
+                    }
+                )
+            )
+        ]
         mock_anthropic.messages.create = MagicMock(return_value=mock_response)
 
         with patch("anthropic.Anthropic", return_value=mock_anthropic):
@@ -1007,6 +1051,7 @@ class TestPromptRefinement:
 # =============================================================================
 # Integration Test: End-to-End with Mocked APIs
 # =============================================================================
+
 
 class TestEndToEnd:
     """End-to-end integration tests with fully mocked APIs."""
@@ -1041,8 +1086,7 @@ class TestEndToEnd:
         )
         await output_manager.initialize()
 
-        # Step 1: Use provided analysis (mocked)
-        analysis = sample_concept_analysis
+        # Step 1: Use provided analysis (mocked) — sample_concept_analysis fixture
 
         # Step 2: Build prompts from mock response directly
         # (avoiding the need to mock the PromptGenerator API call)
@@ -1152,9 +1196,7 @@ class TestEndToEnd:
         # Create a mock anthropic client that returns the expected response
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_prompt_generation_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_prompt_generation_response))]
         mock_anthropic.messages.create = MagicMock(return_value=mock_response)
 
         # Patch at the point where the client is created

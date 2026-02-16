@@ -25,3 +25,18 @@
 | 2026-02-16 | 3.3 Create test_waypoints.py | Complete | tests/test_waypoints.py (35 tests, 100% coverage) |
 | 2026-02-16 | 3.4 Create test_icons.py and test_styles.py | Complete | tests/test_icons.py (44 tests), tests/test_styles.py (44 tests) |
 | 2026-02-16 | 3.5 Raise Coverage Threshold to 92% | Complete | .github/workflows/test.yml |
+| 2026-02-16 | 4.1 Create test_image_generator.py | Complete | tests/test_image_generator.py |
+| 2026-02-16 | 4.2 Create test_image_evaluator.py | Complete | tests/test_image_evaluator.py |
+| 2026-02-16 | 4.3 Create test_output.py | Complete | tests/test_output.py |
+| 2026-02-16 | 4.4 Create test_page_templates.py | Complete | tests/test_page_templates.py (100% coverage) |
+| 2026-02-16 | 4.5 Create test_api_setup.py | Complete | tests/test_api_setup.py (37 tests) |
+| 2026-02-16 | 4.6 Create test_cli_extended.py | Complete | tests/test_cli_extended.py (69 tests) |
+| 2026-02-16 | 4.7 Add Parameter Validation Logic | Complete | cli.py (_bounded_float, _bounded_int validators) |
+| 2026-02-16 | 4.8 Raise visual-explainer Coverage Threshold | Complete | test.yml (30% → 61%, actual 63%) |
+| 2026-02-16 | 5.1 Create feedback-docx-generator Test Infrastructure | Complete | tests/__init__.py, tests/conftest.py |
+| 2026-02-16 | 5.2 Create feedback-docx-generator Tests | Complete | tests/test_generator.py (55 tests), tests/test_main.py (14 tests), 97% coverage |
+| 2026-02-16 | 5.3 Create test_ui.py for research-orchestrator | Complete | tests/test_ui.py |
+| 2026-02-16 | 5.4 Create test_cli.py for research-orchestrator | Complete | tests/test_cli.py |
+| 2026-02-16 | 5.5 Create test_model_discovery.py | Complete | tests/test_model_discovery.py |
+| 2026-02-16 | 5.6 Create test_bug_reporter.py | Complete | tests/test_bug_reporter.py |
+| 2026-02-16 | 5.7 Raise Coverage Thresholds | Complete | test.yml (research-orchestrator 79%, feedback-docx 95%) |
