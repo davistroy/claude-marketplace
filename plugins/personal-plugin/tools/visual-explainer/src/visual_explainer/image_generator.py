@@ -20,9 +20,10 @@ import logging
 import os
 import random
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from visual_explainer.config import AspectRatio, InternalConfig, Resolution
 
@@ -37,9 +38,7 @@ try:
     GOOGLE_GENAI_AVAILABLE = True
 except ImportError:
     GOOGLE_GENAI_AVAILABLE = False
-    logger.warning(
-        "google-genai package not installed. Image generation will not be available."
-    )
+    logger.warning("google-genai package not installed. Image generation will not be available.")
 
 
 class GenerationStatus(str, Enum):
@@ -139,8 +138,7 @@ class GeminiImageGenerator:
         """
         if not GOOGLE_GENAI_AVAILABLE:
             raise RuntimeError(
-                "google-genai package not installed. "
-                "Install with: pip install google-genai"
+                "google-genai package not installed. Install with: pip install google-genai"
             )
 
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
@@ -262,7 +260,11 @@ class GeminiImageGenerator:
                 finish_reason = str(response.candidates[0].finish_reason)
                 if "SAFETY" in finish_reason:
                     logger.warning(f"Safety filter blocked generation: {finish_reason}")
-                    return GenerationStatus.SAFETY_BLOCKED, None, f"Blocked by safety filter: {finish_reason}"
+                    return (
+                        GenerationStatus.SAFETY_BLOCKED,
+                        None,
+                        f"Blocked by safety filter: {finish_reason}",
+                    )
 
             # No image and no safety block
             logger.warning("No image returned from Gemini API")
@@ -325,6 +327,130 @@ class GeminiImageGenerator:
                 progress_callback=progress_callback,
             )
 
+    async def _attempt_generation(
+        self,
+        prompt: str,
+        ar_value: str,
+        image_size: str | None,
+        attempt: int,
+        image_number: int,
+        start_time: float,
+        progress_callback: ProgressCallback | None,
+    ) -> GenerationResult:
+        """Execute a single generation attempt.
+
+        Args:
+            prompt: The image generation prompt.
+            ar_value: Normalized aspect ratio string (e.g., "16:9").
+            image_size: Image size string (e.g., "4K") or None.
+            attempt: Current attempt number (1-indexed).
+            image_number: Image number for progress tracking.
+            start_time: Overall start time for duration tracking.
+            progress_callback: Optional progress callback.
+
+        Returns:
+            GenerationResult for this attempt.
+        """
+        # Update progress
+        if progress_callback:
+            progress = (attempt - 1) / self.max_retries * 100
+            progress_callback(
+                image_number,
+                f"Attempt {attempt}/{self.max_retries}...",
+                progress,
+            )
+
+        logger.info(f"Image {image_number}: Attempt {attempt}/{self.max_retries}")
+
+        # Run synchronous API call in executor to not block async loop
+        loop = asyncio.get_event_loop()
+        status, image_data, error_msg = await loop.run_in_executor(
+            None,
+            self._generate_sync,
+            prompt,
+            ar_value,
+            image_size,
+        )
+
+        total_duration = time.time() - start_time
+
+        if status == GenerationStatus.SUCCESS:
+            if progress_callback:
+                progress_callback(image_number, "Generation complete", 100.0)
+            logger.info(
+                f"Image {image_number}: Generated in {total_duration:.1f}s (attempt {attempt})"
+            )
+            return GenerationResult(
+                status=status,
+                image_data=image_data,
+                duration_seconds=total_duration,
+                attempt_number=attempt,
+            )
+
+        if status == GenerationStatus.SAFETY_BLOCKED:
+            logger.warning(f"Image {image_number}: Safety blocked after {total_duration:.1f}s")
+            if progress_callback:
+                progress_callback(image_number, f"Blocked: {error_msg}", 100.0)
+            return GenerationResult(
+                status=status,
+                image_data=None,
+                error_message=error_msg,
+                duration_seconds=total_duration,
+                attempt_number=attempt,
+            )
+
+        # Transient failure — caller decides whether to retry
+        return GenerationResult(
+            status=status,
+            image_data=None,
+            error_message=error_msg,
+            duration_seconds=total_duration,
+            attempt_number=attempt,
+        )
+
+    def _should_retry(self, result: GenerationResult, attempt: int) -> bool:
+        """Determine whether a failed attempt should be retried.
+
+        Args:
+            result: The result of the latest attempt.
+            attempt: Current attempt number (1-indexed).
+
+        Returns:
+            True if the attempt should be retried.
+        """
+        if result.status in (GenerationStatus.SUCCESS, GenerationStatus.SAFETY_BLOCKED):
+            return False
+        return attempt < self.max_retries
+
+    async def _wait_for_retry(
+        self,
+        attempt: int,
+        result: GenerationResult,
+        image_number: int,
+        progress_callback: ProgressCallback | None,
+    ) -> None:
+        """Handle backoff delay between retry attempts.
+
+        Args:
+            attempt: Current attempt number (1-indexed).
+            result: The result of the latest attempt.
+            image_number: Image number for progress tracking.
+            progress_callback: Optional progress callback.
+        """
+        delay = self._calculate_backoff_delay(attempt)
+
+        logger.info(
+            f"Image {image_number}: Retrying in {delay:.1f}s (status: {result.status.value})"
+        )
+        if progress_callback:
+            progress_callback(
+                image_number,
+                f"Retry in {delay:.0f}s...",
+                (attempt / self.max_retries) * 100,
+            )
+
+        await asyncio.sleep(delay)
+
     async def _generate_with_retry(
         self,
         prompt: str,
@@ -346,105 +472,36 @@ class GeminiImageGenerator:
             GenerationResult with status and image data.
         """
         start_time = time.time()
-
-        # Normalize aspect ratio
-        if isinstance(aspect_ratio, AspectRatio):
-            ar_value = self.ASPECT_RATIOS.get(aspect_ratio, "16:9")
-        else:
-            ar_value = aspect_ratio
-
-        # Get image size from resolution
+        ar_value = (
+            self.ASPECT_RATIOS.get(aspect_ratio, "16:9")
+            if isinstance(aspect_ratio, AspectRatio)
+            else aspect_ratio
+        )
         image_size = self.RESOLUTION_MAP.get(resolution)
 
-        # Notify start
         if progress_callback:
             progress_callback(image_number, "Starting generation...", 0.0)
 
+        result = GenerationResult(status=GenerationStatus.ERROR)
         for attempt in range(1, self.max_retries + 1):
-            attempt_start = time.time()
-
-            # Update progress
-            if progress_callback:
-                progress = (attempt - 1) / self.max_retries * 100
-                progress_callback(
-                    image_number,
-                    f"Attempt {attempt}/{self.max_retries}...",
-                    progress,
-                )
-
-            logger.info(
-                f"Image {image_number}: Attempt {attempt}/{self.max_retries}"
-            )
-
-            # Run synchronous API call in executor to not block async loop
-            loop = asyncio.get_event_loop()
-            status, image_data, error_msg = await loop.run_in_executor(
-                None,
-                self._generate_sync,
+            result = await self._attempt_generation(
                 prompt,
                 ar_value,
                 image_size,
+                attempt,
+                image_number,
+                start_time,
+                progress_callback,
             )
-
-            attempt_duration = time.time() - attempt_start
-
-            # Success - return immediately
-            if status == GenerationStatus.SUCCESS:
-                total_duration = time.time() - start_time
-                if progress_callback:
-                    progress_callback(image_number, "Generation complete", 100.0)
-
-                logger.info(
-                    f"Image {image_number}: Generated in {total_duration:.1f}s "
-                    f"(attempt {attempt})"
-                )
-                return GenerationResult(
-                    status=status,
-                    image_data=image_data,
-                    duration_seconds=total_duration,
-                    attempt_number=attempt,
-                )
-
-            # Safety block - don't retry, return None
-            if status == GenerationStatus.SAFETY_BLOCKED:
-                total_duration = time.time() - start_time
-                logger.warning(
-                    f"Image {image_number}: Safety blocked after {total_duration:.1f}s"
-                )
-                if progress_callback:
-                    progress_callback(image_number, f"Blocked: {error_msg}", 100.0)
-
-                return GenerationResult(
-                    status=status,
-                    image_data=None,
-                    error_message=error_msg,
-                    duration_seconds=total_duration,
-                    attempt_number=attempt,
-                )
-
-            # Rate limit or transient error - retry with backoff
-            if status in (GenerationStatus.RATE_LIMITED, GenerationStatus.TIMEOUT, GenerationStatus.ERROR):
-                if attempt < self.max_retries:
-                    delay = self._calculate_backoff_delay(attempt)
-
-                    logger.info(
-                        f"Image {image_number}: Retrying in {delay:.1f}s "
-                        f"(status: {status.value})"
-                    )
-                    if progress_callback:
-                        progress_callback(
-                            image_number,
-                            f"Retry in {delay:.0f}s...",
-                            (attempt / self.max_retries) * 100,
-                        )
-
-                    await asyncio.sleep(delay)
-                    continue
+            if result.status == GenerationStatus.SUCCESS:
+                return result
+            if not self._should_retry(result, attempt):
+                return result
+            await self._wait_for_retry(attempt, result, image_number, progress_callback)
 
         # All retries exhausted
         total_duration = time.time() - start_time
-        final_error = error_msg or f"Failed after {self.max_retries} attempts"
-
+        final_error = result.error_message or f"Failed after {self.max_retries} attempts"
         logger.error(
             f"Image {image_number}: Generation failed after {self.max_retries} "
             f"attempts ({total_duration:.1f}s): {final_error}"
@@ -453,7 +510,7 @@ class GeminiImageGenerator:
             progress_callback(image_number, f"Failed: {final_error[:50]}", 100.0)
 
         return GenerationResult(
-            status=status,
+            status=result.status,
             image_data=None,
             error_message=final_error,
             duration_seconds=total_duration,

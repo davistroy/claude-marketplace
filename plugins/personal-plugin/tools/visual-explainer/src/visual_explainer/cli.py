@@ -849,48 +849,40 @@ def display_completion_summary(
             console.print(f"  [red]{result.image_number}.[/red] {result.title}")
 
 
-async def run_generation_pipeline(
+async def _analyze_concepts(
     config: GenerationConfig,
     internal_config: InternalConfig,
     style_name: str,
-    quiet: bool = False,
-    json_output: bool = False,
-    infographic_mode: bool = False,
-) -> dict:
-    """Run the full generation pipeline.
+    console: Console | None,
+    infographic_mode: bool,
+) -> tuple[ConceptAnalysis, object, str, int]:
+    """Load style and analyze document concepts.
+
+    Handles style loading and concept analysis (Steps 1-2 of the pipeline).
 
     Args:
         config: Generation configuration.
         internal_config: Internal configuration.
         style_name: Style name to use.
-        quiet: Suppress progress output.
-        json_output: Return JSON-compatible dict.
-        infographic_mode: If True, generate information-dense infographics.
+        console: Rich console for output, or None if suppressed.
+        infographic_mode: If True, analyze for infographic pages.
 
     Returns:
-        Dictionary with generation results.
+        Tuple of (analysis, style, style_display_name, api_calls).
     """
-    import time
-
     from visual_explainer.concept_analyzer import analyze_document
-    from visual_explainer.image_evaluator import ImageEvaluator
-    from visual_explainer.image_generator import GeminiImageGenerator, GenerationStatus
-    from visual_explainer.models import EvaluationVerdict, ImageResult
-    from visual_explainer.prompt_generator import PromptGenerator
     from visual_explainer.style_loader import load_style
 
-    console = get_console() if not quiet and not json_output else None
-    start_time = time.time()
-    total_api_calls = 0
+    api_calls = 0
 
-    # Step 1: Load style
+    # Load style
     if console:
         console.print("[dim]Loading style configuration...[/dim]")
 
     style = load_style(style_name)
     style_display_name = style.style_name if style else style_name
 
-    # Step 2: Analyze concepts
+    # Analyze concepts
     if console:
         mode_text = "infographic pages" if infographic_mode else "concepts"
         console.print(f"[dim]Analyzing document {mode_text}...[/dim]")
@@ -901,16 +893,46 @@ async def run_generation_pipeline(
         internal_config,
         infographic_mode=infographic_mode,
     )
-    total_api_calls += 1  # Claude analysis call
+    api_calls += 1  # Claude analysis call
 
     # Display analysis summary
     if console:
         display_analysis_summary(analysis, infographic_mode=infographic_mode)
 
-    # Step 3: Confirm image count (interactive mode)
+    return analysis, style, style_display_name, api_calls
+
+
+def _generate_prompts(
+    config: GenerationConfig,
+    internal_config: InternalConfig,
+    analysis: ConceptAnalysis,
+    style: object,
+    console: Console | None,
+    infographic_mode: bool,
+) -> tuple[list[ImagePrompt], object, int]:
+    """Generate image prompts from the concept analysis.
+
+    Handles prompt generation and count adjustment (Steps 3-4 of the pipeline).
+
+    Args:
+        config: Generation configuration.
+        internal_config: Internal configuration.
+        analysis: Concept analysis result.
+        style: Loaded style configuration.
+        console: Rich console for output, or None if suppressed.
+        infographic_mode: If True, generate infographic-style prompts.
+
+    Returns:
+        Tuple of (prompts, prompt_generator, api_calls).
+    """
+    from visual_explainer.prompt_generator import PromptGenerator
+
+    api_calls = 0
+
+    # Confirm image count
     image_count = config.image_count if config.image_count > 0 else analysis.recommended_image_count
 
-    # Step 4: Generate prompts
+    # Generate prompts
     if console:
         prompt_type = "infographic page" if infographic_mode else "image"
         console.print(f"[dim]Generating {prompt_type} prompts...[/dim]")
@@ -921,41 +943,164 @@ async def run_generation_pipeline(
         # Use infographic-style prompt generation
         prompts = prompt_generator.generate_infographic_prompts(analysis, style, config)
         # Each page plan generates one prompt, so we count API calls per page
-        total_api_calls += len(analysis.page_recommendation.pages)
+        api_calls += len(analysis.page_recommendation.pages)
     else:
         # Use standard prompt generation
         prompts = prompt_generator.generate_prompts(analysis, style, config)
-        total_api_calls += 1  # Claude prompt generation call
+        api_calls += 1  # Claude prompt generation call
 
         # Adjust prompt count if needed
         if len(prompts) > image_count:
             prompts = prompts[:image_count]
 
-    # Step 5: Handle dry run
-    if config.dry_run:
-        display_dry_run_plan(analysis, prompts, config, style_display_name)
-        return {
-            "status": "dry_run",
-            "image_count": len(prompts),
-            "prompts": [p.model_dump(mode="json") for p in prompts],
-        }
+    return prompts, prompt_generator, api_calls
 
-    # Step 6: Initialize generators
+
+async def _evaluate_and_refine(
+    gen_result: object,
+    current_prompt: ImagePrompt,
+    prompt: ImagePrompt,
+    attempt: int,
+    image_dir: Path,
+    image_evaluator: object,
+    analysis: ConceptAnalysis,
+    total_prompts: int,
+    style_display_name: str,
+    result: ImageResult,
+    progress: GenerationProgress,
+    prompt_generator: object,
+    style: object,
+    config: GenerationConfig,
+) -> tuple[object | None, ImagePrompt, int]:
+    """Evaluate a generated image and optionally refine the prompt.
+
+    Handles image saving, evaluation, attempt tracking, and prompt refinement
+    for a single generation attempt.
+
+    Args:
+        gen_result: The generation result from the image generator.
+        current_prompt: The current image prompt being used.
+        prompt: The original prompt (for metadata like image_number).
+        attempt: Current attempt number (1-indexed).
+        image_dir: Directory for this image's files.
+        image_evaluator: The image evaluator instance.
+        analysis: Concept analysis (for audience context).
+        total_prompts: Total number of prompts being generated.
+        style_display_name: Display name of the style.
+        result: The ImageResult tracker for this image.
+        progress: The progress display manager.
+        prompt_generator: The prompt generator for refinements.
+        style: The style configuration.
+        config: Generation configuration.
+
+    Returns:
+        Tuple of (eval_result_or_None, possibly_refined_prompt, api_calls).
+    """
+    from visual_explainer.models import EvaluationVerdict
+
+    api_calls = 0
+
+    # Save image
+    image_file = image_dir / f"attempt-{attempt:02d}.jpg"
+    image_file.write_bytes(gen_result.image_data)
+
+    # Evaluate image
+    progress.update_status("Evaluating...")
+    eval_result = image_evaluator.evaluate_image(
+        image_bytes=gen_result.image_data,
+        intent=current_prompt.visual_intent,
+        criteria=current_prompt.success_criteria,
+        context={
+            "audience": analysis.target_audience,
+            "image_number": prompt.image_number,
+            "total_images": total_prompts,
+            "style": style_display_name,
+        },
+        image_id=prompt.image_number,
+        iteration=attempt,
+    )
+    api_calls += 1
+
+    # Save evaluation
+    eval_file = image_dir / f"evaluation-{attempt:02d}.json"
+    eval_file.write_text(
+        json.dumps(eval_result.model_dump(mode="json"), indent=2),
+        encoding="utf-8",
+    )
+
+    # Track attempt
+    result.add_attempt(
+        image_path=str(image_file),
+        prompt_version=attempt,
+        evaluation=eval_result,
+        duration_seconds=gen_result.duration_seconds,
+    )
+
+    # Display evaluation
+    progress.show_evaluation(eval_result)
+
+    # Refine prompt for next attempt if needed
+    if eval_result.verdict != EvaluationVerdict.PASS and attempt < config.max_iterations:
+        progress.update_status("Refining prompt...")
+        current_prompt = prompt_generator.refine_prompt(
+            original=current_prompt,
+            feedback=eval_result,
+            attempt=attempt + 1,
+            style=style,
+            config=config,
+        )
+        api_calls += 1
+
+    return eval_result, current_prompt, api_calls
+
+
+async def _execute_generation_loop(
+    prompts: list[ImagePrompt],
+    config: GenerationConfig,
+    internal_config: InternalConfig,
+    analysis: ConceptAnalysis,
+    style: object,
+    style_display_name: str,
+    prompt_generator: object,
+    output_dir: Path,
+    quiet: bool = False,
+    json_output: bool = False,
+) -> tuple[list[ImageResult], int]:
+    """Execute the image generation loop with evaluation and refinement.
+
+    Initializes the image generator and evaluator, then iterates over each
+    prompt, generating images with up to max_iterations refinement attempts
+    per image (Steps 6-8 of the pipeline).
+
+    Args:
+        prompts: List of image prompts to generate.
+        config: Generation configuration.
+        internal_config: Internal configuration.
+        analysis: Concept analysis result.
+        style: Loaded style configuration.
+        style_display_name: Display name of the style.
+        prompt_generator: Prompt generator for refinements.
+        output_dir: Output directory for generated files.
+        quiet: If True, suppress progress output.
+        json_output: If True, suppress progress output.
+
+    Returns:
+        Tuple of (image_results, api_calls).
+    """
+    import shutil
+
+    from visual_explainer.image_evaluator import ImageEvaluator
+    from visual_explainer.image_generator import GeminiImageGenerator, GenerationStatus
+    from visual_explainer.models import EvaluationVerdict, ImageResult
+
+    api_calls = 0
+
     image_generator = GeminiImageGenerator(
         internal_config=internal_config,
         max_concurrent=config.concurrency,
     )
     image_evaluator = ImageEvaluator(pass_threshold=config.pass_threshold)
 
-    # Step 7: Create output directory
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    # Sanitize title for Windows path compatibility (remove :, *, ?, ", <, >, |)
-    sanitized_title = re.sub(r'[<>:"/\\|?*]', "", analysis.title)
-    topic_slug = sanitized_title.lower().replace(" ", "-")[:30]
-    output_dir = config.output_dir / f"visual-explainer-{topic_slug}-{timestamp}"
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Step 8: Generate images with refinement loop
     image_results: list[ImageResult] = []
 
     with GenerationProgress(len(prompts), config.max_iterations, quiet or json_output) as progress:
@@ -994,52 +1139,33 @@ async def run_generation_pipeline(
                     negative_prompt=current_prompt.prompt.avoid,
                     image_number=prompt.image_number,
                 )
-                total_api_calls += 1
+                api_calls += 1
 
                 if gen_result.status != GenerationStatus.SUCCESS or gen_result.image_data is None:
                     progress.update_status(f"Generation failed: {gen_result.error_message}")
                     continue
 
-                # Save image
-                image_file = image_dir / f"attempt-{attempt:02d}.jpg"
-                image_file.write_bytes(gen_result.image_data)
-
-                # Evaluate image
-                progress.update_status("Evaluating...")
-                eval_result = image_evaluator.evaluate_image(
-                    image_bytes=gen_result.image_data,
-                    intent=current_prompt.visual_intent,
-                    criteria=current_prompt.success_criteria,
-                    context={
-                        "audience": analysis.target_audience,
-                        "image_number": prompt.image_number,
-                        "total_images": len(prompts),
-                        "style": style_display_name,
-                    },
-                    image_id=prompt.image_number,
-                    iteration=attempt,
+                # Evaluate and optionally refine
+                eval_result, current_prompt, eval_api_calls = await _evaluate_and_refine(
+                    gen_result=gen_result,
+                    current_prompt=current_prompt,
+                    prompt=prompt,
+                    attempt=attempt,
+                    image_dir=image_dir,
+                    image_evaluator=image_evaluator,
+                    analysis=analysis,
+                    total_prompts=len(prompts),
+                    style_display_name=style_display_name,
+                    result=result,
+                    progress=progress,
+                    prompt_generator=prompt_generator,
+                    style=style,
+                    config=config,
                 )
-                total_api_calls += 1
-
-                # Save evaluation
-                eval_file = image_dir / f"evaluation-{attempt:02d}.json"
-                eval_file.write_text(
-                    json.dumps(eval_result.model_dump(mode="json"), indent=2),
-                    encoding="utf-8",
-                )
-
-                # Track attempt
-                result.add_attempt(
-                    image_path=str(image_file),
-                    prompt_version=attempt,
-                    evaluation=eval_result,
-                    duration_seconds=gen_result.duration_seconds,
-                )
-
-                # Display evaluation
-                progress.show_evaluation(eval_result)
+                api_calls += eval_api_calls
 
                 # Track best
+                image_file = image_dir / f"attempt-{attempt:02d}.jpg"
                 if eval_result.overall_score > best_score:
                     best_score = eval_result.overall_score
                     best_attempt = attempt
@@ -1048,18 +1174,6 @@ async def run_generation_pipeline(
                 # Check verdict
                 if eval_result.verdict == EvaluationVerdict.PASS:
                     break
-
-                # Refine prompt for next attempt
-                if attempt < config.max_iterations:
-                    progress.update_status("Refining prompt...")
-                    current_prompt = prompt_generator.refine_prompt(
-                        original=current_prompt,
-                        feedback=eval_result,
-                        attempt=attempt + 1,
-                        style=style,
-                        config=config,
-                    )
-                    total_api_calls += 1
 
             # Finalize image result
             if best_image_path:
@@ -1070,8 +1184,6 @@ async def run_generation_pipeline(
 
                 # Create final.jpg copy/link
                 final_path = image_dir / "final.jpg"
-                import shutil
-
                 shutil.copy2(best_image_path, final_path)
 
                 progress.complete_image(prompt.image_number, best_attempt, best_score)
@@ -1080,7 +1192,38 @@ async def run_generation_pipeline(
 
             image_results.append(result)
 
-    # Step 9: Create all-images directory with final images
+    return image_results, api_calls
+
+
+def _save_outputs(
+    image_results: list[ImageResult],
+    prompts: list[ImagePrompt],
+    output_dir: Path,
+    config: GenerationConfig,
+    analysis: ConceptAnalysis,
+    style_display_name: str,
+    timestamp: str,
+    topic_slug: str,
+    total_api_calls: int,
+) -> None:
+    """Save all output files: all-images directory, metadata, concepts, and summary.
+
+    Creates the consolidated output structure (Steps 9-10 of the pipeline).
+
+    Args:
+        image_results: List of generation results per image.
+        prompts: List of image prompts that were generated.
+        output_dir: Output directory path.
+        config: Generation configuration.
+        analysis: Concept analysis result.
+        style_display_name: Display name of the style.
+        timestamp: Generation timestamp string.
+        topic_slug: Sanitized topic slug for IDs.
+        total_api_calls: Total API calls made during generation.
+    """
+    import shutil
+
+    # Create all-images directory with final images
     all_images_dir = output_dir / "all-images"
     all_images_dir.mkdir(exist_ok=True)
 
@@ -1091,11 +1234,9 @@ async def run_generation_pipeline(
                 all_images_dir
                 / f"{result.image_number:02d}-{result.title.lower().replace(' ', '-')[:30]}.jpg"
             )
-            import shutil
-
             shutil.copy2(src, dst)
 
-    # Step 10: Save metadata
+    # Save metadata
     metadata = {
         "generation_id": f"{timestamp}-{topic_slug}",
         "timestamp": datetime.now().isoformat(),
@@ -1136,6 +1277,9 @@ async def run_generation_pipeline(
     )
 
     # Generate summary.md
+    successful = [r for r in image_results if r.status == "complete"]
+    avg_score = sum(r.final_score or 0 for r in successful) / max(1, len(successful))
+
     summary_lines = [
         "# Visual Explainer Results",
         "",
@@ -1145,9 +1289,9 @@ async def run_generation_pipeline(
         "",
         "## Summary",
         "",
-        f"- Images generated: {len([r for r in image_results if r.status == 'complete'])} of {len(prompts)}",
+        f"- Images generated: {len(successful)} of {len(prompts)}",
         f"- Total attempts: {sum(r.total_attempts for r in image_results)}",
-        f"- Average score: {sum(r.final_score or 0 for r in image_results if r.status == 'complete') / max(1, len([r for r in image_results if r.status == 'complete'])):.0%}",
+        f"- Average score: {avg_score:.0%}",
         "",
         "## Images",
         "",
@@ -1163,11 +1307,93 @@ async def run_generation_pipeline(
     summary_file = output_dir / "summary.md"
     summary_file.write_text("\n".join(summary_lines), encoding="utf-8")
 
-    # Calculate total duration
-    total_duration = time.time() - start_time
 
-    # Display completion summary
-    if not quiet and not json_output:
+async def run_generation_pipeline(
+    config: GenerationConfig,
+    internal_config: InternalConfig,
+    style_name: str,
+    quiet: bool = False,
+    json_output: bool = False,
+    infographic_mode: bool = False,
+) -> dict:
+    """Run the full generation pipeline.
+
+    Orchestrates the end-to-end image generation workflow by delegating to
+    focused helper functions for each phase: concept analysis, prompt
+    generation, image generation with refinement, and output saving.
+
+    Args:
+        config: Generation configuration.
+        internal_config: Internal configuration.
+        style_name: Style name to use.
+        quiet: Suppress progress output.
+        json_output: Return JSON-compatible dict.
+        infographic_mode: If True, generate information-dense infographics.
+
+    Returns:
+        Dictionary with generation results.
+    """
+    import time
+
+    start_time = time.time()
+    console = get_console() if not quiet and not json_output else None
+    suppress_output = quiet or json_output
+
+    # Phase 1: Analyze concepts and load style
+    analysis, style, style_display_name, total_api_calls = await _analyze_concepts(
+        config, internal_config, style_name, console, infographic_mode
+    )
+
+    # Phase 2: Generate prompts
+    prompts, prompt_generator, api_calls = _generate_prompts(
+        config, internal_config, analysis, style, console, infographic_mode
+    )
+    total_api_calls += api_calls
+
+    # Early exit for dry run
+    if config.dry_run:
+        display_dry_run_plan(analysis, prompts, config, style_display_name)
+        return {
+            "status": "dry_run",
+            "image_count": len(prompts),
+            "prompts": [p.model_dump(mode="json") for p in prompts],
+        }
+
+    # Phase 3: Create output directory and execute generation loop
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    sanitized_title = re.sub(r'[<>:"/\\|?*]', "", analysis.title)
+    topic_slug = sanitized_title.lower().replace(" ", "-")[:30]
+    output_dir = config.output_dir / f"visual-explainer-{topic_slug}-{timestamp}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    image_results, api_calls = await _execute_generation_loop(
+        prompts,
+        config,
+        internal_config,
+        analysis,
+        style,
+        style_display_name,
+        prompt_generator,
+        output_dir,
+        quiet,
+        json_output,
+    )
+    total_api_calls += api_calls
+
+    # Phase 4: Save outputs and display summary
+    _save_outputs(
+        image_results,
+        prompts,
+        output_dir,
+        config,
+        analysis,
+        style_display_name,
+        timestamp,
+        topic_slug,
+        total_api_calls,
+    )
+    total_duration = time.time() - start_time
+    if not suppress_output:
         display_completion_summary(image_results, output_dir, total_duration, total_api_calls)
 
     return {
