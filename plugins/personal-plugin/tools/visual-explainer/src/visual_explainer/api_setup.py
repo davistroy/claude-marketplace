@@ -52,7 +52,7 @@ def supports_unicode() -> bool:
             code_page = kernel32.GetConsoleOutputCP()
             if code_page == 65001:
                 return True
-        except Exception:
+        except (AttributeError, OSError):
             pass
         return False
 

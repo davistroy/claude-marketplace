@@ -72,7 +72,7 @@ def supports_unicode() -> bool:
             code_page = kernel32.GetConsoleOutputCP()
             if code_page == 65001:  # UTF-8
                 return True
-        except Exception:
+        except (AttributeError, OSError):
             pass
         # Default to ASCII for legacy Windows cmd.exe
         return False

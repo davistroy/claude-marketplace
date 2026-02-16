@@ -8,25 +8,24 @@ version = "1.0.0"
 description = "Orchestrate parallel deep research across multiple LLM providers"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["research", "llm", "ai", "orchestration", "anthropic", "openai", "google"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "anthropic>=0.40.0",
-    "openai>=1.50.0",
-    "google-genai>=1.0.0",
+    "anthropic>=0.40.0,<2.0.0",
+    "openai>=1.50.0,<3.0.0",
+    "google-genai>=1.0.0,<2.0.0",
     "python-dotenv>=1.0.0",
-    "pydantic>=2.0.0",
+    "pydantic>=2.0.0,<3.0.0",
     "tenacity>=8.0.0",
     "rich>=13.0.0",
 ]
@@ -71,7 +70,7 @@ exclude_lines = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "B", "UP"]
@@ -79,4 +78,4 @@ ignore = ["E501"]
 
 [tool.black]
 line-length = 100
-target-version = ["py39"]
+target-version = ["py310"]

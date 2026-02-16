@@ -1,10 +1,13 @@
 """Model discovery and upgrade checking for research providers."""
 
+import logging
 import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from research_orchestrator.providers.anthropic import AnthropicProvider
 from research_orchestrator.providers.google import GoogleProvider
@@ -166,9 +169,8 @@ class ModelDiscovery:
                             is_newer=is_newer,
                         )
                     )
-        except Exception:
-            # API might not support listing, return empty
-            pass
+        except Exception as e:
+            logger.warning("Failed to list %s models: %s", "Anthropic", e)
 
         return sorted(models, key=lambda m: m.date or datetime.min, reverse=True)
 
@@ -205,8 +207,8 @@ class ModelDiscovery:
                             is_newer=is_newer,
                         )
                     )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to list %s models: %s", "OpenAI", e)
 
         return sorted(models, key=lambda m: m.date or datetime.min, reverse=True)
 

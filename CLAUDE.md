@@ -318,6 +318,8 @@ Converts BPMN 2.0 XML files to Draw.io native format (.drawio):
 
 Plugins can include Python tools that commands/skills invoke at runtime. These tools must be **run from source** using `PYTHONPATH` - Claude Code's plugin schema does NOT support a `tools` field in plugin.json.
 
+**Python Version:** All bundled Python tools require **Python 3.10+**.
+
 ### Directory Structure
 
 ```

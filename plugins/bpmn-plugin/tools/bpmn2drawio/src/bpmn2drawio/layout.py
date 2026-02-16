@@ -54,7 +54,7 @@ class LayoutEngine:
         try:
             positions = self._apply_graphviz_layout(graph, elements)
             used_graphviz = True
-        except Exception:
+        except (ImportError, AttributeError, RuntimeError, OSError, LayoutError):
             # Fall back to flow-based layout that respects direction and branching
             positions = self._flow_based_layout(graph, elements)
 
