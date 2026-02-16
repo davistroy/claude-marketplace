@@ -11,7 +11,6 @@ This module targets specific uncovered code paths in:
 
 import pytest
 from pathlib import Path
-from xml.etree import ElementTree as ET
 import subprocess
 import sys
 
@@ -20,13 +19,10 @@ from bpmn2drawio.routing import EdgeRouter, calculate_edge_routes
 from bpmn2drawio.waypoints import (
     convert_bpmn_waypoints,
     generate_waypoints,
-    create_waypoint_array,
     position_edge_label,
 )
 from bpmn2drawio.swimlanes import (
     SwimlaneSizer,
-    create_pool_cell,
-    create_lane_cell,
     resolve_parent_hierarchy,
     assign_elements_to_pools_and_lanes,
 )
@@ -48,7 +44,9 @@ class TestLayoutEngineDirections:
             BPMNElement(id="end", type="endEvent"),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
+            ),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="task", target_ref="end"),
         ]
 
@@ -68,7 +66,9 @@ class TestLayoutEngineDirections:
             BPMNElement(id="end", type="endEvent"),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
+            ),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="task", target_ref="end"),
         ]
 
@@ -107,7 +107,9 @@ class TestLayoutEngineDirections:
         flows = [
             BPMNFlow(id="f1", type="sequenceFlow", source_ref="a", target_ref="b"),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="b", target_ref="c"),
-            BPMNFlow(id="f3", type="sequenceFlow", source_ref="c", target_ref="a"),  # Cycle
+            BPMNFlow(
+                id="f3", type="sequenceFlow", source_ref="c", target_ref="a"
+            ),  # Cycle
         ]
 
         engine = LayoutEngine()
@@ -123,7 +125,9 @@ class TestLayoutEngineDirections:
             BPMNElement(id="task", type="task", width=200, height=100),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
+            ),
         ]
 
         engine = LayoutEngine()
@@ -214,7 +218,9 @@ class TestWaypointsEdgeCases:
 
     def test_generate_waypoints_direct_style(self):
         """Test direct routing style."""
-        source = BPMNElement(id="s", type="startEvent", x=100, y=100, width=36, height=36)
+        source = BPMNElement(
+            id="s", type="startEvent", x=100, y=100, width=36, height=36
+        )
         target = BPMNElement(id="t", type="task", x=300, y=300, width=120, height=80)
 
         waypoints = generate_waypoints(source, target, routing_style="direct")
@@ -252,9 +258,11 @@ class TestWaypointsEdgeCases:
     def test_position_edge_label_multiple_waypoints(self):
         """Test edge label positioning with multiple waypoints."""
         flow = BPMNFlow(
-            id="f1", type="sequenceFlow",
-            source_ref="s", target_ref="t",
-            name="TestLabel"
+            id="f1",
+            type="sequenceFlow",
+            source_ref="s",
+            target_ref="t",
+            name="TestLabel",
         )
         waypoints = [(100, 100), (150, 100), (200, 150), (250, 150), (300, 150)]
 
@@ -266,9 +274,11 @@ class TestWaypointsEdgeCases:
     def test_position_edge_label_single_waypoint(self):
         """Test edge label positioning with single waypoint (edge case)."""
         flow = BPMNFlow(
-            id="f1", type="sequenceFlow",
-            source_ref="s", target_ref="t",
-            name="TestLabel"
+            id="f1",
+            type="sequenceFlow",
+            source_ref="s",
+            target_ref="t",
+            name="TestLabel",
         )
         waypoints = [(100, 100)]
 
@@ -299,8 +309,12 @@ class TestSwimlaneSizerEdgeCases:
         sizer = SwimlaneSizer()
         pool = Pool(id="pool1", name="Pool", width=800, height=400)
         lanes = [
-            Lane(id="lane1", name="Lane 1", parent_pool_id="pool1", width=700, height=150),
-            Lane(id="lane2", name="Lane 2", parent_pool_id="pool1", width=700, height=200),
+            Lane(
+                id="lane1", name="Lane 1", parent_pool_id="pool1", width=700, height=150
+            ),
+            Lane(
+                id="lane2", name="Lane 2", parent_pool_id="pool1", width=700, height=200
+            ),
         ]
 
         sizes = sizer.calculate_lane_sizes(pool, lanes, [])
@@ -346,7 +360,12 @@ class TestAssignElementsToPoolsAndLanes:
                 BPMNElement(id="task2", type="task"),
             ],
             lanes=[
-                Lane(id="lane1", name="Lane", parent_pool_id="pool1", element_refs=["task1"]),
+                Lane(
+                    id="lane1",
+                    name="Lane",
+                    parent_pool_id="pool1",
+                    element_refs=["task1"],
+                ),
             ],
             pools=[
                 Pool(id="pool1", name="Pool", process_ref="process1", lanes=["lane1"]),
@@ -374,7 +393,9 @@ class TestAssignElementsToPoolsAndLanes:
     def test_resolve_hierarchy_element_with_parent(self):
         """Test hierarchy when element already has parent_id."""
         model = BPMNModel(
-            elements=[BPMNElement(id="task1", type="task", parent_id="existing_parent")],
+            elements=[
+                BPMNElement(id="task1", type="task", parent_id="existing_parent")
+            ],
             pools=[Pool(id="pool1", name="Pool", process_ref="other_process")],
         )
 
@@ -394,7 +415,9 @@ class TestPositionResolverEdgeCases:
                 BPMNElement(id="end", type="endEvent", x=300, y=100),
             ],
             flows=[
-                BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="end"),
+                BPMNFlow(
+                    id="f1", type="sequenceFlow", source_ref="start", target_ref="end"
+                ),
             ],
             has_di_coordinates=True,
         )
@@ -439,8 +462,19 @@ class TestPositionResolverEdgeCases:
         """Test boundary event positioning relative to parent."""
         model = BPMNModel(
             elements=[
-                BPMNElement(id="subprocess1", type="subProcess", x=100, y=100, width=200, height=150),
-                BPMNElement(id="boundary1", type="boundaryEvent", properties={"attachedToRef": "subprocess1"}),
+                BPMNElement(
+                    id="subprocess1",
+                    type="subProcess",
+                    x=100,
+                    y=100,
+                    width=200,
+                    height=150,
+                ),
+                BPMNElement(
+                    id="boundary1",
+                    type="boundaryEvent",
+                    properties={"attachedToRef": "subprocess1"},
+                ),
             ],
         )
 
@@ -448,7 +482,6 @@ class TestPositionResolverEdgeCases:
         resolved = resolver.resolve(model)
 
         boundary = resolved.get_element_by_id("boundary1")
-        subprocess = resolved.get_element_by_id("subprocess1")
 
         # Boundary should be positioned on subprocess edge
         assert boundary.x is not None
@@ -469,7 +502,9 @@ class TestMainEntryPoint:
 
         # Should show help without error
         assert result.returncode == 0
-        assert "bpmn2drawio" in result.stdout.lower() or "usage" in result.stdout.lower()
+        assert (
+            "bpmn2drawio" in result.stdout.lower() or "usage" in result.stdout.lower()
+        )
 
 
 class TestCalculateEdgeRoutesFunction:
@@ -478,7 +513,9 @@ class TestCalculateEdgeRoutesFunction:
     def test_calculate_routes_with_existing_waypoints(self):
         """Test calculating routes when flow has existing waypoints."""
         elements = [
-            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
+            BPMNElement(
+                id="start", type="startEvent", x=100, y=100, width=36, height=36
+            ),
             BPMNElement(id="end", type="endEvent", x=300, y=100, width=36, height=36),
         ]
         flows = [
@@ -523,13 +560,27 @@ class TestLayoutWithComplexFlows:
             BPMNElement(id="end", type="endEvent"),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="fork"),
-            BPMNFlow(id="f2", type="sequenceFlow", source_ref="fork", target_ref="task1"),
-            BPMNFlow(id="f3", type="sequenceFlow", source_ref="fork", target_ref="task2"),
-            BPMNFlow(id="f4", type="sequenceFlow", source_ref="fork", target_ref="task3"),
-            BPMNFlow(id="f5", type="sequenceFlow", source_ref="task1", target_ref="join"),
-            BPMNFlow(id="f6", type="sequenceFlow", source_ref="task2", target_ref="join"),
-            BPMNFlow(id="f7", type="sequenceFlow", source_ref="task3", target_ref="join"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="fork"
+            ),
+            BPMNFlow(
+                id="f2", type="sequenceFlow", source_ref="fork", target_ref="task1"
+            ),
+            BPMNFlow(
+                id="f3", type="sequenceFlow", source_ref="fork", target_ref="task2"
+            ),
+            BPMNFlow(
+                id="f4", type="sequenceFlow", source_ref="fork", target_ref="task3"
+            ),
+            BPMNFlow(
+                id="f5", type="sequenceFlow", source_ref="task1", target_ref="join"
+            ),
+            BPMNFlow(
+                id="f6", type="sequenceFlow", source_ref="task2", target_ref="join"
+            ),
+            BPMNFlow(
+                id="f7", type="sequenceFlow", source_ref="task3", target_ref="join"
+            ),
             BPMNFlow(id="f8", type="sequenceFlow", source_ref="join", target_ref="end"),
         ]
 
@@ -540,7 +591,11 @@ class TestLayoutWithComplexFlows:
         assert len(positions) == 7
 
         # Parallel tasks should have different Y positions
-        y_positions = {positions["task1"][1], positions["task2"][1], positions["task3"][1]}
+        y_positions = {
+            positions["task1"][1],
+            positions["task2"][1],
+            positions["task3"][1],
+        }
         assert len(y_positions) == 3  # All different
 
     def test_layout_exclusive_gateway_pattern(self):
@@ -554,12 +609,27 @@ class TestLayoutWithComplexFlows:
             BPMNElement(id="end", type="endEvent"),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="gateway"),
-            BPMNFlow(id="f2", type="sequenceFlow", source_ref="gateway", target_ref="yes_path"),
-            BPMNFlow(id="f3", type="sequenceFlow", source_ref="gateway", target_ref="no_path"),
-            BPMNFlow(id="f4", type="sequenceFlow", source_ref="yes_path", target_ref="merge"),
-            BPMNFlow(id="f5", type="sequenceFlow", source_ref="no_path", target_ref="merge"),
-            BPMNFlow(id="f6", type="sequenceFlow", source_ref="merge", target_ref="end"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="gateway"
+            ),
+            BPMNFlow(
+                id="f2",
+                type="sequenceFlow",
+                source_ref="gateway",
+                target_ref="yes_path",
+            ),
+            BPMNFlow(
+                id="f3", type="sequenceFlow", source_ref="gateway", target_ref="no_path"
+            ),
+            BPMNFlow(
+                id="f4", type="sequenceFlow", source_ref="yes_path", target_ref="merge"
+            ),
+            BPMNFlow(
+                id="f5", type="sequenceFlow", source_ref="no_path", target_ref="merge"
+            ),
+            BPMNFlow(
+                id="f6", type="sequenceFlow", source_ref="merge", target_ref="end"
+            ),
         ]
 
         engine = LayoutEngine(direction="TB")
@@ -581,7 +651,9 @@ class TestLayoutSimpleGridFallback:
             BPMNElement(id="e3", type="task", width=120, height=80),
             BPMNElement(id="e4", type="task", width=120, height=80),
             BPMNElement(id="e5", type="task", width=120, height=80),
-            BPMNElement(id="e6", type="task", width=120, height=80),  # Should wrap to new row
+            BPMNElement(
+                id="e6", type="task", width=120, height=80
+            ),  # Should wrap to new row
         ]
 
         positions = engine._simple_grid_layout(elements)
@@ -595,6 +667,7 @@ class TestLayoutSimpleGridFallback:
     def test_flow_based_layout_with_empty_graph_fallback(self):
         """Test _flow_based_layout calls _simple_grid_layout when graph is empty."""
         import networkx as nx
+
         engine = LayoutEngine()
         elements = [
             BPMNElement(id="e1", type="task"),
@@ -613,6 +686,7 @@ class TestLayoutSimpleGridFallback:
     def test_flow_based_layout_elements_not_in_graph(self):
         """Test _flow_based_layout handles elements not in the graph."""
         import networkx as nx
+
         engine = LayoutEngine()
         elements = [
             BPMNElement(id="e1", type="task"),
@@ -635,6 +709,7 @@ class TestLayoutSimpleGridFallback:
     def test_assign_ranks_disconnected_node(self):
         """Test _assign_ranks handles disconnected nodes."""
         import networkx as nx
+
         engine = LayoutEngine()
 
         graph = nx.DiGraph()
@@ -669,7 +744,9 @@ class TestLayoutSimpleGridFallback:
         positions = {"e1": (100.0, 200.0)}
 
         # With flip_y=False, Y should not be inverted
-        result = engine._scale_positions(positions, elements, flip_y=False, apply_scale=False)
+        result = engine._scale_positions(
+            positions, elements, flip_y=False, apply_scale=False
+        )
 
         assert "e1" in result
         # Y should be normalized to margin, not flipped
@@ -681,12 +758,11 @@ class TestLayoutSimpleGridFallback:
             BPMNElement(id="e1", type="task"),
             BPMNElement(id="e2", type="task"),
         ]
-        positions = {
-            "e1": (100.0, 200.0),
-            "e2": (300.0, 400.0)
-        }
+        positions = {"e1": (100.0, 200.0), "e2": (300.0, 400.0)}
 
-        result = engine._scale_positions(positions, elements, flip_y=False, apply_scale=False)
+        result = engine._scale_positions(
+            positions, elements, flip_y=False, apply_scale=False
+        )
 
         # Positions should be normalized but not scaled
         assert len(result) == 2
@@ -753,13 +829,21 @@ class TestPositionResolverAdditionalCases:
         """Test placing connected elements when element is connected from multiple directions."""
         model = BPMNModel(
             elements=[
-                BPMNElement(id="task1", type="task", x=100, y=100, width=120, height=80),
+                BPMNElement(
+                    id="task1", type="task", x=100, y=100, width=120, height=80
+                ),
                 BPMNElement(id="task2", type="task"),  # Needs positioning
-                BPMNElement(id="task3", type="task", x=400, y=100, width=120, height=80),
+                BPMNElement(
+                    id="task3", type="task", x=400, y=100, width=120, height=80
+                ),
             ],
             flows=[
-                BPMNFlow(id="f1", type="sequenceFlow", source_ref="task1", target_ref="task2"),
-                BPMNFlow(id="f2", type="sequenceFlow", source_ref="task2", target_ref="task3"),
+                BPMNFlow(
+                    id="f1", type="sequenceFlow", source_ref="task1", target_ref="task2"
+                ),
+                BPMNFlow(
+                    id="f2", type="sequenceFlow", source_ref="task2", target_ref="task3"
+                ),
             ],
             has_di_coordinates=True,
         )
@@ -776,10 +860,14 @@ class TestPositionResolverAdditionalCases:
         model = BPMNModel(
             elements=[
                 BPMNElement(id="task1", type="task"),  # Needs positioning
-                BPMNElement(id="task2", type="task", x=300, y=100, width=120, height=80),
+                BPMNElement(
+                    id="task2", type="task", x=300, y=100, width=120, height=80
+                ),
             ],
             flows=[
-                BPMNFlow(id="f1", type="sequenceFlow", source_ref="task1", target_ref="task2"),
+                BPMNFlow(
+                    id="f1", type="sequenceFlow", source_ref="task1", target_ref="task2"
+                ),
             ],
             has_di_coordinates=True,
         )
@@ -795,7 +883,9 @@ class TestPositionResolverAdditionalCases:
         """Test placement of disconnected data objects."""
         model = BPMNModel(
             elements=[
-                BPMNElement(id="task1", type="task", x=100, y=100, width=120, height=80),
+                BPMNElement(
+                    id="task1", type="task", x=100, y=100, width=120, height=80
+                ),
                 BPMNElement(id="data1", type="dataObject"),
                 BPMNElement(id="data2", type="dataStoreReference"),
             ],
@@ -817,12 +907,20 @@ class TestPositionResolverAdditionalCases:
         """Test overlap avoidance when placing elements."""
         model = BPMNModel(
             elements=[
-                BPMNElement(id="task1", type="task", x=100, y=100, width=120, height=80),
-                BPMNElement(id="task2", type="task", x=180, y=100, width=120, height=80),  # Overlapping
-                BPMNElement(id="task3", type="task"),  # Needs positioning near task1/task2
+                BPMNElement(
+                    id="task1", type="task", x=100, y=100, width=120, height=80
+                ),
+                BPMNElement(
+                    id="task2", type="task", x=180, y=100, width=120, height=80
+                ),  # Overlapping
+                BPMNElement(
+                    id="task3", type="task"
+                ),  # Needs positioning near task1/task2
             ],
             flows=[
-                BPMNFlow(id="f1", type="sequenceFlow", source_ref="task1", target_ref="task3"),
+                BPMNFlow(
+                    id="f1", type="sequenceFlow", source_ref="task1", target_ref="task3"
+                ),
             ],
             has_di_coordinates=True,
         )
@@ -838,8 +936,17 @@ class TestPositionResolverAdditionalCases:
         """Test boundary event positioning with ID pattern matching."""
         model = BPMNModel(
             elements=[
-                BPMNElement(id="subprocess1", type="subProcess", x=100, y=100, width=200, height=150),
-                BPMNElement(id="subprocess1Boundary", type="boundaryEvent"),  # ID contains parent
+                BPMNElement(
+                    id="subprocess1",
+                    type="subProcess",
+                    x=100,
+                    y=100,
+                    width=200,
+                    height=150,
+                ),
+                BPMNElement(
+                    id="subprocess1Boundary", type="boundaryEvent"
+                ),  # ID contains parent
             ],
         )
 
@@ -879,8 +986,24 @@ class TestPositionResolverAdditionalCases:
         """Test lane organization when elements have same Y position."""
         model = BPMNModel(
             elements=[
-                BPMNElement(id="task1", type="task", x=100, y=150, width=120, height=80, parent_id="lane1"),
-                BPMNElement(id="task2", type="task", x=250, y=150, width=120, height=80, parent_id="lane1"),
+                BPMNElement(
+                    id="task1",
+                    type="task",
+                    x=100,
+                    y=150,
+                    width=120,
+                    height=80,
+                    parent_id="lane1",
+                ),
+                BPMNElement(
+                    id="task2",
+                    type="task",
+                    x=250,
+                    y=150,
+                    width=120,
+                    height=80,
+                    parent_id="lane1",
+                ),
             ],
             lanes=[
                 Lane(id="lane1", name="Lane 1", element_refs=["task1", "task2"]),
@@ -926,7 +1049,12 @@ class TestPositionResolverAdditionalCases:
                 BPMNElement(id="task1", type="task", x=100, y=100, parent_id="lane1"),
             ],
             lanes=[
-                Lane(id="lane1", name="Lane 1", parent_pool_id="pool1", element_refs=["task1"]),
+                Lane(
+                    id="lane1",
+                    name="Lane 1",
+                    parent_pool_id="pool1",
+                    element_refs=["task1"],
+                ),
             ],
             pools=[
                 Pool(id="pool1", name="Pool 1", process_ref="process1"),
@@ -952,12 +1080,12 @@ class TestParserAdditionalCases:
         """Test parsing BPMN from XML string."""
         from bpmn2drawio.parser import parse_bpmn
 
-        xml_string = '''<?xml version="1.0" encoding="UTF-8"?>
+        xml_string = """<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
           <bpmn:process id="Process_1" isExecutable="false">
             <bpmn:startEvent id="Start_1" name="Start" />
           </bpmn:process>
-        </bpmn:definitions>'''
+        </bpmn:definitions>"""
 
         model = parse_bpmn(xml_string)
 
@@ -972,7 +1100,10 @@ class TestParserAdditionalCases:
         with pytest.raises(BPMNParseError) as exc_info:
             parse_bpmn("/nonexistent/path/file.bpmn")
 
-        assert "not found" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower()
+        assert (
+            "not found" in str(exc_info.value).lower()
+            or "failed" in str(exc_info.value).lower()
+        )
 
     def test_parse_invalid_xml(self):
         """Test parsing invalid XML raises error."""
@@ -988,7 +1119,7 @@ class TestParserAdditionalCases:
         """Test parsing BPMN with subprocess element."""
         from bpmn2drawio.parser import parse_bpmn
 
-        xml_string = '''<?xml version="1.0" encoding="UTF-8"?>
+        xml_string = """<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
           <bpmn:process id="Process_1" isExecutable="false">
             <bpmn:subProcess id="SubProcess_1" name="Sub Process">
@@ -996,7 +1127,7 @@ class TestParserAdditionalCases:
               <bpmn:endEvent id="End_Sub" />
             </bpmn:subProcess>
           </bpmn:process>
-        </bpmn:definitions>'''
+        </bpmn:definitions>"""
 
         model = parse_bpmn(xml_string)
 
@@ -1008,14 +1139,14 @@ class TestParserAdditionalCases:
         """Test parsing BPMN with multi-instance loop characteristics."""
         from bpmn2drawio.parser import parse_bpmn
 
-        xml_string = '''<?xml version="1.0" encoding="UTF-8"?>
+        xml_string = """<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
           <bpmn:process id="Process_1" isExecutable="false">
             <bpmn:task id="Task_1" name="Multi Task">
               <bpmn:multiInstanceLoopCharacteristics isSequential="true" />
             </bpmn:task>
           </bpmn:process>
-        </bpmn:definitions>'''
+        </bpmn:definitions>"""
 
         model = parse_bpmn(xml_string)
 
@@ -1027,14 +1158,14 @@ class TestParserAdditionalCases:
         """Test parsing BPMN with standard loop characteristics."""
         from bpmn2drawio.parser import parse_bpmn
 
-        xml_string = '''<?xml version="1.0" encoding="UTF-8"?>
+        xml_string = """<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
           <bpmn:process id="Process_1" isExecutable="false">
             <bpmn:task id="Task_1" name="Loop Task">
               <bpmn:standardLoopCharacteristics />
             </bpmn:task>
           </bpmn:process>
-        </bpmn:definitions>'''
+        </bpmn:definitions>"""
 
         model = parse_bpmn(xml_string)
 
@@ -1045,14 +1176,14 @@ class TestParserAdditionalCases:
         """Test parsing gateway with default flow."""
         from bpmn2drawio.parser import parse_bpmn
 
-        xml_string = '''<?xml version="1.0" encoding="UTF-8"?>
+        xml_string = """<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
           <bpmn:process id="Process_1" isExecutable="false">
             <bpmn:exclusiveGateway id="Gateway_1" default="Flow_Default" />
             <bpmn:sequenceFlow id="Flow_Default" sourceRef="Gateway_1" targetRef="Task_1" />
             <bpmn:task id="Task_1" />
           </bpmn:process>
-        </bpmn:definitions>'''
+        </bpmn:definitions>"""
 
         model = parse_bpmn(xml_string)
 
@@ -1067,7 +1198,7 @@ class TestParserAdditionalCases:
         """Test parsing boundary event with attachedToRef."""
         from bpmn2drawio.parser import parse_bpmn
 
-        xml_string = '''<?xml version="1.0" encoding="UTF-8"?>
+        xml_string = """<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
           <bpmn:process id="Process_1" isExecutable="false">
             <bpmn:task id="Task_1" />
@@ -1075,7 +1206,7 @@ class TestParserAdditionalCases:
               <bpmn:timerEventDefinition />
             </bpmn:boundaryEvent>
           </bpmn:process>
-        </bpmn:definitions>'''
+        </bpmn:definitions>"""
 
         model = parse_bpmn(xml_string)
 
@@ -1087,7 +1218,7 @@ class TestParserAdditionalCases:
         """Test parsing message flow in collaboration."""
         from bpmn2drawio.parser import parse_bpmn
 
-        xml_string = '''<?xml version="1.0" encoding="UTF-8"?>
+        xml_string = """<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
           <bpmn:collaboration id="Collab_1">
             <bpmn:participant id="Pool_1" processRef="Process_1" />
@@ -1100,7 +1231,7 @@ class TestParserAdditionalCases:
           <bpmn:process id="Process_2" isExecutable="false">
             <bpmn:task id="Task_2" />
           </bpmn:process>
-        </bpmn:definitions>'''
+        </bpmn:definitions>"""
 
         model = parse_bpmn(xml_string)
 
@@ -1140,8 +1271,9 @@ class TestIconsAdditionalCases:
         from bpmn2drawio.icons import create_event_icon
 
         element = BPMNElement(
-            id="start1", type="startEvent",
-            properties={"eventDefinition": "unknownDefinition"}
+            id="start1",
+            type="startEvent",
+            properties={"eventDefinition": "unknownDefinition"},
         )
         result = create_event_icon(element, "parent1", 100)
 
@@ -1201,7 +1333,9 @@ class TestModelsAdditionalCases:
 
     def test_element_center(self):
         """Test BPMNElement.center method."""
-        element = BPMNElement(id="task1", type="task", x=100, y=100, width=120, height=80)
+        element = BPMNElement(
+            id="task1", type="task", x=100, y=100, width=120, height=80
+        )
 
         center = element.center()
 
@@ -1279,11 +1413,17 @@ colors:
         model = BPMNModel(
             process_id="process1",
             elements=[
-                BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
-                BPMNElement(id="end", type="endEvent", x=300, y=100, width=36, height=36),
+                BPMNElement(
+                    id="start", type="startEvent", x=100, y=100, width=36, height=36
+                ),
+                BPMNElement(
+                    id="end", type="endEvent", x=300, y=100, width=36, height=36
+                ),
             ],
             flows=[
-                BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="end"),
+                BPMNFlow(
+                    id="f1", type="sequenceFlow", source_ref="start", target_ref="end"
+                ),
             ],
         )
 
@@ -1304,27 +1444,29 @@ class TestCLIAdditionalCases:
 
         # Create a BPMN file that should trigger warning
         input_file = tmp_path / "no_di.bpmn"
-        input_file.write_text('''<?xml version="1.0" encoding="UTF-8"?>
+        input_file.write_text("""<?xml version="1.0" encoding="UTF-8"?>
         <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
           <bpmn:process id="Process_1" isExecutable="false">
             <bpmn:startEvent id="Start_1" name="Start" />
           </bpmn:process>
-        </bpmn:definitions>''')
+        </bpmn:definitions>""")
 
         output_file = tmp_path / "output.drawio"
 
-        exit_code = main([
-            str(input_file),
-            str(output_file),
-            "--layout", "preserve",
-        ])
+        exit_code = main(
+            [
+                str(input_file),
+                str(output_file),
+                "--layout",
+                "preserve",
+            ]
+        )
 
         # Should succeed but may have warnings
         assert exit_code == 0
 
     def test_cli_if_main(self, tmp_path, monkeypatch):
         """Test CLI __main__ block execution."""
-        import importlib
 
         # This tests the if __name__ == "__main__" path
         # We can't easily test it directly, but we can verify the module structure
@@ -1339,7 +1481,7 @@ class TestMainModuleExecution:
             [
                 sys.executable,
                 "-c",
-                "from bpmn2drawio.__main__ import main; import sys; sys.exit(0)"
+                "from bpmn2drawio.__main__ import main; import sys; sys.exit(0)",
             ],
             capture_output=True,
             text=True,
@@ -1355,7 +1497,7 @@ class TestMainModuleExecution:
         import bpmn2drawio.__main__
 
         # Verify the main function is available
-        assert hasattr(bpmn2drawio.__main__, 'main')
+        assert hasattr(bpmn2drawio.__main__, "main")
 
     def test_main_module_with_help(self):
         """Test __main__.py with --help flag."""

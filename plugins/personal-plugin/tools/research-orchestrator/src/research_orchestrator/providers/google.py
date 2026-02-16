@@ -4,16 +4,17 @@ import asyncio
 import os
 import time
 import warnings
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 # Suppress experimental API warnings from google-genai SDK
 warnings.filterwarnings("ignore", module="google.genai")
 warnings.filterwarnings("ignore", message=".*Interactions usage is experimental.*")
 warnings.filterwarnings("ignore", message=".*Async interactions client cannot use aiohttp.*")
 
-from research_orchestrator.config import Depth, ProviderConfig
-from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus
-from research_orchestrator.providers.base import BaseProvider
+from research_orchestrator.config import Depth, ProviderConfig  # noqa: E402
+from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus  # noqa: E402
+from research_orchestrator.providers.base import BaseProvider  # noqa: E402
 
 
 class GoogleProvider(BaseProvider):
@@ -49,10 +50,10 @@ class GoogleProvider(BaseProvider):
                 from google import genai
 
                 self._client = genai.Client(api_key=self.config.api_key)
-            except ImportError:
+            except ImportError as err:
                 raise ImportError(
                     "google-genai package required. Install with: pip install google-genai"
-                )
+                ) from err
         return self._client
 
     async def execute(self, prompt: str) -> ProviderResult:
@@ -92,13 +93,13 @@ class GoogleProvider(BaseProvider):
 
             # Get interaction ID - try multiple possible attribute names
             interaction_id = (
-                getattr(interaction_result, 'name', None) or
-                getattr(interaction_result, 'id', None) or
-                getattr(interaction_result, 'interaction_id', None)
+                getattr(interaction_result, "name", None)
+                or getattr(interaction_result, "id", None)
+                or getattr(interaction_result, "interaction_id", None)
             )
             if not interaction_id:
                 # Debug: show what attributes are available
-                attrs = [a for a in dir(interaction_result) if not a.startswith('_')]
+                attrs = [a for a in dir(interaction_result) if not a.startswith("_")]
                 raise ValueError(f"No interaction ID in response. Available attrs: {attrs[:10]}")
 
             result = await self._poll_for_completion(client, interaction_id, start_time)
@@ -106,8 +107,7 @@ class GoogleProvider(BaseProvider):
 
         except asyncio.TimeoutError:
             self._phase_update(
-                ProviderPhase.FAILED,
-                f"Timeout after {self.config.timeout_seconds}s"
+                ProviderPhase.FAILED, f"Timeout after {self.config.timeout_seconds}s"
             )
             return ProviderResult(
                 provider=self.name,
@@ -145,8 +145,7 @@ class GoogleProvider(BaseProvider):
             if elapsed - last_status_update >= 30.0:
                 poll_count += 1
                 self._phase_update(
-                    ProviderPhase.POLLING,
-                    f"Checking status ({elapsed:.0f}s elapsed)"
+                    ProviderPhase.POLLING, f"Checking status ({elapsed:.0f}s elapsed)"
                 )
                 last_status_update = elapsed
 

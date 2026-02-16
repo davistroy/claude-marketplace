@@ -45,8 +45,16 @@ COLOR_BODY = RGBColor(0x1A, 0x1A, 0x1A)
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _set_run_style(run, *, font_name=FONT_BODY, size=FONT_SIZE_BODY,
-                   color=COLOR_BODY, bold=False, italic=False):
+
+def _set_run_style(
+    run,
+    *,
+    font_name=FONT_BODY,
+    size=FONT_SIZE_BODY,
+    color=COLOR_BODY,
+    bold=False,
+    italic=False,
+):
     """Apply consistent font styling to a run."""
     run.font.name = font_name
     run.font.size = size
@@ -104,10 +112,16 @@ def _format_date(date_str):
     """Best-effort date formatting. Returns the original string on failure."""
     if not date_str:
         return "N/A"
-    for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f",
-                "%Y-%m-%dT%H:%M:%S%z"):
+    for fmt in (
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S%z",
+    ):
         try:
-            return datetime.strptime(date_str[:19], fmt[:min(len(fmt), 19)]).strftime("%B %d, %Y")
+            return datetime.strptime(date_str[:19], fmt[: min(len(fmt), 19)]).strftime(
+                "%B %d, %Y"
+            )
         except (ValueError, TypeError):
             continue
     return date_str
@@ -127,6 +141,7 @@ def _safe_get(data, *keys, default=""):
 # ---------------------------------------------------------------------------
 # Document sections
 # ---------------------------------------------------------------------------
+
 
 def _build_title_page(doc, data):
     """Title page header with employee name, period, and metadata."""
@@ -170,7 +185,9 @@ def _build_title_page(doc, data):
 def _build_executive_summary(doc, synthesis):
     """Executive Summary section."""
     _add_heading(doc, "Executive Summary", level=1)
-    summary_text = _safe_get(synthesis, "executive_summary", default="No executive summary provided.")
+    summary_text = _safe_get(
+        synthesis, "executive_summary", default="No executive summary provided."
+    )
     _add_body(doc, summary_text)
 
 
@@ -208,7 +225,10 @@ def _build_areas_for_development(doc, synthesis):
     _add_heading(doc, "Areas for Development", level=1)
     areas = synthesis.get("areas_for_development", [])
     if not areas:
-        _add_body(doc, "No areas for development identified in the available feedback entries.")
+        _add_body(
+            doc,
+            "No areas for development identified in the available feedback entries.",
+        )
         return
 
     for i, area in enumerate(areas):
@@ -286,7 +306,9 @@ def _build_recommendations(doc, synthesis):
                 para = doc.add_paragraph()
                 para.paragraph_format.left_indent = Inches(0.5)
                 run = para.add_run(f"Rationale: {rationale}")
-                _set_run_style(run, size=FONT_SIZE_METADATA, color=COLOR_METADATA, italic=True)
+                _set_run_style(
+                    run, size=FONT_SIZE_METADATA, color=COLOR_METADATA, italic=True
+                )
 
 
 def _build_appendix(doc, entries):
@@ -357,6 +379,7 @@ def _build_appendix(doc, entries):
 # Main document builder
 # ---------------------------------------------------------------------------
 
+
 def generate_docx(data: dict, output_path: str):
     """Build the complete .docx document from structured JSON data."""
     doc = Document()
@@ -397,6 +420,7 @@ def generate_docx(data: dict, output_path: str):
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(

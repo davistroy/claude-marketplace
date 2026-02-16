@@ -24,6 +24,7 @@ import anthropic
 
 try:
     from PIL import Image
+
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
@@ -51,7 +52,9 @@ class ImageEvaluationError(Exception):
 CLAUDE_IMAGE_SIZE_LIMIT = int(3.5 * 1024 * 1024)  # 3.5MB raw to stay under 5MB base64
 
 
-def resize_image_for_claude(image_bytes: bytes, max_size_bytes: int = CLAUDE_IMAGE_SIZE_LIMIT) -> bytes:
+def resize_image_for_claude(
+    image_bytes: bytes, max_size_bytes: int = CLAUDE_IMAGE_SIZE_LIMIT
+) -> bytes:
     """Resize image if it exceeds Claude's API size limit.
 
     Claude Vision API has a 5MB limit per image. This function resizes

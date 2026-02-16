@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import logging
 from functools import lru_cache
-from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -23,7 +22,7 @@ from pydantic import ValidationError
 from .config import DEFAULT_STYLE, PromptRecipe, StyleConfig
 
 if TYPE_CHECKING:
-    from importlib.abc import Traversable
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -316,12 +315,14 @@ def list_available_styles() -> list[dict[str, str]]:
             styles_info.append(info)
         except StyleLoadError as e:
             logger.warning("Could not load style %s: %s", name, e)
-            styles_info.append({
-                "name": name,
-                "intent": f"(Error loading: {e.reason})",
-                "path": str(path),
-                "bundled": "yes",
-            })
+            styles_info.append(
+                {
+                    "name": name,
+                    "intent": f"(Error loading: {e.reason})",
+                    "path": str(path),
+                    "bundled": "yes",
+                }
+            )
 
     return styles_info
 

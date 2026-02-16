@@ -54,7 +54,9 @@ class BPMNParser:
                 root = tree.getroot()
             else:
                 # It's an XML string
-                root = etree.fromstring(source.encode() if isinstance(source, str) else source)
+                root = etree.fromstring(
+                    source.encode() if isinstance(source, str) else source
+                )
         except etree.XMLSyntaxError as e:
             raise BPMNParseError(f"Invalid XML: {e}") from e
         except FileNotFoundError as e:
@@ -111,7 +113,9 @@ class BPMNParser:
         self._di_edges = {}
 
         # Find BPMNDiagram element
-        di_diagram = self._find_element(root, ".//bpmndi:BPMNDiagram", ".//{*}BPMNDiagram")
+        di_diagram = self._find_element(
+            root, ".//bpmndi:BPMNDiagram", ".//{*}BPMNDiagram"
+        )
         if di_diagram is None:
             return
 
@@ -142,7 +146,9 @@ class BPMNParser:
             bpmn_element = edge.get("bpmnElement")
             if bpmn_element:
                 waypoints = []
-                points = self._findall_elements(edge, ".//di:waypoint", ".//{*}waypoint")
+                points = self._findall_elements(
+                    edge, ".//di:waypoint", ".//{*}waypoint"
+                )
                 for point in points:
                     x = float(point.get("x", 0))
                     y = float(point.get("y", 0))
@@ -157,7 +163,9 @@ class BPMNParser:
         if process is None:
             # Try finding process in collaboration
             process = self._find_element(
-                root, ".//bpmn:collaboration//bpmn:process", ".//{*}collaboration//{*}process"
+                root,
+                ".//bpmn:collaboration//bpmn:process",
+                ".//{*}collaboration//{*}process",
             )
 
         if process is not None:
@@ -173,14 +181,19 @@ class BPMNParser:
             if participant.tag.endswith("participant"):
                 process_ref = participant.get("processRef")
                 if process_ref:
-                    referenced_process = root.find(
-                        f".//*[@id='{process_ref}']"
-                    )
-                    if referenced_process is not None and referenced_process not in [process]:
-                        self._parse_process_contents(referenced_process, model, process_ref)
+                    referenced_process = root.find(f".//*[@id='{process_ref}']")
+                    if referenced_process is not None and referenced_process not in [
+                        process
+                    ]:
+                        self._parse_process_contents(
+                            referenced_process, model, process_ref
+                        )
 
     def _parse_process_contents(
-        self, process: etree._Element, model: BPMNModel, process_id: Optional[str] = None
+        self,
+        process: etree._Element,
+        model: BPMNModel,
+        process_id: Optional[str] = None,
     ) -> None:
         """Parse contents of a process element.
 
@@ -201,7 +214,9 @@ class BPMNParser:
             if tag == "subProcess":
                 # Parse subprocess as element
                 element = self._parse_element(child, tag)
-                element.properties["_is_subprocess"] = True  # Mark as subprocess container
+                element.properties["_is_subprocess"] = (
+                    True  # Mark as subprocess container
+                )
                 if process_id:
                     element.properties["_process_id"] = process_id
                 model.elements.append(element)
@@ -327,9 +342,7 @@ class BPMNParser:
             properties=properties,
         )
 
-    def _parse_element_properties(
-        self, elem: etree._Element, elem_type: str
-    ) -> Dict:
+    def _parse_element_properties(self, elem: etree._Element, elem_type: str) -> Dict:
         """Parse element-specific properties."""
         properties = {}
 
@@ -337,9 +350,7 @@ class BPMNParser:
         for child in elem:
             child_tag = self._local_name(child.tag)
             if child_tag.endswith("EventDefinition"):
-                properties["eventDefinition"] = child_tag.replace(
-                    "EventDefinition", ""
-                )
+                properties["eventDefinition"] = child_tag.replace("EventDefinition", "")
 
         # Gateway properties
         if "Gateway" in elem_type:
@@ -351,14 +362,18 @@ class BPMNParser:
         if "Task" in elem_type or elem_type == "task":
             # Check for loop characteristics
             loop = self._find_element(
-                elem, ".//bpmn:multiInstanceLoopCharacteristics", ".//{*}multiInstanceLoopCharacteristics"
+                elem,
+                ".//bpmn:multiInstanceLoopCharacteristics",
+                ".//{*}multiInstanceLoopCharacteristics",
             )
             if loop is not None:
                 properties["isMultiInstance"] = True
                 properties["isSequential"] = loop.get("isSequential", "false") == "true"
 
             loop = self._find_element(
-                elem, ".//bpmn:standardLoopCharacteristics", ".//{*}standardLoopCharacteristics"
+                elem,
+                ".//bpmn:standardLoopCharacteristics",
+                ".//{*}standardLoopCharacteristics",
             )
             if loop is not None:
                 properties["isLoop"] = True
@@ -378,7 +393,9 @@ class BPMNParser:
 
         # Check for condition
         condition = None
-        cond_expr = self._find_element(elem, ".//bpmn:conditionExpression", ".//{*}conditionExpression")
+        cond_expr = self._find_element(
+            elem, ".//bpmn:conditionExpression", ".//{*}conditionExpression"
+        )
         if cond_expr is not None:
             condition = cond_expr.text
 
@@ -398,7 +415,9 @@ class BPMNParser:
 
     def _parse_collaboration(self, root: etree._Element, model: BPMNModel) -> None:
         """Parse collaboration (pools and message flows)."""
-        collaboration = self._find_element(root, ".//bpmn:collaboration", ".//{*}collaboration")
+        collaboration = self._find_element(
+            root, ".//bpmn:collaboration", ".//{*}collaboration"
+        )
         if collaboration is None:
             return
 
@@ -434,7 +453,9 @@ class BPMNParser:
             if elem_process_id and elem_process_id in process_to_pool:
                 pool = process_to_pool[elem_process_id]
                 # Check if pool has lanes
-                lanes_for_pool = [l for l in model.lanes if l.parent_pool_id == pool.id]
+                lanes_for_pool = [
+                    lane for lane in model.lanes if lane.parent_pool_id == pool.id
+                ]
                 if not lanes_for_pool:
                     # Pool has no lanes - element should be direct child of pool
                     element.parent_id = pool.id
@@ -469,7 +490,10 @@ class BPMNParser:
         )
 
     def _parse_lane_set(
-        self, lane_set: etree._Element, model: BPMNModel, process_id: Optional[str] = None
+        self,
+        lane_set: etree._Element,
+        model: BPMNModel,
+        process_id: Optional[str] = None,
     ) -> None:
         """Parse lane set element.
 

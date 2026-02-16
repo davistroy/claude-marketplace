@@ -1,6 +1,5 @@
 """Tests for converter module."""
 
-import pytest
 from pathlib import Path
 
 from bpmn2drawio.converter import Converter
@@ -17,10 +16,7 @@ class TestConverterBasic:
         converter = Converter()
         output_file = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "minimal.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "minimal.bpmn", output_file)
 
         assert result.success
         assert result.element_count == 3
@@ -41,20 +37,17 @@ class TestConverterBasic:
         converter = Converter()
         drawio_xml = converter.convert_string(bpmn_xml)
 
-        assert '<?xml' in drawio_xml
-        assert 'mxfile' in drawio_xml
-        assert 'Begin' in drawio_xml
-        assert 'Finish' in drawio_xml
+        assert "<?xml" in drawio_xml
+        assert "mxfile" in drawio_xml
+        assert "Begin" in drawio_xml
+        assert "Finish" in drawio_xml
 
     def test_convert_nonexistent_file(self, tmp_path):
         """Test converting nonexistent file."""
         converter = Converter()
         output_file = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            "/nonexistent/file.bpmn",
-            output_file
-        )
+        result = converter.convert("/nonexistent/file.bpmn", output_file)
 
         assert not result.success
         assert result.error is not None
@@ -65,17 +58,10 @@ class TestConverterOptions:
 
     def test_converter_with_options(self, tmp_path):
         """Test converter with various options."""
-        converter = Converter(
-            layout="preserve",
-            theme="default",
-            direction="LR"
-        )
+        converter = Converter(layout="preserve", theme="default", direction="LR")
         output_file = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "minimal.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "minimal.bpmn", output_file)
 
         # Should succeed but may have warnings
         assert result.success
@@ -87,7 +73,7 @@ class TestConverterOptions:
 
         result = converter.convert(
             FIXTURES_DIR / "minimal.bpmn",  # Has no DI
-            output_file
+            output_file,
         )
 
         # Should have warning about missing DI
@@ -102,29 +88,23 @@ class TestEndToEnd:
         converter = Converter()
         output_file = tmp_path / "minimal.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "minimal.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "minimal.bpmn", output_file)
 
         assert result.success
         assert output_file.exists()
 
         # Verify output is valid XML
         content = output_file.read_text()
-        assert content.startswith('<?xml')
-        assert '<mxfile' in content
-        assert '</mxfile>' in content
+        assert content.startswith("<?xml")
+        assert "<mxfile" in content
+        assert "</mxfile>" in content
 
     def test_with_di_to_drawio(self, tmp_path):
         """Test conversion with DI coordinates."""
         converter = Converter()
         output_file = tmp_path / "with_di.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "with_di.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "with_di.bpmn", output_file)
 
         assert result.success
         assert len(result.warnings) == 0  # Should have no warnings
@@ -134,10 +114,9 @@ class TestEndToEnd:
         converter = Converter()
         output_file = tmp_path / "gateway.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "with_gateway.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "with_gateway.bpmn", output_file)
 
         assert result.success
-        assert result.element_count == 6  # start, gateway, yes task, no task, merge gateway, end
+        assert (
+            result.element_count == 6
+        )  # start, gateway, yes task, no task, merge gateway, end

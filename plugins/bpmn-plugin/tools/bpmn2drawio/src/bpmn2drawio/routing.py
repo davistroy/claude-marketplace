@@ -119,7 +119,10 @@ class EdgeRouter:
         waypoints.append(src_point)
 
         # Add intermediate point for orthogonal routing if needed
-        if abs(src_point[0] - tgt_point[0]) > 10 and abs(src_point[1] - tgt_point[1]) > 10:
+        if (
+            abs(src_point[0] - tgt_point[0]) > 10
+            and abs(src_point[1] - tgt_point[1]) > 10
+        ):
             # Create L-shaped route
             mid_x = (src_point[0] + tgt_point[0]) / 2
             waypoints.append((mid_x, src_point[1]))

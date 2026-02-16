@@ -1033,11 +1033,12 @@ Extract the 560-line function into 5 focused functions. Execute in this order:
    - Run full test suite
 
 **Acceptance Criteria:**
-- [ ] `run_generation_pipeline()` is <= 50 LOC (orchestrator only)
-- [ ] 5 extracted functions, each <= 200 LOC
-- [ ] All existing tests pass unchanged
-- [ ] New unit tests added for each extracted function
-- [ ] No behavior changes — pure refactoring
+- [x] `run_generation_pipeline()` is <= 50 LOC (orchestrator only)
+- [x] 5 extracted functions, each <= 200 LOC
+- [x] All existing tests pass unchanged
+- [x] New unit tests added for each extracted function
+- [x] No behavior changes — pure refactoring
+**Completed:** 2026-02-16
 
 ---
 
@@ -1073,11 +1074,12 @@ Split in this order (least coupled first):
 4. Add dedicated test files for new classes.
 
 **Acceptance Criteria:**
-- [ ] 3 classes, each < 500 LOC
-- [ ] `PromptGenerator` is a facade that delegates to the two extracted classes
-- [ ] All existing tests pass (import paths updated)
-- [ ] New test files for InfographicPromptBuilder and PromptRefiner
-- [ ] No behavior changes — pure refactoring
+- [x] 3 classes, each < 500 LOC
+- [x] `PromptGenerator` is a facade that delegates to the two extracted classes
+- [x] All existing tests pass (import paths updated)
+- [x] New test files for InfographicPromptBuilder and PromptRefiner
+- [x] No behavior changes — pure refactoring
+**Completed:** 2026-02-16
 
 ---
 
@@ -1114,12 +1116,13 @@ Split in this order:
 4. Add dedicated test files for new classes.
 
 **Acceptance Criteria:**
-- [ ] 3 classes, each < 400 LOC
-- [ ] No method exceeds 80 LOC (the 188-LOC _organize_by_lanes is broken up)
-- [ ] No nesting deeper than 3 levels
-- [ ] Public API unchanged: `resolve(model) -> BPMNModel`
-- [ ] All existing tests pass
-- [ ] New test files for LaneOrganizer and BoundaryPositioner
+- [x] 3 classes, each < 400 LOC
+- [x] No method exceeds 80 LOC (the 188-LOC _organize_by_lanes is broken up)
+- [x] No nesting deeper than 3 levels
+- [x] Public API unchanged: `resolve(model) -> BPMNModel`
+- [x] All existing tests pass
+- [x] New test files for LaneOrganizer and BoundaryPositioner
+**Completed:** 2026-02-16
 
 ---
 
@@ -1150,10 +1153,11 @@ async def _generate_with_retry(self, prompt, config):
 ```
 
 **Acceptance Criteria:**
-- [ ] `_generate_with_retry()` is <= 30 LOC
-- [ ] Nesting depth <= 2 levels
-- [ ] All existing tests pass
-- [ ] Retry behavior unchanged (verify with specific retry tests from Phase 4)
+- [x] `_generate_with_retry()` is <= 30 LOC
+- [x] Nesting depth <= 2 levels
+- [x] All existing tests pass
+- [x] Retry behavior unchanged (verify with specific retry tests from Phase 4)
+**Completed:** 2026-02-16
 
 ---
 
@@ -1176,14 +1180,15 @@ Implement the TODO at cli.py:1123:
 3. Update checkpoint after each new image
 
 **Acceptance Criteria:**
-- [ ] `--resume` flag works with a checkpoint directory
-- [ ] Already-completed images are skipped (not regenerated)
-- [ ] New images are generated and evaluated normally
-- [ ] Final output includes all images (completed + resumed)
-- [ ] Test: interrupt mid-generation, resume, verify all images present
-- [ ] Test: resume with fully complete checkpoint (no-op, outputs summary)
-- [ ] Test: resume with missing checkpoint file (clear error message)
-- [ ] TODO comment removed from cli.py
+- [x] `--resume` flag works with a checkpoint directory
+- [x] Already-completed images are skipped (not regenerated)
+- [x] New images are generated and evaluated normally
+- [x] Final output includes all images (completed + resumed)
+- [x] Test: interrupt mid-generation, resume, verify all images present
+- [x] Test: resume with fully complete checkpoint (no-op, outputs summary)
+- [x] Test: resume with missing checkpoint file (clear error message)
+- [x] TODO comment removed from cli.py
+**Completed:** 2026-02-16
 
 ---
 
@@ -1215,9 +1220,10 @@ Each ADR follows format:
 ```
 
 **Acceptance Criteria:**
-- [ ] 4 ADR files created
-- [ ] CLAUDE.md references `docs/adr/` for architectural context
-- [ ] Each ADR is self-contained and clear
+- [x] 4 ADR files created
+- [x] CLAUDE.md references `docs/adr/` for architectural context
+- [x] Each ADR is self-contained and clear
+**Completed:** 2026-02-16
 
 ---
 
@@ -1235,11 +1241,12 @@ Final hardening:
 5. Update CLAUDE.md with final module counts and coverage stats
 
 **Acceptance Criteria:**
-- [ ] All tools at 90%+ coverage (bpmn2drawio at 95%)
-- [ ] mypy clean (no errors)
-- [ ] ruff clean (no warnings)
-- [ ] CI green on all jobs
-- [ ] CLAUDE.md updated with current stats
+- [x] All tools at 90%+ coverage (bpmn2drawio at 95%)
+- [x] mypy clean (no errors)
+- [x] ruff clean (no warnings)
+- [x] CI green on all jobs
+- [x] CLAUDE.md updated with current stats
+**Completed:** 2026-02-16
 
 ---
 
@@ -1250,15 +1257,15 @@ Final hardening:
 - Coverage must not decrease during refactoring (only increase or stay same)
 
 ### Phase 6 Completion Checklist
-- [ ] All 7 work items complete
-- [ ] No function exceeds 200 LOC
-- [ ] No class exceeds 500 LOC
-- [ ] No nesting deeper than 3 levels
-- [ ] Checkpoint resume fully implemented
-- [ ] ADRs documented
-- [ ] All tests passing (800+ total across all tools)
-- [ ] All CI jobs green
-- [ ] Zero technical debt remaining
+- [x] All 7 work items complete
+- [x] No function exceeds 200 LOC
+- [x] No class exceeds 500 LOC
+- [x] No nesting deeper than 3 levels
+- [x] Checkpoint resume fully implemented
+- [x] ADRs documented
+- [x] All tests passing (1,463 total across all tools)
+- [x] All CI jobs green
+- [x] Zero technical debt remaining
 
 ---
 

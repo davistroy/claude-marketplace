@@ -24,7 +24,6 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 import anthropic
 
@@ -218,7 +217,7 @@ def load_from_cache(
         return None
 
     try:
-        with open(cache_path, "r", encoding="utf-8") as f:
+        with open(cache_path, encoding="utf-8") as f:
             data = json.load(f)
 
         # Verify hash matches
@@ -294,9 +293,10 @@ def detect_input_type(input_source: str) -> tuple[str, str | None]:
 
     # Check if it looks like a file path even if it doesn't exist
     # (has file extension and reasonable path structure)
-    if (
-        len(input_source) < 500
-        and ("/" in input_source or "\\" in input_source or input_source.endswith((".md", ".txt", ".docx", ".pdf")))
+    if len(input_source) < 500 and (
+        "/" in input_source
+        or "\\" in input_source
+        or input_source.endswith((".md", ".txt", ".docx", ".pdf"))
     ):
         # Likely intended as a file path but doesn't exist
         return "file", input_source
@@ -347,8 +347,7 @@ def read_docx_file(path: Path) -> str:
     """
     if not DOCX_AVAILABLE:
         raise ImportError(
-            "DOCX support requires python-docx. "
-            "Install with: pip install python-docx"
+            "DOCX support requires python-docx. Install with: pip install python-docx"
         )
 
     if not path.exists():
@@ -377,10 +376,7 @@ def read_pdf_file(path: Path) -> str:
         ValueError: If file can't be read.
     """
     if not PDF_AVAILABLE:
-        raise ImportError(
-            "PDF support requires PyPDF2. "
-            "Install with: pip install PyPDF2"
-        )
+        raise ImportError("PDF support requires PyPDF2. Install with: pip install PyPDF2")
 
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -496,8 +492,7 @@ async def read_input(input_source: str) -> tuple[str, str, str | None]:
             content = read_text_file(path)
         except Exception as e:
             raise ValueError(
-                f"Unsupported file type: {suffix}. "
-                f"Supported types: .md, .txt, .docx, .pdf"
+                f"Unsupported file type: {suffix}. Supported types: .md, .txt, .docx, .pdf"
             ) from e
 
     return content, "file", path_or_url
@@ -566,9 +561,7 @@ def _parse_page_plan(data: dict[str, Any]) -> PagePlan:
         title=data.get("title", "Untitled Page") or "Untitled Page",
         content_focus=data.get("content_focus", "") or "",
         concepts_covered=data.get("concepts_covered", []),
-        content_types_present=_parse_content_types_list(
-            data.get("content_types_present", [])
-        ),
+        content_types_present=_parse_content_types_list(data.get("content_types_present", [])),
         zone_assignments=data.get("zone_assignments", {}),
         cross_references=data.get("cross_references", []),
     )
@@ -632,12 +625,11 @@ def _parse_analysis_json(data: dict[str, Any]) -> ConceptAnalysis:
             Concept(
                 id=concept_id,
                 name=c.get("name", "Unnamed Concept") or "Unnamed Concept",
-                description=c.get("description", "No description provided") or "No description provided",
+                description=c.get("description", "No description provided")
+                or "No description provided",
                 relationships=c.get("relationships", []),
                 complexity=_parse_complexity(c.get("complexity", "moderate")),
-                visual_potential=_parse_visual_potential(
-                    c.get("visual_potential", "medium")
-                ),
+                visual_potential=_parse_visual_potential(c.get("visual_potential", "medium")),
             )
         )
 
@@ -676,14 +668,10 @@ def _parse_analysis_json(data: dict[str, Any]) -> ConceptAnalysis:
     summary = data.get("summary", "").strip() or "Content analysis summary not available."
 
     # Parse content types detected
-    content_types_detected = _parse_content_types_list(
-        data.get("content_types_detected", [])
-    )
+    content_types_detected = _parse_content_types_list(data.get("content_types_detected", []))
 
     # Parse page recommendation
-    page_recommendation = _parse_page_recommendation(
-        data.get("page_recommendation")
-    )
+    page_recommendation = _parse_page_recommendation(data.get("page_recommendation"))
 
     # If no page recommendation, use recommended_image_count for backward compatibility
     recommended_count = data.get("recommended_image_count", 1)
@@ -772,9 +760,7 @@ async def call_claude_for_analysis(
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise ValueError(
-            "ANTHROPIC_API_KEY not found. Run with --setup-keys to configure."
-        )
+        raise ValueError("ANTHROPIC_API_KEY not found. Run with --setup-keys to configure.")
 
     client = anthropic.Anthropic(api_key=api_key)
 

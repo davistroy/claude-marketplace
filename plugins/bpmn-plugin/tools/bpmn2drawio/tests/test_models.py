@@ -1,6 +1,5 @@
 """Tests for BPMN data models."""
 
-import pytest
 from bpmn2drawio.models import (
     BPMNElement,
     BPMNFlow,
@@ -177,8 +176,18 @@ class TestBPMNModel:
                 BPMNElement(id="end1", type="endEvent"),
             ],
             flows=[
-                BPMNFlow(id="flow1", type="sequenceFlow", source_ref="start1", target_ref="task1"),
-                BPMNFlow(id="flow2", type="sequenceFlow", source_ref="task1", target_ref="end1"),
+                BPMNFlow(
+                    id="flow1",
+                    type="sequenceFlow",
+                    source_ref="start1",
+                    target_ref="task1",
+                ),
+                BPMNFlow(
+                    id="flow2",
+                    type="sequenceFlow",
+                    source_ref="task1",
+                    target_ref="end1",
+                ),
             ],
             process_id="process1",
             process_name="Test Process",
@@ -222,8 +231,18 @@ class TestBPMNModel:
         """Test getting incoming/outgoing flows."""
         model = BPMNModel(
             flows=[
-                BPMNFlow(id="flow1", type="sequenceFlow", source_ref="start1", target_ref="task1"),
-                BPMNFlow(id="flow2", type="sequenceFlow", source_ref="task1", target_ref="end1"),
+                BPMNFlow(
+                    id="flow1",
+                    type="sequenceFlow",
+                    source_ref="start1",
+                    target_ref="task1",
+                ),
+                BPMNFlow(
+                    id="flow2",
+                    type="sequenceFlow",
+                    source_ref="task1",
+                    target_ref="end1",
+                ),
             ]
         )
         outgoing = model.get_outgoing_flows("task1")

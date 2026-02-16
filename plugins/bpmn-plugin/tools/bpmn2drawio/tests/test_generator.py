@@ -1,12 +1,11 @@
 """Tests for Draw.io XML generator."""
 
-import pytest
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from bpmn2drawio.parser import parse_bpmn
 from bpmn2drawio.generator import DrawioGenerator
-from bpmn2drawio.models import BPMNModel, BPMNElement, BPMNFlow
+from bpmn2drawio.models import BPMNModel, BPMNElement
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -24,7 +23,7 @@ class TestEmptyModel:
 
         assert result.element_count == 0
         assert result.flow_count == 0
-        assert result.xml_string.startswith('<?xml')
+        assert result.xml_string.startswith("<?xml")
 
     def test_empty_model_has_base_cells(self):
         """Test that empty model has base cells (id=0, id=1)."""
@@ -131,9 +130,7 @@ class TestVertexStyles:
 
     def test_task_style(self):
         """Test task has correct style."""
-        model = BPMNModel(
-            elements=[BPMNElement(id="task1", type="task", name="Task")]
-        )
+        model = BPMNModel(elements=[BPMNElement(id="task1", type="task", name="Task")])
         generator = DrawioGenerator()
 
         xml = generator.generate_string(model)
@@ -221,9 +218,7 @@ class TestGeometry:
 
     def test_default_dimensions(self):
         """Test default dimensions are used when not specified."""
-        model = BPMNModel(
-            elements=[BPMNElement(id="start1", type="startEvent")]
-        )
+        model = BPMNModel(elements=[BPMNElement(id="start1", type="startEvent")])
         generator = DrawioGenerator()
 
         xml = generator.generate_string(model)

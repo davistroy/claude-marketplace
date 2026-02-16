@@ -1,6 +1,5 @@
 """Tests for recovery strategies."""
 
-import pytest
 from pathlib import Path
 
 from bpmn2drawio.recovery import RecoveryStrategy, recover_model
@@ -109,8 +108,9 @@ class TestRecoverInvalidFlow:
     def test_valid_flow_returns_true(self):
         """Test valid flow returns True."""
         strategy = RecoveryStrategy()
-        flow = BPMNFlow(id="Flow_1", type="sequenceFlow",
-                        source_ref="Start_1", target_ref="Task_1")
+        flow = BPMNFlow(
+            id="Flow_1", type="sequenceFlow", source_ref="Start_1", target_ref="Task_1"
+        )
         element_ids = {"Start_1", "Task_1", "End_1"}
 
         result = strategy.recover_invalid_flow(flow, element_ids)
@@ -120,8 +120,9 @@ class TestRecoverInvalidFlow:
     def test_invalid_source_returns_false(self):
         """Test flow with invalid source returns False."""
         strategy = RecoveryStrategy()
-        flow = BPMNFlow(id="Flow_1", type="sequenceFlow",
-                        source_ref="Invalid", target_ref="Task_1")
+        flow = BPMNFlow(
+            id="Flow_1", type="sequenceFlow", source_ref="Invalid", target_ref="Task_1"
+        )
         element_ids = {"Start_1", "Task_1", "End_1"}
 
         result = strategy.recover_invalid_flow(flow, element_ids)
@@ -132,8 +133,9 @@ class TestRecoverInvalidFlow:
     def test_invalid_target_returns_false(self):
         """Test flow with invalid target returns False."""
         strategy = RecoveryStrategy()
-        flow = BPMNFlow(id="Flow_1", type="sequenceFlow",
-                        source_ref="Start_1", target_ref="Invalid")
+        flow = BPMNFlow(
+            id="Flow_1", type="sequenceFlow", source_ref="Start_1", target_ref="Invalid"
+        )
         element_ids = {"Start_1", "Task_1", "End_1"}
 
         result = strategy.recover_invalid_flow(flow, element_ids)
@@ -170,10 +172,7 @@ class TestRecoverGraphvizFailure:
         """Test grid positions don't overlap."""
         strategy = RecoveryStrategy()
         model = BPMNModel(
-            elements=[
-                BPMNElement(id=f"E_{i}", type="task")
-                for i in range(10)
-            ],
+            elements=[BPMNElement(id=f"E_{i}", type="task") for i in range(10)],
             flows=[],
             pools=[],
             lanes=[],
@@ -199,10 +198,18 @@ class TestRecoverModelFunction:
                 BPMNElement(id="End_1", type="endEvent"),
             ],
             flows=[
-                BPMNFlow(id="Flow_1", type="sequenceFlow",
-                         source_ref="Start_1", target_ref="Task_1"),
-                BPMNFlow(id="Flow_2", type="sequenceFlow",
-                         source_ref="Task_1", target_ref="End_1"),
+                BPMNFlow(
+                    id="Flow_1",
+                    type="sequenceFlow",
+                    source_ref="Start_1",
+                    target_ref="Task_1",
+                ),
+                BPMNFlow(
+                    id="Flow_2",
+                    type="sequenceFlow",
+                    source_ref="Task_1",
+                    target_ref="End_1",
+                ),
             ],
             pools=[],
             lanes=[],
@@ -225,10 +232,18 @@ class TestRecoverModelFunction:
                 BPMNElement(id="Task_1", type="task"),
             ],
             flows=[
-                BPMNFlow(id="Flow_Valid", type="sequenceFlow",
-                         source_ref="Task_1", target_ref="Task_1"),
-                BPMNFlow(id="Flow_Invalid", type="sequenceFlow",
-                         source_ref="Invalid", target_ref="Task_1"),
+                BPMNFlow(
+                    id="Flow_Valid",
+                    type="sequenceFlow",
+                    source_ref="Task_1",
+                    target_ref="Task_1",
+                ),
+                BPMNFlow(
+                    id="Flow_Invalid",
+                    type="sequenceFlow",
+                    source_ref="Invalid",
+                    target_ref="Task_1",
+                ),
             ],
             pools=[],
             lanes=[],

@@ -48,6 +48,7 @@ def supports_unicode() -> bool:
         # Check for UTF-8 code page (65001)
         try:
             import ctypes
+
             kernel32 = ctypes.windll.kernel32
             code_page = kernel32.GetConsoleOutputCP()
             if code_page == 65001:
@@ -59,13 +60,13 @@ def supports_unicode() -> bool:
     encoding = sys.stdout.encoding or ""
     return encoding.lower() in ("utf-8", "utf8")
 
+
 # Try to import Rich for formatted output
 try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.prompt import Prompt
     from rich.table import Table
-    from rich.text import Text
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -445,7 +446,9 @@ def display_env_file_created(path: Path, google_key: str | None, anthropic_key: 
     console = get_console()
 
     # Show preview of file contents (with masked keys)
-    google_display = f"GOOGLE_API_KEY={google_key[:10]}..." if google_key else "# GOOGLE_API_KEY=..."
+    google_display = (
+        f"GOOGLE_API_KEY={google_key[:10]}..." if google_key else "# GOOGLE_API_KEY=..."
+    )
     anthropic_display = (
         f"ANTHROPIC_API_KEY={anthropic_key[:12]}..." if anthropic_key else "# ANTHROPIC_API_KEY=..."
     )
@@ -609,8 +612,7 @@ async def run_setup_wizard(
         display_cost_information()
     else:
         console.print(
-            "\n[yellow]No keys were configured. "
-            "Run with --setup-keys to try again.[/yellow]"
+            "\n[yellow]No keys were configured. Run with --setup-keys to try again.[/yellow]"
         )
 
     return APIKeySetupResult(
@@ -701,10 +703,7 @@ def check_keys_and_prompt_if_missing() -> bool:
         result = run_setup_wizard_sync(force=True)
         return result["google"]["present"] and result["anthropic"]["present"]
     else:
-        console.print(
-            "\n[dim]You can run setup later with: "
-            "visual-explainer --setup-keys[/dim]"
-        )
+        console.print("\n[dim]You can run setup later with: visual-explainer --setup-keys[/dim]")
         return False
 
 
@@ -730,8 +729,7 @@ def handle_setup_keys_flag() -> int:
 
         if result["google"]["present"] and result["anthropic"]["present"]:
             console.print(
-                "\n[bold green]Setup complete![/bold green] "
-                "You're ready to generate images."
+                "\n[bold green]Setup complete![/bold green] You're ready to generate images."
             )
             return 0
         elif result["skipped"]:

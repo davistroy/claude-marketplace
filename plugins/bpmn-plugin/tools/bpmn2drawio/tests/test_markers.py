@@ -1,17 +1,13 @@
 """Tests for gateway markers and task/event icons."""
 
-import pytest
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from bpmn2drawio.parser import parse_bpmn
 from bpmn2drawio.generator import DrawioGenerator
 from bpmn2drawio.models import BPMNElement
-from bpmn2drawio.markers import create_gateway_marker, GATEWAY_MARKERS
-from bpmn2drawio.icons import (
-    create_task_icon, create_event_icon,
-    TASK_ICONS, EVENT_ICONS
-)
+from bpmn2drawio.markers import create_gateway_marker
+from bpmn2drawio.icons import create_task_icon, create_event_icon
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -22,10 +18,7 @@ class TestGatewayMarkers:
 
     def test_exclusive_gateway_marker(self):
         """Test exclusive gateway has X marker."""
-        element = BPMNElement(
-            id="gw1", type="exclusiveGateway",
-            width=50, height=50
-        )
+        element = BPMNElement(id="gw1", type="exclusiveGateway", width=50, height=50)
         result = create_gateway_marker(element, "parent_1", 10)
 
         assert result is not None
@@ -36,10 +29,7 @@ class TestGatewayMarkers:
 
     def test_parallel_gateway_marker(self):
         """Test parallel gateway has + marker."""
-        element = BPMNElement(
-            id="gw1", type="parallelGateway",
-            width=50, height=50
-        )
+        element = BPMNElement(id="gw1", type="parallelGateway", width=50, height=50)
         result = create_gateway_marker(element, "parent_1", 10)
 
         assert result is not None
@@ -50,10 +40,7 @@ class TestGatewayMarkers:
 
     def test_inclusive_gateway_marker(self):
         """Test inclusive gateway has O marker."""
-        element = BPMNElement(
-            id="gw1", type="inclusiveGateway",
-            width=50, height=50
-        )
+        element = BPMNElement(id="gw1", type="inclusiveGateway", width=50, height=50)
         result = create_gateway_marker(element, "parent_1", 10)
 
         assert result is not None
@@ -87,10 +74,7 @@ class TestTaskIcons:
 
     def test_user_task_icon(self):
         """Test user task has person icon."""
-        element = BPMNElement(
-            id="task1", type="userTask",
-            width=120, height=80
-        )
+        element = BPMNElement(id="task1", type="userTask", width=120, height=80)
         result = create_task_icon(element, "parent_1", 10)
 
         assert result is not None
@@ -100,10 +84,7 @@ class TestTaskIcons:
 
     def test_service_task_icon(self):
         """Test service task has gear icon."""
-        element = BPMNElement(
-            id="task1", type="serviceTask",
-            width=120, height=80
-        )
+        element = BPMNElement(id="task1", type="serviceTask", width=120, height=80)
         result = create_task_icon(element, "parent_1", 10)
 
         assert result is not None
@@ -112,10 +93,7 @@ class TestTaskIcons:
 
     def test_script_task_icon(self):
         """Test script task has script icon."""
-        element = BPMNElement(
-            id="task1", type="scriptTask",
-            width=120, height=80
-        )
+        element = BPMNElement(id="task1", type="scriptTask", width=120, height=80)
         result = create_task_icon(element, "parent_1", 10)
 
         assert result is not None
@@ -150,9 +128,11 @@ class TestEventIcons:
     def test_timer_start_event(self):
         """Test timer start event has timer icon."""
         element = BPMNElement(
-            id="start1", type="startEvent",
-            width=36, height=36,
-            properties={"eventDefinition": "timer"}
+            id="start1",
+            type="startEvent",
+            width=36,
+            height=36,
+            properties={"eventDefinition": "timer"},
         )
         result = create_event_icon(element, "parent_1", 10)
 
@@ -163,9 +143,11 @@ class TestEventIcons:
     def test_message_end_event(self):
         """Test message end event has message icon."""
         element = BPMNElement(
-            id="end1", type="endEvent",
-            width=36, height=36,
-            properties={"eventDefinition": "message"}
+            id="end1",
+            type="endEvent",
+            width=36,
+            height=36,
+            properties={"eventDefinition": "message"},
         )
         result = create_event_icon(element, "parent_1", 10)
 
@@ -175,10 +157,7 @@ class TestEventIcons:
 
     def test_plain_event_no_icon(self):
         """Test plain event has no icon."""
-        element = BPMNElement(
-            id="start1", type="startEvent",
-            properties={}
-        )
+        element = BPMNElement(id="start1", type="startEvent", properties={})
         result = create_event_icon(element, "parent_1", 10)
         assert result is None
 
@@ -201,10 +180,7 @@ class TestMarkerPositioning:
 
     def test_marker_centered_in_gateway(self):
         """Test marker is centered in gateway."""
-        element = BPMNElement(
-            id="gw1", type="exclusiveGateway",
-            width=50, height=50
-        )
+        element = BPMNElement(id="gw1", type="exclusiveGateway", width=50, height=50)
         result = create_gateway_marker(element, "parent_1", 10)
 
         cell, _ = result
@@ -224,10 +200,7 @@ class TestMarkerPositioning:
 
     def test_task_icon_top_left(self):
         """Test task icon is in top-left."""
-        element = BPMNElement(
-            id="task1", type="userTask",
-            width=120, height=80
-        )
+        element = BPMNElement(id="task1", type="userTask", width=120, height=80)
         result = create_task_icon(element, "parent_1", 10)
 
         cell, _ = result

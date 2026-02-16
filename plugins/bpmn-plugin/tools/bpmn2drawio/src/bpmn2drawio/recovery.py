@@ -1,6 +1,6 @@
 """Recovery strategies for handling errors gracefully."""
 
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Tuple
 import logging
 
 from .models import BPMNModel, BPMNElement, BPMNFlow
@@ -16,11 +16,7 @@ class RecoveryStrategy:
     def __init__(self):
         self.recovered_count = 0
 
-    def recover_missing_coordinates(
-        self,
-        element: BPMNElement,
-        index: int = 0
-    ) -> None:
+    def recover_missing_coordinates(self, element: BPMNElement, index: int = 0) -> None:
         """Fall back to simple grid layout for missing DI.
 
         Args:
@@ -42,11 +38,7 @@ class RecoveryStrategy:
             element.height = element.height or dims[1]
             logger.debug(f"Assigned default dimensions to {element.id}")
 
-    def recover_invalid_parent(
-        self,
-        element: BPMNElement,
-        valid_parents: set
-    ) -> None:
+    def recover_invalid_parent(self, element: BPMNElement, valid_parents: set) -> None:
         """Place element at diagram root if parent invalid.
 
         Args:
@@ -61,10 +53,7 @@ class RecoveryStrategy:
             element.parent_id = None
             self.recovered_count += 1
 
-    def recover_unknown_element_type(
-        self,
-        element: BPMNElement
-    ) -> str:
+    def recover_unknown_element_type(self, element: BPMNElement) -> str:
         """Return generic task style for unknown types.
 
         Args:
@@ -82,11 +71,7 @@ class RecoveryStrategy:
             return STYLE_MAP["task"]
         return STYLE_MAP[element.type]
 
-    def recover_invalid_flow(
-        self,
-        flow: BPMNFlow,
-        element_ids: set
-    ) -> bool:
+    def recover_invalid_flow(self, flow: BPMNFlow, element_ids: set) -> bool:
         """Check if flow can be recovered.
 
         Args:
@@ -113,8 +98,7 @@ class RecoveryStrategy:
         return True
 
     def recover_graphviz_failure(
-        self,
-        model: BPMNModel
+        self, model: BPMNModel
     ) -> Dict[str, Tuple[float, float]]:
         """Use simple grid layout if Graphviz fails.
 
@@ -136,10 +120,7 @@ class RecoveryStrategy:
         for i, element in enumerate(model.elements):
             row = i // elements_per_row
             col = i % elements_per_row
-            positions[element.id] = (
-                margin + col * x_spacing,
-                margin + row * y_spacing
-            )
+            positions[element.id] = (margin + col * x_spacing, margin + row * y_spacing)
 
         return positions
 
@@ -163,7 +144,9 @@ def recover_model(model: BPMNModel) -> Tuple[BPMNModel, int]:
     """
     strategy = RecoveryStrategy()
     element_ids = {e.id for e in model.elements}
-    valid_parents = element_ids | {p.id for p in model.pools} | {l.id for l in model.lanes}
+    valid_parents = (
+        element_ids | {p.id for p in model.pools} | {lane.id for lane in model.lanes}
+    )
 
     # Recover elements
     for i, element in enumerate(model.elements):
@@ -172,8 +155,7 @@ def recover_model(model: BPMNModel) -> Tuple[BPMNModel, int]:
 
     # Filter invalid flows
     valid_flows = [
-        flow for flow in model.flows
-        if strategy.recover_invalid_flow(flow, element_ids)
+        flow for flow in model.flows if strategy.recover_invalid_flow(flow, element_ids)
     ]
     model.flows = valid_flows
 

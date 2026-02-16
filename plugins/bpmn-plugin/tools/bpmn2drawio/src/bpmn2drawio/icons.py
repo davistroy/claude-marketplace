@@ -68,7 +68,6 @@ EVENT_ICONS: Dict[str, Dict] = {
         "style": "shape=mxgraph.bpmn.error;fillColor=none;strokeColor=#82b366;strokeWidth=1;",
         "size": (16, 16),
     },
-
     # End events
     "endEvent_message": {
         "style": "shape=mxgraph.bpmn.message;fillColor=#b85450;strokeColor=#b85450;",
@@ -98,7 +97,6 @@ EVENT_ICONS: Dict[str, Dict] = {
         "style": "shape=mxgraph.bpmn.compensation;fillColor=#b85450;strokeColor=#b85450;",
         "size": (16, 16),
     },
-
     # Intermediate catch events
     "intermediateCatchEvent_message": {
         "style": "shape=mxgraph.bpmn.message;fillColor=none;strokeColor=#d6b656;strokeWidth=1;",
@@ -120,7 +118,6 @@ EVENT_ICONS: Dict[str, Dict] = {
         "style": "shape=mxgraph.bpmn.link;fillColor=none;strokeColor=#d6b656;strokeWidth=1;",
         "size": (16, 16),
     },
-
     # Intermediate throw events
     "intermediateThrowEvent_message": {
         "style": "shape=mxgraph.bpmn.message;fillColor=#d6b656;strokeColor=#d6b656;",
@@ -142,7 +139,6 @@ EVENT_ICONS: Dict[str, Dict] = {
         "style": "shape=mxgraph.bpmn.link;fillColor=#d6b656;strokeColor=#d6b656;",
         "size": (16, 16),
     },
-
     # Boundary events
     "boundaryEvent_message": {
         "style": "shape=mxgraph.bpmn.message;fillColor=none;strokeColor=#d6b656;strokeWidth=1;",

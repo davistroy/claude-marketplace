@@ -7,11 +7,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from research_orchestrator.providers.anthropic import AnthropicProvider
 from research_orchestrator.providers.google import GoogleProvider
 from research_orchestrator.providers.openai import OpenAIProvider
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -239,9 +239,7 @@ class ModelDiscovery:
             agent_date = parse_model_date(agent_id)
             is_current = agent_id == current_agent
             is_newer = (
-                agent_date is not None
-                and current_date is not None
-                and agent_date > current_date
+                agent_date is not None and current_date is not None and agent_date > current_date
             )
             models.append(
                 ModelInfo(

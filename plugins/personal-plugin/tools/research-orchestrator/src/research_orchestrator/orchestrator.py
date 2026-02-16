@@ -2,21 +2,23 @@
 
 import asyncio
 import time
-from typing import Callable, Union
+from collections.abc import Callable
 
 from research_orchestrator.bug_reporter import BugReporter
 from research_orchestrator.config import Depth, ProviderConfig, ResearchConfig
-from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus, ResearchOutput
+from research_orchestrator.models import (
+    ProviderPhase,
+    ProviderResult,
+    ProviderStatus,
+    ResearchOutput,
+)
 from research_orchestrator.providers.anthropic import AnthropicProvider
 from research_orchestrator.providers.base import BaseProvider
 from research_orchestrator.providers.google import GoogleProvider
 from research_orchestrator.providers.openai import OpenAIProvider
 
 # Type alias for status callbacks
-StatusCallback = Union[
-    Callable[[str, ProviderPhase, str], None],
-    Callable[[str, str], None],
-]
+StatusCallback = Callable[[str, ProviderPhase, str], None] | Callable[[str, str], None]
 
 
 class ResearchOrchestrator:
@@ -130,11 +132,7 @@ class ResearchOrchestrator:
         tasks = []
         for provider_config in available_configs:
             provider = self._get_provider(provider_config, config.depth)
-            self._update_status(
-                provider.name,
-                "Starting...",
-                phase=ProviderPhase.INITIALIZING
-            )
+            self._update_status(provider.name, "Starting...", phase=ProviderPhase.INITIALIZING)
             tasks.append(self._execute_with_status(provider, config.prompt))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -179,36 +177,20 @@ class ResearchOrchestrator:
 
         return output
 
-    async def _execute_with_status(
-        self, provider: BaseProvider, prompt: str
-    ) -> ProviderResult:
+    async def _execute_with_status(self, provider: BaseProvider, prompt: str) -> ProviderResult:
         """Execute provider with status updates."""
-        self._update_status(
-            provider.name,
-            "Executing...",
-            phase=ProviderPhase.RESEARCHING
-        )
+        self._update_status(provider.name, "Executing...", phase=ProviderPhase.RESEARCHING)
         try:
             result = await provider.execute(prompt)
             if result.is_success:
-                self._update_status(
-                    provider.name,
-                    "Completed",
-                    phase=ProviderPhase.COMPLETED
-                )
+                self._update_status(provider.name, "Completed", phase=ProviderPhase.COMPLETED)
             else:
                 self._update_status(
-                    provider.name,
-                    f"Failed: {result.error}",
-                    phase=ProviderPhase.FAILED
+                    provider.name, f"Failed: {result.error}", phase=ProviderPhase.FAILED
                 )
             return result
         except Exception as e:
-            self._update_status(
-                provider.name,
-                f"Error: {e}",
-                phase=ProviderPhase.FAILED
-            )
+            self._update_status(provider.name, f"Error: {e}", phase=ProviderPhase.FAILED)
             raise
 
     async def check_providers(self, sources: list[str] | None = None) -> dict[str, bool]:

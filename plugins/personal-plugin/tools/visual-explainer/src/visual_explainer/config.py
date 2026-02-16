@@ -186,7 +186,7 @@ class GenerationConfig(BaseModel):
         dry_run: bool = False,
         setup_keys: bool = False,
         concurrency: int | None = None,
-    ) -> "GenerationConfig":
+    ) -> GenerationConfig:
         """Create config from CLI args with environment variable fallbacks.
 
         Priority: CLI arg > environment variable > default
@@ -209,6 +209,7 @@ class GenerationConfig(BaseModel):
         Returns:
             Validated GenerationConfig instance.
         """
+
         # Helper to get env var with type conversion
         def env_int(key: str, default: int) -> int:
             val = os.getenv(key)
@@ -229,7 +230,9 @@ class GenerationConfig(BaseModel):
             pass_threshold=pass_threshold or env_float("VISUAL_EXPLAINER_PASS_THRESHOLD", 0.85),
             resolution=resolution or env_str("VISUAL_EXPLAINER_RESOLUTION", "high"),
             aspect_ratio=aspect_ratio or env_str("VISUAL_EXPLAINER_ASPECT_RATIO", "16:9"),
-            image_count=image_count if image_count is not None else env_int("VISUAL_EXPLAINER_IMAGE_COUNT", 0),
+            image_count=image_count
+            if image_count is not None
+            else env_int("VISUAL_EXPLAINER_IMAGE_COUNT", 0),
             no_cache=no_cache,
             resume=resume,
             dry_run=dry_run,
@@ -320,10 +323,12 @@ class InternalConfig(BaseModel):
     )
 
     @classmethod
-    def from_env(cls) -> "InternalConfig":
+    def from_env(cls) -> InternalConfig:
         """Create config from environment variables with defaults."""
         return cls(
-            negative_prompt=os.getenv("VISUAL_EXPLAINER_NEGATIVE_PROMPT", cls.model_fields["negative_prompt"].default),
+            negative_prompt=os.getenv(
+                "VISUAL_EXPLAINER_NEGATIVE_PROMPT", cls.model_fields["negative_prompt"].default
+            ),
             cache_dir=Path(os.getenv("VISUAL_EXPLAINER_CACHE_DIR", ".cache/visual-explainer")),
             gemini_timeout_seconds=float(os.getenv("VISUAL_EXPLAINER_GEMINI_TIMEOUT", "300.0")),
             claude_timeout_seconds=float(os.getenv("VISUAL_EXPLAINER_CLAUDE_TIMEOUT", "60.0")),
@@ -338,7 +343,9 @@ class ColorDefinition(BaseModel):
     name: str = Field(alias="Name", description="Human-readable color name")
     hex: str = Field(alias="Hex", description="Hex color code")
     role: str = Field(alias="Role", description="How this color should be used")
-    usage_guidance: str | None = Field(alias="UsageGuidance", default=None, description="Usage guidance for this color")
+    usage_guidance: str | None = Field(
+        alias="UsageGuidance", default=None, description="Usage guidance for this color"
+    )
 
     model_config = {"populate_by_name": True}
 

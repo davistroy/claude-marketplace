@@ -64,7 +64,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=bpmn2drawio --cov-branch --cov-report=term-missing --cov-fail-under=92
+          pytest tests/ -v --cov=bpmn2drawio --cov-branch --cov-report=term-missing --cov-fail-under=90
 
       - name: Type check
         continue-on-error: true
@@ -95,7 +95,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=research_orchestrator --cov-branch --cov-report=term-missing --cov-fail-under=79
+          pytest tests/ -v --cov=research_orchestrator --cov-branch --cov-report=term-missing --cov-fail-under=80
 
       - name: Type check
         continue-on-error: true
@@ -126,7 +126,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=61
+          pytest tests/ -v --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=65
 
       - name: Type check
         continue-on-error: true

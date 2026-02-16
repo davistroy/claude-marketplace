@@ -8,7 +8,7 @@ from .parser import parse_bpmn
 from .generator import DrawioGenerator, GenerationResult
 from .models import BPMNModel
 from .position_resolver import resolve_positions
-from .themes import get_theme, BPMNTheme
+from .themes import get_theme
 from .config import load_brand_config, merge_theme_with_config
 
 

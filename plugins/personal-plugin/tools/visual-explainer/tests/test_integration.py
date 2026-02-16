@@ -13,7 +13,6 @@ Run slow tests with: pytest -m slow
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import json
 from datetime import datetime
@@ -215,7 +214,7 @@ class TestFullPipeline:
                     internal_config=sample_internal_config,
                 )
 
-                with patch.object(image_gen, "_make_api_call", new_callable=AsyncMock) as mock_api:
+                with patch.object(image_gen, "_generate_sync") as mock_api:
                     mock_api.return_value = (
                         GenerationStatus.SUCCESS,
                         base64.b64decode(sample_image_b64),
@@ -330,7 +329,7 @@ class TestRetryLogic:
 
         call_count = [0]
 
-        async def mock_api_call(client, payload):
+        def mock_api_call(prompt, aspect_ratio, image_size):
             call_count[0] += 1
             if call_count[0] < 3:
                 # Return rate limited for first 2 calls
@@ -346,7 +345,7 @@ class TestRetryLogic:
                 None,
             )
 
-        with patch.object(image_gen, "_make_api_call", side_effect=mock_api_call):
+        with patch.object(image_gen, "_generate_sync", side_effect=mock_api_call):
             result = await image_gen.generate_image(
                 prompt="Test prompt",
                 aspect_ratio=AspectRatio.LANDSCAPE_16_9,
@@ -369,14 +368,14 @@ class TestRetryLogic:
             base_delay_seconds=0.01,  # Fast for testing
         )
 
-        async def always_fail(client, payload):
+        def always_fail(prompt, aspect_ratio, image_size):
             return (
                 GenerationStatus.ERROR,
                 None,
                 "API error",
             )
 
-        with patch.object(image_gen, "_make_api_call", side_effect=always_fail):
+        with patch.object(image_gen, "_generate_sync", side_effect=always_fail):
             result = await image_gen.generate_image(
                 prompt="Test prompt",
                 aspect_ratio=AspectRatio.LANDSCAPE_16_9,
@@ -400,7 +399,7 @@ class TestRetryLogic:
 
         call_count = [0]
 
-        async def mock_safety_block(client, payload):
+        def mock_safety_block(prompt, aspect_ratio, image_size):
             call_count[0] += 1
             return (
                 GenerationStatus.SAFETY_BLOCKED,
@@ -408,7 +407,7 @@ class TestRetryLogic:
                 "Content blocked by safety filter",
             )
 
-        with patch.object(image_gen, "_make_api_call", side_effect=mock_safety_block):
+        with patch.object(image_gen, "_generate_sync", side_effect=mock_safety_block):
             result = await image_gen.generate_image(
                 prompt="Test prompt",
                 aspect_ratio=AspectRatio.LANDSCAPE_16_9,
@@ -433,7 +432,7 @@ class TestRetryLogic:
 
         call_count = [0]
 
-        async def mock_timeout_then_success(client, payload):
+        def mock_timeout_then_success(prompt, aspect_ratio, image_size):
             call_count[0] += 1
             if call_count[0] == 1:
                 return (
@@ -447,7 +446,7 @@ class TestRetryLogic:
                 None,
             )
 
-        with patch.object(image_gen, "_make_api_call", side_effect=mock_timeout_then_success):
+        with patch.object(image_gen, "_generate_sync", side_effect=mock_timeout_then_success):
             result = await image_gen.generate_image(
                 prompt="Test prompt",
                 aspect_ratio=AspectRatio.LANDSCAPE_16_9,
@@ -632,14 +631,14 @@ class TestErrorRecovery:
             base_delay_seconds=0.01,
         )
 
-        async def mock_error(client, payload):
+        def mock_error(prompt, aspect_ratio, image_size):
             return (
                 GenerationStatus.ERROR,
                 None,
                 "HTTP 500: Internal Server Error",
             )
 
-        with patch.object(image_gen, "_make_api_call", side_effect=mock_error):
+        with patch.object(image_gen, "_generate_sync", side_effect=mock_error):
             result = await image_gen.generate_image(
                 prompt="Test prompt",
                 aspect_ratio=AspectRatio.LANDSCAPE_16_9,
@@ -665,7 +664,7 @@ class TestErrorRecovery:
 
         call_count = [0]
 
-        async def mock_partial_failure(client, payload):
+        def mock_partial_failure(prompt, aspect_ratio, image_size):
             call_count[0] += 1
             if call_count[0] % 2 == 0:
                 return (
@@ -679,7 +678,7 @@ class TestErrorRecovery:
                 None,
             )
 
-        with patch.object(image_gen, "_make_api_call", side_effect=mock_partial_failure):
+        with patch.object(image_gen, "_generate_sync", side_effect=mock_partial_failure):
             prompts = [
                 (1, "Prompt 1", AspectRatio.LANDSCAPE_16_9, None),
                 (2, "Prompt 2", AspectRatio.LANDSCAPE_16_9, None),
@@ -929,10 +928,12 @@ class TestConcurrentGeneration:
         concurrent_count = [0]
         max_observed_concurrent = [0]
 
-        async def mock_slow_api(client, payload):
+        def mock_slow_api(prompt, aspect_ratio, image_size):
             concurrent_count[0] += 1
             max_observed_concurrent[0] = max(max_observed_concurrent[0], concurrent_count[0])
-            await asyncio.sleep(0.1)  # Simulate API delay
+            import time as _time
+
+            _time.sleep(0.1)  # Simulate API delay (sync — runs in executor)
             concurrent_count[0] -= 1
             return (
                 GenerationStatus.SUCCESS,
@@ -940,7 +941,7 @@ class TestConcurrentGeneration:
                 None,
             )
 
-        with patch.object(image_gen, "_make_api_call", side_effect=mock_slow_api):
+        with patch.object(image_gen, "_generate_sync", side_effect=mock_slow_api):
             prompts = [
                 (i, f"Prompt {i}", AspectRatio.LANDSCAPE_16_9, None)
                 for i in range(1, 6)  # 5 prompts
@@ -1120,7 +1121,7 @@ class TestEndToEnd:
             result.status = "generating"
 
             # Simulate generation
-            with patch.object(image_gen, "_make_api_call", new_callable=AsyncMock) as mock_api:
+            with patch.object(image_gen, "_generate_sync") as mock_api:
                 mock_api.return_value = (
                     GenerationStatus.SUCCESS,
                     base64.b64decode(sample_image_b64),

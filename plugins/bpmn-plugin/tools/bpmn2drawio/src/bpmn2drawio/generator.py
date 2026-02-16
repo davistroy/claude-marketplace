@@ -97,7 +97,9 @@ class DrawioGenerator:
         for pool in model.pools:
             # Calculate pool size if not set
             pool_elements = [e for e in model.elements if e.parent_id == pool.id]
-            pool_lanes = [l for l in model.lanes if l.parent_pool_id == pool.id]
+            pool_lanes = [
+                lane for lane in model.lanes if lane.parent_pool_id == pool.id
+            ]
             if not pool.width or not pool.height:
                 pool.width, pool.height = sizer.calculate_pool_size(
                     pool, pool_elements, pool_lanes
@@ -151,18 +153,14 @@ class DrawioGenerator:
 
             # Add task icons
             if element.type in TASK_TYPES:
-                icon_result = create_task_icon(
-                    element, cell_id, self._cell_counter
-                )
+                icon_result = create_task_icon(element, cell_id, self._cell_counter)
                 if icon_result:
                     icon_cell, self._cell_counter = icon_result
                     root.append(icon_cell)
 
             # Add event icons
             if element.type in EVENT_TYPES:
-                icon_result = create_event_icon(
-                    element, cell_id, self._cell_counter
-                )
+                icon_result = create_event_icon(element, cell_id, self._cell_counter)
                 if icon_result:
                     icon_cell, self._cell_counter = icon_result
                     root.append(icon_cell)
@@ -260,10 +258,16 @@ class DrawioGenerator:
             if element.parent_id in self._subprocess_cell_ids:
                 parent_cell_id = self._subprocess_cell_ids[element.parent_id]
             # Check if parent is a lane
-            elif hasattr(self, '_lane_cell_ids') and element.parent_id in self._lane_cell_ids:
+            elif (
+                hasattr(self, "_lane_cell_ids")
+                and element.parent_id in self._lane_cell_ids
+            ):
                 parent_cell_id = self._lane_cell_ids[element.parent_id]
             # Check if parent is a pool
-            elif hasattr(self, '_pool_cell_ids') and element.parent_id in self._pool_cell_ids:
+            elif (
+                hasattr(self, "_pool_cell_ids")
+                and element.parent_id in self._pool_cell_ids
+            ):
                 parent_cell_id = self._pool_cell_ids[element.parent_id]
             # Fallback to element_cell_ids (for elements parented to other elements)
             elif element.parent_id in self._element_cell_ids:
@@ -330,9 +334,15 @@ class DrawioGenerator:
                 parent_cell_id = self._subprocess_cell_ids[subprocess_id]
         # Then check parent_id for lane/pool
         if parent_cell_id == "1" and element.parent_id:
-            if hasattr(self, '_lane_cell_ids') and element.parent_id in self._lane_cell_ids:
+            if (
+                hasattr(self, "_lane_cell_ids")
+                and element.parent_id in self._lane_cell_ids
+            ):
                 parent_cell_id = self._lane_cell_ids[element.parent_id]
-            elif hasattr(self, '_pool_cell_ids') and element.parent_id in self._pool_cell_ids:
+            elif (
+                hasattr(self, "_pool_cell_ids")
+                and element.parent_id in self._pool_cell_ids
+            ):
                 parent_cell_id = self._pool_cell_ids[element.parent_id]
         cell.set("parent", parent_cell_id)
 
@@ -367,11 +377,14 @@ class DrawioGenerator:
         cell = ET.Element("mxCell")
         cell.set("id", cell_id)
         cell.set("value", flow.name or "")
-        cell.set("style", get_edge_style(
-            flow.type,
-            is_default=flow.is_default,
-            has_condition=flow.condition is not None
-        ))
+        cell.set(
+            "style",
+            get_edge_style(
+                flow.type,
+                is_default=flow.is_default,
+                has_condition=flow.condition is not None,
+            ),
+        )
         cell.set("edge", "1")
         cell.set("parent", "1")
         cell.set("source", source_cell)

@@ -50,13 +50,19 @@ class TestCLIParser:
     def test_parse_all_options(self):
         """Test parsing all options."""
         parser = create_parser()
-        args = parser.parse_args([
-            "input.bpmn", "output.drawio",
-            "--theme", "blueprint",
-            "--layout", "preserve",
-            "--direction", "TB",
-            "--verbose",
-        ])
+        args = parser.parse_args(
+            [
+                "input.bpmn",
+                "output.drawio",
+                "--theme",
+                "blueprint",
+                "--layout",
+                "preserve",
+                "--direction",
+                "TB",
+                "--verbose",
+            ]
+        )
 
         assert args.theme == "blueprint"
         assert args.layout == "preserve"
@@ -71,10 +77,12 @@ class TestCLIMain:
         """Test basic file conversion."""
         output_file = tmp_path / "output.drawio"
 
-        exit_code = main([
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output_file),
-        ])
+        exit_code = main(
+            [
+                str(FIXTURES_DIR / "minimal.bpmn"),
+                str(output_file),
+            ]
+        )
 
         assert exit_code == 0
         assert output_file.exists()
@@ -83,11 +91,14 @@ class TestCLIMain:
         """Test conversion with theme."""
         output_file = tmp_path / "output.drawio"
 
-        exit_code = main([
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output_file),
-            "--theme", "blueprint",
-        ])
+        exit_code = main(
+            [
+                str(FIXTURES_DIR / "minimal.bpmn"),
+                str(output_file),
+                "--theme",
+                "blueprint",
+            ]
+        )
 
         assert exit_code == 0
         assert output_file.exists()
@@ -96,11 +107,13 @@ class TestCLIMain:
         """Test verbose output."""
         output_file = tmp_path / "output.drawio"
 
-        exit_code = main([
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output_file),
-            "--verbose",
-        ])
+        exit_code = main(
+            [
+                str(FIXTURES_DIR / "minimal.bpmn"),
+                str(output_file),
+                "--verbose",
+            ]
+        )
 
         assert exit_code == 0
         captured = capsys.readouterr()
@@ -110,10 +123,12 @@ class TestCLIMain:
         """Test error handling for missing input file."""
         output_file = tmp_path / "output.drawio"
 
-        exit_code = main([
-            "/nonexistent/file.bpmn",
-            str(output_file),
-        ])
+        exit_code = main(
+            [
+                "/nonexistent/file.bpmn",
+                str(output_file),
+            ]
+        )
 
         assert exit_code == 1
         captured = capsys.readouterr()
@@ -123,11 +138,14 @@ class TestCLIMain:
         """Test direction option."""
         output_file = tmp_path / "output.drawio"
 
-        exit_code = main([
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output_file),
-            "--direction", "TB",
-        ])
+        exit_code = main(
+            [
+                str(FIXTURES_DIR / "minimal.bpmn"),
+                str(output_file),
+                "--direction",
+                "TB",
+            ]
+        )
 
         assert exit_code == 0
 
@@ -141,7 +159,9 @@ class TestCLIModule:
 
         result = subprocess.run(
             [
-                sys.executable, "-m", "bpmn2drawio",
+                sys.executable,
+                "-m",
+                "bpmn2drawio",
                 str(FIXTURES_DIR / "minimal.bpmn"),
                 str(output_file),
             ],

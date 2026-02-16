@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Set
 
-from .models import BPMNModel, BPMNElement, BPMNFlow
+from .models import BPMNModel, BPMNElement
 
 
 @dataclass
@@ -45,18 +45,20 @@ class ModelValidator:
         end_events = [e for e in model.elements if e.type == "endEvent"]
 
         if not start_events:
-            warnings.append(ValidationWarning(
-                level="warning",
-                element_id=None,
-                message="Process has no start event"
-            ))
+            warnings.append(
+                ValidationWarning(
+                    level="warning",
+                    element_id=None,
+                    message="Process has no start event",
+                )
+            )
 
         if not end_events:
-            warnings.append(ValidationWarning(
-                level="warning",
-                element_id=None,
-                message="Process has no end event"
-            ))
+            warnings.append(
+                ValidationWarning(
+                    level="warning", element_id=None, message="Process has no end event"
+                )
+            )
 
         return warnings
 
@@ -67,18 +69,22 @@ class ModelValidator:
 
         for flow in model.flows:
             if flow.source_ref not in element_ids:
-                warnings.append(ValidationWarning(
-                    level="error",
-                    element_id=flow.id,
-                    message=f"Flow '{flow.id}' has invalid source reference: '{flow.source_ref}'"
-                ))
+                warnings.append(
+                    ValidationWarning(
+                        level="error",
+                        element_id=flow.id,
+                        message=f"Flow '{flow.id}' has invalid source reference: '{flow.source_ref}'",
+                    )
+                )
 
             if flow.target_ref not in element_ids:
-                warnings.append(ValidationWarning(
-                    level="error",
-                    element_id=flow.id,
-                    message=f"Flow '{flow.id}' has invalid target reference: '{flow.target_ref}'"
-                ))
+                warnings.append(
+                    ValidationWarning(
+                        level="error",
+                        element_id=flow.id,
+                        message=f"Flow '{flow.id}' has invalid target reference: '{flow.target_ref}'",
+                    )
+                )
 
         return warnings
 
@@ -118,11 +124,13 @@ class ModelValidator:
         unreachable = all_ids - visited
 
         for elem_id in unreachable:
-            warnings.append(ValidationWarning(
-                level="info",
-                element_id=elem_id,
-                message=f"Element '{elem_id}' is not connected to the main flow"
-            ))
+            warnings.append(
+                ValidationWarning(
+                    level="info",
+                    element_id=elem_id,
+                    message=f"Element '{elem_id}' is not connected to the main flow",
+                )
+            )
 
         return warnings
 
@@ -132,19 +140,24 @@ class ModelValidator:
 
         # Only check elements with coordinates
         positioned_elements = [
-            e for e in model.elements
-            if e.x is not None and e.y is not None
-            and e.width is not None and e.height is not None
+            e
+            for e in model.elements
+            if e.x is not None
+            and e.y is not None
+            and e.width is not None
+            and e.height is not None
         ]
 
         for i, elem1 in enumerate(positioned_elements):
-            for elem2 in positioned_elements[i + 1:]:
+            for elem2 in positioned_elements[i + 1 :]:
                 if self._elements_overlap(elem1, elem2):
-                    warnings.append(ValidationWarning(
-                        level="warning",
-                        element_id=elem1.id,
-                        message=f"Element '{elem1.id}' overlaps with '{elem2.id}'"
-                    ))
+                    warnings.append(
+                        ValidationWarning(
+                            level="warning",
+                            element_id=elem1.id,
+                            message=f"Element '{elem1.id}' overlaps with '{elem2.id}'",
+                        )
+                    )
 
         return warnings
 
@@ -170,18 +183,26 @@ class ModelValidator:
 
         # Only check tasks and gateways - events without names are common
         labeled_types = {
-            "task", "userTask", "serviceTask", "scriptTask",
-            "sendTask", "receiveTask", "businessRuleTask", "manualTask",
+            "task",
+            "userTask",
+            "serviceTask",
+            "scriptTask",
+            "sendTask",
+            "receiveTask",
+            "businessRuleTask",
+            "manualTask",
             "callActivity",
         }
 
         for elem in model.elements:
             if elem.type in labeled_types and not elem.name:
-                warnings.append(ValidationWarning(
-                    level="info",
-                    element_id=elem.id,
-                    message=f"Element '{elem.id}' has no label"
-                ))
+                warnings.append(
+                    ValidationWarning(
+                        level="info",
+                        element_id=elem.id,
+                        message=f"Element '{elem.id}' has no label",
+                    )
+                )
 
         return warnings
 
