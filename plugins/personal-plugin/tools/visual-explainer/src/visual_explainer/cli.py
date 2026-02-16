@@ -1408,35 +1408,213 @@ async def run_generation_pipeline(
     }
 
 
-async def load_checkpoint_and_resume(checkpoint_path: Path, config: GenerationConfig) -> dict:
-    """Load checkpoint and resume generation.
+async def load_checkpoint_and_resume(
+    checkpoint_path: Path,
+    config: GenerationConfig,
+    quiet: bool = False,
+    json_output: bool = False,
+) -> dict:
+    """Load checkpoint and resume generation from where it left off.
+
+    Reads the checkpoint JSON, determines which images have already been
+    completed, and resumes the generation pipeline for any remaining images.
+    If all images are already complete, displays a summary and returns.
 
     Args:
-        checkpoint_path: Path to checkpoint file.
-        config: Generation configuration.
+        checkpoint_path: Path to checkpoint.json file.
+        config: Generation configuration (may override checkpoint settings).
+        quiet: Suppress progress output.
+        json_output: Return JSON-compatible dict.
 
     Returns:
-        Generation results.
+        Dictionary with generation results including both previously
+        completed and newly generated images.
     """
-    console = get_console()
+    import time
 
+    from visual_explainer.output import CheckpointState
+
+    console = get_console() if not quiet and not json_output else None
+
+    # --- Validate checkpoint file exists ---
     if not checkpoint_path.exists():
-        console.print(f"[red]Checkpoint file not found: {checkpoint_path}[/red]")
-        return {"status": "error", "error": "Checkpoint file not found"}
+        error_msg = f"Checkpoint file not found: {checkpoint_path}"
+        if console:
+            console.print(f"[red]{error_msg}[/red]")
+        return {"status": "error", "error": error_msg}
 
-    console.print(f"[dim]Loading checkpoint: {checkpoint_path}[/dim]")
+    if console:
+        console.print(f"[dim]Loading checkpoint: {checkpoint_path}[/dim]")
 
-    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    # --- Load and parse checkpoint ---
+    try:
+        checkpoint_data = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        checkpoint_state = CheckpointState.from_dict(checkpoint_data)
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        error_msg = f"Invalid checkpoint file: {e}"
+        if console:
+            console.print(f"[red]{error_msg}[/red]")
+        return {"status": "error", "error": error_msg}
 
-    # TODO: Implement full checkpoint resume logic
-    # For now, display what would be resumed
-    console.print("[yellow]Resume functionality coming soon.[/yellow]")
-    console.print("Checkpoint contains:")
-    console.print(f"  - Generation ID: {checkpoint.get('generation_id', 'unknown')}")
-    console.print(f"  - Images completed: {checkpoint.get('images_completed', 0)}")
-    console.print(f"  - Images remaining: {checkpoint.get('images_remaining', 0)}")
+    # --- Determine session directory from checkpoint path ---
+    session_dir = checkpoint_path.parent
 
-    return {"status": "resume_not_implemented", "checkpoint": checkpoint}
+    # --- Display checkpoint summary ---
+    completed_count = len(checkpoint_state.completed_images)
+    remaining_count = checkpoint_state.total_images - completed_count
+
+    if console:
+        console.print()
+        console.print(
+            Panel(
+                f"[bold cyan]Resuming Generation[/bold cyan]\n"
+                f"[dim]Session: {checkpoint_data.get('session_name', 'unknown')}[/dim]",
+                border_style="cyan",
+            )
+        )
+        console.print(f"  Generation ID: {checkpoint_state.generation_id}")
+        console.print(f"  Total images: {checkpoint_state.total_images}")
+        console.print(f"  Completed: {completed_count}")
+        console.print(f"  Remaining: {remaining_count}")
+        console.print()
+
+    # --- If all images are already complete, just return summary ---
+    if remaining_count == 0 or checkpoint_state.status == "completed":
+        if console:
+            console.print(
+                "[green]All images already completed.[/green] No further generation needed."
+            )
+
+        # Build results from checkpoint data
+        image_results_data = []
+        for _img_num_str, result_data in checkpoint_state.image_results.items():
+            image_results_data.append(result_data)
+
+        return {
+            "status": "complete",
+            "output_dir": str(session_dir),
+            "images_generated": completed_count,
+            "total_images": checkpoint_state.total_images,
+            "total_attempts": sum(
+                r.get("total_attempts", r.get("final_attempt", 1))
+                for r in checkpoint_state.image_results.values()
+            ),
+            "resumed": True,
+            "images_already_complete": completed_count,
+            "images_newly_generated": 0,
+            "image_results": image_results_data,
+        }
+
+    # --- Resume generation for remaining images ---
+    start_time = time.time()
+
+    # Load internal config and reconstruct pipeline inputs
+    internal_config = InternalConfig.from_env()
+
+    # Determine style from checkpoint config or CLI override
+    style_name = config.style or checkpoint_state.config.get("style", "professional-clean")
+
+    # Re-run concept analysis and prompt generation to get prompt objects
+    if console:
+        console.print("[dim]Restoring pipeline state...[/dim]")
+
+    analysis, style, style_display_name, total_api_calls = await _analyze_concepts(
+        config, internal_config, style_name, console, infographic_mode=False
+    )
+
+    prompts, prompt_generator, api_calls = _generate_prompts(
+        config, internal_config, analysis, style, console, infographic_mode=False
+    )
+    total_api_calls += api_calls
+
+    # Filter to only remaining (incomplete) prompts
+    remaining_prompts = [
+        p for p in prompts if p.image_number not in checkpoint_state.completed_images
+    ]
+
+    if console:
+        console.print(
+            f"[dim]Resuming generation for {len(remaining_prompts)} remaining image(s)...[/dim]"
+        )
+
+    # Execute generation loop for remaining images only
+    new_results, gen_api_calls = await _execute_generation_loop(
+        remaining_prompts,
+        config,
+        internal_config,
+        analysis,
+        style,
+        style_display_name,
+        prompt_generator,
+        session_dir,
+        quiet,
+        json_output,
+    )
+    total_api_calls += gen_api_calls
+
+    # --- Merge previously completed results with new results ---
+    from visual_explainer.models import ImageResult as ImageResultModel
+
+    all_results: list[ImageResultModel] = []
+
+    # Reconstruct ImageResult objects for previously completed images
+    for img_num in sorted(checkpoint_state.completed_images):
+        img_num_key = str(img_num)
+        if img_num_key in checkpoint_state.image_results:
+            prev_data = checkpoint_state.image_results[img_num_key]
+            prev_result = ImageResultModel(
+                image_number=prev_data.get("image_number", img_num),
+                title=prev_data.get("title", f"Image {img_num}"),
+            )
+            prev_result.status = prev_data.get("status", "complete")
+            prev_result.final_attempt = prev_data.get("final_attempt")
+            prev_result.final_score = prev_data.get("final_score")
+            prev_result.final_path = prev_data.get("final_path")
+            all_results.append(prev_result)
+
+    # Add newly generated results
+    all_results.extend(new_results)
+
+    # Sort by image number for consistent ordering
+    all_results.sort(key=lambda r: r.image_number)
+
+    # --- Save updated outputs ---
+    timestamp = checkpoint_data.get("started_at", datetime.now().isoformat())
+    topic_slug = checkpoint_data.get("topic", "unknown").lower().replace(" ", "-")[:30]
+
+    _save_outputs(
+        all_results,
+        prompts,
+        session_dir,
+        config,
+        analysis,
+        style_display_name,
+        timestamp,
+        topic_slug,
+        total_api_calls,
+    )
+
+    total_duration = time.time() - start_time
+    suppress_output = quiet or json_output
+
+    if not suppress_output:
+        display_completion_summary(all_results, session_dir, total_duration, total_api_calls)
+
+    newly_generated = len([r for r in new_results if r.status == "complete"])
+
+    return {
+        "status": "complete",
+        "output_dir": str(session_dir),
+        "images_generated": len([r for r in all_results if r.status == "complete"]),
+        "total_images": checkpoint_state.total_images,
+        "total_attempts": sum(r.total_attempts for r in all_results),
+        "total_duration_seconds": total_duration,
+        "total_api_calls": total_api_calls,
+        "resumed": True,
+        "images_already_complete": completed_count,
+        "images_newly_generated": newly_generated,
+        "image_results": [r.model_dump(mode="json") for r in all_results],
+    }
 
 
 def main() -> int:
@@ -1466,7 +1644,14 @@ def main() -> int:
             dry_run=args.dry_run,
             concurrency=args.concurrency,
         )
-        result = asyncio.run(load_checkpoint_and_resume(checkpoint_path, config))
+        result = asyncio.run(
+            load_checkpoint_and_resume(
+                checkpoint_path,
+                config,
+                quiet=args.quiet,
+                json_output=args.json,
+            )
+        )
         if args.json:
             print(json.dumps(result, indent=2))
         return 0 if result.get("status") != "error" else 1

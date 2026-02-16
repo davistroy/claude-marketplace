@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -671,3 +672,298 @@ class TestPromptForInput:
         with patch("visual_explainer.cli.is_interactive", return_value=False):
             with pytest.raises(RuntimeError, match="non-interactive"):
                 prompt_for_input()
+
+
+# ---------------------------------------------------------------------------
+# Checkpoint Resume Tests (Item 6.5)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckpointResume:
+    """Tests for checkpoint resume functionality."""
+
+    def test_resume_flag_registered_in_parser(self):
+        """Test --resume flag is properly registered in the CLI parser."""
+        parser = create_parser()
+        args = parser.parse_args(["--resume", "/some/path/checkpoint.json"])
+        assert args.resume == "/some/path/checkpoint.json"
+
+    def test_resume_flag_accepts_various_paths(self):
+        """Test --resume accepts various path formats."""
+        parser = create_parser()
+        paths = [
+            "./output/checkpoint.json",
+            "/absolute/path/checkpoint.json",
+            "relative/checkpoint.json",
+            "checkpoint.json",
+        ]
+        for path in paths:
+            args = parser.parse_args(["--resume", path])
+            assert args.resume == path
+
+    def test_resume_flag_default_is_none(self):
+        """Test --resume defaults to None when not provided."""
+        parser = create_parser()
+        args = parser.parse_args(["-i", "test.md"])
+        assert args.resume is None
+
+    def test_resume_with_missing_checkpoint_file(self, tmp_path):
+        """Test resume with a missing checkpoint file gives a clear error."""
+        nonexistent_path = tmp_path / "nonexistent" / "checkpoint.json"
+
+        with patch(
+            "sys.argv",
+            ["visual-explainer", "--resume", str(nonexistent_path)],
+        ):
+            mock_config = MagicMock()
+            with patch(
+                "visual_explainer.cli.GenerationConfig.from_cli_and_env",
+                return_value=mock_config,
+            ):
+                result = main()
+                assert result == 1
+
+    def test_resume_with_missing_checkpoint_returns_error_status(self):
+        """Test load_checkpoint_and_resume returns error for missing file."""
+        import asyncio
+
+        from visual_explainer.cli import load_checkpoint_and_resume
+
+        nonexistent = Path("/nonexistent/checkpoint.json")
+        mock_config = MagicMock()
+
+        result = asyncio.run(load_checkpoint_and_resume(nonexistent, mock_config, quiet=True))
+        assert result["status"] == "error"
+        assert "not found" in result["error"]
+
+    def test_resume_with_invalid_json_checkpoint(self, tmp_path):
+        """Test resume with invalid JSON in checkpoint file returns error."""
+        import asyncio
+
+        from visual_explainer.cli import load_checkpoint_and_resume
+
+        checkpoint_path = tmp_path / "checkpoint.json"
+        checkpoint_path.write_text("not valid json{{{", encoding="utf-8")
+
+        mock_config = MagicMock()
+        result = asyncio.run(load_checkpoint_and_resume(checkpoint_path, mock_config, quiet=True))
+        assert result["status"] == "error"
+        assert "Invalid checkpoint" in result["error"]
+
+    def test_resume_with_fully_complete_checkpoint(self, tmp_path):
+        """Test resume with a fully complete checkpoint is a no-op that outputs summary."""
+        import asyncio
+
+        from visual_explainer.cli import load_checkpoint_and_resume
+
+        # Create a fully complete checkpoint
+        checkpoint_data = {
+            "generation_id": "test-complete-gen",
+            "started_at": "2026-01-18T12:00:00",
+            "total_images": 2,
+            "config": {
+                "max_iterations": 5,
+                "pass_threshold": 0.85,
+                "style": "professional-clean",
+            },
+            "analysis_hash": "sha256:abc123",
+            "current_image": 2,
+            "current_attempt": 2,
+            "completed_images": [1, 2],
+            "image_results": {
+                "1": {
+                    "image_number": 1,
+                    "title": "First Image",
+                    "final_attempt": 2,
+                    "final_score": 0.90,
+                    "final_path": str(tmp_path / "image-01" / "final.jpg"),
+                    "status": "complete",
+                    "total_attempts": 2,
+                },
+                "2": {
+                    "image_number": 2,
+                    "title": "Second Image",
+                    "final_attempt": 1,
+                    "final_score": 0.92,
+                    "final_path": str(tmp_path / "image-02" / "final.jpg"),
+                    "status": "complete",
+                    "total_attempts": 1,
+                },
+            },
+            "status": "completed",
+            "topic": "Test Topic",
+            "session_name": "visual-explainer-test-20260118-120000",
+        }
+
+        checkpoint_path = tmp_path / "checkpoint.json"
+        checkpoint_path.write_text(json.dumps(checkpoint_data), encoding="utf-8")
+
+        mock_config = MagicMock()
+        result = asyncio.run(load_checkpoint_and_resume(checkpoint_path, mock_config, quiet=True))
+
+        assert result["status"] == "complete"
+        assert result["images_generated"] == 2
+        assert result["total_images"] == 2
+        assert result["resumed"] is True
+        assert result["images_already_complete"] == 2
+        assert result["images_newly_generated"] == 0
+
+    def test_resume_with_partially_complete_checkpoint_identifies_remaining(self, tmp_path):
+        """Test resume with partially complete checkpoint identifies remaining work."""
+        import asyncio
+
+        from visual_explainer.cli import load_checkpoint_and_resume
+
+        # Create a partially complete checkpoint (1 of 3 done)
+        checkpoint_data = {
+            "generation_id": "test-partial-gen",
+            "started_at": "2026-01-18T12:00:00",
+            "total_images": 3,
+            "config": {
+                "max_iterations": 5,
+                "pass_threshold": 0.85,
+                "style": "professional-clean",
+            },
+            "analysis_hash": "sha256:abc123",
+            "current_image": 2,
+            "current_attempt": 1,
+            "completed_images": [1],
+            "image_results": {
+                "1": {
+                    "image_number": 1,
+                    "title": "First Image",
+                    "final_attempt": 2,
+                    "final_score": 0.88,
+                    "final_path": str(tmp_path / "image-01" / "final.jpg"),
+                    "status": "complete",
+                    "total_attempts": 2,
+                }
+            },
+            "status": "in_progress",
+            "topic": "Test Topic",
+            "session_name": "visual-explainer-test-20260118-120000",
+        }
+
+        checkpoint_path = tmp_path / "checkpoint.json"
+        checkpoint_path.write_text(json.dumps(checkpoint_data), encoding="utf-8")
+
+        mock_config = MagicMock()
+        mock_config.style = "professional-clean"
+
+        # Mock the pipeline functions that would be called during resume
+        mock_analysis = MagicMock()
+        mock_analysis.title = "Test Topic"
+        mock_analysis.word_count = 500
+        mock_analysis.content_hash = "sha256:abc123"
+        mock_analysis.model_dump = MagicMock(return_value={})
+
+        mock_prompt1 = MagicMock()
+        mock_prompt1.image_number = 1
+        mock_prompt2 = MagicMock()
+        mock_prompt2.image_number = 2
+        mock_prompt3 = MagicMock()
+        mock_prompt3.image_number = 3
+
+        mock_style = MagicMock()
+        mock_prompt_gen = MagicMock()
+
+        # Mock new image results for the remaining 2 images
+        mock_new_result_2 = MagicMock()
+        mock_new_result_2.image_number = 2
+        mock_new_result_2.title = "Second Image"
+        mock_new_result_2.status = "complete"
+        mock_new_result_2.final_attempt = 1
+        mock_new_result_2.final_score = 0.91
+        mock_new_result_2.final_path = str(tmp_path / "image-02" / "final.jpg")
+        mock_new_result_2.total_attempts = 1
+        mock_new_result_2.model_dump = MagicMock(
+            return_value={"image_number": 2, "status": "complete"}
+        )
+
+        mock_new_result_3 = MagicMock()
+        mock_new_result_3.image_number = 3
+        mock_new_result_3.title = "Third Image"
+        mock_new_result_3.status = "complete"
+        mock_new_result_3.final_attempt = 2
+        mock_new_result_3.final_score = 0.87
+        mock_new_result_3.final_path = str(tmp_path / "image-03" / "final.jpg")
+        mock_new_result_3.total_attempts = 2
+        mock_new_result_3.model_dump = MagicMock(
+            return_value={"image_number": 3, "status": "complete"}
+        )
+
+        with patch(
+            "visual_explainer.cli._analyze_concepts",
+            new_callable=AsyncMock,
+            return_value=(mock_analysis, mock_style, "professional-clean", 1),
+        ):
+            with patch(
+                "visual_explainer.cli._generate_prompts",
+                return_value=(
+                    [mock_prompt1, mock_prompt2, mock_prompt3],
+                    mock_prompt_gen,
+                    1,
+                ),
+            ):
+                with patch(
+                    "visual_explainer.cli._execute_generation_loop",
+                    new_callable=AsyncMock,
+                    return_value=(
+                        [mock_new_result_2, mock_new_result_3],
+                        10,
+                    ),
+                ) as mock_gen_loop:
+                    with patch("visual_explainer.cli._save_outputs"):
+                        result = asyncio.run(
+                            load_checkpoint_and_resume(checkpoint_path, mock_config, quiet=True)
+                        )
+
+        assert result["status"] == "complete"
+        assert result["resumed"] is True
+        assert result["images_already_complete"] == 1
+        assert result["images_newly_generated"] == 2
+        assert result["total_images"] == 3
+
+        # Verify only remaining prompts were passed to generation loop
+        gen_loop_call_args = mock_gen_loop.call_args
+        prompts_passed = gen_loop_call_args[0][0]
+        assert len(prompts_passed) == 2
+        assert prompts_passed[0].image_number == 2
+        assert prompts_passed[1].image_number == 3
+
+    def test_resume_main_entry_with_json_output(self, tmp_path):
+        """Test resume via main() with --json flag returns JSON result."""
+        checkpoint_data = {
+            "generation_id": "test-json-resume",
+            "started_at": "2026-01-18T12:00:00",
+            "total_images": 1,
+            "config": {"style": "professional-clean"},
+            "analysis_hash": "sha256:abc",
+            "completed_images": [1],
+            "image_results": {
+                "1": {
+                    "image_number": 1,
+                    "title": "Only Image",
+                    "final_attempt": 1,
+                    "final_score": 0.95,
+                    "status": "complete",
+                    "total_attempts": 1,
+                }
+            },
+            "status": "completed",
+        }
+
+        checkpoint_path = tmp_path / "checkpoint.json"
+        checkpoint_path.write_text(json.dumps(checkpoint_data), encoding="utf-8")
+
+        with patch(
+            "sys.argv",
+            ["visual-explainer", "--resume", str(checkpoint_path), "--json"],
+        ):
+            mock_config = MagicMock()
+            with patch(
+                "visual_explainer.cli.GenerationConfig.from_cli_and_env",
+                return_value=mock_config,
+            ):
+                result = main()
+                assert result == 0

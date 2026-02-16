@@ -136,7 +136,7 @@ class OutputManager:
         self._initialized = False
 
     @classmethod
-    def from_checkpoint(cls, checkpoint_path: Path | str) -> "OutputManager":
+    def from_checkpoint(cls, checkpoint_path: Path | str) -> OutputManager:
         """Restore OutputManager from a checkpoint file.
 
         Args:
@@ -237,7 +237,7 @@ class OutputManager:
         self,
         image_number: int,
         version: int,
-        prompt: "ImagePrompt",
+        prompt: ImagePrompt,
     ) -> Path:
         """Save a prompt version as text file.
 
@@ -261,7 +261,7 @@ class OutputManager:
 
         return filepath
 
-    def _format_prompt_text(self, prompt: "ImagePrompt") -> str:
+    def _format_prompt_text(self, prompt: ImagePrompt) -> str:
         """Format an ImagePrompt as readable text.
 
         Args:
@@ -305,12 +305,14 @@ class OutputManager:
             lines.append("")
 
         if prompt.flow_connection.transition_intent:
-            lines.extend([
-                "## Flow Connection",
-                f"Previous: {prompt.flow_connection.previous or 'None (first image)'}",
-                f"Next: {prompt.flow_connection.next_image or 'None (last image)'}",
-                f"Transition: {prompt.flow_connection.transition_intent}",
-            ])
+            lines.extend(
+                [
+                    "## Flow Connection",
+                    f"Previous: {prompt.flow_connection.previous or 'None (first image)'}",
+                    f"Next: {prompt.flow_connection.next_image or 'None (last image)'}",
+                    f"Transition: {prompt.flow_connection.transition_intent}",
+                ]
+            )
 
         return "\n".join(lines)
 
@@ -318,7 +320,7 @@ class OutputManager:
         self,
         image_number: int,
         attempt_number: int,
-        evaluation: "EvaluationResult",
+        evaluation: EvaluationResult,
     ) -> Path:
         """Save an evaluation result as JSON.
 
@@ -391,7 +393,7 @@ class OutputManager:
 
         return dest_path
 
-    async def save_metadata(self, metadata: "GenerationMetadata") -> Path:
+    async def save_metadata(self, metadata: GenerationMetadata) -> Path:
         """Write metadata.json with full generation metadata.
 
         Args:
@@ -411,7 +413,7 @@ class OutputManager:
 
         return filepath
 
-    async def save_concepts(self, analysis: "ConceptAnalysis") -> Path:
+    async def save_concepts(self, analysis: ConceptAnalysis) -> Path:
         """Write concepts.json with the extracted concept analysis.
 
         Args:
@@ -433,9 +435,9 @@ class OutputManager:
 
     async def generate_summary(
         self,
-        analysis: "ConceptAnalysis",
-        metadata: "GenerationMetadata",
-        image_results: list["ImageResult"],
+        analysis: ConceptAnalysis,
+        metadata: GenerationMetadata,
+        image_results: list[ImageResult],
     ) -> Path:
         """Generate summary.md human-readable report.
 
@@ -459,9 +461,9 @@ class OutputManager:
 
     def _generate_summary_content(
         self,
-        analysis: "ConceptAnalysis",
-        metadata: "GenerationMetadata",
-        image_results: list["ImageResult"],
+        analysis: ConceptAnalysis,
+        metadata: GenerationMetadata,
+        image_results: list[ImageResult],
     ) -> str:
         """Generate the content for summary.md.
 
@@ -498,8 +500,8 @@ class OutputManager:
             "",
             "## Generation Results",
             "",
-            f"| Metric | Value |",
-            f"|--------|-------|",
+            "| Metric | Value |",
+            "|--------|-------|",
             f"| Images Planned | {metadata.results.images_planned} |",
             f"| Images Generated | {completed} |",
             f"| Failed | {failed} |",
@@ -526,12 +528,14 @@ class OutputManager:
             lines.append(f"- **Visual Potential:** {concept.visual_potential.value}")
             lines.append("")
 
-        lines.extend([
-            "---",
-            "",
-            "## Generated Images",
-            "",
-        ])
+        lines.extend(
+            [
+                "---",
+                "",
+                "## Generated Images",
+                "",
+            ]
+        )
 
         # List image results
         for result in image_results:
@@ -550,30 +554,32 @@ class OutputManager:
                 lines.append(f"- **Final Image:** [{rel_path}]({rel_path})")
             lines.append("")
 
-        lines.extend([
-            "---",
-            "",
-            "## Configuration",
-            "",
-            f"| Setting | Value |",
-            f"|---------|-------|",
-            f"| Max Iterations | {metadata.config.max_iterations} |",
-            f"| Pass Threshold | {metadata.config.pass_threshold:.0%} |",
-            f"| Aspect Ratio | {metadata.config.aspect_ratio} |",
-            f"| Resolution | {metadata.config.resolution} |",
-            f"| Style | {metadata.config.style} |",
-            f"| Concurrency | {metadata.config.concurrency} |",
-            "",
-            "---",
-            "",
-            f"*Generated by Visual Concept Explainer*",
-        ])
+        lines.extend(
+            [
+                "---",
+                "",
+                "## Configuration",
+                "",
+                "| Setting | Value |",
+                "|---------|-------|",
+                f"| Max Iterations | {metadata.config.max_iterations} |",
+                f"| Pass Threshold | {metadata.config.pass_threshold:.0%} |",
+                f"| Aspect Ratio | {metadata.config.aspect_ratio} |",
+                f"| Resolution | {metadata.config.resolution} |",
+                f"| Style | {metadata.config.style} |",
+                f"| Concurrency | {metadata.config.concurrency} |",
+                "",
+                "---",
+                "",
+                "*Generated by Visual Concept Explainer*",
+            ]
+        )
 
         return "\n".join(lines)
 
     async def save_checkpoint(
         self,
-        state: "CheckpointState",
+        state: CheckpointState,
     ) -> Path:
         """Save checkpoint for resume support.
 
@@ -596,7 +602,7 @@ class OutputManager:
 
         return filepath
 
-    async def load_checkpoint(self) -> "CheckpointState | None":
+    async def load_checkpoint(self) -> CheckpointState | None:
         """Load checkpoint if it exists.
 
         Returns:
@@ -606,7 +612,7 @@ class OutputManager:
         if not filepath.exists():
             return None
 
-        async with aiofiles.open(filepath, "r", encoding="utf-8") as f:
+        async with aiofiles.open(filepath, encoding="utf-8") as f:
             content = await f.read()
 
         checkpoint_dict = json.loads(content)
@@ -798,7 +804,7 @@ class CheckpointState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CheckpointState":
+    def from_dict(cls, data: dict[str, Any]) -> CheckpointState:
         """Restore checkpoint state from dictionary.
 
         Args:
@@ -832,7 +838,7 @@ class CheckpointState:
 
 async def finalize_output(
     output_manager: OutputManager,
-    image_results: list["ImageResult"],
+    image_results: list[ImageResult],
 ) -> list[Path]:
     """Finalize all output files after generation completes.
 
@@ -867,3 +873,36 @@ async def finalize_output(
         final_paths.append(all_images_path)
 
     return final_paths
+
+
+def load_checkpoint_from_path(checkpoint_path: Path | str) -> CheckpointState:
+    """Load a CheckpointState directly from a checkpoint file path.
+
+    This is a convenience function for resume functionality that reads
+    and parses a checkpoint JSON file into a CheckpointState object.
+
+    Args:
+        checkpoint_path: Path to the checkpoint.json file.
+
+    Returns:
+        Parsed CheckpointState instance.
+
+    Raises:
+        FileNotFoundError: If the checkpoint file does not exist.
+        ValueError: If the checkpoint JSON is invalid or missing required fields.
+        json.JSONDecodeError: If the file is not valid JSON.
+    """
+    checkpoint_path = Path(checkpoint_path)
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint file not found: {checkpoint_path}")
+
+    with open(checkpoint_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Validate required fields
+    required_fields = ["generation_id", "started_at", "total_images"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        raise ValueError(f"Checkpoint missing required fields: {', '.join(missing)}")
+
+    return CheckpointState.from_dict(data)

@@ -11,12 +11,16 @@ Key features:
 4. Cross-page narrative flow and visual consistency
 
 Design philosophy:
-- 11×17 inch 4K infographics can hold 800-2000 words of readable text
+- 11x17 inch 4K infographics can hold 800-2000 words of readable text
 - Each page should convey substantial information, not just simple visuals
 - Zone-based layouts ensure consistent, professional composition
 - Text specifications are explicit (font sizes, placement, content)
 
 Uses anthropic SDK for Claude API calls.
+
+Delegates to:
+- InfographicPromptBuilder for infographic page prompt construction
+- PromptRefiner for iterative prompt refinement based on feedback
 """
 
 from __future__ import annotations
@@ -29,19 +33,16 @@ from typing import Any
 import anthropic
 
 from .config import GenerationConfig, InternalConfig, StyleConfig
+from .infographic_builder import InfographicPromptBuilder
 from .models import (
     ConceptAnalysis,
-    ContentType,
-    ContentZone,
     EvaluationResult,
     FlowConnection,
     ImagePrompt,
-    PagePlan,
-    PageRecommendation,
-    PageType,
     PromptDetails,
 )
-from .page_templates import PAGE_LAYOUTS, get_layout_for_page_type, get_zone_prompt_guidance
+from .page_templates import get_layout_for_page_type
+from .prompt_refiner import PromptRefiner
 from .style_loader import format_prompt_injection
 
 logger = logging.getLogger(__name__)
@@ -61,11 +62,15 @@ class PromptGenerator:
 
     This class handles the conversion of concept analysis into detailed image
     prompts, and the iterative refinement of prompts based on evaluation feedback.
+    Uses composition to delegate infographic building and refinement to
+    specialized classes.
 
     Attributes:
         client: Anthropic API client.
         model: Claude model ID to use for generation.
         internal_config: Internal configuration with defaults.
+        infographic_builder: Builds infographic page prompts.
+        refiner: Handles iterative prompt refinement.
 
     Example:
         >>> generator = PromptGenerator(api_key="sk-ant-...")
@@ -93,6 +98,16 @@ class PromptGenerator:
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
         self.internal_config = internal_config or InternalConfig.from_env()
+
+        # Compose specialized helpers
+        self.infographic_builder = InfographicPromptBuilder(
+            internal_config=self.internal_config,
+        )
+        self.refiner = PromptRefiner(
+            client=self.client,
+            model=self.model,
+            internal_config=self.internal_config,
+        )
 
     def generate_prompts(
         self,
@@ -217,8 +232,8 @@ class PromptGenerator:
                 # Get layout template for this page type
                 layout = get_layout_for_page_type(page_plan.page_type)
 
-                # Build the infographic prompt for this page
-                infographic_prompt = self._build_infographic_page_prompt(
+                # Build the infographic prompt for this page (delegated)
+                infographic_prompt = self.infographic_builder.build_infographic_page_prompt(
                     analysis=analysis,
                     page_plan=page_plan,
                     layout=layout,
@@ -239,11 +254,11 @@ class PromptGenerator:
                     ],
                 )
 
-                # Parse response and build ImagePrompt
+                # Parse response and build ImagePrompt (delegated)
                 response_text = response.content[0].text
-                prompt_data = self._parse_infographic_response(response_text)
+                prompt_data = self.infographic_builder.parse_infographic_response(response_text)
 
-                image_prompt = self._build_infographic_image_prompt(
+                image_prompt = self.infographic_builder.build_infographic_image_prompt(
                     prompt_data=prompt_data,
                     page_plan=page_plan,
                     layout=layout,
@@ -274,394 +289,6 @@ class PromptGenerator:
             logger.error(f"Unexpected error during infographic generation: {e}")
             raise PromptGenerationError(f"Infographic generation failed: {e}") from e
 
-    def _build_infographic_page_prompt(
-        self,
-        analysis: ConceptAnalysis,
-        page_plan: PagePlan,
-        layout: Any,  # PageLayout
-        style_injection: dict[str, str],
-        total_pages: int,
-        config: GenerationConfig | None = None,
-    ) -> str:
-        """Build prompt for a single infographic page.
-
-        Creates a detailed prompt that specifies:
-        - Zone-by-zone content requirements
-        - Typography and text specifications
-        - Visual elements and their placement
-        - Specific text content to include
-        - Cross-page consistency requirements
-
-        Args:
-            analysis: Full concept analysis for context.
-            page_plan: Plan for this specific page.
-            layout: PageLayout template for this page type.
-            style_injection: Formatted style components.
-            total_pages: Total number of pages in sequence.
-            config: Optional generation configuration.
-
-        Returns:
-            Formatted prompt string for Claude.
-        """
-        # Get concepts covered by this page
-        covered_concepts = [
-            c for c in analysis.concepts if c.id in page_plan.concepts_covered
-        ]
-        concepts_text = self._format_concepts_detail(covered_concepts)
-
-        # Build zone specifications
-        zone_specs = self._build_zone_specifications(
-            layout=layout,
-            page_plan=page_plan,
-            analysis=analysis,
-        )
-
-        # Get aspect ratio
-        aspect_ratio = config.aspect_ratio.value if config else "16:9"
-
-        prompt = f"""You are an expert infographic designer creating a detailed image generation prompt.
-
-## Document Context
-
-**Title:** {analysis.title}
-**Summary:** {analysis.summary}
-**Target Audience:** {analysis.target_audience}
-
-## Page Specification
-
-**Page:** {page_plan.page_number} of {total_pages}
-**Page Type:** {page_plan.page_type.value}
-**Page Title:** {page_plan.title}
-**Content Focus:** {page_plan.content_focus}
-
-## Concepts to Visualize on This Page
-
-{concepts_text}
-
-## Page Layout Template
-
-**Layout Type:** {layout.page_type.value}
-**Description:** {layout.description}
-
-### Zone-by-Zone Specifications
-
-{zone_specs}
-
-### Design Notes
-{layout.design_notes}
-
-## Style Requirements
-
-**Core Style:** {style_injection.get('core_style', 'professional, clean, modern infographic')}
-**Color Palette:** {style_injection.get('color_constraints', 'professional business colors')}
-**Style Prefix:** {style_injection.get('style_prefix', '')}
-
-## Critical Design Requirements
-
-1. **INFORMATION DENSITY**: This is an 11×17 inch infographic at 4K resolution (5100×3300 pixels).
-   - Can display 800-2000 words of readable text
-   - Include specific, detailed text content in each zone
-   - Every zone should carry meaningful information
-
-2. **TYPOGRAPHY SPECIFICATIONS**:
-   - Headline text: 48-72pt equivalent (zone: page_header, hero elements)
-   - Subhead text: 24-36pt equivalent (zone headers, section titles)
-   - Body text: 14-18pt equivalent (descriptions, explanations)
-   - Caption text: 10-12pt equivalent (annotations, source notes)
-
-3. **TEXT CONTENT**: For each zone, specify the ACTUAL text to be displayed:
-   - Headers and titles with specific wording
-   - Bullet points with complete text
-   - Data labels and annotations
-   - Callout text and explanations
-
-4. **VISUAL HIERARCHY**: Ensure clear reading flow:
-   - Primary: Hero stats/key insights (largest, most prominent)
-   - Secondary: Framework elements and supporting data
-   - Tertiary: Detail text and annotations
-
-5. **CROSS-PAGE CONSISTENCY** (Page {page_plan.page_number} of {total_pages}):
-   - Maintain consistent header style across pages
-   - Use consistent iconography and visual language
-   - Page number and navigation indicators
-{self._get_cross_references_text(page_plan)}
-
-## Output Format
-
-Create a detailed image generation prompt with these components:
-
-```json
-{{
-  "page_title": "Exact title text for page header",
-  "main_prompt": "Comprehensive prompt describing the entire infographic layout, visual elements, and text specifications...",
-  "zone_content": {{
-    "zone_name": {{
-      "text_content": ["Exact text line 1", "Exact text line 2", "..."],
-      "visual_elements": "Description of icons, charts, or graphics",
-      "layout_notes": "Specific placement guidance"
-    }}
-  }},
-  "typography_spec": {{
-    "headline_text": ["List of headline-sized text items"],
-    "subhead_text": ["List of subhead-sized text items"],
-    "body_text": ["List of body-sized text blocks"],
-    "caption_text": ["List of caption-sized annotations"]
-  }},
-  "style_guidance": "Specific style instructions for this page",
-  "color_palette": "Color specifications with hex codes if possible",
-  "composition": "Overall layout and visual hierarchy description",
-  "avoid": "Elements that should NOT appear",
-  "success_criteria": [
-    "Specific, measurable criteria for this infographic page"
-  ]
-}}
-```
-
-## Aspect Ratio
-Design for {aspect_ratio} aspect ratio (landscape orientation for 11×17 printing).
-
-Generate a prompt that will create an information-rich infographic page that could be printed at 11×17 inches and read like a detailed visual document.
-
-Respond with ONLY the JSON object, no additional text."""
-
-        return prompt
-
-    def _format_concepts_detail(self, concepts: list) -> str:
-        """Format concepts with full detail for infographic generation.
-
-        Args:
-            concepts: List of Concept objects to format.
-
-        Returns:
-            Detailed formatted concept descriptions.
-        """
-        if not concepts:
-            return "No specific concepts for this page."
-
-        lines = []
-        for concept in concepts:
-            lines.append(
-                f"### Concept {concept.id}: {concept.name}\n"
-                f"**Description:** {concept.description}\n"
-                f"**Key Points:**\n"
-            )
-            # Extract key points from description if available
-            if hasattr(concept, 'key_points') and concept.key_points:
-                for point in concept.key_points:
-                    lines.append(f"  - {point}")
-            lines.append(
-                f"\n**Visual Potential:** {concept.visual_potential.value}\n"
-                f"**Complexity:** {concept.complexity.value}"
-            )
-        return "\n\n".join(lines)
-
-    def _build_zone_specifications(
-        self,
-        layout: Any,  # PageLayout
-        page_plan: PagePlan,
-        analysis: ConceptAnalysis,
-    ) -> str:
-        """Build detailed zone specifications for the prompt.
-
-        Args:
-            layout: PageLayout template.
-            page_plan: Plan for this page.
-            analysis: Full analysis for context.
-
-        Returns:
-            Formatted zone specifications.
-        """
-        lines = []
-        for zone in layout.zones:
-            zone_guidance = get_zone_prompt_guidance(zone)
-
-            # Get zone assignment if available
-            assigned_content = page_plan.zone_assignments.get(zone.name, "")
-
-            lines.append(f"""
-#### Zone: {zone.name}
-- **Position:** {zone.position}
-- **Size:** {zone.width_percent}% width × {zone.height_percent}% height
-- **Content Type:** {zone.content_type.value}
-- **Typography Scale:** {zone.typography_scale}
-- **Guidance:** {zone.content_guidance}
-{f'- **Assigned Content:** {assigned_content}' if assigned_content else ''}
-""")
-        return "\n".join(lines)
-
-    def _get_cross_references_text(self, page_plan: PagePlan) -> str:
-        """Generate cross-reference text for page plan.
-
-        Args:
-            page_plan: Plan for this page.
-
-        Returns:
-            Formatted cross-reference instructions.
-        """
-        if not page_plan.cross_references:
-            return ""
-
-        refs = "\n".join(f"   - {ref}" for ref in page_plan.cross_references)
-        return f"\n   **Cross-references to other pages:**\n{refs}"
-
-    def _parse_infographic_response(self, response_text: str) -> dict[str, Any]:
-        """Parse Claude's infographic prompt response.
-
-        Args:
-            response_text: Raw response text from Claude.
-
-        Returns:
-            Parsed prompt data dictionary.
-
-        Raises:
-            json.JSONDecodeError: If parsing fails.
-        """
-        # Try to extract JSON from markdown code block
-        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", response_text)
-        if json_match:
-            json_str = json_match.group(1).strip()
-        else:
-            # Try to find JSON object directly
-            json_match = re.search(r"\{[\s\S]*\}", response_text)
-            if json_match:
-                json_str = json_match.group(0)
-            else:
-                json_str = response_text.strip()
-
-        return json.loads(json_str)
-
-    def _build_infographic_image_prompt(
-        self,
-        prompt_data: dict[str, Any],
-        page_plan: PagePlan,
-        layout: Any,  # PageLayout
-        total_pages: int,
-        style_injection: dict[str, str],
-        config: GenerationConfig | None = None,
-    ) -> ImagePrompt:
-        """Build an ImagePrompt from infographic response data.
-
-        Args:
-            prompt_data: Parsed response data.
-            page_plan: Plan for this page.
-            layout: PageLayout template.
-            total_pages: Total number of pages.
-            style_injection: Style components.
-            config: Optional generation configuration.
-
-        Returns:
-            Validated ImagePrompt instance.
-        """
-        # Build main prompt with zone content embedded
-        main_prompt = prompt_data.get("main_prompt", "")
-
-        # Add typography specifications to prompt if available
-        typography_spec = prompt_data.get("typography_spec", {})
-        if typography_spec:
-            typography_text = self._format_typography_for_prompt(typography_spec)
-            main_prompt = f"{main_prompt}\n\n{typography_text}"
-
-        # Add style prefix if not already present
-        if style_injection.get("style_prefix") and style_injection["style_prefix"] not in main_prompt:
-            main_prompt = f"{style_injection['style_prefix']}. {main_prompt}"
-
-        # Combine avoid/negative prompts
-        avoid = prompt_data.get("avoid", "")
-        style_negative = style_injection.get("negative", "")
-        default_negative = self.internal_config.negative_prompt
-        combined_avoid = self._combine_negative_prompts(avoid, style_negative, default_negative)
-
-        # Build PromptDetails
-        prompt_details = PromptDetails(
-            main_prompt=main_prompt,
-            style_guidance=prompt_data.get("style_guidance", style_injection.get("core_style", "")),
-            color_palette=prompt_data.get("color_palette", style_injection.get("color_constraints", "")),
-            composition=prompt_data.get("composition", layout.description),
-            avoid=combined_avoid,
-        )
-
-        # Build flow connection
-        flow_connection = FlowConnection(
-            previous=page_plan.page_number - 1 if page_plan.page_number > 1 else None,
-            next_image=page_plan.page_number + 1 if page_plan.page_number < total_pages else None,
-            transition_intent=f"Continues to page {page_plan.page_number + 1}" if page_plan.page_number < total_pages else "Final page",
-        )
-
-        # Get success criteria
-        success_criteria = prompt_data.get("success_criteria", [])
-        if not success_criteria:
-            success_criteria = self._generate_infographic_criteria(page_plan, layout)
-
-        return ImagePrompt(
-            image_number=page_plan.page_number,
-            image_title=prompt_data.get("page_title", page_plan.title),
-            concepts_covered=page_plan.concepts_covered,
-            visual_intent=page_plan.content_focus,
-            prompt=prompt_details,
-            success_criteria=success_criteria,
-            flow_connection=flow_connection,
-        )
-
-    def _format_typography_for_prompt(self, typography_spec: dict[str, list[str]]) -> str:
-        """Format typography specifications for inclusion in prompt.
-
-        Args:
-            typography_spec: Dictionary of typography levels to text items.
-
-        Returns:
-            Formatted typography instructions.
-        """
-        lines = ["TEXT CONTENT SPECIFICATIONS:"]
-
-        if typography_spec.get("headline_text"):
-            lines.append("\nHEADLINE TEXT (48-72pt):")
-            for text in typography_spec["headline_text"]:
-                lines.append(f'  "{text}"')
-
-        if typography_spec.get("subhead_text"):
-            lines.append("\nSUBHEAD TEXT (24-36pt):")
-            for text in typography_spec["subhead_text"]:
-                lines.append(f'  "{text}"')
-
-        if typography_spec.get("body_text"):
-            lines.append("\nBODY TEXT (14-18pt):")
-            for text in typography_spec["body_text"]:
-                lines.append(f'  "{text}"')
-
-        if typography_spec.get("caption_text"):
-            lines.append("\nCAPTION TEXT (10-12pt):")
-            for text in typography_spec["caption_text"]:
-                lines.append(f'  "{text}"')
-
-        return "\n".join(lines)
-
-    def _generate_infographic_criteria(
-        self,
-        page_plan: PagePlan,
-        layout: Any,  # PageLayout
-    ) -> list[str]:
-        """Generate default success criteria for infographic pages.
-
-        Args:
-            page_plan: Plan for this page.
-            layout: PageLayout template.
-
-        Returns:
-            List of success criteria.
-        """
-        criteria = [
-            f"Page clearly presents: {page_plan.content_focus}",
-            f"All {len(layout.zones)} content zones are populated with readable text",
-            "Typography hierarchy is clear (headlines > subheads > body > captions)",
-            "Information density appropriate for 11×17 inch print at 300 DPI",
-            f"Visual style consistent with {page_plan.page_type.value} page type",
-        ]
-
-        if page_plan.page_number > 1:
-            criteria.append("Visual consistency with previous pages maintained")
-
-        return criteria
-
     def refine_prompt(
         self,
         original: ImagePrompt,
@@ -672,7 +299,8 @@ Respond with ONLY the JSON object, no additional text."""
     ) -> ImagePrompt:
         """Refine a prompt based on evaluation feedback.
 
-        Implements an escalating refinement strategy:
+        Delegates to PromptRefiner which implements an escalating refinement
+        strategy:
         - Attempt 2: Add specific fixes from feedback
         - Attempt 3: Strengthen weak areas, simplify complex elements
         - Attempt 4: Try alternative visual metaphor
@@ -691,53 +319,34 @@ Respond with ONLY the JSON object, no additional text."""
         Raises:
             PromptGenerationError: If refinement fails.
         """
-        try:
-            # Determine refinement strategy based on attempt
-            strategy = self._get_refinement_strategy(attempt, feedback)
+        return self.refiner.refine_prompt(
+            original=original,
+            feedback=feedback,
+            attempt=attempt,
+            style=style,
+            config=config,
+        )
 
-            # Build refinement prompt
-            refinement_prompt = self._build_refinement_prompt(
-                original=original,
-                feedback=feedback,
-                strategy=strategy,
-                style=format_prompt_injection(style),
-            )
+    # -- Keep backward-compatible private methods as delegates --
 
-            # Call Claude API
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=2000,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": refinement_prompt,
-                    }
-                ],
-            )
+    def _get_refinement_strategy(
+        self,
+        attempt: int,
+        feedback: EvaluationResult,
+    ) -> dict[str, Any]:
+        """Determine the refinement strategy based on attempt number.
 
-            # Parse response
-            response_text = response.content[0].text
-            refined_data = self._parse_refinement_response(response_text)
+        Delegates to PromptRefiner._get_refinement_strategy for backward
+        compatibility with tests that call this method directly.
 
-            # Build refined ImagePrompt
-            refined_prompt = self._build_refined_prompt(
-                original=original,
-                refined_data=refined_data,
-                attempt=attempt,
-            )
+        Args:
+            attempt: Current attempt number.
+            feedback: Evaluation result with scores and suggestions.
 
-            logger.info(
-                f"Refined prompt for image {original.image_number}, attempt {attempt}: "
-                f"strategy={strategy['name']}"
-            )
-            return refined_prompt
-
-        except anthropic.APIError as e:
-            logger.error(f"Anthropic API error during prompt refinement: {e}")
-            raise PromptGenerationError(f"API error: {e}") from e
-        except Exception as e:
-            logger.error(f"Unexpected error during prompt refinement: {e}")
-            raise PromptGenerationError(f"Refinement failed: {e}") from e
+        Returns:
+            Strategy dictionary with name and instructions.
+        """
+        return self.refiner._get_refinement_strategy(attempt, feedback)
 
     def _build_generation_prompt(
         self,
@@ -762,7 +371,11 @@ Respond with ONLY the JSON object, no additional text."""
 
         # Get configuration values
         aspect_ratio = config.aspect_ratio.value if config else "16:9"
-        image_count = config.image_count if config and config.image_count > 0 else analysis.recommended_image_count
+        image_count = (
+            config.image_count
+            if config and config.image_count > 0
+            else analysis.recommended_image_count
+        )
 
         # Build the prompt
         prompt = f"""You are an expert visual designer creating prompts for AI image generation.
@@ -783,12 +396,12 @@ Respond with ONLY the JSON object, no additional text."""
 
 ## Style Guidance
 
-**Core Style:** {style_injection.get('core_style', 'professional, clean, modern')}
-**Color Guidance:** {style_injection.get('color_constraints', 'professional color palette')}
-**Style Prefix:** {style_injection.get('style_prefix', '')}
+**Core Style:** {style_injection.get("core_style", "professional, clean, modern")}
+**Color Guidance:** {style_injection.get("color_constraints", "professional color palette")}
+**Style Prefix:** {style_injection.get("style_prefix", "")}
 
 ## Quality Checklist
-{style_injection.get('quality_checklist', '- Professional appearance')}
+{style_injection.get("quality_checklist", "- Professional appearance")}
 
 ## Your Task
 
@@ -937,10 +550,15 @@ Respond with ONLY the JSON array, no additional text."""
         # Build PromptDetails with style injection
         main_prompt = prompt_data.get("main_prompt", "")
         style_guidance = prompt_data.get("style_guidance", style_injection.get("core_style", ""))
-        color_palette = prompt_data.get("color_palette", style_injection.get("color_constraints", ""))
+        color_palette = prompt_data.get(
+            "color_palette", style_injection.get("color_constraints", "")
+        )
 
         # Combine style prefix with main prompt
-        if style_injection.get("style_prefix") and style_injection["style_prefix"] not in main_prompt:
+        if (
+            style_injection.get("style_prefix")
+            and style_injection["style_prefix"] not in main_prompt
+        ):
             main_prompt = f"{style_injection['style_prefix']}. {main_prompt}"
 
         # Build avoid/negative prompt
@@ -1025,256 +643,6 @@ Respond with ONLY the JSON array, no additional text."""
             criteria.append(f"Effectively represents concept(s): {', '.join(map(str, concepts))}")
 
         return criteria
-
-    def _get_refinement_strategy(
-        self,
-        attempt: int,
-        feedback: EvaluationResult,
-    ) -> dict[str, Any]:
-        """Determine the refinement strategy based on attempt number.
-
-        Escalating strategy:
-        - Attempt 2: Add specific fixes from feedback
-        - Attempt 3: Strengthen weak areas, simplify
-        - Attempt 4: Try alternative visual metaphor
-        - Attempt 5+: Fundamental restructure
-
-        Args:
-            attempt: Current attempt number.
-            feedback: Evaluation result with scores and suggestions.
-
-        Returns:
-            Strategy dictionary with name and instructions.
-        """
-        # Find weakest criterion
-        scores = feedback.criteria_scores.to_dict()
-        weakest_criterion = min(scores, key=scores.get)
-        weakest_score = scores[weakest_criterion]
-
-        if attempt == 2:
-            return {
-                "name": "specific_fixes",
-                "description": "Add specific fixes from evaluation feedback",
-                "instructions": (
-                    "Apply the specific refinement suggestions from the evaluation. "
-                    "Focus on addressing the listed weaknesses while preserving strengths. "
-                    "Make targeted changes rather than wholesale rewrites."
-                ),
-                "focus_areas": feedback.refinement_suggestions,
-                "preserve": feedback.strengths,
-            }
-
-        elif attempt == 3:
-            return {
-                "name": "strengthen_and_simplify",
-                "description": "Strengthen weak areas while simplifying complex elements",
-                "instructions": (
-                    f"The weakest area is {weakest_criterion} (score: {weakest_score:.2f}). "
-                    "Significantly strengthen this area. Simplify any overly complex visual "
-                    "elements that may be causing confusion. Reduce visual noise and "
-                    "increase clarity of the core message."
-                ),
-                "focus_areas": [weakest_criterion] + feedback.missing_elements,
-                "preserve": feedback.strengths,
-            }
-
-        elif attempt == 4:
-            return {
-                "name": "alternative_metaphor",
-                "description": "Try an alternative visual metaphor",
-                "instructions": (
-                    "The current visual approach isn't working well. Try a completely "
-                    "different visual metaphor or representation for the concepts. "
-                    "Think of an alternative way to visualize the same ideas that might "
-                    "resonate better with the target audience. Consider using different "
-                    "shapes, symbols, or organizational structures."
-                ),
-                "focus_areas": feedback.weaknesses,
-                "preserve": [],  # Fresh approach, don't constrain
-            }
-
-        else:  # Attempt 5+
-            return {
-                "name": "fundamental_restructure",
-                "description": "Fundamental restructure of composition and approach",
-                "instructions": (
-                    "Multiple refinement attempts have not achieved the desired quality. "
-                    "Fundamentally rethink the image composition and visual approach. "
-                    "Consider: different perspective, different scale, different focus, "
-                    "or representing only the most essential concept if covering too much. "
-                    "Prioritize clarity over comprehensiveness."
-                ),
-                "focus_areas": ["simplify", "clarity", "core_message"],
-                "preserve": [],
-            }
-
-    def _build_refinement_prompt(
-        self,
-        original: ImagePrompt,
-        feedback: EvaluationResult,
-        strategy: dict[str, Any],
-        style: dict[str, str],
-    ) -> str:
-        """Build the prompt for refining an image prompt.
-
-        Args:
-            original: Original ImagePrompt that was evaluated.
-            feedback: Evaluation result with feedback.
-            strategy: Refinement strategy dictionary.
-            style: Style injection components.
-
-        Returns:
-            Formatted refinement prompt.
-        """
-        # Format feedback
-        strengths_text = "\n".join(f"- {s}" for s in feedback.strengths) if feedback.strengths else "- None identified"
-        weaknesses_text = "\n".join(f"- {w}" for w in feedback.weaknesses) if feedback.weaknesses else "- None identified"
-        missing_text = "\n".join(f"- {m}" for m in feedback.missing_elements) if feedback.missing_elements else "- None identified"
-        suggestions_text = "\n".join(f"- {s}" for s in feedback.refinement_suggestions) if feedback.refinement_suggestions else "- None provided"
-
-        # Format scores
-        scores = feedback.criteria_scores.to_dict()
-        scores_text = "\n".join(f"- {k}: {v:.2f}" for k, v in scores.items())
-
-        prompt = f"""You are refining an image generation prompt based on evaluation feedback.
-
-## Original Prompt
-
-**Title:** {original.title}
-**Visual Intent:** {original.visual_intent}
-**Main Prompt:** {original.prompt.main_prompt}
-**Style Guidance:** {original.prompt.style_guidance}
-**Composition:** {original.prompt.composition}
-**Color Palette:** {original.prompt.color_palette}
-
-## Evaluation Feedback
-
-**Overall Score:** {feedback.overall_score:.2f}
-
-**Criteria Scores:**
-{scores_text}
-
-**Strengths:**
-{strengths_text}
-
-**Weaknesses:**
-{weaknesses_text}
-
-**Missing Elements:**
-{missing_text}
-
-**Refinement Suggestions:**
-{suggestions_text}
-
-## Refinement Strategy: {strategy['name']}
-
-{strategy['description']}
-
-**Instructions:** {strategy['instructions']}
-
-## Style Guidance (Maintain)
-
-**Core Style:** {style.get('core_style', '')}
-**Color Constraints:** {style.get('color_constraints', '')}
-
-## Your Task
-
-Create a refined prompt that addresses the evaluation feedback while following the refinement strategy.
-
-Focus on:
-1. Addressing the weaknesses identified
-2. Incorporating missing elements
-3. Following the specific refinement instructions
-4. Maintaining style consistency
-5. Preserving what worked well (strengths)
-
-Respond with a JSON object:
-```json
-{{
-  "main_prompt": "Your refined main prompt...",
-  "style_guidance": "Refined style guidance...",
-  "composition": "Refined composition guidance...",
-  "color_palette": "Color guidance...",
-  "avoid": "Elements to avoid...",
-  "success_criteria": ["Updated success criteria..."],
-  "refinement_reasoning": "Brief explanation of key changes made..."
-}}
-```
-
-Respond with ONLY the JSON object, no additional text."""
-
-        return prompt
-
-    def _parse_refinement_response(self, response_text: str) -> dict[str, Any]:
-        """Parse Claude's refinement response.
-
-        Args:
-            response_text: Raw response text.
-
-        Returns:
-            Parsed refinement data dictionary.
-
-        Raises:
-            json.JSONDecodeError: If parsing fails.
-        """
-        # Try to extract JSON from markdown code block
-        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", response_text)
-        if json_match:
-            json_str = json_match.group(1).strip()
-        else:
-            # Try to find JSON object directly
-            json_match = re.search(r"\{[\s\S]*\}", response_text)
-            if json_match:
-                json_str = json_match.group(0)
-            else:
-                json_str = response_text.strip()
-
-        return json.loads(json_str)
-
-    def _build_refined_prompt(
-        self,
-        original: ImagePrompt,
-        refined_data: dict[str, Any],
-        attempt: int,
-    ) -> ImagePrompt:
-        """Build a refined ImagePrompt from refinement response.
-
-        Args:
-            original: Original ImagePrompt.
-            refined_data: Parsed refinement data.
-            attempt: Current attempt number.
-
-        Returns:
-            Refined ImagePrompt with updated components.
-        """
-        # Build updated PromptDetails
-        prompt_details = PromptDetails(
-            main_prompt=refined_data.get("main_prompt", original.prompt.main_prompt),
-            style_guidance=refined_data.get("style_guidance", original.prompt.style_guidance),
-            color_palette=refined_data.get("color_palette", original.prompt.color_palette),
-            composition=refined_data.get("composition", original.prompt.composition),
-            avoid=refined_data.get("avoid", original.prompt.avoid),
-        )
-
-        # Update success criteria if provided
-        success_criteria = refined_data.get("success_criteria", original.success_criteria)
-        if not success_criteria:
-            success_criteria = original.success_criteria
-
-        # Log refinement reasoning if available
-        reasoning = refined_data.get("refinement_reasoning", "")
-        if reasoning:
-            logger.debug(f"Refinement reasoning for attempt {attempt}: {reasoning}")
-
-        return ImagePrompt(
-            image_number=original.image_number,
-            image_title=original.title,
-            concepts_covered=original.concepts_covered,
-            visual_intent=original.visual_intent,
-            prompt=prompt_details,
-            success_criteria=success_criteria,
-            flow_connection=original.flow_connection,
-        )
 
 
 def generate_prompts(
@@ -1387,7 +755,7 @@ def generate_infographic_prompts(
         >>> # Generate infographic prompts
         >>> prompts = generate_infographic_prompts(analysis, style)
         >>>
-        >>> # Each prompt is designed for 11×17 inch infographic
+        >>> # Each prompt is designed for 11x17 inch infographic
         >>> for prompt in prompts:
         ...     print(f"Page {prompt.image_number}: {prompt.title}")
     """
