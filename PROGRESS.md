@@ -20,3 +20,8 @@
 | 2026-02-16 | 2.1 Add Dedicated CI Jobs | Complete | .github/workflows/test.yml (3 new jobs) |
 | 2026-02-16 | 2.2 Add mypy Type Checking | Complete | 4 pyproject.toml files, test.yml |
 | 2026-02-16 | 2.3 Add Pre-commit Python Checks | Complete | scripts/pre-commit |
+| 2026-02-16 | 3.1 Create test_position_resolver.py | Complete | tests/test_position_resolver.py (68 tests, 87% coverage) |
+| 2026-02-16 | 3.2 Create test_config.py | Complete | tests/test_config.py (33 tests, 100% coverage) |
+| 2026-02-16 | 3.3 Create test_waypoints.py | Complete | tests/test_waypoints.py (35 tests, 100% coverage) |
+| 2026-02-16 | 3.4 Create test_icons.py and test_styles.py | Complete | tests/test_icons.py (44 tests), tests/test_styles.py (44 tests) |
+| 2026-02-16 | 3.5 Raise Coverage Threshold to 92% | Complete | .github/workflows/test.yml |
