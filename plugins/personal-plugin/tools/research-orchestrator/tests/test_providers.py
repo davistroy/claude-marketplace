@@ -1,6 +1,5 @@
 """Tests for OpenAI and Google provider modules."""
 
-import asyncio
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,10 +8,8 @@ import pytest
 from research_orchestrator.config import Depth, ProviderConfig
 from research_orchestrator.models import ProviderResult, ProviderStatus
 from research_orchestrator.providers.anthropic import AnthropicProvider
-from research_orchestrator.providers.base import BaseProvider
 from research_orchestrator.providers.google import GoogleProvider
 from research_orchestrator.providers.openai import OpenAIProvider
-
 
 # ============================================================================
 # Fixtures
@@ -181,7 +178,7 @@ class TestBaseProvider:
         provider._status_update("Test message")
 
         assert len(status_updates) == 1
-        assert status_updates[0] == ("openai", "Test message")
+        assert status_updates[0] == ("openai", "[researching] Test message")
 
     def test_status_update_without_callback(self, openai_provider):
         """BP-005: Status update is no-op without callback."""
@@ -514,6 +511,7 @@ class TestGoogleProvider:
 
     def test_google_extract_content_response_candidates(self, google_provider):
         """GP-012: Extract from response.candidates."""
+
         # Need to avoid having 'text' attribute on response to hit candidates path
         # The code checks hasattr(response, "text") first
         class Part:
@@ -544,6 +542,7 @@ class TestGoogleProvider:
 
     def test_google_extract_content_fallback(self, google_provider):
         """GP-013: Extract when all formats fail returns str(interaction)."""
+
         # Use __slots__ to strictly control which attributes exist
         class EmptyInteraction:
             """Interaction with no extractable content."""
@@ -570,7 +569,7 @@ class TestGoogleProvider:
         # Verify callback is properly configured
         provider._status_update("Test update")
         assert len(status_updates) == 1
-        assert status_updates[0] == ("gemini", "Test update")
+        assert status_updates[0] == ("gemini", "[researching] Test update")
 
     @pytest.mark.asyncio
     async def test_google_missing_api_key(self, google_config_no_key):

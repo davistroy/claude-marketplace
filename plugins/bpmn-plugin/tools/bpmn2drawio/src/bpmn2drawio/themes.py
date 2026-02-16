@@ -1,7 +1,7 @@
 """Theme system for BPMN diagrams."""
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+from dataclasses import dataclass
+from typing import Dict
 
 
 @dataclass
@@ -78,7 +78,6 @@ class BPMNTheme:
 # Predefined themes
 THEMES: Dict[str, BPMNTheme] = {
     "default": BPMNTheme(),
-
     "blueprint": BPMNTheme(
         start_event_fill="#e3f2fd",
         start_event_stroke="#1976d2",
@@ -100,7 +99,6 @@ THEMES: Dict[str, BPMNTheme] = {
         pool_stroke="#1976d2",
         sequence_flow_stroke="#1976d2",
     ),
-
     "monochrome": BPMNTheme(
         start_event_fill="#ffffff",
         start_event_stroke="#333333",
@@ -125,7 +123,6 @@ THEMES: Dict[str, BPMNTheme] = {
         sequence_flow_stroke="#333333",
         message_flow_stroke="#333333",
     ),
-
     "high_contrast": BPMNTheme(
         start_event_fill="#c8e6c9",
         start_event_stroke="#2e7d32",

@@ -3,11 +3,9 @@
 import pytest
 from pathlib import Path
 import xml.etree.ElementTree as ET
-import glob
 
 from bpmn2drawio.converter import Converter
 from bpmn2drawio.parser import parse_bpmn
-from bpmn2drawio.generator import DrawioGenerator
 from bpmn2drawio.validation import validate_model
 
 
@@ -26,10 +24,7 @@ class TestEndToEnd:
         """Test minimal BPMN to Draw.io conversion."""
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         assert result.success
         assert output.exists()
@@ -49,10 +44,7 @@ class TestEndToEnd:
     def test_output_is_valid_xml(self, converter, tmp_path):
         """Test generated file is valid XML."""
         output = tmp_path / "output.drawio"
-        converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         # Should parse without error
         tree = ET.parse(str(output))
@@ -63,10 +55,7 @@ class TestEndToEnd:
     def test_output_has_correct_structure(self, converter, tmp_path):
         """Test generated file has correct Draw.io structure."""
         output = tmp_path / "output.drawio"
-        converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         tree = ET.parse(str(output))
         root = tree.getroot()
@@ -87,10 +76,7 @@ class TestEndToEnd:
         input_model = parse_bpmn(FIXTURES_DIR / "minimal.bpmn")
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         assert result.element_count == len(input_model.elements)
 
@@ -99,10 +85,7 @@ class TestEndToEnd:
         input_model = parse_bpmn(FIXTURES_DIR / "minimal.bpmn")
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         assert result.flow_count == len(input_model.flows)
 
@@ -115,10 +98,7 @@ class TestConversionOptions:
         converter = Converter(theme="blueprint")
         output = tmp_path / "output.drawio"
 
-        converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         content = output.read_text()
         # Blueprint uses blue colors
@@ -129,10 +109,7 @@ class TestConversionOptions:
         converter = Converter(direction="LR")
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         assert result.success
 
@@ -141,10 +118,7 @@ class TestConversionOptions:
         converter = Converter(direction="TB")
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         assert result.success
 
@@ -157,10 +131,7 @@ class TestElementTypes:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "with_gateway.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "with_gateway.bpmn"), str(output))
 
         assert result.success
         content = output.read_text()
@@ -172,10 +143,7 @@ class TestElementTypes:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "all_tasks.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "all_tasks.bpmn"), str(output))
 
         assert result.success
         content = output.read_text()
@@ -187,10 +155,7 @@ class TestElementTypes:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "all_gateways.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "all_gateways.bpmn"), str(output))
 
         assert result.success
         content = output.read_text()
@@ -202,10 +167,7 @@ class TestElementTypes:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "all_events.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "all_events.bpmn"), str(output))
 
         assert result.success
         content = output.read_text()
@@ -221,10 +183,7 @@ class TestSwimlaneConversion:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "single_pool.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "single_pool.bpmn"), str(output))
 
         assert result.success
         content = output.read_text()
@@ -236,10 +195,7 @@ class TestSwimlaneConversion:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "swimlanes.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "swimlanes.bpmn"), str(output))
 
         assert result.success
         content = output.read_text()
@@ -255,10 +211,7 @@ class TestFlowConversion:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         content = output.read_text()
         # Should have edge style
@@ -270,10 +223,7 @@ class TestFlowConversion:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        converter.convert(
-            str(FIXTURES_DIR / "conditional_flows.bpmn"),
-            str(output)
-        )
+        converter.convert(str(FIXTURES_DIR / "conditional_flows.bpmn"), str(output))
 
         content = output.read_text()
         # Conditional flows have diamond start
@@ -288,10 +238,7 @@ class TestEdgeCases:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "empty.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "empty.bpmn"), str(output))
 
         assert result.success
         assert output.exists()
@@ -301,10 +248,7 @@ class TestEdgeCases:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "invalid_refs.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "invalid_refs.bpmn"), str(output))
 
         # Should still succeed, invalid flows filtered
         assert result.success
@@ -314,10 +258,7 @@ class TestEdgeCases:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        result = converter.convert(
-            str(FIXTURES_DIR / "disconnected.bpmn"),
-            str(output)
-        )
+        result = converter.convert(str(FIXTURES_DIR / "disconnected.bpmn"), str(output))
 
         assert result.success
 
@@ -350,10 +291,7 @@ class TestRoundTrip:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         content = output.read_text()
         # Element values (names) should be in output
@@ -369,10 +307,7 @@ class TestRoundTrip:
         converter = Converter()
         output = tmp_path / "output.drawio"
 
-        converter.convert(
-            str(FIXTURES_DIR / "minimal.bpmn"),
-            str(output)
-        )
+        converter.convert(str(FIXTURES_DIR / "minimal.bpmn"), str(output))
 
         content = output.read_text()
         # Element names should be in output

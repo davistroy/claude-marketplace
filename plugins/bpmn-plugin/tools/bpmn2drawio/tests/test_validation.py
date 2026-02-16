@@ -1,6 +1,5 @@
 """Tests for validation system."""
 
-import pytest
 from pathlib import Path
 
 from bpmn2drawio.validation import ModelValidator, ValidationWarning, validate_model
@@ -17,9 +16,7 @@ class TestValidationWarning:
     def test_warning_creation(self):
         """Test creating a validation warning."""
         warning = ValidationWarning(
-            level="error",
-            element_id="Task_1",
-            message="Invalid element"
+            level="error", element_id="Task_1", message="Invalid element"
         )
 
         assert warning.level == "error"
@@ -101,8 +98,12 @@ class TestReferenceValidation:
                 BPMNElement(id="Task_1", type="task"),
             ],
             flows=[
-                BPMNFlow(id="Flow_1", type="sequenceFlow",
-                         source_ref="Start_1", target_ref="Task_1"),
+                BPMNFlow(
+                    id="Flow_1",
+                    type="sequenceFlow",
+                    source_ref="Start_1",
+                    target_ref="Task_1",
+                ),
             ],
             pools=[],
             lanes=[],
@@ -121,8 +122,12 @@ class TestReferenceValidation:
                 BPMNElement(id="Task_1", type="task"),
             ],
             flows=[
-                BPMNFlow(id="Flow_1", type="sequenceFlow",
-                         source_ref="NonExistent", target_ref="Task_1"),
+                BPMNFlow(
+                    id="Flow_1",
+                    type="sequenceFlow",
+                    source_ref="NonExistent",
+                    target_ref="Task_1",
+                ),
             ],
             pools=[],
             lanes=[],
@@ -143,8 +148,12 @@ class TestReferenceValidation:
                 BPMNElement(id="Task_1", type="task"),
             ],
             flows=[
-                BPMNFlow(id="Flow_1", type="sequenceFlow",
-                         source_ref="Task_1", target_ref="NonExistent"),
+                BPMNFlow(
+                    id="Flow_1",
+                    type="sequenceFlow",
+                    source_ref="Task_1",
+                    target_ref="NonExistent",
+                ),
             ],
             pools=[],
             lanes=[],
@@ -171,10 +180,18 @@ class TestConnectedGraphValidation:
                 BPMNElement(id="End_1", type="endEvent"),
             ],
             flows=[
-                BPMNFlow(id="Flow_1", type="sequenceFlow",
-                         source_ref="Start_1", target_ref="Task_1"),
-                BPMNFlow(id="Flow_2", type="sequenceFlow",
-                         source_ref="Task_1", target_ref="End_1"),
+                BPMNFlow(
+                    id="Flow_1",
+                    type="sequenceFlow",
+                    source_ref="Start_1",
+                    target_ref="Task_1",
+                ),
+                BPMNFlow(
+                    id="Flow_2",
+                    type="sequenceFlow",
+                    source_ref="Task_1",
+                    target_ref="End_1",
+                ),
             ],
             pools=[],
             lanes=[],
@@ -196,10 +213,18 @@ class TestConnectedGraphValidation:
                 BPMNElement(id="Orphan", type="task"),  # Not connected
             ],
             flows=[
-                BPMNFlow(id="Flow_1", type="sequenceFlow",
-                         source_ref="Start_1", target_ref="Task_1"),
-                BPMNFlow(id="Flow_2", type="sequenceFlow",
-                         source_ref="Task_1", target_ref="End_1"),
+                BPMNFlow(
+                    id="Flow_1",
+                    type="sequenceFlow",
+                    source_ref="Start_1",
+                    target_ref="Task_1",
+                ),
+                BPMNFlow(
+                    id="Flow_2",
+                    type="sequenceFlow",
+                    source_ref="Task_1",
+                    target_ref="End_1",
+                ),
             ],
             pools=[],
             lanes=[],

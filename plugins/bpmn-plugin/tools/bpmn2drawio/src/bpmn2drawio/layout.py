@@ -1,7 +1,7 @@
 """Layout engine for BPMN diagrams using Graphviz."""
 
 import logging
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 import networkx as nx
 
 from .models import BPMNElement, BPMNFlow
@@ -54,7 +54,7 @@ class LayoutEngine:
         try:
             positions = self._apply_graphviz_layout(graph, elements)
             used_graphviz = True
-        except Exception:
+        except (ImportError, AttributeError, RuntimeError, OSError, LayoutError):
             # Fall back to flow-based layout that respects direction and branching
             positions = self._flow_based_layout(graph, elements)
 
@@ -103,11 +103,7 @@ class LayoutEngine:
                     missing.append(f"source={flow.source_ref}")
                 if not target_exists:
                     missing.append(f"target={flow.target_ref}")
-                logger.debug(
-                    "Skipped flow %s: missing %s",
-                    flow.id,
-                    ", ".join(missing)
-                )
+                logger.debug("Skipped flow %s: missing %s", flow.id, ", ".join(missing))
 
         return graph
 
@@ -186,7 +182,7 @@ class LayoutEngine:
                     "Assigned fallback position for element %s at (%s, %s)",
                     element.id,
                     fallback_x,
-                    fallback_y
+                    fallback_y,
                 )
 
         return positions
@@ -232,7 +228,11 @@ class LayoutEngine:
 
         # Spacing constants
         rank_spacing = LayoutConstants.RANK_SEPARATION
-        node_spacing = LayoutConstants.NODE_VERTICAL_GAP if is_horizontal else LayoutConstants.NODE_HORIZONTAL_GAP
+        node_spacing = (
+            LayoutConstants.NODE_VERTICAL_GAP
+            if is_horizontal
+            else LayoutConstants.NODE_HORIZONTAL_GAP
+        )
 
         # Position each rank
         sorted_ranks = sorted(rank_groups.keys(), reverse=is_reversed)
@@ -266,13 +266,15 @@ class LayoutEngine:
             if is_horizontal:
                 max_width = max(
                     self._get_element_dimensions(elem_lookup[n])[0]
-                    for n in nodes if n in elem_lookup
+                    for n in nodes
+                    if n in elem_lookup
                 )
                 primary_pos += max_width + rank_spacing
             else:
                 max_height = max(
                     self._get_element_dimensions(elem_lookup[n])[1]
-                    for n in nodes if n in elem_lookup
+                    for n in nodes
+                    if n in elem_lookup
                 )
                 primary_pos += max_height + rank_spacing
 
@@ -280,7 +282,10 @@ class LayoutEngine:
         for elem in elements:
             if elem.id not in positions:
                 positions[elem.id] = (primary_pos, LayoutConstants.DIAGRAM_MARGIN)
-                primary_pos += self._get_element_dimensions(elem)[0] + LayoutConstants.NODE_HORIZONTAL_GAP
+                primary_pos += (
+                    self._get_element_dimensions(elem)[0]
+                    + LayoutConstants.NODE_HORIZONTAL_GAP
+                )
 
         return positions
 
@@ -347,7 +352,7 @@ class LayoutEngine:
         if iterations >= max_iterations:
             logger.warning(
                 "Rank assignment reached iteration limit (%d), graph may have cycles",
-                max_iterations
+                max_iterations,
             )
 
         # Handle disconnected nodes

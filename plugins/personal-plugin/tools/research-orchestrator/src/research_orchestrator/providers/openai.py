@@ -3,7 +3,8 @@
 import asyncio
 import os
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from research_orchestrator.config import Depth, ProviderConfig
 from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus
@@ -43,8 +44,10 @@ class OpenAIProvider(BaseProvider):
                 import openai
 
                 self._client = openai.OpenAI(api_key=self.config.api_key)
-            except ImportError:
-                raise ImportError("openai package required. Install with: pip install openai")
+            except ImportError as err:
+                raise ImportError(
+                    "openai package required. Install with: pip install openai"
+                ) from err
         return self._client
 
     async def execute(self, prompt: str) -> ProviderResult:
@@ -70,10 +73,7 @@ class OpenAIProvider(BaseProvider):
             and "organization must be verified" in result.error.lower()
         ):
             # Retry without reasoning summary
-            self._phase_update(
-                ProviderPhase.CONNECTING,
-                "Retrying without reasoning summary"
-            )
+            self._phase_update(ProviderPhase.CONNECTING, "Retrying without reasoning summary")
             result = await self._execute_with_reasoning(prompt, None, start_time)
             if result.status == ProviderStatus.SUCCESS and result.metadata:
                 result.metadata["reasoning_summary_fallback"] = True
@@ -162,8 +162,7 @@ class OpenAIProvider(BaseProvider):
             if elapsed - last_status_update >= 30.0:
                 poll_count += 1
                 self._phase_update(
-                    ProviderPhase.POLLING,
-                    f"Checking status ({elapsed:.0f}s elapsed)"
+                    ProviderPhase.POLLING, f"Checking status ({elapsed:.0f}s elapsed)"
                 )
                 last_status_update = elapsed
 

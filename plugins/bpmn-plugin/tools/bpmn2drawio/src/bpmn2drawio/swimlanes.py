@@ -1,6 +1,6 @@
 """Swimlane handling for pools and lanes."""
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 from xml.etree import ElementTree as ET
 
 from .models import Pool, Lane, BPMNElement, BPMNModel
@@ -41,10 +41,10 @@ class SwimlaneSizer:
             return (pool.width, pool.height)
 
         # Find bounding box of all elements
-        min_x = float('inf')
-        min_y = float('inf')
-        max_x = float('-inf')
-        max_y = float('-inf')
+        min_x = float("inf")
+        min_y = float("inf")
+        max_x = float("-inf")
+        max_y = float("-inf")
 
         for element in elements:
             if element.x is not None and element.y is not None:
@@ -53,7 +53,7 @@ class SwimlaneSizer:
                 max_x = max(max_x, element.x + (element.width or 120))
                 max_y = max(max_y, element.y + (element.height or 80))
 
-        if min_x == float('inf'):
+        if min_x == float("inf"):
             # No elements with positions
             width = 600
             height = 200

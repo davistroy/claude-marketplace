@@ -23,6 +23,16 @@ class BPMNParser:
         self._di_shapes: Dict[str, Dict] = {}
         self._di_edges: Dict[str, List[Tuple[float, float]]] = {}
 
+    def _find_element(self, parent, ns_xpath: str, wildcard_xpath: str):
+        """Find element with namespace fallback."""
+        result = parent.find(ns_xpath, self.namespaces)
+        return result if result is not None else parent.find(wildcard_xpath)
+
+    def _findall_elements(self, parent, ns_xpath: str, wildcard_xpath: str):
+        """Find all elements with namespace fallback."""
+        results = parent.findall(ns_xpath, self.namespaces)
+        return results if results else parent.findall(wildcard_xpath)
+
     def parse(self, source: Union[str, Path]) -> BPMNModel:
         """Parse a BPMN file or XML string.
 
@@ -44,7 +54,9 @@ class BPMNParser:
                 root = tree.getroot()
             else:
                 # It's an XML string
-                root = etree.fromstring(source.encode() if isinstance(source, str) else source)
+                root = etree.fromstring(
+                    source.encode() if isinstance(source, str) else source
+                )
         except etree.XMLSyntaxError as e:
             raise BPMNParseError(f"Invalid XML: {e}") from e
         except FileNotFoundError as e:
@@ -101,31 +113,24 @@ class BPMNParser:
         self._di_edges = {}
 
         # Find BPMNDiagram element
-        di_diagram = root.find(".//bpmndi:BPMNDiagram", self.namespaces)
-        if di_diagram is None:
-            # Try without namespace
-            di_diagram = root.find(".//{*}BPMNDiagram")
+        di_diagram = self._find_element(
+            root, ".//bpmndi:BPMNDiagram", ".//{*}BPMNDiagram"
+        )
         if di_diagram is None:
             return
 
         # Find BPMNPlane
-        plane = di_diagram.find(".//bpmndi:BPMNPlane", self.namespaces)
-        if plane is None:
-            plane = di_diagram.find(".//{*}BPMNPlane")
+        plane = self._find_element(di_diagram, ".//bpmndi:BPMNPlane", ".//{*}BPMNPlane")
         if plane is None:
             return
 
         # Parse shapes
-        shapes = plane.findall(".//bpmndi:BPMNShape", self.namespaces)
-        if not shapes:
-            shapes = plane.findall(".//{*}BPMNShape")
+        shapes = self._findall_elements(plane, ".//bpmndi:BPMNShape", ".//{*}BPMNShape")
 
         for shape in shapes:
             bpmn_element = shape.get("bpmnElement")
             if bpmn_element:
-                bounds = shape.find(".//dc:Bounds", self.namespaces)
-                if bounds is None:
-                    bounds = shape.find(".//{*}Bounds")
+                bounds = self._find_element(shape, ".//dc:Bounds", ".//{*}Bounds")
                 if bounds is not None:
                     self._di_shapes[bpmn_element] = {
                         "x": float(bounds.get("x", 0)),
@@ -135,17 +140,15 @@ class BPMNParser:
                     }
 
         # Parse edges
-        edges = plane.findall(".//bpmndi:BPMNEdge", self.namespaces)
-        if not edges:
-            edges = plane.findall(".//{*}BPMNEdge")
+        edges = self._findall_elements(plane, ".//bpmndi:BPMNEdge", ".//{*}BPMNEdge")
 
         for edge in edges:
             bpmn_element = edge.get("bpmnElement")
             if bpmn_element:
                 waypoints = []
-                points = edge.findall(".//di:waypoint", self.namespaces)
-                if not points:
-                    points = edge.findall(".//{*}waypoint")
+                points = self._findall_elements(
+                    edge, ".//di:waypoint", ".//{*}waypoint"
+                )
                 for point in points:
                     x = float(point.get("x", 0))
                     y = float(point.get("y", 0))
@@ -156,14 +159,14 @@ class BPMNParser:
     def _parse_process(self, root: etree._Element, model: BPMNModel) -> None:
         """Parse process elements and flows."""
         # Find process element
-        process = root.find(".//bpmn:process", self.namespaces)
-        if process is None:
-            process = root.find(".//{*}process")
+        process = self._find_element(root, ".//bpmn:process", ".//{*}process")
         if process is None:
             # Try finding process in collaboration
-            process = root.find(".//bpmn:collaboration//bpmn:process", self.namespaces)
-            if process is None:
-                process = root.find(".//{*}collaboration//{*}process")
+            process = self._find_element(
+                root,
+                ".//bpmn:collaboration//bpmn:process",
+                ".//{*}collaboration//{*}process",
+            )
 
         if process is not None:
             model.process_id = process.get("id")
@@ -178,14 +181,19 @@ class BPMNParser:
             if participant.tag.endswith("participant"):
                 process_ref = participant.get("processRef")
                 if process_ref:
-                    referenced_process = root.find(
-                        f".//*[@id='{process_ref}']"
-                    )
-                    if referenced_process is not None and referenced_process not in [process]:
-                        self._parse_process_contents(referenced_process, model, process_ref)
+                    referenced_process = root.find(f".//*[@id='{process_ref}']")
+                    if referenced_process is not None and referenced_process not in [
+                        process
+                    ]:
+                        self._parse_process_contents(
+                            referenced_process, model, process_ref
+                        )
 
     def _parse_process_contents(
-        self, process: etree._Element, model: BPMNModel, process_id: Optional[str] = None
+        self,
+        process: etree._Element,
+        model: BPMNModel,
+        process_id: Optional[str] = None,
     ) -> None:
         """Parse contents of a process element.
 
@@ -206,7 +214,9 @@ class BPMNParser:
             if tag == "subProcess":
                 # Parse subprocess as element
                 element = self._parse_element(child, tag)
-                element.properties["_is_subprocess"] = True  # Mark as subprocess container
+                element.properties["_is_subprocess"] = (
+                    True  # Mark as subprocess container
+                )
                 if process_id:
                     element.properties["_process_id"] = process_id
                 model.elements.append(element)
@@ -332,9 +342,7 @@ class BPMNParser:
             properties=properties,
         )
 
-    def _parse_element_properties(
-        self, elem: etree._Element, elem_type: str
-    ) -> Dict:
+    def _parse_element_properties(self, elem: etree._Element, elem_type: str) -> Dict:
         """Parse element-specific properties."""
         properties = {}
 
@@ -342,9 +350,7 @@ class BPMNParser:
         for child in elem:
             child_tag = self._local_name(child.tag)
             if child_tag.endswith("EventDefinition"):
-                properties["eventDefinition"] = child_tag.replace(
-                    "EventDefinition", ""
-                )
+                properties["eventDefinition"] = child_tag.replace("EventDefinition", "")
 
         # Gateway properties
         if "Gateway" in elem_type:
@@ -355,16 +361,20 @@ class BPMNParser:
         # Task properties
         if "Task" in elem_type or elem_type == "task":
             # Check for loop characteristics
-            loop = elem.find(".//bpmn:multiInstanceLoopCharacteristics", self.namespaces)
-            if loop is None:
-                loop = elem.find(".//{*}multiInstanceLoopCharacteristics")
+            loop = self._find_element(
+                elem,
+                ".//bpmn:multiInstanceLoopCharacteristics",
+                ".//{*}multiInstanceLoopCharacteristics",
+            )
             if loop is not None:
                 properties["isMultiInstance"] = True
                 properties["isSequential"] = loop.get("isSequential", "false") == "true"
 
-            loop = elem.find(".//bpmn:standardLoopCharacteristics", self.namespaces)
-            if loop is None:
-                loop = elem.find(".//{*}standardLoopCharacteristics")
+            loop = self._find_element(
+                elem,
+                ".//bpmn:standardLoopCharacteristics",
+                ".//{*}standardLoopCharacteristics",
+            )
             if loop is not None:
                 properties["isLoop"] = True
 
@@ -383,9 +393,9 @@ class BPMNParser:
 
         # Check for condition
         condition = None
-        cond_expr = elem.find(".//bpmn:conditionExpression", self.namespaces)
-        if cond_expr is None:
-            cond_expr = elem.find(".//{*}conditionExpression")
+        cond_expr = self._find_element(
+            elem, ".//bpmn:conditionExpression", ".//{*}conditionExpression"
+        )
         if cond_expr is not None:
             condition = cond_expr.text
 
@@ -405,16 +415,16 @@ class BPMNParser:
 
     def _parse_collaboration(self, root: etree._Element, model: BPMNModel) -> None:
         """Parse collaboration (pools and message flows)."""
-        collaboration = root.find(".//bpmn:collaboration", self.namespaces)
-        if collaboration is None:
-            collaboration = root.find(".//{*}collaboration")
+        collaboration = self._find_element(
+            root, ".//bpmn:collaboration", ".//{*}collaboration"
+        )
         if collaboration is None:
             return
 
         # Parse participants (pools)
-        participants = collaboration.findall(".//bpmn:participant", self.namespaces)
-        if not participants:
-            participants = collaboration.findall(".//{*}participant")
+        participants = self._findall_elements(
+            collaboration, ".//bpmn:participant", ".//{*}participant"
+        )
 
         # Build process_id to pool mapping
         process_to_pool: Dict[str, Pool] = {}
@@ -443,15 +453,17 @@ class BPMNParser:
             if elem_process_id and elem_process_id in process_to_pool:
                 pool = process_to_pool[elem_process_id]
                 # Check if pool has lanes
-                lanes_for_pool = [l for l in model.lanes if l.parent_pool_id == pool.id]
+                lanes_for_pool = [
+                    lane for lane in model.lanes if lane.parent_pool_id == pool.id
+                ]
                 if not lanes_for_pool:
                     # Pool has no lanes - element should be direct child of pool
                     element.parent_id = pool.id
 
         # Parse message flows
-        message_flows = collaboration.findall(".//bpmn:messageFlow", self.namespaces)
-        if not message_flows:
-            message_flows = collaboration.findall(".//{*}messageFlow")
+        message_flows = self._findall_elements(
+            collaboration, ".//bpmn:messageFlow", ".//{*}messageFlow"
+        )
 
         for mf in message_flows:
             flow = self._parse_flow(mf, "messageFlow")
@@ -478,7 +490,10 @@ class BPMNParser:
         )
 
     def _parse_lane_set(
-        self, lane_set: etree._Element, model: BPMNModel, process_id: Optional[str] = None
+        self,
+        lane_set: etree._Element,
+        model: BPMNModel,
+        process_id: Optional[str] = None,
     ) -> None:
         """Parse lane set element.
 
@@ -491,9 +506,7 @@ class BPMNParser:
             model: BPMN model to populate
             process_id: ID of the process containing this lane set
         """
-        lanes = lane_set.findall(".//bpmn:lane", self.namespaces)
-        if not lanes:
-            lanes = lane_set.findall(".//{*}lane")
+        lanes = self._findall_elements(lane_set, ".//bpmn:lane", ".//{*}lane")
 
         for lane_elem in lanes:
             lane = self._parse_lane(lane_elem, process_id)
@@ -533,9 +546,9 @@ class BPMNParser:
 
         # Get flow node references
         element_refs = []
-        flow_node_refs = lane_elem.findall(".//bpmn:flowNodeRef", self.namespaces)
-        if not flow_node_refs:
-            flow_node_refs = lane_elem.findall(".//{*}flowNodeRef")
+        flow_node_refs = self._findall_elements(
+            lane_elem, ".//bpmn:flowNodeRef", ".//{*}flowNodeRef"
+        )
         for ref in flow_node_refs:
             if ref.text:
                 element_refs.append(ref.text)

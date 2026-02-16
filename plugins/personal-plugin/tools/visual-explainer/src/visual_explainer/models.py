@@ -67,7 +67,7 @@ class EvaluationVerdict(str, Enum):
     FAIL = "FAIL"
 
     @classmethod
-    def from_score(cls, score: float, pass_threshold: float = 0.85) -> "EvaluationVerdict":
+    def from_score(cls, score: float, pass_threshold: float = 0.85) -> EvaluationVerdict:
         """Determine verdict from overall score.
 
         Args:
@@ -522,7 +522,9 @@ class CriteriaScores(BaseModel):
         flow_continuity: How well it connects to other images (0.0-1.0).
     """
 
-    concept_clarity: float = Field(ge=0.0, le=1.0, description="How clearly concepts are visualized")
+    concept_clarity: float = Field(
+        ge=0.0, le=1.0, description="How clearly concepts are visualized"
+    )
     visual_appeal: float = Field(ge=0.0, le=1.0, description="Aesthetic quality")
     audience_appropriateness: float = Field(ge=0.0, le=1.0, description="Suitability for audience")
     flow_continuity: float = Field(ge=0.0, le=1.0, description="Connection to sequence")
@@ -537,7 +539,7 @@ class CriteriaScores(BaseModel):
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, float]) -> "CriteriaScores":
+    def from_dict(cls, data: dict[str, float]) -> CriteriaScores:
         """Create from dictionary (handles missing keys with defaults).
 
         Args:
@@ -604,7 +606,7 @@ class EvaluationResult(BaseModel):
         iteration: int,
         response: dict[str, Any],
         pass_threshold: float = 0.85,
-    ) -> "EvaluationResult":
+    ) -> EvaluationResult:
         """Create EvaluationResult from Claude's JSON response.
 
         Args:
@@ -639,7 +641,7 @@ class EvaluationResult(BaseModel):
         overall_score: float,
         pass_threshold: float = 0.85,
         **kwargs: Any,
-    ) -> "EvaluationResult":
+    ) -> EvaluationResult:
         """Create an EvaluationResult with automatic verdict determination.
 
         Args:
@@ -742,8 +744,7 @@ class ImageResult(BaseModel):
     def passed(self) -> bool:
         """Check if any attempt passed evaluation."""
         return any(
-            a.evaluation and a.evaluation.verdict == EvaluationVerdict.PASS
-            for a in self.attempts
+            a.evaluation and a.evaluation.verdict == EvaluationVerdict.PASS for a in self.attempts
         )
 
     @property
@@ -989,7 +990,7 @@ class GenerationMetadata(BaseModel):
         image_results: list[ImageResult],
         total_api_calls: int,
         estimated_cost: str,
-    ) -> "GenerationMetadata":
+    ) -> GenerationMetadata:
         """Create metadata from a completed generation session.
 
         Args:

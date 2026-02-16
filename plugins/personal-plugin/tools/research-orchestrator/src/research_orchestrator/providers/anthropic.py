@@ -2,7 +2,8 @@
 
 import os
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from research_orchestrator.config import Depth, ProviderConfig
 from research_orchestrator.models import ProviderPhase, ProviderResult, ProviderStatus
@@ -41,8 +42,10 @@ class AnthropicProvider(BaseProvider):
                 import anthropic
 
                 self._client = anthropic.Anthropic(api_key=self.config.api_key)
-            except ImportError:
-                raise ImportError("anthropic package required. Install with: pip install anthropic")
+            except ImportError as err:
+                raise ImportError(
+                    "anthropic package required. Install with: pip install anthropic"
+                ) from err
         return self._client
 
     async def execute(self, prompt: str) -> ProviderResult:
@@ -71,8 +74,7 @@ class AnthropicProvider(BaseProvider):
 
             # Phase: THINKING
             self._phase_update(
-                ProviderPhase.THINKING,
-                f"Extended thinking ({budget_tokens:,} token budget)"
+                ProviderPhase.THINKING, f"Extended thinking ({budget_tokens:,} token budget)"
             )
 
             # Use streaming for extended thinking to avoid 10-minute timeout
@@ -106,7 +108,9 @@ class AnthropicProvider(BaseProvider):
                 metadata={
                     "model": model,
                     "budget_tokens": budget_tokens,
-                    "stop_reason": response.stop_reason if hasattr(response, "stop_reason") else None,
+                    "stop_reason": response.stop_reason
+                    if hasattr(response, "stop_reason")
+                    else None,
                 },
             )
 

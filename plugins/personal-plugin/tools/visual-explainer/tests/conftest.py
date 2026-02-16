@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -36,19 +34,17 @@ from visual_explainer.models import (
     VisualPotential,
 )
 
-
 # =============================================================================
 # Pytest Markers
 # =============================================================================
+
 
 def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
 
 
 # =============================================================================
@@ -78,6 +74,7 @@ def sample_image_b64() -> str:
 # =============================================================================
 # Test Data: Configuration Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def temp_output_dir(tmp_path: Path) -> Path:
@@ -147,6 +144,7 @@ def sample_style_config() -> StyleConfig:
 # =============================================================================
 # Test Data: Model Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def sample_concepts() -> list[Concept]:
@@ -306,6 +304,7 @@ def sample_image_result() -> ImageResult:
 # Mock API Response Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_gemini_success_response(sample_image_b64: str) -> dict[str, Any]:
     """Create a mock successful Gemini API response."""
@@ -448,6 +447,7 @@ def mock_claude_prompt_generation_response() -> list[dict[str, Any]]:
 # Environment Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_env_with_api_keys(monkeypatch):
     """Set up environment with mock API keys."""
@@ -465,6 +465,7 @@ def mock_env_without_api_keys(monkeypatch):
 # =============================================================================
 # Checkpoint Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def sample_checkpoint_data(

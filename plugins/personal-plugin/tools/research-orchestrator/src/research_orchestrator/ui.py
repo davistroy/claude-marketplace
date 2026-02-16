@@ -3,8 +3,8 @@
 import os
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from research_orchestrator.models import ProviderPhase
 
@@ -15,8 +15,6 @@ try:
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
-    from rich.spinner import Spinner
-    from rich.style import Style
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -25,12 +23,37 @@ except ImportError:
 
 # Phase display configurations with icons
 PHASE_CONFIG = {
-    ProviderPhase.INITIALIZING: {"label": "Initializing", "style": "dim white", "icon": "⏳", "spinner": "dots"},
-    ProviderPhase.CONNECTING: {"label": "Connecting", "style": "cyan", "icon": "🔌", "spinner": "dots"},
-    ProviderPhase.THINKING: {"label": "Thinking", "style": "yellow", "icon": "🧠", "spinner": "dots"},
-    ProviderPhase.RESEARCHING: {"label": "Researching", "style": "blue", "icon": "🔍", "spinner": "dots"},
+    ProviderPhase.INITIALIZING: {
+        "label": "Initializing",
+        "style": "dim white",
+        "icon": "⏳",
+        "spinner": "dots",
+    },
+    ProviderPhase.CONNECTING: {
+        "label": "Connecting",
+        "style": "cyan",
+        "icon": "🔌",
+        "spinner": "dots",
+    },
+    ProviderPhase.THINKING: {
+        "label": "Thinking",
+        "style": "yellow",
+        "icon": "🧠",
+        "spinner": "dots",
+    },
+    ProviderPhase.RESEARCHING: {
+        "label": "Researching",
+        "style": "blue",
+        "icon": "🔍",
+        "spinner": "dots",
+    },
     ProviderPhase.POLLING: {"label": "Polling", "style": "magenta", "icon": "⏱️", "spinner": "dots"},
-    ProviderPhase.PROCESSING: {"label": "Processing", "style": "cyan", "icon": "⚙️", "spinner": "dots"},
+    ProviderPhase.PROCESSING: {
+        "label": "Processing",
+        "style": "cyan",
+        "icon": "⚙️",
+        "spinner": "dots",
+    },
     ProviderPhase.COMPLETED: {"label": "Completed", "style": "green", "icon": "✓", "spinner": None},
     ProviderPhase.FAILED: {"label": "Failed", "style": "red", "icon": "✗", "spinner": None},
 }
@@ -90,7 +113,7 @@ class RichUI:
             raise ImportError("rich package required. Install with: pip install rich")
 
         # Force terminal if requested or via environment variable
-        force = force_terminal or os.environ.get('FORCE_RICH_UI', '').lower() in ('1', 'true')
+        force = force_terminal or os.environ.get("FORCE_RICH_UI", "").lower() in ("1", "true")
         self.console = Console(force_terminal=force)
         self._providers: dict[str, ProviderState] = {}
         self._live: Live | None = None
@@ -109,7 +132,7 @@ class RichUI:
         """Check if the terminal supports emoji output."""
         try:
             # Try to encode a test emoji
-            '🔬'.encode(sys.stdout.encoding or 'utf-8')
+            "🔬".encode(sys.stdout.encoding or "utf-8")
             return True
         except (UnicodeEncodeError, LookupError):
             return False
@@ -172,12 +195,14 @@ class RichUI:
             provider_text = Text(name.upper(), style=f"bold {provider_color}")
 
             # Phase with icon and styling
-            phase_config = PHASE_CONFIG.get(state.phase, {"label": "Unknown", "style": "white", "icon": "•"})
+            phase_config = PHASE_CONFIG.get(
+                state.phase, {"label": "Unknown", "style": "white", "icon": "•"}
+            )
 
             if state.is_complete:
                 # Show static icon for completed states
                 if self._use_emoji:
-                    icon = phase_config['icon']
+                    icon = phase_config["icon"]
                 else:
                     icon = "[OK]" if state.phase == ProviderPhase.COMPLETED else "[X]"
                 phase_text = Text(f"{icon} {phase_config['label']}", style=phase_config["style"])
@@ -347,14 +372,14 @@ class StreamingUI:
 
     # Box drawing characters with ASCII fallbacks for Windows
     BOX_CHARS = {
-        'tl': '+',   # top-left
-        'tr': '+',   # top-right
-        'bl': '+',   # bottom-left
-        'br': '+',   # bottom-right
-        'h': '-',    # horizontal
-        'v': '|',    # vertical
-        'lj': '+',   # left junction
-        'rj': '+',   # right junction
+        "tl": "+",  # top-left
+        "tr": "+",  # top-right
+        "bl": "+",  # bottom-left
+        "br": "+",  # bottom-right
+        "h": "-",  # horizontal
+        "v": "|",  # vertical
+        "lj": "+",  # left junction
+        "rj": "+",  # right junction
     }
 
     def __init__(self, providers: list[str] | None = None) -> None:
@@ -369,9 +394,18 @@ class StreamingUI:
 
         if self._use_unicode:
             self.BOX_CHARS = {
-                'tl': '┌', 'tr': '┐', 'bl': '└', 'br': '┘',
-                'h': '─', 'v': '│', 'lj': '├', 'rj': '┤',
-                'tl2': '╭', 'tr2': '╮', 'bl2': '╰', 'br2': '╯',
+                "tl": "┌",
+                "tr": "┐",
+                "bl": "└",
+                "br": "┘",
+                "h": "─",
+                "v": "│",
+                "lj": "├",
+                "rj": "┤",
+                "tl2": "╭",
+                "tr2": "╮",
+                "bl2": "╰",
+                "br2": "╯",
             }
 
         if providers:
@@ -382,7 +416,7 @@ class StreamingUI:
         """Check if the terminal supports Unicode output."""
         try:
             # Try to encode a test Unicode character
-            '─'.encode(sys.stdout.encoding or 'utf-8')
+            "─".encode(sys.stdout.encoding or "utf-8")
             return True
         except (UnicodeEncodeError, LookupError):
             return False
@@ -393,7 +427,7 @@ class StreamingUI:
             print(message, flush=True)
         except UnicodeEncodeError:
             # Fall back to ASCII-safe version
-            safe_message = message.encode('ascii', errors='replace').decode('ascii')
+            safe_message = message.encode("ascii", errors="replace").decode("ascii")
             print(safe_message, flush=True)
 
     def add_provider(self, name: str) -> None:
@@ -462,12 +496,12 @@ class StreamingUI:
     def start(self) -> None:
         """Start tracking."""
         self._start_time = time.time()
-        h = self.BOX_CHARS['h']
-        v = self.BOX_CHARS['v']
-        tl = self.BOX_CHARS['tl']
-        tr = self.BOX_CHARS['tr']
-        lj = self.BOX_CHARS['lj']
-        rj = self.BOX_CHARS['rj']
+        h = self.BOX_CHARS["h"]
+        v = self.BOX_CHARS["v"]
+        tl = self.BOX_CHARS["tl"]
+        tr = self.BOX_CHARS["tr"]
+        lj = self.BOX_CHARS["lj"]
+        rj = self.BOX_CHARS["rj"]
 
         self._flush_print("")
         self._flush_print(tl + h * 78 + tr)
@@ -477,9 +511,9 @@ class StreamingUI:
 
     def stop(self) -> None:
         """Stop tracking."""
-        bl = self.BOX_CHARS['bl']
-        br = self.BOX_CHARS['br']
-        h = self.BOX_CHARS['h']
+        bl = self.BOX_CHARS["bl"]
+        br = self.BOX_CHARS["br"]
+        h = self.BOX_CHARS["h"]
         self._flush_print(bl + h * 78 + br)
 
     def print_summary(self, output=None) -> None:
@@ -497,14 +531,14 @@ class StreamingUI:
             total_str = f"{minutes}m {seconds:02d}s"
 
         # Use box characters
-        h = self.BOX_CHARS['h']
-        v = self.BOX_CHARS['v']
-        tl = self.BOX_CHARS.get('tl2', self.BOX_CHARS['tl'])
-        tr = self.BOX_CHARS.get('tr2', self.BOX_CHARS['tr'])
-        bl = self.BOX_CHARS.get('bl2', self.BOX_CHARS['bl'])
-        br = self.BOX_CHARS.get('br2', self.BOX_CHARS['br'])
-        lj = self.BOX_CHARS['lj']
-        rj = self.BOX_CHARS['rj']
+        h = self.BOX_CHARS["h"]
+        v = self.BOX_CHARS["v"]
+        tl = self.BOX_CHARS.get("tl2", self.BOX_CHARS["tl"])
+        tr = self.BOX_CHARS.get("tr2", self.BOX_CHARS["tr"])
+        bl = self.BOX_CHARS.get("bl2", self.BOX_CHARS["bl"])
+        br = self.BOX_CHARS.get("br2", self.BOX_CHARS["br"])
+        lj = self.BOX_CHARS["lj"]
+        rj = self.BOX_CHARS["rj"]
 
         self._flush_print("")
         if completed == total:
@@ -512,7 +546,11 @@ class StreamingUI:
         elif failed == total:
             title = "[FAIL] Research Failed" if not self._use_unicode else "  ❌ Research Failed"
         else:
-            title = f"[PARTIAL] Results ({completed}/{total})" if not self._use_unicode else f"  ⚠️  Partial Results ({completed}/{total})"
+            title = (
+                f"[PARTIAL] Results ({completed}/{total})"
+                if not self._use_unicode
+                else f"  ⚠️  Partial Results ({completed}/{total})"
+            )
 
         self._flush_print(tl + h * 58 + tr)
         self._flush_print(v + title.ljust(58) + v)
@@ -549,7 +587,11 @@ class StreamingUI:
                 self._flush_print(v + line.ljust(58) + v)
 
         self._flush_print(v + "".ljust(58) + v)
-        duration_line = f"  Total Duration: {total_str}" if not self._use_unicode else f"  ⏱️  Total Duration: {total_str}"
+        duration_line = (
+            f"  Total Duration: {total_str}"
+            if not self._use_unicode
+            else f"  ⏱️  Total Duration: {total_str}"
+        )
         self._flush_print(v + duration_line.ljust(58) + v)
         self._flush_print(bl + h * 58 + br)
 
@@ -586,7 +628,10 @@ class SimpleUI:
         elapsed = time.time() - self._start_time
         phase_config = PHASE_CONFIG.get(phase, {"label": "Unknown", "icon": "•"})
         icon = phase_config["icon"]
-        print(f"{icon} [{name.upper()}] [{phase_config['label']}] {message} ({elapsed:.0f}s)", flush=True)
+        print(
+            f"{icon} [{name.upper()}] [{phase_config['label']}] {message} ({elapsed:.0f}s)",
+            flush=True,
+        )
 
     def add_saved_file(self, filepath: str) -> None:
         """Track a saved file."""
@@ -622,7 +667,9 @@ class SimpleUI:
         self.stop()
 
 
-def create_status_callback(ui: "RichUI | StreamingUI | SimpleUI") -> Callable[[str, ProviderPhase, str], None]:
+def create_status_callback(
+    ui: "RichUI | StreamingUI | SimpleUI",
+) -> Callable[[str, ProviderPhase, str], None]:
     """Create a status callback function for the orchestrator.
 
     Args:
@@ -656,12 +703,12 @@ def get_ui(
         Appropriate UI instance.
     """
     # Check for streaming mode (piped output)
-    if streaming or os.environ.get('STREAMING_UI', '').lower() in ('1', 'true'):
+    if streaming or os.environ.get("STREAMING_UI", "").lower() in ("1", "true"):
         return StreamingUI(providers)
 
     # Check for Rich availability
     if use_rich and RICH_AVAILABLE:
-        force = force_terminal or os.environ.get('FORCE_RICH_UI', '').lower() in ('1', 'true')
+        force = force_terminal or os.environ.get("FORCE_RICH_UI", "").lower() in ("1", "true")
         return RichUI(providers, force_terminal=force)
 
     return SimpleUI(providers)
@@ -674,19 +721,19 @@ def detect_ui_mode() -> str:
         One of: 'rich', 'streaming', 'simple'
     """
     # Check for explicit override
-    if os.environ.get('STREAMING_UI', '').lower() in ('1', 'true'):
-        return 'streaming'
+    if os.environ.get("STREAMING_UI", "").lower() in ("1", "true"):
+        return "streaming"
 
-    if os.environ.get('FORCE_RICH_UI', '').lower() in ('1', 'true'):
-        return 'rich'
+    if os.environ.get("FORCE_RICH_UI", "").lower() in ("1", "true"):
+        return "rich"
 
     # Check if Rich is available
     if not RICH_AVAILABLE:
-        return 'simple'
+        return "simple"
 
     # Check if stdout is a TTY (interactive terminal)
     if sys.stdout.isatty():
-        return 'rich'
+        return "rich"
 
     # For piped/captured output, use streaming
-    return 'streaming'
+    return "streaming"

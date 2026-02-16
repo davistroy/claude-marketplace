@@ -1,5 +1,6 @@
 """Model discovery and upgrade checking for research providers."""
 
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -9,6 +10,8 @@ from typing import Any
 from research_orchestrator.providers.anthropic import AnthropicProvider
 from research_orchestrator.providers.google import GoogleProvider
 from research_orchestrator.providers.openai import OpenAIProvider
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -166,9 +169,8 @@ class ModelDiscovery:
                             is_newer=is_newer,
                         )
                     )
-        except Exception:
-            # API might not support listing, return empty
-            pass
+        except Exception as e:
+            logger.warning("Failed to list %s models: %s", "Anthropic", e)
 
         return sorted(models, key=lambda m: m.date or datetime.min, reverse=True)
 
@@ -205,8 +207,8 @@ class ModelDiscovery:
                             is_newer=is_newer,
                         )
                     )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to list %s models: %s", "OpenAI", e)
 
         return sorted(models, key=lambda m: m.date or datetime.min, reverse=True)
 
@@ -237,9 +239,7 @@ class ModelDiscovery:
             agent_date = parse_model_date(agent_id)
             is_current = agent_id == current_agent
             is_newer = (
-                agent_date is not None
-                and current_date is not None
-                and agent_date > current_date
+                agent_date is not None and current_date is not None and agent_date > current_date
             )
             models.append(
                 ModelInfo(

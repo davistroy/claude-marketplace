@@ -9,10 +9,10 @@ from datetime import datetime
 from pathlib import Path
 
 # Force unbuffered output for better visibility in piped contexts
-os.environ['PYTHONUNBUFFERED'] = '1'
-if hasattr(sys.stdout, 'reconfigure'):
+os.environ["PYTHONUNBUFFERED"] = "1"
+if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(line_buffering=True)
-if hasattr(sys.stderr, 'reconfigure'):
+if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(line_buffering=True)
 
 from research_orchestrator.bug_reporter import BugReporter
@@ -24,13 +24,13 @@ from research_orchestrator.orchestrator import ResearchOrchestrator
 # Try to import Rich UI
 try:
     from research_orchestrator.ui import (
-        RichUI,
-        StreamingUI,
-        SimpleUI,
-        create_status_callback,
-        get_ui,
-        detect_ui_mode,
         RICH_AVAILABLE,
+        RichUI,
+        SimpleUI,
+        StreamingUI,
+        create_status_callback,
+        detect_ui_mode,
+        get_ui,
     )
 except ImportError:
     RICH_AVAILABLE = False
@@ -51,9 +51,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    execute_parser = subparsers.add_parser(
-        "execute", help="Execute research across providers"
-    )
+    execute_parser = subparsers.add_parser("execute", help="Execute research across providers")
     execute_parser.add_argument(
         "--prompt",
         "-p",
@@ -91,9 +89,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Timeout in seconds per provider (default: 1800 = 30 minutes for deep research)",
     )
 
-    subparsers.add_parser(
-        "check-providers", help="Check which providers are available"
-    )
+    subparsers.add_parser("check-providers", help="Check which providers are available")
 
     subparsers.add_parser("list-depths", help="List available depth levels")
 
@@ -162,29 +158,25 @@ def run_execute(args: argparse.Namespace) -> int:
         print(json.dumps(output.to_dict(), indent=2))
     elif get_ui is not None:
         # Use smart UI detection
-        ui_mode = detect_ui_mode() if detect_ui_mode else 'simple'
+        ui_mode = detect_ui_mode() if detect_ui_mode else "simple"
 
-        if ui_mode == 'rich' and RichUI is not None:
+        if ui_mode == "rich" and RichUI is not None:
             ui = RichUI(providers=sources, force_terminal=True)
-        elif ui_mode == 'streaming' and StreamingUI is not None:
+        elif ui_mode == "streaming" and StreamingUI is not None:
             ui = StreamingUI(providers=sources)
         elif SimpleUI is not None:
             ui = SimpleUI(providers=sources)
         else:
             # Ultimate fallback
             orchestrator = ResearchOrchestrator(
-                on_status_update=status_callback_phase,
-                bug_reporter=bug_reporter
+                on_status_update=status_callback_phase, bug_reporter=bug_reporter
             )
             output = asyncio.run(orchestrator.execute(config))
             print_results(output, args.output_dir)
             return 0 if output.success_count > 0 else 1
 
         callback = create_status_callback(ui)
-        orchestrator = ResearchOrchestrator(
-            on_status_update=callback,
-            bug_reporter=bug_reporter
-        )
+        orchestrator = ResearchOrchestrator(on_status_update=callback, bug_reporter=bug_reporter)
 
         with ui:
             output = asyncio.run(orchestrator.execute(config))
@@ -200,8 +192,7 @@ def run_execute(args: argparse.Namespace) -> int:
     else:
         # Fallback: simple text output
         orchestrator = ResearchOrchestrator(
-            on_status_update=status_callback_phase,
-            bug_reporter=bug_reporter
+            on_status_update=status_callback_phase, bug_reporter=bug_reporter
         )
         output = asyncio.run(orchestrator.execute(config))
         print_results(output, args.output_dir)

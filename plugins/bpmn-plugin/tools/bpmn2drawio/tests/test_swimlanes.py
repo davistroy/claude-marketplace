@@ -1,6 +1,5 @@
 """Tests for swimlane handling (pools and lanes)."""
 
-import pytest
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -98,7 +97,9 @@ class TestCreatePoolCell:
         cell = create_pool_cell(pool, "10")
 
         # Vertical pools don't have horizontal=0
-        assert "horizontal=0" not in cell.get("style") or "startSize=30" in cell.get("style")
+        assert "horizontal=0" not in cell.get("style") or "startSize=30" in cell.get(
+            "style"
+        )
 
 
 class TestCreateLaneCell:
@@ -131,7 +132,14 @@ class TestResolveParentHierarchy:
         """Test element in lane gets lane as parent."""
         model = BPMNModel(
             elements=[BPMNElement(id="task1", type="task")],
-            lanes=[Lane(id="lane1", name="Lane", parent_pool_id="pool1", element_refs=["task1"])],
+            lanes=[
+                Lane(
+                    id="lane1",
+                    name="Lane",
+                    parent_pool_id="pool1",
+                    element_refs=["task1"],
+                )
+            ],
             pools=[Pool(id="pool1", name="Pool", lanes=["lane1"])],
         )
 
@@ -237,11 +245,7 @@ class TestGenerateSwimlanes:
 
         # Find the pool cell
         cells = root.findall(".//mxCell[@vertex='1']")
-        pool_cell = None
-        for c in cells:
-            if "swimlane" in c.get("style", ""):
-                pool_cell = c
-                break
+        assert any("swimlane" in c.get("style", "") for c in cells)
 
         # Element cells should reference pool or lane as parent
         # (not the root "1")
@@ -256,10 +260,7 @@ class TestEndToEndSwimlanes:
         converter = Converter()
         output_file = tmp_path / "single_pool.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "single_pool.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "single_pool.bpmn", output_file)
 
         assert result.success
         assert output_file.exists()
@@ -272,10 +273,7 @@ class TestEndToEndSwimlanes:
         converter = Converter()
         output_file = tmp_path / "swimlanes.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "swimlanes.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "swimlanes.bpmn", output_file)
 
         assert result.success
 

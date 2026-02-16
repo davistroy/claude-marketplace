@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -139,23 +139,33 @@ class TestCaching:
         # Create a cache file with wrong hash
         cache_path = temp_cache_dir / "concepts-wronghash1234567.json"
         temp_cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(json.dumps({
-            "content_hash": "different_hash",
-            "title": "Test",
-            "summary": "Test",
-            "concepts": [{"id": 1, "name": "Test", "description": "Test"}],
-            "recommended_image_count": 1,
-        }))
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "content_hash": "different_hash",
+                    "title": "Test",
+                    "summary": "Test",
+                    "concepts": [{"id": 1, "name": "Test", "description": "Test"}],
+                    "recommended_image_count": 1,
+                }
+            )
+        )
 
         result = load_from_cache("wronghash12345678", temp_cache_dir)
         assert result is None
 
-    def test_cache_creates_directory(self, tmp_path: Path, sample_concept_analysis: ConceptAnalysis):
+    def test_cache_creates_directory(
+        self, tmp_path: Path, sample_concept_analysis: ConceptAnalysis
+    ):
         """Test that save creates cache directory if needed."""
         cache_dir = tmp_path / "new_cache_dir"
         assert not cache_dir.exists()
 
-        save_to_cache(sample_concept_analysis, "testhash1234567890123456789012345678901234567890123456789012", cache_dir)
+        save_to_cache(
+            sample_concept_analysis,
+            "testhash1234567890123456789012345678901234567890123456789012",
+            cache_dir,
+        )
         assert cache_dir.exists()
 
 
@@ -212,9 +222,7 @@ class TestCallClaudeForAnalysis:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_concept_analysis_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_concept_analysis_response))]
 
         with patch("visual_explainer.concept_analyzer.anthropic.Anthropic") as mock_client_class:
             mock_client = MagicMock()
@@ -332,9 +340,7 @@ class TestAnalyzeDocument:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_concept_analysis_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_concept_analysis_response))]
 
         with patch("visual_explainer.concept_analyzer.anthropic.Anthropic") as mock_client_class:
             mock_client = MagicMock()
@@ -407,9 +413,7 @@ class TestAnalyzeDocument:
         save_to_cache(sample_concept_analysis, content_hash, sample_internal_config.cache_dir)
 
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_concept_analysis_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_concept_analysis_response))]
 
         with patch("visual_explainer.concept_analyzer.anthropic.Anthropic") as mock_client_class:
             mock_client = MagicMock()
@@ -457,9 +461,7 @@ class TestAnalyzeDocument:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_concept_analysis_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_concept_analysis_response))]
 
         with patch("visual_explainer.concept_analyzer.anthropic.Anthropic") as mock_client_class:
             mock_client = MagicMock()
@@ -498,9 +500,7 @@ class TestAnalyzeDocumentSync:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_concept_analysis_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_concept_analysis_response))]
 
         with patch("visual_explainer.concept_analyzer.anthropic.Anthropic") as mock_client_class:
             mock_client = MagicMock()
@@ -659,9 +659,7 @@ class TestConceptAnalysisParsing:
         response = {
             "title": "Test",
             "summary": "Test summary",
-            "concepts": [
-                {"id": 1, "name": "A", "description": "A"}
-            ],
+            "concepts": [{"id": 1, "name": "A", "description": "A"}],
             "recommended_image_count": 1,
             # Missing: reasoning, logical_flow, target_audience
         }

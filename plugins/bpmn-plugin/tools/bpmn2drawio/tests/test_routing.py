@@ -1,6 +1,5 @@
 """Tests for edge routing and flow types."""
 
-import pytest
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -27,7 +26,9 @@ class TestEdgeRouter:
     def test_route_horizontal(self):
         """Test routing between horizontally adjacent elements."""
         elements = [
-            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
+            BPMNElement(
+                id="start", type="startEvent", x=100, y=100, width=36, height=36
+            ),
             BPMNElement(id="task", type="task", x=200, y=80, width=120, height=80),
         ]
         router = EdgeRouter(elements)
@@ -43,7 +44,9 @@ class TestEdgeRouter:
     def test_route_vertical(self):
         """Test routing between vertically adjacent elements."""
         elements = [
-            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
+            BPMNElement(
+                id="start", type="startEvent", x=100, y=100, width=36, height=36
+            ),
             BPMNElement(id="task", type="task", x=80, y=250, width=120, height=80),
         ]
         router = EdgeRouter(elements)
@@ -55,7 +58,9 @@ class TestEdgeRouter:
     def test_route_preserves_existing_waypoints(self):
         """Test that existing waypoints are preserved."""
         elements = [
-            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
+            BPMNElement(
+                id="start", type="startEvent", x=100, y=100, width=36, height=36
+            ),
             BPMNElement(id="task", type="task", x=300, y=100, width=120, height=80),
         ]
         router = EdgeRouter(elements)
@@ -85,7 +90,9 @@ class TestWaypointConversion:
 
     def test_generate_waypoints_horizontal(self):
         """Test generating waypoints for horizontal flow."""
-        source = BPMNElement(id="s", type="startEvent", x=100, y=100, width=36, height=36)
+        source = BPMNElement(
+            id="s", type="startEvent", x=100, y=100, width=36, height=36
+        )
         target = BPMNElement(id="t", type="task", x=300, y=80, width=120, height=80)
 
         waypoints = generate_waypoints(source, target)
@@ -118,9 +125,7 @@ class TestEdgeLabelPosition:
     def test_label_position_two_points(self):
         """Test label position with two waypoints."""
         flow = BPMNFlow(
-            id="f1", type="sequenceFlow",
-            source_ref="s", target_ref="t",
-            name="Yes"
+            id="f1", type="sequenceFlow", source_ref="s", target_ref="t", name="Yes"
         )
         waypoints = [(100, 100), (300, 100)]
 
@@ -131,10 +136,7 @@ class TestEdgeLabelPosition:
 
     def test_label_position_no_name(self):
         """Test no position for unnamed flow."""
-        flow = BPMNFlow(
-            id="f1", type="sequenceFlow",
-            source_ref="s", target_ref="t"
-        )
+        flow = BPMNFlow(id="f1", type="sequenceFlow", source_ref="s", target_ref="t")
         waypoints = [(100, 100), (300, 100)]
 
         position = position_edge_label(flow, waypoints)
@@ -235,12 +237,16 @@ class TestEdgeRouteCalculation:
     def test_calculate_all_routes(self):
         """Test calculating routes for all flows."""
         elements = [
-            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
+            BPMNElement(
+                id="start", type="startEvent", x=100, y=100, width=36, height=36
+            ),
             BPMNElement(id="task", type="task", x=200, y=80, width=120, height=80),
             BPMNElement(id="end", type="endEvent", x=400, y=100, width=36, height=36),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
+            ),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="task", target_ref="end"),
         ]
 
@@ -259,10 +265,7 @@ class TestEndToEndRouting:
         converter = Converter()
         output_file = tmp_path / "conditional.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "conditional_flows.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "conditional_flows.bpmn", output_file)
 
         assert result.success
         assert result.flow_count >= 7
@@ -272,10 +275,7 @@ class TestEndToEndRouting:
         converter = Converter()
         output_file = tmp_path / "with_di.drawio"
 
-        result = converter.convert(
-            FIXTURES_DIR / "with_di.bpmn",
-            output_file
-        )
+        result = converter.convert(FIXTURES_DIR / "with_di.bpmn", output_file)
 
         assert result.success
 

@@ -1,7 +1,5 @@
 """Tests for data models."""
 
-from datetime import datetime
-
 from research_orchestrator.models import ProviderResult, ProviderStatus, ResearchOutput
 
 

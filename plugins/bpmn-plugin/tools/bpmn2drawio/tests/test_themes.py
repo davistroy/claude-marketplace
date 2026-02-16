@@ -4,7 +4,11 @@ import pytest
 from pathlib import Path
 
 from bpmn2drawio.themes import BPMNTheme, THEMES, get_theme
-from bpmn2drawio.config import load_brand_config, merge_theme_with_config, get_env_config
+from bpmn2drawio.config import (
+    load_brand_config,
+    merge_theme_with_config,
+    get_env_config,
+)
 from bpmn2drawio.exceptions import ConfigurationError
 
 
@@ -136,13 +140,7 @@ class TestMergeThemeWithConfig:
     def test_merge_partial_config(self):
         """Test merging partial config."""
         base = BPMNTheme()
-        config = {
-            "colors": {
-                "tasks": {
-                    "fill": "#newcolor"
-                }
-            }
-        }
+        config = {"colors": {"tasks": {"fill": "#newcolor"}}}
 
         result = merge_theme_with_config(base, config)
 

@@ -6,15 +6,12 @@ from typing import Dict
 STYLE_MAP: Dict[str, str] = {
     # Start Events
     "startEvent": "ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;perimeter=ellipsePerimeter;",
-
     # End Events
     "endEvent": "ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=3;perimeter=ellipsePerimeter;",
-
     # Intermediate Events
     "intermediateCatchEvent": "ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;perimeter=ellipsePerimeter;",
     "intermediateThrowEvent": "ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;perimeter=ellipsePerimeter;",
     "boundaryEvent": "ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;perimeter=ellipsePerimeter;",
-
     # Tasks
     "task": "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=10;",
     "userTask": "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=10;",
@@ -26,20 +23,17 @@ STYLE_MAP: Dict[str, str] = {
     "manualTask": "rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;arcSize=10;",
     "callActivity": "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=10;strokeWidth=3;",
     "subProcess": "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=10;",
-
     # Gateways
     "exclusiveGateway": "rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;perimeter=rhombusPerimeter;",
     "parallelGateway": "rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;perimeter=rhombusPerimeter;",
     "inclusiveGateway": "rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;perimeter=rhombusPerimeter;",
     "eventBasedGateway": "rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;perimeter=rhombusPerimeter;",
     "complexGateway": "rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;perimeter=rhombusPerimeter;",
-
     # Data Objects
     "dataObject": "shape=document;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
     "dataObjectReference": "shape=document;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
     "dataStore": "shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
     "dataStoreReference": "shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
-
     # Artifacts
     "textAnnotation": "shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;",
     "group": "rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;strokeWidth=2;dashed=1;",
@@ -74,7 +68,9 @@ def get_element_style(element_type: str) -> str:
     return STYLE_MAP.get(element_type, STYLE_MAP["task"])
 
 
-def get_edge_style(flow_type: str, is_default: bool = False, has_condition: bool = False) -> str:
+def get_edge_style(
+    flow_type: str, is_default: bool = False, has_condition: bool = False
+) -> str:
     """Get Draw.io style string for a flow type.
 
     Args:
@@ -92,13 +88,13 @@ def get_edge_style(flow_type: str, is_default: bool = False, has_condition: bool
             # Add slash marker for default flow
             base_style = base_style.replace(
                 "endArrow=block",
-                "startArrow=dash;startFill=0;startSize=14;endArrow=block"
+                "startArrow=dash;startFill=0;startSize=14;endArrow=block",
             )
         elif has_condition:
             # Add diamond marker for conditional flow
             base_style = base_style.replace(
                 "endArrow=block",
-                "startArrow=diamond;startFill=0;startSize=14;endArrow=block"
+                "startArrow=diamond;startFill=0;startSize=14;endArrow=block",
             )
 
     return base_style

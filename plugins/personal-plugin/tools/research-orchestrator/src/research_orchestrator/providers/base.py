@@ -1,7 +1,7 @@
 """Base provider interface for research execution."""
 
 from abc import ABC, abstractmethod
-from typing import Callable, Union
+from collections.abc import Callable
 
 from research_orchestrator.config import Depth, ProviderConfig
 from research_orchestrator.models import ProviderPhase, ProviderResult
@@ -9,10 +9,7 @@ from research_orchestrator.models import ProviderPhase, ProviderResult
 # Type alias for status callbacks
 # New signature: (provider_name, phase, message)
 # Legacy signature: (provider_name, message) - still supported for backwards compatibility
-StatusCallback = Union[
-    Callable[[str, ProviderPhase, str], None],
-    Callable[[str, str], None],
-]
+StatusCallback = Callable[[str, ProviderPhase, str], None] | Callable[[str, str], None]
 
 
 class BaseProvider(ABC):

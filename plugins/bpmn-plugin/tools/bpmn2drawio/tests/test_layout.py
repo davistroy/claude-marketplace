@@ -1,6 +1,5 @@
 """Tests for layout engine."""
 
-import pytest
 from pathlib import Path
 
 from bpmn2drawio.parser import parse_bpmn
@@ -23,7 +22,9 @@ class TestLayoutEngine:
             BPMNElement(id="end", type="endEvent"),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
+            ),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="task", target_ref="end"),
         ]
 
@@ -62,7 +63,9 @@ class TestLayoutEngine:
             BPMNElement(id="end", type="endEvent"),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
+            ),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="task", target_ref="end"),
         ]
 
@@ -82,9 +85,15 @@ class TestLayoutEngine:
             BPMNElement(id="end", type="endEvent", width=36, height=36),
         ]
         flows = [
-            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task1"),
-            BPMNFlow(id="f2", type="sequenceFlow", source_ref="task1", target_ref="task2"),
-            BPMNFlow(id="f3", type="sequenceFlow", source_ref="task2", target_ref="end"),
+            BPMNFlow(
+                id="f1", type="sequenceFlow", source_ref="start", target_ref="task1"
+            ),
+            BPMNFlow(
+                id="f2", type="sequenceFlow", source_ref="task1", target_ref="task2"
+            ),
+            BPMNFlow(
+                id="f3", type="sequenceFlow", source_ref="task2", target_ref="end"
+            ),
         ]
 
         engine = LayoutEngine()
@@ -93,7 +102,7 @@ class TestLayoutEngine:
         # Check no two positions are identical
         pos_list = list(positions.values())
         for i, pos1 in enumerate(pos_list):
-            for pos2 in pos_list[i + 1:]:
+            for pos2 in pos_list[i + 1 :]:
                 # Positions should be different
                 assert pos1 != pos2
 
@@ -138,9 +147,7 @@ class TestPositionResolver:
 
     def test_resolve_preserve_mode(self):
         """Test preserve mode doesn't calculate layout."""
-        model = BPMNModel(
-            elements=[BPMNElement(id="task1", type="task")]
-        )
+        model = BPMNModel(elements=[BPMNElement(id="task1", type="task")])
         resolver = PositionResolver(use_layout="preserve")
 
         resolved = resolver.resolve(model)
@@ -254,4 +261,6 @@ class TestLayoutWithRealFiles:
         if standard and express and freight:
             # All three shipping methods should have different Y positions
             y_positions = {standard.y, express.y, freight.y}
-            assert len(y_positions) == 3, "Shipping method branches should have different Y positions"
+            assert len(y_positions) == 3, (
+                "Shipping method branches should have different Y positions"
+            )

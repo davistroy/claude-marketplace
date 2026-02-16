@@ -6,12 +6,10 @@ Tests prompt generation and refinement with mocked Claude API.
 from __future__ import annotations
 
 import json
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from visual_explainer.config import GenerationConfig, PromptRecipe, StyleConfig
 from visual_explainer.models import (
     ConceptAnalysis,
     CriteriaScores,
@@ -50,7 +48,7 @@ class TestPromptGenerator:
     def test_init_with_api_key(self):
         """Test initializing with explicit API key."""
         with patch("visual_explainer.prompt_generator.anthropic.Anthropic") as mock:
-            gen = PromptGenerator(api_key="test-key")
+            PromptGenerator(api_key="test-key")
             mock.assert_called_once()
 
     def test_init_with_custom_model(self):
@@ -69,9 +67,7 @@ class TestPromptGenerator:
     ):
         """Test that generate_prompts returns a list of ImagePrompt."""
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_prompt_generation_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_prompt_generation_response))]
         mock_anthropic_client.messages.create.return_value = mock_response
 
         result = generator.generate_prompts(sample_concept_analysis, sample_style_config)
@@ -90,9 +86,7 @@ class TestPromptGenerator:
     ):
         """Test that image numbers are correctly set."""
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_prompt_generation_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_prompt_generation_response))]
         mock_anthropic_client.messages.create.return_value = mock_response
 
         result = generator.generate_prompts(sample_concept_analysis, sample_style_config)
@@ -110,9 +104,7 @@ class TestPromptGenerator:
     ):
         """Test that flow connections are correctly set."""
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_prompt_generation_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_prompt_generation_response))]
         mock_anthropic_client.messages.create.return_value = mock_response
 
         result = generator.generate_prompts(sample_concept_analysis, sample_style_config)
@@ -135,12 +127,10 @@ class TestPromptGenerator:
     ):
         """Test that style is injected into prompts."""
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=json.dumps(mock_claude_prompt_generation_response))
-        ]
+        mock_response.content = [MagicMock(text=json.dumps(mock_claude_prompt_generation_response))]
         mock_anthropic_client.messages.create.return_value = mock_response
 
-        result = generator.generate_prompts(sample_concept_analysis, sample_style_config)
+        generator.generate_prompts(sample_concept_analysis, sample_style_config)
 
         # Style should be reflected in the call to Claude
         call_args = mock_anthropic_client.messages.create.call_args
@@ -323,7 +313,10 @@ class TestPromptRefinement:
         """Test refinement strategy for attempt 2 (specific fixes)."""
         strategy = generator._get_refinement_strategy(2, sample_feedback)
         assert strategy["name"] == "specific_fixes"
-        assert "feedback" in strategy["description"].lower() or "fixes" in strategy["description"].lower()
+        assert (
+            "feedback" in strategy["description"].lower()
+            or "fixes" in strategy["description"].lower()
+        )
 
     def test_refinement_strategy_attempt_3(
         self,
@@ -333,7 +326,10 @@ class TestPromptRefinement:
         """Test refinement strategy for attempt 3 (strengthen and simplify)."""
         strategy = generator._get_refinement_strategy(3, sample_feedback)
         assert strategy["name"] == "strengthen_and_simplify"
-        assert "simplify" in strategy["description"].lower() or "strengthen" in strategy["description"].lower()
+        assert (
+            "simplify" in strategy["description"].lower()
+            or "strengthen" in strategy["description"].lower()
+        )
 
     def test_refinement_strategy_attempt_4(
         self,
@@ -343,7 +339,10 @@ class TestPromptRefinement:
         """Test refinement strategy for attempt 4 (alternative metaphor)."""
         strategy = generator._get_refinement_strategy(4, sample_feedback)
         assert strategy["name"] == "alternative_metaphor"
-        assert "metaphor" in strategy["description"].lower() or "alternative" in strategy["description"].lower()
+        assert (
+            "metaphor" in strategy["description"].lower()
+            or "alternative" in strategy["description"].lower()
+        )
 
     def test_refinement_strategy_attempt_5_plus(
         self,
@@ -353,7 +352,10 @@ class TestPromptRefinement:
         """Test refinement strategy for attempt 5+ (fundamental restructure)."""
         strategy = generator._get_refinement_strategy(5, sample_feedback)
         assert strategy["name"] == "fundamental_restructure"
-        assert "restructure" in strategy["description"].lower() or "fundamental" in strategy["description"].lower()
+        assert (
+            "restructure" in strategy["description"].lower()
+            or "fundamental" in strategy["description"].lower()
+        )
 
     def test_refinement_strategies_are_different(
         self,
@@ -389,7 +391,9 @@ class TestPromptRefinement:
 
         strategy = generator._get_refinement_strategy(3, feedback)
         # Strategy should focus on the weakest area
-        assert "concept_clarity" in str(strategy["instructions"]).lower() or "0.30" in str(strategy["instructions"])
+        assert "concept_clarity" in str(strategy["instructions"]).lower() or "0.30" in str(
+            strategy["instructions"]
+        )
 
 
 class TestConvenienceFunctions:
@@ -407,7 +411,7 @@ class TestConvenienceFunctions:
             mock_class.return_value = mock_instance
             mock_instance.generate_prompts.return_value = [MagicMock(spec=ImagePrompt)]
 
-            result = generate_prompts(
+            generate_prompts(
                 analysis=sample_concept_analysis,
                 style=sample_style_config,
                 api_key="test-key",
@@ -508,7 +512,9 @@ class TestNegativePromptCombination:
     def test_strips_whitespace(self, generator):
         """Test that whitespace is stripped."""
         result = generator._combine_negative_prompts("  text  ,  labels  ")
-        assert result.startswith("text") or result.endswith("text")  # Not starting/ending with spaces
+        assert result.startswith("text") or result.endswith(
+            "text"
+        )  # Not starting/ending with spaces
 
 
 class TestDefaultCriteriaGeneration:
@@ -559,7 +565,11 @@ class TestPromptFormatting:
         """Test formatting logical flow for the prompt."""
         formatted = generator._format_logical_flow(sample_concept_analysis)
         # Should describe the flow relationships
-        assert "leads_to" in formatted.lower() or "depends_on" in formatted.lower() or "--" in formatted
+        assert (
+            "leads_to" in formatted.lower()
+            or "depends_on" in formatted.lower()
+            or "--" in formatted
+        )
 
     def test_format_logical_flow_empty(self, generator, sample_concepts):
         """Test formatting when no logical flow exists."""
