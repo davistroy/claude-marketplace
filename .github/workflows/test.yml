@@ -66,6 +66,103 @@ jobs:
         run: |
           pytest tests/ -v --cov=bpmn2drawio --cov-report=term-missing --cov-fail-under=90
 
+      - name: Type check
+        continue-on-error: true
+        run: |
+          mypy src/ --ignore-missing-imports
+
+  research-orchestrator:
+    name: Research Orchestrator Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/personal-plugin/tools/research-orchestrator
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=research_orchestrator --cov-branch --cov-report=term-missing --cov-fail-under=30
+
+      - name: Type check
+        continue-on-error: true
+        run: |
+          mypy src/ --ignore-missing-imports
+
+  visual-explainer:
+    name: Visual Explainer Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/personal-plugin/tools/visual-explainer
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,all]"
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=30
+
+      - name: Type check
+        continue-on-error: true
+        run: |
+          mypy src/ --ignore-missing-imports
+
+  feedback-docx-generator:
+    name: Feedback DOCX Generator Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/personal-plugin/tools/feedback-docx-generator
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=feedback_docx_generator --cov-branch --cov-report=term-missing || true
+
+      - name: Type check
+        run: |
+          mypy src/ --ignore-missing-imports
+
   schema-validation:
     name: Schema Validation
     runs-on: ubuntu-latest

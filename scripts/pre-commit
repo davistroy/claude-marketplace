@@ -2,6 +2,7 @@
 #
 # Pre-commit hook for claude-marketplace
 # Validates staged markdown files in the plugins directory
+# and checks Python files with ruff
 #
 # Checks performed:
 #   1. Frontmatter validation:
@@ -11,6 +12,7 @@
 #   3. help.md sync check (commands/skills match actual files)
 #   4. Timestamp format validation (YYYYMMDD-HHMMSS)
 #   5. Help generation sync check (optional, warning only)
+#   6. Python lint/format check with ruff
 #
 # Target: < 5 seconds execution time
 #
@@ -33,20 +35,20 @@ echo ""
 # Get list of staged .md files in plugins/ commands and skills only (excluding CHANGELOG, README, references)
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^plugins/[^/]+/(commands/.*\.md|skills/[^/]+/SKILL\.md)$' || true)
 
+# Track errors
+ERRORS=0
+WARNINGS=0
+
 if [ -z "$STAGED_FILES" ]; then
-    echo -e "${GREEN}No plugin markdown files staged. Skipping validation.${NC}"
-    exit 0
-fi
+    echo -e "${GREEN}No plugin markdown files staged. Skipping markdown validation.${NC}"
+    echo ""
+else
 
 echo "Validating staged plugin files:"
 echo "$STAGED_FILES" | while read -r file; do
     echo "  - $file"
 done
 echo ""
-
-# Track errors
-ERRORS=0
-WARNINGS=0
 
 # Validate each staged file
 for FILE in $STAGED_FILES; do
@@ -314,6 +316,31 @@ else
     fi
 fi
 
+fi  # End of markdown file checks (STAGED_FILES non-empty)
+
+# ============================================
+# Check 6: Python File Lint/Format with ruff
+# ============================================
+PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
+if [ -n "$PYTHON_FILES" ]; then
+    echo "Checking Python files with ruff..."
+    if command -v ruff &> /dev/null; then
+        RUFF_ERRORS=0
+        ruff check $PYTHON_FILES || { echo -e "  ${RED}[FAIL]${NC} Ruff lint check failed"; RUFF_ERRORS=$((RUFF_ERRORS + 1)); }
+        ruff format --check $PYTHON_FILES || { echo -e "  ${RED}[FAIL]${NC} Ruff format check failed"; RUFF_ERRORS=$((RUFF_ERRORS + 1)); }
+        if [ $RUFF_ERRORS -eq 0 ]; then
+            echo -e "  ${GREEN}[PASS]${NC} ruff lint check passed"
+            echo -e "  ${GREEN}[PASS]${NC} ruff format check passed"
+        fi
+        ERRORS=$((ERRORS + RUFF_ERRORS))
+    else
+        echo -e "  ${YELLOW}[WARN]${NC} ruff not installed — skipping Python checks"
+        echo -e "         Install with: pip install ruff"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+    echo ""
+fi
+
 # ============================================
 # Summary
 # ============================================
@@ -336,6 +363,8 @@ if [ $ERRORS -gt 0 ]; then
     echo "  - help.md MUST be synced when changing commands/skills"
     echo "    Fix with: python scripts/generate-help.py --all"
     echo "  - Use YYYYMMDD-HHMMSS format for timestamps (e.g., 20260114-143052)"
+    echo "  - Python files must pass ruff check and ruff format"
+    echo "    Fix with: ruff check --fix . && ruff format ."
     echo ""
     echo "To bypass this check (not recommended):"
     echo "  git commit --no-verify"

@@ -17,3 +17,6 @@
 | 2026-02-16 | 1.5 Narrow Broad Exception Handlers | Complete | bpmn2drawio/layout.py, visual_explainer/api_setup.py, visual_explainer/cli.py |
 | 2026-02-16 | 1.6 Add CI Dependency Caching | Complete | .github/workflows/test.yml |
 | 2026-02-16 | 1.7 Unify Python Version to 3.10+ | Complete | 3 pyproject.toml files, CLAUDE.md |
+| 2026-02-16 | 2.1 Add Dedicated CI Jobs | Complete | .github/workflows/test.yml (3 new jobs) |
+| 2026-02-16 | 2.2 Add mypy Type Checking | Complete | 4 pyproject.toml files, test.yml |
+| 2026-02-16 | 2.3 Add Pre-commit Python Checks | Complete | scripts/pre-commit |
