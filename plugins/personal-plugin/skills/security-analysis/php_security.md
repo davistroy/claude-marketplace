@@ -543,7 +543,9 @@ if (wp_verify_nonce($_POST['_wpnonce'], 'my_action')) {
     1.  Ensure `phpinfo()` is NEVER reachable.
     2.  Check if `.env` or `config.php` are accessible via web (try direct URL).
     3.  Verify `display_errors` is OFF. Matches of "Fatal error:" in HTTP responses = **CRITICAL**.
-```php
+
+## Web Search Queries
+```text
 "[package-name]" composer CVE vulnerability
 "[package-name]" packagist security advisory
 "php" "[vulnerability-type]" exploit

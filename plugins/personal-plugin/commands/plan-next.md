@@ -15,8 +15,6 @@ Before proceeding, verify:
 
 If the repository appears to be a fresh clone with no meaningful content, ask the user for context before proceeding.
 
-## Instructions
-
 ## Analysis Process
 
 1. **Repository Review**: Thoroughly examine all key files including PRD.md, README.md, any existing code, and documentation

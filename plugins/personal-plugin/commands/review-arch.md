@@ -15,8 +15,6 @@ Before proceeding, verify:
 
 For single-file projects or simple scripts, provide a brief assessment rather than a full architectural audit.
 
-## Instructions
-
 ## Overview
 
 Execute the following systematic analysis:

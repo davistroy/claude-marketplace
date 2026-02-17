@@ -25,8 +25,6 @@ Before proceeding, verify:
 
 If any of these prerequisites are missing, inform the user what needs to be set up before running this command.
 
-## Instructions
-
 ## Phase 1: Pre-flight Checks
 
 ### 1.1 Environment Verification
