@@ -107,7 +107,7 @@ For each identified vulnerability:
 ### Phase 4: Risk Assessment
 
 #### Severity Classification
-```
+```text
 🔴 CRITICAL (CVSS 9.0-10.0)
 - Remote code execution
 - Authentication bypass
@@ -163,7 +163,7 @@ For each identified vulnerability:
    - Developer training needs
 
 #### Upgrade Guidance Template
-```
+```text
 📦 Package: [name]
 ├─ Current Version: [x.y.z]
 ├─ Vulnerable: YES

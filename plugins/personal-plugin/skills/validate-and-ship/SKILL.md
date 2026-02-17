@@ -25,7 +25,7 @@ When `--dry-run` is specified:
 
 ## Workflow Overview
 
-```
+```text
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │  Phase 1:       │     │  Phase 2:       │     │  Phase 3:       │
 │  Validate       │────▶│  Clean Repo     │────▶│  Ship           │
@@ -71,7 +71,7 @@ Perform the full validation as defined in `/validate-plugin`:
 
 ### 1.3 Output Format
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Phase 1: Plugin Validation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -126,7 +126,7 @@ Perform cleanup as defined in `/clean-repo`:
 
 ### 2.3 Output Format
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Phase 2: Repository Cleanup
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -155,7 +155,7 @@ git status --porcelain
 ```
 
 **If no changes:**
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Phase 3: Ship
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -180,7 +180,7 @@ If there are changes, execute the full `/ship` workflow:
 ### 3.3 Handle Ship Results
 
 **Success:**
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Phase 3: Ship
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -202,7 +202,7 @@ PR URL: [url]
 ```
 
 **Failure (unfixable issues):**
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Phase 3: Ship
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -241,7 +241,7 @@ The workflow does NOT stop for:
 ## Error Handling
 
 ### Phase 1 Errors
-```
+```text
 Validation Error: [specific error]
 
 To fix:
@@ -251,7 +251,7 @@ After fixing, run /validate-and-ship again.
 ```
 
 ### Phase 2 Errors
-```
+```text
 Cleanup Error: [specific error]
 
 The cleanup phase encountered an issue:
@@ -263,7 +263,7 @@ Options:
 ```
 
 ### Phase 3 Errors
-```
+```text
 Ship Error: [specific error]
 
 The ship phase could not complete:
@@ -280,7 +280,7 @@ Manual steps required:
 ## Example Usage
 
 ### Standard Flow
-```
+```yaml
 User: /validate-and-ship
 
 Claude:
@@ -309,14 +309,14 @@ PR URL: https://github.com/user/repo/pull/42
 ```
 
 ### With Custom Branch
-```
+```yaml
 User: /validate-and-ship feat/new-feature
 
 Claude: [Runs all phases, uses "feat/new-feature" as branch name]
 ```
 
 ### Dry Run
-```
+```yaml
 User: /validate-and-ship --dry-run
 
 Claude:
@@ -328,7 +328,7 @@ No changes made. Run without --dry-run to execute.
 ```
 
 ### Skip Phases
-```
+```yaml
 User: /validate-and-ship --skip-validate
 
 Claude: [Skips Phase 1, runs Phases 2 and 3]

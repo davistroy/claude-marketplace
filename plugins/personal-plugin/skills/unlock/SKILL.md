@@ -86,7 +86,7 @@ for s in json.load(sys.stdin):
 
 Print the count and list of secret names loaded (never print values). Example output:
 
-```
+```text
 Loaded 8 secret(s) from Bitwarden Secrets Manager:
   ANTHROPIC_API_KEY
   OPENAI_API_KEY

@@ -545,7 +545,7 @@ async def create_item(
     3.  **Exception Leaks**: Trigger 500 errors and check if stack traces are returned to the client.
 
 ## Web Search Queries
-```
+```python
 "[package-name]" python CVE security vulnerability
 "[package-name]" pypi security advisory
 "python" "[vulnerability-type]" exploit

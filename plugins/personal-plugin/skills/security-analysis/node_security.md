@@ -364,7 +364,7 @@ app.use('/api', limiter);
 4.  **Verify**: Re-run the specific compromised test case.
 
 ## Web Search Queries for Node.js Vulnerabilities
-```
+```javascript
 "[package-name]" npm security vulnerability CVE
 "[package-name]" github security advisory
 "node.js" "[vulnerability-type]" exploit

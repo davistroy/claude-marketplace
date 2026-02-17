@@ -35,7 +35,7 @@ The generated XML includes:
 
 Determine the operating mode based on user input:
 
-```
+```text
 IF user provides a markdown file path (.md):
     → Document Parsing Mode
 ELSE IF user provides a natural language description:
@@ -100,7 +100,7 @@ Initial process descriptions are rarely sufficient for optimal BPMN generation. 
 
 For EVERY clarifying question, use this EXACT format:
 
-```
+```markdown
 ## Question [N]: [Topic Category]
 
 [Clear, specific question about the process]
@@ -127,7 +127,7 @@ When the user selects option **E**:
 3. Log each auto-accepted decision
 4. Before generating XML, present a summary:
 
-```
+```markdown
 ## Auto-Accepted Decisions Summary
 
 | Question | Topic | Decision |
@@ -193,7 +193,7 @@ Support these standard session commands during Interactive mode:
 | `quit` | `exit`, `stop` | Exit without generating BPMN |
 
 **When user types `help`:**
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Session Commands
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -474,7 +474,7 @@ Both modes use the same BPMN generation rules.
 
 ### Layout Constants (Draw.io Compatible)
 
-```
+```text
 POOL_LABEL_WIDTH     = 30px
 LANE_LEFT_OFFSET     = 30px
 ELEMENT_LEFT_MARGIN  = 60px
@@ -534,7 +534,7 @@ Before outputting XML, verify:
 ## For Interactive Mode
 
 ### 1. Decision Summary
-```
+```markdown
 ## Process Configuration Summary
 
 **Process Name:** [name]
@@ -549,7 +549,7 @@ Before outputting XML, verify:
 ```
 
 ### 2. Process Description
-```
+```text
 ## Generated Process Structure
 
 [Brief narrative description of the process flow]
@@ -564,7 +564,7 @@ Write the complete XML to a file named `[process-name].bpmn` in the current dire
 ## For Document Parsing Mode
 
 ### 1. Conversion Summary
-```
+```markdown
 ## Conversion Summary
 
 **Source Document:** [filename.md]
@@ -588,7 +588,7 @@ Write complete XML to `[process-name].bpmn`
 ## Common Output
 
 ### Validation Confirmation
-```
+```text
 ## Validation Results
 
 ✓ All structural checks passed

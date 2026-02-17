@@ -38,7 +38,7 @@ Before cleaning or updating anything, you MUST understand what this repository a
 
 Execute these analysis steps:
 
-```
+```text
 1. Read the root README.md completely
 2. Read CLAUDE.md if present
 3. Examine the directory structure (use Glob to map all directories)
@@ -78,7 +78,7 @@ find . -name "README*" -type f
 ```
 
 Create a documentation map:
-```
+```text
 Documentation Map
 -----------------
 Root Level:
@@ -108,7 +108,11 @@ Before proceeding, summarize:
 
 ---
 
-## Phase 1: Artifact Cleanup
+## Instructions
+
+Execute the following phases in order. Each phase builds on the understanding gained from the previous one.
+
+### Phase 1: Artifact Cleanup
 
 Identify and remove files that should not be in the repository:
 
@@ -140,7 +144,7 @@ Identify and remove files that should not be in the repository:
 
 ---
 
-## Phase 2: Structure Validation
+### Phase 2: Structure Validation
 
 Verify the repository structure follows conventions:
 
@@ -165,7 +169,7 @@ Look for:
 
 ---
 
-## Phase 3: Documentation Deep Sync
+### Phase 3: Documentation Deep Sync
 
 **This is the most important phase.** Documentation must accurately reflect the current state of the codebase.
 
@@ -265,7 +269,7 @@ For projects with inline documentation (docstrings, JSDoc, etc.):
 
 ---
 
-## Phase 4: Configuration Consistency
+### Phase 4: Configuration Consistency
 
 ### Package Metadata Sync
 For each package manifest found, verify:
@@ -283,7 +287,7 @@ If multiple files reference versions, ensure they match:
 
 ---
 
-## Phase 5: Git Hygiene
+### Phase 5: Git Hygiene
 
 ### Branch Cleanup
 ```bash
@@ -299,9 +303,9 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 
 ---
 
-## Execution Instructions
+### Execution Rules
 
-### Order of Operations
+#### Order of Operations
 
 1. **Phase 0: Analyze** - Build complete understanding of the repository
 2. **Phase 1: Clean** - Remove artifacts (quick, low risk)
@@ -310,7 +314,7 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 5. **Phase 4: Consistency** - Ensure config files agree
 6. **Phase 5: Git** - Clean up branches and gitignore
 
-### Documentation Update Rules
+#### Documentation Update Rules
 
 **DO immediately update:**
 - Version numbers
@@ -325,10 +329,10 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 - Adding substantial new content
 - Changing the document structure
 
-### Output Format
+#### Output Format
 
 #### Analysis Summary (after Phase 0)
-```
+```markdown
 ## Repository Analysis
 
 **Project:** [name] - [one-line description]
@@ -347,7 +351,7 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 ```
 
 #### Cleanup Report (after all phases)
-```
+```markdown
 ## Repository Cleanup Complete
 
 ### Artifacts Removed

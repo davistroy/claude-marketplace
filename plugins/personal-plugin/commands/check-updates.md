@@ -16,7 +16,7 @@ None
 
 **Validation:**
 This command requires no arguments.
-```
+```text
 Usage: /check-updates [--verbose]
 Example: /check-updates
 Example: /check-updates --verbose
@@ -57,7 +57,7 @@ For each plugin, compare the installed version against the marketplace version:
 
 Display a formatted report:
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Plugin Update Check
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -84,22 +84,22 @@ other-plugin: 1.2.0 (current)
 ### 5. Handle Edge Cases
 
 **Plugin not in marketplace:**
-```
+```text
 Warning: installed-plugin is installed but not found in marketplace
 ```
 
 **Marketplace plugin not installed:**
-```
+```text
 Available: marketplace-plugin v1.0.0 (not installed)
 ```
 
 **Version parsing errors:**
-```
+```text
 Warning: Could not parse version for plugin-name (installed: "invalid", marketplace: "1.0.0")
 ```
 
 **Missing files:**
-```
+```text
 Error: Could not read marketplace.json at .claude-plugin/marketplace.json
 ```
 
@@ -107,7 +107,7 @@ Error: Could not read marketplace.json at .claude-plugin/marketplace.json
 
 When `--verbose` is specified, include additional details:
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Plugin Update Check (Verbose)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -131,7 +131,7 @@ personal-plugin
 
 ### All plugins up to date
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Plugin Update Check
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -146,7 +146,7 @@ bpmn-plugin: 1.6.0 (current)
 
 ### Updates available
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Plugin Update Check
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -31,7 +31,7 @@ Documents can be provided as:
 
 **Validation:**
 If fewer than two documents are provided, display:
-```
+```text
 Error: Insufficient documents provided
 
 Usage: /consolidate-documents <doc1> <doc2> [doc3...]
@@ -52,7 +52,7 @@ Examples:
 You can also paste document content directly when prompted.
 ```
 
-## Process
+## Instructions
 
 ### Step 1: Gather Sources
 

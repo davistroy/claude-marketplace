@@ -29,7 +29,7 @@ Interactively collect the following from the user:
 #### 1.1 Command Name
 
 Ask:
-```
+```text
 What is the command name? (kebab-case, e.g., "analyze-logs")
 ```
 
@@ -40,7 +40,7 @@ What is the command name? (kebab-case, e.g., "analyze-logs")
 - Must not already exist in `plugins/personal-plugin/commands/` or `plugins/personal-plugin/skills/`
 
 If invalid:
-```
+```text
 Error: Command name must be kebab-case (e.g., 'my-command', 'analyze-data')
 Invalid: [what was provided]
 Reason: [specific reason]
@@ -51,7 +51,7 @@ Please provide a valid command name:
 #### 1.2 Description
 
 Ask:
-```
+```text
 Provide a brief description (shown in /help):
 ```
 
@@ -63,7 +63,7 @@ Provide a brief description (shown in /help):
 #### 1.3 Pattern Type
 
 Ask:
-```
+```text
 Select the command pattern type:
 
 [1] read-only    - Analysis commands that report without modifying
@@ -149,7 +149,7 @@ Save to: `plugins/personal-plugin/commands/[command-name].md`
 #### 3.1 Remind About Documentation Updates
 
 Display:
-```
+```text
 ----------------------------------------------
 Command Generated Successfully!
 ----------------------------------------------
@@ -187,7 +187,7 @@ The generated file will contain:
 
 ## Example Usage
 
-```
+```yaml
 User: /new-command
 
 Claude:
@@ -239,7 +239,7 @@ File created: plugins/personal-plugin/commands/check-dependencies.md
    - [ ] Run: /validate-plugin personal-plugin
 ```
 
-```
+```yaml
 User: /new-command export-data generator
 
 Claude:

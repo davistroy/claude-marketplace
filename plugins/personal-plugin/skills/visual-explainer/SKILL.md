@@ -157,7 +157,7 @@ pip install python-docx PyPDF2 beautifulsoup4  # Optional, for specific formats
 
 **If API keys are missing, guide the user through setup:**
 
-```
+```text
 API Key Setup Required
 ======================
 
@@ -173,7 +173,7 @@ Would you like me to help you set up the missing API keys? (yes/skip)
 ```
 
 **For GOOGLE_API_KEY:**
-```
+```text
 GOOGLE API KEY SETUP (for Gemini)
 ---------------------------------
 
@@ -194,7 +194,7 @@ Paste your Google API key (or 'skip' to skip this provider):
 ```
 
 **For ANTHROPIC_API_KEY:**
-```
+```text
 ANTHROPIC API KEY SETUP
 -----------------------
 
@@ -214,7 +214,7 @@ Paste your Anthropic API key (or 'skip'):
 ```
 
 **After collecting keys, create/update .env file and confirm:**
-```
+```text
 API keys saved to .env
 
 Keys configured:
@@ -228,7 +228,7 @@ Security reminder: Never commit .env to version control.
 
 If no input was provided in arguments, prompt:
 
-```
+```text
 I'll help you create visual explanations for your content.
 
 Please provide your input in one of these formats:
@@ -249,7 +249,7 @@ PYTHONPATH="$TOOL_SRC" python -m visual_explainer analyze \
 
 Display the analysis summary:
 
-```
+```text
 Content Analysis
 ================
 Document: "Understanding Quantum Entanglement"
@@ -269,7 +269,7 @@ Concept Flow:
 
 Prompt for style selection:
 
-```
+```text
 Visual Style Selection
 ======================
 What style would you prefer?
@@ -292,7 +292,7 @@ Select style [1-4]:
 
 ### Phase 6: Image Count Confirmation
 
-```
+```text
 Image Generation Plan
 =====================
 Based on analysis, I recommend 3 images:
@@ -334,7 +334,7 @@ PYTHONPATH="$TOOL_SRC" python -m visual_explainer generate \
 
 **Progress Display Format:**
 
-```
+```text
 Starting Image Generation
 =========================
 
@@ -369,7 +369,7 @@ Image 2 of 3: "Quantum Superposition"
 
 ### Phase 8: Completion Summary
 
-```
+```text
 Generation Complete
 ===================
 
@@ -452,42 +452,42 @@ The checkpoint contains:
 ## Examples
 
 **Infographic mode (recommended for complex documents):**
-```
+```text
 /visual-explainer --input docs/architecture-overview.md --infographic
 ```
 
 **Infographic with dry-run preview:**
-```
+```text
 /visual-explainer --input whitepaper.md --infographic --dry-run
 ```
 
 **Basic usage (interactive):**
-```
+```text
 /visual-explainer
 ```
 
 **With document path:**
-```
+```text
 /visual-explainer --input docs/architecture-overview.md
 ```
 
 **Custom settings:**
-```
+```text
 /visual-explainer --input concept.txt --style professional-sketch --max-iterations 3 --aspect-ratio 1:1
 ```
 
 **High quality infographic:**
-```
+```text
 /visual-explainer --input whitepaper.md --infographic --resolution high --max-iterations 7 --pass-threshold 0.90
 ```
 
 **Dry run (plan only):**
-```
+```text
 /visual-explainer --input document.md --dry-run
 ```
 
 **Resume interrupted generation:**
-```
+```text
 /visual-explainer --resume ./output/visual-explainer-topic-20260118/checkpoint.json
 ```
 

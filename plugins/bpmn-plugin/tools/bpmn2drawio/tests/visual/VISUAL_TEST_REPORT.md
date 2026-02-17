@@ -308,7 +308,7 @@ Mixed results. Pool and lane structure rendered correctly (unlike CF-03). Bounda
 ## Test File Locations
 
 All test files are located in:
-```
+```text
 plugins/bpmn-plugin/tools/bpmn2drawio/tests/visual/
 ```
 
@@ -321,7 +321,7 @@ plugins/bpmn-plugin/tools/bpmn2drawio/tests/visual/
 - test_combined_complex.bpmn
 
 **Output files (.drawio):**
-```
+```text
 plugins/bpmn-plugin/tools/bpmn2drawio/tests/visual/output/
 ```
 

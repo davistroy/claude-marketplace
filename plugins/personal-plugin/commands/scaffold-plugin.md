@@ -28,7 +28,7 @@ Interactively collect the following from the user:
 #### 1.1 Plugin Name
 
 Ask:
-```
+```text
 What is the plugin name? (kebab-case ending in '-plugin', e.g., "data-tools-plugin")
 ```
 
@@ -38,7 +38,7 @@ What is the plugin name? (kebab-case ending in '-plugin', e.g., "data-tools-plug
 - Must not already exist in `plugins/` directory
 
 If invalid:
-```
+```text
 Error: Plugin name must be kebab-case ending in '-plugin'
 Invalid: [what was provided]
 Reason: [specific reason]
@@ -49,7 +49,7 @@ Please provide a valid plugin name:
 #### 1.2 Description
 
 Ask:
-```
+```text
 Provide a brief description for the plugin:
 ```
 
@@ -60,7 +60,7 @@ Provide a brief description for the plugin:
 #### 1.3 Category
 
 Ask:
-```
+```text
 Select a category for the plugin:
 
 [1] productivity  - Personal productivity and workflow tools
@@ -76,7 +76,7 @@ Enter number (1-6) or category name:
 #### 1.4 Tags
 
 Ask:
-```
+```text
 Enter tags for the plugin (comma-separated, e.g., "automation,cli,tools"):
 ```
 
@@ -86,7 +86,7 @@ Parse into array format for JSON.
 
 Create the following directory structure:
 
-```
+```text
 plugins/[plugin-name]/
   .claude-plugin/
     plugin.json           # Plugin metadata
@@ -245,7 +245,7 @@ Save the updated JSON with proper formatting.
 ### Phase 5: Report Results
 
 Display:
-```
+```text
 ----------------------------------------------
 Plugin Scaffolded Successfully!
 ----------------------------------------------
@@ -307,7 +307,7 @@ Updated:
 
 ## Example Usage
 
-```
+```yaml
 User: /scaffold-plugin
 
 Claude:
@@ -369,7 +369,7 @@ Updated:
 ...
 ```
 
-```
+```yaml
 User: /scaffold-plugin testing-tools-plugin
 
 Claude:

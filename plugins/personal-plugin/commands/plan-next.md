@@ -6,6 +6,17 @@ description: Analyze repo and recommend the next logical action
 
 Ultrathink and carefully review and evaluate everything in this repo. Define the next best logical step for this project and present to me, focusing on quality over speed. Make sure that the scope of this next step fits within an estimated 100K tokens or so to keep it small and within an appropriate context window.
 
+## Input Validation
+
+Before proceeding, verify:
+- This is a valid git repository with a readable structure
+- Key project files (README, documentation, code) are accessible
+- The repository has sufficient content to analyze (not empty)
+
+If the repository appears to be a fresh clone with no meaningful content, ask the user for context before proceeding.
+
+## Instructions
+
 ## Analysis Process
 
 1. **Repository Review**: Thoroughly examine all key files including PRD.md, README.md, any existing code, and documentation

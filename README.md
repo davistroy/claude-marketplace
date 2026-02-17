@@ -3,7 +3,7 @@
 [![Plugin Validation](https://github.com/davistroy/claude-marketplace/actions/workflows/validate.yml/badge.svg)](https://github.com/davistroy/claude-marketplace/actions/workflows/validate.yml)
 [![Tests](https://github.com/davistroy/claude-marketplace/actions/workflows/test.yml/badge.svg)](https://github.com/davistroy/claude-marketplace/actions/workflows/test.yml)
 
-A collection of Claude Code plugins containing custom slash commands and skills for documentation review, architecture analysis, git workflows, document processing, and BPMN workflow generation.
+A collection of Claude Code plugins containing custom slash commands and skills for documentation review, architecture analysis, git workflows, document processing, security analysis, multi-LLM research, visual explanation generation, and BPMN workflow generation.
 
 ## Installation
 
@@ -63,6 +63,7 @@ Custom commands and skills for productivity workflows.
 | [`/plan-next`](plugins/personal-plugin/commands/plan-next.md) | Analyze repo and recommend the next logical action |
 | [`/remove-ip`](plugins/personal-plugin/commands/remove-ip.md) | Sanitize documents by removing company identifiers and non-public intellectual property while pre... |
 | [`/review-arch`](plugins/personal-plugin/commands/review-arch.md) | Quick architectural audit with technical debt assessment (read-only, no files generated) |
+| [`/review-intent`](plugins/personal-plugin/commands/review-intent.md) | Determine original project intent and compare against current implementation |
 | [`/review-pr`](plugins/personal-plugin/commands/review-pr.md) | Structured PR review with security, performance, and code quality analysis |
 | [`/scaffold-plugin`](plugins/personal-plugin/commands/scaffold-plugin.md) | Create a new plugin with proper directory structure, metadata, and starter files |
 | [`/setup-statusline`](plugins/personal-plugin/commands/setup-statusline.md) | "[Personal] Troy's custom status line setup (Windows/PowerShell)" |
@@ -73,8 +74,14 @@ Custom commands and skills for productivity workflows.
 | Skill | Description |
 |-------|-------------|
 | [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills in this plugin with usage information |
+| [`/prime`](plugins/personal-plugin/skills/prime/SKILL.md) | Evaluate codebase: purpose, health, status, and recommended next steps |
 | [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
+| [`/security-analysis`](plugins/personal-plugin/skills/security-analysis/SKILL.md) | Comprehensive security vulnerability scanning with technology-specific patterns |
 | [`/ship`](plugins/personal-plugin/skills/ship/SKILL.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
+| [`/summarize-feedback`](plugins/personal-plugin/skills/summarize-feedback/SKILL.md) | Synthesize employee feedback from Notion into a professional .docx assessment |
+| [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment |
+| [`/validate-and-ship`](plugins/personal-plugin/skills/validate-and-ship/SKILL.md) | Validate plugins, clean repository, and ship changes in one workflow |
+| [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated visual explanations |
 
 ### bpmn-plugin
 

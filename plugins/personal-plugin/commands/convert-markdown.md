@@ -16,13 +16,13 @@ Convert a markdown file into a professionally formatted Microsoft Word document 
 
 **Validation:**
 If the markdown file path is missing, display:
-```
+```text
 Usage: /convert-markdown <markdown-file> [output-file]
 Example: /convert-markdown docs/api-guide.md
 Example: /convert-markdown README.md documentation.docx
 ```
 
-## Process
+## Instructions
 
 ### Step 1: Identify Source File
 
@@ -41,7 +41,7 @@ pandoc --version
 
 If the pandoc check fails (command not found), display this error and stop:
 
-```
+```text
 Error: Required dependency 'pandoc' not found
 
 /convert-markdown requires pandoc for document conversion.
@@ -121,13 +121,13 @@ The generated Word document will include:
 | Issue | Solution |
 |-------|----------|
 | Images not appearing | Ensure image paths are relative to the markdown file |
-| Code not highlighted | Specify language after opening ``` |
+| Code not highlighted | Specify language after opening triple-backtick fence |
 | TOC missing | Document needs at least one heading |
 | Encoding issues | Save markdown as UTF-8 |
 
 ## Example Usage
 
-```
+```yaml
 User: /convert-markdown docs/api-guide.md
 Claude: Converting docs/api-guide.md to docs/api-guide.docx...
         ✓ Created docs/api-guide.docx (45 KB)

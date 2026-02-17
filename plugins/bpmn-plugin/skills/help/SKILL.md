@@ -11,7 +11,7 @@ Display help information for the bpmn-plugin skills.
 
 ## Usage
 
-```
+```text
 /help                          # Show all skills
 /help <skill-name>             # Show detailed help for a specific skill
 ```
@@ -20,7 +20,7 @@ Display help information for the bpmn-plugin skills.
 
 When invoked without arguments, display this table:
 
-```
+```text
 bpmn-plugin Skills
 ==================
 
@@ -53,7 +53,7 @@ When invoked with a skill name, display detailed information.
 **Output:** `[process-name].bpmn` - BPMN 2.0 compliant XML file
 
 **Examples:**
-```
+```text
 /bpmn-generator                           # Interactive mode - guided Q&A
 /bpmn-generator "order fulfillment flow"  # Interactive mode with initial description
 /bpmn-generator process-doc.md            # Document parsing mode
@@ -75,7 +75,7 @@ When invoked with a skill name, display detailed information.
 **Output:** `.drawio` file compatible with Draw.io Desktop and web applications
 
 **Examples:**
-```
+```text
 /bpmn-to-drawio process.bpmn diagram.drawio                    # Basic conversion
 /bpmn-to-drawio process.bpmn diagram.drawio --theme=blueprint  # With theme
 /bpmn-to-drawio process.bpmn diagram.drawio --layout=preserve  # Keep existing layout
@@ -90,7 +90,7 @@ When invoked with a skill name, display detailed information.
 **Output:** In-conversation output
 
 **Examples:**
-```
+```text
 /help                          # Show all skills
 /help bpmn-generator           # Detailed help for bpmn-generator
 /help bpmn-to-drawio           # Detailed help for bpmn-to-drawio
@@ -101,7 +101,7 @@ When invoked with a skill name, display detailed information.
 ## Error Handling
 
 If the requested skill is not found:
-```
+```text
 Skill '[name]' not found in bpmn-plugin.
 
 Available skills:

@@ -16,7 +16,7 @@ Interactively walk the user through answering questions from a JSON file produce
 
 **Validation:**
 If the questions file path is missing, display:
-```
+```text
 Usage: /ask-questions <questions-file> [--force]
 Example: /ask-questions questions-PRD-20260110-143052.json
 Example: /ask-questions reference/questions-requirements-20260114.json
@@ -77,7 +77,7 @@ Before proceeding with the Q&A session:
 5. **If `--force` provided:** Proceed with a warning
 
 **Input Validation Error Message:**
-```
+```text
 Input validation failed for questions-PRD-20260114.json:
 
 Errors:
@@ -89,7 +89,7 @@ Use --force to proceed anyway (some features may not work correctly).
 ```
 
 **Input Validation Warning (with --force):**
-```
+```text
 WARNING: Input validation failed but --force was specified.
 Proceeding with Q&A session. Some questions may not display correctly.
 ```
@@ -101,7 +101,7 @@ Proceeding with Q&A session. Some questions may not display correctly.
 For each question in sequential order by ID:
 
 #### A. Display Progress Header
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Question 12 of 47 | Topic: [Topic Name]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -120,7 +120,7 @@ Display:
 
 Always present options in this structure:
 
-```
+```text
 **[A] Recommended:** [Your best answer]
     Why this is best: [Clear rationale - 1-2 sentences]
 
@@ -172,7 +172,7 @@ During the session, support these standard session commands (see `references/pat
 | `save` | | Save current progress without exiting |
 
 **When user types `help`:**
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Session Commands
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -200,7 +200,7 @@ Additional commands:
 #### A. Handle Skipped Questions
 
 If any questions were skipped:
-```
+```text
 You skipped 3 questions. Would you like to:
 [A] Answer them now
 [B] Leave them unanswered
@@ -260,7 +260,7 @@ Before saving the answers file:
 5. **If `--force` provided:** Save anyway with a warning
 
 **Output Validation Success Message:**
-```
+```text
 Output validated against schemas/answers.json. Saved to answers-PRD-20260114-143052.json
 
 Validation: PASSED
@@ -269,7 +269,7 @@ Validation: PASSED
 ```
 
 **Output Validation Error Message:**
-```
+```text
 Schema validation failed:
 
 Errors:
@@ -280,7 +280,7 @@ Fix these issues or use --force to save anyway (not recommended).
 ```
 
 **Output Validation Warning (with --force):**
-```
+```text
 WARNING: Output validation failed but --force was specified.
 Output saved to answers-PRD-20260114-143052.json
 
@@ -289,7 +289,7 @@ This file may not work correctly with /finish-document.
 
 #### D. Display Completion Summary
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Session Complete!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -320,7 +320,7 @@ This file can be used to:
 
 ## Example Interaction
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Question 3 of 32 | Topic: LLM Integration
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -355,7 +355,7 @@ Your choice (A/B/C/D/S):
 
 User types: `A`
 
-```
+```text
 Recorded: Claude (Anthropic) for AI board members + Deepgram for transcription
 
 Proceeding to question 4...

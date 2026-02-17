@@ -98,7 +98,7 @@ This workflow is **semi-automated**:
 ## Test BPMN Files to Create
 
 ### File: test_ml_03_many_lanes.bpmn
-```
+```text
 Purpose: Test layout with 5 lanes in single pool
 Features:
 - 1 pool "Order Processing"
@@ -109,7 +109,7 @@ Features:
 ```
 
 ### File: test_cf_03_criss_cross_messages.bpmn
-```
+```text
 Purpose: Test overlapping message flow routing
 Features:
 - 2 pools: "System A" and "System B"
@@ -119,7 +119,7 @@ Features:
 ```
 
 ### File: test_gw_04_nested_gateways.bpmn
-```
+```text
 Purpose: Test deep gateway nesting
 Features:
 - Start -> XOR -> (Parallel -> (XOR -> tasks) ) -> Merge -> End
@@ -128,7 +128,7 @@ Features:
 ```
 
 ### File: test_sp_04_subprocess_gateway.bpmn
-```
+```text
 Purpose: Test subprocess with internal complexity
 Features:
 - Main flow with subprocess
@@ -138,7 +138,7 @@ Features:
 ```
 
 ### File: test_cr_05_cross_lane_flows.bpmn
-```
+```text
 Purpose: Test flows that traverse multiple lanes
 Features:
 - 4 lanes in single pool
@@ -148,7 +148,7 @@ Features:
 ```
 
 ### File: test_combined_complex.bpmn
-```
+```text
 Purpose: Ultimate stress test combining all features
 Features:
 - 2 pools, 3 lanes in first pool
@@ -166,7 +166,7 @@ Features:
 ### Phase 1: Generate Test Files
 
 **Prompt for Claude:**
-```
+```text
 Create the BPMN test file test_ml_03_many_lanes.bpmn in
 plugins/bpmn-plugin/tools/bpmn2drawio/tests/visual/
 
@@ -189,7 +189,7 @@ bpmn2drawio tests/visual/test_ml_03_many_lanes.bpmn tests/visual/output/test_ml_
 ```
 
 **Prompt for Claude:**
-```
+```text
 Run the bpmn2drawio converter on all test files in tests/visual/:
 
 For each .bpmn file:
@@ -201,7 +201,7 @@ For each .bpmn file:
 ### Phase 3: Visual Inspection
 
 **Prompt for Claude:**
-```
+```text
 Open the converted DrawIO file in app.diagrams.net and take a screenshot.
 
 Steps:

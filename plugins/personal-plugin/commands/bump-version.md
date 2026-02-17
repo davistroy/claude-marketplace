@@ -26,7 +26,7 @@ When `--dry-run` is specified:
 
 **Validation:**
 If arguments are missing or invalid, display:
-```
+```text
 Usage: /bump-version <plugin-name> <major|minor|patch>
 
 Examples:
@@ -40,7 +40,7 @@ Available plugins:
 ```
 
 If plugin-name is not found, display:
-```
+```text
 Error: Plugin '[name]' not found.
 
 Available plugins:
@@ -51,7 +51,7 @@ Check the plugins/ directory for valid plugin names.
 ```
 
 If bump-type is invalid, display:
-```
+```text
 Error: Invalid bump type '[type]'.
 
 Valid bump types:
@@ -154,7 +154,7 @@ Add a new version section if it doesn't exist. Insert after `## [Unreleased]`:
 
 Display the changes made:
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Version Bump Complete
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -175,7 +175,7 @@ Files Updated:
 
 Ask user if they want to commit the changes:
 
-```
+```text
 Would you like to commit these version changes?
 
 Suggested commit message:
@@ -209,7 +209,7 @@ If user types 'skip':
 
 ## Example Usage
 
-```
+```yaml
 User: /bump-version personal-plugin minor
 
 Claude: Current version: personal-plugin v1.6.0

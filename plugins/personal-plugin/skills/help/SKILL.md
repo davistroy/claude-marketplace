@@ -11,7 +11,7 @@ Display help information for the personal-plugin commands and skills.
 
 ## Usage
 
-```
+```text
 /help                          # Show all commands and skills
 /help <command-name>           # Show detailed help for a specific command
 ```
@@ -20,7 +20,7 @@ Display help information for the personal-plugin commands and skills.
 
 When invoked without arguments, display this table:
 
-```
+```text
 personal-plugin Commands and Skills
 ===================================
 
@@ -48,6 +48,7 @@ COMMANDS
 | /plan-next | Analyze repo and recommend the next logical action |
 | /remove-ip | Sanitize documents by removing company identifiers and non-public... |
 | /review-arch | Quick architectural audit with technical debt assessment (read-only, no... |
+| /review-intent | Determine original project intent and compare against current implementation,... |
 | /review-pr | Structured PR review with security, performance, and code quality analysis |
 | /scaffold-plugin | Create a new plugin with proper directory structure, metadata, and starter files |
 | /setup-statusline | Custom status line setup (Windows/PowerShell) |
@@ -59,6 +60,7 @@ SKILLS
 | Skill | Description |
 |-------|-------------|
 | /help | Show available commands and skills in this plugin with usage information |
+| /prime | Evaluate a codebase to produce a detailed report on project purpose, health, status, and next steps |
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | /security-analysis | Comprehensive security vulnerability scanning and analysis with technology-specific patterns |
 | /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge (GitHub and Gitea) |
@@ -91,7 +93,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <transcript-path> [--format [md|json]]
 **Output:** Generated output file
 **Example:**
-```
+```text
 /analyze-transcript meeting-notes.txt
 /analyze-transcript transcript.md --format json
 ```
@@ -103,7 +105,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <questions-file> [--force]
 **Output:** Generated output file
 **Example:**
-```
+```text
 /ask-questions questions-PRD-20260110.json
 ```
 
@@ -114,7 +116,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <document-path> [--format [md|json]]
 **Output:** Files in reports/
 **Example:**
-```
+```text
 /assess-document
 /assess-document PRD.md
 ```
@@ -126,7 +128,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <plugin-name> <bump-type> [--dry-run]
 **Output:** In-conversation output
 **Example:**
-```
+```text
 /bump-version personal-plugin minor    # 1.6.0 -> 1.7.0
 /bump-version bpmn-plugin patch        # 1.5.0 -> 1.5.1
 /bump-version personal-plugin major    # 1.6.0 -> 2.0.0
@@ -139,7 +141,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** [--verbose]
 **Output:** Generated output file
 **Example:**
-```
+```text
 /check-updates --verbose
 ```
 
@@ -150,7 +152,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** [--dry-run] [--audit] [--docs-only]
 **Output:** In-conversation report with cleanup summary
 **Example:**
-```
+```text
 /clean-repo                    # Full cleanup with documentation sync
 /clean-repo --docs-only        # Focus only on documentation updates
 /clean-repo --dry-run          # Preview changes without executing
@@ -163,7 +165,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <doc1-path> <doc2-path> [doc3-path...]
 **Output:** consolidated-[topic]-YYYYMMDD-HHMMSS.md
 **Example:**
-```
+```text
 /consolidate-documents draft-v1.md draft-v2.md
 /consolidate-documents spec-a.md spec-b.md spec-c.md
 /consolidate-documents requirements-old.md requirements-new.md updates.md
@@ -176,7 +178,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <markdown-file> [<output-file>]
 **Output:** In-conversation output
 **Example:**
-```
+```text
 /convert-markdown requires pandoc for document conversion.
 ```
 
@@ -188,7 +190,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <plugin-name> [--dry-run] [--verbose] [--list]
 **Output:** PowerShell scripts and updated hooks.json
 **Example:**
-```
+```text
 /convert-hooks my-plugin              # Convert hooks for a plugin
 /convert-hooks my-plugin --dry-run    # Preview changes
 /convert-hooks --list                 # Show plugins with hooks
@@ -201,7 +203,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** [<document-paths>] [--output <path>] [--phases <n>] [--verbose]
 **Output:** IMPLEMENTATION_PLAN.md in repository root
 **Example:**
-```
+```text
 /create-plan                              # Auto-discover documents
 /create-plan PRD.md TDD.md               # Use specific documents
 /create-plan --phases 5                   # Target 5 phases
@@ -214,7 +216,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <document-path> [--format [json|csv]]
 **Output:** Generated output file
 **Example:**
-```
+```text
 /define-questions
 /define-questions PRD.md
 ```
@@ -226,7 +228,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <content-source> [--style <style-file>]
 **Output:** Generated output file
 **Example:**
-```
+```text
 /develop-image-prompt architecture.md
 /develop-image-prompt process-flow.md --style brand-guidelines.md
 /develop-image-prompt "microservices communication patterns"
@@ -239,7 +241,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <document-path> [--auto] [--force]
 **Output:** Generated output file
 **Example:**
-```
+```text
 /finish-document PRD.md
 /finish-document
 /finish-document PRD.md
@@ -252,7 +254,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** None required
 **Output:** Updates IMPLEMENTATION_PLAN.md, PROGRESS.md, LEARNINGS.md; creates and merges PR
 **Example:**
-```
+```text
 /implement-plan
 ```
 
@@ -263,7 +265,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** [<command-name>] [<pattern-type>]
 **Output:** plugins/personal-plugin/commands/[command-name].md
 **Example:**
-```
+```text
 /new-command
 ```
 
@@ -274,7 +276,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** [<skill-name>]
 **Output:** plugins/personal-plugin/skills/[skill-name]/SKILL.md
 **Example:**
-```
+```text
 /new-skill                    # Interactive mode
 /new-skill quick-test         # With skill name
 ```
@@ -290,7 +292,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** None required
 **Output:** Generated output file
 **Example:**
-```
+```text
 /plan-improvements
 ```
 
@@ -301,7 +303,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** None required
 **Output:** Generated output file
 **Example:**
-```
+```text
 /plan-next
 ```
 
@@ -312,7 +314,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <document-path> [--company <name>] [--mode [standard|strict]]
 **Output:** Generated output file
 **Example:**
-```
+```text
 /remove-ip internal-process.md
 /remove-ip strategy-doc.md --mode strict
 /remove-ip playbook.md --company "Acme Corp" --industry "Finance"
@@ -325,8 +327,21 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** None required
 **Output:** In-conversation output
 **Example:**
-```
+```text
 /review-arch
+```
+
+---
+
+#### /review-intent
+**Description:** Determine original project intent and compare against current implementation, reporting discrepancies
+**Arguments:** [<path>] [--deep]
+**Output:** In-conversation output (intent profile, scorecard, discrepancy report)
+**Example:**
+```text
+/review-intent                # Full repo intent analysis
+/review-intent --deep         # Include git history analysis
+/review-intent src/api        # Scoped to specific directory
 ```
 
 ---
@@ -336,7 +351,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <pr-number-or-url>
 **Output:** In-conversation output
 **Example:**
-```
+```text
 /review-pr 123                                    # Review PR #123
 /review-pr https://github.com/owner/repo/pull/42 # Review from URL
 ```
@@ -348,7 +363,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** [<plugin-name>]
 **Output:** plugins/[plugin-name]/.claude-plugin/plugin.json
 **Example:**
-```
+```text
 /scaffold-plugin
 ```
 
@@ -359,7 +374,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** None required
 **Output:** In-conversation output
 **Example:**
-```
+```text
 /setup-statusline
 ```
 
@@ -370,7 +385,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** None required
 **Output:** In-conversation output
 **Example:**
-```
+```text
 /test-project
 ```
 
@@ -381,7 +396,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** <plugin-name> [--all] [--fix] [--verbose]
 **Output:** In-conversation output
 **Example:**
-```
+```text
 /validate-plugin personal-plugin          # Validate single plugin
 /validate-plugin --all                    # Validate all plugins
 /validate-plugin bpmn-plugin --verbose    # Detailed output
@@ -394,9 +409,29 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** None required
 **Output:** In-conversation output
 **Example:**
-```
+```text
 /help                          # Show all commands and skills
 /help <command-name>           # Show detailed help for a specific command
+```
+
+---
+
+#### /prime
+**Description:** Evaluate a codebase to produce a detailed report on project purpose, health, status, and next steps
+**Arguments:** [<focus-area>] [<path>]
+**Output:** In-conversation structured report (Project Prime Report)
+**Features:**
+- Project identity: type, language, purpose, dependencies
+- Repository health: git history, activity level, open work
+- Code quality: architecture, test coverage, CI/CD, linting
+- Documentation grade (A-F) across 5 dimensions
+- Risk assessment: critical/high/medium/low categorization
+- Prioritized next steps with suggested first task
+**Example:**
+```text
+/prime                          # Full project evaluation
+/prime testing                  # Focus on testing infrastructure
+/prime plugins/bpmn-plugin      # Scope to a subdirectory
 ```
 
 ---
@@ -410,7 +445,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 - Interactive API key setup wizard if .env missing
 - Creates .env file with collected keys
 **Example:**
-```
+```text
 /research-topic What are the best practices for implementing RAG systems?
 /research-topic --sources claude,openai --depth comprehensive "Compare transformer architectures"
 /research-topic --depth brief --no-clarify --no-audience "Current state of quantum computing"
@@ -429,7 +464,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 - Context-aware risk assessment with CVSS scoring
 - Remediation roadmap with prioritized fixes
 **Example:**
-```
+```text
 /security-analysis
 ```
 
@@ -441,7 +476,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Platform:** Auto-detects GitHub (gh) or Gitea (tea) from git remote
 **Output:** Generated output file
 **Example:**
-```
+```text
 /ship
 ```
 
@@ -453,7 +488,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Output:** ./output/Feedback_Summary_{Name}_{datetime}.docx
 **Prerequisites:** Notion MCP server, python-docx>=1.0
 **Example:**
-```
+```text
 /summarize-feedback employee_name="Sarah Chen"
 /summarize-feedback employee_name="Sarah Chen" days=180
 /summarize-feedback employee_name="Sarah Chen" start_date=2025-07-01 end_date=2026-01-27
@@ -467,7 +502,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** None required
 **Output:** In-conversation output (environment variables set)
 **Example:**
-```
+```text
 /unlock
 # Loaded 8 secret(s) from Bitwarden Secrets Manager:
 #   ANTHROPIC_API_KEY
@@ -483,7 +518,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** [--skip-validate] [--skip-cleanup] [--dry-run] [<branch-name>]
 **Output:** In-conversation output with PR URL on success
 **Example:**
-```
+```text
 /validate-and-ship                      # Full workflow: validate → cleanup → ship
 /validate-and-ship feat/my-feature      # With custom branch name
 /validate-and-ship --dry-run            # Preview all phases without executing
@@ -507,7 +542,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 - Checkpoint/resume for long-running generations
 - Interactive mode for style and image count selection
 **Example:**
-```
+```text
 /visual-explainer "How does photosynthesis work?"
 /visual-explainer architecture.md --style professional-sketch --image-count 5
 /visual-explainer --resume checkpoint.json
@@ -519,12 +554,12 @@ Use this reference to provide detailed help. Read the actual command file to get
 ## Error Handling
 
 If the requested command is not found:
-```
+```text
 Command '[name]' not found in personal-plugin.
 
 Available commands:
-  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
+  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
-  /help, /research-topic, /security-analysis, /ship, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
+  /help, /prime, /research-topic, /security-analysis, /ship, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
 ```

@@ -515,7 +515,7 @@ function AuthProvider({ children }) {
     4.  **Remediate**: Move all auth tokens to `HttpOnly` Set-Cookie headers.
 
 ## Web Search Queries
-```
+```jsx
 "[package-name]" npm CVE vulnerability
 "react" XSS vulnerability prevention
 "[package-name]" security advisory github

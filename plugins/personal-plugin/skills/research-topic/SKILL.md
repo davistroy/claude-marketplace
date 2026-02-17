@@ -66,7 +66,7 @@ PYTHONPATH="$TOOL_SRC" python -m research_orchestrator check-models
 ```
 
 **If newer models are found:**
-```
+```yaml
 Model Version Check
 ===================
 Current models:
@@ -86,7 +86,7 @@ Would you like to:
 **If AUTO_UPGRADE_MODELS=true:** Skip prompt and automatically use the newest available models for this session (does not modify .env).
 
 **If no upgrades available:**
-```
+```text
 ✓ All models are up to date.
 ```
 
@@ -108,7 +108,7 @@ The tool is a helper for the parallel API calls. All user interaction, synthesis
 ### Phase 1: Intake
 
 Accept the research request from the user. If no request is provided in arguments, prompt:
-```
+```text
 What would you like to research?
 
 Please describe your research question or topic. Include any relevant context
@@ -138,7 +138,7 @@ Extract the profile content (everything under the header until the next same-lev
 **Step 2A: If Profile Found**
 
 Display a concise summary and confirm:
-```
+```yaml
 Audience Profile Detected
 =========================
 Source: [path to CLAUDE.md where found]
@@ -159,7 +159,7 @@ If user says "modify":
 **Step 2B: If No Profile Found**
 
 Prompt user to provide audience context:
-```
+```text
 No audience profile found in CLAUDE.md files.
 
 For better-tailored research, describe your target audience:
@@ -180,7 +180,7 @@ Enter your audience profile (or press Enter to use the example above):
 ```
 
 After user provides profile (or accepts default):
-```
+```text
 Would you like to save this profile to your global CLAUDE.md for future sessions?
 This will add an "Audience Profile" section to ~/.claude/CLAUDE.md
 
@@ -228,7 +228,7 @@ Analyze the request for ambiguities and ask clarifying questions using the AskUs
 - Provide sensible defaults for questions user skips
 
 **Example Clarification:**
-```
+```text
 To ensure comprehensive research, I have a few clarifying questions:
 
 1. Scope: Should this focus on [specific aspect A] or cover [broader topic B]?
@@ -422,7 +422,7 @@ To ensure comprehensive research, I have a few clarifying questions:
 
 3. **Present the research brief:**
 
-```
+```yaml
 Research Brief
 ==============
 Topic: [refined topic statement]
@@ -456,7 +456,7 @@ Use the audience profile collected in Phase 1.5. If Phase 1.5 was skipped (via `
 
 **Craft the Research Prompt:**
 Transform the refined brief into an effective research prompt that includes the audience profile from Phase 1.5:
-```
+```text
 Research Request: [topic]
 
 Context:
@@ -535,7 +535,7 @@ The tool handles:
 **Note:** Models can be overridden via environment variables (`ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GEMINI_AGENT`).
 
 **Progress Display:**
-```
+```text
 Executing Research
 ==================
 [Claude] Extended thinking... (synchronous)
@@ -585,7 +585,7 @@ Apply the consolidate-documents approach to merge the provider responses:
 
 **Handling Partial Results:**
 If one or more APIs failed:
-```
+```text
 Note: Research completed with partial results.
   - Claude: Success
   - OpenAI: Failed (timeout after 720s)
@@ -622,7 +622,7 @@ pandoc "reports/research-[topic-slug]-YYYYMMDD-HHMMSS.md" \
 ```
 
 If pandoc is not installed, inform the user:
-```
+```text
 Note: DOCX output requires pandoc. Install with:
   - Windows: choco install pandoc
   - macOS: brew install pandoc
@@ -692,7 +692,7 @@ while disagreements are explicitly noted for reader consideration.
 ```
 
 **Final Output:**
-```
+```yaml
 Research Complete
 =================
 Topic: [topic]
@@ -720,7 +720,7 @@ After research completes, check if any bugs/anomalies were detected during execu
 - Partial failures (some providers failed)
 
 **If bugs were detected:**
-```
+```text
 Bug Report Summary
 ==================
 Detected [N] issues during research execution:
@@ -736,7 +736,7 @@ These issues may affect research quality. Review the individual provider reports
 ```
 
 **If no bugs detected:**
-```
+```text
 Bug Report Summary
 ==================
 No issues detected. All providers responded normally.
@@ -785,18 +785,18 @@ Consider using `--sources` to select specific providers for cost management.
 ## Examples
 
 **Basic research:**
-```
+```text
 /research-topic What are the best practices for implementing RAG systems in production?
 ```
 
 **Targeted research with options:**
-```
+```text
 /research-topic --sources claude,openai --depth comprehensive \
   "Compare transformer architectures for long-context processing"
 ```
 
 **Quick research, no clarification:**
-```
+```text
 /research-topic --depth brief --no-clarify \
   "Current state of quantum computing for optimization problems"
 ```

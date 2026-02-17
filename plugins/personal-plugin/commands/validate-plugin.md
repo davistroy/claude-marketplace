@@ -21,7 +21,7 @@ Perform comprehensive validation of a plugin's structure, frontmatter, version s
 
 **Validation:**
 If arguments are missing, display:
-```
+```text
 Usage: /validate-plugin <plugin-name> [--all] [--fix] [--verbose] [--strict] [--report] [--scorecard]
 
 Examples:
@@ -39,7 +39,7 @@ Available plugins:
 ```
 
 If plugin-name is not found (and --all not specified), display:
-```
+```text
 Error: Plugin '[name]' not found.
 
 Available plugins:
@@ -58,7 +58,7 @@ Verify the plugin has the required directory structure and files.
 #### 1.1 Required Files Check
 
 **Check for:**
-```
+```text
 plugins/[plugin-name]/
   .claude-plugin/
     plugin.json              # REQUIRED
@@ -70,7 +70,7 @@ plugins/[plugin-name]/
 ```
 
 **Report:**
-```
+```text
 Structure Validation
 --------------------
 [PASS] plugin.json exists
@@ -79,7 +79,7 @@ Structure Validation
 ```
 
 Or on failure:
-```
+```text
 [FAIL] plugin.json missing at plugins/[name]/.claude-plugin/plugin.json
 ```
 
@@ -92,7 +92,7 @@ Or on failure:
 2. Directory contains `SKILL.md` (exact name, uppercase)
 
 **Valid structure:**
-```
+```text
 skills/
   ship/
     SKILL.md              # ✓ Correct
@@ -101,7 +101,7 @@ skills/
 ```
 
 **Invalid structures:**
-```
+```text
 skills/
   ship.md                 # ✗ Flat file - NOT discovered by Claude Code
   help.md                 # ✗ Flat file - NOT discovered by Claude Code
@@ -110,7 +110,7 @@ skills/
 ```
 
 **Report:**
-```
+```text
 Skill Structure Validation
 --------------------------
 [PASS] skills/ship/SKILL.md - Valid skill structure
@@ -119,7 +119,7 @@ Skill Structure Validation
 ```
 
 Or on failure:
-```
+```text
 [FAIL] Invalid skill structure detected
 
       The following skills will NOT be discovered by Claude Code:
@@ -140,7 +140,7 @@ Or on failure:
 
 **Auto-fix with --fix:**
 When `--fix` is specified, automatically restructure invalid skills:
-```
+```text
 Auto-Fix Applied:
   skills/ship.md -> skills/ship/SKILL.md (created directory, moved file)
   skills/help.md -> skills/help/SKILL.md (created directory, moved file)
@@ -156,7 +156,7 @@ Auto-Fix Applied:
 - `version` follows semver format (X.Y.Z)
 
 **Report:**
-```
+```text
 plugin.json Validation
 ----------------------
 [PASS] Valid JSON syntax
@@ -187,14 +187,14 @@ Validate that marketplace.json plugin entries only contain fields recognized by 
 3. Flag any fields not in the valid fields list
 
 **Report:**
-```
+```text
 Marketplace Schema Validation
 -----------------------------
 [PASS] All plugin entries use valid schema fields
 ```
 
 Or on failure:
-```
+```text
 [FAIL] marketplace.json contains invalid schema fields
 
       Plugin 'personal-plugin' has unrecognized fields:
@@ -209,7 +209,7 @@ Or on failure:
 
 **Auto-fix with --fix:**
 When `--fix` is specified, automatically remove unrecognized fields:
-```
+```text
 Auto-Fix Applied:
   marketplace.json: Removed 'last_updated' from plugin 'personal-plugin'
   marketplace.json: Removed 'last_updated' from plugin 'bpmn-plugin'
@@ -229,7 +229,7 @@ For each markdown file:
 3. Report any syntax errors
 
 **Report:**
-```
+```text
 Frontmatter Validation: commands/assess-document.md
 --------------------------------------------------
 [PASS] Frontmatter delimiters present
@@ -237,7 +237,7 @@ Frontmatter Validation: commands/assess-document.md
 ```
 
 Or on failure:
-```
+```text
 [FAIL] commands/broken-command.md
       Line 3: Invalid YAML - unexpected character ':'
 ```
@@ -248,12 +248,12 @@ Or on failure:
 - `description` field present and non-empty
 
 **Report:**
-```
+```text
 [PASS] Required field 'description' present
 ```
 
 Or:
-```
+```text
 [FAIL] commands/my-command.md
       Missing required field: description
 ```
@@ -272,12 +272,12 @@ Or:
 Check that no `name` field is present.
 
 **Report:**
-```
+```text
 [PASS] commands/my-command.md - No forbidden 'name' field
 ```
 
 Or:
-```
+```text
 [FAIL] commands/my-command.md
       Forbidden field 'name' found - filename determines command name
       Remove: name: my-command
@@ -288,12 +288,12 @@ Or:
 Check that `name` field IS present and matches the directory name.
 
 **Report:**
-```
+```text
 [PASS] skills/ship/SKILL.md - Required 'name' field present and matches directory
 ```
 
 Or:
-```
+```text
 [FAIL] skills/ship/SKILL.md
       Missing required 'name' field in skill frontmatter
       Add: name: ship
@@ -303,7 +303,7 @@ Or:
 ```
 
 Or if name doesn't match directory:
-```
+```text
 [FAIL] skills/ship/SKILL.md
       'name' field doesn't match directory name
       Frontmatter: name: shipper
@@ -319,12 +319,12 @@ If `allowed-tools` is present:
 - Warn if format appears incorrect (e.g., missing parentheses)
 
 **Report:**
-```
+```text
 [PASS] allowed-tools format valid: Bash(git:*)
 ```
 
 Or:
-```
+```text
 [WARN] commands/my-command.md
       allowed-tools format may be invalid: 'git:*'
       Expected format: ToolName(pattern) or ToolName
@@ -341,7 +341,7 @@ Verify versions match across all configuration files.
 - `.claude-plugin/marketplace.json` -> plugin entry's `version` field
 
 **Report:**
-```
+```text
 Version Synchronization
 -----------------------
 plugin.json version:      1.6.0
@@ -350,7 +350,7 @@ marketplace.json version: 1.6.0
 ```
 
 Or:
-```
+```text
 [FAIL] Version mismatch
       plugin.json:      1.6.0
       marketplace.json: 1.5.0
@@ -370,14 +370,14 @@ Verify markdown parses without errors:
 - Check for unbalanced formatting
 
 **Report:**
-```
+```text
 Content Validation: commands/assess-document.md
 ----------------------------------------------
 [PASS] Markdown parses correctly
 ```
 
 Or:
-```
+```text
 [FAIL] commands/broken.md
       Line 45: Unclosed code block (opened with ```)
 ```
@@ -386,7 +386,7 @@ Or:
 
 Check that fenced code blocks have language specifiers:
 
-```markdown
+````markdown
 # Good
 ```json
 {"key": "value"}
@@ -396,15 +396,15 @@ Check that fenced code blocks have language specifiers:
 ```
 {"key": "value"}
 ```
-```
+````
 
 **Report:**
-```
+```text
 [PASS] All code blocks have language specifiers
 ```
 
 Or:
-```
+```text
 [WARN] commands/my-command.md
       Line 23: Code block missing language specifier
       Line 67: Code block missing language specifier
@@ -422,12 +422,12 @@ Check that internal file references exist:
 - References to other commands
 
 **Report:**
-```
+```text
 [PASS] All internal references valid
 ```
 
 Or:
-```
+```text
 [WARN] commands/my-command.md
       Line 15: Reference 'common-patterns.md' not found
       Expected at: plugins/personal-plugin/references/common-patterns.md
@@ -441,7 +441,7 @@ When running with `--all`, check for command/skill naming collisions across plug
 
 For each plugin, build a registry of command and skill names:
 
-```
+```text
 Plugin: personal-plugin
   Commands: analyze-transcript, ask-questions, assess-document, ...
   Skills: help, ship
@@ -455,7 +455,7 @@ Plugin: bpmn-plugin
 
 Compare names across plugins:
 
-```
+```text
 Namespace Collision Detection
 -----------------------------
 [WARN] Collision detected: /help
@@ -468,14 +468,14 @@ Namespace Collision Detection
 ```
 
 If no collisions:
-```
+```text
 [PASS] No namespace collisions detected
 ```
 
 #### 5.3 Single Plugin Mode
 
 When validating a single plugin (not `--all`), skip collision detection and display:
-```
+```text
 Note: Run with --all to check for naming collisions across plugins.
 ```
 
@@ -502,7 +502,7 @@ For each declared dependency:
 3. Compare against the installed plugin version
 
 **Report:**
-```
+```text
 Dependency Validation
 ---------------------
 [PASS] personal-plugin: >=2.0.0 (installed: 2.0.0)
@@ -511,7 +511,7 @@ Dependency Validation
 ```
 
 Or if no dependencies declared:
-```
+```text
 [PASS] No dependencies declared
 ```
 
@@ -524,7 +524,7 @@ Check that version strings follow semver patterns:
 - `X.Y.Z` (exact version)
 
 **Report invalid version syntax:**
-```
+```text
 [FAIL] Invalid version syntax in dependencies
        bpmn-plugin: "latest" (not valid semver)
 
@@ -542,14 +542,14 @@ Check if the plugin has hooks that may not work on Windows due to bash script de
 - `%USERPROFILE%\.claude\plugins\cache\*/[plugin-name]/*/hooks/hooks.json` (installed)
 
 **Report:**
-```
+```text
 Hook Detection
 --------------
 [PASS] No hooks.json found (plugin has no hooks)
 ```
 
 Or if hooks exist:
-```
+```text
 [INFO] hooks.json found at plugins/[plugin-name]/hooks/hooks.json
        Checking Windows compatibility...
 ```
@@ -565,7 +565,7 @@ Parse hooks.json and identify hook commands that reference bash scripts:
 - Command uses `${CLAUDE_PLUGIN_ROOT}/hooks/*.sh`
 
 **Report for each hook event:**
-```
+```text
 Hook: Stop
   Command: bash "${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.sh"
   [WARN] Uses bash script - may fail on Windows
@@ -580,7 +580,7 @@ For each bash script found, check if a PowerShell equivalent exists:
 - Verify hooks.json has Windows-compatible alternative configured
 
 **Report:**
-```
+```text
 PowerShell Equivalents
 ----------------------
 [PASS] stop-hook.sh has PowerShell equivalent: stop-hook.ps1
@@ -590,7 +590,7 @@ PowerShell Equivalents
 #### 7.4 Windows Compatibility Summary
 
 **If bash-only hooks detected:**
-```
+```text
 Hook Windows Compatibility
 --------------------------
 [WARN] Plugin has hooks that may not work on Windows
@@ -608,12 +608,12 @@ Hook Windows Compatibility
 ```
 
 **If all hooks are Windows-compatible:**
-```
+```text
 [PASS] All hooks have Windows-compatible configurations
 ```
 
 **If no hooks exist:**
-```
+```text
 [PASS] Plugin has no hooks configured
 ```
 
@@ -627,7 +627,7 @@ For any bash scripts found, perform basic syntax validation:
 - No missing closing brackets/braces
 
 **Report:**
-```
+```text
 Hook Script Validation
 ----------------------
 [PASS] stop-hook.sh - Valid bash syntax
@@ -650,7 +650,7 @@ For each command markdown file, validate frontmatter against `schemas/command.js
 - `allowed-tools` format valid if present
 
 **Report:**
-```
+```text
 Command Schema Validation
 -------------------------
 [PASS] commands/assess-document.md - Schema valid
@@ -667,7 +667,7 @@ Verify each command contains required sections:
 2. `## Instructions` - Must have step-by-step guidance
 
 **Report:**
-```
+```text
 Required Sections Validation
 ----------------------------
 [PASS] commands/assess-document.md - All required sections present
@@ -685,7 +685,7 @@ Check that commands generating output follow the naming pattern:
 - Examples showing correct naming
 
 **Report:**
-```
+```text
 Output Naming Compliance
 ------------------------
 [PASS] commands/define-questions.md - Follows naming convention
@@ -698,7 +698,7 @@ Output Naming Compliance
 Check that commands document error handling following the standard format:
 
 **Standard Format:**
-```
+```text
 Error: [Brief description]
 
 Expected: [What was expected]
@@ -708,7 +708,7 @@ Suggestion: [How to fix]
 ```
 
 **Report:**
-```
+```text
 Error Format Compliance
 -----------------------
 [PASS] commands/define-questions.md - Error format compliant
@@ -731,14 +731,14 @@ Check that flags follow naming conventions:
 | `--report` | Generate report file |
 
 **Report:**
-```
+```text
 Flag Consistency Check
 ----------------------
 [PASS] All flags follow standard conventions
 ```
 
 Or:
-```
+```text
 [WARN] commands/my-command.md - Non-standard flag '--skip-validation'
        Consider using '--force' for similar behavior
 ```
@@ -747,7 +747,7 @@ Or:
 
 Generate a final validation summary.
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Plugin Validation: [plugin-name]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -788,12 +788,12 @@ When validation completes:
 - **Exit 1:** One or more errors found
 
 Report the exit code at the end:
-```
+```text
 Validation complete. Exit code: 0 (success)
 ```
 
 Or:
-```
+```text
 Validation complete. Exit code: 1 (errors found)
 ```
 
@@ -814,7 +814,7 @@ When `--fix` is specified, attempt to fix simple issues:
 | Wrong skill filename (`skill.md` lowercase) | Rename to `SKILL.md` |
 
 **Report fixes:**
-```
+```text
 Auto-Fix Applied:
   commands/my-command.md: Removed forbidden 'name' field
   commands/other.md: Added 'text' language to code block at line 23
@@ -833,7 +833,7 @@ When `--strict` is specified, treat warnings as errors:
 - Recommended for CI/CD pipelines
 
 **Report with --strict:**
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Plugin Validation: personal-plugin (STRICT MODE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -911,7 +911,7 @@ All 21 commands follow pattern conventions:
 ```
 
 **Console Output with --report:**
-```
+```text
 Validation complete. Exit code: 0
 
 Report saved to: reports/validation-20260115-103000.md
@@ -973,7 +973,7 @@ A plugin achieves Level 4 when all Level 3 criteria are met, plus:
 
 ### Scorecard Output Format
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Plugin Maturity Scorecard
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1053,7 +1053,7 @@ Priority: Address warnings first (quick win for Level 3 completion)
 - A level is "achieved" when 100% of its criteria are met
 
 **Overall Score Calculation:**
-```
+```text
 Overall Score = (L1_score * 0.1) + (L2_score * 0.2) + (L3_score * 0.3) + (L4_score * 0.4)
 ```
 
@@ -1065,7 +1065,7 @@ Overall Score = (L1_score * 0.1) + (L2_score * 0.2) + (L3_score * 0.3) + (L4_sco
 
 ### Example Usage with Scorecard
 
-```
+```yaml
 User: /validate-plugin --all --scorecard
 
 Claude: [Evaluates all plugins and generates scorecard]
@@ -1092,7 +1092,7 @@ Top improvement opportunities:
 
 ## Example Usage
 
-```
+```yaml
 User: /validate-plugin personal-plugin
 
 Claude:
@@ -1146,7 +1146,7 @@ Exit code: 0
 Tip: Run with --fix to auto-add language specifiers.
 ```
 
-```
+```yaml
 User: /validate-plugin --all
 
 Claude:

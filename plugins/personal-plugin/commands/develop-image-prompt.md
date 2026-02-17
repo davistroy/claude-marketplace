@@ -26,7 +26,7 @@ The `<content-source>` argument accepts three different input types:
 
 **Validation:**
 If no content source is provided, display:
-```
+```text
 Error: Missing required argument
 
 Usage: /develop-image-prompt <content-source> [--style <style-file>]
@@ -46,7 +46,7 @@ Examples:
   /develop-image-prompt "microservices communication patterns"
 ```
 
-## Process
+## Instructions
 
 ### Step 1: Gather Inputs
 
@@ -87,7 +87,7 @@ If a style document is provided, extract:
 Build a comprehensive image generation prompt with these sections:
 
 #### A. Image Specifications
-```
+```yaml
 Format: Landscape orientation, 11x17 inches (17" wide × 11" tall)
 Aspect Ratio: 1.545:1 (approximately 3:2)
 Resolution: High resolution suitable for print (300 DPI equivalent detail)

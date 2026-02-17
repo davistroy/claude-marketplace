@@ -68,7 +68,7 @@ dot -V 2>/dev/null && echo "Graphviz: OK" || echo "Graphviz: MISSING"
 
 **If Graphviz is missing**, display this standardized error:
 
-```
+```text
 Error: Required dependency 'graphviz' not found
 
 /bpmn-to-drawio requires Graphviz for automatic diagram layout.
@@ -166,7 +166,7 @@ head -30 output.drawio
 
 ### Command Syntax
 
-```
+```text
 bpmn2drawio <input.bpmn> <output.drawio> [options]
 ```
 
@@ -436,7 +436,7 @@ If output doesn't render correctly in Draw.io:
 
 After successful conversion, report:
 
-```
+```markdown
 ## Draw.io Conversion Summary
 
 **Source File:** input.bpmn
