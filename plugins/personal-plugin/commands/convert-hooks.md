@@ -18,7 +18,7 @@ Convert bash hook scripts to PowerShell for any installed Claude Code plugin. Th
 
 **Validation:**
 If arguments are missing, display:
-```
+```text
 Usage: /convert-hooks <plugin-name> [--dry-run] [--verbose] [--list]
 
 Examples:
@@ -31,7 +31,7 @@ the plugin's hooks.json to reference the PowerShell scripts instead.
 ```
 
 If plugin is not found, display:
-```
+```text
 Error: Plugin '[name]' not found in installed plugins.
 
 Run '/convert-hooks --list' to see available plugins with hooks.
@@ -162,7 +162,7 @@ When complex constructs are detected, add TODO comments in the PowerShell output
 
 ## Example Usage
 
-```
+```yaml
 User: /convert-hooks my-plugin
 
 Claude:

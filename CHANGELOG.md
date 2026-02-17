@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 4.0.0] - 2026-02-16
+
+### Added
+- `/review-intent` command: Determine original project intent and compare against current implementation
+- `/prime` skill: Evaluate codebase to produce detailed report on project purpose, health, status, and next steps
+- `/implement-plan` parallel execution: PATH B launches independent work items concurrently via background subagents
+- `/create-plan` and `/plan-improvements` append mode: If IMPLEMENTATION_PLAN.md exists, new phases are appended with renumbered items instead of overwriting
+
+### Changed
+- `/implement-plan` restructured with dual execution paths (PATH A: sequential, PATH B: parallel) and parallelization map built at startup
+- README.md updated with all 9 skills (was showing only 3) and 26 commands
+- CLAUDE.md repository structure updated with review-intent command and prime skill
+- CLAUDE.md Patterns Used section now covers all 26 commands across 14 pattern categories
+- SECURITY.md updated with multi-provider API data flow, security-relevant skills, and current third-party dependencies
+- TROUBLESHOOTING.md Python version requirement corrected (3.8 → 3.10)
+- QUICK-REFERENCE.md expanded with 5 new flags and a skills section
+- Help skill error section updated with complete command and skill lists
+- 11 code blocks in bpmn-plugin tool docs fixed with language specifiers
+
+### Fixed
+- Documentation drift: 22 fixes across 8 files for stale references, missing features, and incorrect claims
+- SECURITY.md "No Audit Trail" claim corrected — audit logging available via `--audit` flag
+
 ## [personal-plugin 3.14.0] - 2026-02-15
 
 ### Changed

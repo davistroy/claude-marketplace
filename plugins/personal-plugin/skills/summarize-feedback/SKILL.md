@@ -24,7 +24,7 @@ Before starting, verify all prerequisites:
 
 ### 1. Notion MCP Server
 Verify the Notion MCP tools are available (`mcp__plugin_Notion_notion__notion-search`, `mcp__plugin_Notion_notion__notion-fetch`). If not connected:
-```
+```text
 Notion MCP is not connected. Please verify:
 1. Notion MCP is configured in your Claude settings
 2. The MCP server is running and connected
@@ -56,7 +56,7 @@ Use the Notion MCP tools to search for feedback entries:
    - **Date** property falls within the computed date range
 
 If no entries are found:
-```
+```text
 No Feedback entries found for "{employee_name}" in the period {start_date} to {end_date}.
 
 Possible causes:
@@ -91,7 +91,7 @@ Feed all structured feedback entries to Claude using the following synthesis pro
 
 ### Synthesis Prompt
 
-```
+```text
 You are analyzing employee feedback entries to produce a structured performance assessment.
 
 ## Employee
@@ -166,7 +166,7 @@ Return ONLY valid JSON matching this structure:
 ```
 
 Format each entry for the prompt as:
-```
+```text
 ### Entry: {title}
 - Date: {date}
 - Feedback Type: {type}
@@ -209,7 +209,7 @@ If the script fails, show the error and suggest running it directly for debuggin
 ## Step 6: Report Results
 
 Display a summary:
-```
+```yaml
 Feedback Assessment Generated
 ==============================
 Employee:    {employee_name}

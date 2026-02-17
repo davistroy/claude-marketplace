@@ -36,7 +36,7 @@ Remove company-identifying information and intellectual property from documents 
 
 **Validation:**
 If the document path is missing, display:
-```
+```text
 Usage: /remove-ip <document-path> [options]
 
 Options:
@@ -86,7 +86,7 @@ Assume an adversary will try to re-identify the company using "mosaic" clues:
 - If uncertain, choose the safer option (more redaction), then ask the user
 - Even if something is public, keep it generalized unless it is both (a) widely known AND (b) non-identifying in combination with other details
 
-## Process
+## Instructions
 
 ### Step 1: Read and Analyze the Document
 
@@ -209,7 +209,7 @@ Before finalizing, verify:
 
 ### Standard Mode
 
-```
+```yaml
 User: /remove-ip internal-playbook.md
 
 Claude: I've read internal-playbook.md and identified it as belonging to Acme Corp in the
@@ -244,7 +244,7 @@ Output saved to: internal-playbook-sanitized-20260115-143052.md
 
 ### Strict Mode
 
-```
+```yaml
 User: /remove-ip strategy-doc.md --mode strict --company "Contoso"
 
 Claude: I've read strategy-doc.md. Running in STRICT mode with maximum redaction.

@@ -15,6 +15,16 @@ This command implements an iterative test-driven workflow:
 3. Fix any failures and repeat until all pass
 4. Update documentation, clean up, create PR, and merge
 
+## Input Validation
+
+Before proceeding, verify:
+- This is a git repository with test infrastructure present
+- GitHub CLI (`gh`) is installed and authenticated (run `gh auth status`)
+- A test framework is configured (check for test config files and test files)
+- The project has a package manager or build tool installed
+
+If any of these prerequisites are missing, inform the user what needs to be set up before running this command.
+
 ## Phase 1: Pre-flight Checks
 
 ### 1.1 Environment Verification
@@ -80,7 +90,7 @@ If coverage is below 90%:
 5. **Iterate**: Repeat until 90%+ achieved
 
 Report to user before proceeding:
-```
+```text
 Coverage Status:
 - Current: XX%
 - Target: 90%
@@ -115,7 +125,7 @@ Each test sub-agent should:
 
 ### 3.3 Aggregate Results
 Collect results from all sub-agents:
-```
+```text
 Test Results Summary:
 ├── Unit Tests: XX passed, XX failed
 ├── Integration Tests: XX passed, XX failed
@@ -139,7 +149,7 @@ For each failure:
 3. Document what was changed and why
 
 ### 4.3 Re-test Loop
-```
+```text
 WHILE tests_failing:
     1. Apply fixes for all identified failures
     2. Re-run ONLY the previously failing tests first (fast feedback)
@@ -286,7 +296,7 @@ git branch -d [feature-branch]
 ## Output Summary
 
 Upon completion, display:
-```
+```yaml
 ✅ Fully Test Project Complete
 
 Coverage:

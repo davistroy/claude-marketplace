@@ -106,6 +106,7 @@ plugins/
       plan-next.md            # Analyze repo and recommend next action
       remove-ip.md            # De-identify documents by removing company info and IP
       review-arch.md          # Quick architectural audit (read-only, no files generated)
+      review-intent.md        # Determine original intent vs current implementation discrepancies
       review-pr.md            # Structured PR review with code analysis
       scaffold-plugin.md      # Create new plugin with proper structure
       setup-statusline.md     # Custom status line setup (Windows/PowerShell)
@@ -114,6 +115,8 @@ plugins/
     skills/
       help/
         SKILL.md            # Show commands/skills with usage information
+      prime/
+        SKILL.md            # Evaluate codebase: purpose, health, status, and next steps
       research-topic/
         SKILL.md            # Multi-source deep research across LLM providers
       security-analysis/
@@ -232,19 +235,20 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - Commands are invoked as `/filename` (without .md extension)
 
 ### Patterns Used
-- **Read-only commands** (`review-arch`, `assess-document`): Analyze and report, never modify
-- **Interactive commands** (`ask-questions`): Single-question flow, wait for user input
-- **Workflow commands** (`ship`): Multi-step automation with confirmation points
+- **Read-only commands** (`review-arch`, `assess-document`, `review-intent`, `review-pr`): Analyze and report, never modify
+- **Interactive commands** (`ask-questions`, `finish-document`): Single-question flow, wait for user input
+- **Workflow commands** (`ship` skill): Multi-step automation with confirmation points
 - **Generator commands** (`define-questions`, `analyze-transcript`): Create structured output files
 - **Synthesis commands** (`consolidate-documents`): Merge multiple sources into optimized output
-- **Conversion commands** (`convert-markdown`): Transform files between formats
+- **Conversion commands** (`convert-markdown`, `convert-hooks`): Transform files between formats
 - **Generation commands** (`develop-image-prompt`): Create prompts or content for external tools
 - **Planning commands** (`create-plan`, `plan-improvements`, `plan-next`): Generate implementation plans from requirements or codebase analysis
 - **Testing commands** (`test-project`): Comprehensive test, fix, and ship workflows
 - **Orchestration commands** (`implement-plan`): Coordinate subagents for long-running multi-step execution
 - **Cleanup commands** (`clean-repo`): Repository cleanup, organization, and documentation refresh
 - **Sanitization commands** (`remove-ip`): De-identify documents by removing company info and intellectual property
-- **Utility commands** (`bump-version`, `validate-plugin`, `setup-statusline`): Plugin/repository maintenance and configuration tasks
+- **Scaffolding commands** (`scaffold-plugin`, `new-command`, `new-skill`): Create new plugin/command/skill structures from templates
+- **Utility commands** (`bump-version`, `validate-plugin`, `setup-statusline`, `check-updates`): Plugin/repository maintenance and configuration tasks
 
 ### Output File Naming
 Commands that generate files use: `[type]-[source]-[timestamp].json` or `.md`

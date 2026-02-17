@@ -193,7 +193,7 @@ Categorize each issue by severity:
 
 ### 7.4 Output
 
-```
+```text
 Phase 7: Auto-Review
 ====================
 PR #[number] analyzed.
@@ -227,7 +227,7 @@ If there are CRITICAL or WARNING issues, attempt to fix them automatically.
 
 ### 8.2 Fix Loop Logic
 
-```
+```yaml
 FOR attempt = 1 TO 5:
     IF no blocking issues: EXIT LOOP → go to Phase 9 (merge)
 
@@ -294,7 +294,7 @@ Mark an issue as "unfixable" if:
 - **False positive**: Code is actually correct, analysis was wrong
 
 When unfixable:
-```
+```yaml
 Unfixable: [ID] [title]
 Reason: [why it cannot be auto-fixed]
 Suggestion: [what the user should do manually]
@@ -337,7 +337,7 @@ git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -d 2>/d
 **Note:** Only fully merged branches are deleted (`-d` not `-D`). Unmerged branches with deleted remotes are preserved and reported as warnings.
 
 Display:
-```
+```text
 Phase 9: Completion
 ===================
 ✓ PR #[number] successfully merged!
@@ -365,7 +365,7 @@ PR URL: [url]
 ### 9.2 Failure Path (Unfixable Issues Exist)
 
 Do NOT merge. Report to user:
-```
+```text
 Phase 9: Completion (Manual Review Required)
 ============================================
 ✗ PR #[number] NOT merged - unfixable issues detected.
@@ -401,7 +401,7 @@ Branch: [branch-name] (preserved for manual work)
 ### 9.3 Exhaustion Path (Max Attempts Reached)
 
 Do NOT merge. Report with diagnostics:
-```
+```text
 Phase 9: Completion (Fix Loop Exhausted)
 ========================================
 ✗ PR #[number] NOT merged - max fix attempts (5) reached.

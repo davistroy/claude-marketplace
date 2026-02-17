@@ -17,7 +17,7 @@ Complete an incomplete document by extracting all questions/TBDs, walking throug
 
 **Validation:**
 If the document path is missing, display:
-```
+```text
 Usage: /finish-document <document-path> [--auto] [--force]
 Example: /finish-document PRD.md
 Example: /finish-document docs/requirements.md --auto
@@ -32,7 +32,7 @@ Optional flags:
 
 ## Workflow Overview
 
-```
+```text
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │  1. Extract     │────▶│  2. Answer      │────▶│  3. Update      │
 │     Questions   │     │     Questions   │     │     Document    │
@@ -43,7 +43,11 @@ Optional flags:
    (in reference/)         (in reference/)       original document
 ```
 
-## Phase 1: Setup and Question Extraction
+## Instructions
+
+This command executes three phases sequentially: extract questions, answer them interactively, and update the document with resolved answers.
+
+### Phase 1: Setup and Question Extraction
 
 ### 1.1 Validate Input
 - Confirm the specified document exists
@@ -108,7 +112,7 @@ Before saving the questions file:
 5. **If `--force` provided:** Save anyway with a warning
 
 **Validation Error Message:**
-```
+```text
 Schema validation failed for questions file:
 
 Errors:
@@ -119,7 +123,7 @@ Fix these issues or use --force to save anyway (not recommended).
 ```
 
 ### 1.4 Report to User
-```
+```text
 Found [X] questions/open items in [document]:
 
 By topic:
@@ -134,7 +138,7 @@ Ready to begin Q&A session. Type 'start' to proceed or 'preview' to see all ques
 
 Wait for user confirmation before proceeding.
 
-## Phase 2: Interactive Q&A Session
+### Phase 2: Interactive Q&A Session
 
 Execute the logic from `/ask-questions`:
 
@@ -169,7 +173,7 @@ See `references/patterns/workflow.md` for full state management specification.
 
 For each question, present:
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Question 3 of 15 | Topic: [Topic Name]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -224,7 +228,7 @@ Support these standard session commands during Q&A (see `references/patterns/wor
 | `auto` | | (Interactive mode) Switch to auto for remaining |
 
 **When user types `help`:**
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Session Commands
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -266,7 +270,7 @@ Before saving the answers file:
 5. **If `--force` provided:** Save anyway with a warning
 
 **Validation Error Message:**
-```
+```text
 Schema validation failed for answers file:
 
 Errors:
@@ -277,7 +281,7 @@ Fix these issues or use --force to save anyway (not recommended).
 ```
 
 **Validation Warning (with --force):**
-```
+```text
 WARNING: Output validation failed but --force was specified.
 Answers saved to reference/answers-PRD-20260114-150030.json
 
@@ -311,7 +315,7 @@ Structure:
 }
 ```
 
-## Phase 3: Document Update
+### Phase 3: Document Update
 
 ### 3.1 Create Backup
 Before any modifications:
@@ -375,7 +379,7 @@ If any questions were skipped:
 
 ## Final Report
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Document Complete!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -14,7 +14,7 @@ Perform a comprehensive review of a GitHub Pull Request, analyzing code changes 
 
 **Validation:**
 If arguments are missing, display:
-```
+```text
 Usage: /review-pr <pr-number-or-url>
 
 Examples:
@@ -29,7 +29,7 @@ The command will:
 ```
 
 If the PR number is invalid or not found, display:
-```
+```text
 Error: PR #[number] not found.
 
 Verify:
@@ -201,7 +201,7 @@ Create a structured review with this format:
 
 After generating the report, ask the user:
 
-```
+```text
 Review complete. Would you like me to post this review to GitHub?
 
 Options:
@@ -230,7 +230,7 @@ gh pr review [number] --comment --body "[review body]"
 
 Display final summary:
 
-```
+```yaml
 PR Review Complete
 ==================
 
@@ -281,7 +281,7 @@ Issues Found:
 
 ## Example Usage
 
-```
+```yaml
 User: /review-pr 42
 
 Claude: [Fetches PR #42, analyzes diff]

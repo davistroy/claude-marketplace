@@ -272,7 +272,7 @@ random_number = secrets.randbelow(100)
 ## Security Headers
 
 ### Essential Headers
-```
+```text
 Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'
 X-Frame-Options: DENY
 X-Content-Type-Options: nosniff
@@ -395,28 +395,28 @@ dependency-check --project myapp --scan bin/
 ## Web Search Query Templates
 
 ### CVE Search
-```
+```text
 "[package-name]" CVE [current-year]
 "[package-name]" security vulnerability
 site:nvd.nist.gov "[package-name]"
 ```
 
 ### Version Information
-```
+```text
 "[package-name]" latest version
 "[package-name]" changelog security
 "[package-name]" release notes
 ```
 
 ### Exploit Research
-```
+```text
 "[CVE-ID]" exploit
 "[CVE-ID]" proof of concept
 "[package-name]" "[vulnerability-type]" exploit
 ```
 
 ### Remediation
-```
+```text
 "[package-name]" security patch
 "[CVE-ID]" fix
 "[package-name]" upgrade guide

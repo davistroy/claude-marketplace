@@ -536,7 +536,7 @@ router.Use(limiter.NewMiddleware(store, rate))
     3.  Flag any usage of `fmt.Println(secret)` -> must use `fmt.Println("REDACTED")`.
 
 ## Web Search Queries
-```
+```text
 "[package-name]" go CVE vulnerability
 "[package-name]" golang security advisory
 govulncheck [package-name]

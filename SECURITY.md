@@ -25,13 +25,19 @@ This document describes the security model, data handling practices, and vulnera
 | Code review | Source code files, git diffs |
 | BPMN generation | Process descriptions, XML |
 | Architecture review | Full codebase structure and contents |
+| Security analysis | Source code, dependencies, configurations |
+| Document sanitization | Documents with company/proprietary information |
+| Multi-provider research | Research queries sent to Anthropic, OpenAI, and Google APIs |
+| Visual generation | Text/document content sent to image generation APIs |
+| Secrets management | Bitwarden vault access (reads secrets, never writes to disk) |
+| Feedback synthesis | Notion page content, feedback data |
 
 ### Where Data is Stored
 
 **Local Storage Only:**
 - All input files remain on your local filesystem
 - Output files are written to your local filesystem
-- No data is uploaded to external servers (except Claude API)
+- No data is uploaded to external servers except through LLM APIs (Claude, OpenAI, Google Gemini -- see "What Gets Sent to Claude API" below)
 
 **Output Locations:**
 
@@ -56,6 +62,8 @@ When you run plugin commands:
    - Environment variables
    - System credentials
    - Other browser tabs or applications
+
+**Multi-Provider Note:** The `/research-topic` skill sends data to **Anthropic, OpenAI, and Google APIs in parallel** as part of its multi-provider research workflow. Data sent to each provider is subject to that provider's respective privacy and data handling policies.
 
 **Important:** Claude API has its own data handling policies. See [Anthropic's Privacy Policy](https://www.anthropic.com/privacy) for details on how your data is handled by the API.
 
@@ -88,6 +96,13 @@ Most commands do **not** automatically scan for secrets:
 - `/convert-markdown`
 - `/review-arch`
 - `/bpmn-generator`
+- `/research-topic`
+- `/visual-explainer`
+- `/summarize-feedback`
+- `/security-analysis`
+- `/unlock`
+- `/prime`
+- `/review-intent`
 
 **Recommendation:** If processing sensitive documents, manually review output files before committing.
 
@@ -105,6 +120,16 @@ Most commands do **not** automatically scan for secrets:
 3. **Environment variables:**
    - Use environment variables for secrets in code
    - Never hardcode credentials in documents being processed
+
+### Security-Relevant Skills and Commands
+
+Several commands and skills are directly relevant to security workflows:
+
+- **`/security-analysis`** - Comprehensive security analysis with automatic tech stack detection. This is the most security-focused skill in the plugin. It scans codebases for vulnerabilities, insecure patterns, dependency risks, and configuration issues across multiple languages and frameworks. Use it as a first-pass security audit on any project.
+
+- **`/remove-ip`** - Document sanitization and de-identification. Strips company names, proprietary information, and intellectual property from documents. Use this before sharing documents externally or when creating anonymized case studies. Review output carefully -- automated redaction may miss context-dependent references.
+
+- **`/unlock`** - Bitwarden Secrets Manager integration. Loads secrets from Bitwarden vault into the current environment using the `bws` CLI. This avoids storing API keys and credentials in `.env` files or configuration. Requires the `bws` CLI to be installed and a valid machine access token. Secrets are loaded into environment variables for the current session only -- they are not written to disk.
 
 ---
 
@@ -215,21 +240,25 @@ Commands run with your full user permissions. They can:
 - Commands do NOT validate content safety
 - No protection against path traversal in user-provided paths
 
-### No Audit Trail
+### Audit Trail
 
-By default:
-- No logging of command execution
-- No history of processed files
-- No record of data access
+By default, commands do not log their execution. However, audit logging **is available** via the `--audit` flag on `/clean-repo` and `/ship`. When enabled:
+- Command execution is logged with timestamps
+- Processed files are recorded
+- Data access is tracked for review
 
-(Note: Audit logging is planned for future versions)
+If you require a full audit trail, use the `--audit` flag on supported commands.
 
 ### Third-Party Dependencies
 
 Some commands rely on external tools:
 - **pandoc** - Document conversion
 - **graphviz** - Diagram layout
-- **GitHub CLI (gh)** - Git operations
+- **GitHub CLI (gh)** - Git operations (`/ship`)
+- **tea** - Gitea CLI (`/ship` for Gitea remotes)
+- **bws** - Bitwarden Secrets Manager CLI (`/unlock`)
+- **google-genai** - Google Gemini SDK (`/research-topic`)
+- **openai** - OpenAI SDK (`/research-topic`, `/visual-explainer`)
 
 These tools have their own security considerations. Keep them updated.
 
@@ -286,9 +315,12 @@ Before using these plugins on sensitive projects:
 
 - [ ] Review what data will be processed
 - [ ] Update `.gitignore` with recommended patterns
-- [ ] Keep external dependencies (pandoc, graphviz, gh) updated
+- [ ] Keep external dependencies (pandoc, graphviz, gh, tea, bws) updated
 - [ ] Review output files before committing or sharing
 - [ ] Use `/ship` auto-review to catch secrets before PRs
+- [ ] Use `/security-analysis` for first-pass security audits
+- [ ] Use `/remove-ip` to sanitize documents before external sharing
+- [ ] Use `/unlock` for secrets management instead of `.env` files
 - [ ] Remove or redact sensitive data from input files
 - [ ] Regularly clean up temporary and backup files
 

@@ -488,7 +488,9 @@ public class UserController {
     1.  **ToString()**: Check if `User` or `CreditCard` classes generate `toString()` with secrets.
     2.  **Log4j Config**: Ensure sensitive fields are masked in `PatternLayout`.
     3.  **Exception Handling**: Ensure `e.printStackTrace()` is never sent to `HttpServletResponse`.
-```
+
+## Web Search Queries
+```text
 "[package-name]" maven CVE vulnerability
 "[package-name]" security advisory
 "spring security best practices" 2024

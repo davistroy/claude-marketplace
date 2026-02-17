@@ -19,7 +19,7 @@ Analyze the attached meeting transcript and produce a comprehensive markdown rep
 
 **Validation:**
 If no transcript is provided, display:
-```
+```text
 Usage: /analyze-transcript <transcript-path> [--format md|json]
 Example: /analyze-transcript meeting-notes.txt
 Example: /analyze-transcript transcript.md --format json

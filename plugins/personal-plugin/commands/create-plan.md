@@ -27,7 +27,7 @@ This command:
 - `--verbose` - Show detailed analysis during generation
 
 **Examples:**
-```
+```text
 /create-plan                              # Auto-discover documents
 /create-plan PRD.md TDD.md               # Use specific documents
 /create-plan --phases 5                   # Target 5 phases
@@ -43,7 +43,7 @@ This command:
 When no documents are specified, search for requirements documents:
 
 **Search patterns (in order of priority):**
-```
+```markdown
 # Root level
 *.md containing "requirements", "specification", "design"
 PRD*.md, BRD*.md, TDD*.md, SRS*.md, FRD*.md
@@ -77,7 +77,7 @@ When documents are specified as arguments:
 3. Report any files not found
 
 **Error if no documents found:**
-```
+```text
 Error: No requirements documents found.
 
 Searched locations:
@@ -95,7 +95,7 @@ Or create a PRD.md file with your requirements.
 
 Display discovered documents before proceeding:
 
-```
+```text
 Requirements Documents Found
 ============================
 
@@ -162,7 +162,7 @@ Combine information across documents:
 
 If conflicting requirements are found:
 
-```
+```text
 ⚠️  Requirement Conflicts Detected
 
 Conflict 1:
@@ -235,6 +235,29 @@ For each phase, verify:
 - Critical path is identified
 
 ### Phase 4: Generate IMPLEMENTATION_PLAN.md
+
+#### Append vs Overwrite Logic
+
+**Before writing, check if IMPLEMENTATION_PLAN.md already exists.**
+
+- **If the file does NOT exist:** Create it fresh with the full structure below.
+- **If the file DOES exist:**
+  1. Read the existing file
+  2. Preserve the existing header (everything up to and including the `---` after Plan Overview / Phase Summary Table)
+  3. Identify the highest existing phase number (e.g., if Phase 4 is the last, new phases start at Phase 5)
+  4. Renumber all new phases to continue from the highest existing phase
+  5. Renumber all new work items accordingly (e.g., 5.1, 5.2, 6.1...)
+  6. Append the new phases after the last existing phase section
+  7. Update the Phase Summary Table to include both old and new phases
+  8. Update the total phase count, estimated total effort, and any metadata in the header
+  9. Append new entries to Parallel Work Opportunities, Risk Mitigation, Success Metrics, and Requirement Traceability tables
+  10. Add a separator comment before the new content: `<!-- Appended on [YYYY-MM-DD HH:MM:SS] from /create-plan -->`
+
+**Tell the user what happened:**
+```text
+Existing IMPLEMENTATION_PLAN.md found with [N] phases.
+Appending [M] new phases (Phase [N+1] through Phase [N+M]).
+```
 
 Create the implementation plan with this structure:
 
@@ -389,13 +412,13 @@ Create the implementation plan with this structure:
 
 #### 5.1 Save the Plan
 
-Save IMPLEMENTATION_PLAN.md to the repository root (or custom path if specified).
+Save IMPLEMENTATION_PLAN.md to the repository root (or custom path if specified). If appending to an existing file, the save overwrites the file with the merged content (existing + new phases).
 
 #### 5.2 Summary Report
 
 Display a summary to the user:
 
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Implementation Plan Generated
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -448,7 +471,7 @@ Next Steps:
 
 ### No Requirements Documents
 
-```
+```text
 Error: No requirements documents found.
 
 Create at least one of:
@@ -465,7 +488,7 @@ Or specify documents explicitly:
 
 If critical information is missing:
 
-```
+```text
 ⚠️  Incomplete Requirements Detected
 
 Missing information:

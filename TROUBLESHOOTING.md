@@ -185,7 +185,7 @@ rm -rf ~/.claude/plugins/cache/troys-plugins/
 
 **Solution:**
 
-1. Verify Python is installed (3.8+ required):
+1. Verify Python is installed (3.10+ required):
    ```bash
    python --version
    # or

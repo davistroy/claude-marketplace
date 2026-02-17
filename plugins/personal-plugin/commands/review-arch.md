@@ -6,6 +6,15 @@ description: Quick architectural audit with technical debt assessment (read-only
 
 Perform a quick architectural audit of this project. This command provides an in-conversation analysis without generating files. For a comprehensive analysis with saved RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md, use `/plan-improvements` instead.
 
+## Input Validation
+
+Before proceeding, verify:
+- This is a code project (not just documentation or data)
+- Project structure is readable and contains source files
+- The codebase has sufficient complexity to warrant architectural review (not a single-file script)
+
+For single-file projects or simple scripts, provide a brief assessment rather than a full architectural audit.
+
 ## Overview
 
 Execute the following systematic analysis:

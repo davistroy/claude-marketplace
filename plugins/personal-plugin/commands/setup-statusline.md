@@ -8,6 +8,12 @@ description: Custom status line setup (Windows/PowerShell)
 
 Set up a custom status line for Claude Code on Windows.
 
+## Input Validation
+
+**No Arguments Required:** This command takes no arguments.
+
+If extra arguments are provided, they are ignored.
+
 ## Instructions
 
 1. Create the PowerShell script at `$env:USERPROFILE\.claude\statusline.ps1` with this content:

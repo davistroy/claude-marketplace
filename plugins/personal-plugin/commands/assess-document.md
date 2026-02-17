@@ -21,7 +21,7 @@ Perform a comprehensive evaluation of the specified document, identifying gaps, 
 If the document path is missing:
 
 1. **If `--no-prompt` is specified**, display the error and exit:
-```
+```text
 Error: Missing required argument
 
 Usage: /assess-document <document-path> [--format md|json] [--no-prompt]
@@ -30,7 +30,7 @@ Example: /assess-document PRD.md --format json
 ```
 
 2. **Otherwise (default), prompt interactively**:
-```
+```text
 /assess-document requires a document path.
 
 Please provide the path to the document to assess:
@@ -306,7 +306,7 @@ After creating the file, provide a summary including:
 
 ### Markdown Format (default)
 
-```
+```yaml
 User: /assess-document PRD.md
 
 Claude: [Reads PRD.md, performs assessment, creates PRD-assessment-20260110-143052.md]
@@ -330,7 +330,7 @@ Full assessment saved to: PRD-assessment-20260110-143052.md (Markdown format)
 
 ### JSON Format
 
-```
+```yaml
 User: /assess-document PRD.md --format json
 
 Claude: [Reads PRD.md, performs assessment, creates PRD-assessment-20260110-143052.json]

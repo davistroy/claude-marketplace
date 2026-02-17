@@ -6,6 +6,15 @@ description: Analyze codebase and generate prioritized improvement recommendatio
 
 Perform a comprehensive analysis of the current codebase to identify improvement opportunities, then generate detailed recommendations and a phased implementation plan.
 
+## Input Validation
+
+Before proceeding, verify:
+- This is a code project with meaningful source files (not empty or purely documentation)
+- The repository structure is readable and accessible
+- There is sufficient existing code to analyze for improvements
+
+For trivial projects or fresh repositories, ask the user if they want a full improvement plan or just architectural guidance.
+
 ## Instructions
 
 ### Phase 1: Deep Codebase Analysis (Ultrathink)
@@ -133,6 +142,29 @@ Create a comprehensive recommendations document with this structure:
 ```
 
 ### Phase 3: Generate IMPLEMENTATION_PLAN.md
+
+#### Append vs Overwrite Logic
+
+**Before writing, check if IMPLEMENTATION_PLAN.md already exists.**
+
+- **If the file does NOT exist:** Create it fresh with the full structure below.
+- **If the file DOES exist:**
+  1. Read the existing file
+  2. Preserve the existing header (everything up to and including the `---` after Plan Overview / Phase Summary Table)
+  3. Identify the highest existing phase number (e.g., if Phase 4 is the last, new phases start at Phase 5)
+  4. Renumber all new phases to continue from the highest existing phase
+  5. Renumber all new work items accordingly (e.g., 5.1, 5.2, 6.1...)
+  6. Append the new phases after the last existing phase section
+  7. Update the Phase Summary Table to include both old and new phases
+  8. Update the total phase count, estimated total effort, and any metadata in the header
+  9. Append new entries to Parallel Work Opportunities, Risk Mitigation, Success Metrics tables
+  10. Add a separator comment before the new content: `<!-- Appended on [YYYY-MM-DD HH:MM:SS] from /plan-improvements -->`
+
+**Tell the user what happened:**
+```text
+Existing IMPLEMENTATION_PLAN.md found with [N] phases.
+Appending [M] new phases (Phase [N+1] through Phase [N+M]).
+```
 
 Transform recommendations into an actionable, phased implementation plan:
 
@@ -297,7 +329,7 @@ When estimating phase size:
 
 ## Example Usage
 
-```
+```yaml
 User: /plan-improvements
 
 Claude: [Performs deep analysis of the codebase]

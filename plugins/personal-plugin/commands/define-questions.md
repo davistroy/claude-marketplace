@@ -23,7 +23,7 @@ Analyze the document specified by the user and extract all questions, open items
 If the document path is missing:
 
 1. **If `--no-prompt` is specified**, display the error and exit:
-```
+```text
 Error: Missing required argument
 
 Usage: /define-questions <document-path> [--format json|csv] [--no-prompt]
@@ -33,7 +33,7 @@ Example: /define-questions PRD.md --format csv
 ```
 
 2. **Otherwise (default), prompt interactively**:
-```
+```text
 /define-questions requires a document path.
 
 Please provide the path to the document to analyze:
@@ -214,7 +214,7 @@ Before saving the output file, validate against `schemas/questions.json`:
 ### Validation Success Message
 
 After successful validation, display:
-```
+```text
 Output validated against schemas/questions.json. Saved to questions-PRD-20260114-143052.json
 
 Validation: PASSED
@@ -226,7 +226,7 @@ Validation: PASSED
 ### Validation Error Message
 
 If validation fails and `--force` is not provided:
-```
+```text
 Schema validation failed:
 
 Errors:
@@ -238,7 +238,7 @@ Fix these issues or use --force to save anyway (not recommended).
 ```
 
 If `--force` is provided, save the file with a warning:
-```
+```text
 WARNING: Schema validation failed but --force was specified.
 Output saved to questions-PRD-20260114-143052.json
 

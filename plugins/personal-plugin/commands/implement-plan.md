@@ -7,6 +7,44 @@ allowed-tools: Bash(git:*), Bash(gh:*), Task, Skill
 
 Execute an IMPLEMENTATION_PLAN.md file by orchestrating subagents in a loop. Each work item is implemented, tested, documented, and committed by dedicated subagents while the main agent retains only minimal state — preserving context window capacity for long-running plans.
 
+## Input Validation
+
+**No Arguments Required:** This command takes no arguments. It reads IMPLEMENTATION_PLAN.md from the repository root.
+
+**Prerequisites Validation:**
+
+Before executing the plan, verify:
+1. IMPLEMENTATION_PLAN.md exists in the repository root
+2. Current branch is NOT main or master
+3. Working directory is clean (no uncommitted changes)
+4. GitHub CLI (gh) is authenticated
+
+**If IMPLEMENTATION_PLAN.md is missing:**
+```text
+Error: IMPLEMENTATION_PLAN.md not found in repository root.
+
+Run one of these commands to generate an implementation plan:
+- /plan-improvements — Generate from codebase analysis
+- /create-plan — Generate from requirements documents
+```
+
+**If on main/master:**
+```text
+Error: Cannot run on main/master branch.
+
+Create a feature branch first:
+  git checkout -b feature/implementation
+```
+
+**If working directory is dirty:**
+```text
+Error: Uncommitted changes detected.
+
+Commit or stash your changes before running this command:
+  git status
+  git add -A && git commit -m "Message"
+```
+
 ## Overview
 
 This command automates the execution of a phased implementation plan by:
@@ -41,10 +79,15 @@ Before running this command, ensure:
 | Retain only: status, files changed, errors | Ask subagents to return file contents |
 | Use TaskCreate/TaskUpdate to track progress | Hold work item details in conversational memory |
 | Spawn fresh subagents for each step | Reuse subagent context across work items |
+| Launch parallel subagents with `run_in_background: true` | Wait for one item to finish before starting an independent one |
+| Batch documentation updates for parallel items | Spawn a doc subagent for each parallel item separately |
+| Use a single commit for parallel batches | Create individual commits for each parallel item |
 
 ### Orchestration Pattern
 
-The main agent acts as a **thin loop controller** — it decides what to do next, spawns a subagent to do it, records the outcome in 1-2 sentences, and moves on. All heavy lifting (reading files, writing code, running tests, updating docs) happens inside subagents whose context is discarded after they return.
+The main agent acts as a **thin loop controller** — it decides what to do next, spawns subagents to do it, records outcomes in 1-2 sentences, and moves on. All heavy lifting (reading files, writing code, running tests, updating docs) happens inside subagents whose context is discarded after they return.
+
+**Parallel-first execution:** When the plan marks work items as parallelizable (same phase, no inter-dependencies), launch multiple implementation subagents concurrently using `run_in_background: true`. This dramatically reduces total execution time.
 
 ### Workflow Per Work Item
 
@@ -54,6 +97,14 @@ For each incomplete work item in IMPLEMENTATION_PLAN.md:
 2. **Testing Subagent**: Runs all tests, fixes failures until all pass
 3. **Documentation Subagent**: Updates IMPLEMENTATION_PLAN.md, PROGRESS.md, LEARNINGS.md
 4. **Main Agent**: Commits and pushes changes
+
+**Parallel variant** (for independent work items within the same phase):
+
+1. **Launch N implementation subagents concurrently** (one per independent work item, `run_in_background: true`)
+2. **Collect results** as each completes — check output files for status
+3. **Single testing subagent** runs full test suite after all parallel items complete
+4. **Single documentation subagent** updates tracking files for all completed items at once
+5. **Main Agent**: Single commit covering all parallel work items, then push
 
 ### Finalization
 
@@ -72,15 +123,24 @@ Follow these steps exactly. Use the **Task tool** to spawn subagents. After each
 Spawn a subagent (subagent_type: "general-purpose") to read IMPLEMENTATION_PLAN.md, PROGRESS.md (if exists), and LEARNINGS.md (if exists).
 
 Prompt the subagent to return ONLY:
-- The next incomplete work item (phase name, item number, brief description)
+- A list of ALL remaining incomplete work items grouped by phase (phase name, item number, brief description each)
+- For each phase: which work items are parallelizable (independent of each other)
 - Current progress summary (1-2 sentences)
 - Total work items remaining
 
-Create a task list using TaskCreate to track each remaining work item.
+Create a task list using TaskCreate to track each remaining work item. Add metadata noting which items can run in parallel.
+
+**Use this parallelization map for the entire execution.** When entering a phase, check which items are independent and launch them concurrently.
 
 ### MAIN LOOP — Repeat until all work items are complete:
 
-#### Step 1: IMPLEMENTATION (Subagent A)
+Before each iteration, check whether the next batch of work items can be parallelized. Use the parallelization map from STARTUP.
+
+---
+
+#### PATH A: SEQUENTIAL (single work item, or item has dependencies on incomplete items)
+
+##### Step A1: IMPLEMENTATION (Subagent)
 
 Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 
@@ -90,7 +150,7 @@ Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 
 Wait for completion. Record only: files changed, success/failure status.
 
-#### Step 2: TESTING (Subagent B)
+##### Step A2: TESTING (Subagent)
 
 Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 
@@ -107,7 +167,7 @@ Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 
 Wait for ALL_TESTS_PASS. If issues were fixed, note them briefly for the LEARNINGS.md update.
 
-#### Step 3: DOCUMENTATION UPDATE (Subagent C)
+##### Step A3: DOCUMENTATION UPDATE (Subagent)
 
 Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 
@@ -118,7 +178,7 @@ Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 >
 > Return: DOCS_UPDATED when complete.
 
-#### Step 4: COMMIT (Main Agent — do this yourself)
+##### Step A4: COMMIT (Main Agent — do this yourself)
 
 Run these git commands directly:
 1. `git add -A`
@@ -127,13 +187,86 @@ Run these git commands directly:
 
 Mark the corresponding task as completed using TaskUpdate.
 
-#### Step 5: NEXT ITERATION
+---
+
+#### PATH B: PARALLEL (multiple independent work items in the same phase)
+
+Use this path when 2+ work items have no dependencies on each other. This is the **preferred path** — always check for parallelization opportunities before falling back to sequential.
+
+##### Step B1: PARALLEL IMPLEMENTATION (Multiple Subagents)
+
+For each independent work item, spawn a subagent (subagent_type: "general-purpose") with `run_in_background: true`:
+
+> Read IMPLEMENTATION_PLAN.md. Implement work item: **[ITEM N.M — phase name, item number, brief description]**.
+> Complete ALL tasks in this work item.
+> Return ONLY: (1) files created/modified, (2) implementation summary (max 3 sentences), (3) DONE or error description.
+
+Launch ALL independent items in a **single message with multiple Task tool calls**. This ensures true concurrent execution.
+
+**Important constraints:**
+- Maximum 3 parallel implementation subagents at once (to avoid file conflicts)
+- If items touch overlapping files, run them sequentially instead
+- Monitor background agents by reading their output files periodically
+
+##### Step B2: COLLECT RESULTS
+
+As each background agent completes, read its output file to get status. Record for each:
+- Work item name
+- Files changed
+- Success/failure
+
+If any agent fails, handle its work item sequentially in a follow-up step.
+
+##### Step B3: TESTING (Single Subagent)
+
+After ALL parallel implementations complete, run a single testing subagent:
+
+> Run ALL project tests. If failures occur:
+> 1. Diagnose root cause
+> 2. Fix the issue
+> 3. Re-run ALL tests
+> 4. Repeat until ALL tests pass
+>
+> When all tests pass, return:
+> - Test summary (pass count, any issues found)
+> - For each issue fixed: problem, solution, prevention tip (1 line each)
+> - ALL_TESTS_PASS confirmation
+
+##### Step B4: DOCUMENTATION UPDATE (Single Subagent)
+
+Spawn a single subagent to update tracking for ALL completed parallel items at once:
+
+> Update project tracking files:
+> 1. IMPLEMENTATION_PLAN.md — Mark these work items as complete with today's date: **[LIST_OF_ITEMS]**
+> 2. PROGRESS.md — Append entries for each: date, work item completed, files changed: **[FILES_PER_ITEM]**
+> 3. LEARNINGS.md — Append any testing issues: **[ISSUES_IF_ANY]**
+>
+> Return: DOCS_UPDATED when complete.
+
+##### Step B5: COMMIT (Main Agent — do this yourself)
+
+Single commit covering all parallel work items:
+1. `git add -A`
+2. `git commit -m "Complete [PHASE_NAME]: [ITEM_1], [ITEM_2], [ITEM_3]"`
+3. `git push`
+
+Mark all corresponding tasks as completed using TaskUpdate.
+
+---
+
+#### NEXT ITERATION (applies to both paths)
 
 Spawn a subagent (subagent_type: "general-purpose") to check IMPLEMENTATION_PLAN.md:
 
-> Is there any incomplete work item? Return ONLY: `NEXT: [item description]` OR `ALL_COMPLETE`
+> Read IMPLEMENTATION_PLAN.md. List ALL remaining incomplete work items with their phase and item numbers.
+> For the next batch: are any of them parallelizable (independent, no shared file dependencies)?
+> Return ONLY:
+> - `PARALLEL: [item1], [item2], [item3]` if multiple independent items exist, OR
+> - `NEXT: [item description]` if only one item or all have dependencies, OR
+> - `ALL_COMPLETE` if nothing remains.
 
-- If **NEXT**: return to Step 1 with the new item.
+- If **PARALLEL**: return to PATH B.
+- If **NEXT**: return to PATH A.
 - If **ALL_COMPLETE**: proceed to FINALIZATION.
 
 **Do not stop early.** Continue looping until the subagent confirms ALL_COMPLETE. Every work item in the plan must be implemented, tested, and committed before moving to finalization.
@@ -178,7 +311,7 @@ This command creates/updates:
 ### Missing IMPLEMENTATION_PLAN.md
 
 If IMPLEMENTATION_PLAN.md does not exist:
-```
+```text
 Error: IMPLEMENTATION_PLAN.md not found in repository root.
 
 Run '/plan-improvements' or '/create-plan' first to generate an implementation plan.
@@ -231,7 +364,7 @@ If commit or PR operations fail:
 
 ## Example Usage
 
-```
+```yaml
 User: /implement-plan
 
 Claude: Starting implementation plan execution...

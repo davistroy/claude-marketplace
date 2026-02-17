@@ -33,7 +33,7 @@ Interactively collect the following from the user:
 #### 1.1 Skill Name
 
 Ask:
-```
+```text
 What is the skill name? (kebab-case, e.g., "auto-format")
 ```
 
@@ -44,7 +44,7 @@ What is the skill name? (kebab-case, e.g., "auto-format")
 - Must not already exist in `plugins/personal-plugin/skills/`
 
 If invalid:
-```
+```text
 Error: Skill name must be kebab-case (e.g., 'my-skill', 'auto-deploy')
 Invalid: [what was provided]
 Reason: [specific reason]
@@ -53,7 +53,7 @@ Please provide a valid skill name:
 ```
 
 If skill already exists:
-```
+```text
 Error: Skill '[name]' already exists at plugins/personal-plugin/skills/[name]/SKILL.md
 
 Please provide a different skill name:
@@ -62,7 +62,7 @@ Please provide a different skill name:
 #### 1.2 Description
 
 Ask:
-```
+```text
 Provide a brief description (shown in Skill tool and used for proactive suggestions):
 ```
 
@@ -78,7 +78,7 @@ Provide a brief description (shown in Skill tool and used for proactive suggesti
 #### 1.3 Tool Restrictions (Optional)
 
 Ask:
-```
+```text
 Restrict which tools this skill can use? (leave empty for no restrictions)
 
 Examples:
@@ -95,7 +95,7 @@ Enter tool restrictions or press Enter to skip:
 
 Create the nested directory structure required by Claude Code:
 
-```
+```text
 plugins/personal-plugin/skills/[skill-name]/
   SKILL.md    # Must be exactly this name (uppercase)
 ```
@@ -148,7 +148,7 @@ Save to: `plugins/personal-plugin/skills/[skill-name]/SKILL.md`
 #### 3.1 Remind About Documentation Updates
 
 Display:
-```
+```text
 ----------------------------------------------
 Skill Generated Successfully!
 ----------------------------------------------
@@ -194,7 +194,7 @@ The generated file will contain:
 
 ## Example Usage
 
-```
+```yaml
 User: /new-skill
 
 Claude:
@@ -247,7 +247,7 @@ Structure verified:
    - [ ] Run: /validate-plugin personal-plugin
 ```
 
-```
+```yaml
 User: /new-skill deploy-preview
 
 Claude:
