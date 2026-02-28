@@ -347,3 +347,11 @@ I've completed the assessment of PRD.md.
 
 Full assessment saved to: PRD-assessment-20260110-143052.json (JSON format)
 ```
+
+## Related Commands
+
+- `/define-questions` — Extract open questions from the assessed document into a structured JSON
+- `/finish-document` — Complete a document by resolving all questions and TBDs
+- `/consolidate-documents` — Merge multiple document versions after assessment
+- `/review-intent` — Compare document intent vs current implementation
+- `/create-plan` — Generate an implementation plan from assessed requirements documents

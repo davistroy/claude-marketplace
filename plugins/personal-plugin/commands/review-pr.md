@@ -279,6 +279,12 @@ Issues Found:
 - **Rate limited:** Wait and retry, or use local diff
 - **Large PR:** Warn about review scope, offer to focus on specific files
 
+## Related Commands
+
+- `/review-arch` — Quick architectural audit of the full codebase (broader scope)
+- `/review-intent` — Compare project intent vs implementation (complementary review)
+- `/test-project` — Run comprehensive tests after PR review findings are addressed
+
 ## Example Usage
 
 ```yaml

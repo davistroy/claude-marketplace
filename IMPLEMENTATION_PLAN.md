@@ -120,7 +120,7 @@ Add `allowed-tools` declarations to the YAML frontmatter of every command and sk
 
 #### 1.2 Add "Related Commands" Sections to All Commands
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** S3
 **Files Affected:**
 - All 23 command files in `plugins/personal-plugin/commands/` (modify)

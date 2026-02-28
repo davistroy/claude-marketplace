@@ -388,3 +388,10 @@ User: Automated testing utilities and test generation tools
 - **marketplace.json parse error:** Report error and suggest manual fix
 - **Write permission denied:** Report error and suggest checking permissions
 - **Missing marketplace.json:** Report error and suggest creating manually
+
+## Related Commands
+
+- `/new-command` — Add a new command to the scaffolded plugin
+- `/new-skill` — Add a new skill with proper nested directory structure
+- `/validate-plugin` — Verify plugin structure after scaffolding
+- `/bump-version` — Update plugin version numbers

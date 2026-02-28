@@ -272,3 +272,10 @@ All command completions include validation status:
 - `Validation: PASSED` - All required fields present, types correct
 - `Validation: FAILED` - Errors listed, file not saved (unless `--force`)
 - `Validation: SKIPPED` - Used with `--force`, file saved with warning
+
+## Related Commands
+
+- `/ask-questions` — Interactively walk through answering the extracted questions
+- `/finish-document` — Full pipeline: extract questions, answer them, update the document
+- `/assess-document` — Evaluate document quality (complementary analysis)
+- `/create-plan` — Generate implementation plan from requirements (uses similar document analysis)

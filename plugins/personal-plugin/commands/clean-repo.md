@@ -381,3 +381,11 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 - **Verify before documenting** - Don't document features you haven't verified exist
 - **Update, don't fabricate** - Fix stale docs, don't invent new content
 - **Ask when uncertain** - Flag ambiguous issues for user decision
+
+## Related Commands
+
+- `/validate-plugin` — Validate plugin structure and catch errors before committing
+- `/bump-version` — Update version numbers after cleanup
+- `/check-updates` — Compare installed vs marketplace versions
+- `/review-arch` — Quick architectural audit (read-only complement to cleanup)
+- `/plan-improvements` — Generate comprehensive improvement recommendations

@@ -445,3 +445,10 @@ All phase completions include validation status:
 - Phase 1 output is validated before Phase 2 begins
 - Phase 2 output is validated before Phase 3 (document update) begins
 - Using `--force` allows progression despite validation failures, but may result in incomplete document updates
+
+## Related Commands
+
+- `/define-questions` — Extract questions only (Phase 1 of this command, standalone)
+- `/ask-questions` — Answer questions only (Phase 2 of this command, standalone)
+- `/assess-document` — Evaluate document quality before or after finishing
+- `/consolidate-documents` — Merge multiple document versions after completion

@@ -386,3 +386,9 @@ All command completions include validation status:
 - Input from `/define-questions` is validated to ensure compatibility
 - Output is validated for `/finish-document` compatibility
 - Using `--force` may result in files that don't work with downstream commands
+
+## Related Commands
+
+- `/define-questions` — Produces the questions JSON file that this command consumes
+- `/finish-document` — Uses the answers JSON to update the original document (full pipeline)
+- `/assess-document` — Evaluate document quality before or after answering questions

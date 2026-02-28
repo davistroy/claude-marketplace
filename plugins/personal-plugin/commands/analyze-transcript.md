@@ -200,3 +200,10 @@ When `--preview` is specified:
 ## File Naming
 
 Use the timestamp format `YYYYMMDD-HHMMSS`. Use the meeting date if known (with current time), or the current date and time if not specified.
+
+## Related Commands
+
+- `/consolidate-documents` — Merge multiple meeting transcripts or document versions into one
+- `/assess-document` — Evaluate the quality of a generated meeting report
+- `/define-questions` — Extract open questions from the transcript for follow-up
+- `/convert-markdown` — Convert the markdown report to a Word document for sharing

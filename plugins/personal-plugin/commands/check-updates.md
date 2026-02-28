@@ -174,3 +174,9 @@ To update plugins, pull the latest changes from the repository.
 - No network requests are made; all version information comes from local files
 - Plugin updates must be performed manually by pulling repository changes
 - The command does not execute any installation or update operations
+
+## Related Commands
+
+- `/bump-version` — Update plugin version numbers across all config files
+- `/validate-plugin` — Verify plugin structure and version synchronization
+- `/clean-repo` — Full repository cleanup including version consistency checks

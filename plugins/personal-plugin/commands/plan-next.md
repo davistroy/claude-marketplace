@@ -47,3 +47,11 @@ Present your recommendation as:
 
 ### What Comes After
 [Brief note on what this unblocks]
+
+## Related Commands
+
+- `/plan-improvements` — Deep codebase analysis with full RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md
+- `/create-plan` — Generate implementation plan from requirements documents
+- `/implement-plan` — Execute an existing IMPLEMENTATION_PLAN.md
+- `/review-arch` — Quick architectural audit for understanding current state
+- `/review-intent` — Compare original intent vs current implementation

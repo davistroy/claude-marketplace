@@ -173,3 +173,7 @@ Total context usage is calculated from:
 - `cache_read_input_tokens` - tokens read from cache
 - `cache_creation_input_tokens` - tokens written to cache
 - `input_tokens` - uncached tokens
+
+## Related Commands
+
+- `/convert-hooks` — Convert bash scripts to PowerShell (related Windows/PowerShell tooling)

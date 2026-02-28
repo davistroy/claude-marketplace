@@ -391,3 +391,10 @@ If PR creation or merge fails:
 - **Communicate progress**: Report status after each major phase
 - **Respect CI**: If the project has CI, ensure it would pass
 - **Ask when uncertain**: Don't guess on coverage exclusions or test skips
+
+## Related Commands
+
+- `/implement-plan` — Execute an IMPLEMENTATION_PLAN.md (often followed by testing)
+- `/review-pr` — Review the PR created by this command before merging
+- `/plan-improvements` — Generate improvement recommendations including test coverage gaps
+- `/review-arch` — Architectural audit that identifies testability issues

@@ -196,3 +196,9 @@ Files Modified:
 The plugin's hooks are now configured to use PowerShell.
 Restart Claude Code to use the updated hooks.
 ```
+
+## Related Commands
+
+- `/convert-markdown` — Convert markdown files to Word format (another conversion command)
+- `/validate-plugin` — Verify plugin structure including hook Windows compatibility
+- `/scaffold-plugin` — Create a new plugin with proper structure

@@ -286,3 +286,10 @@ Restrict which tools this skill can use? (leave empty for no restrictions)
 | `name` field | **FORBIDDEN** | **REQUIRED** |
 | Filename | Any `.md` name | Must be `SKILL.md` |
 | Discovery | By filename | By directory name + `name` field |
+
+## Related Commands
+
+- `/new-command` — Generate a new command file from a template (flat file structure)
+- `/scaffold-plugin` — Create an entire new plugin with proper structure
+- `/validate-plugin` — Validate the plugin after adding a new skill
+- `/bump-version` — Update plugin version after adding new skills

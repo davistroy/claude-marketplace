@@ -134,3 +134,10 @@ For each item include:
 - Flag areas where you need clarification on intent before judging
 
 Begin by analyzing the project structure and presenting an executive summary of the architecture before diving into detailed findings.
+
+## Related Commands
+
+- `/plan-improvements` — Comprehensive analysis that generates RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md
+- `/review-intent` — Compare original intent vs current implementation (complementary review)
+- `/review-pr` — Review a specific pull request for code quality and security
+- `/plan-next` — Get a recommendation for the next action based on current state

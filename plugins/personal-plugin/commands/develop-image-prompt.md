@@ -216,3 +216,9 @@ Before finalizing, verify the prompt includes:
 - [ ] Print-ready specifications
 - [ ] Readable at intended size
 - [ ] Professional presentation quality
+
+## Related Commands
+
+- `/analyze-transcript` — Generate structured content that can be visualized
+- `/assess-document` — Evaluate source document quality before prompt generation
+- `/convert-markdown` — Convert documents to other formats for different outputs

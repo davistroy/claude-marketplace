@@ -134,3 +134,10 @@ Claude: Converting docs/api-guide.md to docs/api-guide.docx...
         ✓ Created docs/api-guide.docx (45 KB)
         - 12 headings, 5 code blocks, 2 tables
 ```
+
+## Related Commands
+
+- `/convert-hooks` — Convert bash hook scripts to PowerShell (another conversion command)
+- `/analyze-transcript` — Generate markdown reports that can then be converted to Word
+- `/consolidate-documents` — Merge documents before converting to Word
+- `/assess-document` — Evaluate document quality before conversion

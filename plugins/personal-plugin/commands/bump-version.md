@@ -254,3 +254,10 @@ Don't forget to:
   2. Create a git tag: git tag v1.7.0
   3. Push with tags: git push && git push --tags
 ```
+
+## Related Commands
+
+- `/validate-plugin` — Verify plugin structure and version synchronization after bumping
+- `/check-updates` — Compare installed vs marketplace versions
+- `/clean-repo` — Repository cleanup including version consistency checks
+- `/scaffold-plugin` — Create a new plugin (sets initial version to 1.0.0)

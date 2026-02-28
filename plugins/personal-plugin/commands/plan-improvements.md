@@ -703,6 +703,14 @@ Plans must stay within bounds that `/implement-plan` can execute reliably. Apply
 3. If no activity, interrupt and try `/review-arch` for a quicker analysis
 4. Consider breaking into smaller scope (specific directories)
 
+## Related Commands
+
+- `/create-plan` — Generate implementation plan from requirements documents (complementary planning)
+- `/implement-plan` — Execute an IMPLEMENTATION_PLAN.md via orchestrated subagents
+- `/plan-next` — Quick recommendation for the next logical action
+- `/review-arch` — Lighter-weight architectural audit (read-only, no files generated)
+- `/assess-document` — Evaluate document quality before improvement planning
+
 ---
 
 ## Example Usage

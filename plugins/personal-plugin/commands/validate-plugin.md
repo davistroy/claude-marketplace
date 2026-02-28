@@ -1147,6 +1147,16 @@ Exit code: 0
 Tip: Run with --fix to auto-add language specifiers.
 ```
 
+## Related Commands
+
+- `/bump-version` — Update version numbers (run validation after bumping)
+- `/check-updates` — Compare installed vs marketplace versions
+- `/scaffold-plugin` — Create a new plugin with proper structure
+- `/new-command` — Add a new command (run validation after adding)
+- `/new-skill` — Add a new skill (run validation after adding)
+- `/clean-repo` — Full repository cleanup and documentation sync
+- `/convert-hooks` — Fix Windows hook compatibility issues flagged by validation
+
 ```yaml
 User: /validate-plugin --all
 

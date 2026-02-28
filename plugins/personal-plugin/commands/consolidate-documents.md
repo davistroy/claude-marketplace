@@ -132,3 +132,11 @@ A brief section explaining:
 Begin by asking the user for the source documents if not already provided. Then work through each step, showing your analysis before producing the final consolidated output.
 
 Before writing output, ensure the `reports/` directory exists (create it if missing).
+
+## Related Commands
+
+- `/assess-document` — Evaluate document quality before or after consolidation
+- `/analyze-transcript` — Convert meeting transcripts to structured reports for consolidation
+- `/define-questions` — Extract open questions from consolidated documents
+- `/finish-document` — Resolve remaining TBDs in the consolidated output
+- `/remove-ip` — Sanitize the consolidated document for external sharing

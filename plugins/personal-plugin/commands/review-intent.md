@@ -347,3 +347,11 @@ With `--deep` flag (git history analysis), add 30-60 seconds for every 100 commi
 - Flag areas where you need clarification before judging alignment
 
 Begin by examining all available intent artifacts and presenting the Intent Profile before proceeding to implementation analysis.
+
+## Related Commands
+
+- `/review-arch` — Quick architectural audit (complementary review)
+- `/review-pr` — Review a specific pull request for code quality
+- `/plan-improvements` — Generate improvement recommendations based on codebase analysis
+- `/plan-next` — Get a recommendation for the next action based on current state
+- `/assess-document` — Evaluate document quality (useful for reviewing spec documents)

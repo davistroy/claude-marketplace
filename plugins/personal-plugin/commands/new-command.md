@@ -264,3 +264,10 @@ File created: plugins/personal-plugin/commands/export-data.md
 - **Command already exists:** Report conflict and suggest alternative name
 - **Invalid name format:** Explain kebab-case requirement with examples
 - **Write permission denied:** Report error and suggest checking permissions
+
+## Related Commands
+
+- `/new-skill` — Generate a new skill with nested directory structure and required frontmatter
+- `/scaffold-plugin` — Create an entire new plugin with proper structure
+- `/validate-plugin` — Validate the plugin after adding a new command
+- `/bump-version` — Update plugin version after adding new commands
