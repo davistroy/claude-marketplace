@@ -134,7 +134,7 @@ When assigning **Priority** to each recommendation, apply these definitions cons
 
 After categorizing all recommendations, plot each one on the following 2x2 Impact vs Effort matrix. Use this matrix to mechanically populate the Quick Wins and Strategic Initiatives sections — do not populate those sections by ad-hoc judgment.
 
-```
+```text
                     HIGH IMPACT
                         │
      ┌──────────────────┼──────────────────┐
@@ -649,7 +649,7 @@ Plans must stay within bounds that `/implement-plan` can execute reliably. Apply
    - Total recommendations by category and priority
    - Top 3 highest-impact recommendations
    - Next-step guidance:
-     ```
+     ```text
      To generate an implementation plan from these recommendations, run:
        /create-plan RECOMMENDATIONS.md
      You can edit RECOMMENDATIONS.md first to adjust priorities, remove items, or add context before generating the plan.
