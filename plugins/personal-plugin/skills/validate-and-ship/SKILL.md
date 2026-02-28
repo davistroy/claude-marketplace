@@ -8,11 +8,21 @@ description: Validate plugins, clean repository, and ship changes in one automat
 
 Automated pre-flight checks and shipping workflow. Executes validation, cleanup, and git workflow in sequence, stopping only when user intervention is required.
 
+## Proactive Triggers
+
+Suggest this skill when:
+1. User is done making changes to a plugin and ready to ship
+2. After running `/validate-plugin` successfully and the user wants to proceed to shipping
+3. Before shipping plugin updates to ensure quality gates are met
+4. User says "validate and ship", "check and push", or "ready to release"
+5. After completing a batch of plugin improvements or command/skill edits
+
 ## Input Validation
 
 **Optional Arguments:**
 - `--skip-validate` - Skip plugin validation phase
 - `--skip-cleanup` - Skip repository cleanup phase
+- `--skip-ship` - Run validation and cleanup only, do not proceed to shipping. Useful for pre-flight checks without committing changes.
 - `--dry-run` - Preview all phases without executing changes
 - `<branch-name>` - Custom branch name for shipping (passed to ship phase)
 
@@ -23,18 +33,26 @@ When `--dry-run` is specified:
 - Preview ship operations without executing
 - Prefix all output with `[DRY-RUN]`
 
+## Delegation Mechanism
+
+This skill orchestrates three existing capabilities in sequence. It does **not** delegate to subagents -- it executes each phase inline within the current session:
+
+| Phase | Delegates To | How |
+|-------|-------------|-----|
+| Phase 1: Validate | `/validate-plugin --all` | Runs the full validation logic inline (same session) |
+| Phase 2: Cleanup | `/clean-repo` | Runs the cleanup logic inline (same session) |
+| Phase 3: Ship | `/ship` | Runs the ship workflow inline (same session) |
+
+Each phase runs sequentially. The output of one phase determines whether the next phase executes. If a phase fails with blocking errors, the workflow stops and reports the failure. Non-blocking warnings are logged but do not stop progression.
+
 ## Workflow Overview
 
 ```text
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Phase 1:       │     │  Phase 2:       │     │  Phase 3:       │
-│  Validate       │────▶│  Clean Repo     │────▶│  Ship           │
-│  Plugins        │     │                 │     │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-        │                       │                       │
-        ▼                       ▼                       ▼
-   STOP if errors          Continue with           Full ship
-   CONTINUE if warnings    artifact cleanup        workflow
+Phase 1: Validate --> Phase 2: Clean Repo --> Phase 3: Ship
+     |                       |                       |
+     v                       v                       v
+STOP if errors          Continue with           Full ship
+CONTINUE if warnings    artifact cleanup        workflow
 ```
 
 ## Execution
@@ -145,6 +163,26 @@ Result: [CLEAN/CLEANED]
 ## Phase 3: Ship
 
 Run `/ship` to create branch, commit, push, open PR, auto-review, fix issues, and merge.
+
+**If `--skip-ship` was specified:**
+```text
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 3: Ship (SKIPPED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ship phase skipped (--skip-ship flag). Validation and cleanup complete.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pre-flight Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Summary:
+  Phase 1 (Validate): {PASSED/SKIPPED}
+  Phase 2 (Cleanup):  {CLEANED/SKIPPED}
+  Phase 3 (Ship):     SKIPPED
+
+Ready to ship when you are. Run /validate-and-ship or /ship to proceed.
+```
 
 ### 3.1 Pre-flight Check
 
@@ -332,4 +370,25 @@ No changes made. Run without --dry-run to execute.
 User: /validate-and-ship --skip-validate
 
 Claude: [Skips Phase 1, runs Phases 2 and 3]
+```
+
+### Pre-flight Only (No Ship)
+```yaml
+User: /validate-and-ship --skip-ship
+
+Claude:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 1: Plugin Validation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[Validation runs...]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 2: Repository Cleanup
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[Cleanup runs...]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pre-flight Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ready to ship when you are. Run /ship to proceed.
 ```

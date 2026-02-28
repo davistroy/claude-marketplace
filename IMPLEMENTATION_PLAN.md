@@ -982,7 +982,7 @@ Extract API key setup wizard to reduce file size, fix secrets policy violation (
 
 #### 7.1 Fix Remaining Skills Batch
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R22
 **Files Affected:**
 - `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
@@ -1012,7 +1012,7 @@ Batch fixes for summarize-feedback, visual-explainer, and validate-and-ship: add
 
 #### 7.2 Fix Utility Commands Batch
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R23
 **Files Affected:**
 - `plugins/personal-plugin/commands/bump-version.md` (modify)
@@ -1025,26 +1025,26 @@ Batch fixes for summarize-feedback, visual-explainer, and validate-and-ship: add
 Batch fixes for five utility commands: dynamic scanning, tool usage, dead reference removal, section numbering fix, and resume support alignment.
 
 **Tasks:**
-1. [ ] `bump-version`: Verify dynamic plugin scanning was implemented in Phase 1 (work item 1.4). Add any remaining improvements to plugin discovery.
-2. [ ] `clean-repo`: Replace `find` command usage with Glob tool instructions. Example: replace `find . -name "*.tmp"` with "Use the Glob tool to find temporary files: `**/*.tmp`, `**/.DS_Store`, `**/Thumbs.db`"
-3. [ ] `clean-repo`: Add context management: "For large repositories (100+ files), process directories in batches. Show progress."
-4. [ ] `new-skill`: Remove dead script references (verify Phase 1 work item 1.3). Add plugin target parameter: "Detect which plugin the user is working in. If multiple plugins exist, prompt."
-5. [ ] `validate-plugin`: Fix duplicate section numbering: search for any duplicate heading numbers and renumber sequentially
-6. [ ] `validate-plugin`: Fix skill path example: ensure examples show `skills/name/SKILL.md` (nested), not `skills/name.md` (flat)
-7. [ ] `ask-questions`: Align resume support with the output JSON schema. Ensure the JSON format includes a field (e.g., `answered: true/false`) that enables resume detection when re-running the command.
+1. [x] `bump-version`: Verify dynamic plugin scanning was implemented in Phase 1 (work item 1.4). Add any remaining improvements to plugin discovery.
+2. [x] `clean-repo`: Replace `find` command usage with Glob tool instructions. Example: replace `find . -name "*.tmp"` with "Use the Glob tool to find temporary files: `**/*.tmp`, `**/.DS_Store`, `**/Thumbs.db`"
+3. [x] `clean-repo`: Add context management: "For large repositories (100+ files), process directories in batches. Show progress."
+4. [x] `new-skill`: Remove dead script references (verify Phase 1 work item 1.3). Add plugin target parameter: "Detect which plugin the user is working in. If multiple plugins exist, prompt."
+5. [x] `validate-plugin`: Fix duplicate section numbering: search for any duplicate heading numbers and renumber sequentially
+6. [x] `validate-plugin`: Fix skill path example: ensure examples show `skills/name/SKILL.md` (nested), not `skills/name.md` (flat)
+7. [x] `ask-questions`: Align resume support with the output JSON schema. Ensure the JSON format includes a field (e.g., `answered: true/false`) that enables resume detection when re-running the command.
 
 **Acceptance Criteria:**
-- [ ] bump-version discovers plugins dynamically
-- [ ] clean-repo uses Glob tool, not shell `find`
-- [ ] new-skill has no dead references and has plugin target parameter
-- [ ] validate-plugin has correct section numbering and skill path examples
-- [ ] ask-questions resume support aligns with JSON schema
+- [x] bump-version discovers plugins dynamically
+- [x] clean-repo uses Glob tool, not shell `find`
+- [x] new-skill has no dead references and has plugin target parameter
+- [x] validate-plugin has correct section numbering and skill path examples
+- [x] ask-questions resume support aligns with JSON schema
 
 ---
 
 #### 7.3 Fix `unlock` Skill Shell Injection Risk
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R24
 **Files Affected:**
 - `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
@@ -1053,14 +1053,14 @@ Batch fixes for five utility commands: dynamic scanning, tool usage, dead refere
 Fix the shell injection risk in the Linux `eval` pattern for loading secrets. Add proactive trigger section.
 
 **Tasks:**
-1. [ ] Find the Linux `eval` pattern used for loading secrets into the environment. Replace with a safe alternative: use `shlex.quote()` (or equivalent shell escaping) for secret values before passing them to `eval` or `export`. Example: instead of `eval "export KEY=$VALUE"`, use `export KEY='properly-escaped-value'` with single quotes and internal single-quote escaping.
-2. [ ] Alternatively, replace `eval` entirely with direct `export` statements that properly quote values: `export KEY="$(bws get secret <id> | jq -r .value)"` where the subshell handles escaping naturally.
-3. [ ] Add proactive trigger section: "Suggest this skill when: (1) user starts a session and environment variables are needed; (2) before running skills that require API keys (research-topic, visual-explainer); (3) user mentions Bitwarden or secrets"
+1. [x] Find the Linux `eval` pattern used for loading secrets into the environment. Replace with a safe alternative: use `shlex.quote()` (or equivalent shell escaping) for secret values before passing them to `eval` or `export`. Example: instead of `eval "export KEY=$VALUE"`, use `export KEY='properly-escaped-value'` with single quotes and internal single-quote escaping.
+2. [x] Alternatively, replace `eval` entirely with direct `export` statements that properly quote values: `export KEY="$(bws get secret <id> | jq -r .value)"` where the subshell handles escaping naturally.
+3. [x] Add proactive trigger section: "Suggest this skill when: (1) user starts a session and environment variables are needed; (2) before running skills that require API keys (research-topic, visual-explainer); (3) user mentions Bitwarden or secrets"
 
 **Acceptance Criteria:**
-- [ ] No unescaped `eval` patterns with user/external data
-- [ ] Secret values are properly quoted or escaped before shell expansion
-- [ ] Proactive trigger section present
+- [x] No unescaped `eval` patterns with user/external data
+- [x] Secret values are properly quoted or escaped before shell expansion
+- [x] Proactive trigger section present
 
 **Notes:**
 This is a security fix on a 5/5-rated skill. The skill is excellent otherwise — this is the one gap.

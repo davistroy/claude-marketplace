@@ -153,7 +153,7 @@ Auto-Fix Applied:
 2 skills restructured. Skills should now be discoverable.
 ```
 
-#### 1.2 plugin.json Validation
+#### 1.3 plugin.json Validation
 
 **Check:**
 - File is valid JSON (parseable)
@@ -171,7 +171,7 @@ plugin.json Validation
 [PASS] Version follows semver format
 ```
 
-#### 1.3 Marketplace Schema Validation
+#### 1.4 Marketplace Schema Validation
 
 Validate that marketplace.json plugin entries only contain fields recognized by Claude Code's schema.
 
@@ -464,8 +464,8 @@ Compare names across plugins:
 Namespace Collision Detection
 -----------------------------
 [WARN] Collision detected: /help
-       - personal-plugin/skills/help.md
-       - bpmn-plugin/skills/help.md
+       - personal-plugin/skills/help/SKILL.md
+       - bpmn-plugin/skills/help/SKILL.md
 
        Users must use explicit namespace:
          /personal-plugin:help

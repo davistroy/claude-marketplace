@@ -8,6 +8,15 @@ allowed-tools: Read, Write, Bash, WebSearch, WebFetch
 
 You are orchestrating a visual concept explanation workflow that transforms text or documents into AI-generated infographic pages. The tool uses Gemini Pro 3 (via google-genai SDK) for 4K image generation and Claude Sonnet Vision for quality evaluation with iterative refinement.
 
+## Proactive Triggers
+
+Suggest this skill when:
+1. User has a document, report, or concept they want visualized as infographic pages
+2. After generating a report or analysis that would benefit from a visual summary
+3. User mentions creating infographics, visual explanations, or concept diagrams
+4. User asks to make a document more visually appealing or presentation-ready
+5. User wants to transform a whitepaper, guide, or technical document into visual content
+
 ## Infographic Mode (Recommended)
 
 The `--infographic` flag enables information-dense infographic generation optimized for 11x17 inch printing at 4K resolution. This mode:
@@ -78,7 +87,7 @@ The system automatically selects appropriate page types based on content:
 | `--resume` | null | path | Resume from checkpoint file |
 | `--dry-run` | false | flag | Show plan without generating |
 | `--setup-keys` | false | flag | Force re-check of API key availability (use `/unlock` to load keys) |
-| `--json` | false | flag | Output results as JSON (for programmatic use) |
+| `--json` | false | flag | Output results as JSON (for programmatic use). Returns structured metadata including image paths, scores, concept mappings, and generation statistics. Useful for downstream automation or integration with other tools. |
 
 **Input Format Handling:**
 
@@ -105,12 +114,16 @@ with open('document.md', 'w') as f:
             f.write(para.text + '\n\n')
 ```
 
-**Environment Requirements:**
+**Environment Requirements (Secrets Policy):**
 API keys must be loaded into the environment before use. The primary method is the `/unlock` skill, which loads secrets from Bitwarden Secrets Manager via the `bws` CLI (see CLAUDE.md Secrets Management Policy):
 - `GOOGLE_API_KEY` - For Gemini Pro 3 image generation
 - `ANTHROPIC_API_KEY` - For Claude concept analysis and image evaluation
 
-If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files.
+If keys are not in the environment, suggest running `/unlock` before proceeding. **Secrets policy compliance:**
+- Do NOT write API keys to `.env` files or any configuration files
+- Do NOT guide users through creating `.env` files with API key values
+- Do NOT hardcode API keys in commands or scripts
+- Always direct users to `/unlock` or the Bitwarden Secrets Manager workflow
 
 ## Tool vs Claude Responsibilities
 

@@ -42,9 +42,9 @@ The user will provide a JSON file path after the slash command (e.g., `/ask-ques
 
 Before starting the Q&A session, check for an incomplete previous session:
 
-1. Look for existing `answers-[source-document]-*.json` files
-2. If found with `metadata.status: "in_progress"`:
-   ```
+1. Use the Glob tool to find existing `answers-[source-document]-*.json` files in the same directory as the questions file
+2. If found, read the file and check `metadata.status`. If status is `"in_progress"`:
+   ```text
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Incomplete session detected
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -60,8 +60,15 @@ Before starting the Q&A session, check for an incomplete previous session:
 
    Your choice (R/S/A):
    ```
-3. On resume: Load existing answers and continue from `last_question_answered + 1`
-4. On start fresh: Backup existing file and start from question 1
+3. On resume: Load existing answers and continue from `metadata.last_question_answered + 1`. Each answer entry has an `answered: true/false` field to identify which questions have responses.
+4. On start fresh: Backup existing file (rename with `.bak` suffix) and start from question 1
+
+**Resume Detection Fields (in output JSON schema):**
+- `metadata.status` — `"in_progress"` or `"complete"`
+- `metadata.last_question_answered` — Integer ID of the last answered question
+- `answers[].answered` — Boolean indicating whether this question has been answered
+
+**Intermediate Saves:** When the user types `save` or `quit`, write the current state with `metadata.status: "in_progress"` and `metadata.last_question_answered` set to the ID of the last answered question. Set `metadata.completed_at` to `null` for in-progress sessions.
 
 See `references/patterns/workflow.md` for full state management specification.
 
@@ -223,6 +230,7 @@ Create a file with this structure:
       "context": "Original context from questions file",
       "selected_answer": "The answer the user selected or provided",
       "answer_type": "recommended | alternative | custom | skipped",
+      "answered": true,
       "answered_at": "2026-01-10T14:30:00Z"
     }
   ],
@@ -230,6 +238,8 @@ Create a file with this structure:
     "source_questions_file": "questions-PRD-20260110.json",
     "source_document": "PRD.md",
     "total_questions": 47,
+    "status": "in_progress | complete",
+    "last_question_answered": 15,
     "started_at": "2026-01-10T14:00:00Z",
     "completed_at": "2026-01-10T15:30:00Z",
     "answer_summary": {

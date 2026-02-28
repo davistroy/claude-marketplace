@@ -70,13 +70,17 @@ Build a complete list of what this project provides:
 
 Map ALL documentation in the repository:
 
-```bash
+Use the Glob tool (NOT shell `find` commands) to locate documentation files:
+
+```text
 # Find all markdown files
-find . -name "*.md" -type f | grep -v node_modules | grep -v .git
+Glob pattern: **/*.md
 
 # Find all README files
-find . -name "README*" -type f
+Glob pattern: **/README*
 ```
+
+Exclude `node_modules/` and `.git/` results from analysis.
 
 Create a documentation map:
 ```text
@@ -115,33 +119,48 @@ Execute the following phases in order. Each phase builds on the understanding ga
 
 ### Phase 1: Artifact Cleanup
 
-Identify and remove files that should not be in the repository:
+Identify and remove files that should not be in the repository.
 
-### Temporary Files
-- `**/tmp*`, `**/*.tmp`, `**/*.temp`
-- `**/tmpclaude-*`, `**/*.bak`, `**/*.swp`, `**/*.swo`
-- `**/*~`, `**/*.orig`, `**/*.pyc`, `**/*.pyo`
-- `**/__pycache__/`, `**/.cache/`, `**/node_modules/.cache/`
+**IMPORTANT:** Use the Glob tool (NOT shell `find` commands) for all file discovery. This ensures cross-platform compatibility and avoids permission issues.
+
+**Context Management:** For large repositories (100+ files), process directories in batches. Show progress after each category (e.g., "Temporary files: scanned 3 patterns, found 2 artifacts"). Do not attempt to scan all patterns in a single pass if the repository is large.
+
+#### Temporary Files
+
+Use Glob to search for each pattern:
+- `**/*.tmp`, `**/*.temp`, `**/*.bak`
+- `**/*.swp`, `**/*.swo`, `**/*~`, `**/*.orig`
+- `**/*.pyc`, `**/*.pyo`
+- `**/__pycache__/**`
+- `**/.cache/**`
 - `**/nul`, `**/NUL` (Windows artifacts)
 
-### Build Artifacts (if not gitignored)
-- `**/dist/`, `**/build/`, `**/out/`
-- `**/*.log`, `**/logs/`
-- `**/.next/`, `**/.nuxt/`, `**/.output/`
-- `**/*.egg-info/`, `**/.pytest_cache/`
+#### Build Artifacts (if not gitignored)
 
-### IDE/Editor Artifacts (if not gitignored)
-- `**/.idea/`, `**/.vscode/` (unless intentionally committed)
+Use Glob to search for:
+- `**/dist/**`, `**/build/**`, `**/out/**`
+- `**/*.log`
+- `**/.next/**`, `**/.nuxt/**`, `**/.output/**`
+- `**/*.egg-info/**`, `**/.pytest_cache/**`
+
+#### IDE/Editor Artifacts (if not gitignored)
+
+Use Glob to search for:
+- `**/.idea/**`, `**/.vscode/**` (unless intentionally committed)
 - `**/*.iml`, `**/.project`, `**/.classpath`
 
-### OS Artifacts
+#### OS Artifacts
+
+Use Glob to search for:
 - `**/.DS_Store`, `**/Thumbs.db`, `**/desktop.ini`
 
-**Actions:**
-1. List all suspected artifacts found
-2. Check `.gitignore` - add missing patterns if appropriate
-3. Remove untracked artifacts from working directory
-4. For tracked artifacts that shouldn't be: stage removal and note for commit
+**Safety Checks Before Deletion:**
+1. List ALL suspected artifacts found with full paths
+2. Confirm each file is truly an artifact (not a legitimate project file)
+3. Check `.gitignore` - add missing patterns if appropriate
+4. For untracked artifacts: remove from working directory
+5. For tracked artifacts that should not be committed: stage removal and note for commit
+6. **Never delete files without listing them first and confirming they are artifacts**
 
 ---
 
