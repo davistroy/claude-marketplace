@@ -71,7 +71,7 @@ The ref field name intentionally differs (Recommendation Ref vs Requirement Refs
 
 ---
 
-#### 1.2 Standardize Headers, Metadata, and Table Columns
+#### 1.2 Standardize Headers, Metadata, and Table Columns ✅ Completed 2026-02-28
 **Recommendation Ref:** S2
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -81,21 +81,21 @@ The ref field name intentionally differs (Recommendation Ref vs Requirement Refs
 Align the header metadata, section structure, and table column names across both planning commands so the IMPLEMENTATION_PLAN.md they produce is structurally identical above and below the phase content.
 
 **Tasks:**
-1. [ ] Add `**Estimated Total Effort:**` line to plan-improvements header template
-2. [ ] Add `## Executive Summary` section to plan-improvements template (after header, before Plan Overview)
-3. [ ] Standardize Risk Mitigation table column: both use `Mitigation Strategy` (not `Mitigation`)
-4. [ ] Standardize Parallel Work table column: both use `Work Item` (not `Work Item A`)
-5. [ ] Add `## Appendix: Recommendation Traceability` table to plan-improvements template (maps recommendation IDs to phases/items)
-6. [ ] Standardize the Phase Completion Checklist to 5 items in both (add "Code reviewed (if applicable)" to plan-improvements)
-7. [ ] Standardize Testing Requirements format to checkbox lists in both
-8. [ ] Standardize Generated timestamp format to `[YYYY-MM-DD HH:MM:SS]` in both
+1. [x] Add `**Estimated Total Effort:**` line to plan-improvements header template
+2. [x] Add `## Executive Summary` section to plan-improvements template (after header, before Plan Overview)
+3. [x] Standardize Risk Mitigation table column: both use `Mitigation Strategy` (not `Mitigation`)
+4. [x] Standardize Parallel Work table column: both use `Work Item` (not `Work Item A`)
+5. [x] Add `## Appendix: Recommendation Traceability` table to plan-improvements template (maps recommendation IDs to phases/items)
+6. [x] Standardize the Phase Completion Checklist to 5 items in both (add "Code reviewed (if applicable)" to plan-improvements)
+7. [x] Standardize Testing Requirements format to checkbox lists in both
+8. [x] Standardize Generated timestamp format to `[YYYY-MM-DD HH:MM:SS]` in both
 
 **Acceptance Criteria:**
-- [ ] Header fields are identical (Generated, Based On/Source Documents, Total Phases, Estimated Total Effort)
-- [ ] Both have Executive Summary section
-- [ ] All table column names match exactly
-- [ ] Both have traceability appendix (Requirement or Recommendation)
-- [ ] Footer format matches
+- [x] Header fields are identical (Generated, Based On/Source Documents, Total Phases, Estimated Total Effort)
+- [x] Both have Executive Summary section
+- [x] All table column names match exactly
+- [x] Both have traceability appendix (Requirement or Recommendation)
+- [x] Footer format matches
 
 **Notes:**
 The Based On value differs by design (RECOMMENDATIONS.md vs document list). The header field name should be `**Based On:**` in both, with the value varying.

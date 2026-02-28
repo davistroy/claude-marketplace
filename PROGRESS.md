@@ -89,3 +89,4 @@
 | Date | Work Item | Status | Files Changed |
 |------|-----------|--------|---------------|
 | 2026-02-28 | 1.1 Add Tasks and Notes Fields to plan-improvements Work Item Template | Complete | plugins/personal-plugin/commands/plan-improvements.md |
+| 2026-02-28 | 1.2 Standardize Headers, Metadata, and Table Columns | Complete | plugins/personal-plugin/commands/plan-improvements.md, plugins/personal-plugin/commands/create-plan.md |
