@@ -400,6 +400,18 @@ With `--deep` flag (git history analysis), add 30-60 seconds for every 100 commi
 
 Begin by examining all available intent artifacts and presenting the Intent Profile before proceeding to implementation analysis.
 
+## Error Handling
+
+| Condition | Cause | Action |
+|-----------|-------|--------|
+| No intent artifacts found | Repository lacks README, docs, specs, CLAUDE.md, or meaningful commit history | Display the "Unable to determine project intent" message from Input Validation and suggest creating a README |
+| Specified path does not exist | User provided a `<path>` argument that is invalid or empty | Report: "Path '[path]' not found or is empty. Verify the path and try again." List available top-level directories as suggestions. |
+| Insufficient commit history | Repo has only an initial commit or very few commits when `--deep` is specified | Warn: "Git history is too shallow for meaningful intent reconstruction. Proceeding with documentation-only analysis." Skip Phase 1.2 secondary sources. |
+| Git not available | Running in an environment without git (relevant for `--deep` mode) | Skip git history analysis and report: "Git is not available — skipping commit history analysis. Results based on documentation and code structure only." |
+| Report save failure (`--save`) | Cannot write to `reports/` directory due to permissions or disk issues | Display the report inline in conversation and report: "Could not save to reports/. Report displayed above — copy it manually if needed." |
+| Context window exhaustion | Very large codebase exceeds analysis capacity | Prioritize Phase 1 (intent reconstruction) and Phase 3 (gap analysis) over exhaustive Phase 2 (implementation analysis). Report which modules were sampled. |
+| Ambiguous intent signals | Documentation contradicts itself or multiple conflicting intent sources exist | Present both interpretations clearly, flag the conflict, and let the user decide which intent is authoritative |
+
 ## Related Commands
 
 - `/review-arch` — Quick architectural audit (complementary review)

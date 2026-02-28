@@ -10,6 +10,15 @@ Perform a comprehensive evaluation of the current codebase/project and produce a
 
 **This skill is read-only. It NEVER modifies files, commits, or pushes.**
 
+## Proactive Triggers
+
+Suggest this skill when:
+1. User starts a new session and asks about the project, e.g. "what is this project" or "tell me about this codebase"
+2. User is encountering a repository for the first time or resuming work after a break
+3. User asks about project health, code quality, or documentation status
+4. Before making architectural decisions that require understanding the current state
+5. User says "give me an overview" or "assess this project"
+
 ## Input
 
 **Arguments:** `$ARGUMENTS`

@@ -1069,7 +1069,7 @@ This is a security fix on a 5/5-rated skill. The skill is excellent otherwise â€
 
 #### 7.4 Error Handling Audit
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** S2
 **Files Affected:**
 - All 32 command and skill files (audit; modify as needed)
@@ -1078,24 +1078,24 @@ This is a security fix on a 5/5-rated skill. The skill is excellent otherwise â€
 Audit all files for error handling sections. Add missing error handling to the ~20 files that lack it (most should have been added in Phases 2-6; this catches any gaps).
 
 **Tasks:**
-1. [ ] Scan all 32 files for `## Error Handling` sections
-2. [ ] For files modified in Phases 2-6 that should already have error handling, verify it is present and adequate (3+ failure modes per file)
-3. [ ] For any remaining files without error handling, add a minimal section with the most likely failure modes: file not found, empty input, context window exhaustion, tool unavailability
-4. [ ] Ensure every error handling section uses a consistent format: failure mode name, description, recommended recovery action
+1. [x] Scan all 32 files for `## Error Handling` sections
+2. [x] For files modified in Phases 2-6 that should already have error handling, verify it is present and adequate (3+ failure modes per file)
+3. [x] For any remaining files without error handling, add a minimal section with the most likely failure modes: file not found, empty input, context window exhaustion, tool unavailability
+4. [x] Ensure every error handling section uses a consistent format: failure mode name, description, recommended recovery action
 
 **Acceptance Criteria:**
-- [ ] All 32 files have an error handling section (or equivalent inline handling)
-- [ ] Each error handling section has at least 3 failure modes
-- [ ] Consistent format across all files
+- [x] All 32 files have an error handling section (or equivalent inline handling)
+- [x] Each error handling section has at least 3 failure modes
+- [x] Consistent format across all files
 
 **Notes:**
-This is a sweep to catch gaps. Most error handling should have been added in the individual file improvements (Phases 2-6). This work item adds the last few.
+This is a sweep to catch gaps. Most error handling should have been added in the individual file improvements (Phases 2-6). This work item adds the last few. Audit completed 2026-02-28: 27 of 32 files already had error handling from Phases 2-6. Added error handling sections to the 5 remaining files: plan-improvements.md, review-intent.md, clean-repo.md, ask-questions.md, and skills/plan-gate/SKILL.md. All sections use consistent table format (Condition | Cause | Action) with 5-8 domain-specific failure modes each.
 
 ---
 
 #### 7.5 Proactive Trigger Audit and Flag Consistency
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** S4, S5
 **Files Affected:**
 - All 9 skill files (audit; modify as needed)
@@ -1105,16 +1105,16 @@ This is a sweep to catch gaps. Most error handling should have been added in the
 Audit all skills for proactive trigger sections. Audit commands for flag consistency. Skills should have been given triggers in Phases 4-7; this catches gaps. Commands that write files should have consistent flag sets.
 
 **Tasks:**
-1. [ ] Audit all 9 skills (excluding plan-gate which already has triggers) for proactive trigger sections. Skills modified in earlier phases should already have them; verify.
-2. [ ] For `prime` skill: add proactive trigger: "Suggest when: user starts a new session, asks about the project, or says 'what is this project'"
-3. [ ] For `help` skill: add proactive trigger: "Suggest when: user asks what commands are available, says 'help', or seems unsure of what to do"
-4. [ ] Audit flag consistency across commands that write output files: ensure `--no-prompt`, `--preview`, and `--format` flags are consistently available where appropriate. At minimum: all file-generating commands should support `--no-prompt` for automation.
-5. [ ] Create a flag consistency reference: document which flags each command supports. This is for internal reference, not for end users.
+1. [x] Audit all 9 skills (excluding plan-gate which already has triggers) for proactive trigger sections. Skills modified in earlier phases should already have them; verify.
+2. [x] For `prime` skill: add proactive trigger: "Suggest when: user starts a new session, asks about the project, or says 'what is this project'"
+3. [x] For `help` skill: add proactive trigger: "Suggest when: user asks what commands are available, says 'help', or seems unsure of what to do"
+4. [x] Audit flag consistency across commands that write output files: ensure `--no-prompt`, `--preview`, and `--format` flags are consistently available where appropriate. At minimum: all file-generating commands should support `--no-prompt` for automation.
+5. [x] Create a flag consistency reference: document which flags each command supports. This is for internal reference, not for end users.
 
 **Acceptance Criteria:**
-- [ ] All 9 skills (excluding plan-gate) have proactive trigger sections
-- [ ] Commands that write files consistently support `--no-prompt`
-- [ ] Flag usage patterns documented for reference
+- [x] All 9 skills (excluding plan-gate) have proactive trigger sections
+- [x] Commands that write files consistently support `--no-prompt`
+- [x] Flag usage patterns documented for reference
 
 ---
 

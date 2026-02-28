@@ -20,9 +20,21 @@ Remove company-identifying information and intellectual property from documents 
 - `--industry <industry>` - Industry context (helps with generalization)
 - `--audience <audience>` - Intended audience of sanitized version
 - `--web-research [yes|no]` - Allow web research for public info verification (default: yes in standard, no in strict)
+- `--no-prompt` - Skip interactive prompts and ambiguity questions. Apply safe defaults for all decisions (default to more redaction when uncertain).
 
 **Validation:**
-If the document path is missing, display:
+If the document path is missing:
+
+1. **If `--no-prompt` is specified**, display the error and exit:
+```text
+Error: Missing required argument
+
+Usage: /remove-ip <document-path> [options]
+Example: /remove-ip internal-process.md
+Example: /remove-ip strategy-doc.md --mode strict
+```
+
+2. **Otherwise (default)**, display the full usage help:
 ```text
 Usage: /remove-ip <document-path> [options]
 
@@ -32,6 +44,7 @@ Options:
   --industry <industry>    Industry context for generalization
   --audience <audience>    Intended audience of sanitized version
   --web-research [yes|no]  Allow web research (default: yes for standard, no for strict)
+  --no-prompt              Skip interactive prompts, apply safe defaults
 
 Examples:
   /remove-ip internal-process.md

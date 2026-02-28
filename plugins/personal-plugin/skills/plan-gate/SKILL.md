@@ -245,6 +245,16 @@ Plan Gate:
   Route: Path E (/implement-plan)
 ```
 
+## Error Handling
+
+| Condition | Cause | Action |
+|-----------|-------|--------|
+| Cannot determine task scope | User request is too vague or ambiguous to classify | Route to Path F (Needs Scoping First) and ask specific clarifying questions before recommending a planning approach |
+| IMPLEMENTATION_PLAN.md exists but is corrupt or unparseable | Malformed markdown or missing expected sections | Warn: "Found IMPLEMENTATION_PLAN.md but could not parse it. Treat as if no plan exists and route based on the task description." |
+| Glob tool unavailable | Tool restrictions prevent file discovery | Skip Step 2 (artifact checks) and route based solely on the user's request description. Note: "Could not check for existing artifacts — routing based on task description only." |
+| Multiple conflicting artifacts found | Both requirements docs and IMPLEMENTATION_PLAN.md exist with different scopes | Present both options to the user: "Found existing plan AND requirements docs. Would you like to resume the existing plan (Path E) or create a new plan from requirements (Path D)?" |
+| Skill fires inappropriately | Task is trivial but scope signals were ambiguous | Self-correct quickly: "On closer look, this is straightforward — proceeding directly." Route to Path A without further ceremony. |
+
 ## Performance
 
 This skill should complete in under 10 seconds. It is a routing decision, not an analysis tool. If you find yourself reading more than 5 files, you're doing too much — pick a path and let the downstream command do the heavy lifting.

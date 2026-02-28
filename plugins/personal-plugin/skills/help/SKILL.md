@@ -17,6 +17,15 @@ Display help information for the personal-plugin commands and skills.
 /help <command-name>           # Show detailed help for a specific command
 ```
 
+## Proactive Triggers
+
+Suggest this skill when:
+1. User asks what commands are available, says "help", or types "what can you do"
+2. User seems unsure of which command or skill to use for their task
+3. User asks about a specific command name or wants to know how to use a feature
+4. After installing the plugin for the first time
+5. User says "show me the commands" or "what skills do you have"
+
 ## Mode 1: List All (no arguments)
 
 When invoked without arguments, display this table:

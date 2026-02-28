@@ -393,6 +393,18 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 
 ---
 
+## Error Handling
+
+| Condition | Cause | Action |
+|-----------|-------|--------|
+| Not a git repository | Command run outside a git-managed directory | Report: "This directory is not a git repository. /clean-repo requires git for branch cleanup and history analysis. Run from a git repository root." |
+| File deletion failure | Permission denied or file locked by another process | Skip the file, log it in the report under "Remaining Items", and continue with other cleanup tasks |
+| Documentation file not writable | Permissions or file lock prevents updating README, CLAUDE.md, etc. | Report which files could not be updated and display the intended changes inline so the user can apply them manually |
+| Glob tool returns no results | Empty repository or all files are in excluded patterns | Report: "No files found matching cleanup patterns. Repository may be empty or all content is gitignored." |
+| Audit log write failure (`--audit`) | Cannot write to `.claude-plugin/audit.log` | Warn: "Cannot write audit log — proceeding without audit trail." Continue cleanup normally. |
+| Large repository (1000+ files) | Glob/analysis phases take excessive time or exhaust context | Process directories in batches as specified in Phase 1 context management. Report progress after each category. |
+| Ambiguous artifact detection | File looks like an artifact but might be intentional (e.g., `.cache/` used by the project) | List the file with a `[?]` marker and ask the user before deleting. Never auto-delete ambiguous files. |
+
 ## Safety Rules
 
 - **Never delete source code** - Only remove artifacts and temp files

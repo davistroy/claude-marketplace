@@ -397,6 +397,19 @@ All command completions include validation status:
 - Output is validated for `/finish-document` compatibility
 - Using `--force` may result in files that don't work with downstream commands
 
+## Error Handling
+
+| Condition | Cause | Action |
+|-----------|-------|--------|
+| Questions file not found | Incorrect path or file was deleted | Report: "File '[path]' not found. Check the path and try again." Show example usage with `/define-questions` to generate a new file. |
+| Invalid JSON in questions file | Malformed JSON, manual editing errors, or file corruption | Report the parse error location and suggest: "The questions file contains invalid JSON. Re-generate with `/define-questions` or fix the syntax error at [location]." |
+| Schema validation failure | Questions file missing required fields or has wrong types | Display specific validation errors (as defined in Input Validation Behavior). Offer `--force` to proceed with degraded functionality. |
+| Source document not found | `metadata.source_document` references a file that no longer exists | Warn: "Source document '[path]' not found. Context and additional detail will be limited. Proceeding with questions only." |
+| Empty questions array | Questions file has no questions defined | Report: "The questions file contains no questions. Re-generate with `/define-questions` or check the source document." |
+| User cancellation mid-session | User types `quit`, `exit`, or `stop` during the session | Save current progress with `status: "in_progress"` and report how many questions were answered. Display resume instructions. |
+| Answer file write failure | Cannot save output JSON due to permissions or disk space | Display the answers summary inline and report: "Could not save to [path]. Copy the answers above manually." |
+| Resume file corrupted | Previous in-progress answer file has invalid JSON | Warn: "Previous session file is corrupted. Starting fresh." Rename corrupted file with `.corrupted` suffix and begin from question 1. |
+
 ## Related Commands
 
 - `/define-questions` — Produces the questions JSON file that this command consumes

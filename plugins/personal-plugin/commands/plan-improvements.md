@@ -703,6 +703,19 @@ Plans must stay within bounds that `/implement-plan` can execute reliably. Apply
 3. If no activity, interrupt and try `/review-arch` for a quicker analysis
 4. Consider breaking into smaller scope (specific directories)
 
+## Error Handling
+
+| Condition | Cause | Action |
+|-----------|-------|--------|
+| Empty or trivial repository | Repository has no meaningful source files to analyze | Report early: "This repository lacks sufficient source code for improvement analysis. Consider using `/review-arch` for a lightweight assessment or add code first." |
+| Repository not readable | Permission errors or missing directories | Report the specific path that failed and suggest checking permissions or running from the repository root |
+| Context window exhaustion | Codebase too large for full analysis within context limits | Follow the sampling strategy in Phase 1. If context is over 60% consumed, stop reading files and generate output with what has been gathered. Report which directories were sampled vs skipped. |
+| RECOMMENDATIONS.md write failure | Disk full, permissions, or path issues | Report the error and attempt to display recommendations inline so analysis is not lost |
+| IMPLEMENTATION_PLAN.md already exists (unexpected) | Previous plan from a different analysis | Follow the append-vs-overwrite logic in Phase 3. Warn the user if existing plan has in-progress items. |
+| No recommendations generated | Analysis found no actionable improvements | Report honestly: "Analysis complete — no significant improvements identified." Include the analysis summary so the user can verify nothing was missed. |
+| Malformed `--max-phases` argument | Non-numeric or out-of-range value provided | Default to 8 and warn: "Invalid --max-phases value '[value]'. Using default of 8." |
+| Agent tool unavailable | Agent not available in current session configuration | Fall back to inline execution without subagent delegation. Note reduced parallelism in output. |
+
 ## Related Commands
 
 - `/create-plan` — Generate implementation plan from requirements documents (complementary planning)

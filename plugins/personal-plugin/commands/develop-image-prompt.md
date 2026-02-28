@@ -15,6 +15,7 @@ Transform content into a comprehensive prompt for AI image generators. The resul
 **Optional Arguments:**
 - `--style <style>` - Visual style preset or path to a style guide document (see Style Options below)
 - `--dimensions <WxH>` - Output dimensions or aspect ratio (default: 11x17). See Dimensions section.
+- `--no-prompt` - Skip interactive prompts. Use defaults for style selection and proceed directly to prompt generation.
 
 **Input Types:**
 
@@ -25,7 +26,7 @@ The `<content-source>` argument accepts two input types:
 | **File path** | Path to a document file | `architecture.md`, `docs/design.md` |
 | **Concept description** | Brief description in quotes | `"microservices communication patterns"` |
 
-If no argument is provided, prompt interactively:
+If no argument is provided and `--no-prompt` is not set, prompt interactively:
 
 ```text
 What would you like to visualize?
@@ -36,9 +37,18 @@ What would you like to visualize?
 Enter file path or concept in quotes:
 ```
 
+If no argument is provided and `--no-prompt` is set, display the error and exit:
+```text
+Error: Missing required argument
+
+Usage: /develop-image-prompt <content-source> [--style <style>] [--dimensions <WxH>] [--no-prompt]
+Example: /develop-image-prompt architecture.md
+Example: /develop-image-prompt "microservices communication patterns" --style infographic
+```
+
 **Full usage:**
 ```text
-Usage: /develop-image-prompt <content-source> [--style <style>] [--dimensions <WxH>]
+Usage: /develop-image-prompt <content-source> [--style <style>] [--dimensions <WxH>] [--no-prompt]
 
 Arguments:
   <content-source>     File path or concept in quotes (required)
