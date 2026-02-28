@@ -181,7 +181,7 @@ The actual status transitions are implemented in Phase 5 (implement-plan changes
 
 ### Work Items
 
-#### 2.1 Rewrite Subagent Invocations to Use Agent Tool
+#### 2.1 Rewrite Subagent Invocations to Use Agent Tool ✅ Completed 2026-02-28
 **Recommendation Ref:** T1
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -190,26 +190,26 @@ The actual status transitions are implemented in Phase 5 (implement-plan changes
 Replace all references to "Task tool" with "Agent tool" throughout implement-plan.md. Update parameter names and invocation patterns to match the actual Claude Code Agent tool API. Fix the parallel path (Path B) to use `run_in_background: true` on Agent tool calls and `TaskOutput` for collecting results.
 
 **Tasks:**
-1. [ ] Replace STARTUP instructions: change "Spawn a subagent (subagent_type: 'general-purpose')" to "Launch an Agent (subagent_type: 'general-purpose', prompt: '...')"
-2. [ ] Update all sequential subagent invocations (Steps A1, A2, A3) with correct Agent tool syntax
-3. [ ] Update all parallel subagent invocations (Steps B1) to use `run_in_background: true` on Agent tool
-4. [ ] Rewrite Step B2 (Collect Results): replace "read output files" with "use TaskOutput to check background agent results; you will be notified when each completes"
-5. [ ] Update NEXT ITERATION subagent invocation
-6. [ ] Update finalization documentation polish subagent invocation
-7. [ ] Clarify in the Context Window Discipline table: "Task" refers to TaskCreate/TaskUpdate/TaskList (progress tracking), "Agent" refers to launching subagents
+1. [x] Replace STARTUP instructions: change "Spawn a subagent (subagent_type: 'general-purpose')" to "Launch an Agent (subagent_type: 'general-purpose', prompt: '...')"
+2. [x] Update all sequential subagent invocations (Steps A1, A2, A3) with correct Agent tool syntax
+3. [x] Update all parallel subagent invocations (Steps B1) to use `run_in_background: true` on Agent tool
+4. [x] Rewrite Step B2 (Collect Results): replace "read output files" with "use TaskOutput to check background agent results; you will be notified when each completes"
+5. [x] Update NEXT ITERATION subagent invocation
+6. [x] Update finalization documentation polish subagent invocation
+7. [x] Clarify in the Context Window Discipline table: "Task" refers to TaskCreate/TaskUpdate/TaskList (progress tracking), "Agent" refers to launching subagents
 
 **Acceptance Criteria:**
-- [ ] Zero references to "Task tool" for spawning subagents (Task is only for TaskCreate/TaskUpdate/TaskList)
-- [ ] All subagent invocations use Agent tool with correct parameters
-- [ ] Path B uses `run_in_background: true` and `TaskOutput` for result collection
-- [ ] Context Window Discipline table correctly distinguishes Task (tracking) from Agent (delegation)
+- [x] Zero references to "Task tool" for spawning subagents (Task is only for TaskCreate/TaskUpdate/TaskList)
+- [x] All subagent invocations use Agent tool with correct parameters
+- [x] Path B uses `run_in_background: true` and `TaskOutput` for result collection
+- [x] Context Window Discipline table correctly distinguishes Task (tracking) from Agent (delegation)
 
 **Notes:**
 The `allowed-tools` frontmatter currently lists `Task, Skill`. After this change, it should list `Agent, Task` (Agent for subagents, Task for progress tracking). See work item 2.3 for allowed-tools changes.
 
 ---
 
-#### 2.2 Replace git add -A with Selective Staging
+#### 2.2 Replace git add -A with Selective Staging ✅ Completed 2026-02-28
 **Recommendation Ref:** T3
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -218,22 +218,22 @@ The `allowed-tools` frontmatter currently lists `Task, Skill`. After this change
 Replace all instances of `git add -A` with selective staging using the file lists returned by subagents. Add a pre-staging check to surface unexpected files.
 
 **Tasks:**
-1. [ ] Replace Step A4 commit sequence with: (a) `git status --short` to detect unexpected files, (b) `git add [files-from-subagent] IMPLEMENTATION_PLAN.md`, (c) optionally add PROGRESS.md and LEARNINGS.md if they were updated, (d) `git commit -m "..."`
-2. [ ] Replace Step B5 commit sequence with same pattern but collecting file lists from all parallel subagents
-3. [ ] Replace finalization commit with explicit file staging
-4. [ ] Add instruction: "If `git status` shows unexpected untracked files not in the subagent's file list, warn the user and do not stage them"
+1. [x] Replace Step A4 commit sequence with: (a) `git status --short` to detect unexpected files, (b) `git add [files-from-subagent] IMPLEMENTATION_PLAN.md`, (c) optionally add PROGRESS.md and LEARNINGS.md if they were updated, (d) `git commit -m "..."`
+2. [x] Replace Step B5 commit sequence with same pattern but collecting file lists from all parallel subagents
+3. [x] Replace finalization commit with explicit file staging
+4. [x] Add instruction: "If `git status` shows unexpected untracked files not in the subagent's file list, warn the user and do not stage them"
 
 **Acceptance Criteria:**
-- [ ] Zero instances of `git add -A` in the command
-- [ ] All commit sequences start with `git status --short` check
-- [ ] Staging uses explicit file paths from subagent results
+- [x] Zero instances of `git add -A` in the command
+- [x] All commit sequences start with `git status --short` check
+- [x] Staging uses explicit file paths from subagent results
 
 **Notes:**
 The implementation subagent prompt already says "Return ONLY: (1) files created/modified" — this output is what drives the staging list.
 
 ---
 
-#### 2.3 Update allowed-tools and Default Behavior
+#### 2.3 Update allowed-tools and Default Behavior ✅ Completed 2026-02-28
 **Recommendation Ref:** T2, U2
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -242,19 +242,19 @@ The implementation subagent prompt already says "Return ONLY: (1) files created/
 Update the frontmatter `allowed-tools` to include Agent tool and comprehensive Bash permissions (matching test-project patterns). Remove unused Skill permission. Change finalization default from auto-merge to PR-only.
 
 **Tasks:**
-1. [ ] Update frontmatter `allowed-tools` to: `Agent, Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task`
-2. [ ] Remove `Skill` from allowed-tools
-3. [ ] Change Finalization Step 2 default: create PR with comprehensive body, output URL, STOP
-4. [ ] Add `--auto-merge` flag description in Input Validation section
-5. [ ] When `--auto-merge` is specified, execute current merge behavior
-6. [ ] Generate descriptive PR title from actual phases implemented, not "Implementation Complete"
+1. [x] Update frontmatter `allowed-tools` to: `Agent, Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task`
+2. [x] Remove `Skill` from allowed-tools
+3. [x] Change Finalization Step 2 default: create PR with comprehensive body, output URL, STOP
+4. [x] Add `--auto-merge` flag description in Input Validation section
+5. [x] When `--auto-merge` is specified, execute current merge behavior
+6. [x] Generate descriptive PR title from actual phases implemented, not "Implementation Complete"
 
 **Acceptance Criteria:**
-- [ ] `allowed-tools` includes Agent and comprehensive Bash permissions
-- [ ] `Skill` removed from allowed-tools
-- [ ] Default finalization creates PR and stops (no merge)
-- [ ] `--auto-merge` flag documented and triggers merge behavior
-- [ ] PR title is descriptive (e.g., "Implement: [Phase titles]")
+- [x] `allowed-tools` includes Agent and comprehensive Bash permissions
+- [x] `Skill` removed from allowed-tools
+- [x] Default finalization creates PR and stops (no merge)
+- [x] `--auto-merge` flag documented and triggers merge behavior
+- [x] PR title is descriptive (e.g., "Implement: [Phase titles]")
 
 **Notes:**
 Test whether subagents inherit parent's allowed-tools restrictions. If they do, the comprehensive Bash list is critical. If they don't, it's still good practice for the parent agent.
@@ -285,16 +285,16 @@ This resolves the misalignment where `/create-plan --output docs/plan.md` create
 ---
 
 ### Phase 2 Testing Requirements
-- [ ] Verify all subagent invocation patterns match actual Agent tool API
-- [ ] Verify no instances of `git add -A` remain
-- [ ] Verify finalization defaults to PR-only
+- [x] Verify all subagent invocation patterns match actual Agent tool API
+- [x] Verify no instances of `git add -A` remain
+- [x] Verify finalization defaults to PR-only
 
 ### Phase 2 Completion Checklist
-- [ ] All work items complete
-- [ ] Agent tool references verified correct
-- [ ] Git safety improvements in place
-- [ ] No regressions in existing command functionality
-- [ ] Code reviewed (if applicable)
+- [x] All work items complete
+- [x] Agent tool references verified correct
+- [x] Git safety improvements in place
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
 
 ---
 

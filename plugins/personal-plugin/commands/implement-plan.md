@@ -1,6 +1,6 @@
 ---
 description: Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing, documentation, and git workflow
-allowed-tools: Bash(git:*), Bash(gh:*), Task, Skill
+allowed-tools: Agent, Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task
 ---
 
 # Implement Plan Command
@@ -9,7 +9,11 @@ Execute an IMPLEMENTATION_PLAN.md file by orchestrating subagents in a loop. Eac
 
 ## Input Validation
 
-**No Arguments Required:** This command takes no arguments. It reads IMPLEMENTATION_PLAN.md from the repository root.
+**Optional Arguments:**
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--auto-merge` | `false` | When set, automatically merge the PR and clean up the branch after all work items are complete. Without this flag, the command creates a PR and stops. |
 
 **Prerequisites Validation:**
 
@@ -42,7 +46,7 @@ Error: Uncommitted changes detected.
 
 Commit or stash your changes before running this command:
   git status
-  git add -A && git commit -m "Message"
+  git add <files> && git commit -m "Message"
 ```
 
 ## Overview
@@ -54,7 +58,7 @@ This command automates the execution of a phased implementation plan by:
 3. Running tests and fixing failures
 4. Updating documentation (PROGRESS.md, LEARNINGS.md)
 5. Committing after each work item
-6. Creating and merging a PR when complete
+6. Creating a PR when complete (merge only with `--auto-merge`)
 
 ## Prerequisites
 
@@ -77,7 +81,7 @@ Before running this command, ensure:
 |----|--------|
 | Delegate ALL file reading to subagents | Read IMPLEMENTATION_PLAN.md or source files directly |
 | Retain only: status, files changed, errors | Ask subagents to return file contents |
-| Use TaskCreate/TaskUpdate to track progress | Hold work item details in conversational memory |
+| Use TaskCreate/TaskUpdate for progress tracking (not subagent launching) | Hold work item details in conversational memory |
 | Spawn fresh subagents for each step | Reuse subagent context across work items |
 | Launch parallel subagents with `run_in_background: true` | Wait for one item to finish before starting an independent one |
 | Batch documentation updates for parallel items | Spawn a doc subagent for each parallel item separately |
@@ -116,13 +120,13 @@ When all work items are complete:
 
 ## Instructions
 
-Follow these steps exactly. Use the **Task tool** to spawn subagents. After each subagent returns, retain only the minimal summary described — discard everything else.
+Follow these steps exactly. Use the **Agent tool** to spawn subagents (with `subagent_type: "general-purpose"` and `prompt: "..."`). Use **TaskCreate/TaskUpdate/TaskList** only for progress tracking — they do NOT launch subagents. After each subagent returns, retain only the minimal summary described — discard everything else.
 
 ### STARTUP (do this ONCE at the beginning)
 
-Spawn a subagent (subagent_type: "general-purpose") to read IMPLEMENTATION_PLAN.md, PROGRESS.md (if exists), and LEARNINGS.md (if exists).
+Launch an Agent (subagent_type: "general-purpose", prompt: "...") to read IMPLEMENTATION_PLAN.md, PROGRESS.md (if exists), and LEARNINGS.md (if exists).
 
-Prompt the subagent to return ONLY:
+Prompt the Agent to return ONLY:
 - A list of ALL remaining incomplete work items grouped by phase (phase name, item number, brief description each)
 - For each phase: which work items are parallelizable (independent of each other)
 - Current progress summary (1-2 sentences)
@@ -140,9 +144,9 @@ Before each iteration, check whether the next batch of work items can be paralle
 
 #### PATH A: SEQUENTIAL (single work item, or item has dependencies on incomplete items)
 
-##### Step A1: IMPLEMENTATION (Subagent)
+##### Step A1: IMPLEMENTATION (Agent)
 
-Spawn a subagent (subagent_type: "general-purpose") with this prompt:
+Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
 > Read IMPLEMENTATION_PLAN.md. Implement work item: **[ITEM — phase name, item number, brief description from startup or previous iteration]**.
 > Complete ALL tasks in this work item.
@@ -150,9 +154,9 @@ Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 
 Wait for completion. Record only: files changed, success/failure status.
 
-##### Step A2: TESTING (Subagent)
+##### Step A2: TESTING (Agent)
 
-Spawn a subagent (subagent_type: "general-purpose") with this prompt:
+Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
 > Run ALL project tests. If failures occur:
 > 1. Diagnose root cause
@@ -167,9 +171,9 @@ Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 
 Wait for ALL_TESTS_PASS. If issues were fixed, note them briefly for the LEARNINGS.md update.
 
-##### Step A3: DOCUMENTATION UPDATE (Subagent)
+##### Step A3: DOCUMENTATION UPDATE (Agent)
 
-Spawn a subagent (subagent_type: "general-purpose") with this prompt:
+Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
 > Update project tracking files:
 > 1. IMPLEMENTATION_PLAN.md — Mark **[WORK_ITEM]** as complete with today's date
@@ -181,9 +185,11 @@ Spawn a subagent (subagent_type: "general-purpose") with this prompt:
 ##### Step A4: COMMIT (Main Agent — do this yourself)
 
 Run these git commands directly:
-1. `git add -A`
-2. `git commit -m "Complete [WORK_ITEM_NAME]"`
-3. `git push`
+1. `git status --short` — review changed files
+2. **If `git status` shows unexpected untracked files not in the subagent's file list, warn the user and do not stage them.**
+3. `git add [FILES_FROM_SUBAGENT] IMPLEMENTATION_PLAN.md PROGRESS.md LEARNINGS.md` — stage only the files reported by subagents plus tracking files (omit PROGRESS.md/LEARNINGS.md if they were not updated)
+4. `git commit -m "Complete [WORK_ITEM_NAME]"`
+5. `git push`
 
 Mark the corresponding task as completed using TaskUpdate.
 
@@ -193,33 +199,33 @@ Mark the corresponding task as completed using TaskUpdate.
 
 Use this path when 2+ work items have no dependencies on each other. This is the **preferred path** — always check for parallelization opportunities before falling back to sequential.
 
-##### Step B1: PARALLEL IMPLEMENTATION (Multiple Subagents)
+##### Step B1: PARALLEL IMPLEMENTATION (Multiple Agents)
 
-For each independent work item, spawn a subagent (subagent_type: "general-purpose") with `run_in_background: true`:
+For each independent work item, launch an Agent (subagent_type: "general-purpose") with `run_in_background: true`:
 
 > Read IMPLEMENTATION_PLAN.md. Implement work item: **[ITEM N.M — phase name, item number, brief description]**.
 > Complete ALL tasks in this work item.
 > Return ONLY: (1) files created/modified, (2) implementation summary (max 3 sentences), (3) DONE or error description.
 
-Launch ALL independent items in a **single message with multiple Task tool calls**. This ensures true concurrent execution.
+Launch ALL independent items in a **single message with multiple Agent tool calls**. This ensures true concurrent execution.
 
 **Important constraints:**
 - Maximum 3 parallel implementation subagents at once (to avoid file conflicts)
 - If items touch overlapping files, run them sequentially instead
-- Monitor background agents by reading their output files periodically
+- Use TaskOutput to check background agent results; you will be notified when each completes
 
 ##### Step B2: COLLECT RESULTS
 
-As each background agent completes, read its output file to get status. Record for each:
+As each background Agent completes (you will be notified via TaskOutput), record for each:
 - Work item name
 - Files changed
 - Success/failure
 
 If any agent fails, handle its work item sequentially in a follow-up step.
 
-##### Step B3: TESTING (Single Subagent)
+##### Step B3: TESTING (Single Agent)
 
-After ALL parallel implementations complete, run a single testing subagent:
+After ALL parallel implementations complete, launch a single testing Agent:
 
 > Run ALL project tests. If failures occur:
 > 1. Diagnose root cause
@@ -232,9 +238,9 @@ After ALL parallel implementations complete, run a single testing subagent:
 > - For each issue fixed: problem, solution, prevention tip (1 line each)
 > - ALL_TESTS_PASS confirmation
 
-##### Step B4: DOCUMENTATION UPDATE (Single Subagent)
+##### Step B4: DOCUMENTATION UPDATE (Single Agent)
 
-Spawn a single subagent to update tracking for ALL completed parallel items at once:
+Launch a single Agent to update tracking for ALL completed parallel items at once:
 
 > Update project tracking files:
 > 1. IMPLEMENTATION_PLAN.md — Mark these work items as complete with today's date: **[LIST_OF_ITEMS]**
@@ -246,9 +252,11 @@ Spawn a single subagent to update tracking for ALL completed parallel items at o
 ##### Step B5: COMMIT (Main Agent — do this yourself)
 
 Single commit covering all parallel work items:
-1. `git add -A`
-2. `git commit -m "Complete [PHASE_NAME]: [ITEM_1], [ITEM_2], [ITEM_3]"`
-3. `git push`
+1. `git status --short` — review changed files
+2. **If `git status` shows unexpected untracked files not in any subagent's file list, warn the user and do not stage them.**
+3. `git add [ALL_FILES_FROM_ALL_SUBAGENTS] IMPLEMENTATION_PLAN.md PROGRESS.md LEARNINGS.md` — stage only the files reported by all parallel subagents plus tracking files (omit PROGRESS.md/LEARNINGS.md if they were not updated)
+4. `git commit -m "Complete [PHASE_NAME]: [ITEM_1], [ITEM_2], [ITEM_3]"`
+5. `git push`
 
 Mark all corresponding tasks as completed using TaskUpdate.
 
@@ -256,7 +264,7 @@ Mark all corresponding tasks as completed using TaskUpdate.
 
 #### NEXT ITERATION (applies to both paths)
 
-Spawn a subagent (subagent_type: "general-purpose") to check IMPLEMENTATION_PLAN.md:
+Launch an Agent (subagent_type: "general-purpose") to check IMPLEMENTATION_PLAN.md:
 
 > Read IMPLEMENTATION_PLAN.md. List ALL remaining incomplete work items with their phase and item numbers.
 > For the next batch: are any of them parallelizable (independent, no shared file dependencies)?
@@ -273,9 +281,9 @@ Spawn a subagent (subagent_type: "general-purpose") to check IMPLEMENTATION_PLAN
 
 ### FINALIZATION (only when ALL work items are complete)
 
-#### Final Step 1: Documentation Polish (Subagent)
+#### Final Step 1: Documentation Polish (Agent)
 
-Spawn a subagent to review and update all documentation:
+Launch an Agent to review and update all documentation:
 
 > Review and update all documentation:
 > - README.md: ensure accuracy, update any outdated sections
@@ -285,16 +293,33 @@ Spawn a subagent to review and update all documentation:
 >
 > Return: DOCS_FINALIZED
 
-#### Final Step 2: PR and Merge (Main Agent)
+#### Final Step 2: Create PR (Main Agent)
 
-1. `git add -A && git commit -m "Polish documentation" && git push`
-2. Create PR with title "Implementation Complete" and body summarizing phases completed
-3. Merge the PR and delete the branch
-4. Checkout main and pull
+1. `git status --short` — review changed files; warn the user about any unexpected untracked files
+2. `git add IMPLEMENTATION_PLAN.md PROGRESS.md LEARNINGS.md README.md` — stage only the documentation files that were updated (omit any not modified)
+3. `git commit -m "Polish documentation" && git push`
+4. Build a descriptive PR title from the phases actually implemented (e.g., "Implement: Unified Schema, Tool API Fix, Context Management") — do NOT use a generic title like "Implementation Complete"
+5. Create PR using `gh pr create` with:
+   - **Title:** descriptive title from step 4
+   - **Body:** summary of all phases completed, number of work items, key changes, and any learnings
+6. Output the PR URL to the user
+
+**Default behavior (no `--auto-merge` flag): STOP HERE.** The user reviews and merges the PR manually.
+
+#### Final Step 2b: Auto-Merge (only if `--auto-merge` was specified)
+
+If the user passed `--auto-merge`:
+
+1. Merge the PR using `gh pr merge --squash`
+2. Delete the remote branch
+3. `git checkout main && git pull`
 
 #### Final Step 3: Output
 
-Report completion to the user with a summary of what was implemented.
+Report completion to the user with:
+- Summary of what was implemented (phases, work item count)
+- PR URL (if PR-only mode) or merge confirmation (if `--auto-merge`)
+- Any learnings or issues encountered
 
 ## Output Files
 
@@ -365,6 +390,7 @@ If commit or PR operations fail:
 ## Example Usage
 
 ```yaml
+# Default: PR-only (no merge)
 User: /implement-plan
 
 Claude: Starting implementation plan execution...
@@ -395,8 +421,23 @@ Moving to Phase 1, Item 1.2...
 [After all items complete]
 
 All 12 work items implemented successfully.
-Creating PR: "Implementation Complete"
-PR merged. Checked out main branch.
+Created PR: "Implement: Input Validation, Error Handling, CLI Parser"
+PR URL: https://github.com/owner/repo/pull/42
+
+Implementation complete — 12 work items across 3 phases, all tested and documented.
+Review and merge the PR when ready.
+```
+
+```yaml
+# With --auto-merge: creates PR then merges automatically
+User: /implement-plan --auto-merge
+
+Claude: Starting implementation plan execution...
+...
+[Same workflow as above]
+...
+Created and merged PR: "Implement: Input Validation, Error Handling, CLI Parser"
+Checked out main branch.
 
 Implementation complete — 12 work items across 3 phases, all tested and documented.
 ```

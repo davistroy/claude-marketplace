@@ -92,3 +92,6 @@
 | 2026-02-28 | 1.2 Standardize Headers, Metadata, and Table Columns | Complete | plugins/personal-plugin/commands/plan-improvements.md, plugins/personal-plugin/commands/create-plan.md |
 | 2026-02-28 | 1.3 Replace Token Estimates with Concrete Sizing Heuristics | Complete | plugins/personal-plugin/commands/plan-improvements.md, plugins/personal-plugin/commands/create-plan.md |
 | 2026-02-28 | 1.4 Add Status Field to Work Item Template | Complete | plugins/personal-plugin/commands/plan-improvements.md, plugins/personal-plugin/commands/create-plan.md |
+| 2026-02-28 | 2.1 Rewrite Subagent Invocations to Use Agent Tool | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 2.2 Replace git add -A with Selective Staging | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 2.3 Update Allowed-Tools and Default Behavior | Complete | plugins/personal-plugin/commands/implement-plan.md |
