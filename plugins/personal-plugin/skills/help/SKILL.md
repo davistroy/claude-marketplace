@@ -60,6 +60,7 @@ SKILLS
 | Skill | Description |
 |-------|-------------|
 | /help | Show available commands and skills in this plugin with usage information |
+| /plan-gate | Assess task complexity and route to the right planning approach (native plan mode, /plan-improvements, or /create-plan) |
 | /prime | Evaluate a codebase to produce a detailed report on project purpose, health, status, and next steps |
 | /research-topic | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | /security-analysis | Comprehensive security vulnerability scanning and analysis with technology-specific patterns |
@@ -416,6 +417,32 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /plan-gate
+**Description:** Assess task complexity and route to the right planning approach
+**Arguments:** None (fires proactively based on task signals)
+**Output:** In-conversation scope assessment with recommended planning path
+**Features:**
+- Proactive — fires automatically before complex implementation tasks
+- Routes to: native plan mode, /plan-improvements, /create-plan, or /implement-plan
+- Detects existing planning artifacts (IMPLEMENTATION_PLAN.md, requirements docs)
+- Completes in under 10 seconds — routing decision, not deep analysis
+**Paths:**
+- Path A: Just do it (trivial tasks, 1-3 files)
+- Path B: Native plan mode (moderate tasks, 4-8 files)
+- Path C: /plan-improvements (multi-phase codebase refactoring)
+- Path D: /create-plan (requirements docs exist)
+- Path E: /implement-plan (existing plan with incomplete items)
+- Path F: Ask clarifying questions (ambiguous scope)
+**Example:**
+```text
+# Fires automatically when you say something like:
+"Refactor the authentication system"
+"Build the features described in the PRD"
+"Let's keep working on the implementation"
+```
+
+---
+
 #### /prime
 **Description:** Evaluate a codebase to produce a detailed report on project purpose, health, status, and next steps
 **Arguments:** [<focus-area>] [<path>]
@@ -561,5 +588,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /check-updates, /clean-repo, /consolidate-documents, /convert-hooks, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /setup-statusline, /test-project, /validate-plugin
 
 Available skills:
-  /help, /prime, /research-topic, /security-analysis, /ship, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
+  /help, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
 ```

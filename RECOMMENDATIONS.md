@@ -1,713 +1,588 @@
 # Improvement Recommendations
 
-**Generated:** 2026-02-16T18:45:00
-**Analyzed Project:** claude-marketplace (davistroy/claude-marketplace)
-**Analysis Scope:** Full repository — 2 plugins, 25 commands, 11 skills, 4 Python tools (~70K LOC)
+**Generated:** 2026-02-28T14:30:00
+**Analyzed Project:** claude-marketplace — Planning & Execution Pipeline
+**Analysis Scope:** Three core commands (`create-plan`, `plan-improvements`, `implement-plan`) plus adjacent pipeline (`plan-gate`, `plan-next`)
 
 ---
 
 ## Executive Summary
 
-The claude-marketplace repository is architecturally sound with excellent plugin structure, strong command/skill patterns, and proper secrets management. The primary technical debt concentrates in three areas: **test coverage gaps** (feedback-docx-generator has zero tests, visual-explainer and research-orchestrator have large untested modules), **code complexity hotspots** (god classes in position_resolver.py and prompt_generator.py, a 560-line function in visual-explainer's CLI), and **dependency management** (all floating versions with no lock files, one dangerously loose constraint).
+The planning and execution pipeline (`/plan-improvements` or `/create-plan` → `/implement-plan`) is the most ambitious subsystem in the personal-plugin. It attempts to turn codebase analysis or requirements documents into phased implementation plans, then autonomously execute those plans through orchestrated subagents. The architecture is sound — the separation between planning and execution, the thin-loop-controller pattern, and the persistent artifact approach are all correct design choices.
 
-The path to zero technical debt requires 37 targeted actions across 6 phases. The highest-value work is closing test coverage gaps (currently ~645 tests but missing coverage on ~6,500 lines of source code), refactoring the 3 complexity hotspots, and tightening the dependency and CI pipeline. None of the issues are production-breaking — this is debt reduction, not emergency triage.
+However, the pipeline has three categories of problems that significantly degrade real-world reliability. First, **the two planning commands produce structurally different IMPLEMENTATION_PLAN.md files**, meaning `/implement-plan` receives inconsistent input depending on which upstream command generated the plan. The most impactful difference: `/create-plan` generates work items with explicit Tasks checklists that tell subagents exactly what to do, while `/plan-improvements` omits this field entirely, forcing subagents to infer steps from a description paragraph. Second, **`/implement-plan` references the wrong tool API** — it instructs the agent to use "Task tool" with parameters like `subagent_type` and `run_in_background` that belong to the Agent tool, and references "output files" for background agents that don't exist. The parallel execution path (Path B) is likely non-functional as written. Third, **context window management is aspirational rather than structural** — `/plan-improvements` instructs "Ultrathink and thoroughly analyze the entire codebase" without sampling guidance, risking exhaustion before output generation begins, and `/implement-plan` accumulates state linearly across work items despite explicit warnings not to.
+
+Fixing these issues requires 28 targeted changes across three tiers: critical fixes that address broken functionality, execution quality improvements that make plans better and more reliable, and polish items that improve consistency and edge case handling.
 
 ---
 
 ## Recommendation Categories
 
-### Category 1: Test Coverage & Quality (T)
+### Category 1: Schema & Consistency (S)
 
-#### T1. Add Complete Test Suite for feedback-docx-generator
-
-**Priority:** Critical
-**Effort:** M
-**Impact:** Eliminates the only tool with zero test coverage; prevents regressions in .docx generation
-
-**Current State:**
-The feedback-docx-generator tool (`plugins/personal-plugin/tools/feedback-docx-generator/`) has 2 source modules (~270 lines) and absolutely no tests — no `tests/` directory, no conftest.py, no CI job.
-
-**Recommendation:**
-Create a full test suite covering:
-- `__init__.py` module functions (69 lines)
-- `__main__.py` CLI entry point and document generation (~200 lines)
-- Edge cases: empty input, malformed data, missing python-docx dependency
-- Integration test generating an actual .docx file and validating structure
-
-**Implementation Notes:**
-- Add `tests/` directory with conftest.py providing sample feedback data fixtures
-- Add pytest + python-docx to dev dependencies in pyproject.toml
-- Add dedicated CI job in `.github/workflows/test.yml` with 90% coverage threshold
-- Pattern after visual-explainer's conftest.py for fixture design
-
----
-
-#### T2. Add Tests for visual-explainer Untested Modules (3,739 LOC)
-
-**Priority:** Critical
-**Effort:** L
-**Impact:** Covers 6 large untested modules that contain the tool's core generation pipeline
-
-**Current State:**
-6 modules totaling 3,739 lines have zero test coverage:
-- `cli.py` (1,292 lines) — main entry point, generation pipeline
-- `output.py` (869 lines) — file output handling
-- `api_setup.py` (754 lines) — API key configuration
-- `page_templates.py` (691 lines) — infographic page layouts
-- `image_evaluator.py` (534 lines) — Claude Vision quality scoring
-- `image_generator.py` (553 lines) — Gemini API image generation
-
-**Recommendation:**
-Add test files for each untested module:
-- `test_cli.py` — CLI argument parsing, config creation, pipeline orchestration (mock API calls)
-- `test_output.py` — File writing, directory creation, checkpoint saving/loading
-- `test_api_setup.py` — Key validation, interactive prompts, environment detection
-- `test_page_templates.py` — Template selection, zone specifications, layout validation
-- `test_image_evaluator.py` — Score parsing, threshold checking, feedback generation
-- `test_image_generator.py` — Retry logic, rate limiting, error handling, concurrency
-
-**Implementation Notes:**
-- The existing conftest.py already provides 60+ fixtures including mock API responses — leverage these
-- Use `respx` for HTTP mocking (already in dev dependencies)
-- Focus on unit tests with mocked API calls; integration tests can use recorded responses
-- Target 90% coverage per module
-
----
-
-#### T3. Add Tests for research-orchestrator Untested Modules (1,768 LOC)
+#### S1. Unify IMPLEMENTATION_PLAN.md Work Item Schema
 
 **Priority:** Critical
 **Effort:** M
-**Impact:** Covers 4 untested modules including the largest module (ui.py, 692 lines)
+**Impact:** All plans produce identical structure for `/implement-plan` to consume; subagent execution quality becomes consistent regardless of which planning command generated the plan
 
 **Current State:**
-4 modules totaling 1,768 lines have zero test coverage:
-- `ui.py` (692 lines) — Rich terminal UI, progress bars, result formatting
-- `cli.py` (453 lines) — CLI entry point, argument parsing, orchestration
-- `model_discovery.py` (346 lines) — API model listing, date parsing, version detection
-- `bug_reporter.py` (277 lines) — Error reporting, diagnostic collection
+`/create-plan` generates work items with 6 fields: Requirement Refs, Files Affected (with create/modify annotations), Description, Tasks (numbered checkboxes), Acceptance Criteria, Notes. `/plan-improvements` generates work items with only 4 fields: Recommendation Ref, Files Affected (plain list), Description, Acceptance Criteria. The missing **Tasks** checklist is the most impactful gap — it provides explicit step-by-step instructions that subagents can follow mechanically. Without it, plans from `/plan-improvements` produce lower-quality subagent execution because subagents must infer what to do.
 
 **Recommendation:**
-Add test files for each untested module:
-- `test_ui.py` — Output formatting, progress callbacks, result rendering (mock Rich console)
-- `test_cli.py` — Argument parsing, config creation, async orchestration entry
-- `test_model_discovery.py` — API model listing, date format parsing, error handling
-- `test_bug_reporter.py` — Diagnostic collection, report formatting, file writing
+Adopt `/create-plan`'s work item schema as the canonical standard. Both commands should emit work items with: Ref field (Requirement Refs or Recommendation Ref), Files Affected (with create/modify annotations), Description, Tasks (numbered checkbox list), Acceptance Criteria, Notes.
 
 **Implementation Notes:**
-- Mock Rich console output for UI tests
-- Use `unittest.mock.AsyncMock` for async orchestrator calls in CLI tests
-- model_discovery.py has 2 silent `except Exception: pass` handlers (lines 171, 209) — tests should verify these paths log warnings after the fix in D3
+- Modify the template in `plan-improvements.md` lines 207-218 to add Tasks and Notes fields
+- Standardize Files Affected to include (create)/(modify) annotations in both commands
+- The ref field name can differ (Requirement Refs vs Recommendation Ref) since the semantics differ — but the structural position should be identical
 
 ---
 
-#### T4. Add Tests for bpmn2drawio position_resolver.py (963 LOC)
-
-**Priority:** High
-**Effort:** M
-**Impact:** Covers the single largest untested module in the most-tested tool
-
-**Current State:**
-`position_resolver.py` is 963 lines with 13 methods and is the largest untested module in bpmn2drawio. The tool has 320 tests covering 12/21 modules, but this critical layout module has no dedicated tests. Some coverage may exist indirectly through integration tests.
-
-**Recommendation:**
-Create `test_position_resolver.py` covering:
-- `resolve()` method with various pool/lane configurations
-- `_organize_by_lanes()` with single-lane, multi-lane, and laneless scenarios
-- `_place_connected_elements()` with disconnected and connected graph fragments
-- `_avoid_overlap()` with overlapping and non-overlapping positions
-- `_position_boundary_events()` with elements attached to different edge positions
-- Edge cases: empty pools, elements without DI coordinates, cross-pool references
-
-**Implementation Notes:**
-- Create test fixtures with minimal BPMNModel instances for each scenario
-- Test coordinate math with known expected positions
-- Verify O(n^2) overlap avoidance doesn't degrade with large element counts (add performance assertion)
-
----
-
-#### T5. Add Tests for Remaining bpmn2drawio Untested Modules
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Completes 100% module coverage for bpmn2drawio (currently 12/21)
-
-**Current State:**
-6 additional modules lack dedicated tests:
-- `config.py` (153 lines) — Configuration loading
-- `constants.py` (127 lines) — Constant values
-- `exceptions.py` (43 lines) — Exception hierarchy
-- `icons.py` (298 lines) — SVG icon definitions
-- `styles.py` (104 lines) — Draw.io style strings
-- `waypoints.py` (149 lines) — Edge routing waypoints
-
-**Recommendation:**
-Add test files for modules with logic (skip pure-constant modules):
-- `test_config.py` — YAML loading, default values, error handling for malformed configs
-- `test_waypoints.py` — Waypoint calculation, edge routing between elements
-- `test_icons.py` — Icon lookup by element type, fallback behavior
-- `test_styles.py` — Style string generation, theme application
-- Skip `constants.py` and `exceptions.py` (pure definitions, no logic to test)
-
-**Implementation Notes:**
-- config.py handles YAML parsing — test with valid, invalid, and missing files
-- waypoints.py calculates geometric paths — test with known coordinate inputs/outputs
-
----
-
-#### T6. Enforce Coverage Thresholds in CI for All Tools
+#### S2. Standardize IMPLEMENTATION_PLAN.md Header and Metadata
 
 **Priority:** High
 **Effort:** S
-**Impact:** Prevents coverage regression; currently only bpmn2drawio enforces 90%
+**Impact:** `/implement-plan` can parse plans from either source with consistent expectations; PR generation produces complete summaries
 
 **Current State:**
-- bpmn2drawio: 90% threshold enforced via `--cov-fail-under=90` (CI fails if below)
-- research-orchestrator: Coverage reported but NOT enforced
-- visual-explainer: Coverage reported but NOT enforced
-- feedback-docx-generator: No coverage at all
+The two planning commands produce different headers. `/create-plan` includes: Source Documents (list), Estimated Total Effort, and an Executive Summary section. `/plan-improvements` uses: Based On (single value), omits total effort, and has no Executive Summary. The Phase Summary Table columns also differ subtly (Mitigation Strategy vs Mitigation, Work Item vs Work Item A).
 
 **Recommendation:**
-Add dedicated CI jobs for each tool with coverage enforcement:
-```yaml
-research-orchestrator:
-  runs-on: ubuntu-latest
-  steps:
-    - pip install -e ".[dev]"
-    - pytest --cov=research_orchestrator --cov-fail-under=85
-
-visual-explainer:
-  runs-on: ubuntu-latest
-  steps:
-    - pip install -e ".[dev]"
-    - pytest --cov=visual_explainer --cov-fail-under=85
-
-feedback-docx-generator:
-  runs-on: ubuntu-latest
-  steps:
-    - pip install -e ".[dev]"
-    - pytest --cov=feedback_docx_generator --cov-fail-under=90
-```
+Standardize header to include: Generated timestamp (YYYY-MM-DD HH:MM:SS format), Based On (document list or RECOMMENDATIONS.md), Total Phases, Estimated Total Effort, and Executive Summary section. Standardize all table column names across both templates.
 
 **Implementation Notes:**
-- Start with 85% threshold for tools currently lacking tests (raise after initial test pass)
-- bpmn2drawio keeps its existing 90% threshold
-- Add `--cov-branch` for branch coverage on all tools
+- Add `**Estimated Total Effort:**` to `/plan-improvements` template
+- Add `## Executive Summary` section to `/plan-improvements` template
+- Standardize Risk Mitigation column to `Mitigation Strategy`
+- Standardize Parallel Work column to `Work Item`
+- Add Recommendation Traceability appendix to `/plan-improvements` (maps recommendation IDs to phases/items)
 
 ---
 
-#### T7. Add CLI Parameter Validation Tests
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Catches invalid user input before it causes confusing errors downstream
-
-**Current State:**
-CLI parameters like `--pass-threshold`, `--concurrency`, and image count accept any value without bounds checking. `--pass-threshold 5.0` or `--concurrency 1000` are accepted silently.
-
-**Recommendation:**
-Add validation tests that verify:
-- `--pass-threshold` rejects values outside 0.0-1.0
-- `--concurrency` rejects values outside 1-10
-- `--max-iterations` rejects values outside 1-20
-- Image count prompts enforce upper bound (e.g., max 50)
-- Invalid combinations are caught (e.g., `--json` with `--interactive`)
-
-**Implementation Notes:**
-- Tests should be paired with validation logic in `GenerationConfig.from_cli_and_env()` (see A5)
-
----
-
-### Category 2: Code Complexity & Refactoring (R)
-
-#### R1. Refactor visual-explainer run_generation_pipeline() (560 LOC)
-
-**Priority:** High
-**Effort:** M
-**Impact:** Breaks the largest function in the codebase into testable, maintainable units
-
-**Current State:**
-`visual_explainer/cli.py` lines 777-1100 contain a single 560-line function that handles concept analysis, prompt generation, image generation loop, quality evaluation, prompt refinement, and output finalization. This function is untestable as a unit and has high cognitive load.
-
-**Recommendation:**
-Extract into 5 focused functions:
-1. `_analyze_concepts(config, source) -> ConceptAnalysis` (~60 LOC)
-2. `_generate_prompts(config, analysis) -> List[Prompt]` (~80 LOC)
-3. `_execute_generation_loop(config, prompts, progress) -> List[GenerationResult]` (~200 LOC)
-4. `_evaluate_and_refine(config, results) -> List[GenerationResult]` (~120 LOC)
-5. `_save_outputs(config, results) -> OutputSummary` (~60 LOC)
-
-The parent `run_generation_pipeline()` becomes a ~40-line orchestrator calling these functions.
-
-**Implementation Notes:**
-- Extract one function at a time, running tests after each extraction
-- Keep the progress callback threading unchanged (pass progress object to each function)
-- The checkpoint/resume logic stays in the orchestrator
-- Each extracted function becomes independently testable
-
----
-
-#### R2. Split PromptGenerator God Class (1,291 LOC, 23 methods)
-
-**Priority:** High
-**Effort:** M
-**Impact:** Separates 3 distinct responsibilities into focused, testable classes
-
-**Current State:**
-`visual_explainer/prompt_generator.py` lines 59-1350 contain a single class handling prompt generation, infographic page prompts, and prompt refinement — three distinct responsibilities with different dependencies and change frequencies.
-
-**Recommendation:**
-Split into 3 classes:
-1. `PromptGenerator` (core) — `generate_prompts()`, `_build_generation_prompt()`, response parsing (~400 LOC)
-2. `InfographicPromptBuilder` — `_build_infographic_page_prompt()`, zone specs, page plan logic (~500 LOC)
-3. `PromptRefiner` — `refine_prompt()`, strategy determination, refinement prompt building (~300 LOC)
-
-**Implementation Notes:**
-- Use composition: `PromptGenerator` holds references to `InfographicPromptBuilder` and `PromptRefiner`
-- External callers continue using `PromptGenerator` as the facade
-- Existing tests for `prompt_generator.py` (31 tests) will need import path updates
-- Extract in order: Refiner first (least coupled), then InfographicPromptBuilder
-
----
-
-#### R3. Refactor PositionResolver God Class (964 LOC, 13 methods)
-
-**Priority:** High
-**Effort:** M
-**Impact:** Makes the most complex layout module testable and maintainable
-
-**Current State:**
-`bpmn2drawio/position_resolver.py` is 964 lines with `_organize_by_lanes()` at 188 LOC containing 5 levels of nesting. The class handles position resolution, lane organization, boundary event positioning, subprocess positioning, and overlap avoidance.
-
-**Recommendation:**
-Extract into focused modules:
-1. `PositionResolver` (core) — `resolve()`, `_place_connected_elements()`, `_avoid_overlap()` (~350 LOC)
-2. `LaneOrganizer` — `_organize_by_lanes()`, height calculation, coordinate conversion (~300 LOC)
-3. `BoundaryPositioner` — boundary event and subprocess internal positioning (~250 LOC)
-
-**Implementation Notes:**
-- `PositionResolver.resolve()` orchestrates the three collaborators
-- Must maintain the same public API — `resolve(model: BPMNModel) -> BPMNModel`
-- Write tests for T4 BEFORE refactoring (characterization tests)
-- Deep nesting in `_organize_by_lanes()` will naturally flatten when extracted
-
----
-
-#### R4. Extract Parser Namespace Helper (DRY violation, ~15 repetitions)
+#### S3. Standardize Phase Sizing Parameters
 
 **Priority:** Medium
 **Effort:** XS
-**Impact:** Eliminates 15 copies of the same namespace fallback pattern
+**Impact:** Consistent phase sizing across both planning commands; eliminates confusion about target vs maximum
 
 **Current State:**
-`bpmn2drawio/parser.py` repeats this pattern ~15 times:
-```python
-element = root.find(".//ns:Element", self.namespaces)
-if element is None:
-    element = root.find(".//{*}Element")
-```
+`/create-plan` targets ~80K tokens per phase with 20% buffer, max 100K, min 20K. `/plan-improvements` targets ~100K tokens including testing/fixes with no explicit max or min. The token estimate ranges also differ between the two sizing tables.
 
 **Recommendation:**
-Extract to helper method:
-```python
-def _find_element(self, parent, ns_xpath: str, wildcard_xpath: str):
-    result = parent.find(ns_xpath, self.namespaces)
-    return result if result is not None else parent.find(wildcard_xpath)
-```
+Use a single sizing specification: target 80K tokens per phase, maximum 100K, minimum 20K. If a phase exceeds 100K, split into sub-phases (e.g., Phase 3a, 3b). Use the same complexity scale in both commands.
 
 **Implementation Notes:**
-- Pure refactoring — behavior is identical
-- Existing parser tests (14 tests) serve as regression guard
-- Also add a `_findall_elements()` variant for the `findall` usages
+- Update `/plan-improvements` Phase Sizing Guidelines to match `/create-plan`'s parameters
+- Both should use the same complexity table (XS through XL with ranges)
 
 ---
 
-#### R5. Flatten Deep Nesting in image_generator._generate_with_retry()
+#### S4. Replace Fictional Token Estimates with Concrete Heuristics
 
-**Priority:** Low
+**Priority:** High
 **Effort:** S
-**Impact:** Improves readability of retry logic; enables extraction to reusable pattern
+**Impact:** Phase sizing becomes meaningful rather than cargo-cult; fewer phase overflows during execution
 
 **Current State:**
-`image_generator.py` lines 328-461 (134 LOC) have 4-level nesting with retry loop, status checking, and progress callbacks interleaved.
+Both commands estimate effort in tokens (e.g., "New feature with tests: ~10K-30K tokens"). These numbers are unvalidated guesses — the repo's own previous IMPLEMENTATION_PLAN.md assigned 80-90K tokens to phases that should have been 30-50K by the sizing guide. Token estimation at planning time is pure guesswork; Claude cannot predict how many tokens implementation will consume.
 
 **Recommendation:**
-Extract retry strategy to separate method or use early-return pattern:
-```python
-async def _generate_with_retry(self, prompt, config):
-    for attempt in range(max_retries):
-        result = await self._attempt_generation(prompt, config)
-        if result.success:
-            return result
-        if not self._should_retry(result, attempt):
-            return result
-        await self._wait_for_retry(attempt, result)
-    return GenerationResult(status=GenerationStatus.MAX_RETRIES)
-```
+Replace token-based estimates with concrete heuristics that are actually observable: number of files affected, estimated lines of code changed, and relative complexity (S/M/L). Keep the ~80K target as a context window constraint (not an output budget), and reframe it as: "each phase should be completable by a single subagent session — typically 5-8 files read, 3-5 files modified, ~500 LOC changed."
 
 **Implementation Notes:**
-- Requires T2 tests for image_generator first (characterization tests before refactoring)
-- Keep the retry delay calculation logic unchanged
-- Consider extracting to a generic `RetryStrategy` class for reuse across tools
+- Rewrite Phase Sizing Guidelines in both commands
+- Change Phase Summary Table column from `Est. Tokens` to `Est. Complexity` using S/M/L
+- Phase header changes from `**Estimated Effort:** ~X0,000 tokens` to `**Estimated Complexity:** [S/M/L] (~N files, ~N LOC)`
 
 ---
 
-### Category 3: Dependency & Build Management (D)
+### Category 2: Tool & API Correctness (T)
 
-#### D1. Tighten google-genai Version Constraint
+#### T1. Fix implement-plan Tool References (Agent Tool, Not Task Tool)
 
 **Priority:** Critical
-**Effort:** XS
-**Impact:** Prevents silent breaking changes from major version upgrades
+**Effort:** M
+**Impact:** Makes the command actually functional; parallel execution path becomes viable
 
 **Current State:**
-`visual-explainer/pyproject.toml` specifies `google-genai>=0.1.0` — this accepts any future version including hypothetical 5.0.0 with completely different API.
+`/implement-plan` instructs "Spawn a subagent (subagent_type: "general-purpose")" using the "Task tool" throughout. The actual Claude Code API uses the **Agent tool** with parameters `subagent_type`, `prompt`, and `run_in_background`. The command also references "output files" for background agents (Step B2: "read its output file to get status") — these do not exist. Agent tool returns results inline to the parent agent, or via notification for background agents.
 
 **Recommendation:**
-Change to: `google-genai>=1.0.0,<2.0.0`
-
-Also review and tighten other loose constraints:
-- `anthropic>=0.40.0` → `anthropic>=0.40.0,<1.0.0` (if still 0.x) or `>=0.40.0,<2.0.0`
-- `openai>=1.50.0` → `openai>=1.50.0,<3.0.0`
+Rewrite all subagent invocation instructions to reference the Agent tool correctly. Replace "output file" references with the actual return mechanism (inline results for foreground agents, notification for background agents via `run_in_background: true`). Update the parallel path (Path B) to use `TaskOutput` for collecting background agent results.
 
 **Implementation Notes:**
-- Check current installed versions first: `pip show google-genai anthropic openai`
-- Apply same tightening to research-orchestrator's pyproject.toml
-- Keep `>=` for minimum, add `<NEXT_MAJOR` for upper bound
+- Every instance of "Task tool" or "Spawn a subagent" needs to reference "Agent tool" with correct parameters
+- Step B2 (Collect Results) needs complete rewrite to use Agent notification mechanism
+- The `Task` in `allowed-tools` refers to TaskCreate/TaskUpdate/TaskList — these are tracking tools, not agent spawn tools. Clarify this distinction.
+- Verify whether `allowed-tools` restrictions on the parent command affect subagent tool access
 
 ---
 
-#### D2. Add Dependency Lock Files
+#### T2. Expand implement-plan allowed-tools for Subagent Operations
+
+**Priority:** High
+**Effort:** XS
+**Impact:** Ensures the command can run tests, install dependencies, and execute build tools
+
+**Current State:**
+`/implement-plan` declares `allowed-tools: Bash(git:*), Bash(gh:*), Task, Skill`. Compare with `/test-project` which declares Bash permissions for npm, npx, yarn, pnpm, pytest, python, go, cargo, dotnet, jest, vitest, and bun. If `allowed-tools` restricts what the parent agent can do (and subagents inherit unrestricted access), this may be fine. But if subagents inherit the parent's restrictions, they cannot run tests or build code.
+
+**Recommendation:**
+Add comprehensive Bash permissions matching `/test-project`'s pattern, or add a general `Bash` permission. Also remove `Skill` from allowed-tools since no skills are invoked.
+
+**Implementation Notes:**
+- Test empirically whether subagent tool access is scoped by parent's `allowed-tools`
+- If subagents are unrestricted, keep parent permissions minimal but add `Agent` to the list
+- Remove unused `Skill` permission
+
+---
+
+#### T3. Replace `git add -A` with Selective Staging
 
 **Priority:** High
 **Effort:** S
-**Impact:** Ensures reproducible builds in CI and across developer machines
+**Impact:** Prevents accidental commit of secrets, temp files, partial output, and IDE artifacts
 
 **Current State:**
-No lock files exist (no poetry.lock, Pipfile.lock, requirements.txt with pinned versions). CI installs latest compatible versions on each run, making builds non-deterministic.
+`/implement-plan` uses `git add -A` after every work item (lines 184, 249, 290). This stages everything in the working tree, including temp files from subagents, OS artifacts, and potentially sensitive files. This directly contradicts the system-level instruction: "prefer adding specific files by name rather than using `git add -A`."
 
 **Recommendation:**
-Add `requirements-lock.txt` files generated by `pip-compile` (from `pip-tools`) for each tool:
-```bash
-pip-compile pyproject.toml -o requirements-lock.txt
-pip-compile pyproject.toml --extra dev -o requirements-dev-lock.txt
-```
+Replace with explicit staging: `git add [files-reported-by-subagent] IMPLEMENTATION_PLAN.md PROGRESS.md LEARNINGS.md`. Run `git status --short` first and surface any unexpected untracked files for review.
 
 **Implementation Notes:**
-- Add `pip-tools` to each tool's dev dependencies
-- CI should install from lock files: `pip install -r requirements-lock.txt`
-- Add a CI job or pre-commit check that verifies lock files are up-to-date
-- Developers update lock files when changing pyproject.toml: `pip-compile --upgrade`
+- Implementation subagent already returns "files created/modified" — use that list
+- Add `git status --short` check before staging to catch unexpected files
+- For parallel batches, collect all file lists then stage explicitly
 
 ---
 
-#### D3. Add Logging to Swallowed Exceptions
+### Category 3: Context Window Management (C)
+
+#### C1. Add Context Sampling Strategy to plan-improvements
+
+**Priority:** Critical
+**Effort:** S
+**Impact:** Prevents context exhaustion on medium-to-large codebases; command completes reliably
+
+**Current State:**
+`/plan-improvements` says "Ultrathink and thoroughly analyze the entire codebase" with no guidance on managing context consumption. For a 200+ file project, reading even half the files exhausts context before output generation begins. The command then needs to generate two large documents (RECOMMENDATIONS.md + IMPLEMENTATION_PLAN.md) in the remaining context.
+
+**Recommendation:**
+Add explicit context management instructions: For codebases over 100 files, use a sampling strategy: (1) Read all config/metadata files, (2) Read entry points and public API surfaces, (3) Sample representative files from each module/directory (2-3 per module), (4) Deep-read only files flagged as high-complexity or problematic. Reserve at least 40% of context for output generation.
+
+**Implementation Notes:**
+- Add "Context Budget" row to the Performance table
+- Add a sampling strategy subsection to Phase 1
+- Consider making plan generation a separate stage (`--plan` flag) so recommendations can be generated first, then the plan in fresh context
+
+---
+
+#### C2. Restructure implement-plan Loop to Shed State
+
+**Priority:** High
+**Effort:** M
+**Impact:** Command remains coherent through 30+ work items instead of degrading
+
+**Current State:**
+The "thin loop controller" pattern is correct in principle but violated in practice. The STARTUP subagent returns all remaining work items. Every NEXT ITERATION subagent re-reads the entire plan and returns remaining items. Each implementation/testing/documentation subagent returns summaries that accumulate in conversation. By work item 30, the main agent holds: startup inventory + 30 subagent returns + 30 commit confirmations + 30 TaskUpdate calls + several iteration checks.
+
+**Recommendation:**
+(1) STARTUP returns only the first phase's items, not everything. (2) NEXT ITERATION returns only the immediate next item or parallel batch, not all remaining. (3) Use a lightweight state file (`.implement-plan-state.json`) as the sole progress mechanism rather than conversational memory. (4) After every 5 work items, explicitly summarize and discard prior subagent results.
+
+**Implementation Notes:**
+- State file format: `{ "current_phase": 2, "current_item": "2.3", "completed": ["1.1", "1.2", ...], "project_context": { "tech_stack": "...", "test_command": "..." } }`
+- Main agent reads state file at each iteration rather than accumulating conversation
+- NEXT ITERATION subagent writes to state file rather than returning full lists
+
+---
+
+#### C3. Make plan-improvements Two-Stage Output Optional
+
+**Priority:** Medium
+**Effort:** S
+**Impact:** Graceful degradation for large codebases; prevents losing recommendations when plan generation fails
+
+**Current State:**
+The command generates both RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md in a single pass. On large codebases, context pressure degrades the quality of later output (Risk Mitigation, Parallel Work tables, final phases). If the session is interrupted, everything is lost.
+
+**Recommendation:**
+Add a `--recommendations-only` flag (or `--no-plan`) that generates just RECOMMENDATIONS.md and stops. Add graceful degradation: if context pressure is detected during plan generation, save RECOMMENDATIONS.md immediately and suggest running `/create-plan RECOMMENDATIONS.md` in fresh context.
+
+**Implementation Notes:**
+- Default behavior remains unchanged (both files)
+- Add early save of RECOMMENDATIONS.md before plan generation begins
+- `/create-plan` should accept RECOMMENDATIONS.md as a "requirements document" via its document discovery
+
+---
+
+### Category 4: Analysis Quality (A)
+
+#### A1. Add Missing Analysis Dimensions to plan-improvements
+
+**Priority:** High
+**Effort:** S
+**Impact:** Analysis catches security, performance, dependency, and CI/CD issues instead of missing them entirely
+
+**Current State:**
+`/plan-improvements` analyzes 5 dimensions: Usability, Output Quality, Architecture & Design, Developer Experience, Missing Capabilities. `/review-arch` analyzes 6 different dimensions: Structure & Organization, Code Quality Patterns, Security Posture, Testability & Reliability, Performance & Scalability, Developer Experience. The plan-improvements command — which is supposed to be more thorough — misses Security, Performance, Dependencies, and CI/CD entirely.
+
+**Recommendation:**
+Add as first-class analysis dimensions: Security Posture (hardcoded secrets, input validation, auth patterns, dependency CVEs), Performance (N+1 queries, blocking ops, caching, resource cleanup), Dependency Health (outdated deps, floating versions, license compliance, transitive vulnerabilities), CI/CD Pipeline (build health, coverage enforcement, quality gates). Port the specific analysis patterns from `/review-arch`.
+
+**Implementation Notes:**
+- Add 4 new subsections under Phase 1
+- Expand recommendation categories to be dynamic (3-7 based on findings) rather than fixed at 5
+- Rename existing categories to match what the analysis actually found, not hardcoded names
+
+---
+
+#### A2. Define Priority Rubric for plan-improvements
+
+**Priority:** High
+**Effort:** XS
+**Impact:** Priority assignments become consistent and defensible rather than subjective
+
+**Current State:**
+Priority levels (Critical/High/Medium/Low) are listed in the recommendation template but never defined. No rubric, no examples, no decision criteria. Two runs on the same codebase could produce completely different priority distributions.
+
+**Recommendation:**
+Add explicit definitions: Critical = production outage risk, security vulnerability, or data integrity threat. High = blocks feature development or causes regular developer friction. Medium = improves quality but is not blocking. Low = nice-to-have optimization or style improvement.
+
+**Implementation Notes:**
+- Port severity definitions from `/review-arch` Phase 3 (Technical Debt Inventory)
+- Add an Impact/Effort matrix instruction to populate the Quick Wins section mechanically
+
+---
+
+#### A3. Replace Question-Based Analysis with Task-Based Analysis
+
+**Priority:** Medium
+**Effort:** S
+**Impact:** Analysis produces evidence-based findings with file references instead of subjective commentary
+
+**Current State:**
+Phase 1 analysis prompts are question-based: "How intuitive is the current workflow?", "Is the code organized logically?", "Are there scalability concerns?". These invite impressionistic paragraphs rather than enumerated findings.
+
+**Recommendation:**
+Rewrite as concrete tasks: "Identify the 3 highest-friction user workflows by tracing common operations from entry point to completion. For each, note the number of steps, any redundant operations, and error handling gaps." "Identify all files exceeding 300 lines and flag functions over 50 lines as complexity hotspots."
+
+**Implementation Notes:**
+- Rewrite each subsection under Phase 1 with 3-5 specific tasks instead of 4-5 open questions
+- Tasks should produce countable, file-referenced findings
+
+---
+
+#### A4. Add Codebase Reconnaissance to create-plan
+
+**Priority:** High
+**Effort:** S
+**Impact:** Plans account for existing code instead of assuming greenfield; avoids re-planning implemented features
+
+**Current State:**
+`/create-plan` reads only requirements documents (BRD, PRD, TDD). It does not examine the existing codebase. This means it generates a greenfield plan for what may be a brownfield project — potentially re-planning features that already exist, ignoring tech debt that will affect implementation, and missing architectural patterns the new code must conform to.
+
+**Recommendation:**
+Add a "Codebase Reconnaissance" step between document discovery and requirements analysis. Scan: project structure and tech stack, already-implemented features that overlap with requirements, code quality/patterns to inform approach, test infrastructure and CI/CD configuration.
+
+**Implementation Notes:**
+- Add as Phase 1.5 (between document discovery and requirements analysis)
+- Keep it lightweight — 5-10 minute scan, not a full `/plan-improvements` analysis
+- Flag overlapping features: "PRD section 2.3 describes user authentication — the project already has `src/auth/` with JWT-based auth. Plan should extend, not rebuild."
+
+---
+
+### Category 5: User Experience & Guardrails (U)
+
+#### U1. Add Confirmation Checkpoint to create-plan
+
+**Priority:** High
+**Effort:** S
+**Impact:** User can redirect scope before 4-15 minutes of plan generation; prevents wasted effort
+
+**Current State:**
+After discovering documents and resolving conflicts, `/create-plan` proceeds directly to plan generation with no approval gate. Key decisions are made without user input: number of phases, scope boundaries, priority inferences, implementation approach for ambiguous requirements.
+
+**Recommendation:**
+Add a checkpoint after Phase 2 (Requirements Analysis) presenting: extracted feature list with proposed priorities, proposed phase count and rough grouping, scoping assumptions. Ask user to approve before proceeding to full plan generation.
+
+**Implementation Notes:**
+- Present a compact summary (not the full analysis)
+- Offer: "Proceed with this scope? (yes/adjust/abort)"
+- This is analogous to how `/plan-improvements` generates RECOMMENDATIONS.md as a review artifact
+
+---
+
+#### U2. Change implement-plan Default to PR-Only (No Auto-Merge)
+
+**Priority:** High
+**Effort:** XS
+**Impact:** Prevents autonomous merge of potentially hours of unreviewed changes; aligns with pipeline's emphasis on user confirmation at decision points
+
+**Current State:**
+Finalization Step 2 automatically creates a PR, merges it, and deletes the branch. No human review. For a command that may have made 40+ commits across hours of autonomous execution, this is aggressive.
+
+**Recommendation:**
+Make PR creation the default (stop and notify user). Add `--auto-merge` flag for opt-in autonomous merge. Generate a descriptive PR title from the actual implementation rather than "Implementation Complete."
+
+**Implementation Notes:**
+- Change finalization to: create PR with comprehensive body, output URL, stop
+- Add `--auto-merge` flag that preserves current behavior
+- Generate PR title: "Implement [Phase 1 title] through [Phase N title]" or similar
+
+---
+
+#### U3. Add Rollback/Checkpoint Capability to implement-plan
+
+**Priority:** High
+**Effort:** M
+**Impact:** Bad commits can be reverted without restarting the entire plan; essential for 2+ hour autonomous runs
+
+**Current State:**
+Each work item is committed immediately. If item 8 of 12 introduces a subtle regression not caught by tests, there is no mechanism to revert. The command only moves forward.
+
+**Recommendation:**
+Before each work item, record the commit SHA as a checkpoint. If the testing subagent reports unfixable failures, offer to `git revert` to the checkpoint. Maintain a checkpoint log in the state file so resume can identify the last known-good state.
+
+**Implementation Notes:**
+- Record `last_good_sha` in `.implement-plan-state.json` after each successful test pass
+- On unfixable test failure: offer revert to `last_good_sha`, skip the item, or pause for manual intervention
+
+---
+
+#### U4. Add Phase Boundary Quality Gates to implement-plan
+
+**Priority:** Medium
+**Effort:** S
+**Impact:** Validates phase deliverables before building on them; catches drift early
+
+**Current State:**
+The command moves between phases silently. Phase 1 ends and Phase 2 begins with no checkpoint. Both planning commands generate per-phase completion checklists — but `/implement-plan` never validates them.
+
+**Recommendation:**
+After the last work item in a phase, run a validation subagent that checks the phase's completion checklist and testing requirements. Present a brief phase summary. Optionally pause for user confirmation before proceeding to the next phase.
+
+**Implementation Notes:**
+- Read the phase's "Completion Checklist" and "Testing Requirements" from the plan
+- Run validation subagent to check each item
+- Default: present summary and continue; `--pause-between-phases` flag for interactive mode
+
+---
+
+#### U5. Harden Resume Capability in implement-plan
+
+**Priority:** High
+**Effort:** M
+**Impact:** Resume after interruption works reliably instead of depending on fragile markdown parsing
+
+**Current State:**
+Resume depends on IMPLEMENTATION_PLAN.md having items "marked complete" — but no machine-readable status format is defined. If the command is interrupted between implementation and documentation subagents, work is done but not marked, causing re-implementation on resume.
+
+**Recommendation:**
+Define machine-readable status markers in IMPLEMENTATION_PLAN.md: `**Status: COMPLETE [2026-02-28]**` / `**Status: IN_PROGRESS**` / `**Status: PENDING**`. Mark items IN_PROGRESS before implementation starts, not just COMPLETE after. Use `.implement-plan-state.json` as the primary state mechanism. On resume, detect IN_PROGRESS items and offer: retry, skip, or mark complete.
+
+**Implementation Notes:**
+- Add Status field to work item schema (both planning commands should generate `**Status: PENDING**`)
+- implement-plan updates Status before and after each step
+- State file is the ground truth; plan file Status is for human readability
+
+---
+
+### Category 6: Robustness & Edge Cases (R)
+
+#### R1. Add Machine-Readable Markers for Append Logic
 
 **Priority:** Medium
 **Effort:** XS
-**Impact:** Silent API failures in model_discovery.py become diagnosable
+**Impact:** Append operations become deterministic instead of depending on markdown parsing
 
 **Current State:**
-Two `except Exception: pass` handlers silently swallow API listing failures:
-- `research_orchestrator/model_discovery.py:171` — Anthropic model listing
-- `research_orchestrator/model_discovery.py:209` — OpenAI model listing
-
-One in test code:
-- `tests/integration/test_bump_version.py:60` — Version write failure
+Both planning commands have a 10-step append procedure that depends on Claude correctly identifying the "header up to `---` after Phase Summary Table" — but the document has multiple `---` separators. No examples are provided. Cross-references in Parallel Work and Risk tables can become stale during renumbering.
 
 **Recommendation:**
-Replace `pass` with `logging.debug()` or `logging.warning()`:
-```python
-except Exception as e:
-    logger.warning(f"Failed to list Anthropic models: {e}")
-```
+Add `<!-- BEGIN PHASES -->` and `<!-- END PHASES -->` markers to the template. Add `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` markers. Provide a concrete before/after example of an append operation.
 
 **Implementation Notes:**
-- Import `logging` and create module-level logger
-- Use `warning` level for API failures (user should know if model discovery fails)
-- Use `debug` level for the test helper (less critical)
+- Add markers to the plan template in both commands
+- Add a 5-line before/after example in the Append vs Overwrite section
+- Also add handling for partially-executed plans: "If some items are marked COMPLETE, preserve them exactly and warn the user"
 
 ---
 
-#### D4. Add GitHub Actions Dependency Caching
+#### R2. Add Circuit Breaker to implement-plan Testing Subagent
+
+**Priority:** Medium
+**Effort:** XS
+**Impact:** Prevents infinite fix loops from exhausting subagent context and producing incoherent results
+
+**Current State:**
+The testing subagent prompt says "Repeat until ALL tests pass" with no explicit iteration limit. The error handling section mentions ">10 iterations" as abnormal, but this is observational guidance for the user, not enforcement in the subagent prompt.
+
+**Recommendation:**
+Add to the testing subagent prompt: "If after 3 fix-and-rerun cycles tests still fail, stop and return: TESTS_STUCK, list of remaining failures, what was tried." The main agent should then pause and ask the user for guidance.
+
+**Implementation Notes:**
+- Modify both sequential (Step A2) and parallel (Step B3) testing prompts
+- Define structured return format: `TESTS_STUCK: [failure list]`
+
+---
+
+#### R3. Add Subagent Project Context Header
 
 **Priority:** Medium
 **Effort:** S
-**Impact:** Reduces CI build times by caching pip downloads
+**Impact:** Subagents write code matching project conventions instead of guessing; reduces consistency issues across long plan execution
 
 **Current State:**
-Each CI run installs all dependencies from scratch. No `actions/cache` or `setup-python` caching configured.
+Implementation subagent prompts contain only: "Read IMPLEMENTATION_PLAN.md. Implement work item [X]." No project context — tech stack, test framework, conventions, or what has already been implemented.
 
 **Recommendation:**
-Add pip caching to all CI jobs:
-```yaml
-- uses: actions/setup-python@v5
-  with:
-    python-version: '3.11'
-    cache: 'pip'
-```
+Have the STARTUP subagent also extract: tech stack/language, test command, key conventions from CLAUDE.md, build command. Include this as a "Project Context" header (~200 tokens) in every implementation subagent prompt.
 
 **Implementation Notes:**
-- Add to both test.yml and validate.yml workflows
-- Cache key should include pyproject.toml hash for automatic invalidation
-- Expected CI time reduction: 30-60 seconds per job
+- Add to STARTUP prompt: "Also return: tech stack, test command (`npm test`/`pytest`/etc.), and 3-5 key conventions from CLAUDE.md"
+- Store in `.implement-plan-state.json` under `project_context`
+- Prepend to every implementation/testing subagent prompt
 
 ---
 
-### Category 4: Architecture & Design (A)
-
-#### A1. Implement Checkpoint Resume for visual-explainer
+#### R4. Reduce Documentation Overhead in implement-plan
 
 **Priority:** Medium
-**Effort:** L
-**Impact:** Enables resuming long-running image generation after interruption
+**Effort:** S
+**Impact:** Removes 33% of subagent invocations per work item; reduces overhead without losing tracking
 
 **Current State:**
-`visual_explainer/cli.py:1123` has a TODO comment: "Implement full checkpoint resume logic". The `--resume` flag exists in the CLI but returns `"resume_not_implemented"`. Checkpoint saving infrastructure exists (checkpoint files are written during generation) but loading/resuming is stubbed.
+Every work item triggers 3 subagent types: implementation, testing, documentation. The documentation subagent reads 3 files and writes to 3 files (IMPLEMENTATION_PLAN.md, PROGRESS.md, LEARNINGS.md). For a 20-item plan, that's 20 extra subagent spawns. PROGRESS.md largely duplicates `git log --oneline`. LEARNINGS.md entries are often "No issues encountered."
 
 **Recommendation:**
-Implement checkpoint resume:
-1. On `--resume <checkpoint_dir>`, load the checkpoint JSON
-2. Determine which images were already generated and passed evaluation
-3. Resume generation from the next pending image
-4. Merge completed results with checkpoint state
+Fold documentation updates into the implementation subagent prompt: "When complete, also update IMPLEMENTATION_PLAN.md to mark this item complete with today's date." Make PROGRESS.md optional (only generate if `--progress` flag set). Only update LEARNINGS.md when there are actual learnings (test failures, workarounds).
 
 **Implementation Notes:**
-- Checkpoint JSON structure already defined in `models.py`
-- The conftest.py already has checkpoint fixtures for testing
-- This is a feature completion, not a refactor — add after T2 tests are in place
-- Test with: interrupted mid-generation, all images complete, no checkpoint file
+- Add documentation instructions to implementation subagent prompt
+- Remove separate documentation subagent (Steps A3 and B4)
+- Keep IMPLEMENTATION_PLAN.md updates mandatory; make PROGRESS.md and LEARNINGS.md optional
 
 ---
 
-#### A2. Unify Python Version Requirements
+#### R5. Add Parallel Execution Safety Checks
+
+**Priority:** Medium
+**Effort:** S
+**Impact:** Prevents file conflicts and git index contention during concurrent execution
+
+**Current State:**
+Path B launches up to 3 parallel implementation subagents on the same repo. The constraint ("if items touch overlapping files, run sequentially") depends on plan metadata that may be incomplete. On Windows, git index locking and stricter file locking create additional failure modes.
+
+**Recommendation:**
+Add post-parallel merge check: after all parallel subagents complete, run `git status` and `git diff` to verify no conflicts. For shared infrastructure files (package.json, config files), always run modifications sequentially. On Windows, reduce max parallel agents to 2 and add index.lock retry handling.
+
+**Implementation Notes:**
+- Add conflict check between Step B2 (Collect Results) and Step B3 (Testing)
+- Add list of "always-sequential" file patterns: `package.json`, `*.lock`, `tsconfig.json`, `pyproject.toml`
+- Add Windows-specific constraint note
+
+---
+
+#### R6. Add allowed-tools to Planning Commands
+
+**Priority:** Medium
+**Effort:** XS
+**Impact:** Prevents planning commands from accidentally modifying code or running shell commands
+
+**Current State:**
+Neither `/create-plan` nor `/plan-improvements` declares `allowed-tools`. Both commands should only read files and write output documents.
+
+**Recommendation:**
+Add `allowed-tools` to both: `Read, Glob, Grep, Write, Edit, Agent` — limiting to file operations and subagent delegation. No Bash access needed for planning.
+
+**Implementation Notes:**
+- Add to frontmatter of both commands
+- Test that Agent tool is allowed (needed if commands ever delegate analysis to subagents)
+
+---
+
+#### R7. Add Plan Size Limits
 
 **Priority:** Low
 **Effort:** XS
-**Impact:** Simplifies contributor setup; removes confusion about Python version needed
+**Impact:** Prevents generation of plans too large for `/implement-plan` to execute in a single session
 
 **Current State:**
-- bpmn2drawio: requires Python >=3.9
-- research-orchestrator: requires Python >=3.9
-- visual-explainer: requires Python >=3.10
-- feedback-docx-generator: requires Python >=3.9
-
-The visual-explainer requires 3.10+ (uses `match` statements or union type syntax).
+No upper bound on phases or work items. A 20-phase plan with 60+ work items will overwhelm `/implement-plan`'s context window and run for hours.
 
 **Recommendation:**
-Standardize all tools to `python_requires = ">=3.10"` since that's the effective minimum (visual-explainer blocks 3.9). Document this in CLAUDE.md and README.
+Default max 8 phases per plan. If the scope requires more, suggest splitting into multiple plans (`IMPLEMENTATION_PLAN_part1.md`, `IMPLEMENTATION_PLAN_part2.md`). Add `--max-phases <n>` flag to both planning commands.
 
 **Implementation Notes:**
-- Update pyproject.toml for 3 tools (remove 3.9 from classifiers)
-- Update CI matrix if needed (currently Python 3.11 only, so no CI change needed)
-- Check if any 3.9-specific workarounds can be removed
+- Add check after phase construction: "If phases > 8, warn and suggest splitting"
+- `/implement-plan` should also accept an `--input <path>` argument to support non-default plan filenames
 
 ---
 
-#### A3. Add Input Validation to CLI Parameters
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Prevents confusing errors from invalid parameter combinations
-
-**Current State:**
-Visual-explainer CLI accepts:
-- `--pass-threshold 5.0` (should be 0.0-1.0)
-- `--concurrency 1000` (should be 1-10)
-- `--max-iterations 999` (should be 1-20)
-- No upper bound on interactive image count prompt
-
-**Recommendation:**
-Add validation in `GenerationConfig.from_cli_and_env()` or via argparse `type` functions:
-```python
-parser.add_argument('--pass-threshold', type=float,
-                    choices=None,  # use custom validator
-                    help='Quality threshold (0.0-1.0)')
-
-def validate_threshold(value):
-    f = float(value)
-    if not 0.0 <= f <= 1.0:
-        raise argparse.ArgumentTypeError(f"Must be 0.0-1.0, got {f}")
-    return f
-```
-
-**Implementation Notes:**
-- Add argparse type validators for bounded numeric parameters
-- Add max image count (50) to interactive prompt
-- Pair with T7 validation tests
-
----
-
-#### A4. Narrow Broad Exception Handlers
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Prevents masking of unexpected errors; improves debuggability
-
-**Current State:**
-33 `except Exception` handlers across the codebase. Most are legitimate (top-level CLI handlers, API error wrapping), but several should be narrowed:
-- `layout.py:57` — Graphviz fallback catches everything including `KeyboardInterrupt`
-- `model_discovery.py:171,209` — Silent API failures (addressed in D3)
-- `api_setup.py:55`, `cli.py:75` — Windows encoding detection
-
-**Recommendation:**
-Narrow the non-top-level handlers:
-- `layout.py:57`: Change to `except (ImportError, AttributeError, RuntimeError, OSError):`
-- `api_setup.py:55`: Change to `except (AttributeError, OSError):`
-- `cli.py:75`: Change to `except (AttributeError, OSError):`
-
-Leave top-level CLI handlers (`cli.py:1279`, `api_setup.py:747`) as `except Exception` — these are legitimate catch-alls for user-facing error messages.
-
-**Implementation Notes:**
-- Run tests after each change to verify no behavior change
-- For layout.py, verify that the graphviz fallback path still triggers correctly
-
----
-
-### Category 5: Developer Experience (X)
-
-#### X1. Add Type Checking with mypy to CI
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Catches type errors at CI time; leverages existing 90%+ type hint coverage
-
-**Current State:**
-All tools have excellent type hint coverage (90%+) but no static type checker runs in CI. Type hints are documentation-only — they don't catch errors.
-
-**Recommendation:**
-Add mypy to each tool's dev dependencies and CI:
-```yaml
-- name: Type check
-  run: mypy src/ --ignore-missing-imports
-```
-
-**Implementation Notes:**
-- Start with `--ignore-missing-imports` to avoid third-party stubs issues
-- Add `mypy.ini` or `[tool.mypy]` section to each pyproject.toml
-- Use `--strict` mode incrementally (start with basic checks, enable strictness over time)
-- Expected initial findings: some `Any` type escapes, missing return types on internal helpers
-
----
-
-#### X2. Consolidate Common Patterns Across Python Tools
+#### R8. Improve Not Recommended Section in plan-improvements
 
 **Priority:** Low
-**Effort:** L
-**Impact:** Reduces duplicated code; creates a shared foundation for new tools
+**Effort:** XS
+**Impact:** Prevents "why didn't you recommend X?" loops; documents rejected alternatives with rationale
 
 **Current State:**
-Common patterns are reimplemented in each tool:
-- API key loading from environment (research-orchestrator, visual-explainer)
-- Rich console output with fallback (research-orchestrator, visual-explainer)
-- CLI argument parsing boilerplate (all 4 tools)
-- Retry logic with exponential backoff (research-orchestrator, visual-explainer)
-- Configuration loading from environment + defaults (all tools)
+The "Not Recommended" section says "[Items considered but rejected, with rationale]" with no structure, no template per item, and no minimum count.
 
 **Recommendation:**
-Create a shared library `plugins/shared/claude-plugin-utils/` with:
-- `config.py` — Environment variable loading, API key management
-- `cli.py` — Common argparse patterns, output formatting
-- `retry.py` — Generic retry with exponential backoff
-- `console.py` — Rich console with graceful fallback
+Provide a template per item: Title, Why Considered, Why Rejected (specific rationale), Conditions for Reconsideration. Require at least 3 items — if fewer than 3 things were considered and rejected, the analysis wasn't thorough enough.
 
 **Implementation Notes:**
-- This is a nice-to-have, not urgent — each tool works fine independently
-- Start by extracting retry logic (most duplicated, highest value)
-- Keep tools independently runnable (shared lib is optional dependency)
-- Consider whether maintenance cost of shared lib exceeds duplication cost
-
----
-
-#### X3. Add Pre-commit Type and Lint Checks
-
-**Priority:** Low
-**Effort:** S
-**Impact:** Catches issues before commit; integrates with existing pre-commit hook
-
-**Current State:**
-The pre-commit hook validates markdown frontmatter and help skill sync but does not check Python code quality.
-
-**Recommendation:**
-Extend pre-commit hook or add `.pre-commit-config.yaml` with:
-- `ruff check` — Fast Python linting (already in dev deps)
-- `ruff format --check` — Formatting validation
-- `mypy` — Type checking (after X1)
-
-**Implementation Notes:**
-- Use the `pre-commit` framework rather than custom bash scripts
-- Configure to only check staged Python files (fast)
-- Keep existing markdown validation as-is
-
----
-
-### Category 6: Documentation & Operations (O)
-
-#### O1. Document Architectural Decisions (ADRs)
-
-**Priority:** Low
-**Effort:** S
-**Impact:** Prevents re-debating resolved decisions; helps new contributors understand "why"
-
-**Current State:**
-Key architectural decisions are embedded in CLAUDE.md comments but not formally documented:
-1. Why skills use nested directories but commands use flat files
-2. Why Python tools run from source via PYTHONPATH instead of being installed
-3. Why secrets are in Bitwarden instead of .env files
-4. Why no cross-plugin references exist
-
-**Recommendation:**
-Create `docs/adr/` directory with decision records:
-- `0001-skill-directory-structure.md`
-- `0002-python-tools-from-source.md`
-- `0003-bitwarden-secrets.md`
-- `0004-plugin-encapsulation.md`
-
-**Implementation Notes:**
-- Use lightweight ADR format (context, decision, consequences)
-- Reference from CLAUDE.md for discoverability
-- Not urgent — CLAUDE.md already captures most of this
+- Add structured template to RECOMMENDATIONS.md template
+- Add instruction: "Include at least 3 not-recommended items"
 
 ---
 
 ## Quick Wins
 
-Items achievable in < 2 hours each, high impact-to-effort ratio:
-
-1. **D1** — Tighten `google-genai>=0.1.0` to `>=1.0.0,<2.0.0` (5 minutes)
-2. **R4** — Extract parser namespace helper to eliminate 15 duplications (30 minutes)
-3. **D3** — Add logging to 2 swallowed exceptions in model_discovery.py (15 minutes)
-4. **A4** — Narrow `except Exception` in layout.py:57 to specific types (15 minutes)
-5. **D4** — Add pip caching to CI workflows (20 minutes)
-6. **A2** — Unify Python version requirement to >=3.10 (15 minutes)
+1. **S3** — Standardize phase sizing parameters (XS effort, eliminates confusion)
+2. **S4** — Replace token estimates with concrete heuristics (S effort, major accuracy improvement)
+3. **A2** — Define priority rubric (XS effort, critical for consistency)
+4. **T2** — Expand implement-plan allowed-tools (XS effort, may fix tool access)
+5. **U2** — Change implement-plan to PR-only default (XS effort, safety improvement)
+6. **R1** — Add append logic markers (XS effort, deterministic append)
+7. **R2** — Add testing circuit breaker (XS effort, prevents infinite loops)
+8. **R6** — Add allowed-tools to planning commands (XS effort, safety)
+9. **R7** — Add plan size limits (XS effort, prevents overwhelming executor)
+10. **R8** — Improve Not Recommended section (XS effort, quality)
 
 ---
 
 ## Strategic Initiatives
 
-Larger efforts requiring multi-phase execution:
-
-1. **T1+T2+T3+T4+T5+T6** — Close all test coverage gaps and enforce thresholds (~6,500 lines to cover)
-2. **R1+R2+R3** — Refactor 3 complexity hotspots (PromptGenerator, PositionResolver, CLI pipeline)
-3. **D2** — Add dependency lock files for reproducible builds
-4. **A1** — Implement checkpoint resume for visual-explainer
-5. **X2** — Consolidate shared patterns into common library
+1. **T1 + T2 + T3** — Fix implement-plan tool API and permissions (Critical, makes the command functional)
+2. **S1 + S2** — Unify IMPLEMENTATION_PLAN.md schema (Critical, enables consistent execution)
+3. **C1 + C2 + C3** — Context window management across entire pipeline (High, reliability)
+4. **U3 + U5** — Rollback and resume hardening (High, essential for long-running execution)
+5. **A1 + A3 + A4** — Analysis quality improvements (High, better recommendations)
 
 ---
 
 ## Not Recommended
 
-Items considered but rejected, with rationale:
+### NR1. Split implement-plan Into Separate Per-Phase Commands
 
-| Item | Rationale |
-|------|-----------|
-| Migrate to poetry/uv for dependency management | Current pyproject.toml + pip-tools approach is simpler and sufficient |
-| Add Docker support | Plugins run inside Claude Code's environment; containerization adds no value |
-| Add cross-plugin dependency injection | Plugins should remain independent; coupling would complicate marketplace installs |
-| Convert pre-commit hook to Python | Bash hook works, is fast, and the pre-commit framework would add a new dependency |
-| Add GraphQL API for plugin metadata | Over-engineering; marketplace.json is simple and effective |
-| Replace Rich with custom console output | Rich is well-maintained and provides significant value; replacing it wastes effort |
+**Why Considered:** Running one phase at a time would simplify state management and avoid context window pressure.
+**Why Rejected:** The orchestration loop is the right architecture — it just needs the state management fixed. Forcing users to manually invoke each phase loses the "run and walk away" value proposition. The state file approach (C2) solves the context problem without fragmenting the command.
+**Reconsider If:** Context window limits prove impossible to work around even with state files.
+
+### NR2. Merge create-plan and plan-improvements Into One Command
+
+**Why Considered:** Maintaining two planning commands that produce the same output format creates ongoing synchronization burden.
+**Why Rejected:** They serve genuinely different use cases — one is requirements-driven, the other is codebase-driven. A unified command would need complex mode switching that is harder to maintain than two focused commands. The shared schema (S1, S2) reduces the synchronization burden to acceptable levels.
+**Reconsider If:** A third planning command is proposed — at that point, extract the shared schema into a reference template file.
+
+### NR3. Add Real-Time Progress Streaming to implement-plan
+
+**Why Considered:** Users waiting 1-2 hours with no feedback is poor UX.
+**Why Rejected:** The TaskCreate/TaskUpdate mechanism already provides progress visibility. Adding streaming would require fundamental changes to the subagent architecture. The state file approach plus task list provides sufficient visibility.
+**Reconsider If:** Claude Code adds native progress reporting hooks.
 
 ---
 
-*Recommendations generated by Claude on 2026-02-16T18:45:00*
+*Recommendations generated by Claude on 2026-02-28T14:30:00*
