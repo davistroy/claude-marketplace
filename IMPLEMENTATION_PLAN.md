@@ -211,7 +211,7 @@ The marketplace.json file can also be used as a secondary source. But directory 
 
 #### 1.5 Fix Secrets Policy Violations
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** S8
 **Files Affected:**
 - `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
@@ -221,15 +221,15 @@ The marketplace.json file can also be used as a secondary source. But directory 
 Remove API key setup wizards that write keys directly to `.env` files. Replace with references to the `/unlock` skill as the primary path for loading secrets, per the global CLAUDE.md Bitwarden-first policy.
 
 **Tasks:**
-1. [ ] In `research-topic/SKILL.md`: locate the API key setup wizard section. Replace with: "API keys should be loaded via the `/unlock` skill (Bitwarden-first policy). If secrets are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files."
-2. [ ] In `visual-explainer/SKILL.md`: locate the API key setup wizard section. Apply the same replacement.
-3. [ ] In both files, retain the list of which API keys are needed (e.g., ANTHROPIC_API_KEY, OPENAI_API_KEY) but remove the code that writes them to `.env`
-4. [ ] Add a note: "See CLAUDE.md Secrets Management Policy for details."
+1. [x] In `research-topic/SKILL.md`: locate the API key setup wizard section. Replace with: "API keys should be loaded via the `/unlock` skill (Bitwarden-first policy). If secrets are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files."
+2. [x] In `visual-explainer/SKILL.md`: locate the API key setup wizard section. Apply the same replacement.
+3. [x] In both files, retain the list of which API keys are needed (e.g., ANTHROPIC_API_KEY, OPENAI_API_KEY) but remove the code that writes them to `.env`
+4. [x] Add a note: "See CLAUDE.md Secrets Management Policy for details."
 
 **Acceptance Criteria:**
-- [ ] Zero instances of writing API keys to `.env` files in any skill
-- [ ] Both skills reference `/unlock` as the primary secrets path
-- [ ] Required API key names are still documented (for user awareness)
+- [x] Zero instances of writing API keys to `.env` files in any skill
+- [x] Both skills reference `/unlock` as the primary secrets path
+- [x] Required API key names are still documented (for user awareness)
 
 ---
 
