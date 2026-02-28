@@ -1,26 +1,58 @@
 ---
 name: security-analysis
-description: Master skill for comprehensive security analysis. Identifies technology stack and delegates to specialized security sub-skills for deep vulnerability assessment.
-allowed-tools: Read, Glob, Grep, Write
+description: Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning
+allowed-tools: Read, Glob, Grep, Bash, WebSearch
 ---
 
 # Security Analysis Framework
 
-## Instructions
-You are the entry point for security vulnerability scanning and analysis. Your goal is to **Identify** the technology stack, **Scan** for vulnerabilities, **Assess** real-world risk, and **Remediate** with actionable solutions.
+Perform a comprehensive security vulnerability scan and analysis of the current project. Identifies the technology stack, scans for vulnerabilities in source code and dependencies, assesses real-world risk with context-aware analysis, and produces an actionable remediation roadmap.
+
+## Input Validation
+
+**Optional Arguments:**
+- `<path>` - Directory or file path to analyze (defaults to current working directory)
+- `--quick` - Surface scan only: technology detection, dependency audit, and top-level code patterns. Skips deep taint analysis and fuzzing methodology review.
+- `--dependencies-only` - Only check dependency vulnerabilities (skip source code analysis)
+
+**Usage:**
+```text
+/security-analysis                          # Full scan of current project
+/security-analysis src/                     # Scan specific directory
+/security-analysis --quick                  # Fast surface-level scan
+/security-analysis --dependencies-only      # Dependencies only
+```
+
+## Proactive Trigger Conditions
+
+Suggest this skill when:
+1. The user mentions security, vulnerabilities, CVEs, or audit
+2. After scaffolding a new project with `/scaffold-plugin` or similar
+3. Before a release, deployment, or merge to production
+4. When reviewing code that handles authentication, authorization, or user input
+5. When the user adds or updates dependencies (package.json, requirements.txt, etc.)
+6. After cloning or pulling a new/unfamiliar repository
+
+## Performance Expectations
+
+- **Quick scan (`--quick`):** 1-3 minutes. Covers technology detection, dependency audit, and surface-level code patterns.
+- **Full scan:** 5-15 minutes depending on codebase size. Includes deep taint analysis, data flow tracing, and comprehensive code review.
+- **Dependencies-only (`--dependencies-only`):** 1-2 minutes. Runs native audit tools and checks for known CVEs.
 
 ## Core Security Analysis Process
 
-### Phase 1: Discovery \u0026 Reconnaissance
-1. **Technology Stack Detection**: Identify languages, frameworks, and dependencies
-2. **Attack Surface Mapping**: Enumerate all entry points (APIs, forms, file uploads, etc.)
-3. **Dependency Inventory**: List all direct and transitive dependencies
-4. **Configuration Review**: Check for security-relevant configurations
+### Phase 1: Discovery and Reconnaissance
+
+1. **Technology Stack Detection**: Identify languages, frameworks, and dependencies by scanning for manifest files (package.json, requirements.txt, pom.xml, go.mod, Cargo.toml, etc.)
+2. **Attack Surface Mapping**: Enumerate all entry points (APIs, forms, file uploads, CLI arguments, environment variables)
+3. **Dependency Inventory**: List all direct and transitive dependencies with version numbers
+4. **Configuration Review**: Check for security-relevant configurations (CORS, CSP, auth settings)
 
 ### Phase 2: Vulnerability Scanning
 
 #### A. Static Code Analysis
-Scan source code for:
+
+Scan source code for OWASP Top 10 and common vulnerability patterns:
 - **Injection Vulnerabilities**: SQL, NoSQL, Command, LDAP, XPath, Template injection
 - **Broken Authentication**: Weak password policies, session fixation, credential storage
 - **Sensitive Data Exposure**: Hardcoded secrets, unencrypted data, logging sensitive info
@@ -30,41 +62,32 @@ Scan source code for:
 - **Cross-Site Scripting (XSS)**: Reflected, Stored, DOM-based
 - **Insecure Deserialization**: Unsafe object deserialization
 - **Using Components with Known Vulnerabilities**: Outdated dependencies
-- **Insufficient Logging \u0026 Monitoring**: Missing security event logging
+- **Insufficient Logging and Monitoring**: Missing security event logging
 
 #### B. Dependency Vulnerability Analysis
+
 **IMPORTANT**: Always run native security audit tools FIRST before web search for faster and more accurate results.
 
 For each dependency:
-1. **Extract Version Information**: From package manifests (package.json, requirements.txt, pom.xml, etc.)
-
+1. **Extract Version Information**: From package manifests
 2. **Run Native Security Audit Tools** (Primary Method):
-   - **Node.js/JavaScript**: `npm audit` or `npm audit --json` for detailed output
-   - **Python**: `pip-audit` or `safety check` for vulnerability scanning
-   - **Java/Maven**: `mvn dependency-check:check` or `mvn versions:display-dependency-updates`
+   - **Node.js/JavaScript**: `npm audit` or `npm audit --json`
+   - **Python**: `pip-audit` or `safety check`
+   - **Java/Maven**: `mvn dependency-check:check`
    - **Java/Gradle**: `./gradlew dependencyCheckAnalyze`
-   - **.NET**: `dotnet list package --vulnerable` or `dotnet list package --outdated`
-   - **PHP/Composer**: `composer audit` for security vulnerabilities
-   - **Ruby**: `bundle audit check` for known vulnerabilities
-   - **Rust**: `cargo audit` for RustSec advisories
-   - **Go**: `go list -m -u all` for updates, or use `govulncheck`
-   
+   - **.NET**: `dotnet list package --vulnerable`
+   - **PHP/Composer**: `composer audit`
+   - **Ruby**: `bundle audit check`
+   - **Rust**: `cargo audit`
+   - **Go**: `govulncheck ./...`
 3. **Parse Audit Results**: Extract CVE IDs, severity levels, and affected versions from tool output
-
-4. **Web Search for CVEs** (Secondary/Verification Method):
-   If native tools are unavailable or for additional verification:
-   - National Vulnerability Database (NVD)
-   - Snyk Vulnerability DB
-   - GitHub Security Advisories
-   - npm/PyPI/Maven/NuGet security advisories
-   
+4. **Web Search for CVEs** (Secondary/Verification Method): NVD, Snyk, GitHub Security Advisories
 5. **Check Latest Versions**: Compare against current stable releases
-
 6. **Assess Severity**: Use CVSS scores and exploit availability
-
 7. **Verify Patch Availability**: Check if fixes exist and are stable
 
 #### C. Context-Aware Analysis
+
 For each identified vulnerability:
 1. **Code Path Tracing**: Is the vulnerable code actually used?
 2. **Import Analysis**: Are vulnerable functions imported?
@@ -72,67 +95,55 @@ For each identified vulnerability:
 4. **Data Flow Analysis**: Does user input reach vulnerable code?
 5. **Environment Context**: Is this a dev-only or production dependency?
 
-### Phase 3: Advanced Vulnerability Discovery (Discovery over Checking)
+### Phase 3: Advanced Vulnerability Discovery
 
-**Logic**: Move beyond static pattern matching. Actively hunt for vulnerabilities using dynamic analysis, data flow tracing, and fuzzing methodologies.
+Skip this phase if `--quick` flag is set.
 
-#### A. Taint Analysis & Data Flow Tracing
-*   **Concept**: Trace data from "Sources" (user input, API responses, files) to "Sinks" (DB queries, HTML output, shell commands).
-*   **Action**:
-    1.  **Identify Sources**: Map all entry points (`req.body`, `argv`, `params`, `headers`).
-    2.  **Identify Sinks**: Map dangerous functions (`eval()`, `exec()`, `innerHTML`, `SQL execution`).
-    3.  **Trace Flow**: Manually or tool-assist trace if input reaches a sink without a "sanitizer" step.
-    4.  **Zero Tolerance**: If ANY user input reaches a sensitive sink without strict validation, flag as **CRITICAL**.
+#### A. Taint Analysis and Data Flow Tracing
+1. **Identify Sources**: Map all entry points (`req.body`, `argv`, `params`, `headers`)
+2. **Identify Sinks**: Map dangerous functions (`eval()`, `exec()`, `innerHTML`, `SQL execution`)
+3. **Trace Flow**: Trace if input reaches a sink without a sanitizer step
+4. **Zero Tolerance**: If ANY user input reaches a sensitive sink without strict validation, flag as CRITICAL
 
-#### B. Fuzzing & Property-Based Testing
-*   **Concept**: Bombard functions with massive amounts of random, malformed, or boundary-case data to trigger crashes or unexpected behaviors.
-*   **Action**:
-    1.  **Generative Fuzzing**: Use tools (like `Atheris` for Python, `Jazzer` for Java) to generate random inputs.
-    2.  **Structure-Aware Fuzzing**: Generate inputs that follow valid structures (JSON, XML) but contain malicious payloads.
-    3.  **Boundary Testing**: Specifically test empty strings, max integer values, unicode characters, and null bytes.
+#### B. Logic Abusability
+1. **Race Conditions**: Identify concurrent state updates (db transactions, file writes)
+2. **Business Logic**: Can you buy an item for $0? Can you access data ID+1?
+3. **State Manipulation**: Can you skip a step in a multi-step flow?
 
-#### C. Manual Logic Abusability
-*   **Concept**: Code may be secure syntactically but insecure logically (e.g., race conditions, price manipulation).
-*   **Action**:
-    1.  **Race Conditions**: Identify concurrent state updates (db transactions, file writes).
-    2.  **Business Logic**: Can you buy an item for $0? Can you access data ID+1?
-    3.  **State Manipulation**: Can you skip a step in a multi-step flow?
-
-#### D. Zero Tolerance Data Compromise Check
-*   **Mandate**: **Any** potential for data compromise (minor or major) must be flagged.
-*   **Checks**:
-    1.  **Leakage**: Are PII, secrets, or internal IDs exposed in logs, error messages, or API responses?
-    2.  **Integrity**: Can data be modified without authorization?
-    3.  **Availability**: Can a payload cause a crash or high resource consumption (DoS)?
+#### C. Data Compromise Check
+1. **Leakage**: Are PII, secrets, or internal IDs exposed in logs, error messages, or API responses?
+2. **Integrity**: Can data be modified without authorization?
+3. **Availability**: Can a payload cause a crash or high resource consumption (DoS)?
 
 ### Phase 4: Risk Assessment
 
 #### Severity Classification
+
 ```text
-🔴 CRITICAL (CVSS 9.0-10.0)
+CRITICAL (CVSS 9.0-10.0)
 - Remote code execution
 - Authentication bypass
 - SQL injection in production endpoints
 - Exposed secrets/credentials
 
-🟠 HIGH (CVSS 7.0-8.9)
+HIGH (CVSS 7.0-8.9)
 - Privilege escalation
 - Sensitive data exposure
 - XSS in authenticated areas
 - Known exploits available
 
-🟡 MEDIUM (CVSS 4.0-6.9)
+MEDIUM (CVSS 4.0-6.9)
 - CSRF vulnerabilities
 - Information disclosure
 - Weak cryptography
 - Outdated dependencies with patches available
 
-🔵 LOW (CVSS 0.1-3.9)
+LOW (CVSS 0.1-3.9)
 - Minor information leaks
 - Deprecated functions
 - Code quality issues with security implications
 
-⚪ INFO (CVSS 0.0)
+INFO (CVSS 0.0)
 - Security best practice recommendations
 - Hardening opportunities
 - Awareness items
@@ -165,183 +176,45 @@ For each identified vulnerability:
 
 #### Upgrade Guidance Template
 ```text
-📦 Package: [name]
-├─ Current Version: [x.y.z]
-├─ Vulnerable: YES
-├─ CVE: [CVE-YYYY-NNNNN]
-├─ Severity: [LEVEL]
-├─ Fixed In: [a.b.c]
-├─ Latest Stable: [p.q.r]
-├─ Breaking Changes: [YES/NO]
-├─ Migration Guide: [URL]
-└─ Recommendation: Upgrade to [version] - [reason]
+Package: [name]
+  Current Version: [x.y.z]
+  Vulnerable: YES
+  CVE: [CVE-YYYY-NNNNN]
+  Severity: [LEVEL]
+  Fixed In: [a.b.c]
+  Latest Stable: [p.q.r]
+  Breaking Changes: [YES/NO]
+  Migration Guide: [URL]
+  Recommendation: Upgrade to [version] - [reason]
 ```
 
 ## Technology-Specific Security Patterns
 
-### Node.js / JavaScript Security
-**Focus Areas**: Prototype pollution, RegEx DoS, dependency confusion, npm package hijacking
-**Key Checks**:
-- `eval()`, `Function()`, `vm.runInContext()` usage
-- Unsafe deserialization with `JSON.parse()` on user input
-- Command injection via `child_process.exec()`
-- Path traversal in file operations
-- Weak random number generation (`Math.random()`)
-- Missing helmet.js security headers
-- CORS misconfiguration
-- JWT token vulnerabilities (weak secrets, no expiration)
-*Refer to [node_security.md](node_security.md) for detailed patterns.*
+For detailed vulnerability signatures and check patterns by language/framework, refer to the reference files in the plugin's `references/` directory. The following summaries indicate key focus areas per stack:
 
-### Python Security
-**Focus Areas**: Pickle deserialization, SQL injection, SSTI, XML vulnerabilities
-**Key Checks**:
-- `eval()`, `exec()`, `compile()` with user input
-- Unsafe pickle/yaml deserialization
-- SQL injection in raw queries
-- Server-Side Template Injection (Jinja2, Django templates)
-- XML bomb attacks
-- Weak cryptography (MD5, SHA1 for passwords)
-- Path traversal in `open()` calls
-- Command injection via `os.system()`, `subprocess.shell=True`
-*Refer to [python_security.md](python_security.md) for detailed patterns.*
-
-### PHP Security
-**Focus Areas**: RCE, file inclusion, type juggling, deserialization
-**Key Checks**:
-- `eval()`, `assert()`, `create_function()` usage
-- Local/Remote File Inclusion (LFI/RFI)
-- SQL injection (especially with `mysql_*` functions)
-- Type juggling vulnerabilities (`==` vs `===`)
-- Unsafe deserialization (`unserialize()`)
-- Command injection via `exec()`, `shell_exec()`, `system()`
-- XXE in `simplexml_load_string()`
-- Session fixation vulnerabilities
-*Refer to [php_security.md](php_security.md) for detailed patterns.*
-
-### Go Security
-**Focus Areas**: SQL injection, command injection, race conditions, unsafe reflection
-**Key Checks**:
-- SQL injection in database queries without parameterization
-- Command injection via `exec.Command()` with user input
-- Race conditions in concurrent code
-- Unsafe use of `reflect` package
-- Path traversal in file operations
-- Weak random number generation (`math/rand` vs `crypto/rand`)
-- Missing input validation
-- Improper error handling exposing sensitive info
-*Refer to [go_security.md](go_security.md) for detailed patterns.*
-
-### Java / Kotlin Security
-**Focus Areas**: Deserialization, XXE, SSRF, Spring vulnerabilities
-**Key Checks**:
-- Unsafe deserialization (`ObjectInputStream`)
-- XXE in XML parsers
-- SQL injection in JDBC queries
-- SSRF vulnerabilities
-- Spring Expression Language (SpEL) injection
-- Insecure random number generation (`Random` vs `SecureRandom`)
-- Path traversal in file operations
-- Weak cryptography (DES, MD5)
-*Refer to [java_security.md](java_security.md) for detailed patterns.*
-
-### .NET / C# Security
-**Focus Areas**: Deserialization, SQL injection, XSS, CSRF
-**Key Checks**:
-- Unsafe deserialization (BinaryFormatter, NetDataContractSerializer)
-- SQL injection in Entity Framework raw queries
-- XSS in Razor views without encoding
-- CSRF token validation
-- Weak cryptography (MD5, SHA1)
-- Path traversal in File.Open()
-- Command injection via Process.Start()
-- Missing authentication/authorization attributes
-*Refer to [dotnet_security.md](dotnet_security.md) for detailed patterns.*
-
-### Rust Security
-**Focus Areas**: Unsafe code blocks, memory safety, dependency vulnerabilities
-**Key Checks**:
-- Unsafe code blocks without proper justification
-- Potential memory leaks in unsafe code
-- SQL injection in database queries
-- Command injection via `std::process::Command`
-- Weak random number generation
-- Dependency vulnerabilities (cargo audit)
-- Integer overflow in arithmetic operations
-- Path traversal in file operations
-*Refer to [rust_security.md](rust_security.md) for detailed patterns.*
-
-### React / Frontend Security
-**Focus Areas**: XSS, CSRF, sensitive data exposure, dependency vulnerabilities
-**Key Checks**:
-- XSS via `dangerouslySetInnerHTML`
-- Sensitive data in localStorage/sessionStorage
-- API keys in frontend code
-- Missing CSRF tokens
-- Insecure HTTP requests (not using HTTPS)
-- Dependency vulnerabilities (npm audit)
-- Weak authentication token storage
-- Missing Content Security Policy
-*Refer to [react_security.md](react_security.md) for detailed patterns.*
-
-### React Native / Mobile Security
-**Focus Areas**: Insecure storage, weak crypto, API key exposure, deep linking
-**Key Checks**:
-- Sensitive data in AsyncStorage without encryption
-- Hardcoded API keys and secrets
-- Insecure deep linking
-- Missing certificate pinning
-- Weak cryptography
-- Jailbreak/root detection
-- Insecure inter-process communication
-- Dependency vulnerabilities
-*Refer to [react_native_security.md](react_native_security.md) for detailed patterns.*
-
-### Vue.js Security
-**Focus Areas**: XSS, template injection, dependency vulnerabilities
-**Key Checks**:
-- XSS via `v-html` directive
-- Template injection vulnerabilities
-- Sensitive data exposure in Vuex store
-- Missing CSRF protection
-- Insecure API communication
-- Dependency vulnerabilities
-- Weak authentication implementation
-*Refer to [vue_security.md](vue_security.md) for detailed patterns.*
-
-### NestJS Security
-**Focus Areas**: Injection attacks, authentication bypass, authorization flaws
-**Key Checks**:
-- SQL/NoSQL injection in TypeORM/Mongoose queries
-- Missing authentication guards
-- Broken authorization (missing role checks)
-- CORS misconfiguration
-- Missing rate limiting
-- Insecure JWT configuration
-- Dependency vulnerabilities
-- Missing input validation (class-validator)
-*Refer to [nest_security.md](nest_security.md) for detailed patterns.*
-
-### Next.js Security
-**Focus Areas**: Server-side vulnerabilities, API route security, SSR/SSG security
-**Key Checks**:
-- API route authentication/authorization
-- Server-side injection vulnerabilities
-- Sensitive data in getServerSideProps
-- Missing CSRF protection
-- Insecure environment variable handling
-- XSS in server-rendered content
-- Dependency vulnerabilities
-*Refer to [next_security.md](next_security.md) for detailed patterns.*
+| Technology | Key Focus Areas |
+|-----------|----------------|
+| Node.js/JavaScript | Prototype pollution, RegEx DoS, dependency confusion, npm hijacking |
+| Python | Pickle deserialization, SQL injection, SSTI, XML vulnerabilities |
+| PHP | RCE, file inclusion, type juggling, deserialization |
+| Go | SQL injection, command injection, race conditions, unsafe reflection |
+| Java/Kotlin | Deserialization, XXE, SSRF, Spring vulnerabilities |
+| .NET/C# | Deserialization, SQL injection, XSS, CSRF |
+| Rust | Unsafe code blocks, memory safety, dependency vulnerabilities |
+| React/Frontend | XSS, CSRF, sensitive data exposure, dependency vulnerabilities |
+| React Native/Mobile | Insecure storage, weak crypto, API key exposure, deep linking |
+| Vue.js | XSS via v-html, template injection, dependency vulnerabilities |
+| NestJS | Injection attacks, authentication bypass, authorization flaws |
+| Next.js | Server-side vulnerabilities, API route security, SSR/SSG security |
 
 ## Web Search Strategy for Vulnerability Intelligence
 
 ### Required Searches
-For each dependency, perform:
+For each dependency with suspected vulnerabilities, perform:
 1. **CVE Search**: `"[package-name]" CVE [current-year] [previous-year]`
 2. **Security Advisory**: `"[package-name]" security advisory vulnerability`
 3. **Version Check**: `"[package-name]" latest stable version`
 4. **Known Exploits**: `"[package-name]" exploit proof of concept`
-5. **Changelog Review**: `"[package-name]" changelog security fix`
 
 ### Trusted Sources
 - NVD (nvd.nist.gov)
@@ -349,9 +222,10 @@ For each dependency, perform:
 - GitHub Security Advisories
 - npm/PyPI/Maven/NuGet security pages
 - OWASP resources
-- Vendor security bulletins
 
-## Output Format
+## Output
+
+**Output Location:** Write security report to `reports/security-analysis-[YYYYMMDD-HHMMSS].md`
 
 ### Security Report Structure
 ```markdown
@@ -359,6 +233,7 @@ For each dependency, perform:
 Generated: [timestamp]
 Project: [name]
 Scan Scope: [files/dependencies scanned]
+Scan Mode: [Full / Quick / Dependencies-Only]
 
 ## Executive Summary
 - Total Vulnerabilities: [count]
@@ -399,6 +274,17 @@ Scan Scope: [files/dependencies scanned]
 [Links to CVE databases, security advisories, documentation]
 ```
 
+## Error Handling
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| No source files found | Empty directory or path doesn't exist | Verify the target path contains source code; check for typos |
+| Project too large | Thousands of files causing timeouts | Use `--quick` for surface scan, or specify a subdirectory path to narrow scope |
+| Audit tool not installed | `npm audit`, `pip-audit`, etc. not available | Report which tool is needed and provide installation command; fall back to web search for CVEs |
+| Permission denied | Cannot read files in target directory | Report the inaccessible paths; suggest checking file permissions |
+| No package manifest found | No package.json, requirements.txt, etc. | Skip dependency analysis; focus on static code analysis only |
+| Network unavailable | Cannot reach CVE databases for web search | Use only local audit tools and static analysis; note that CVE verification was skipped |
+
 ## Best Practices
 - Always verify vulnerability information from multiple sources
 - Consider the specific context of the application
@@ -407,6 +293,3 @@ Scan Scope: [files/dependencies scanned]
 - Link to official documentation
 - Respect responsible disclosure practices
 - Focus on practical, implementable solutions
-
-## References
-For advanced security patterns and vulnerability signatures, see [security_reference.md](security_reference.md).

@@ -11,6 +11,7 @@ Create a new Claude Code plugin with the proper directory structure, configurati
 
 **Optional Arguments:**
 - `<plugin-name>` - Name for the new plugin (kebab-case ending in `-plugin`)
+- `--dry-run` - Show the directory structure and file list that would be created without creating any files
 
 **Validation:**
 If arguments are missing, the command will prompt interactively.
@@ -19,6 +20,7 @@ Plugin name must be:
 - kebab-case format ending in `-plugin` (e.g., `my-new-plugin`)
 - Unique (not already exist in `plugins/` directory)
 - Descriptive but concise
+- Contain only lowercase letters, numbers, and hyphens (no special characters, no spaces)
 
 ## Instructions
 
@@ -36,7 +38,8 @@ What is the plugin name? (kebab-case ending in '-plugin', e.g., "data-tools-plug
 **Validate:**
 - Must be kebab-case: lowercase letters, numbers, hyphens only
 - Must end with `-plugin`
-- Must not already exist in `plugins/` directory
+- Must not contain special characters (underscores, dots, spaces)
+- Must not already exist in `plugins/` directory (scan with Glob)
 
 If invalid:
 ```text
@@ -83,7 +86,33 @@ Enter tags for the plugin (comma-separated, e.g., "automation,cli,tools"):
 
 Parse into array format for JSON.
 
-### Phase 2: Create Directory Structure
+### Phase 2: Dry-Run Check
+
+If `--dry-run` was specified, display the planned directory structure and file list, then stop without creating anything:
+
+```text
+----------------------------------------------
+Dry Run: Plugin Structure Preview
+----------------------------------------------
+
+Would create:
+  plugins/[plugin-name]/
+    .claude-plugin/
+      plugin.json
+    commands/                (empty directory)
+    skills/
+      help/
+        SKILL.md
+
+Would update:
+  .claude-plugin/marketplace.json
+
+No files were created or modified.
+```
+
+If not dry-run, proceed to Phase 3.
+
+### Phase 3: Create Directory Structure
 
 Create the following directory structure:
 
@@ -100,17 +129,23 @@ plugins/[plugin-name]/
 
 **CRITICAL:** Skills require a nested directory structure with `SKILL.md` files (not flat `.md` files). This is different from commands which use flat files.
 
+| Component | Correct Path | Wrong Path |
+|-----------|-------------|------------|
+| Help skill | `skills/help/SKILL.md` | `skills/help.md` |
+| Any skill | `skills/[name]/SKILL.md` | `skills/[name].md` |
+| Commands | `commands/[name].md` | `commands/[name]/command.md` |
+
 **Steps:**
 
 1. Create main plugin directory: `plugins/[plugin-name]/`
 2. Create `.claude-plugin/` subdirectory
 3. Create `commands/` subdirectory
-4. Create `skills/` subdirectory
+4. Create `skills/help/` subdirectory (nested — required for skill discovery)
 5. Optionally create `references/` subdirectory
 
-### Phase 3: Generate Configuration Files
+### Phase 4: Generate Configuration Files
 
-#### 3.1 Create plugin.json
+#### 4.1 Create plugin.json
 
 Generate `plugins/[plugin-name]/.claude-plugin/plugin.json`:
 
@@ -126,16 +161,19 @@ Generate `plugins/[plugin-name]/.claude-plugin/plugin.json`:
   "homepage": "https://github.com/davistroy/claude-marketplace",
   "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
-  "keywords": ["[parsed tags array]"]
+  "keywords": ["tag1", "tag2", "tag3"]
 }
 ```
 
-#### 3.2 Create Starter help Skill
+**Note:** The `keywords` field must be a valid JSON array of strings. Each tag from the user's comma-separated input becomes a separate string element.
+
+#### 4.2 Create Starter help Skill
 
 Generate `plugins/[plugin-name]/skills/help/SKILL.md`:
 
 **CRITICAL:** Skills REQUIRE a `name` field in frontmatter. Without it, the skill will NOT be discovered.
 
+<!-- BEGIN EMBEDDED TEMPLATE: help skill -->
 ```markdown
 ---
 name: help
@@ -217,14 +255,15 @@ Available skills:
   /help
 \`\`\`
 ```
+<!-- END EMBEDDED TEMPLATE: help skill -->
 
-### Phase 4: Update Marketplace Registry
+### Phase 5: Update Marketplace Registry
 
-#### 4.1 Read Current marketplace.json
+#### 5.1 Read Current marketplace.json
 
 Read `.claude-plugin/marketplace.json`
 
-#### 4.2 Add New Plugin Entry
+#### 5.2 Add New Plugin Entry
 
 Add to the `plugins` array:
 
@@ -235,15 +274,15 @@ Add to the `plugins` array:
   "description": "[user-provided description]",
   "version": "1.0.0",
   "category": "[selected category]",
-  "tags": ["[parsed tags array]"]
+  "tags": ["tag1", "tag2", "tag3"]
 }
 ```
 
-#### 4.3 Write Updated marketplace.json
+#### 5.3 Write Updated marketplace.json
 
 Save the updated JSON with proper formatting.
 
-### Phase 5: Report Results
+### Phase 6: Report Results
 
 Display:
 ```text
@@ -272,16 +311,14 @@ Updated:
    /new-skill
 
 3. Or manually create in:
-   - Commands: plugins/[plugin-name]/commands/
-   - Skills: plugins/[plugin-name]/skills/[name]/SKILL.md
+   - Commands: plugins/[plugin-name]/commands/my-command.md
+   - Skills: plugins/[plugin-name]/skills/my-skill/SKILL.md
+     (skills MUST use nested directories with SKILL.md)
 
 4. After adding commands/skills, update the plugin's `skills/help/SKILL.md` with new entries
 
-5. Update README.md with plugin information
-
-6. Add entry to CHANGELOG.md:
-   ### Added
-   - New [plugin-name] plugin for [description]
+5. Validate the plugin:
+   /validate-plugin [plugin-name]
 
 **Useful Commands:**
 - /validate-plugin [plugin-name]  - Validate plugin structure
@@ -357,41 +394,46 @@ Created structure:
 Updated:
   .claude-plugin/marketplace.json  [UPDATED]
 
-**Next Steps:**
-
-1. Add your first command:
-   /new-command
-
-2. Or manually create commands in:
-   plugins/api-client-plugin/commands/
-
-3. After adding commands, update the plugin's `skills/help/SKILL.md` with new entries
-
 ...
 ```
 
 ```yaml
-User: /scaffold-plugin testing-tools-plugin
+User: /scaffold-plugin testing-tools-plugin --dry-run
 
 Claude:
-Provide a brief description for the plugin:
+----------------------------------------------
+Dry Run: Plugin Structure Preview
+----------------------------------------------
 
-User: Automated testing utilities and test generation tools
+Would create:
+  plugins/testing-tools-plugin/
+    .claude-plugin/
+      plugin.json
+    commands/                (empty directory)
+    skills/
+      help/
+        SKILL.md
 
-...
+Would update:
+  .claude-plugin/marketplace.json
+
+No files were created or modified.
 ```
 
 ## Error Handling
 
-- **Plugin already exists:** Report conflict and suggest checking existing plugin
-- **Invalid name format:** Explain naming requirements with examples
-- **marketplace.json parse error:** Report error and suggest manual fix
-- **Write permission denied:** Report error and suggest checking permissions
-- **Missing marketplace.json:** Report error and suggest creating manually
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| Plugin already exists | Directory `plugins/[name]/` already present | Report conflict, suggest checking existing plugin or choosing different name |
+| Invalid name format | Name contains special characters, spaces, or doesn't end in `-plugin` | Explain naming requirements with valid examples |
+| marketplace.json parse error | Malformed JSON in marketplace config | Report error, show JSON parse error details, suggest manual fix |
+| Write permission denied | File system permissions prevent creation | Report error and suggest checking directory permissions |
+| Missing marketplace.json | `.claude-plugin/marketplace.json` does not exist | Report error, provide instructions to create it manually |
+| Disk full | Cannot write files | Report the OS error and suggest freeing disk space |
 
 ## Related Commands
 
-- `/new-command` — Add a new command to the scaffolded plugin
-- `/new-skill` — Add a new skill with proper nested directory structure
-- `/validate-plugin` — Verify plugin structure after scaffolding
-- `/bump-version` — Update plugin version numbers
+- `/new-command` -- Add a new command to the scaffolded plugin
+- `/new-skill` -- Add a new skill with proper nested directory structure
+- `/validate-plugin` -- Verify plugin structure after scaffolding
+- `/bump-version` -- Update plugin version numbers

@@ -265,7 +265,7 @@ Remove API key setup wizards that write keys directly to `.env` files. Replace w
 
 #### 2.1 Rewrite `plan-next.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R1
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-next.md` (modify)
@@ -299,7 +299,7 @@ This is the highest-value rewrite. A working plan-next command closes the loop o
 
 #### 2.2 Rewrite `setup-statusline.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R2
 **Files Affected:**
 - `plugins/personal-plugin/commands/setup-statusline.md` (modify)
@@ -333,7 +333,7 @@ The PowerShell script content itself is fine and does not need to change. The is
 
 #### 2.3 Overhaul `consolidate-documents.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R3
 **Files Affected:**
 - `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
@@ -394,7 +394,7 @@ This is the most complex overhaul in terms of design decisions. The contradictor
 
 #### 3.1 Fix `define-questions.md` Phantom Schema References
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R4
 **Files Affected:**
 - `plugins/personal-plugin/commands/define-questions.md` (modify)
@@ -403,25 +403,25 @@ This is the most complex overhaul in terms of design decisions. The contradictor
 Replace references to non-existent `schemas/questions.json` with inline validation rules. Standardize field names and add missing fields to ensure JSON and CSV formats are consistent.
 
 **Tasks:**
-1. [ ] Remove all references to `schemas/questions.json` or `schemas/` directory
-2. [ ] Add inline validation rules section: define the expected JSON schema directly in the command file with required fields, types, and constraints
-3. [ ] Standardize on one field name: use `question` (not `text`) across all output formats
-4. [ ] Add `priority` field to JSON schema example to match CSV format (both formats should have the same fields)
-5. [ ] Add error handling section: file not found, empty document, binary file, no questions found, document too large for context
-6. [ ] Add "Related Commands" section linking to `/ask-questions` and `/finish-document` (if not already added in Phase 1)
+1. [x] Remove all references to `schemas/questions.json` or `schemas/` directory
+2. [x] Add inline validation rules section: define the expected JSON schema directly in the command file with required fields, types, and constraints
+3. [x] Standardize on one field name: use `question` (not `text`) across all output formats
+4. [x] Add `priority` field to JSON schema example to match CSV format (both formats should have the same fields)
+5. [x] Add error handling section: file not found, empty document, binary file, no questions found, document too large for context
+6. [x] Add "Related Commands" section linking to `/ask-questions` and `/finish-document` (if not already added in Phase 1)
 
 **Acceptance Criteria:**
-- [ ] Zero references to `schemas/` directory
-- [ ] Inline validation rules present in the command
-- [ ] Field names consistent between JSON and CSV formats
-- [ ] `priority` field present in both formats
-- [ ] Error handling section present
+- [x] Zero references to `schemas/` directory
+- [x] Inline validation rules present in the command
+- [x] Field names consistent between JSON and CSV formats
+- [x] `priority` field present in both formats
+- [x] Error handling section present
 
 ---
 
 #### 3.2 Fix `finish-document.md` Phantom References and Resume Contradiction
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R5
 **Files Affected:**
 - `plugins/personal-plugin/commands/finish-document.md` (modify)
@@ -430,24 +430,24 @@ Replace references to non-existent `schemas/questions.json` with inline validati
 Resolve phantom schema references (same approach as 3.1), fix the contradictory resume mechanism, add bounds checking for navigation, and expand error handling.
 
 **Tasks:**
-1. [ ] Remove all `schemas/` directory references. Add inline validation rules matching the approach in define-questions (work item 3.1)
-2. [ ] Pick one resume mechanism: auto-detect unanswered questions from the JSON file (recommended). Remove the contradictory explicit flag approach. Document the chosen mechanism clearly.
-3. [ ] Add bounds checking for `go to [N]` navigation: "Validate that N is within the range of questions (1 to total). If out of bounds, display available range and reprompt."
-4. [ ] Expand error handling section: questions file not found, questions file has no unanswered items, source document not found, source document is read-only, question index out of bounds, malformed JSON in questions file
-5. [ ] Add performance guidance: "For documents with 50+ questions, process in batches of 10. Show progress indicator."
+1. [x] Remove all `schemas/` directory references. Add inline validation rules matching the approach in define-questions (work item 3.1)
+2. [x] Pick one resume mechanism: auto-detect unanswered questions from the JSON file (recommended). Remove the contradictory explicit flag approach. Document the chosen mechanism clearly.
+3. [x] Add bounds checking for `go to [N]` navigation: "Validate that N is within the range of questions (1 to total). If out of bounds, display available range and reprompt."
+4. [x] Expand error handling section: questions file not found, questions file has no unanswered items, source document not found, source document is read-only, question index out of bounds, malformed JSON in questions file
+5. [x] Add performance guidance: "For documents with 50+ questions, process in batches of 10. Show progress indicator."
 
 **Acceptance Criteria:**
-- [ ] Zero references to `schemas/` directory
-- [ ] Single, clear resume mechanism (no contradiction)
-- [ ] Bounds checking for question navigation
-- [ ] Error handling section with 6+ failure modes
-- [ ] Performance guidance for large question sets
+- [x] Zero references to `schemas/` directory
+- [x] Single, clear resume mechanism (no contradiction)
+- [x] Bounds checking for question navigation
+- [x] Error handling section with 6+ failure modes
+- [x] Performance guidance for large question sets
 
 ---
 
 #### 3.3 Restructure `review-arch.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R6
 **Files Affected:**
 - `plugins/personal-plugin/commands/review-arch.md` (modify)
@@ -456,25 +456,25 @@ Resolve phantom schema references (same approach as 3.1), fix the contradictory 
 Rewrite assessment dimensions as imperative tasks (matching plan-improvements style). Add structured output template. Define T-shirt sizes. Add examples. Move read-only guardrail to top.
 
 **Tasks:**
-1. [ ] Move "DO NOT MAKE ANY CHANGES TO FILES" guardrail from wherever it is to the top of the file, immediately after frontmatter, before any instructions
-2. [ ] Rewrite assessment dimensions from descriptive/question format to imperative task-based format. For example: "Trace the 3 most common user workflows..." instead of "Consider the usability of..."
-3. [ ] Add structured output template: "## Executive Summary" (2-3 paragraphs), "## Architecture Scorecard" (table with dimensions and ratings), "## Findings" (numbered, severity-tagged), "## Remediation Roadmap" (prioritized list with T-shirt sizes)
-4. [ ] Define T-shirt sizes with standard S/M/L table matching plan-improvements complexity scale
-5. [ ] Add examples section: show a sample scorecard table and 2-3 sample findings with proper formatting
-6. [ ] Add error handling section: empty project, project too large for context, no source code found
+1. [x] Move "DO NOT MAKE ANY CHANGES TO FILES" guardrail from wherever it is to the top of the file, immediately after frontmatter, before any instructions
+2. [x] Rewrite assessment dimensions from descriptive/question format to imperative task-based format. For example: "Trace the 3 most common user workflows..." instead of "Consider the usability of..."
+3. [x] Add structured output template: "## Executive Summary" (2-3 paragraphs), "## Architecture Scorecard" (table with dimensions and ratings), "## Findings" (numbered, severity-tagged), "## Remediation Roadmap" (prioritized list with T-shirt sizes)
+4. [x] Define T-shirt sizes with standard S/M/L table matching plan-improvements complexity scale
+5. [x] Add examples section: show a sample scorecard table and 2-3 sample findings with proper formatting
+6. [x] Add error handling section: empty project, project too large for context, no source code found
 
 **Acceptance Criteria:**
-- [ ] Read-only guardrail is at the top of the file
-- [ ] Assessment dimensions use imperative tasks, not questions
-- [ ] Structured output template with 4 sections
-- [ ] T-shirt size definitions present
-- [ ] Examples section present
+- [x] Read-only guardrail is at the top of the file
+- [x] Assessment dimensions use imperative tasks, not questions
+- [x] Structured output template with 4 sections
+- [x] T-shirt size definitions present
+- [x] Examples section present
 
 ---
 
 #### 3.4 Rethink `check-updates.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R7
 **Files Affected:**
 - `plugins/personal-plugin/commands/check-updates.md` (modify)
@@ -483,20 +483,20 @@ Rewrite assessment dimensions as imperative tasks (matching plan-improvements st
 Either make check-updates a true remote check (fetching latest marketplace.json from GitHub) or reframe it honestly as a "version consistency audit". Remove misleading "Updates Available" language if keeping local-only. Add error handling.
 
 **Tasks:**
-1. [ ] Decide approach: implement true remote check using `gh api` to fetch the latest `marketplace.json` from the `davistroy/claude-marketplace` repository, comparing remote versions against locally installed versions
-2. [ ] If remote check approach: add `gh api repos/davistroy/claude-marketplace/contents/.claude-plugin/marketplace.json` call to fetch remote version data. Compare remote `version` fields against local `plugins/*/. claude-plugin/plugin.json` versions.
-3. [ ] Remove misleading "Updates Available" language if the command cannot actually check remote versions. Replace with "Version Consistency Report" if local-only.
-4. [ ] Add proper error handling section: GitHub API unavailable, no network connection, marketplace not configured, invalid version format, local plugin not in marketplace
-5. [ ] Add output format: table showing plugin name, local version, remote version (or N/A), status (up-to-date, update available, local-only)
+1. [x] Decide approach: implement true remote check using `gh api` to fetch the latest `marketplace.json` from the `davistroy/claude-marketplace` repository, comparing remote versions against locally installed versions
+2. [x] If remote check approach: add `gh api repos/davistroy/claude-marketplace/contents/.claude-plugin/marketplace.json` call to fetch remote version data. Compare remote `version` fields against local `plugins/*/. claude-plugin/plugin.json` versions.
+3. [x] Remove misleading "Updates Available" language if the command cannot actually check remote versions. Replace with "Version Consistency Report" if local-only.
+4. [x] Add proper error handling section: GitHub API unavailable, no network connection, marketplace not configured, invalid version format, local plugin not in marketplace
+5. [x] Add output format: table showing plugin name, local version, remote version (or N/A), status (up-to-date, update available, local-only)
 
 **Acceptance Criteria:**
-- [ ] Command either checks remote versions or is honestly labeled as local-only
-- [ ] No misleading "Updates Available" language if local-only
-- [ ] Error handling section present
-- [ ] Clear output format defined
+- [x] Command either checks remote versions or is honestly labeled as local-only
+- [x] No misleading "Updates Available" language if local-only
+- [x] Error handling section present
+- [x] Clear output format defined
 
 **Notes:**
-The remote check approach is preferred since the entire point of this command is to know if updates exist. A local-only version consistency audit is a fallback if remote access proves unreliable.
+The remote check approach is preferred since the entire point of this command is to know if updates exist. A local-only version consistency audit is a fallback if remote access proves unreliable. **Decision taken:** Implemented remote check as primary with graceful local-only fallback when `gh` is unavailable or network fails.
 
 ---
 
@@ -533,7 +533,7 @@ The remote check approach is preferred since the entire point of this command is
 
 #### 4.1 Fix `scaffold-plugin.md` Correctness Bug
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R8
 **Files Affected:**
 - `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
@@ -560,7 +560,7 @@ Fix the bug where scaffold-plugin outputs `skills/help.md` instead of the correc
 
 #### 4.2 Improve `convert-hooks.md` Honesty
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R9
 **Files Affected:**
 - `plugins/personal-plugin/commands/convert-hooks.md` (modify)
@@ -586,7 +586,7 @@ Add prominent warning about conversion limitations, add concrete before/after ex
 
 #### 4.3 Expand `convert-markdown.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R10
 **Files Affected:**
 - `plugins/personal-plugin/commands/convert-markdown.md` (modify)
@@ -611,7 +611,7 @@ Either make the pre-conversion analysis step useful (by customizing pandoc flags
 
 #### 4.4 Fix `new-command.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R11
 **Files Affected:**
 - `plugins/personal-plugin/commands/new-command.md` (modify)
@@ -637,7 +637,7 @@ Remove dead script references (verify Phase 1 cleanup), add plugin target parame
 
 #### 4.5 Overhaul `security-analysis` Skill
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R12
 **Files Affected:**
 - `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
