@@ -37,14 +37,14 @@ COMMANDS
 | /consolidate-documents | Analyze multiple document variations and synthesize a superior consolidated... |
 | /convert-hooks | Convert plugin hook bash scripts to PowerShell for Windows compatibility |
 | /convert-markdown | Convert a markdown file to a nicely formatted Microsoft Word document |
-| /create-plan | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD,... |
+| /create-plan | Generate IMPLEMENTATION_PLAN.md from requirements docs with codebase recon and scope confirmation |
 | /define-questions | Extract questions and open items from documents to JSON |
 | /develop-image-prompt | Generate detailed image generator prompts from content, optimized for 11x17... |
 | /finish-document | Extract questions from a document, answer them interactively, and update the... |
-| /implement-plan | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic... |
+| /implement-plan | Execute IMPLEMENTATION_PLAN.md via Agent tool with state file resume, rollback, and quality gates |
 | /new-command | Generate a new command file from a template with proper structure and... |
 | /new-skill | Generate a new skill file with proper nested directory structure and required... |
-| /plan-improvements | Analyze codebase and generate prioritized improvement recommendations with... |
+| /plan-improvements | Analyze codebase with sampling strategy and generate prioritized recommendations with phased plan |
 | /plan-next | Analyze repo and recommend the next logical action |
 | /remove-ip | Sanitize documents by removing company identifiers and non-public... |
 | /review-arch | Quick architectural audit with technical debt assessment (read-only, no... |
@@ -200,14 +200,23 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /create-plan
-**Description:** Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs)
-**Arguments:** [<document-paths>] [--output <path>] [--phases <n>] [--verbose]
+**Description:** Generate IMPLEMENTATION_PLAN.md from requirements docs with codebase reconnaissance and scope confirmation
+**Arguments:** [<document-paths>] [--output <path>] [--phases <n>] [--max-phases <n>] [--verbose]
 **Output:** IMPLEMENTATION_PLAN.md in repository root
+**Features:**
+- Codebase reconnaissance: surveys tech stack, test infrastructure, and existing features before planning
+- Scope confirmation checkpoint: presents feature list, phase grouping, and assumptions for user approval before generating
+- Append logic: detects existing plan and appends new phases with renumbering (uses machine-readable markers)
+- Standardized schema: unified work item format with Status, Tasks, Acceptance Criteria, and Notes fields
+- Concrete sizing: complexity scale (S/M/L) using file count and LOC, not token estimates
+- Plan size limits: max 8 phases (configurable via --max-phases), max 6 items per phase
+- allowed-tools: Read, Glob, Grep, Write, Edit, Agent
 **Example:**
 ```text
 /create-plan                              # Auto-discover documents
 /create-plan PRD.md TDD.md               # Use specific documents
 /create-plan --phases 5                   # Target 5 phases
+/create-plan --max-phases 10             # Allow up to 10 phases
 ```
 
 ---
@@ -251,12 +260,27 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /implement-plan
-**Description:** Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing, documentation, and git workflow
-**Arguments:** None required
-**Output:** Updates IMPLEMENTATION_PLAN.md, PROGRESS.md, LEARNINGS.md; creates and merges PR
+**Description:** Execute IMPLEMENTATION_PLAN.md via Agent tool with state file resume, rollback, and quality gates
+**Arguments:** [--input <path>] [--auto-merge] [--pause-between-phases] [--progress]
+**Output:** Updates IMPLEMENTATION_PLAN.md status fields; creates PR (merge only with --auto-merge)
+**Features:**
+- Agent tool API: subagents launched via Agent tool with proper prompt syntax
+- Selective git staging: stages only files listed in work item's Files Affected (no git add -A)
+- PR-only default: creates PR but does not merge unless --auto-merge is set
+- State file resume: persists progress to .implement-plan-state.json; resumes from last incomplete item on restart
+- Rollback/checkpoint: records commit SHAs after each successful test; offers revert on unfixable failures
+- Phase boundary quality gates: validates completion checklist between phases; optional pause with --pause-between-phases
+- Testing circuit breaker: stops after 3 fix-and-rerun cycles; offers revert, skip, or manual intervention
+- Partial completion reporting: outputs status report on all exit paths (normal, interrupt, error)
+- Project context: extracts tech stack and conventions from CLAUDE.md for subagent prompts
+- PROGRESS.md optional: only generated/updated if file exists or --progress flag is set
 **Example:**
 ```text
-/implement-plan
+/implement-plan                                    # Execute default plan file
+/implement-plan --input docs/plan.md               # Use custom plan path
+/implement-plan --auto-merge                       # Merge PR after completion
+/implement-plan --pause-between-phases             # Confirm before each phase
+/implement-plan --input plan.md --auto-merge       # Custom path + auto-merge
 ```
 
 ---
@@ -289,12 +313,25 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /plan-improvements
-**Description:** Analyze codebase and generate prioritized improvement recommendations with...
-**Arguments:** None required
-**Output:** Generated output file
+**Description:** Analyze codebase with sampling strategy and generate prioritized recommendations with phased implementation plan
+**Arguments:** [--recommendations-only | --no-plan] [--max-phases <n>]
+**Output:** RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md (or RECOMMENDATIONS.md only with --recommendations-only)
+**Features:**
+- Sampling strategy: context-aware file reading for large codebases (full read <100 files, sampling for larger)
+- Expanded analysis dimensions: usability, output quality, architecture, developer experience, missing capabilities, security posture, performance/scalability, dependency health, CI/CD pipeline
+- Priority rubric: Critical/High/Medium/Low with definitions aligned to /review-arch
+- Impact/effort matrix: mechanically populates Quick Wins and Strategic Initiatives sections
+- Two-stage workflow: --recommendations-only generates RECOMMENDATIONS.md, then /create-plan generates the plan
+- Append logic: detects existing plan and appends new phases (uses machine-readable markers)
+- Standardized schema: unified work item format with Status, Tasks, Acceptance Criteria, and Notes fields
+- Concrete sizing: complexity scale (S/M/L) using file count and LOC, not token estimates
+- Plan size limits: max 8 phases (configurable via --max-phases), max 6 items per phase
+- allowed-tools: Read, Glob, Grep, Write, Edit, Agent
 **Example:**
 ```text
-/plan-improvements
+/plan-improvements                        # Full analysis + plan
+/plan-improvements --recommendations-only # Recommendations only, plan later
+/plan-improvements --max-phases 5         # Limit to 5 phases
 ```
 
 ---

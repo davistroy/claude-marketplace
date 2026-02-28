@@ -782,7 +782,7 @@ Add tool restrictions to both planning commands and add guidance on maximum plan
 
 ---
 
-#### 6.5 Update Help Skill and CLAUDE.md
+#### 6.5 Update Help Skill and CLAUDE.md ✅ Completed 2026-02-28
 **Recommendation Ref:** (housekeeping)
 **Files Affected:**
 - `plugins/personal-plugin/skills/help/SKILL.md` (modify)
@@ -792,14 +792,14 @@ Add tool restrictions to both planning commands and add guidance on maximum plan
 Update help documentation and CLAUDE.md to reflect new arguments, flags, and capabilities added across all phases.
 
 **Tasks:**
-1. [ ] Update `/create-plan` help entry: add `--recommendations-only` note, mention codebase reconnaissance and scope confirmation
-2. [ ] Update `/plan-improvements` help entry: add `--recommendations-only`, mention expanded analysis dimensions
-3. [ ] Update `/implement-plan` help entry: add `--input`, `--auto-merge`, `--pause-between-phases` flags; mention state file and resume capability
-4. [ ] Update CLAUDE.md "Commands vs Skills" or pipeline documentation if significant structural changes warrant it
+1. [x] Update `/create-plan` help entry: add `--max-phases` flag, mention codebase reconnaissance and scope confirmation, append logic, standardized schema, concrete sizing, plan size limits, allowed-tools
+2. [x] Update `/plan-improvements` help entry: add `--recommendations-only` and `--max-phases`, mention sampling strategy, expanded analysis dimensions, priority rubric, impact/effort matrix, two-stage workflow, append logic, standardized schema, concrete sizing, plan size limits, allowed-tools
+3. [x] Update `/implement-plan` help entry: add `--input`, `--auto-merge`, `--pause-between-phases`, `--progress` flags; mention Agent tool API, selective staging, PR-only default, state file resume, rollback/checkpoint, phase boundary quality gates, testing circuit breaker, partial completion reporting, project context
+4. [x] Update CLAUDE.md: add plan-gate skill to repository structure, update command descriptions, expand Planning and Orchestration pattern descriptions with pipeline details
 
 **Acceptance Criteria:**
-- [ ] Help entries reflect all new arguments and flags
-- [ ] CLAUDE.md accurate for the updated pipeline
+- [x] Help entries reflect all new arguments and flags
+- [x] CLAUDE.md accurate for the updated pipeline
 
 ---
 

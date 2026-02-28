@@ -95,14 +95,14 @@ plugins/
       consolidate-documents.md # Merge multiple document versions into one
       convert-hooks.md        # Convert bash hooks to PowerShell for Windows
       convert-markdown.md     # Convert markdown to formatted Word document
-      create-plan.md          # Generate IMPLEMENTATION_PLAN.md from requirements docs
+      create-plan.md          # Generate IMPLEMENTATION_PLAN.md from requirements docs with codebase recon
       define-questions.md     # Extract questions/TBDs from docs to JSON
       develop-image-prompt.md # Generate AI image prompts from content
       finish-document.md      # Extract questions, answer, update document
-      implement-plan.md       # Execute IMPLEMENTATION_PLAN.md via orchestrated subagents
+      implement-plan.md       # Execute IMPLEMENTATION_PLAN.md via Agent tool with resume and rollback
       new-command.md          # Generate new command file from template
       new-skill.md            # Generate new skill with nested directory structure and frontmatter
-      plan-improvements.md    # Generate improvement recommendations and phased implementation plan
+      plan-improvements.md    # Analyze codebase and generate recommendations with phased implementation plan
       plan-next.md            # Analyze repo and recommend next action
       remove-ip.md            # De-identify documents by removing company info and IP
       review-arch.md          # Quick architectural audit (read-only, no files generated)
@@ -115,6 +115,8 @@ plugins/
     skills/
       help/
         SKILL.md            # Show commands/skills with usage information
+      plan-gate/
+        SKILL.md            # Assess task complexity and route to right planning approach
       prime/
         SKILL.md            # Evaluate codebase: purpose, health, status, and next steps
       research-topic/
@@ -242,9 +244,9 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Synthesis commands** (`consolidate-documents`): Merge multiple sources into optimized output
 - **Conversion commands** (`convert-markdown`, `convert-hooks`): Transform files between formats
 - **Generation commands** (`develop-image-prompt`): Create prompts or content for external tools
-- **Planning commands** (`create-plan`, `plan-improvements`, `plan-next`): Generate implementation plans from requirements or codebase analysis
+- **Planning commands** (`create-plan`, `plan-improvements`, `plan-next`): Generate implementation plans from requirements or codebase analysis. Both `create-plan` and `plan-improvements` produce a unified IMPLEMENTATION_PLAN.md schema with standardized work item fields (Status, Tasks, Acceptance Criteria, Notes), concrete sizing (S/M/L using file count and LOC), machine-readable markers for append logic, and plan size limits (max 8 phases, max 6 items per phase). `create-plan` adds codebase reconnaissance and scope confirmation. `plan-improvements` adds sampling strategy, expanded analysis dimensions, priority rubric, and a two-stage `--recommendations-only` workflow.
 - **Testing commands** (`test-project`): Comprehensive test, fix, and ship workflows
-- **Orchestration commands** (`implement-plan`): Coordinate subagents for long-running multi-step execution
+- **Orchestration commands** (`implement-plan`): Execute IMPLEMENTATION_PLAN.md via Agent tool subagents with selective git staging, state file resume, rollback/checkpoint capability, phase boundary quality gates, testing circuit breaker, and partial completion reporting. Creates PR by default (merge only with `--auto-merge`). Supports `--input`, `--pause-between-phases`, and `--progress` flags.
 - **Cleanup commands** (`clean-repo`): Repository cleanup, organization, and documentation refresh
 - **Sanitization commands** (`remove-ip`): De-identify documents by removing company info and intellectual property
 - **Scaffolding commands** (`scaffold-plugin`, `new-command`, `new-skill`): Create new plugin/command/skill structures from templates
