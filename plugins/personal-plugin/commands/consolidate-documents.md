@@ -28,7 +28,7 @@ Consolidate multiple variations of a document into a single, optimized version. 
 - Glob patterns are NOT expanded — provide explicit file paths
 
 **Examples:**
-```
+```text
 /consolidate-documents draft-v1.md draft-v2.md
 /consolidate-documents spec-a.md spec-b.md spec-c.md --preview
 /consolidate-documents old.md new.md --baseline old.md --format text
@@ -51,7 +51,7 @@ Run these checks before proceeding. On failure, display the error and stop.
 
 If no arguments are provided at all, display the usage help:
 
-```
+```text
 Usage: /consolidate-documents <doc1> <doc2> [doc3...] [flags]
 
 Consolidate multiple document versions into a single optimized version.
