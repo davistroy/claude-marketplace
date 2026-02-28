@@ -1,6 +1,6 @@
 ---
 description: Determine original project intent and compare against current implementation, reporting discrepancies
-allowed-tools: Read, Glob, Grep
+allowed-tools: Read, Glob, Grep, Write
 ---
 
 # Review Intent
@@ -10,12 +10,27 @@ Perform a systematic analysis of what this project was originally intended to do
 ## Input Validation
 
 **Optional Arguments:**
-- `<path>` - Specific directory or subproject to analyze (default: repository root)
+- `<path>` - Specific file, directory, or subproject to analyze (default: repository root)
 - `--deep` - Include git history analysis for intent reconstruction (slower but more thorough)
+- `--save` - Save the report to a file instead of only displaying in conversation
+
+**Argument Detection:**
+Check if the user provided a file path or directory as an argument ($ARGUMENTS). If provided, scope the review to that path only. If not provided, review the entire project from the repository root.
+
+```text
+# Examples of argument detection:
+/review-intent                     → Review entire project
+/review-intent src/api             → Review only src/api directory
+/review-intent --deep              → Review entire project with git history
+/review-intent src/api --deep      → Review src/api with git history
+/review-intent --save              → Review entire project, save report to file
+/review-intent src/api --save      → Review src/api, save report to file
+```
 
 **Validation:**
 Before proceeding, verify:
 - This is a code project with sufficient history to infer intent (not an empty repo or single-file script)
+- If a specific path was provided, verify it exists and is not empty
 - Project has at least one of: README, docs directory, CLAUDE.md, specification files, meaningful commit messages, or architecture decision records
 - If no intent artifacts exist, report this early rather than guessing
 
@@ -150,11 +165,34 @@ Severity: [CRITICAL | WARNING | SUGGESTION]
 
 #### 3.3 Quantitative Summary
 
-Produce metrics:
-- **Intent Coverage**: What percentage of stated features are fully implemented?
-- **Scope Drift Score**: How much unplanned work exists relative to planned work?
-- **Documentation Accuracy**: What percentage of documented features match their implementation?
-- **Completion Trajectory**: Based on commit history, is the project converging toward or diverging from its intent?
+Produce metrics with explicit calculations:
+
+- **Intent Coverage**: (fully implemented features / total intended features) * 100. Report as both fraction and percentage (e.g., "7/10 = 70%").
+- **Scope Drift Score**: (unplanned features / total intended features) * 100. A score above 50% indicates significant drift. Report as fraction and percentage.
+- **Documentation Accuracy**: (documented features that match implementation / total documented features) * 100. Report as fraction and percentage.
+- **Test Coverage Density**: (source files with corresponding test files / total source files) * 100. A "sparse" area is one where fewer than 20% of source files have corresponding test files, or where documentation covers fewer than 50% of public APIs.
+- **Completion Trajectory**: Based on commit history (if `--deep`), is the project converging toward or diverging from its intent? Express as: Converging, Stable, or Diverging.
+- **Files Examined**: Total number of files analyzed during the review.
+- **Discrepancies Found**: Total count of all discrepancies across all categories.
+- **Severity Breakdown**: Count of CRITICAL, WARNING, and SUGGESTION issues.
+
+**Metrics Summary Table:**
+```text
+Review Metrics
+==============
+Files Examined:        [N]
+Intent Sources Found:  [N]
+Features Intended:     [N]
+Features Implemented:  [N] ([X]%)
+Unplanned Features:    [N]
+Discrepancies Found:   [N]
+  CRITICAL:            [N]
+  WARNING:             [N]
+  SUGGESTION:          [N]
+Scope Drift Score:     [X]%
+Documentation Accuracy:[X]%
+Test Coverage Density: [X]%
+```
 
 ### Phase 4: Report Generation
 
@@ -248,11 +286,25 @@ Documentation Accuracy: [percentage]%
 
 ## Output Format
 
-This is a read-only analysis command. The report is produced inline in conversation, not saved to a file. If the user wants to save the report, suggest:
+This is a read-only analysis command. By default, the report is produced inline in conversation.
+
+**If `--save` flag is provided:**
+Save the report to a file using the Write tool:
+- **Location:** `reports/` directory (create if it does not exist)
+- **Filename:** `intent-review-YYYYMMDD-HHMMSS.md`
+- **Example:** `reports/intent-review-20260228-143052.md`
+
+After saving, display:
 ```text
-To save this report, copy the output above or re-run with output redirection:
-  /review-intent > reports/intent-review-[date].md
+Report saved to: reports/intent-review-[timestamp].md
 ```
+
+**If `--save` flag is NOT provided:**
+After displaying the report, offer to save:
+```text
+Would you like me to save this review to reports/intent-review-[timestamp].md? (yes/no)
+```
+If the user accepts, save using the Write tool.
 
 ## Examples
 

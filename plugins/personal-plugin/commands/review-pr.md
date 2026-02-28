@@ -1,6 +1,6 @@
 ---
 description: Structured PR review with security, performance, and code quality analysis
-allowed-tools: Bash(gh:*), Bash(git:*)
+allowed-tools: Read, Bash(gh:*), Bash(git:*)
 ---
 
 # PR Review Command
@@ -38,6 +38,45 @@ Verify:
   - The GitHub CLI is authenticated (run: gh auth status)
 ```
 
+## Severity Definitions
+
+Use these severity levels consistently throughout the review:
+
+| Severity | Definition | Examples |
+|----------|-----------|----------|
+| **CRITICAL** | Security vulnerability, data loss risk, or production crash. Must fix before merge. | Hardcoded secrets, SQL injection, unhandled null pointer on critical path |
+| **HIGH** | Logic error, missing validation, or broken feature. Should fix before merge. | Incorrect business logic, missing auth check, race condition |
+| **MEDIUM** | Code quality issue, missing test, or unclear logic. Should fix but not a blocker. | Long functions, missing edge case tests, unclear naming |
+| **LOW** | Style, naming, minor optimization, or minor documentation gaps. Nice to have. | Variable naming, minor refactor opportunity, comment typo |
+| **INFO** | Observation, positive feedback, or context-only note. No action required. | Good pattern usage, architectural observation, FYI note |
+
+## Review Guidelines
+
+Establish these guidelines BEFORE beginning the review analysis.
+
+### Be Constructive
+- Focus on the code, not the person
+- Explain *why* something is an issue
+- Provide specific suggestions for improvement
+- Acknowledge good patterns and improvements
+
+### Be Thorough But Efficient
+- Review all changed files
+- Focus more on complex/critical changes
+- Don't nitpick minor style issues if not project convention
+- Consider the PR's stated goals
+
+### Consider Context
+- Is this a hotfix or feature work?
+- What's the project's maturity level?
+- Are there existing patterns to follow?
+- Is this a refactor or new functionality?
+
+### Prioritize Correctly
+- Security > Correctness > Performance > Style
+- Breaking changes need extra scrutiny
+- Public APIs need more documentation
+
 ## Instructions
 
 ### Phase 1: Fetch PR Information
@@ -73,10 +112,10 @@ Check for:
 - Authentication/authorization changes
 - Sensitive data exposure in logs
 
-**Flag with severity (see common-patterns.md):**
-- **CRITICAL**: Direct security vulnerabilities
-- **WARNING**: Potential security issues requiring review
-- **SUGGESTION**: Security-related improvements
+**Flag with severity (see Severity Definitions above):**
+- **CRITICAL**: Direct security vulnerabilities (hardcoded secrets, injection, auth bypass)
+- **HIGH**: Potential security issues requiring review (missing input validation, insecure defaults)
+- **MEDIUM**: Security-related improvements (missing rate limiting, verbose error messages)
 
 #### 2.2 Performance Analysis
 
@@ -246,38 +285,23 @@ Issues Found:
 [If not posted] Review saved locally.
 ```
 
-## Review Guidelines
-
-### Be Constructive
-- Focus on the code, not the person
-- Explain *why* something is an issue
-- Provide specific suggestions for improvement
-- Acknowledge good patterns and improvements
-
-### Be Thorough But Efficient
-- Review all changed files
-- Focus more on complex/critical changes
-- Don't nitpick minor style issues if not project convention
-- Consider the PR's stated goals
-
-### Consider Context
-- Is this a hotfix or feature work?
-- What's the project's maturity level?
-- Are there existing patterns to follow?
-- Is this a refactor or new functionality?
-
-### Prioritize Correctly
-- Security > Correctness > Performance > Style
-- Breaking changes need extra scrutiny
-- Public APIs need more documentation
-
 ## Error Handling
 
-- **gh not installed:** Display installation instructions
-- **Not authenticated:** Prompt `gh auth login`
-- **PR not found:** Verify number and permissions
-- **Rate limited:** Wait and retry, or use local diff
-- **Large PR:** Warn about review scope, offer to focus on specific files
+Handle these error conditions gracefully:
+
+| Error Condition | Detection | Recovery Action |
+|----------------|-----------|-----------------|
+| **gh CLI not installed** | `command -v gh` fails | Display: "GitHub CLI not found. Install from https://cli.github.com/ then run `gh auth login`" |
+| **Not authenticated** | `gh auth status` fails | Display: "Not authenticated. Run `gh auth login` to authenticate with GitHub." |
+| **PR not found** | `gh pr view` returns 404 | Display: "PR #[number] not found. Verify the PR number is correct and you have access to this repository." |
+| **No permissions** | `gh pr view` returns 403 | Display: "Access denied for PR #[number]. You may not have read access to this repository. Check your GitHub permissions." |
+| **Network error** | Connection timeout or DNS failure | Display: "Network error. Check your internet connection and try again." |
+| **Rate limited** | 429 response from GitHub API | Display: "GitHub API rate limit reached. Wait a few minutes and try again, or use `gh api rate_limit` to check status." |
+| **Diff exceeds context window** | Diff is extremely large (>500 files or >10,000 lines) | Warn user: "This PR has [N] changed files ([N] lines). Reviewing all changes may exceed context. Would you like to focus on specific files or directories?" |
+| **Binary files in diff** | Diff contains binary file markers | Skip binary files with note: "Skipping binary file: [path] (binary files cannot be reviewed for code quality)" |
+| **Already-merged PR** | PR state is "merged" | Inform user: "PR #[number] is already merged. Would you like to review the merge commit instead?" |
+| **Draft PR** | PR is in draft state | Note: "PR #[number] is a draft. Proceeding with review — note that the author may still be making changes." |
+| **Empty PR** | No changed files | Display: "PR #[number] has no changed files. Nothing to review." |
 
 ## Related Commands
 

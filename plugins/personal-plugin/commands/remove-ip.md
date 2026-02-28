@@ -7,20 +7,6 @@ allowed-tools: Read, Write, Edit, Glob, Grep
 
 Remove company-identifying information and intellectual property from documents to prevent re-identification while preserving maximum meaning, structure, and usefulness.
 
-**Trigger phrases (Claude should recognize and suggest this command for):**
-- "sanitize this document"
-- "remove company information"
-- "de-identify this"
-- "anonymize the document"
-- "redact sensitive information"
-- "remove IP from this"
-- "strip company references"
-- "make this document anonymous"
-- "remove identifying information"
-- "clean up confidential data"
-- "prepare for external sharing"
-- "remove proprietary information"
-
 ## Input Validation
 
 **Required Arguments:**
@@ -266,6 +252,47 @@ No questions - all ambiguous items defaulted to safer redaction.
 
 Output saved to: strategy-doc-sanitized-20260115-143052.md
 ```
+
+## Error Handling
+
+Handle these error conditions before proceeding with sanitization:
+
+| Error Condition | Detection | Recovery Action |
+|----------------|-----------|-----------------|
+| **File not found** | Read tool returns file-not-found error | Display: "File not found: [path]. Verify the path is correct and the file exists." |
+| **Binary file** | File contains non-text content (images, PDFs, executables) | Display: "Cannot sanitize binary file: [path]. This command works with text-based documents only (markdown, text, docx via conversion)." |
+| **Empty file** | File exists but has no content | Display: "File is empty: [path]. Nothing to sanitize." |
+| **Permission error** | Read or Write tool returns access denied | Display: "Permission denied for [path]. Check file permissions and try again." |
+| **File already de-identified** | No company identifiers or IP found during analysis | Display: "No identifiable company information or IP found in [path]. The document appears to already be de-identified. No changes made." |
+| **Very large file** | File exceeds 5,000 lines | Warn: "Large file detected ([N] lines). Sanitization may take longer and may need to be processed in sections. Proceed? (yes/no)" |
+| **Write failure** | Cannot save output file to target directory | Display: "Cannot write to [output-path]. Check directory permissions and disk space." |
+
+## What Gets Removed vs Preserved
+
+**Examples of content that gets REMOVED or REPLACED:**
+
+| Original Content | What Happens | Replacement Example |
+|-----------------|-------------|---------------------|
+| "Acme Corp deployed..." | Company name replaced | "[Company] deployed..." |
+| "Project Phoenix roadmap" | Internal program name replaced | "[Internal Program] roadmap" |
+| "John Smith, VP of Engineering" | Person name replaced with role | "[VP of Engineering]" |
+| "$5.2M annual savings" | Specific financial figure generalized | "significant cost savings" |
+| "ServiceNow ITSM instance at acme.service-now.com" | Internal URL removed, tool kept (standard) or replaced (strict) | "ITSM platform" (strict) or "ServiceNow instance at [Internal URL]" (standard) |
+| "Building 7, Atlanta campus" | Location generalized | "[Company Location]" |
+
+**Examples of content that gets PRESERVED:**
+
+| Content | Why Preserved |
+|---------|--------------|
+| Generic industry practices ("agile methodology") | Not company-specific |
+| Common tool names in standard mode ("ServiceNow", "Salesforce") | Widely used, non-identifying on their own |
+| Document structure and formatting | Preserves readability |
+| General business concepts ("cost reduction strategy") | Not proprietary |
+| Publicly verifiable facts (in standard mode only) | Confirmed via web research |
+
+## Web Research Guidance
+
+If the user asks to verify that company information has been removed, use WebSearch to check if remaining terms are generic (not company-specific). Do not use web research tools by default -- only when verification is explicitly requested by the user or when `--web-research yes` is specified.
 
 ## Related Commands
 

@@ -695,7 +695,7 @@ Add input validation with arguments, add proactive trigger section, add error ha
 
 #### 5.1 Fix `test-project.md` Safety Issues
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R13
 **Files Affected:**
 - `plugins/personal-plugin/commands/test-project.md` (modify)
@@ -721,7 +721,7 @@ Replace unsafe git patterns, update Co-Authored-By format, replace auto-merge wi
 
 #### 5.2 Fix `assess-document.md` Naming Inconsistency
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R14
 **Files Affected:**
 - `plugins/personal-plugin/commands/assess-document.md` (modify)
@@ -745,7 +745,7 @@ Fix output file naming to use ONE consistent pattern. Add score anchor definitio
 
 #### 5.3 Improve `analyze-transcript.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R15
 **Files Affected:**
 - `plugins/personal-plugin/commands/analyze-transcript.md` (modify)
@@ -769,7 +769,7 @@ Add error handling, add `--no-prompt` flag, replace vague input flow with concre
 
 #### 5.4 Improve `develop-image-prompt.md`
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R16
 **Files Affected:**
 - `plugins/personal-plugin/commands/develop-image-prompt.md` (modify)
@@ -823,7 +823,7 @@ Add dimensions flag, add complete example, resolve contradictory input flow, def
 
 #### 6.1 Fix `review-intent.md` Minor Issues
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R17
 **Files Affected:**
 - `plugins/personal-plugin/commands/review-intent.md` (modify)
@@ -832,18 +832,18 @@ Add dimensions flag, add complete example, resolve contradictory input flow, def
 Add argument detection, update allowed-tools, replace shell redirection save with proper file write offer, define "sparse" explicitly, add calculation guidance.
 
 **Tasks:**
-1. [ ] Add argument detection instructions: "Check if the user provided a file path or directory as argument. If provided, scope the review to that path. If not provided, review the entire project."
-2. [ ] Verify `allowed-tools` was set correctly in Phase 1 (should be `Read, Glob, Grep` for a read-only command). Confirm it does not include Write.
-3. [ ] Replace any shell redirection save suggestion (e.g., `> output.txt`) with: "Offer to save the review to a file using the Write tool: 'Would you like me to save this review to `reports/intent-review-[timestamp].md`?'"
-4. [ ] Define "sparse" explicitly: "A 'sparse' area is one where fewer than 20% of source files have corresponding test files, or where documentation covers fewer than 50% of public APIs."
-5. [ ] Add calculation guidance for any metrics (e.g., Phase 3.3 coverage metrics): "Calculate coverage as: (documented public APIs / total public APIs) * 100. Report as both fraction and percentage."
+1. [x] Add argument detection instructions: "Check if the user provided a file path or directory as argument. If provided, scope the review to that path. If not provided, review the entire project."
+2. [x] Verify `allowed-tools` was set correctly in Phase 1 (should be `Read, Glob, Grep` for a read-only command). Confirm it does not include Write.
+3. [x] Replace any shell redirection save suggestion (e.g., `> output.txt`) with: "Offer to save the review to a file using the Write tool: 'Would you like me to save this review to `reports/intent-review-[timestamp].md`?'"
+4. [x] Define "sparse" explicitly: "A 'sparse' area is one where fewer than 20% of source files have corresponding test files, or where documentation covers fewer than 50% of public APIs."
+5. [x] Add calculation guidance for any metrics (e.g., Phase 3.3 coverage metrics): "Calculate coverage as: (documented public APIs / total public APIs) * 100. Report as both fraction and percentage."
 
 **Acceptance Criteria:**
-- [ ] Argument detection documented
-- [ ] Correct `allowed-tools` in frontmatter
-- [ ] No shell redirection patterns — uses Write tool for saving
-- [ ] "Sparse" defined with concrete thresholds
-- [ ] Metric calculation guidance present
+- [x] Argument detection documented
+- [x] Correct `allowed-tools` in frontmatter
+- [x] No shell redirection patterns — uses Write tool for saving
+- [x] "Sparse" defined with concrete thresholds
+- [x] Metric calculation guidance present
 
 **Notes:**
 If the user wants to save the review, the command needs `Write` in allowed-tools. Update to `Read, Glob, Grep, Write` and add the save-to-file offer.
@@ -852,7 +852,7 @@ If the user wants to save the review, the command needs `Write` in allowed-tools
 
 #### 6.2 Fix `review-pr.md` Minor Issues
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R18
 **Files Affected:**
 - `plugins/personal-plugin/commands/review-pr.md` (modify)
@@ -861,22 +861,22 @@ If the user wants to save the review, the command needs `Write` in allowed-tools
 Add Read to allowed-tools, reorder review guidelines, inline severity definitions, add error handling for edge cases.
 
 **Tasks:**
-1. [ ] Add `Read` to the `allowed-tools` frontmatter (needed to read file contents during review)
-2. [ ] Move review guidelines section to appear before Phase 1 (before analysis begins), so guidelines are established before code is read
-3. [ ] Inline severity definitions instead of referencing an external file: "CRITICAL: Security vulnerability, data loss risk, or production crash. HIGH: Logic error, missing validation, or broken feature. MEDIUM: Code quality issue, missing test, or unclear logic. LOW: Style, naming, or minor optimization."
-4. [ ] Add error handling for: diff exceeds context window (suggest reviewing by file), binary files in diff (skip with note), already-merged PR (inform user, offer to review commit instead), draft PR (note draft status, proceed with review)
+1. [x] Add `Read` to the `allowed-tools` frontmatter (needed to read file contents during review)
+2. [x] Move review guidelines section to appear before Phase 1 (before analysis begins), so guidelines are established before code is read
+3. [x] Inline severity definitions instead of referencing an external file: "CRITICAL: Security vulnerability, data loss risk, or production crash. HIGH: Logic error, missing validation, or broken feature. MEDIUM: Code quality issue, missing test, or unclear logic. LOW: Style, naming, or minor optimization."
+4. [x] Add error handling for: diff exceeds context window (suggest reviewing by file), binary files in diff (skip with note), already-merged PR (inform user, offer to review commit instead), draft PR (note draft status, proceed with review)
 
 **Acceptance Criteria:**
-- [ ] `Read` in allowed-tools
-- [ ] Review guidelines appear before Phase 1
-- [ ] Severity definitions inlined (no external file reference)
-- [ ] Error handling for 4 edge cases
+- [x] `Read` in allowed-tools
+- [x] Review guidelines appear before Phase 1
+- [x] Severity definitions inlined (no external file reference)
+- [x] Error handling for 4 edge cases
 
 ---
 
 #### 6.3 Fix `remove-ip.md` Structural Issue
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R19
 **Files Affected:**
 - `plugins/personal-plugin/commands/remove-ip.md` (modify)
@@ -885,22 +885,22 @@ Add Read to allowed-tools, reorder review guidelines, inline severity definition
 Remove the "Trigger phrases" section (which is a skill pattern, not a command pattern). Add allowed-tools and error handling. Add web research tool guidance.
 
 **Tasks:**
-1. [ ] Remove the "Trigger phrases" section entirely — commands are invoked explicitly, not triggered by phrases
-2. [ ] Verify `allowed-tools` was set correctly in Phase 1 (should be `Read, Write, Edit, Glob, Grep` for a file generator)
-3. [ ] Add error handling section: file not found, binary file, file has no identifiable IP to remove, file is already de-identified, permission errors
-4. [ ] Add web research tool guidance: "If the user asks to verify that company information has been removed, use WebSearch to check if remaining terms are generic (not company-specific). Do not use web tools by default — only when verification is requested."
+1. [x] Remove the "Trigger phrases" section entirely — commands are invoked explicitly, not triggered by phrases
+2. [x] Verify `allowed-tools` was set correctly in Phase 1 (should be `Read, Write, Edit, Glob, Grep` for a file generator)
+3. [x] Add error handling section: file not found, binary file, file has no identifiable IP to remove, file is already de-identified, permission errors
+4. [x] Add web research tool guidance: "If the user asks to verify that company information has been removed, use WebSearch to check if remaining terms are generic (not company-specific). Do not use web tools by default — only when verification is requested."
 
 **Acceptance Criteria:**
-- [ ] Zero "Trigger phrases" sections
-- [ ] Correct `allowed-tools` in frontmatter
-- [ ] Error handling section present
-- [ ] Web research guidance present (optional use only)
+- [x] Zero "Trigger phrases" sections
+- [x] Correct `allowed-tools` in frontmatter
+- [x] Error handling section present
+- [x] Web research guidance present (optional use only)
 
 ---
 
 #### 6.4 Fix `ship` Skill Issues
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R20
 **Files Affected:**
 - `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
@@ -909,57 +909,58 @@ Remove the "Trigger phrases" section (which is a skill pattern, not a command pa
 Fix phase numbering inconsistency, add proactive trigger section, add destructive action warning, update Co-Authored-By format.
 
 **Tasks:**
-1. [ ] Audit all phase/step numbers in the skill. Renumber consistently: Phase 1 (Branch), Phase 2 (Stage & Commit), Phase 3 (Push), Phase 4 (PR). Fix any gaps or duplicates.
-2. [ ] Add proactive trigger section: "Suggest this skill when: (1) user says 'done', 'ready to ship', or 'push this'; (2) after completing a work item from an implementation plan; (3) after all tests pass; (4) user asks to create a PR"
-3. [ ] Add risk/destructive-action warning: "This skill modifies git state (creates branches, commits, pushes). Before proceeding, confirm the user intends to ship. Never force-push or push to main/master directly."
-4. [ ] Update Co-Authored-By to: `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
+1. [x] Audit all phase/step numbers in the skill. Renumber consistently: Phase 1 (Branch), Phase 2 (Stage & Commit), Phase 3 (Push), Phase 4 (PR). Fix any gaps or duplicates.
+2. [x] Add proactive trigger section: "Suggest this skill when: (1) user says 'done', 'ready to ship', or 'push this'; (2) after completing a work item from an implementation plan; (3) after all tests pass; (4) user asks to create a PR"
+3. [x] Add risk/destructive-action warning: "This skill modifies git state (creates branches, commits, pushes). Before proceeding, confirm the user intends to ship. Never force-push or push to main/master directly."
+4. [x] Update Co-Authored-By to: `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 
 **Acceptance Criteria:**
-- [ ] Phase numbers are consistent and sequential
-- [ ] Proactive trigger section present
-- [ ] Destructive action warning present
-- [ ] Co-Authored-By uses current format
+- [x] Phase numbers are consistent and sequential
+- [x] Proactive trigger section present
+- [x] Destructive action warning present
+- [x] Co-Authored-By uses current format
 
 ---
 
 #### 6.5 Fix `research-topic` Skill
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** R21
 **Files Affected:**
 - `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+- `plugins/personal-plugin/references/api-key-setup.md` (create)
 
 **Description:**
 Extract API key setup wizard to reduce file size, fix secrets policy violation (reference /unlock), add `--skip-model-check` argument, add proactive trigger section.
 
 **Tasks:**
-1. [ ] Extract the API key setup wizard (~130+ lines) to a reference file at `plugins/personal-plugin/references/api-key-setup.md`. Replace in-skill content with: "For API key configuration, see `references/api-key-setup.md`. Primary method: run `/unlock` to load keys from Bitwarden."
-2. [ ] Fix secrets policy: ensure the extracted reference file and the skill itself reference `/unlock` as the primary path. Remove any instructions that write keys to `.env` files (verify Phase 1 work item 1.5 is complete).
-3. [ ] Add `--skip-model-check` to the arguments table: "Skip the model availability check at startup. Useful when you know models are available and want to start immediately."
-4. [ ] Add proactive trigger section: "Suggest this skill when: (1) user asks to research a topic in depth; (2) user wants to compare perspectives across multiple AI providers; (3) user needs a comprehensive analysis that benefits from multi-source synthesis"
+1. [x] Extract the API key setup wizard (~130+ lines) to a reference file at `plugins/personal-plugin/references/api-key-setup.md`. Replace in-skill content with: "For API key configuration, see `references/api-key-setup.md`. Primary method: run `/unlock` to load keys from Bitwarden."
+2. [x] Fix secrets policy: ensure the extracted reference file and the skill itself reference `/unlock` as the primary path. Remove any instructions that write keys to `.env` files (verify Phase 1 work item 1.5 is complete).
+3. [x] Add `--skip-model-check` to the arguments table: "Skip the model availability check at startup. Useful when you know models are available and want to start immediately."
+4. [x] Add proactive trigger section: "Suggest this skill when: (1) user asks to research a topic in depth; (2) user wants to compare perspectives across multiple AI providers; (3) user needs a comprehensive analysis that benefits from multi-source synthesis"
 
 **Acceptance Criteria:**
-- [ ] API key setup wizard extracted to reference file (~130+ lines removed from skill)
-- [ ] `/unlock` is the primary secrets path
-- [ ] Zero `.env` write instructions in the skill
-- [ ] `--skip-model-check` documented
-- [ ] Proactive trigger section present
+- [x] API key setup wizard extracted to reference file (~130+ lines removed from skill)
+- [x] `/unlock` is the primary secrets path
+- [x] Zero `.env` write instructions in the skill
+- [x] `--skip-model-check` documented
+- [x] Proactive trigger section present
 
 ---
 
 ### Phase 6 Testing Requirements
-- [ ] Verify review-intent has argument detection and defined metrics
-- [ ] Verify review-pr has inlined severity definitions
-- [ ] Verify remove-ip has no trigger phrases section
-- [ ] Verify ship has consistent phase numbering
-- [ ] Verify research-topic API key wizard is extracted and /unlock is primary
+- [x] Verify review-intent has argument detection and defined metrics
+- [x] Verify review-pr has inlined severity definitions
+- [x] Verify remove-ip has no trigger phrases section
+- [x] Verify ship has consistent phase numbering
+- [x] Verify research-topic API key wizard is extracted and /unlock is primary
 
 ### Phase 6 Completion Checklist
-- [ ] All work items complete
-- [ ] All five files have targeted improvements
-- [ ] Documentation updated (help skill entries)
-- [ ] No regressions in existing command functionality
-- [ ] Code reviewed (if applicable)
+- [x] All work items complete
+- [x] All five files have targeted improvements
+- [x] Documentation updated (help skill entries)
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
 
 ---
 

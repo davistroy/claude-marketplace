@@ -8,6 +8,15 @@ allowed-tools: Read, Write, Bash, WebSearch, WebFetch
 
 You are orchestrating parallel deep research across three LLM providers (Anthropic Claude, OpenAI GPT, Google Gemini) and synthesizing the results into a unified deliverable.
 
+## Proactive Triggers
+
+Suggest this skill when:
+1. User asks to research a topic in depth or wants a comprehensive analysis
+2. User wants to compare perspectives across multiple AI providers
+3. User needs a well-sourced analysis that benefits from multi-source synthesis
+4. User mentions "deep research", "research report", or "multi-provider analysis"
+5. User asks for a thorough investigation of a technical, strategic, or emerging topic
+
 ## Input Validation
 
 **Required Arguments:**
@@ -19,16 +28,17 @@ You are orchestrating parallel deep research across three LLM providers (Anthrop
 - `--format <type>` - Output format: `md`, `docx`, `both` (default: both)
 - `--no-clarify` - Skip clarification loop, use request as-is
 - `--no-audience` - Skip audience profile detection, use default profile
+- `--skip-model-check` - Skip the model availability check at startup. Useful when you know models are available and want to start research immediately.
 
 **Environment Requirements:**
-API keys must be loaded into the environment before use. The primary method is the `/unlock` skill, which loads secrets from Bitwarden Secrets Manager via the `bws` CLI (see CLAUDE.md Secrets Management Policy):
+API keys must be loaded into the environment before use. Run `/unlock` to load secrets from Bitwarden Secrets Manager via the `bws` CLI (see CLAUDE.md Secrets Management Policy):
 - `ANTHROPIC_API_KEY` - For Claude with Extended Thinking
 - `OPENAI_API_KEY` - For OpenAI Deep Research (o3)
 - `GOOGLE_API_KEY` - For Gemini Deep Research
 
-If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files.
+If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files or guide users through creating `.env` files with API keys. For API key configuration details, see `references/api-key-setup.md`.
 
-**Optional Model Configuration (in .env):**
+**Optional Model Configuration (non-sensitive, safe for .env):**
 - `ANTHROPIC_MODEL` - Override Claude model (default: claude-opus-4-5-20251101)
 - `OPENAI_MODEL` - Override OpenAI model (default: o3-deep-research-2025-06-26)
 - `GEMINI_AGENT` - Override Gemini agent (default: deep-research-pro-preview-12-2025)
@@ -62,7 +72,7 @@ This outputs JSON with the status of:
 
 ### Step 2: Check Model Versions (OPTIONAL)
 
-**Execute this step** if user has not specified `--skip-model-check`:
+**Skip this step** if the user specified `--skip-model-check`. Otherwise, execute:
 
 ```bash
 PYTHONPATH="$TOOL_SRC" python -m research_orchestrator check-models
