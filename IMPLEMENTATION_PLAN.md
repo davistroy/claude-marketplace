@@ -313,7 +313,7 @@ This resolves the misalignment where `/create-plan --output docs/plan.md` create
 
 ### Work Items
 
-#### 3.1 Add Sampling Strategy to plan-improvements
+#### 3.1 Add Sampling Strategy to plan-improvements ✅ Completed 2026-02-28
 **Recommendation Ref:** C1
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -322,22 +322,22 @@ This resolves the misalignment where `/create-plan --output docs/plan.md` create
 Add explicit context management instructions to Phase 1 (Deep Codebase Analysis) that prevent context exhaustion on medium-to-large codebases. Add a Context Budget row to the Performance table.
 
 **Tasks:**
-1. [ ] Add "Context Management" subsection at the start of Phase 1 with sampling strategy: (a) always read config/metadata files, (b) always read entry points and public API surfaces, (c) sample 2-3 representative files per module/directory, (d) deep-read only files flagged as high-complexity or problematic
-2. [ ] Add threshold: "For codebases over 100 files, use sampling. For under 100 files, full analysis is fine."
-3. [ ] Add instruction: "Reserve at least 40% of context for output generation. If analysis has consumed over 60% of available context, stop reading files and begin generating output."
-4. [ ] Add Context Budget row to Performance table: "Small: ~30K tokens for analysis. Medium: ~50K. Large: ~70K. Reserve remainder for output."
+1. [x] Add "Context Management" subsection at the start of Phase 1 with sampling strategy: (a) always read config/metadata files, (b) always read entry points and public API surfaces, (c) sample 2-3 representative files per module/directory, (d) deep-read only files flagged as high-complexity or problematic
+2. [x] Add threshold: "For codebases over 100 files, use sampling. For under 100 files, full analysis is fine."
+3. [x] Add instruction: "Reserve at least 40% of context for output generation. If analysis has consumed over 60% of available context, stop reading files and begin generating output."
+4. [x] Add Context Budget row to Performance table: "Small: ~30K tokens for analysis. Medium: ~50K. Large: ~70K. Reserve remainder for output."
 
 **Acceptance Criteria:**
-- [ ] Sampling strategy documented with clear thresholds
-- [ ] Context budget guidance in Performance table
-- [ ] 40% reservation instruction present
+- [x] Sampling strategy documented with clear thresholds
+- [x] Context budget guidance in Performance table
+- [x] 40% reservation instruction present
 
 **Notes:**
 The sampling strategy should also mention using Agent tool with `subagent_type=Explore` for broad codebase searches to avoid flooding main context.
 
 ---
 
-#### 3.2 Restructure implement-plan Loop for State Shedding
+#### 3.2 Restructure implement-plan Loop for State Shedding ✅ Completed 2026-02-28
 **Recommendation Ref:** C2
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -346,24 +346,24 @@ The sampling strategy should also mention using Agent tool with `subagent_type=E
 Redesign the main loop to use a lightweight state file as the ground truth rather than accumulating conversational state. STARTUP returns only the first batch, not everything. NEXT ITERATION uses the state file rather than re-reading the full plan.
 
 **Tasks:**
-1. [ ] Define state file format: `.implement-plan-state.json` with fields: `current_phase`, `current_item`, `completed` (array), `failed` (array), `project_context` (tech_stack, test_command, conventions), `checkpoints` (item→SHA mapping)
-2. [ ] Modify STARTUP: return only the first phase's items + parallelization info + project context. Write initial state file.
-3. [ ] Modify NEXT ITERATION: read state file to determine next item/batch. Only spawn a plan-reading subagent if state file is missing or ambiguous.
-4. [ ] Add state shedding instruction: "After every 5 completed work items, discard previous subagent summaries from conversational memory. The state file is the sole source of truth."
-5. [ ] After each work item completion, update state file (add to `completed`, update `current_item`)
+1. [x] Define state file format: `.implement-plan-state.json` with fields: `current_phase`, `current_item`, `completed` (array), `failed` (array), `project_context` (tech_stack, test_command, conventions), `checkpoints` (item→SHA mapping)
+2. [x] Modify STARTUP: return only the first phase's items + parallelization info + project context. Write initial state file.
+3. [x] Modify NEXT ITERATION: read state file to determine next item/batch. Only spawn a plan-reading subagent if state file is missing or ambiguous.
+4. [x] Add state shedding instruction: "After every 5 completed work items, discard previous subagent summaries from conversational memory. The state file is the sole source of truth."
+5. [x] After each work item completion, update state file (add to `completed`, update `current_item`)
 
 **Acceptance Criteria:**
-- [ ] `.implement-plan-state.json` defined with all required fields
-- [ ] STARTUP returns only first batch, not full inventory
-- [ ] NEXT ITERATION reads state file, not full plan
-- [ ] State shedding instruction present
+- [x] `.implement-plan-state.json` defined with all required fields
+- [x] STARTUP returns only first batch, not full inventory
+- [x] NEXT ITERATION reads state file, not full plan
+- [x] State shedding instruction present
 
 **Notes:**
 The state file should be added to `.gitignore` since it's ephemeral execution state, not a project artifact.
 
 ---
 
-#### 3.3 Add Optional Two-Stage Output to plan-improvements
+#### 3.3 Add Optional Two-Stage Output to plan-improvements ✅ Completed 2026-02-28
 **Recommendation Ref:** C3
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -372,15 +372,15 @@ The state file should be added to `.gitignore` since it's ephemeral execution st
 Add a `--recommendations-only` flag that stops after generating RECOMMENDATIONS.md. Add graceful degradation that saves recommendations early if context pressure is detected.
 
 **Tasks:**
-1. [ ] Add `--recommendations-only` (alias `--no-plan`) to Optional Arguments section
-2. [ ] When flag is set, skip Phase 3 (plan generation) and go directly to Phase 4 (save and report)
-3. [ ] Add instruction in Phase 2 → Phase 3 transition: "Save RECOMMENDATIONS.md to disk before beginning Phase 3 (plan generation). This ensures recommendations are preserved if the session is interrupted during plan generation."
-4. [ ] Add to summary report: "To generate an implementation plan from these recommendations, run `/create-plan RECOMMENDATIONS.md`"
+1. [x] Add `--recommendations-only` (alias `--no-plan`) to Optional Arguments section
+2. [x] When flag is set, skip Phase 3 (plan generation) and go directly to Phase 4 (save and report)
+3. [x] Add instruction in Phase 2 → Phase 3 transition: "Save RECOMMENDATIONS.md to disk before beginning Phase 3 (plan generation). This ensures recommendations are preserved if the session is interrupted during plan generation."
+4. [x] Add to summary report: "To generate an implementation plan from these recommendations, run `/create-plan RECOMMENDATIONS.md`"
 
 **Acceptance Criteria:**
-- [ ] `--recommendations-only` flag documented and functional
-- [ ] RECOMMENDATIONS.md saved before plan generation begins
-- [ ] Summary report includes next-step guidance when plan is skipped
+- [x] `--recommendations-only` flag documented and functional
+- [x] RECOMMENDATIONS.md saved before plan generation begins
+- [x] Summary report includes next-step guidance when plan is skipped
 
 **Notes:**
 This requires `/create-plan` to accept RECOMMENDATIONS.md as a valid "requirements document" in its discovery phase. Add "RECOMMENDATIONS.md" to the search patterns in create-plan's Phase 1.1.

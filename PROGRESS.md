@@ -96,3 +96,6 @@
 | 2026-02-28 | 2.2 Replace git add -A with Selective Staging | Complete | plugins/personal-plugin/commands/implement-plan.md |
 | 2026-02-28 | 2.3 Update Allowed-Tools and Default Behavior | Complete | plugins/personal-plugin/commands/implement-plan.md |
 | 2026-02-28 | 2.4 Add Input Arguments | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 3.1 Add Sampling Strategy for Large Codebases | Complete | plugins/personal-plugin/commands/plan-improvements.md |
+| 2026-02-28 | 3.2 Restructure implement-plan Loop for State Shedding | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 3.3 Add Optional Two-Stage Output | Complete | plugins/personal-plugin/commands/plan-improvements.md |

@@ -92,11 +92,64 @@ Before running this command, ensure:
 |----|--------|
 | Delegate ALL file reading to subagents | Read the plan file or source files directly |
 | Retain only: status, files changed, errors | Ask subagents to return file contents |
+| Use `.implement-plan-state.json` as the sole source of truth | Accumulate work item status in conversational memory |
 | Use TaskCreate/TaskUpdate for progress tracking (not subagent launching) | Hold work item details in conversational memory |
 | Spawn fresh subagents for each step | Reuse subagent context across work items |
 | Launch parallel subagents with `run_in_background: true` | Wait for one item to finish before starting an independent one |
 | Batch documentation updates for parallel items | Spawn a doc subagent for each parallel item separately |
 | Use a single commit for parallel batches | Create individual commits for each parallel item |
+| Shed old subagent summaries every 5 items | Keep all iteration results in conversation history |
+
+### State File (`.implement-plan-state.json`)
+
+The state file is the **ground truth** for execution progress. It persists minimal state between loop iterations so the main agent never needs to re-read the full plan or accumulate conversational history.
+
+**Format:**
+
+```json
+{
+  "plan_file": "IMPLEMENTATION_PLAN.md",
+  "started_at": "2026-02-28T14:30:00",
+  "current_phase": "Phase 3: Context Window Management",
+  "current_item": "3.2",
+  "completed": [
+    { "item": "1.1", "phase": "Phase 1", "description": "Add Tasks and Notes fields", "sha": "abc1234", "files": ["plan-improvements.md"] },
+    { "item": "1.2", "phase": "Phase 1", "description": "Standardize headers", "sha": "def5678", "files": ["plan-improvements.md", "create-plan.md"] }
+  ],
+  "failed": [
+    { "item": "2.3", "phase": "Phase 2", "description": "Update allowed-tools", "error": "Test failure in...", "attempts": 2 }
+  ],
+  "project_context": {
+    "tech_stack": "TypeScript, React, Jest",
+    "test_command": "npm test",
+    "conventions": "kebab-case files, ESM imports"
+  },
+  "checkpoints": {
+    "1.1": "abc1234",
+    "1.2": "def5678"
+  },
+  "parallelization_map": {
+    "Phase 1": { "parallel": ["1.1", "1.2"], "sequential": ["1.3", "1.4"] },
+    "Phase 2": { "parallel": ["2.1", "2.2", "2.3"], "sequential": ["2.4"] }
+  }
+}
+```
+
+**State file rules:**
+- Created during STARTUP, updated after every work item completion
+- Added to `.gitignore` (ephemeral execution state, not a project artifact)
+- If the state file exists at STARTUP, resume from where it left off instead of re-reading the full plan
+- The main agent reads this file directly (it is small and structured) — no subagent needed
+- Delete the state file during FINALIZATION after the PR is created
+
+### State Shedding
+
+**After every 5 completed work items**, actively shed accumulated conversational state:
+
+1. The state file contains everything needed to continue — do NOT rely on earlier conversation history
+2. Mentally discard all previous subagent summaries, file lists, and error details from prior iterations
+3. For the next iteration, derive the work item and context exclusively from the state file
+4. The only conversational state to retain is: (a) the `PLAN_FILE` path, (b) user-provided flags (`--auto-merge`, `--pause-between-phases`), (c) the state file path
 
 ### Orchestration Pattern
 
@@ -135,21 +188,72 @@ Follow these steps exactly. Use the **Agent tool** to spawn subagents (with `sub
 
 ### STARTUP (do this ONCE at the beginning)
 
+**Step 0: Check for existing state file (resume support)**
+
+Check if `.implement-plan-state.json` exists in the repository root. Read it directly (it is small JSON — no subagent needed).
+
+- **If the state file exists and is valid:** Resume execution. Skip the STARTUP subagent. Read `current_phase`, `current_item`, `completed`, and `parallelization_map` from the state file. Report to the user: "Resuming from [current_item] in [current_phase]. [N] items already completed." Proceed directly to the MAIN LOOP.
+- **If the state file does not exist or is corrupted:** Continue with Step 1 below.
+
+**Step 1: Initial plan scan (subagent)**
+
 Launch an Agent (subagent_type: "general-purpose", prompt: "...") to read `PLAN_FILE`, PROGRESS.md (if exists), and LEARNINGS.md (if exists).
 
 Prompt the Agent to return ONLY:
-- A list of ALL remaining incomplete work items grouped by phase (phase name, item number, brief description each)
-- For each phase: which work items are parallelizable (independent of each other)
+- The **first incomplete phase**: phase name, all work items in that phase (item number + brief description each)
+- Parallelization info for that phase: which items are independent (can run in parallel) vs which have dependencies
+- A **full parallelization map** for ALL phases: for each phase, list parallel groups and sequential items (this is compact metadata, not full plan content)
+- **Project context**: tech stack, test command (inferred from package.json/pyproject.toml/Makefile), key conventions (1-2 sentences)
 - Current progress summary (1-2 sentences)
-- Total work items remaining
+- Total work items remaining across all phases
 
-Create a task list using TaskCreate to track each remaining work item. Add metadata noting which items can run in parallel.
+**Step 2: Write initial state file**
 
-**Use this parallelization map for the entire execution.** When entering a phase, check which items are independent and launch them concurrently.
+Using the subagent's response, write `.implement-plan-state.json` to the repository root:
+
+```bash
+# Write the state file (Main Agent does this directly)
+cat > .implement-plan-state.json << 'EOF'
+{
+  "plan_file": "[PLAN_FILE path]",
+  "started_at": "[current ISO timestamp]",
+  "current_phase": "[first incomplete phase name]",
+  "current_item": "[first item number in that phase]",
+  "completed": [],
+  "failed": [],
+  "project_context": {
+    "tech_stack": "[from subagent]",
+    "test_command": "[from subagent]",
+    "conventions": "[from subagent]"
+  },
+  "checkpoints": {},
+  "parallelization_map": { [from subagent — all phases] }
+}
+EOF
+```
+
+**Step 3: Ensure state file is gitignored**
+
+Check if `.implement-plan-state.json` is in `.gitignore`. If not, append it:
+
+```bash
+grep -q '.implement-plan-state.json' .gitignore 2>/dev/null || echo '.implement-plan-state.json' >> .gitignore
+```
+
+If `.gitignore` was modified, stage and commit it:
+```bash
+git add .gitignore && git commit -m "Add .implement-plan-state.json to .gitignore"
+```
+
+**Step 4: Create task list**
+
+Create a task list using TaskCreate to track each remaining work item in the first phase. Add metadata noting which items can run in parallel.
+
+**Use the parallelization map from the state file for the entire execution.** When entering a phase, consult `parallelization_map` to determine which items are independent and launch them concurrently.
 
 ### MAIN LOOP — Repeat until all work items are complete:
 
-Before each iteration, check whether the next batch of work items can be parallelized. Use the parallelization map from STARTUP.
+Before each iteration, check whether the next batch of work items can be parallelized. Consult the `parallelization_map` in `.implement-plan-state.json`.
 
 ---
 
@@ -202,7 +306,19 @@ Run these git commands directly:
 4. `git commit -m "Complete [WORK_ITEM_NAME]"`
 5. `git push`
 
+##### Step A5: UPDATE STATE FILE (Main Agent — do this yourself)
+
+After the commit succeeds, update `.implement-plan-state.json`:
+
+1. Read the current state file
+2. Add the completed item to `completed` array: `{ "item": "[N.M]", "phase": "[phase name]", "description": "[brief]", "sha": "[commit SHA from step A4]", "files": [files changed] }`
+3. Update `checkpoints` with item→SHA mapping
+4. Update `current_item` to the next item (or null if phase is complete)
+5. Write the updated state file back
+
 Mark the corresponding task as completed using TaskUpdate.
+
+**State shedding check:** If `completed` array length is a multiple of 5, this is a shedding boundary. From this point forward, derive all context from the state file only — do not reference earlier conversation history for work item details, file lists, or error summaries.
 
 ---
 
@@ -269,13 +385,43 @@ Single commit covering all parallel work items:
 4. `git commit -m "Complete [PHASE_NAME]: [ITEM_1], [ITEM_2], [ITEM_3]"`
 5. `git push`
 
+##### Step B6: UPDATE STATE FILE (Main Agent — do this yourself)
+
+After the commit succeeds, update `.implement-plan-state.json`:
+
+1. Read the current state file
+2. Add ALL completed parallel items to `completed` array (one entry per item with shared SHA)
+3. Update `checkpoints` with item→SHA mappings for all completed items
+4. Update `current_item` to the next item (or null if phase is complete)
+5. Write the updated state file back
+
 Mark all corresponding tasks as completed using TaskUpdate.
+
+**State shedding check:** If `completed` array length is a multiple of 5 (or crossed a multiple of 5 with this batch), this is a shedding boundary. From this point forward, derive all context from the state file only.
 
 ---
 
 #### NEXT ITERATION (applies to both paths)
 
-Launch an Agent (subagent_type: "general-purpose") to check `PLAN_FILE`:
+**Primary path: Use the state file (no subagent needed)**
+
+Read `.implement-plan-state.json` directly. Using the `completed` array, `current_phase`, and `parallelization_map`, determine the next action:
+
+1. Identify all items in the current phase that are NOT in `completed` or `failed`
+2. If items remain in the current phase, consult `parallelization_map` to determine if remaining items are parallel or sequential
+3. If no items remain in the current phase, advance `current_phase` to the next phase and consult the parallelization map for that phase
+4. If no phases remain, the plan is complete
+
+Based on this analysis, determine the routing:
+- `PHASE_CHANGE [new phase name] PARALLEL: [item1], [item2], [item3]` — moving to a new phase with multiple independent items
+- `PHASE_CHANGE [new phase name] NEXT: [item description]` — moving to a new phase with a single/dependent item
+- `PARALLEL: [item1], [item2], [item3]` — staying in the same phase with multiple independent items
+- `NEXT: [item description]` — staying in the same phase with only one item or all have dependencies
+- `ALL_COMPLETE` — nothing remains
+
+**Fallback path: Subagent plan re-read (only if state file is missing or ambiguous)**
+
+If the state file does not exist, is corrupted, or the parallelization map does not have enough information to determine next steps, launch an Agent (subagent_type: "general-purpose") to check `PLAN_FILE`:
 
 > Read [PLAN_FILE]. List ALL remaining incomplete work items with their phase and item numbers.
 > For the next batch: are any of them parallelizable (independent, no shared file dependencies)?
@@ -285,10 +431,14 @@ Launch an Agent (subagent_type: "general-purpose") to check `PLAN_FILE`:
 > - `PARALLEL: [item1], [item2], [item3]` if staying in the same phase with multiple independent items, OR
 > - `NEXT: [item description]` if staying in the same phase with only one item or all have dependencies, OR
 > - `ALL_COMPLETE` if nothing remains.
+>
+> Also return a parallelization map for ALL remaining phases so the state file can be rebuilt.
+
+If the fallback path was used, rewrite `.implement-plan-state.json` with the updated information.
 
 **Phase transition handling (when `--pause-between-phases` is set):**
 
-If the subagent response starts with `PHASE_CHANGE` and the user passed `--pause-between-phases`:
+If the routing determination (from state file or subagent fallback) indicates `PHASE_CHANGE` and the user passed `--pause-between-phases`:
 1. Display a summary of the phase just completed (items done, any issues)
 2. Display the upcoming phase name and its work items
 3. **Ask the user for confirmation** before proceeding:
@@ -308,9 +458,17 @@ If `--pause-between-phases` is NOT set (default), ignore `PHASE_CHANGE` prefixes
 - If **NEXT**: return to PATH A.
 - If **ALL_COMPLETE**: proceed to FINALIZATION.
 
-**Do not stop early.** Continue looping until the subagent confirms ALL_COMPLETE (or the user aborts via `--pause-between-phases` confirmation). Every work item in the plan must be implemented, tested, and committed before moving to finalization.
+**Do not stop early.** Continue looping until the state file (or subagent fallback) indicates ALL_COMPLETE (or the user aborts via `--pause-between-phases` confirmation). Every work item in the plan must be implemented, tested, and committed before moving to finalization.
 
 ### FINALIZATION (only when ALL work items are complete)
+
+#### Final Step 0: Clean Up State File
+
+Delete the state file — it is ephemeral execution state and should not persist after the plan is complete:
+
+```bash
+rm -f .implement-plan-state.json
+```
 
 #### Final Step 1: Documentation Polish (Agent)
 
@@ -361,6 +519,7 @@ This command creates/updates:
 | `PLAN_FILE` (default: IMPLEMENTATION_PLAN.md) | Marks work items complete with dates |
 | PROGRESS.md | Chronological log of completed work |
 | LEARNINGS.md | Issues encountered and solutions |
+| `.implement-plan-state.json` | Ephemeral execution state (gitignored, deleted on completion) |
 
 ## Error Handling
 
@@ -417,7 +576,7 @@ If commit or PR operations fail:
 1. Check the task list for current status
 2. Look for testing loop messages
 3. Review PROGRESS.md for last successful work item
-4. Consider interrupting and re-running — the command will pick up from the last incomplete work item
+4. Consider interrupting and re-running — the command will resume from `.implement-plan-state.json` (picks up at the last incomplete work item)
 
 ## Example Usage
 
