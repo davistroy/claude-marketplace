@@ -1,5 +1,6 @@
 ---
 description: Check for available plugin updates by comparing installed versions to marketplace
+allowed-tools: Read, Glob, Grep
 ---
 
 # Check Updates Command

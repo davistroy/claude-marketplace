@@ -1,6 +1,7 @@
 ---
 name: prime
 description: Evaluate an existing codebase to produce a detailed report on project purpose, health, status, and recommended next steps
+allowed-tools: Read, Glob, Grep, Write
 ---
 
 # Prime

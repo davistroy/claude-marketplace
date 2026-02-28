@@ -1,5 +1,6 @@
 ---
 description: Generate a new command file from a template with proper structure and conventions
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # New Command Generator

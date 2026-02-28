@@ -1,6 +1,7 @@
 ---
 name: visual-explainer
 description: Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation
+allowed-tools: Read, Write, Bash, WebSearch, WebFetch
 ---
 
 # Visual Concept Explainer

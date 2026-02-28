@@ -1,5 +1,6 @@
 ---
 description: Extract questions and open items from documents to JSON
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Define Questions Command

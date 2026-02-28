@@ -1,5 +1,6 @@
 ---
 description: Generate a new skill file with proper nested directory structure and required frontmatter
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # New Skill Generator

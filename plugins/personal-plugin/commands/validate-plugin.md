@@ -1,5 +1,6 @@
 ---
 description: Validate plugin structure, frontmatter, and content for consistency and correctness
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Validate Plugin Command

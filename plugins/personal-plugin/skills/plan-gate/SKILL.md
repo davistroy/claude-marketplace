@@ -1,6 +1,7 @@
 ---
 name: plan-gate
 description: Before starting complex multi-step implementation tasks, assess scope and route to the right planning approach — native plan mode for simple changes, /plan-improvements for codebase refactoring, or /create-plan for requirements-driven work
+allowed-tools: Read, Glob, Grep
 ---
 
 # Plan Gate

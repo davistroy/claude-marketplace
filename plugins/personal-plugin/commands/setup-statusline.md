@@ -1,5 +1,6 @@
 ---
 description: Custom status line setup (Windows/PowerShell)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Custom Status Line Setup

@@ -1,5 +1,6 @@
 ---
 description: Analyze multiple document variations and synthesize a superior consolidated version
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Document Consolidation

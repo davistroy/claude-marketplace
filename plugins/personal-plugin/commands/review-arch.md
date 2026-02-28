@@ -1,5 +1,6 @@
 ---
 description: Quick architectural audit with technical debt assessment (read-only, no files generated)
+allowed-tools: Read, Glob, Grep
 ---
 
 # Review Architecture

@@ -58,7 +58,7 @@ The seven phases are organized into three tiers:
 
 #### 1.1 Add `allowed-tools` Frontmatter to All Commands and Skills
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** S1
 **Files Affected:**
 - `plugins/personal-plugin/commands/analyze-transcript.md` (modify)

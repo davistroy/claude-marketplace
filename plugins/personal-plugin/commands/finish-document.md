@@ -1,5 +1,6 @@
 ---
 description: Extract questions from a document, answer them interactively, and update the document
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Finish Document

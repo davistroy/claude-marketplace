@@ -1,5 +1,6 @@
 ---
 description: Generate detailed image generator prompts from content, optimized for 11x17 landscape prints
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Image Prompt Generator

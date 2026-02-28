@@ -1,6 +1,7 @@
 ---
 name: security-analysis
 description: Master skill for comprehensive security analysis. Identifies technology stack and delegates to specialized security sub-skills for deep vulnerability assessment.
+allowed-tools: Read, Glob, Grep, Write
 ---
 
 # Security Analysis Framework

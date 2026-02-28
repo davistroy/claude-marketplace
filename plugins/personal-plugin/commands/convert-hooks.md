@@ -1,5 +1,6 @@
 ---
 description: Convert plugin hook bash scripts to PowerShell for Windows compatibility
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Convert Hooks Command

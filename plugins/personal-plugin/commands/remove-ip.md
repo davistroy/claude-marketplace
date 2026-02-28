@@ -1,5 +1,6 @@
 ---
 description: Sanitize documents by removing company identifiers and non-public intellectual property while preserving meaning and usefulness
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Company De-Identification and IP Sanitization

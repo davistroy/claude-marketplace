@@ -1,5 +1,6 @@
 ---
 description: Convert a markdown file to a nicely formatted Microsoft Word document
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Markdown to Word Conversion

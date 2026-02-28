@@ -1,5 +1,6 @@
 ---
 description: Document quality evaluation with scored assessment report
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Document Assessment Command

@@ -1,5 +1,6 @@
 ---
 description: Comprehensive repository cleanup, organization, and documentation refresh
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Repository Cleanup and Organization

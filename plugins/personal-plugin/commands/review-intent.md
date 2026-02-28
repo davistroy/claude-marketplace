@@ -1,5 +1,6 @@
 ---
 description: Determine original project intent and compare against current implementation, reporting discrepancies
+allowed-tools: Read, Glob, Grep
 ---
 
 # Review Intent

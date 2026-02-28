@@ -1,5 +1,6 @@
 ---
 description: Meeting transcript to structured markdown report
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Meeting Transcript Analysis

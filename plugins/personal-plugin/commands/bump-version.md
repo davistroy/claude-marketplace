@@ -1,5 +1,6 @@
 ---
 description: Automate version bumping across plugin files with CHANGELOG placeholder
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Bump Version Command

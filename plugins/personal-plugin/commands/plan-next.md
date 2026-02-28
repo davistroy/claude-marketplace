@@ -1,5 +1,6 @@
 ---
 description: Analyze repo and recommend the next logical action
+allowed-tools: Read, Glob, Grep
 ---
 
 # Next Step Analysis

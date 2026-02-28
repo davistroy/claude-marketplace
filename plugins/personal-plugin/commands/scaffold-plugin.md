@@ -1,5 +1,6 @@
 ---
 description: Create a new plugin with proper directory structure, metadata, and starter files
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Scaffold Plugin

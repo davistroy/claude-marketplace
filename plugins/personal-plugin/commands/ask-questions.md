@@ -1,5 +1,6 @@
 ---
 description: Interactive Q&A session from questions JSON file
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Ask Questions Command
