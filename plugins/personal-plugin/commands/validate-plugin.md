@@ -1,5 +1,6 @@
 ---
 description: Validate plugin structure, frontmatter, and content for consistency and correctness
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Validate Plugin Command
@@ -9,7 +10,7 @@ Perform comprehensive validation of a plugin's structure, frontmatter, version s
 ## Input Validation
 
 **Required Arguments:**
-- `<plugin-name>` - Name of the plugin to validate (e.g., `personal-plugin`, `bpmn-plugin`)
+- `<plugin-name>` - Name of the plugin to validate (must match a subdirectory in `plugins/` that contains `.claude-plugin/plugin.json`)
 
 **Optional Arguments:**
 - `--all` - Validate all plugins in the repository
@@ -34,8 +35,8 @@ Examples:
   /validate-plugin --all --scorecard        # Generate maturity scorecard
 
 Available plugins:
-  - personal-plugin
-  - bpmn-plugin
+  [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
+   List each discovered plugin name.]
 ```
 
 If plugin-name is not found (and --all not specified), display:
@@ -43,11 +44,15 @@ If plugin-name is not found (and --all not specified), display:
 Error: Plugin '[name]' not found.
 
 Available plugins:
-  - personal-plugin
-  - bpmn-plugin
+  [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
+   List each discovered plugin name.]
 
 Use --all to validate all plugins.
 ```
+
+**Plugin Discovery:** Use the Glob tool to scan `plugins/*/.claude-plugin/plugin.json`. Each match yields a valid plugin name from the directory path. If no plugins are found, report: "Error: No plugins found in the plugins/ directory."
+
+**--all Flag Behavior:** When `--all` is specified, scan `plugins/` for all subdirectories containing `.claude-plugin/plugin.json` and validate each one. Do NOT rely on a hardcoded list of plugin names.
 
 ## Instructions
 
@@ -148,7 +153,7 @@ Auto-Fix Applied:
 2 skills restructured. Skills should now be discoverable.
 ```
 
-#### 1.2 plugin.json Validation
+#### 1.3 plugin.json Validation
 
 **Check:**
 - File is valid JSON (parseable)
@@ -166,7 +171,7 @@ plugin.json Validation
 [PASS] Version follows semver format
 ```
 
-#### 1.3 Marketplace Schema Validation
+#### 1.4 Marketplace Schema Validation
 
 Validate that marketplace.json plugin entries only contain fields recognized by Claude Code's schema.
 
@@ -459,8 +464,8 @@ Compare names across plugins:
 Namespace Collision Detection
 -----------------------------
 [WARN] Collision detected: /help
-       - personal-plugin/skills/help.md
-       - bpmn-plugin/skills/help.md
+       - personal-plugin/skills/help/SKILL.md
+       - bpmn-plugin/skills/help/SKILL.md
 
        Users must use explicit namespace:
          /personal-plugin:help
@@ -637,11 +642,11 @@ Hook Script Validation
 
 ### Phase 8: Pattern Compliance Checks
 
-Validate commands against the schema defined in `schemas/command.json` and pattern conventions.
+Validate commands against the command frontmatter rules and pattern conventions.
 
 #### 8.1 Command Frontmatter Schema Validation
 
-For each command markdown file, validate frontmatter against `schemas/command.json`:
+For each command markdown file, validate frontmatter against these rules:
 
 **Check:**
 - `description` field present (required)
@@ -1145,6 +1150,16 @@ Exit code: 0
 
 Tip: Run with --fix to auto-add language specifiers.
 ```
+
+## Related Commands
+
+- `/bump-version` — Update version numbers (run validation after bumping)
+- `/check-updates` — Compare installed vs marketplace versions
+- `/scaffold-plugin` — Create a new plugin with proper structure
+- `/new-command` — Add a new command (run validation after adding)
+- `/new-skill` — Add a new skill (run validation after adding)
+- `/clean-repo` — Full repository cleanup and documentation sync
+- `/convert-hooks` — Fix Windows hook compatibility issues flagged by validation
 
 ```yaml
 User: /validate-plugin --all

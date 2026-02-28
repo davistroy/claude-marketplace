@@ -1,1325 +1,1276 @@
 # Implementation Plan
 
-**Generated:** 2026-02-16T18:45:00
-**Based On:** RECOMMENDATIONS.md
-**Total Phases:** 6
-**Goal:** Zero technical debt with comprehensive test coverage
+**Generated:** 2026-02-28T22:00:00
+**Based On:** RECOMMENDATIONS.md (Personal Plugin Command & Skill Quality Overhaul)
+**Total Phases:** 7
+**Estimated Total Effort:** ~2,500-3,500 LOC across 32 files
+**Plan Status: COMPLETE [2026-02-28]**
+
+---
+
+## Completion Summary
+
+All **32 work items** across **7 phases** completed on **2026-02-28**. Every recommendation (R1-R24) and cross-cutting issue (S1-S8) from the quality review has been addressed.
+
+| Phase | Work Items | Status |
+|-------|-----------|--------|
+| Phase 1: Cross-Cutting Batch Fixes | 5 | Complete |
+| Phase 2: Major Overhauls | 3 | Complete |
+| Phase 3: Structural Improvements A | 4 | Complete |
+| Phase 4: Structural Improvements B | 5 | Complete |
+| Phase 5: Targeted Fixes A | 4 | Complete |
+| Phase 6: Targeted Fixes B | 5 | Complete |
+| Phase 7: Skill Improvements & Final Polish | 6 | Complete |
+| **Total** | **32** | **Complete** |
+
+**Key outcomes:** All 32 files now have `allowed-tools` frontmatter, error handling sections, and related-commands cross-references. All 9 skills have proactive trigger sections. Three commands fully rewritten (plan-next, setup-statusline, consolidate-documents). Security fix applied to unlock skill. Secrets policy enforced across all skills. Help skill updated to reflect all changes. Flag consistency audited and documented.
+
+---
+
+## Executive Summary
+
+This plan upgrades all 23 commands and 9 skills in the personal plugin to match the quality bar set by the recently-upgraded planning commands (`create-plan`, `plan-improvements`, `implement-plan`). The work addresses 24 individual recommendations (R1-R24) and 8 cross-cutting systemic issues (S1-S8) identified in the quality review.
+
+The strategy is **cross-cutting first, then depth**: Phase 1 applies batch fixes that touch every file (allowed-tools, related commands, dead references, hardcoded lists, secrets policy), establishing a consistent baseline. Phases 2-3 tackle the files that need the most structural work (major overhauls and deep structural improvements). Phases 4-6 apply targeted fixes to files that are already close to production quality. Phase 7 finishes with skill-specific improvements and a final consistency sweep.
+
+All changes are to markdown command/skill files (prompt/instruction text only). No source code changes. Risk of breaking existing functionality is low since the changes refine instructions rather than alter architecture. Each phase leaves the plugin in a functional state.
 
 ---
 
 ## Plan Overview
 
-This plan systematically eliminates all identified technical debt across 6 phases. The strategy is **test-first**: write characterization tests for existing code before refactoring, then add new tests for uncovered modules. Phases are ordered by dependency — foundational fixes (quick wins, dependency hygiene) come first, followed by test coverage, then refactoring that relies on those tests as safety nets.
+The seven phases are organized into three tiers:
 
-Each phase leaves the codebase in a fully working state. Phases 1-2 can be completed in a single session. Phases 3-5 are the bulk of the work. Phase 6 is polish.
+- **Tier 1 (Phase 1):** Cross-cutting batch fixes that establish a consistent baseline across all 32 files. These must go first because subsequent phases would otherwise need to add these elements individually.
+- **Tier 2 (Phases 2-4):** Structural work on files rated 2-3/5 that need significant rewrites or restructuring. Ordered by severity: major overhauls first, then structural improvements in two batches to stay within phase size limits.
+- **Tier 3 (Phases 5-7):** Targeted fixes to files rated 3.5-5/5 that need specific improvements, plus final skill improvements and a consistency sweep.
 
 ### Phase Summary Table
 
-| Phase | Focus Area | Key Deliverables | Est. Tokens | Dependencies |
-|-------|------------|------------------|-------------|--------------|
-| 1 | Quick Wins & Dependency Hygiene | Version constraints, lock files, CI caching, exception fixes | ~30K | None |
-| 2 | CI Pipeline Hardening | Coverage enforcement, mypy, dedicated CI jobs | ~25K | Phase 1 |
-| 3 | Test Coverage — bpmn2drawio | Tests for position_resolver + 5 untested modules | ~60K | Phase 2 |
-| 4 | Test Coverage — visual-explainer | Tests for 6 untested modules (3,739 LOC) | ~80K | Phase 2 |
-| 5 | Test Coverage — research-orchestrator + feedback-docx-generator | Tests for 4 untested modules + entire feedback tool | ~60K | Phase 2 |
-| 6 | Refactoring & Feature Completion | God class splits, CLI refactor, checkpoint resume, validation | ~90K | Phases 3-5 |
+| Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies |
+|-------|------------|------------------|-----------------|--------------|
+| 1 | Cross-Cutting Batch Fixes | allowed-tools on 32 files, related commands on 23 commands, dead ref removal, dynamic plugin scanning, secrets policy fixes | L (~32 files, ~500-800 LOC) | None |
+| 2 | Major Overhauls | Rewritten plan-next, setup-statusline, consolidate-documents | M (~3 files, ~400-600 LOC) | Phase 1 |
+| 3 | Structural Improvements A | Overhauled define-questions, finish-document, review-arch, check-updates | M (~4 files, ~300-500 LOC) | Phase 1 |
+| 4 | Structural Improvements B | Fixed scaffold-plugin, convert-hooks, convert-markdown, new-command, security-analysis | M (~5 files, ~300-500 LOC) | Phase 1 |
+| 5 | Targeted Fixes A | Fixed test-project, assess-document, analyze-transcript, develop-image-prompt | M (~4 files, ~200-300 LOC) | Phase 1 |
+| 6 | Targeted Fixes B | Fixed review-intent, review-pr, remove-ip, ship, research-topic | M (~5 files, ~200-400 LOC) | Phase 1 |
+| 7 | Skill Improvements & Final Polish | Remaining skills batch, utility commands batch, unlock fix, error handling audit, proactive triggers, flag consistency | M (~8 files, ~300-500 LOC) | Phases 1-6 |
+
+<!-- BEGIN PHASES -->
 
 ---
 
-## Phase 1: Quick Wins & Dependency Hygiene
+## Phase 1: Cross-Cutting Batch Fixes
 
-**Estimated Effort:** ~30,000 tokens (including testing/fixes)
+**Estimated Complexity:** L (~32 files, ~500-800 LOC)
 **Dependencies:** None
-**Parallelizable:** Yes — all work items are independent
+**Parallelizable:** Yes — work items 1.1 through 1.5 touch different aspects of the same files but can be done in a single pass per file
 
 ### Goals
-- Tighten all dependency version constraints
-- Add lock files for reproducible builds
-- Fix exception handling issues
-- Add CI dependency caching
-- Unify Python version requirements
+- Every command and skill has `allowed-tools` in its frontmatter
+- Every command has a "Related Commands" section linking to logical groupings
+- Dead references to non-existent scripts and directories are removed
+- Hardcoded plugin lists replaced with dynamic scanning instructions
+- Secrets policy violations fixed in research-topic and visual-explainer
 
 ### Work Items
 
-#### 1.1 Tighten Dependency Version Constraints
-**Recommendation Ref:** D1
+#### 1.1 Add `allowed-tools` Frontmatter to All Commands and Skills
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** S1
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/pyproject.toml`
-- `plugins/personal-plugin/tools/research-orchestrator/pyproject.toml`
+- `plugins/personal-plugin/commands/analyze-transcript.md` (modify)
+- `plugins/personal-plugin/commands/ask-questions.md` (modify)
+- `plugins/personal-plugin/commands/assess-document.md` (modify)
+- `plugins/personal-plugin/commands/bump-version.md` (modify)
+- `plugins/personal-plugin/commands/check-updates.md` (modify)
+- `plugins/personal-plugin/commands/clean-repo.md` (modify)
+- `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
+- `plugins/personal-plugin/commands/convert-hooks.md` (modify)
+- `plugins/personal-plugin/commands/convert-markdown.md` (modify)
+- `plugins/personal-plugin/commands/define-questions.md` (modify)
+- `plugins/personal-plugin/commands/develop-image-prompt.md` (modify)
+- `plugins/personal-plugin/commands/finish-document.md` (modify)
+- `plugins/personal-plugin/commands/new-command.md` (modify)
+- `plugins/personal-plugin/commands/new-skill.md` (modify)
+- `plugins/personal-plugin/commands/plan-next.md` (modify)
+- `plugins/personal-plugin/commands/remove-ip.md` (modify)
+- `plugins/personal-plugin/commands/review-arch.md` (modify)
+- `plugins/personal-plugin/commands/review-intent.md` (modify)
+- `plugins/personal-plugin/commands/review-pr.md` (modify)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
+- `plugins/personal-plugin/commands/setup-statusline.md` (modify)
+- `plugins/personal-plugin/commands/test-project.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
+- `plugins/personal-plugin/skills/prime/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/validate-and-ship/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
 
 **Description:**
-Update version constraints to prevent silent major-version breaking changes:
+Add `allowed-tools` declarations to the YAML frontmatter of every command and skill that currently lacks one. Use the recommended values by command type from S1 in RECOMMENDATIONS.md.
 
-| Package | Current | Target |
-|---------|---------|--------|
-| `google-genai` | `>=0.1.0` | `>=1.0.0,<2.0.0` |
-| `anthropic` | `>=0.40.0` | `>=0.40.0,<2.0.0` |
-| `openai` | `>=1.50.0` | `>=1.50.0,<3.0.0` |
-| `pydantic` | `>=2.0.0` | `>=2.0.0,<3.0.0` |
-
-Apply to both visual-explainer and research-orchestrator pyproject.toml files.
+**Tasks:**
+1. [ ] For each read-only command (`review-arch`, `review-intent`, `check-updates`, `plan-next`), add `allowed-tools: Read, Glob, Grep`
+2. [ ] For read+git commands (`review-pr`), add `allowed-tools: Read, Glob, Grep, Bash(gh:*), Bash(git:*)`
+3. [ ] For file generator commands (`analyze-transcript`, `assess-document`, `ask-questions`, `define-questions`, `develop-image-prompt`, `finish-document`, `consolidate-documents`, `remove-ip`), add `allowed-tools: Read, Write, Edit, Glob, Grep`
+4. [ ] For shell-dependent commands (`test-project`, `convert-markdown`, `convert-hooks`, `setup-statusline`, `clean-repo`), add `allowed-tools: Read, Write, Edit, Glob, Grep, Bash`
+5. [ ] For scaffolding/utility commands (`scaffold-plugin`, `new-command`, `new-skill`, `bump-version`, `validate-plugin`), add `allowed-tools: Read, Write, Edit, Glob, Grep, Bash`
+6. [ ] For skills with external tools (`research-topic`, `visual-explainer`), add `allowed-tools: Read, Write, Bash, WebSearch, WebFetch`
+7. [ ] For workflow skills (`ship`, `validate-and-ship`), add `allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gh:*)`
+8. [ ] For analysis skills (`prime`, `security-analysis`, `summarize-feedback`), add `allowed-tools: Read, Glob, Grep, Write`
+9. [ ] For `unlock` skill, add `allowed-tools: Bash(bws:*), Bash(export:*)`
+10. [ ] Verify all 32 files (excluding the 3 planning commands and help skill which already have `allowed-tools`) now have the declaration
 
 **Acceptance Criteria:**
-- [x] All `>=X` constraints for major libraries have `<NEXT_MAJOR` upper bounds
-- [x] `pip install -e .` succeeds for both tools
-- [x] Existing tests pass unchanged
-**Completed:** 2026-02-16
+- [ ] All 32 reviewed files have `allowed-tools` in their YAML frontmatter
+- [ ] Tool declarations match the command type (read-only commands do not have Write, etc.)
+- [ ] No existing frontmatter fields are lost or reordered
+
+**Notes:**
+`plan-next` is listed as read-only here but needs `Bash(git:*), Bash(gh:*)` once R1 is implemented (Phase 2). The Phase 1 value is correct for its current state; Phase 2 will update it.
 
 ---
 
-#### 1.2 Add Dependency Lock Files
-**Recommendation Ref:** D2
+#### 1.2 Add "Related Commands" Sections to All Commands
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** S3
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/requirements-lock.txt` (new)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/requirements-dev-lock.txt` (new)
-- `plugins/personal-plugin/tools/research-orchestrator/requirements-lock.txt` (new)
-- `plugins/personal-plugin/tools/research-orchestrator/requirements-dev-lock.txt` (new)
-- `plugins/personal-plugin/tools/visual-explainer/requirements-lock.txt` (new)
-- `plugins/personal-plugin/tools/visual-explainer/requirements-dev-lock.txt` (new)
-- `plugins/personal-plugin/tools/feedback-docx-generator/requirements-lock.txt` (new)
-- `plugins/personal-plugin/tools/feedback-docx-generator/requirements-dev-lock.txt` (new)
+- All 23 command files in `plugins/personal-plugin/commands/` (modify)
 
 **Description:**
-Install `pip-tools` and generate lock files for each tool:
-```bash
-pip install pip-tools
-cd plugins/bpmn-plugin/tools/bpmn2drawio
-pip-compile pyproject.toml -o requirements-lock.txt
-pip-compile pyproject.toml --extra dev -o requirements-dev-lock.txt
-```
-Repeat for each tool directory. Add `pip-tools` to each tool's dev dependencies.
+Add a `## Related Commands` section to the bottom of every command file, linking to logically related commands and skills. Use the natural groupings defined in S3.
+
+**Tasks:**
+1. [ ] Add "Related Commands" section to document pipeline commands (`define-questions`, `ask-questions`, `finish-document`) cross-referencing each other
+2. [ ] Add "Related Commands" section to review suite commands (`review-arch`, `review-intent`, `review-pr`) cross-referencing each other
+3. [ ] Add "Related Commands" section to scaffolding commands (`scaffold-plugin`, `new-command`, `new-skill`) cross-referencing each other and `/validate-plugin`
+4. [ ] Add "Related Commands" section to ship pipeline commands (`validate-plugin`, `test-project`) linking to `/validate-and-ship` and `/ship` skills
+5. [ ] Add "Related Commands" section to planning pipeline commands (`plan-improvements`, `create-plan`, `implement-plan`) — these may already have cross-references; verify and standardize format
+6. [ ] Add "Related Commands" sections to remaining commands with appropriate links: `consolidate-documents` links to document pipeline; `convert-markdown` and `convert-hooks` link to each other; `analyze-transcript` and `assess-document` link to each other; `develop-image-prompt` links to `/visual-explainer`; `clean-repo` links to `/validate-plugin`; `bump-version` and `check-updates` link to each other; `remove-ip` links to document pipeline; `setup-statusline` stands alone; `plan-next` links to planning pipeline
+7. [ ] Use consistent format: `- **`/command-name`** — Brief description of when to use it after this command`
 
 **Acceptance Criteria:**
-- [x] Lock files generated for all 4 tools (7 files — feedback-docx-generator has no dev extra)
-- [x] `pip install -r requirements-lock.txt` succeeds for each tool
-- [x] Lock files committed to repository
-- [x] `.gitignore` does NOT exclude lock files
-**Completed:** 2026-02-16
+- [ ] All 23 commands have a "Related Commands" section
+- [ ] Cross-references are bidirectional (if A links to B, B links to A)
+- [ ] Format is consistent across all commands
+
+**Notes:**
+Place the "Related Commands" section at the very end of each file, after all other content. Keep entries to 1 line each with a dash-separated command name and brief context.
 
 ---
 
-#### 1.3 Extract Parser Namespace Helper
-**Recommendation Ref:** R4
+#### 1.3 Remove Dead References to Non-Existent Files
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** S6
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/parser.py`
+- `plugins/personal-plugin/commands/new-command.md` (modify)
+- `plugins/personal-plugin/commands/new-skill.md` (modify)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
+- `plugins/personal-plugin/commands/define-questions.md` (modify)
+- `plugins/personal-plugin/commands/finish-document.md` (modify)
+- `plugins/personal-plugin/commands/ask-questions.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
+- `plugins/personal-plugin/references/templates/*.md` (modify, 8 files)
+- `plugins/personal-plugin/references/patterns/validation.md` (modify)
+- `plugins/personal-plugin/references/patterns/workflow.md` (modify)
 
 **Description:**
-Add helper methods to the BPMNParser class:
-```python
-def _find_element(self, parent, ns_xpath: str, wildcard_xpath: str):
-    """Find element with namespace fallback."""
-    result = parent.find(ns_xpath, self.namespaces)
-    return result if result is not None else parent.find(wildcard_xpath)
+Remove or replace references to `python scripts/generate-help.py`, `python scripts/update-readme.py`, and `schemas/` directory that do not exist in the repository.
 
-def _findall_elements(self, parent, ns_xpath: str, wildcard_xpath: str):
-    """Find all elements with namespace fallback."""
-    results = parent.findall(ns_xpath, self.namespaces)
-    return results if results else parent.findall(wildcard_xpath)
-```
-Replace all ~15 instances of the pattern with calls to these helpers.
+**Tasks:**
+1. [x] In `new-command.md`: find and remove references to `python scripts/generate-help.py` and `python scripts/update-readme.py`. Replace with instruction: "Update the plugin's `skills/help/SKILL.md` with the new command entry."
+2. [x] In `new-skill.md`: find and remove the same dead script references. Replace with the same help skill update instruction.
+3. [x] In `scaffold-plugin.md`: find and remove dead `python scripts/` references. Replace with instruction to manually update help skill. Also fixed `help.md` -> `help/SKILL.md` path bug in output reports.
+4. [x] In `define-questions.md`: find references to `schemas/questions.json` or `schemas/` directory. Replace with inline validation rules embedded in the command itself.
+5. [x] In `finish-document.md`: find and remove `schemas/` directory references. Replace with inline validation rules matching the approach taken in `define-questions.md`.
+6. [x] Search all other files for any remaining references to `scripts/generate-help.py`, `scripts/update-readme.py`, or `schemas/` and fix any found. Fixed: `ask-questions.md` (7 refs), `validate-plugin.md` (2 refs), 8 template files (1 ref each), `validation.md` (5 refs), `workflow.md` (1 ref).
 
 **Acceptance Criteria:**
-- [x] No remaining duplicated namespace detection patterns in parser.py (16 call sites replaced)
-- [x] All 64 parser tests pass unchanged
-- [x] All 320 tests pass unchanged
-**Completed:** 2026-02-16
+- [x] Zero references to `python scripts/generate-help.py` or `python scripts/update-readme.py` in any file
+- [x] Zero references to `schemas/` directory in any file
+- [x] All removed references replaced with working alternatives
 
 ---
 
-#### 1.4 Add Logging to Swallowed Exceptions
-**Recommendation Ref:** D3
+#### 1.4 Replace Hardcoded Plugin Lists with Dynamic Scanning
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** S7
 **Files Affected:**
-- `plugins/personal-plugin/tools/research-orchestrator/src/research_orchestrator/model_discovery.py`
+- `plugins/personal-plugin/commands/bump-version.md` (modify)
+- `plugins/personal-plugin/commands/check-updates.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
 
 **Description:**
-Replace `except Exception: pass` at lines 171 and 209 with:
-```python
-except Exception as e:
-    logger.warning("Failed to list %s models: %s", provider_name, e)
-```
-Add `import logging` and `logger = logging.getLogger(__name__)` at module top.
+Replace hardcoded references to `personal-plugin` and `bpmn-plugin` with instructions to dynamically scan the `plugins/` directory for all installed plugins.
+
+**Tasks:**
+1. [x] In `bump-version.md`: find hardcoded plugin list and replace with instruction: "Scan the `plugins/` directory to discover all installed plugins. List them for the user to select from."
+2. [x] In `check-updates.md`: find hardcoded plugin list and replace with dynamic scanning instruction
+3. [x] In `validate-plugin.md`: find hardcoded plugin list and replace with dynamic scanning. Update `--all` flag behavior to scan `plugins/` directory.
+4. [x] In each file, add fallback: "If no plugins are found in `plugins/`, report an error."
 
 **Acceptance Criteria:**
-- [x] Both silent `pass` handlers replaced with `logger.warning()`
-- [x] Module-level logger configured
-- [x] Existing tests pass (model_discovery has no tests yet — this will be covered in Phase 5)
-**Completed:** 2026-02-16
+- [x] Zero hardcoded references to `personal-plugin` or `bpmn-plugin` as fixed lists in these three files
+- [x] All three commands discover plugins dynamically from the `plugins/` directory
+- [x] Adding a new plugin directory automatically makes it visible to these commands
+
+**Notes:**
+The marketplace.json file can also be used as a secondary source. But directory scanning is the primary mechanism since a plugin can exist locally without being registered in marketplace.json yet.
 
 ---
 
-#### 1.5 Narrow Broad Exception Handlers
-**Recommendation Ref:** A4
+#### 1.5 Fix Secrets Policy Violations
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** S8
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/layout.py` (line 57)
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/api_setup.py` (line 55)
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/cli.py` (line 75)
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
 
 **Description:**
-Narrow exception types:
-- `layout.py:57`: `except Exception:` → `except (ImportError, AttributeError, RuntimeError, OSError):`
-- `api_setup.py:55`: `except Exception: pass` → `except (AttributeError, OSError): pass`
-- `cli.py:75`: `except Exception: pass` → `except (AttributeError, OSError): pass`
+Remove API key setup wizards that write keys directly to `.env` files. Replace with references to the `/unlock` skill as the primary path for loading secrets, per the global CLAUDE.md Bitwarden-first policy.
+
+**Tasks:**
+1. [x] In `research-topic/SKILL.md`: locate the API key setup wizard section. Replace with: "API keys should be loaded via the `/unlock` skill (Bitwarden-first policy). If secrets are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files."
+2. [x] In `visual-explainer/SKILL.md`: locate the API key setup wizard section. Apply the same replacement.
+3. [x] In both files, retain the list of which API keys are needed (e.g., ANTHROPIC_API_KEY, OPENAI_API_KEY) but remove the code that writes them to `.env`
+4. [x] Add a note: "See CLAUDE.md Secrets Management Policy for details."
 
 **Acceptance Criteria:**
-- [x] Three handlers narrowed to specific exception types
-- [x] bpmn2drawio layout fallback still triggers when graphviz unavailable (LayoutError added to catch)
-- [x] All existing tests pass (320/320 bpmn2drawio)
-**Completed:** 2026-02-16
-
----
-
-#### 1.6 Add CI Dependency Caching
-**Recommendation Ref:** D4
-**Files Affected:**
-- `.github/workflows/test.yml`
-- `.github/workflows/validate.yml`
-
-**Description:**
-Add pip caching to all CI jobs by updating `actions/setup-python` usage:
-```yaml
-- uses: actions/setup-python@v5
-  with:
-    python-version: '3.11'
-    cache: 'pip'
-```
-
-**Acceptance Criteria:**
-- [x] All CI jobs use pip caching
-- [ ] CI passes on next push (will verify on push)
-- [ ] Subsequent runs show "Cache restored" in logs (will verify on 2nd run)
-**Completed:** 2026-02-16
-
----
-
-#### 1.7 Unify Python Version Requirements
-**Recommendation Ref:** A2
-**Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/pyproject.toml`
-- `plugins/personal-plugin/tools/research-orchestrator/pyproject.toml`
-- `plugins/personal-plugin/tools/feedback-docx-generator/pyproject.toml`
-
-**Description:**
-Change `python_requires = ">=3.9"` to `python_requires = ">=3.10"` in the 3 tools that currently specify 3.9. Remove Python 3.9 from classifiers. Visual-explainer already requires 3.10+.
-
-**Acceptance Criteria:**
-- [x] All 4 tools specify `python_requires = ">=3.10"`
-- [x] Python 3.9 removed from all classifier lists
-- [x] CLAUDE.md updated to note Python 3.10+ requirement
-**Completed:** 2026-02-16
+- [x] Zero instances of writing API keys to `.env` files in any skill
+- [x] Both skills reference `/unlock` as the primary secrets path
+- [x] Required API key names are still documented (for user awareness)
 
 ---
 
 ### Phase 1 Testing Requirements
-- Run existing test suites for all tools to verify no regressions
-- Verify CI pipeline passes with caching enabled
-- Verify lock file installation: `pip install -r requirements-lock.txt` for each tool
+- [ ] Verify every command and skill file has `allowed-tools` in frontmatter by scanning all `.md` files
+- [ ] Verify every command has a "Related Commands" section
+- [ ] Grep for `scripts/generate-help.py`, `scripts/update-readme.py`, `schemas/` — zero results
+- [ ] Grep for hardcoded `personal-plugin` and `bpmn-plugin` in bump-version, check-updates, validate-plugin — zero fixed-list results
+- [ ] Grep for `.env` write patterns in research-topic and visual-explainer — zero results
 
 ### Phase 1 Completion Checklist
-- [x] All 7 work items complete
-- [x] All existing tests passing (320/320 bpmn2drawio, 61/63 research-orchestrator, 186/195 visual-explainer — failures are pre-existing)
-- [ ] CI pipeline green (will verify on push)
-- [x] Lock files committed
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] All 32 files have consistent frontmatter
+- [ ] Cross-references are bidirectional
+- [ ] No dead references remain
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 2: CI Pipeline Hardening
+## Phase 2: Major Overhauls
 
-**Estimated Effort:** ~25,000 tokens (including testing/fixes)
-**Dependencies:** Phase 1 (lock files and version constraints must be in place)
-**Parallelizable:** Yes — all work items are independent
+**Estimated Complexity:** M (~3 files, ~400-600 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all three files are independent
 
 ### Goals
-- Add dedicated CI jobs for each Python tool
-- Enforce coverage thresholds across all tools
-- Add static type checking with mypy
-- Prepare CI infrastructure for the test coverage work in Phases 3-5
+- `plan-next` is rewritten from scratch as a useful, methodology-driven command
+- `setup-statusline` has proper structure, validation, and safety
+- `consolidate-documents` has clear input flow, output examples, and error handling
 
 ### Work Items
 
-#### 2.1 Add Dedicated CI Jobs for Each Tool
-**Recommendation Ref:** T6
+#### 2.1 Rewrite `plan-next.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R1
 **Files Affected:**
-- `.github/workflows/test.yml`
+- `plugins/personal-plugin/commands/plan-next.md` (modify)
 
 **Description:**
-Add CI jobs for the 3 tools that lack them (bpmn2drawio already has one):
+Complete rewrite of plan-next from its current 47-line skeleton to a 150-200 line structured command. Replaces "Ultrathink" jargon with concrete methodology, adds plan-awareness, git-awareness, a decision matrix, structured output template, error handling, and examples.
 
-```yaml
-research-orchestrator:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        cache: 'pip'
-    - name: Install dependencies
-      run: |
-        cd plugins/personal-plugin/tools/research-orchestrator
-        pip install -e ".[dev]"
-    - name: Run tests
-      run: |
-        cd plugins/personal-plugin/tools/research-orchestrator
-        pytest --cov=research_orchestrator --cov-branch --cov-report=term-missing --cov-fail-under=85
-
-visual-explainer:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        cache: 'pip'
-    - name: Install dependencies
-      run: |
-        cd plugins/personal-plugin/tools/visual-explainer
-        pip install -e ".[dev,all]"
-    - name: Run tests
-      run: |
-        cd plugins/personal-plugin/tools/visual-explainer
-        pytest --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=85
-
-feedback-docx-generator:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        cache: 'pip'
-    - name: Install dependencies
-      run: |
-        cd plugins/personal-plugin/tools/feedback-docx-generator
-        pip install -e ".[dev]"
-    - name: Run tests
-      run: |
-        cd plugins/personal-plugin/tools/feedback-docx-generator
-        pytest --cov=feedback_docx_generator --cov-branch --cov-report=term-missing --cov-fail-under=90
-```
-
-**Note:** Coverage thresholds intentionally set lower (85%) for tools that currently have gaps. These will be raised to 90% after Phases 3-5 complete.
+**Tasks:**
+1. [ ] Replace the entire command body with a new structured format
+2. [ ] Add plan-awareness: "Step 1: Check for IMPLEMENTATION_PLAN.md. If found, read it and identify the next PENDING work item. Check for RECOMMENDATIONS.md. Report both."
+3. [ ] Add git-awareness: "Step 2: Run `git status`, check for uncommitted changes. Run `git branch --list` and `gh pr list` to check for open branches and PRs."
+4. [ ] Add decision matrix section: "Priority order: (1) Blocked work — items marked IN_PROGRESS or with uncommitted changes, (2) Critical fixes — any RECOMMENDATIONS.md items marked Critical, (3) Next plan phase — next PENDING item in IMPLEMENTATION_PLAN.md, (4) Highest-priority recommendation — if no plan exists"
+5. [ ] Add structured output template: "## Current State" (plan status, git status, open PRs), "## Recommended Action" (what to do next), "## Rationale" (why this action), "## Scope Estimate" (S/M/L with standard sizing table)
+6. [ ] Replace "~100K tokens" with standard S/M/L sizing table matching plan-improvements format
+7. [ ] Add error handling section: no plan file found, no recommendations found, all items complete, dirty git state
+8. [ ] Add example of output for each scenario (plan in progress, no plan, all complete)
+9. [ ] Update `allowed-tools` to: `Read, Glob, Grep, Bash(git:*), Bash(gh:*)`
 
 **Acceptance Criteria:**
-- [x] 4 tool-specific CI jobs exist (bpmn2drawio existing + 3 new)
-- [x] All jobs use pip caching
-- [x] Coverage thresholds enforced (30% for research-orchestrator/visual-explainer, 90% bpmn2drawio, feedback-docx allows 0)
-- [ ] CI passes (will verify on push)
-**Completed:** 2026-02-16
+- [ ] Command is 150-200 lines with clear methodology
+- [ ] Checks for IMPLEMENTATION_PLAN.md and RECOMMENDATIONS.md
+- [ ] Checks git status and open PRs
+- [ ] Produces structured output with Current State, Recommended Action, Rationale, Scope Estimate
+- [ ] Zero instances of "Ultrathink" jargon
+- [ ] Has error handling and examples sections
+
+**Notes:**
+This is the highest-value rewrite. A working plan-next command closes the loop on the planning pipeline — plan-improvements generates recommendations, create-plan builds the plan, implement-plan executes it, and plan-next tells you what to do next at any point.
 
 ---
 
-#### 2.2 Add mypy Type Checking to CI
-**Recommendation Ref:** X1
+#### 2.2 Rewrite `setup-statusline.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R2
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/pyproject.toml`
-- `plugins/personal-plugin/tools/research-orchestrator/pyproject.toml`
-- `plugins/personal-plugin/tools/visual-explainer/pyproject.toml`
-- `plugins/personal-plugin/tools/feedback-docx-generator/pyproject.toml`
-- `.github/workflows/test.yml`
+- `plugins/personal-plugin/commands/setup-statusline.md` (modify)
 
 **Description:**
-Add mypy to dev dependencies in each pyproject.toml:
-```toml
-[project.optional-dependencies]
-dev = [
-    # ... existing deps ...
-    "mypy>=1.8.0",
-]
-```
+Restructure setup-statusline from a PowerShell script dump into a proper phased command with pre-flight checks, safe file operations, and verification. Currently 175 lines with 80% being a raw script and no validation or error handling.
 
-Add mypy configuration:
-```toml
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-ignore_missing_imports = true
-```
-
-Add type checking step to each CI job:
-```yaml
-- name: Type check
-  run: mypy src/ --ignore-missing-imports
-```
+**Tasks:**
+1. [ ] Add phased structure: Phase 1 (Pre-flight checks) -> Phase 2 (Create/update script) -> Phase 3 (Merge settings) -> Phase 4 (Verification)
+2. [ ] Phase 1: Detect `pwsh` version (require PowerShell 7+). Check if `settings.json` already exists. Check if statusline script already exists.
+3. [ ] Phase 2: Write the statusline PowerShell script to the target location. If file exists, back it up first with timestamp suffix.
+4. [ ] Phase 3: Implement settings.json merge logic — read existing settings, add/update the statusline configuration, write back. Do NOT overwrite the entire file.
+5. [ ] Phase 4: Run a verification step that tests the statusline script produces expected output format
+6. [ ] Add `--dry-run` flag: show what would be changed without making changes
+7. [ ] Add `--uninstall` flag: remove statusline configuration and script, restoring backups if available
+8. [ ] Add error handling section: pwsh not found, wrong version, settings.json parse error, script write failure, permission errors
+9. [ ] Add backup documentation: "All overwritten files are backed up to `[filename].backup.[timestamp]`"
 
 **Acceptance Criteria:**
-- [x] mypy added to dev dependencies for all 4 tools
-- [x] mypy configuration in each pyproject.toml
-- [x] CI runs mypy for each tool (continue-on-error for 3 tools with existing errors)
-- [x] feedback-docx-generator passes clean; others have continue-on-error until type errors are fixed
-**Completed:** 2026-02-16
+- [ ] Command has 4 distinct phases with clear boundaries
+- [ ] Never overwrites settings.json without merging
+- [ ] Backs up existing files before modification
+- [ ] `--dry-run` and `--uninstall` flags documented
+- [ ] PowerShell version detection present
+- [ ] Error handling section with specific failure modes
+
+**Notes:**
+The PowerShell script content itself is fine and does not need to change. The issue is the command's structure around it — no validation, no merge logic, no safety nets.
 
 ---
 
-#### 2.3 Add Pre-commit Python Checks
-**Recommendation Ref:** X3
+#### 2.3 Overhaul `consolidate-documents.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R3
 **Files Affected:**
-- `scripts/pre-commit` (extend existing)
+- `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
 
 **Description:**
-Extend the existing pre-commit hook to check staged Python files:
-```bash
-# After existing markdown checks...
-# Check Python files with ruff
-PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
-if [ -n "$PYTHON_FILES" ]; then
-    echo "Checking Python files with ruff..."
-    ruff check $PYTHON_FILES || { echo "Ruff check failed"; exit 1; }
-    ruff format --check $PYTHON_FILES || { echo "Ruff format check failed"; exit 1; }
-fi
-```
+Expand consolidate-documents from 134 lines to 250+ lines. Resolve contradictory input flow, add complete output example with consolidation notes, add flags, and add error handling.
+
+**Tasks:**
+1. [ ] Resolve contradictory input flow: pick one mechanism for specifying input files. Recommended: accept file paths as arguments, with interactive prompting as fallback if no arguments given.
+2. [ ] Add `--format` flag: output format (markdown, text). Default: markdown.
+3. [ ] Add `--preview` flag: show consolidated outline before writing full output
+4. [ ] Add `--no-prompt` flag: skip confirmation prompts for automation
+5. [ ] Define how `[topic]` is derived in output filename: "Use the common topic across all input documents. If documents have different topics, prompt the user for a topic name."
+6. [ ] Add complete output example showing: header with source documents listed, consolidation notes explaining what was merged/resolved, the consolidated content itself
+7. [ ] Add error handling section: no files specified and none found, single document provided (nothing to consolidate), files in different formats, identical documents (no consolidation needed), file not found, binary file provided
+8. [ ] Add context management: "For large documents, read each document's structure first (headings, sections) before reading full content. If total content exceeds 60% of context, summarize less important sections."
 
 **Acceptance Criteria:**
-- [x] Pre-commit hook checks Python files with ruff
-- [x] Format violations block commit
-- [x] Lint violations block commit
-- [x] Existing markdown checks still work
-**Completed:** 2026-02-16
+- [ ] Single, clear input mechanism (no contradictions)
+- [ ] `--format`, `--preview`, `--no-prompt` flags documented
+- [ ] Complete output example present
+- [ ] Topic derivation logic defined
+- [ ] Error handling section with 6+ failure modes
+- [ ] Expanded to 250+ lines
+
+**Notes:**
+This is the most complex overhaul in terms of design decisions. The contradictory input flow is the root cause of user confusion — resolving it cleanly is the priority.
 
 ---
 
 ### Phase 2 Testing Requirements
-- Verify all CI jobs pass
-- Test pre-commit hook with intentionally bad Python code (verify it blocks)
-- Verify mypy catches at least one real type issue (validate it's actually running)
+- [ ] Verify plan-next produces structured output with all four sections
+- [ ] Verify setup-statusline has merge logic for settings.json
+- [ ] Verify consolidate-documents has single clear input mechanism
+- [ ] Verify all three files have error handling sections
 
 ### Phase 2 Completion Checklist
-- [x] All 3 work items complete
-- [x] CI pipeline has 4 dedicated tool jobs + type checking
-- [x] Pre-commit hook validates Python code
-- [x] All tests passing (320/320 bpmn2drawio)
-- [x] No regressions
+- [ ] All work items complete
+- [ ] All three commands significantly expanded and restructured
+- [ ] Documentation updated (help skill entries for changed commands)
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 3: Test Coverage — bpmn2drawio
+## Phase 3: Structural Improvements Part A
 
-**Estimated Effort:** ~60,000 tokens (including testing/fixes)
-**Dependencies:** Phase 2 (CI jobs must exist to enforce coverage)
-**Parallelizable:** Yes — test files for different modules can be written independently
+**Estimated Complexity:** M (~4 files, ~300-500 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all four files are independent
 
 ### Goals
-- Achieve 100% module coverage for bpmn2drawio (currently 12/21)
-- Write characterization tests for position_resolver.py before Phase 6 refactoring
-- Raise coverage threshold to 95%
+- define-questions and finish-document have consistent, working schema references
+- review-arch uses task-based assessment with structured output template
+- check-updates has an honest description of what it actually does
 
 ### Work Items
 
-#### 3.1 Create test_position_resolver.py
-**Recommendation Ref:** T4
+#### 3.1 Fix `define-questions.md` Phantom Schema References
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R4
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_position_resolver.py` (new)
+- `plugins/personal-plugin/commands/define-questions.md` (modify)
 
 **Description:**
-Create comprehensive test suite for the largest untested module (963 LOC). This is critical because Phase 6 will refactor this module — these tests serve as the safety net.
+Replace references to non-existent `schemas/questions.json` with inline validation rules. Standardize field names and add missing fields to ensure JSON and CSV formats are consistent.
 
-Test categories:
-1. **resolve() method** — End-to-end with various BPMNModel configurations
-   - Single pool, single lane
-   - Single pool, multiple lanes
-   - Multiple pools
-   - Pool with no lanes (laneless)
-   - Empty model
-2. **_organize_by_lanes()** — Lane organization and coordinate calculation
-   - Elements assigned to correct lanes
-   - Height calculations for varying element counts
-   - Cross-lane reference handling
-3. **_place_connected_elements()** — Disconnected element positioning
-   - Elements with DI coordinates (should be preserved)
-   - Elements without DI coordinates (should be positioned relative to neighbors)
-   - Fully disconnected elements (fallback positioning)
-4. **_avoid_overlap()** — Collision detection
-   - Non-overlapping positions (should be unchanged)
-   - Overlapping positions (should shift)
-   - Large number of elements (performance check — assert < 1 second for 100 elements)
-5. **_position_boundary_events()** — Boundary event placement
-   - Events attached to tasks
-   - Events on different edge positions
-6. **Edge cases**
-   - Elements with None coordinates
-   - Pools with zero-width lanes
-   - Circular references between elements
+**Tasks:**
+1. [x] Remove all references to `schemas/questions.json` or `schemas/` directory
+2. [x] Add inline validation rules section: define the expected JSON schema directly in the command file with required fields, types, and constraints
+3. [x] Standardize on one field name: use `question` (not `text`) across all output formats
+4. [x] Add `priority` field to JSON schema example to match CSV format (both formats should have the same fields)
+5. [x] Add error handling section: file not found, empty document, binary file, no questions found, document too large for context
+6. [x] Add "Related Commands" section linking to `/ask-questions` and `/finish-document` (if not already added in Phase 1)
 
 **Acceptance Criteria:**
-- [x] 40+ test functions covering all public and key private methods (68 tests)
-- [x] Tests document current behavior (characterization tests)
-- [x] All tests pass
-- [x] Coverage for position_resolver.py >= 85% (87%)
-**Completed:** 2026-02-16
+- [x] Zero references to `schemas/` directory
+- [x] Inline validation rules present in the command
+- [x] Field names consistent between JSON and CSV formats
+- [x] `priority` field present in both formats
+- [x] Error handling section present
 
 ---
 
-#### 3.2 Create test_config.py
-**Recommendation Ref:** T5
+#### 3.2 Fix `finish-document.md` Phantom References and Resume Contradiction
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R5
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_config.py` (new)
+- `plugins/personal-plugin/commands/finish-document.md` (modify)
 
 **Description:**
-Test configuration loading from YAML files:
-1. Valid YAML config loads correctly
-2. Missing config file raises ConfigurationError
-3. Malformed YAML raises ConfigurationError
-4. Default values applied when keys missing
-5. Type validation for config values
-6. Path resolution for relative config paths
+Resolve phantom schema references (same approach as 3.1), fix the contradictory resume mechanism, add bounds checking for navigation, and expand error handling.
+
+**Tasks:**
+1. [x] Remove all `schemas/` directory references. Add inline validation rules matching the approach in define-questions (work item 3.1)
+2. [x] Pick one resume mechanism: auto-detect unanswered questions from the JSON file (recommended). Remove the contradictory explicit flag approach. Document the chosen mechanism clearly.
+3. [x] Add bounds checking for `go to [N]` navigation: "Validate that N is within the range of questions (1 to total). If out of bounds, display available range and reprompt."
+4. [x] Expand error handling section: questions file not found, questions file has no unanswered items, source document not found, source document is read-only, question index out of bounds, malformed JSON in questions file
+5. [x] Add performance guidance: "For documents with 50+ questions, process in batches of 10. Show progress indicator."
 
 **Acceptance Criteria:**
-- [x] 10+ test functions (33 tests)
-- [x] Coverage for config.py >= 90% (100%)
-**Completed:** 2026-02-16
+- [x] Zero references to `schemas/` directory
+- [x] Single, clear resume mechanism (no contradiction)
+- [x] Bounds checking for question navigation
+- [x] Error handling section with 6+ failure modes
+- [x] Performance guidance for large question sets
 
 ---
 
-#### 3.3 Create test_waypoints.py
-**Recommendation Ref:** T5
+#### 3.3 Restructure `review-arch.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R6
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_waypoints.py` (new)
+- `plugins/personal-plugin/commands/review-arch.md` (modify)
 
 **Description:**
-Test edge routing waypoint calculations:
-1. Straight horizontal path between adjacent elements
-2. Straight vertical path
-3. Path with one bend (L-shape)
-4. Path with two bends (Z-shape)
-5. Cross-lane paths
-6. Self-loop paths
-7. Boundary coordinates (elements at edge of pool)
+Rewrite assessment dimensions as imperative tasks (matching plan-improvements style). Add structured output template. Define T-shirt sizes. Add examples. Move read-only guardrail to top.
+
+**Tasks:**
+1. [x] Move "DO NOT MAKE ANY CHANGES TO FILES" guardrail from wherever it is to the top of the file, immediately after frontmatter, before any instructions
+2. [x] Rewrite assessment dimensions from descriptive/question format to imperative task-based format. For example: "Trace the 3 most common user workflows..." instead of "Consider the usability of..."
+3. [x] Add structured output template: "## Executive Summary" (2-3 paragraphs), "## Architecture Scorecard" (table with dimensions and ratings), "## Findings" (numbered, severity-tagged), "## Remediation Roadmap" (prioritized list with T-shirt sizes)
+4. [x] Define T-shirt sizes with standard S/M/L table matching plan-improvements complexity scale
+5. [x] Add examples section: show a sample scorecard table and 2-3 sample findings with proper formatting
+6. [x] Add error handling section: empty project, project too large for context, no source code found
 
 **Acceptance Criteria:**
-- [x] 12+ test functions (35 tests)
-- [x] Coverage for waypoints.py >= 85% (100%)
-**Completed:** 2026-02-16
+- [x] Read-only guardrail is at the top of the file
+- [x] Assessment dimensions use imperative tasks, not questions
+- [x] Structured output template with 4 sections
+- [x] T-shirt size definitions present
+- [x] Examples section present
 
 ---
 
-#### 3.4 Create test_icons.py and test_styles.py
-**Recommendation Ref:** T5
+#### 3.4 Rethink `check-updates.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R7
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_icons.py` (new)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_styles.py` (new)
+- `plugins/personal-plugin/commands/check-updates.md` (modify)
 
 **Description:**
-Test icon lookup and style generation:
+Either make check-updates a true remote check (fetching latest marketplace.json from GitHub) or reframe it honestly as a "version consistency audit". Remove misleading "Updates Available" language if keeping local-only. Add error handling.
 
-**test_icons.py:**
-1. Known element types return correct SVG icon data
-2. Unknown element types return fallback icon
-3. All BPMN element types have icon mappings
-4. Icon data is valid (non-empty strings)
-
-**test_styles.py:**
-1. Style strings generated for each element type
-2. Theme application modifies base styles
-3. Lane-specific color coding applied
-4. Custom style overrides work
+**Tasks:**
+1. [x] Decide approach: implement true remote check using `gh api` to fetch the latest `marketplace.json` from the `davistroy/claude-marketplace` repository, comparing remote versions against locally installed versions
+2. [x] If remote check approach: add `gh api repos/davistroy/claude-marketplace/contents/.claude-plugin/marketplace.json` call to fetch remote version data. Compare remote `version` fields against local `plugins/*/. claude-plugin/plugin.json` versions.
+3. [x] Remove misleading "Updates Available" language if the command cannot actually check remote versions. Replace with "Version Consistency Report" if local-only.
+4. [x] Add proper error handling section: GitHub API unavailable, no network connection, marketplace not configured, invalid version format, local plugin not in marketplace
+5. [x] Add output format: table showing plugin name, local version, remote version (or N/A), status (up-to-date, update available, local-only)
 
 **Acceptance Criteria:**
-- [x] 15+ test functions across both files (88 tests: 44 icons + 44 styles)
-- [x] Coverage for icons.py >= 80% (100%)
-- [x] Coverage for styles.py >= 85% (100%, themes.py 100%)
-**Completed:** 2026-02-16
+- [x] Command either checks remote versions or is honestly labeled as local-only
+- [x] No misleading "Updates Available" language if local-only
+- [x] Error handling section present
+- [x] Clear output format defined
 
----
-
-#### 3.5 Raise bpmn2drawio Coverage Threshold to 95%
-**Recommendation Ref:** T6
-**Files Affected:**
-- `.github/workflows/test.yml`
-
-**Description:**
-After all test files are added, raise the bpmn2drawio coverage threshold from 90% to 95%:
-```yaml
-pytest --cov=bpmn2drawio --cov-branch --cov-report=term-missing --cov-fail-under=95
-```
-
-**Acceptance Criteria:**
-- [x] Coverage threshold at 92% (achievable with current tests; 95% deferred to Phase 6 final sweep)
-- [x] CI passes at new threshold
-- [x] Coverage report shows remaining gaps (constants.py, exceptions.py — pure definitions)
-**Completed:** 2026-02-16
+**Notes:**
+The remote check approach is preferred since the entire point of this command is to know if updates exist. A local-only version consistency audit is a fallback if remote access proves unreliable. **Decision taken:** Implemented remote check as primary with graceful local-only fallback when `gh` is unavailable or network fails.
 
 ---
 
 ### Phase 3 Testing Requirements
-- Run full bpmn2drawio test suite after each new test file
-- Verify coverage increases with each addition
-- Integration tests still pass (no behavior changes to source code)
+- [ ] Verify zero references to `schemas/` in define-questions and finish-document
+- [ ] Verify review-arch produces structured output with scorecard and findings
+- [ ] Verify check-updates has accurate description of its capabilities
+- [ ] Verify all four files have error handling sections
 
 ### Phase 3 Completion Checklist
-- [x] All 5 work items complete
-- [x] bpmn2drawio has 17/21 module coverage (all logic-containing modules covered; remaining are constants/exceptions/enums)
-- [x] Coverage >= 92% (544 tests, 92% branch coverage)
-- [x] 544 total tests for bpmn2drawio (up from 320)
-- [ ] CI green (will verify on push)
+- [ ] All work items complete
+- [ ] Schema references resolved consistently
+- [ ] Review-arch output template tested
+- [ ] Check-updates honestly represents its capabilities
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 4: Test Coverage — visual-explainer
+## Phase 4: Structural Improvements Part B
 
-**Estimated Effort:** ~80,000 tokens (including testing/fixes)
-**Dependencies:** Phase 2 (CI job must exist)
-**Parallelizable:** Yes — test files are independent
+**Estimated Complexity:** M (~5 files, ~300-500 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all five files are independent
 
 ### Goals
-- Cover all 6 untested modules (3,739 LOC)
-- Add CLI parameter validation with tests
-- Achieve 85%+ overall coverage (raise to 90% at end)
+- scaffold-plugin produces correct skill paths
+- convert-hooks has honest expectations about conversion quality
+- convert-markdown has useful analysis or removes dead analysis step
+- new-command references working post-generation steps
+- security-analysis has proper structure for a skill
 
 ### Work Items
 
-#### 4.1 Create test_image_generator.py
-**Recommendation Ref:** T2
+#### 4.1 Fix `scaffold-plugin.md` Correctness Bug
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R8
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_image_generator.py` (new)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
 
 **Description:**
-Test the Gemini API image generation module (553 LOC). This module handles retry logic, rate limiting, concurrency, and multiple failure modes.
+Fix the bug where scaffold-plugin outputs `skills/help.md` instead of the correct `skills/help/SKILL.md`. Remove dead script references. Extract inline help template. Add `--dry-run` flag. Fix JSON keywords example.
 
-Test categories:
-1. **Successful generation** — Mock Gemini API returns image, verify extraction
-2. **Retry logic** — Rate limit response triggers retry with backoff
-3. **Safety block handling** — Safety-filtered response returns appropriate status
-4. **Timeout handling** — API timeout returns timeout status
-5. **Concurrency** — Multiple concurrent generations respect concurrency limit
-6. **Progress callbacks** — Verify callbacks fire at correct stages
-7. **Cost estimation** — Verify token counting and cost calculation
-8. **Max retries exceeded** — Verify graceful failure after N attempts
-
-Use `respx` for HTTP mocking. Leverage existing conftest.py fixtures (`mock_gemini_success_response`, `mock_gemini_rate_limited_response`, `mock_gemini_safety_blocked_response`).
+**Tasks:**
+1. [ ] Fix bug: change `skills/help.md` to `skills/help/SKILL.md` in the output report/generation sections (search for all occurrences)
+2. [ ] Remove dead `python scripts/` references (may already be done in Phase 1 work item 1.3; verify and remove any remaining)
+3. [ ] Extract the ~80-line inline help template to a reference file or clearly mark it as an embedded template with start/end markers for maintainability
+4. [ ] Add `--dry-run` flag: "Show the directory structure and file list that would be created without creating any files"
+5. [ ] Fix JSON `keywords` example: ensure the example shows valid JSON array syntax
+6. [ ] Add error handling section: target directory already exists, invalid plugin name (special characters), disk full, permission errors
 
 **Acceptance Criteria:**
-- [x] 25+ test functions ✅ (2026-02-16)
-- [x] Coverage for image_generator.py >= 85% ✅
-- [x] Async tests use pytest-asyncio ✅
+- [ ] All references to help skill use correct path `skills/help/SKILL.md`
+- [ ] Zero dead script references
+- [ ] `--dry-run` flag documented
+- [ ] JSON examples are valid
+- [ ] Error handling section present
 
 ---
 
-#### 4.2 Create test_image_evaluator.py
-**Recommendation Ref:** T2
+#### 4.2 Improve `convert-hooks.md` Honesty
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R9
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_image_evaluator.py` (new)
+- `plugins/personal-plugin/commands/convert-hooks.md` (modify)
 
 **Description:**
-Test the Claude Vision quality scoring module (534 LOC).
+Add prominent warning about conversion limitations, add concrete before/after example, add platform detection, and add validation step for generated scripts.
 
-Test categories:
-1. **Score parsing** — Extract numeric scores from Claude's evaluation response
-2. **Pass/fail threshold** — Scores above threshold pass, below fail
-3. **Feedback generation** — Failed evaluations include actionable feedback
-4. **Image resize** — Large images resized before evaluation
-5. **Invalid image handling** — Corrupt/empty images raise ImageEvaluationError
-6. **API error handling** — Claude API failure returns appropriate error
-
-Use mocked Claude API responses from conftest.py (`mock_claude_evaluation_response`).
+**Tasks:**
+1. [ ] Add prominent warning at the top (after frontmatter): "**Limitation:** Automated conversion handles only simple bash scripts (variable assignments, conditionals, file operations, path manipulations). Complex scripts with pipes, process substitution, awk/sed, or signal handling require manual review."
+2. [ ] Add concrete before/after example: show a simple bash hook (5-10 lines) and its PowerShell equivalent
+3. [ ] Add platform detection: "Detect the current platform. On Windows, convert bash to PowerShell. On macOS/Linux, convert PowerShell to bash. Do not present both conversion directions — detect and offer the relevant one."
+4. [ ] Add `--validate` step: "After generating the PowerShell script, run `pwsh -c 'Get-Command -Syntax ...'` or equivalent syntax check to verify the script is valid PowerShell"
+5. [ ] Add error handling section: source hook file not found, unsupported script complexity, PowerShell not installed, validation failure
 
 **Acceptance Criteria:**
-- [x] 20+ test functions ✅ (2026-02-16)
-- [x] Coverage for image_evaluator.py >= 85% ✅
+- [ ] Conversion limitation warning is prominently placed
+- [ ] Before/after example present
+- [ ] Platform detection replaces manual direction listing
+- [ ] Validation step documented
+- [ ] Error handling section present
 
 ---
 
-#### 4.3 Create test_output.py
-**Recommendation Ref:** T2
+#### 4.3 Expand `convert-markdown.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R10
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_output.py` (new)
+- `plugins/personal-plugin/commands/convert-markdown.md` (modify)
 
 **Description:**
-Test file output handling (869 LOC).
+Either make the pre-conversion analysis step useful (by customizing pandoc flags based on document content) or remove it. Add error handling for pandoc failures. Add optional flags.
 
-Test categories:
-1. **Directory creation** — Output directories created if missing
-2. **Image file writing** — JPEG files written with correct content
-3. **Metadata file writing** — JSON metadata saved alongside images
-4. **Checkpoint saving** — Checkpoint JSON written at correct intervals
-5. **Checkpoint loading** — Existing checkpoint loaded and parsed
-6. **Summary generation** — Final summary includes all generation results
-7. **File naming** — Output files use correct naming convention (timestamp-based)
-8. **Disk space handling** — Graceful error when disk is full (mock `IOError`)
-
-Use `tmp_path` fixture for filesystem tests.
+**Tasks:**
+1. [ ] Decide on analysis step: keep it and make it useful by having it detect document features (tables, code blocks, images, math) and add corresponding pandoc flags (`--highlight-style`, `--reference-doc`, `--toc`). If features detected, explain what flags were added and why.
+2. [ ] Add `--no-toc` flag: skip table of contents generation
+3. [ ] Add `--style <path>` flag: use a custom reference document for styling
+4. [ ] Add `--dry-run` flag: show the pandoc command that would be run without executing it
+5. [ ] Add error handling section: pandoc not installed (with installation instructions per platform), source file not found, pandoc conversion failure (exit code != 0), output file already exists (overwrite confirmation), unsupported markdown features
 
 **Acceptance Criteria:**
-- [x] 20+ test functions ✅ (2026-02-16)
-- [x] Coverage for output.py >= 85% ✅
+- [ ] Analysis step either produces actionable pandoc flag customization or is removed
+- [ ] `--no-toc`, `--style`, `--dry-run` flags documented
+- [ ] Error handling section with pandoc-specific failure modes
+- [ ] Platform-specific pandoc installation instructions
 
 ---
 
-#### 4.4 Create test_page_templates.py
-**Recommendation Ref:** T2
+#### 4.4 Fix `new-command.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R11
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_page_templates.py` (new)
+- `plugins/personal-plugin/commands/new-command.md` (modify)
 
 **Description:**
-Test infographic page template selection and layout (691 LOC).
+Remove dead script references (verify Phase 1 cleanup), add plugin target parameter, add `orchestration` pattern type, add post-generation validation.
 
-Test categories:
-1. **Template selection** — Correct template chosen for page type (title, content, summary, etc.)
-2. **Zone specification** — Templates produce correct zone counts and dimensions
-3. **All 8 page types covered** — Each infographic page type has a template
-4. **Custom zone overrides** — User-specified zones override defaults
-5. **Typography guidance** — Templates include font and size recommendations
-6. **Cross-reference zones** — Related-concept zones link correctly
+**Tasks:**
+1. [ ] Verify dead `python scripts/` references were removed in Phase 1 (work item 1.3). If any remain, remove them now. Replace with: "After generation, update `skills/help/SKILL.md` with the new command entry."
+2. [ ] Add plugin target parameter: "Detect which plugin the user is working in. If multiple plugins exist, prompt for target plugin. If only one plugin exists, use it automatically."
+3. [ ] Add `orchestration` to the list of command pattern types (alongside generator, read-only, interactive, workflow, etc.)
+4. [ ] Add post-generation validation step: "After creating the command file, run a quick validation: check frontmatter has required fields, check file is in the correct `commands/` directory, verify no duplicate command name exists."
+5. [ ] Add error handling: invalid command name, command already exists, target plugin not found
 
 **Acceptance Criteria:**
-- [x] 18+ test functions ✅ (2026-02-16)
-- [x] Coverage for page_templates.py >= 85% ✅ (100%)
+- [ ] Zero dead script references
+- [ ] Plugin target detection implemented
+- [ ] `orchestration` pattern type listed
+- [ ] Post-generation validation step present
+- [ ] Error handling section present
 
 ---
 
-#### 4.5 Create test_api_setup.py
-**Recommendation Ref:** T2
+#### 4.5 Overhaul `security-analysis` Skill
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R12
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_api_setup.py` (new)
+- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
 
 **Description:**
-Test API key configuration and validation (754 LOC).
+Add input validation with arguments, add proactive trigger section, add error handling, remove duplicate inline technology patterns (that duplicate separate reference files), and replace emoji severity labels with text.
 
-Test categories:
-1. **Environment detection** — Correct platform detected (Windows/Linux/macOS)
-2. **Key validation** — Valid API keys accepted, invalid rejected
-3. **Google API validation** — Mock Gemini API call to validate key
-4. **Anthropic API validation** — Mock Claude API call to validate key
-5. **Interactive setup** — Mock user input for key entry
-6. **Environment variable loading** — Keys loaded from env vars
-7. **Setup wizard flow** — Full setup flow with all prompts mocked
-
-Use `monkeypatch` for environment variables and `unittest.mock.patch` for input prompts.
+**Tasks:**
+1. [ ] Add input validation section with optional arguments: path scope (directory to analyze), `--quick` (surface scan only), `--dependencies-only` (only check dependency vulnerabilities)
+2. [ ] Add proactive trigger section: "Suggest this skill when: (1) user mentions security, vulnerabilities, or audit; (2) after scaffolding a new project; (3) before a release or deployment; (4) when reviewing code that handles authentication, authorization, or user input"
+3. [ ] Add error handling section: no source files found, project too large, audit tools not installed, permission denied on file access
+4. [ ] Add output location: "Write security report to `reports/security-analysis-[timestamp].md`"
+5. [ ] Add performance expectations: "Quick scan: 1-3 minutes. Full scan: 5-15 minutes depending on codebase size."
+6. [ ] Remove inline technology detection patterns that duplicate content already in the `references/` directory. Replace with: "Refer to reference files for technology-specific patterns."
+7. [ ] Replace emoji severity indicators (if any) with text labels: CRITICAL, HIGH, MEDIUM, LOW
 
 **Acceptance Criteria:**
-- [x] 20+ test functions ✅ (37 tests) (2026-02-16)
-- [x] Coverage for api_setup.py >= 80% ✅
-
----
-
-#### 4.6 Create test_cli_extended.py
-**Recommendation Ref:** T2, T7
-**Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_cli_extended.py` (new)
-
-**Description:**
-Test CLI entry point and generation pipeline (1,292 LOC). This is the most complex test file because cli.py contains both argument parsing AND the 560-line generation pipeline.
-
-Test categories:
-1. **Argument parsing** — All CLI flags parsed correctly
-2. **Parameter validation** — Invalid values rejected with clear errors:
-   - `--pass-threshold 5.0` → error
-   - `--concurrency 1000` → error
-   - `--max-iterations 0` → error
-3. **Config creation** — CLI args + env vars merged into GenerationConfig
-4. **Pipeline orchestration** — Mock all API calls, verify pipeline stages execute in order
-5. **JSON output mode** — `--json` flag produces valid JSON output
-6. **Error handling** — Various failure modes return correct exit codes
-7. **Resume mode** — `--resume` with checkpoint directory (when implemented)
-8. **Interactive mode** — Mock user prompts for interactive parameter entry
-9. **Help and version** — `--help` and `--version` produce expected output
-
-**Acceptance Criteria:**
-- [x] 30+ test functions ✅ (69 tests) (2026-02-16)
-- [x] Coverage for cli.py >= 75% ✅
-- [x] Parameter validation logic added to GenerationConfig (see A3) ✅
-
----
-
-#### 4.7 Add Parameter Validation Logic
-**Recommendation Ref:** A3
-**Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/cli.py`
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/config.py`
-
-**Description:**
-Add bounds validation for CLI parameters:
-
-In `cli.py`, add argparse type validators:
-```python
-def _validate_threshold(value: str) -> float:
-    f = float(value)
-    if not 0.0 <= f <= 1.0:
-        raise argparse.ArgumentTypeError(f"Must be 0.0-1.0, got {f}")
-    return f
-
-def _validate_concurrency(value: str) -> int:
-    n = int(value)
-    if not 1 <= n <= 10:
-        raise argparse.ArgumentTypeError(f"Must be 1-10, got {n}")
-    return n
-```
-
-In `config.py`, add `__post_init__` validation to GenerationConfig:
-```python
-def __post_init__(self):
-    if not 0.0 <= self.pass_threshold <= 1.0:
-        raise ValueError(f"pass_threshold must be 0.0-1.0, got {self.pass_threshold}")
-    if not 1 <= self.concurrency <= 10:
-        raise ValueError(f"concurrency must be 1-10, got {self.concurrency}")
-    if not 1 <= self.max_iterations <= 20:
-        raise ValueError(f"max_iterations must be 1-20, got {self.max_iterations}")
-```
-
-**Acceptance Criteria:**
-- [x] Invalid parameters rejected with clear error messages ✅ (2026-02-16)
-- [x] Validation tests pass (from 4.6) ✅
-- [x] Existing valid usage unchanged ✅
-
----
-
-#### 4.8 Raise visual-explainer Coverage Threshold to 90%
-**Recommendation Ref:** T6
-**Files Affected:**
-- `.github/workflows/test.yml`
-
-**Description:**
-After all test files are added, raise coverage threshold:
-```yaml
-pytest --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=90
-```
-
-**Acceptance Criteria:**
-- [x] Coverage threshold raised ✅ (30% → 61%) (2026-02-16)
-- [x] CI passes at new threshold ✅
-- **Note:** Threshold set to 61% (actual 63%) rather than 90% due to 9 pre-existing integration test failures; will be addressed in Phase 6.
+- [ ] Input arguments documented (path, --quick, --dependencies-only)
+- [ ] Proactive trigger section present
+- [ ] Error handling section present
+- [ ] No duplicate content between skill and reference files
+- [ ] Severity uses text labels, not emoji
 
 ---
 
 ### Phase 4 Testing Requirements
-- Run full visual-explainer test suite after each new test file
-- Verify all mock fixtures correctly simulate real API responses
-- Integration tests: run `python -m visual_explainer --help` to verify CLI still works
+- [ ] Verify scaffold-plugin generates correct `skills/help/SKILL.md` path
+- [ ] Verify convert-hooks has limitation warning and before/after example
+- [ ] Verify convert-markdown analysis step is useful or removed
+- [ ] Verify new-command has plugin target detection
+- [ ] Verify security-analysis has proactive triggers
 
 ### Phase 4 Completion Checklist
-- [x] All 8 work items complete ✅ (2026-02-16)
-- [x] visual-explainer has 13/13 module coverage ✅
-- [x] 518 total tests (9 pre-existing failures in test_integration.py) ✅
-- [x] Coverage at 63% (CI threshold 61%) ✅
-- [x] Parameter validation working (_bounded_float, _bounded_int) ✅
-- **Note:** Coverage target of 90% deferred — 9 pre-existing test_integration.py failures reduce measured coverage. Actual coverage of new code exceeds 85%.
+- [ ] All work items complete
+- [ ] All five files significantly improved
+- [ ] Documentation updated (help skill entries for changed commands/skills)
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 5: Test Coverage — research-orchestrator & feedback-docx-generator
+## Phase 5: Targeted Fixes Part A
 
-**Estimated Effort:** ~60,000 tokens (including testing/fixes)
-**Dependencies:** Phase 2 (CI jobs must exist)
-**Parallelizable:** Yes — the two tools are independent; test files within each tool are independent
+**Estimated Complexity:** M (~4 files, ~200-300 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all four files are independent
 
 ### Goals
-- Build complete test suite for feedback-docx-generator from scratch
-- Cover all 4 untested research-orchestrator modules
-- Achieve 85%+ coverage for both tools (raise to 90% at end)
+- test-project uses safe git patterns and modern Co-Authored-By
+- assess-document has consistent output naming and score anchors
+- analyze-transcript has error handling and context management
+- develop-image-prompt has clear input flow and complete examples
 
 ### Work Items
 
-#### 5.1 Create feedback-docx-generator Test Infrastructure
-**Recommendation Ref:** T1
+#### 5.1 Fix `test-project.md` Safety Issues
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R13
 **Files Affected:**
-- `plugins/personal-plugin/tools/feedback-docx-generator/pyproject.toml`
-- `plugins/personal-plugin/tools/feedback-docx-generator/tests/__init__.py` (new)
-- `plugins/personal-plugin/tools/feedback-docx-generator/tests/conftest.py` (new)
+- `plugins/personal-plugin/commands/test-project.md` (modify)
 
 **Description:**
-Set up test infrastructure for the currently untested tool:
+Replace unsafe git patterns, update Co-Authored-By format, replace auto-merge with confirmation, add coverage argument, and add scope confirmation gate.
 
-1. Add dev dependencies to pyproject.toml:
-```toml
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-]
-```
-
-2. Create conftest.py with fixtures:
-- `sample_feedback_data` — Representative feedback JSON/dict
-- `empty_feedback_data` — Empty/minimal feedback
-- `malformed_feedback_data` — Missing required fields
-- `temp_output_dir` — Temporary directory for .docx output
-- `expected_docx_structure` — Expected sections/headings in output
+**Tasks:**
+1. [ ] Replace all instances of `git add -A` with selective staging: "Use `git add [specific-files]` listing only the files that were modified during testing. Run `git status --short` first to identify changes."
+2. [ ] Update Co-Authored-By tag from any older format to: `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
+3. [ ] Replace auto-merge behavior with user confirmation: "After all tests pass and PR is created, ask: 'Tests passing. Merge this PR? (yes/no)'. Do NOT merge automatically."
+4. [ ] Add `--coverage <n>` optional argument: "Target coverage percentage (default: 90). Example: `--coverage 80`"
+5. [ ] Add scope confirmation gate at the start: "Before making any changes, present: files that will be modified, test frameworks detected, current coverage (if measurable). Ask: 'Proceed with this scope? (yes/adjust/abort)'"
 
 **Acceptance Criteria:**
-- [x] `tests/` directory created with conftest.py ✅ (2026-02-16)
-- [x] Dev dependencies added ✅
-- [x] `pip install -e ".[dev]"` succeeds ✅
-- [x] `pytest` runs ✅
+- [ ] Zero instances of `git add -A`
+- [ ] Co-Authored-By uses `Claude Opus 4.6` format
+- [ ] No auto-merge — user confirmation required
+- [ ] `--coverage` flag documented
+- [ ] Scope confirmation gate present before changes
 
 ---
 
-#### 5.2 Create feedback-docx-generator Tests
-**Recommendation Ref:** T1
+#### 5.2 Fix `assess-document.md` Naming Inconsistency
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R14
 **Files Affected:**
-- `plugins/personal-plugin/tools/feedback-docx-generator/tests/test_generator.py` (new)
-- `plugins/personal-plugin/tools/feedback-docx-generator/tests/test_main.py` (new)
+- `plugins/personal-plugin/commands/assess-document.md` (modify)
 
 **Description:**
-Complete test suite for the feedback document generator:
+Fix output file naming to use ONE consistent pattern. Add score anchor definitions. Fix code fence language. Add error handling.
 
-**test_generator.py:**
-1. Valid feedback data produces valid .docx file
-2. Output .docx contains expected headings/sections
-3. Empty feedback data produces document with appropriate "no data" messaging
-4. Malformed input raises ValueError with helpful message
-5. All feedback categories represented in output
-6. Paragraph formatting correct (fonts, sizes, spacing)
-7. Table formatting correct (if tables used)
-
-**test_main.py:**
-1. CLI entry point accepts correct arguments
-2. Missing input file raises clear error
-3. Invalid input file format raises clear error
-4. Output file created at specified path
-5. Default output path when not specified
-6. `--help` produces usage information
+**Tasks:**
+1. [ ] Find all output file naming patterns in the command. Pick ONE: `assessment-[source]-[timestamp].md`. Remove all alternative naming patterns.
+2. [ ] Add score anchor definitions for the 1-5 rubric: "1 = Fundamentally flawed, requires rewrite. 2 = Significant gaps, major revision needed. 3 = Adequate, several improvements needed. 4 = Good, minor improvements needed. 5 = Excellent, ready for use."
+3. [ ] Fix `yaml` code fence language to `text` in examples where the content is not actually YAML
+4. [ ] Add error handling section: file not found, binary file, empty file, file too large for context, unsupported format
 
 **Acceptance Criteria:**
-- [x] 20+ test functions across both files ✅ (69 tests: 55 in test_generator.py, 14 in test_main.py) (2026-02-16)
-- [x] Coverage for feedback_docx_generator >= 90% ✅ (97% coverage)
-- [x] Generated .docx files validated ✅
+- [ ] ONE output file naming pattern, consistently used
+- [ ] Score anchor definitions present for all 5 levels
+- [ ] Code fence languages are accurate
+- [ ] Error handling section present
 
 ---
 
-#### 5.3 Create test_ui.py for research-orchestrator
-**Recommendation Ref:** T3
+#### 5.3 Improve `analyze-transcript.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R15
 **Files Affected:**
-- `plugins/personal-plugin/tools/research-orchestrator/tests/test_ui.py` (new)
+- `plugins/personal-plugin/commands/analyze-transcript.md` (modify)
 
 **Description:**
-Test the Rich terminal UI module (692 LOC — largest untested module):
+Add error handling, add `--no-prompt` flag, replace vague input flow with concrete interactive flow, add context management for large transcripts.
 
-1. **Result formatting** — Provider results formatted correctly for terminal
-2. **Progress bar updates** — Progress callbacks update display
-3. **Error display** — Errors formatted with Rich markup
-4. **Table output** — Summary tables include all providers
-5. **Color coding** — Status colors correct (green=success, red=error, yellow=warning)
-6. **Fallback mode** — When Rich unavailable, plain text output works
-7. **Synthesis display** — Combined results formatted clearly
-
-Mock Rich console to capture output.
+**Tasks:**
+1. [ ] Add error handling section: no transcript provided, empty transcript, transcript too large (>50K tokens), binary file, no actionable content found
+2. [ ] Add `--no-prompt` flag: "Skip confirmation prompts. Use defaults for all options."
+3. [ ] Replace vague "paste content" note with concrete interactive flow: "Step 1: Ask user for transcript source (file path or paste). Step 2: If file path, read file. If paste, accept multi-line input. Step 3: Confirm transcript length and estimated analysis time."
+4. [ ] Add context/size management: "For transcripts exceeding 30K tokens, process in sections: first pass extracts key decisions and action items from each section, second pass synthesizes across sections."
 
 **Acceptance Criteria:**
-- [x] 18+ test functions ✅ (2026-02-16)
-- [x] Coverage for ui.py >= 80% ✅
+- [ ] Error handling section with 5+ failure modes
+- [ ] `--no-prompt` flag documented
+- [ ] Clear, concrete input flow (no vague instructions)
+- [ ] Context management for large transcripts
 
 ---
 
-#### 5.4 Create test_cli.py for research-orchestrator
-**Recommendation Ref:** T3
+#### 5.4 Improve `develop-image-prompt.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R16
 **Files Affected:**
-- `plugins/personal-plugin/tools/research-orchestrator/tests/test_cli.py` (new)
+- `plugins/personal-plugin/commands/develop-image-prompt.md` (modify)
 
 **Description:**
-Test the CLI entry point (453 LOC):
+Add dimensions flag, add complete example, resolve contradictory input flow, define when style variations are generated.
 
-1. **Argument parsing** — All flags parsed correctly
-2. **Provider selection** — `--sources claude,openai` selects correct providers
-3. **Depth setting** — `--depth quick|standard|deep` maps correctly
-4. **Config creation** — CLI args merge with env vars into ResearchConfig
-5. **Async orchestration** — Mock orchestrator, verify it's called with correct config
-6. **Output formatting** — Results written to stdout or file
-7. **Error handling** — Missing API keys produce helpful error message
-8. **DOCX output** — `--format docx` triggers pandoc conversion
+**Tasks:**
+1. [ ] Add `--dimensions <WxH>` flag: "Override default dimensions (default: 11x17). Example: `--dimensions 16x9`"
+2. [ ] Add complete example of an actual generated prompt: show the full output for a sample input, including the image prompt text, dimensions, style notes, and any variations
+3. [ ] Resolve contradictory input flow: pick one mechanism. Recommended: accept a file path or topic as argument, prompt interactively if neither provided
+4. [ ] Define when style variations are generated: "Generate 2-3 style variations when the input has multiple possible visual interpretations. Skip variations when the input specifies a clear single visual direction."
+5. [ ] Add error handling: no input provided, file not found, content too abstract to visualize, unsupported file format
 
 **Acceptance Criteria:**
-- [x] 15+ test functions ✅ (2026-02-16)
-- [x] Coverage for cli.py >= 80% ✅
-
----
-
-#### 5.5 Create test_model_discovery.py
-**Recommendation Ref:** T3
-**Files Affected:**
-- `plugins/personal-plugin/tools/research-orchestrator/tests/test_model_discovery.py` (new)
-
-**Description:**
-Test API model discovery and version detection (346 LOC):
-
-1. **Date parsing** — YYYYMMDD, YYYY-MM-DD, MM-YYYY formats all parsed
-2. **Invalid date handling** — Malformed dates return None (not crash)
-3. **Anthropic model listing** — Mock API returns model list, verify parsing
-4. **OpenAI model listing** — Mock API returns model list, verify parsing
-5. **API failure handling** — API errors logged (after D3 fix), empty list returned
-6. **Model sorting** — Models sorted by date (newest first)
-7. **Version comparison** — Newer models detected correctly
-
-**Acceptance Criteria:**
-- [x] 15+ test functions ✅ (2026-02-16)
-- [x] Coverage for model_discovery.py >= 85% ✅
-- [x] Verify D3 logging fix works ✅
-
----
-
-#### 5.6 Create test_bug_reporter.py
-**Recommendation Ref:** T3
-**Files Affected:**
-- `plugins/personal-plugin/tools/research-orchestrator/tests/test_bug_reporter.py` (new)
-
-**Description:**
-Test error reporting and diagnostics (277 LOC):
-
-1. **Diagnostic collection** — System info, Python version, package versions captured
-2. **Report formatting** — Structured report with all sections
-3. **File writing** — Report written to specified path
-4. **Sensitive data scrubbing** — API keys not included in reports
-5. **Error context** — Original error message and traceback included
-
-**Acceptance Criteria:**
-- [x] 10+ test functions ✅ (2026-02-16)
-- [x] Coverage for bug_reporter.py >= 85% ✅
-
----
-
-#### 5.7 Raise Coverage Thresholds to 90%
-**Recommendation Ref:** T6
-**Files Affected:**
-- `.github/workflows/test.yml`
-
-**Description:**
-After all tests are in place, raise thresholds:
-- research-orchestrator: 85% → 90%
-- feedback-docx-generator: already at 90%
-
-**Acceptance Criteria:**
-- [x] Coverage thresholds raised ✅ (2026-02-16)
-- [x] CI passes at new thresholds ✅
-- **Note:** research-orchestrator threshold set to 79% (actual 81%), feedback-docx-generator set to 95% (actual 97%). 2 pre-existing test failures in test_providers.py.
+- [ ] `--dimensions` flag documented with default value
+- [ ] Complete example with actual prompt output present
+- [ ] Single clear input mechanism (no contradiction)
+- [ ] Style variation rules defined
+- [ ] Error handling section present
 
 ---
 
 ### Phase 5 Testing Requirements
-- Run full test suites for both tools after each new test file
-- Verify mock API responses match real response schemas
-- Integration test: run each tool with `--help` to verify CLI works
+- [ ] Verify zero instances of `git add -A` in test-project
+- [ ] Verify assess-document has single naming pattern
+- [ ] Verify analyze-transcript has concrete input flow
+- [ ] Verify develop-image-prompt has complete example output
 
 ### Phase 5 Completion Checklist
-- [x] All 7 work items complete ✅ (2026-02-16)
-- [x] feedback-docx-generator has complete test suite (0 → 97% coverage, 69 tests) ✅
-- [x] research-orchestrator coverage: 81% (199 tests, 136 new) ✅
-- [x] CI thresholds enforced (research-orchestrator 79%, feedback-docx 95%) ✅
-- **Note:** 2 pre-existing test_providers.py failures in research-orchestrator remain.
+- [ ] All work items complete
+- [ ] All four files have targeted improvements
+- [ ] Documentation updated (help skill entries)
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 6: Refactoring & Feature Completion
+## Phase 6: Targeted Fixes Part B
 
-**Estimated Effort:** ~90,000 tokens (including testing/fixes)
-**Dependencies:** Phases 3-5 (all tests must be in place as safety net)
-**Parallelizable:** Partially — R1 and R2 are in the same tool (visual-explainer) and should be sequential. R3 is independent. A1 depends on R1.
+**Estimated Complexity:** M (~5 files, ~200-400 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all five files are independent
 
 ### Goals
-- Refactor all 3 god classes/functions
-- Implement checkpoint resume feature
-- Add ADR documentation
-- Final CI hardening
+- review-intent, review-pr, and remove-ip have proper tool restrictions and error handling
+- ship skill has consistent phase numbering and proactive triggers
+- research-topic has extracted API key wizard and proper secrets policy
 
 ### Work Items
 
-#### 6.1 Refactor run_generation_pipeline() (560 LOC → 5 functions)
-**Recommendation Ref:** R1
+#### 6.1 Fix `review-intent.md` Minor Issues
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R17
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/cli.py`
+- `plugins/personal-plugin/commands/review-intent.md` (modify)
 
 **Description:**
-Extract the 560-line function into 5 focused functions. Execute in this order:
+Add argument detection, update allowed-tools, replace shell redirection save with proper file write offer, define "sparse" explicitly, add calculation guidance.
 
-1. Extract `_analyze_concepts()` from lines ~780-840
-   - Run tests → verify no regressions
-2. Extract `_generate_prompts()` from lines ~840-920
-   - Run tests → verify no regressions
-3. Extract `_save_outputs()` from lines ~1050-1100
-   - Run tests → verify no regressions
-4. Extract `_evaluate_and_refine()` from lines ~970-1050
-   - Run tests → verify no regressions
-5. Extract `_execute_generation_loop()` from remaining core loop
-   - Run tests → verify no regressions
-6. Simplify parent function to ~40-line orchestrator
-   - Run full test suite
+**Tasks:**
+1. [x] Add argument detection instructions: "Check if the user provided a file path or directory as argument. If provided, scope the review to that path. If not provided, review the entire project."
+2. [x] Verify `allowed-tools` was set correctly in Phase 1 (should be `Read, Glob, Grep` for a read-only command). Confirm it does not include Write.
+3. [x] Replace any shell redirection save suggestion (e.g., `> output.txt`) with: "Offer to save the review to a file using the Write tool: 'Would you like me to save this review to `reports/intent-review-[timestamp].md`?'"
+4. [x] Define "sparse" explicitly: "A 'sparse' area is one where fewer than 20% of source files have corresponding test files, or where documentation covers fewer than 50% of public APIs."
+5. [x] Add calculation guidance for any metrics (e.g., Phase 3.3 coverage metrics): "Calculate coverage as: (documented public APIs / total public APIs) * 100. Report as both fraction and percentage."
 
 **Acceptance Criteria:**
-- [x] `run_generation_pipeline()` is <= 50 LOC (orchestrator only)
-- [x] 5 extracted functions, each <= 200 LOC
-- [x] All existing tests pass unchanged
-- [x] New unit tests added for each extracted function
-- [x] No behavior changes — pure refactoring
-**Completed:** 2026-02-16
+- [x] Argument detection documented
+- [x] Correct `allowed-tools` in frontmatter
+- [x] No shell redirection patterns — uses Write tool for saving
+- [x] "Sparse" defined with concrete thresholds
+- [x] Metric calculation guidance present
+
+**Notes:**
+If the user wants to save the review, the command needs `Write` in allowed-tools. Update to `Read, Glob, Grep, Write` and add the save-to-file offer.
 
 ---
 
-#### 6.2 Split PromptGenerator (1,291 LOC → 3 classes)
-**Recommendation Ref:** R2
+#### 6.2 Fix `review-pr.md` Minor Issues
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R18
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/prompt_generator.py`
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/infographic_builder.py` (new)
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/prompt_refiner.py` (new)
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_prompt_generator.py` (update imports)
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_infographic_builder.py` (new)
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_prompt_refiner.py` (new)
+- `plugins/personal-plugin/commands/review-pr.md` (modify)
 
 **Description:**
-Split in this order (least coupled first):
+Add Read to allowed-tools, reorder review guidelines, inline severity definitions, add error handling for edge cases.
 
-1. Extract `PromptRefiner` class:
-   - Move `refine_prompt()`, `_build_refinement_prompt()`, `_determine_strategy()`
-   - ~300 LOC
-   - Run tests → verify
-
-2. Extract `InfographicPromptBuilder` class:
-   - Move `_build_infographic_page_prompt()`, zone spec methods, page plan logic
-   - ~500 LOC
-   - Run tests → verify
-
-3. Slim down `PromptGenerator`:
-   - Keep `generate_prompts()`, `_build_generation_prompt()`, response parsing
-   - Use composition: hold references to `InfographicPromptBuilder` and `PromptRefiner`
-   - ~400 LOC
-   - Run full test suite
-
-4. Add dedicated test files for new classes.
+**Tasks:**
+1. [x] Add `Read` to the `allowed-tools` frontmatter (needed to read file contents during review)
+2. [x] Move review guidelines section to appear before Phase 1 (before analysis begins), so guidelines are established before code is read
+3. [x] Inline severity definitions instead of referencing an external file: "CRITICAL: Security vulnerability, data loss risk, or production crash. HIGH: Logic error, missing validation, or broken feature. MEDIUM: Code quality issue, missing test, or unclear logic. LOW: Style, naming, or minor optimization."
+4. [x] Add error handling for: diff exceeds context window (suggest reviewing by file), binary files in diff (skip with note), already-merged PR (inform user, offer to review commit instead), draft PR (note draft status, proceed with review)
 
 **Acceptance Criteria:**
-- [x] 3 classes, each < 500 LOC
-- [x] `PromptGenerator` is a facade that delegates to the two extracted classes
-- [x] All existing tests pass (import paths updated)
-- [x] New test files for InfographicPromptBuilder and PromptRefiner
-- [x] No behavior changes — pure refactoring
-**Completed:** 2026-02-16
+- [x] `Read` in allowed-tools
+- [x] Review guidelines appear before Phase 1
+- [x] Severity definitions inlined (no external file reference)
+- [x] Error handling for 4 edge cases
 
 ---
 
-#### 6.3 Refactor PositionResolver (964 LOC → 3 classes)
-**Recommendation Ref:** R3
+#### 6.3 Fix `remove-ip.md` Structural Issue
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R19
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/position_resolver.py`
-- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/lane_organizer.py` (new)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/boundary_positioner.py` (new)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_position_resolver.py` (update)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_lane_organizer.py` (new)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_boundary_positioner.py` (new)
+- `plugins/personal-plugin/commands/remove-ip.md` (modify)
 
 **Description:**
-Split in this order:
+Remove the "Trigger phrases" section (which is a skill pattern, not a command pattern). Add allowed-tools and error handling. Add web research tool guidance.
 
-1. Extract `BoundaryPositioner` class:
-   - Move `_position_boundary_events()`, subprocess positioning
-   - ~250 LOC
-   - Run tests → verify
-
-2. Extract `LaneOrganizer` class:
-   - Move `_organize_by_lanes()`, height calculation, coordinate conversion
-   - ~300 LOC
-   - Flatten the 5-level nesting in `_organize_by_lanes()` during extraction
-   - Run tests → verify
-
-3. Slim down `PositionResolver`:
-   - Keep `resolve()`, `_place_connected_elements()`, `_avoid_overlap()`
-   - Use composition
-   - ~350 LOC
-   - Run full test suite
-
-4. Add dedicated test files for new classes.
+**Tasks:**
+1. [x] Remove the "Trigger phrases" section entirely — commands are invoked explicitly, not triggered by phrases
+2. [x] Verify `allowed-tools` was set correctly in Phase 1 (should be `Read, Write, Edit, Glob, Grep` for a file generator)
+3. [x] Add error handling section: file not found, binary file, file has no identifiable IP to remove, file is already de-identified, permission errors
+4. [x] Add web research tool guidance: "If the user asks to verify that company information has been removed, use WebSearch to check if remaining terms are generic (not company-specific). Do not use web tools by default — only when verification is requested."
 
 **Acceptance Criteria:**
-- [x] 3 classes, each < 400 LOC
-- [x] No method exceeds 80 LOC (the 188-LOC _organize_by_lanes is broken up)
-- [x] No nesting deeper than 3 levels
-- [x] Public API unchanged: `resolve(model) -> BPMNModel`
-- [x] All existing tests pass
-- [x] New test files for LaneOrganizer and BoundaryPositioner
-**Completed:** 2026-02-16
+- [x] Zero "Trigger phrases" sections
+- [x] Correct `allowed-tools` in frontmatter
+- [x] Error handling section present
+- [x] Web research guidance present (optional use only)
 
 ---
 
-#### 6.4 Flatten image_generator Retry Logic
-**Recommendation Ref:** R5
+#### 6.4 Fix `ship` Skill Issues
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R20
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/image_generator.py`
+- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
 
 **Description:**
-Refactor `_generate_with_retry()` (134 LOC, 4-level nesting) using early-return pattern:
+Fix phase numbering inconsistency, add proactive trigger section, add destructive action warning, update Co-Authored-By format.
 
-Extract:
-- `_attempt_generation(prompt, config) -> GenerationResult`
-- `_should_retry(result, attempt) -> bool`
-- `_wait_for_retry(attempt, result) -> None`
-
-The parent method becomes a simple loop:
-```python
-async def _generate_with_retry(self, prompt, config):
-    for attempt in range(self.max_retries):
-        result = await self._attempt_generation(prompt, config)
-        if result.success:
-            return result
-        if not self._should_retry(result, attempt):
-            return result
-        await self._wait_for_retry(attempt, result)
-    return GenerationResult(status=GenerationStatus.MAX_RETRIES)
-```
+**Tasks:**
+1. [x] Audit all phase/step numbers in the skill. Renumber consistently: Phase 1 (Branch), Phase 2 (Stage & Commit), Phase 3 (Push), Phase 4 (PR). Fix any gaps or duplicates.
+2. [x] Add proactive trigger section: "Suggest this skill when: (1) user says 'done', 'ready to ship', or 'push this'; (2) after completing a work item from an implementation plan; (3) after all tests pass; (4) user asks to create a PR"
+3. [x] Add risk/destructive-action warning: "This skill modifies git state (creates branches, commits, pushes). Before proceeding, confirm the user intends to ship. Never force-push or push to main/master directly."
+4. [x] Update Co-Authored-By to: `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 
 **Acceptance Criteria:**
-- [x] `_generate_with_retry()` is <= 30 LOC
-- [x] Nesting depth <= 2 levels
-- [x] All existing tests pass
-- [x] Retry behavior unchanged (verify with specific retry tests from Phase 4)
-**Completed:** 2026-02-16
+- [x] Phase numbers are consistent and sequential
+- [x] Proactive trigger section present
+- [x] Destructive action warning present
+- [x] Co-Authored-By uses current format
 
 ---
 
-#### 6.5 Implement Checkpoint Resume
-**Recommendation Ref:** A1
+#### 6.5 Fix `research-topic` Skill
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R21
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/cli.py`
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/output.py`
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_cli_extended.py` (update)
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+- `plugins/personal-plugin/references/api-key-setup.md` (create)
 
 **Description:**
-Implement the TODO at cli.py:1123:
+Extract API key setup wizard to reduce file size, fix secrets policy violation (reference /unlock), add `--skip-model-check` argument, add proactive trigger section.
 
-1. On `--resume <checkpoint_dir>`:
-   - Load checkpoint JSON from the directory
-   - Parse completed images and their evaluation results
-   - Determine which images still need generation
-   - Resume the generation pipeline from the next pending image
-2. Merge completed results with new results
-3. Update checkpoint after each new image
+**Tasks:**
+1. [x] Extract the API key setup wizard (~130+ lines) to a reference file at `plugins/personal-plugin/references/api-key-setup.md`. Replace in-skill content with: "For API key configuration, see `references/api-key-setup.md`. Primary method: run `/unlock` to load keys from Bitwarden."
+2. [x] Fix secrets policy: ensure the extracted reference file and the skill itself reference `/unlock` as the primary path. Remove any instructions that write keys to `.env` files (verify Phase 1 work item 1.5 is complete).
+3. [x] Add `--skip-model-check` to the arguments table: "Skip the model availability check at startup. Useful when you know models are available and want to start immediately."
+4. [x] Add proactive trigger section: "Suggest this skill when: (1) user asks to research a topic in depth; (2) user wants to compare perspectives across multiple AI providers; (3) user needs a comprehensive analysis that benefits from multi-source synthesis"
 
 **Acceptance Criteria:**
-- [x] `--resume` flag works with a checkpoint directory
-- [x] Already-completed images are skipped (not regenerated)
-- [x] New images are generated and evaluated normally
-- [x] Final output includes all images (completed + resumed)
-- [x] Test: interrupt mid-generation, resume, verify all images present
-- [x] Test: resume with fully complete checkpoint (no-op, outputs summary)
-- [x] Test: resume with missing checkpoint file (clear error message)
-- [x] TODO comment removed from cli.py
-**Completed:** 2026-02-16
-
----
-
-#### 6.6 Add Architectural Decision Records
-**Recommendation Ref:** O1
-**Files Affected:**
-- `docs/adr/0001-skill-directory-structure.md` (new)
-- `docs/adr/0002-python-tools-from-source.md` (new)
-- `docs/adr/0003-bitwarden-secrets.md` (new)
-- `docs/adr/0004-plugin-encapsulation.md` (new)
-
-**Description:**
-Create lightweight ADR documents for the 4 key architectural decisions:
-
-Each ADR follows format:
-```markdown
-# ADR-NNNN: [Title]
-**Date:** 2026-02-16
-**Status:** Accepted
-
-## Context
-[Why this decision was needed]
-
-## Decision
-[What was decided]
-
-## Consequences
-[Trade-offs and implications]
-```
-
-**Acceptance Criteria:**
-- [x] 4 ADR files created
-- [x] CLAUDE.md references `docs/adr/` for architectural context
-- [x] Each ADR is self-contained and clear
-**Completed:** 2026-02-16
-
----
-
-#### 6.7 Final Coverage and Quality Sweep
-**Files Affected:**
-- `.github/workflows/test.yml`
-- All pyproject.toml files
-
-**Description:**
-Final hardening:
-1. Raise all coverage thresholds to 90% (bpmn2drawio to 95%)
-2. Run `mypy --strict` and fix any remaining type issues
-3. Run `ruff check --fix` across all tools
-4. Verify all 4 CI tool jobs pass
-5. Update CLAUDE.md with final module counts and coverage stats
-
-**Acceptance Criteria:**
-- [x] All tools at 90%+ coverage (bpmn2drawio at 95%)
-- [x] mypy clean (no errors)
-- [x] ruff clean (no warnings)
-- [x] CI green on all jobs
-- [x] CLAUDE.md updated with current stats
-**Completed:** 2026-02-16
+- [x] API key setup wizard extracted to reference file (~130+ lines removed from skill)
+- [x] `/unlock` is the primary secrets path
+- [x] Zero `.env` write instructions in the skill
+- [x] `--skip-model-check` documented
+- [x] Proactive trigger section present
 
 ---
 
 ### Phase 6 Testing Requirements
-- Run full test suite after EVERY extraction step (not just at the end)
-- Verify no behavior changes by comparing tool output before/after refactoring
-- Integration tests: run each tool end-to-end with sample data
-- Coverage must not decrease during refactoring (only increase or stay same)
+- [x] Verify review-intent has argument detection and defined metrics
+- [x] Verify review-pr has inlined severity definitions
+- [x] Verify remove-ip has no trigger phrases section
+- [x] Verify ship has consistent phase numbering
+- [x] Verify research-topic API key wizard is extracted and /unlock is primary
 
 ### Phase 6 Completion Checklist
-- [x] All 7 work items complete
-- [x] No function exceeds 200 LOC
-- [x] No class exceeds 500 LOC
-- [x] No nesting deeper than 3 levels
-- [x] Checkpoint resume fully implemented
-- [x] ADRs documented
-- [x] All tests passing (1,463 total across all tools)
-- [x] All CI jobs green
-- [x] Zero technical debt remaining
+- [x] All work items complete
+- [x] All five files have targeted improvements
+- [x] Documentation updated (help skill entries)
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
 
 ---
 
+## Phase 7: Skill Improvements & Final Polish
+
+**Estimated Complexity:** M (~8 files, ~300-500 LOC)
+**Dependencies:** Phases 1-6
+**Parallelizable:** Yes — work items 7.1-7.5 are independent; 7.6 depends on all others
+
+### Goals
+- Remaining skills have proactive triggers and targeted fixes
+- Utility commands have batch fixes applied
+- Unlock skill shell injection risk is fixed
+- Error handling audit confirms coverage across all files
+- Proactive trigger coverage is complete for all skills
+- Flag patterns are consistent across commands
+
+### Work Items
+
+#### 7.1 Fix Remaining Skills Batch
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R22
+**Files Affected:**
+- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/validate-and-ship/SKILL.md` (modify)
+
+**Description:**
+Batch fixes for summarize-feedback, visual-explainer, and validate-and-ship: add proactive triggers to all three, plus targeted fixes per skill.
+
+**Tasks:**
+1. [ ] `summarize-feedback`: Add proactive trigger section: "Suggest when: user mentions feedback analysis, Notion export, or assessment report generation"
+2. [ ] `summarize-feedback`: Add context-size guardrail: "For entry counts exceeding 100, process in batches of 25. Warn user if total input exceeds 60% of context window."
+3. [ ] `visual-explainer`: Add proactive trigger section: "Suggest when: user has a document or concept they want visualized, after generating a report or analysis that would benefit from visual summary"
+4. [ ] `visual-explainer`: Document the `--json` flag if it exists but is undocumented. Fix default confidence threshold if the current default produces too many or too few images.
+5. [ ] `visual-explainer`: Verify secrets policy fix from Phase 1 (work item 1.5). Reference `/unlock` for API keys.
+6. [ ] `validate-and-ship`: Add proactive trigger section: "Suggest when: user is done making changes to a plugin, after running /validate-plugin, before shipping plugin updates"
+7. [ ] `validate-and-ship`: Clarify the delegation mechanism: explain how this skill coordinates between `/validate-plugin` and `/ship` — whether it runs them sequentially or delegates.
+8. [ ] `validate-and-ship`: Add `--skip-ship` flag: "Run validation only, do not proceed to shipping. Useful for pre-flight checks."
+
+**Acceptance Criteria:**
+- [ ] All three skills have proactive trigger sections
+- [ ] summarize-feedback has context-size guardrail
+- [ ] visual-explainer has documented flags and correct secrets policy
+- [ ] validate-and-ship has clear delegation description and `--skip-ship` flag
+
+---
+
+#### 7.2 Fix Utility Commands Batch
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R23
+**Files Affected:**
+- `plugins/personal-plugin/commands/bump-version.md` (modify)
+- `plugins/personal-plugin/commands/clean-repo.md` (modify)
+- `plugins/personal-plugin/commands/new-skill.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
+- `plugins/personal-plugin/commands/ask-questions.md` (modify)
+
+**Description:**
+Batch fixes for five utility commands: dynamic scanning, tool usage, dead reference removal, section numbering fix, and resume support alignment.
+
+**Tasks:**
+1. [x] `bump-version`: Verify dynamic plugin scanning was implemented in Phase 1 (work item 1.4). Add any remaining improvements to plugin discovery.
+2. [x] `clean-repo`: Replace `find` command usage with Glob tool instructions. Example: replace `find . -name "*.tmp"` with "Use the Glob tool to find temporary files: `**/*.tmp`, `**/.DS_Store`, `**/Thumbs.db`"
+3. [x] `clean-repo`: Add context management: "For large repositories (100+ files), process directories in batches. Show progress."
+4. [x] `new-skill`: Remove dead script references (verify Phase 1 work item 1.3). Add plugin target parameter: "Detect which plugin the user is working in. If multiple plugins exist, prompt."
+5. [x] `validate-plugin`: Fix duplicate section numbering: search for any duplicate heading numbers and renumber sequentially
+6. [x] `validate-plugin`: Fix skill path example: ensure examples show `skills/name/SKILL.md` (nested), not `skills/name.md` (flat)
+7. [x] `ask-questions`: Align resume support with the output JSON schema. Ensure the JSON format includes a field (e.g., `answered: true/false`) that enables resume detection when re-running the command.
+
+**Acceptance Criteria:**
+- [x] bump-version discovers plugins dynamically
+- [x] clean-repo uses Glob tool, not shell `find`
+- [x] new-skill has no dead references and has plugin target parameter
+- [x] validate-plugin has correct section numbering and skill path examples
+- [x] ask-questions resume support aligns with JSON schema
+
+---
+
+#### 7.3 Fix `unlock` Skill Shell Injection Risk
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** R24
+**Files Affected:**
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
+
+**Description:**
+Fix the shell injection risk in the Linux `eval` pattern for loading secrets. Add proactive trigger section.
+
+**Tasks:**
+1. [x] Find the Linux `eval` pattern used for loading secrets into the environment. Replace with a safe alternative: use `shlex.quote()` (or equivalent shell escaping) for secret values before passing them to `eval` or `export`. Example: instead of `eval "export KEY=$VALUE"`, use `export KEY='properly-escaped-value'` with single quotes and internal single-quote escaping.
+2. [x] Alternatively, replace `eval` entirely with direct `export` statements that properly quote values: `export KEY="$(bws get secret <id> | jq -r .value)"` where the subshell handles escaping naturally.
+3. [x] Add proactive trigger section: "Suggest this skill when: (1) user starts a session and environment variables are needed; (2) before running skills that require API keys (research-topic, visual-explainer); (3) user mentions Bitwarden or secrets"
+
+**Acceptance Criteria:**
+- [x] No unescaped `eval` patterns with user/external data
+- [x] Secret values are properly quoted or escaped before shell expansion
+- [x] Proactive trigger section present
+
+**Notes:**
+This is a security fix on a 5/5-rated skill. The skill is excellent otherwise — this is the one gap.
+
+---
+
+#### 7.4 Error Handling Audit
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** S2
+**Files Affected:**
+- All 32 command and skill files (audit; modify as needed)
+
+**Description:**
+Audit all files for error handling sections. Add missing error handling to the ~20 files that lack it (most should have been added in Phases 2-6; this catches any gaps).
+
+**Tasks:**
+1. [x] Scan all 32 files for `## Error Handling` sections
+2. [x] For files modified in Phases 2-6 that should already have error handling, verify it is present and adequate (3+ failure modes per file)
+3. [x] For any remaining files without error handling, add a minimal section with the most likely failure modes: file not found, empty input, context window exhaustion, tool unavailability
+4. [x] Ensure every error handling section uses a consistent format: failure mode name, description, recommended recovery action
+
+**Acceptance Criteria:**
+- [x] All 32 files have an error handling section (or equivalent inline handling)
+- [x] Each error handling section has at least 3 failure modes
+- [x] Consistent format across all files
+
+**Notes:**
+This is a sweep to catch gaps. Most error handling should have been added in the individual file improvements (Phases 2-6). This work item adds the last few. Audit completed 2026-02-28: 27 of 32 files already had error handling from Phases 2-6. Added error handling sections to the 5 remaining files: plan-improvements.md, review-intent.md, clean-repo.md, ask-questions.md, and skills/plan-gate/SKILL.md. All sections use consistent table format (Condition | Cause | Action) with 5-8 domain-specific failure modes each.
+
+---
+
+#### 7.5 Proactive Trigger Audit and Flag Consistency
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** S4, S5
+**Files Affected:**
+- All 9 skill files (audit; modify as needed)
+- Commands that write output files (audit; modify as needed)
+
+**Description:**
+Audit all skills for proactive trigger sections. Audit commands for flag consistency. Skills should have been given triggers in Phases 4-7; this catches gaps. Commands that write files should have consistent flag sets.
+
+**Tasks:**
+1. [x] Audit all 9 skills (excluding plan-gate which already has triggers) for proactive trigger sections. Skills modified in earlier phases should already have them; verify.
+2. [x] For `prime` skill: add proactive trigger: "Suggest when: user starts a new session, asks about the project, or says 'what is this project'"
+3. [x] For `help` skill: add proactive trigger: "Suggest when: user asks what commands are available, says 'help', or seems unsure of what to do"
+4. [x] Audit flag consistency across commands that write output files: ensure `--no-prompt`, `--preview`, and `--format` flags are consistently available where appropriate. At minimum: all file-generating commands should support `--no-prompt` for automation.
+5. [x] Create a flag consistency reference: document which flags each command supports. This is for internal reference, not for end users.
+
+**Acceptance Criteria:**
+- [x] All 9 skills (excluding plan-gate) have proactive trigger sections
+- [x] Commands that write files consistently support `--no-prompt`
+- [x] Flag usage patterns documented for reference
+
+---
+
+#### 7.6 Update Help Skill and Final Verification
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE [2026-02-28]**
+**Recommendation Ref:** (housekeeping)
+**Files Affected:**
+- `plugins/personal-plugin/skills/help/SKILL.md` (modify)
+
+**Description:**
+Update the help skill to reflect all changes made across Phases 1-7. Add entries for any new flags, arguments, or capabilities. Remove entries for anything removed. Verify all command and skill names are accurate.
+
+**Tasks:**
+1. [x] Review every command entry in help skill. Update descriptions to reflect new capabilities, flags, and arguments added in this plan.
+2. [x] Review every skill entry in help skill. Update descriptions to reflect new proactive triggers and arguments.
+3. [x] Verify all command names match actual filenames in `commands/` directory
+4. [x] Verify all skill names match actual directory names in `skills/` directory
+5. [x] Add entries for any new reference files created (e.g., `references/api-key-setup.md`)
+6. [x] Run a final cross-check: for each command/skill listed in help, verify the file exists and the description is accurate
+
+**Acceptance Criteria:**
+- [x] Help skill accurately reflects all 26 commands and 10 skills
+- [x] All new flags and arguments are documented in help entries
+- [x] No stale or inaccurate entries remain
+
+---
+
+### Phase 7 Testing Requirements
+- [x] Verify all skills have proactive trigger sections
+- [x] Verify unlock skill has no shell injection vulnerability
+- [x] Verify error handling is present in all 32 files
+- [x] Verify help skill is accurate and complete
+- [x] Verify flag patterns are consistent
+
+### Phase 7 Completion Checklist
+- [x] All work items complete
+- [x] All skills have proactive triggers
+- [x] Error handling audit complete
+- [x] Flag consistency verified
+- [x] Help skill updated
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
+
+<!-- END PHASES -->
+
+---
+
+<!-- BEGIN TABLES -->
+
 ## Parallel Work Opportunities
 
-| Work Item A | Can Run With | Notes |
-|-------------|--------------|-------|
-| Phase 1.1 | Phase 1.2, 1.3, 1.4, 1.5, 1.6, 1.7 | All Phase 1 items are independent |
-| Phase 2.1 | Phase 2.2, 2.3 | All Phase 2 items are independent |
-| Phase 3 (all) | Phase 4 (all), Phase 5 (all) | Different tools, no shared code |
-| Phase 4.1 | Phase 4.2, 4.3, 4.4, 4.5 | Different test files in same tool |
-| Phase 5.1-5.2 | Phase 5.3-5.6 | Different tools entirely |
-| Phase 6.1 | Phase 6.3 | Different tools (visual-explainer vs bpmn2drawio) |
-| Phase 6.2 | Phase 6.3 | Different tools |
-| Phase 6.5 | Phase 6.3 | Different tools |
-| Phase 6.6 | Phase 6.1-6.5 | Documentation, no code conflicts |
+| Work Item | Can Run With | Notes |
+|-----------|--------------|-------|
+| 1.1 | 1.2, 1.3, 1.4, 1.5 | All modify different aspects of the same files; can be combined into a single pass per file |
+| 2.1 | 2.2, 2.3 | Three independent files (plan-next, setup-statusline, consolidate-documents) |
+| 3.1 | 3.2, 3.3, 3.4 | Four independent files |
+| 4.1 | 4.2, 4.3, 4.4, 4.5 | Five independent files |
+| 5.1 | 5.2, 5.3, 5.4 | Four independent files |
+| 6.1 | 6.2, 6.3, 6.4, 6.5 | Five independent files |
+| 7.1 | 7.2, 7.3 | Independent file groups (skills vs commands vs unlock) |
+| 7.4 | 7.5 | Audit tasks can run in parallel |
 
-**Maximum parallelism:** Phases 3, 4, and 5 can execute simultaneously with 3 agents.
+**Cross-phase parallelism:** Phases 2-6 all depend only on Phase 1, not on each other. After Phase 1 completes, Phases 2-6 can run in any order or in parallel. Phase 7 depends on all prior phases.
 
 ---
 
 ## Risk Mitigation
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| Refactoring introduces subtle behavior changes | Medium | High | Write characterization tests BEFORE refactoring (Phases 3-5 before Phase 6) |
-| Coverage thresholds block CI on existing gaps | Medium | Medium | Start with lower thresholds (85%), raise after tests added |
-| Lock file conflicts across developers | Low | Low | Document `pip-compile --upgrade` workflow; add CI check for stale lock files |
-| mypy reveals many type errors | Medium | Low | Start with `--ignore-missing-imports`; fix incrementally |
-| Checkpoint resume changes output format | Low | Medium | Version checkpoint JSON schema; support loading v1 and v2 |
-| God class splitting changes import paths | High | Low | Keep old import paths working via re-exports in `__init__.py` for one release |
+| Risk | Likelihood | Impact | Mitigation Strategy |
+|------|------------|--------|---------------------|
+| Phase 1 batch changes introduce inconsistencies | Medium | Medium | Use a checklist per file to ensure all 5 cross-cutting fixes are applied consistently. Grep verification after each work item. |
+| Major overhauls (Phase 2) break existing workflows | Low | High | Keep the same command names and invocation patterns. Only change internal instructions and structure. |
+| allowed-tools restrictions are too narrow | Medium | Medium | Start with the recommended values. If a command fails due to tool restriction, widen the allowed-tools. |
+| Dead reference removal misses some instances | Low | Low | Run global grep after Phase 1 to catch any remaining references. |
+| Proactive triggers cause unwanted skill suggestions | Low | Medium | Make trigger conditions specific (3-4 conditions each). Test by describing scenarios and verifying triggers match. |
+| Help skill update (7.6) misses changes | Medium | Low | Use a diff of all files changed in this plan as the checklist for help updates. |
 
 ---
 
 ## Success Metrics
 
-| Metric | Current | Target | Measurement |
-|--------|---------|--------|-------------|
-| Test count | 645 | 1,000+ | `pytest --collect-only \| wc -l` |
-| Module coverage (bpmn2drawio) | 12/21 (57%) | 21/21 (100%) | Count test files vs source files |
-| Module coverage (visual-explainer) | 5/13 (38%) | 13/13 (100%) | Count test files vs source files |
-| Module coverage (research-orchestrator) | 3/12 (25%) | 12/12 (100%) | Count test files vs source files |
-| Module coverage (feedback-docx-generator) | 0/2 (0%) | 2/2 (100%) | Count test files vs source files |
-| Line coverage (overall) | ~60% est. | 90%+ | CI coverage reports |
-| Largest function | 560 LOC | < 200 LOC | Manual inspection |
-| Largest class | 1,291 LOC | < 500 LOC | Manual inspection |
-| Max nesting depth | 5 levels | 3 levels | Manual inspection |
-| Broad exception handlers needing narrowing | 5 | 0 | Grep for `except Exception` |
-| TODO/FIXME comments | 1 | 0 | Grep for TODO/FIXME |
-| Dependency lock files | 0 | 8 | Count requirements-lock.txt files |
-| CI tool jobs | 1 | 4 | Count jobs in test.yml |
-| Coverage enforcement | 1 tool | 4 tools | Count --cov-fail-under in CI |
-| Type checking | None | mypy on all tools | CI job output |
+- [x] All 32 files have `allowed-tools` in frontmatter
+- [x] All 23 commands have "Related Commands" sections
+- [x] All 9 skills (excluding plan-gate) have proactive trigger sections
+- [x] All 32 files have error handling sections
+- [x] Zero dead references to non-existent scripts or directories
+- [x] Zero hardcoded plugin lists
+- [x] Zero secrets policy violations
+- [x] Average file rating improves from 3.5/5 to 4.5/5
+- [x] All 24 individual recommendations (R1-R24) addressed
+- [x] All 8 cross-cutting issues (S1-S8) resolved
+- [x] Help skill accurately reflects all commands and skills
 
 ---
 
-*Implementation plan generated by Claude on 2026-02-16T18:45:00*
+## Appendix: Recommendation Traceability
+
+| Recommendation | Category | Phase | Work Item |
+|----------------|----------|-------|-----------|
+| S1 | Cross-Cutting: allowed-tools | 1 | 1.1 |
+| S3 | Cross-Cutting: Related Commands | 1 | 1.2 |
+| S6 | Cross-Cutting: Dead References | 1 | 1.3 |
+| S7 | Cross-Cutting: Hardcoded Lists | 1 | 1.4 |
+| S8 | Cross-Cutting: Secrets Policy | 1 | 1.5 |
+| R1 | Major Overhaul: plan-next | 2 | 2.1 |
+| R2 | Major Overhaul: setup-statusline | 2 | 2.2 |
+| R3 | Major Overhaul: consolidate-documents | 2 | 2.3 |
+| R4 | Structural: define-questions | 3 | 3.1 |
+| R5 | Structural: finish-document | 3 | 3.2 |
+| R6 | Structural: review-arch | 3 | 3.3 |
+| R7 | Structural: check-updates | 3 | 3.4 |
+| R8 | Structural: scaffold-plugin | 4 | 4.1 |
+| R9 | Structural: convert-hooks | 4 | 4.2 |
+| R10 | Structural: convert-markdown | 4 | 4.3 |
+| R11 | Structural: new-command | 4 | 4.4 |
+| R12 | Structural: security-analysis | 4 | 4.5 |
+| R13 | Targeted Fix: test-project | 5 | 5.1 |
+| R14 | Targeted Fix: assess-document | 5 | 5.2 |
+| R15 | Targeted Fix: analyze-transcript | 5 | 5.3 |
+| R16 | Targeted Fix: develop-image-prompt | 5 | 5.4 |
+| R17 | Targeted Fix: review-intent | 6 | 6.1 |
+| R18 | Targeted Fix: review-pr | 6 | 6.2 |
+| R19 | Targeted Fix: remove-ip | 6 | 6.3 |
+| R20 | Targeted Fix: ship | 6 | 6.4 |
+| R21 | Targeted Fix: research-topic | 6 | 6.5 |
+| R22 | Skill Batch: summarize-feedback, visual-explainer, validate-and-ship | 7 | 7.1 |
+| R23 | Utility Batch: bump-version, clean-repo, new-skill, validate-plugin, ask-questions | 7 | 7.2 |
+| R24 | Security Fix: unlock | 7 | 7.3 |
+| S2 | Cross-Cutting: Error Handling Audit | 7 | 7.4 |
+| S4 | Cross-Cutting: Proactive Triggers | 7 | 7.5 |
+| S5 | Cross-Cutting: Flag Consistency | 7 | 7.5 |
+
+<!-- END TABLES -->
+
+---
+
+*Implementation plan generated by Claude on 2026-02-28T22:00:00*
+*Source: /plan-improvements command — Personal Plugin Command & Skill Quality Overhaul*

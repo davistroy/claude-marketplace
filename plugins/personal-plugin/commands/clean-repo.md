@@ -1,5 +1,6 @@
 ---
 description: Comprehensive repository cleanup, organization, and documentation refresh
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Repository Cleanup and Organization
@@ -69,13 +70,17 @@ Build a complete list of what this project provides:
 
 Map ALL documentation in the repository:
 
-```bash
+Use the Glob tool (NOT shell `find` commands) to locate documentation files:
+
+```text
 # Find all markdown files
-find . -name "*.md" -type f | grep -v node_modules | grep -v .git
+Glob pattern: **/*.md
 
 # Find all README files
-find . -name "README*" -type f
+Glob pattern: **/README*
 ```
+
+Exclude `node_modules/` and `.git/` results from analysis.
 
 Create a documentation map:
 ```text
@@ -114,33 +119,48 @@ Execute the following phases in order. Each phase builds on the understanding ga
 
 ### Phase 1: Artifact Cleanup
 
-Identify and remove files that should not be in the repository:
+Identify and remove files that should not be in the repository.
 
-### Temporary Files
-- `**/tmp*`, `**/*.tmp`, `**/*.temp`
-- `**/tmpclaude-*`, `**/*.bak`, `**/*.swp`, `**/*.swo`
-- `**/*~`, `**/*.orig`, `**/*.pyc`, `**/*.pyo`
-- `**/__pycache__/`, `**/.cache/`, `**/node_modules/.cache/`
+**IMPORTANT:** Use the Glob tool (NOT shell `find` commands) for all file discovery. This ensures cross-platform compatibility and avoids permission issues.
+
+**Context Management:** For large repositories (100+ files), process directories in batches. Show progress after each category (e.g., "Temporary files: scanned 3 patterns, found 2 artifacts"). Do not attempt to scan all patterns in a single pass if the repository is large.
+
+#### Temporary Files
+
+Use Glob to search for each pattern:
+- `**/*.tmp`, `**/*.temp`, `**/*.bak`
+- `**/*.swp`, `**/*.swo`, `**/*~`, `**/*.orig`
+- `**/*.pyc`, `**/*.pyo`
+- `**/__pycache__/**`
+- `**/.cache/**`
 - `**/nul`, `**/NUL` (Windows artifacts)
 
-### Build Artifacts (if not gitignored)
-- `**/dist/`, `**/build/`, `**/out/`
-- `**/*.log`, `**/logs/`
-- `**/.next/`, `**/.nuxt/`, `**/.output/`
-- `**/*.egg-info/`, `**/.pytest_cache/`
+#### Build Artifacts (if not gitignored)
 
-### IDE/Editor Artifacts (if not gitignored)
-- `**/.idea/`, `**/.vscode/` (unless intentionally committed)
+Use Glob to search for:
+- `**/dist/**`, `**/build/**`, `**/out/**`
+- `**/*.log`
+- `**/.next/**`, `**/.nuxt/**`, `**/.output/**`
+- `**/*.egg-info/**`, `**/.pytest_cache/**`
+
+#### IDE/Editor Artifacts (if not gitignored)
+
+Use Glob to search for:
+- `**/.idea/**`, `**/.vscode/**` (unless intentionally committed)
 - `**/*.iml`, `**/.project`, `**/.classpath`
 
-### OS Artifacts
+#### OS Artifacts
+
+Use Glob to search for:
 - `**/.DS_Store`, `**/Thumbs.db`, `**/desktop.ini`
 
-**Actions:**
-1. List all suspected artifacts found
-2. Check `.gitignore` - add missing patterns if appropriate
-3. Remove untracked artifacts from working directory
-4. For tracked artifacts that shouldn't be: stage removal and note for commit
+**Safety Checks Before Deletion:**
+1. List ALL suspected artifacts found with full paths
+2. Confirm each file is truly an artifact (not a legitimate project file)
+3. Check `.gitignore` - add missing patterns if appropriate
+4. For untracked artifacts: remove from working directory
+5. For tracked artifacts that should not be committed: stage removal and note for commit
+6. **Never delete files without listing them first and confirming they are artifacts**
 
 ---
 
@@ -373,6 +393,18 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 
 ---
 
+## Error Handling
+
+| Condition | Cause | Action |
+|-----------|-------|--------|
+| Not a git repository | Command run outside a git-managed directory | Report: "This directory is not a git repository. /clean-repo requires git for branch cleanup and history analysis. Run from a git repository root." |
+| File deletion failure | Permission denied or file locked by another process | Skip the file, log it in the report under "Remaining Items", and continue with other cleanup tasks |
+| Documentation file not writable | Permissions or file lock prevents updating README, CLAUDE.md, etc. | Report which files could not be updated and display the intended changes inline so the user can apply them manually |
+| Glob tool returns no results | Empty repository or all files are in excluded patterns | Report: "No files found matching cleanup patterns. Repository may be empty or all content is gitignored." |
+| Audit log write failure (`--audit`) | Cannot write to `.claude-plugin/audit.log` | Warn: "Cannot write audit log — proceeding without audit trail." Continue cleanup normally. |
+| Large repository (1000+ files) | Glob/analysis phases take excessive time or exhaust context | Process directories in batches as specified in Phase 1 context management. Report progress after each category. |
+| Ambiguous artifact detection | File looks like an artifact but might be intentional (e.g., `.cache/` used by the project) | List the file with a `[?]` marker and ask the user before deleting. Never auto-delete ambiguous files. |
+
 ## Safety Rules
 
 - **Never delete source code** - Only remove artifacts and temp files
@@ -380,3 +412,11 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 - **Verify before documenting** - Don't document features you haven't verified exist
 - **Update, don't fabricate** - Fix stale docs, don't invent new content
 - **Ask when uncertain** - Flag ambiguous issues for user decision
+
+## Related Commands
+
+- `/validate-plugin` — Validate plugin structure and catch errors before committing
+- `/bump-version` — Update version numbers after cleanup
+- `/check-updates` — Compare installed vs marketplace versions
+- `/review-arch` — Quick architectural audit (read-only complement to cleanup)
+- `/plan-improvements` — Generate comprehensive improvement recommendations

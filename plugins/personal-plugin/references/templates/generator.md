@@ -1,7 +1,7 @@
 <!-- ============================================================
      GENERATOR COMMAND TEMPLATE
 
-     Canonical Section Order (per schemas/command.json):
+     Canonical Section Order:
      1. Frontmatter (description, allowed-tools)
      2. Title (# Command Name)
      3. Brief description paragraph
@@ -126,12 +126,12 @@ See `references/patterns/naming.md` for naming conventions.
 
 Example: `{{OUTPUT_PREFIX}}-document-20260114-143052.{{OUTPUT_EXT}}`
 
-**Schema:** Output must conform to `schemas/{{SCHEMA_NAME}}.json`
+**Schema:** Output must conform to the {{SCHEMA_NAME}} schema (see inline validation rules)
 
 ### Validation Success Message
 
 ```
-Output validated against schemas/{{SCHEMA_NAME}}.json. Saved to {{OUTPUT_LOCATION}}/{{OUTPUT_PREFIX}}-document-20260114-143052.{{OUTPUT_EXT}}
+Schema validation passed. Saved to {{OUTPUT_LOCATION}}/{{OUTPUT_PREFIX}}-document-20260114-143052.{{OUTPUT_EXT}}
 
 Validation: PASSED
 - Required fields: All present
@@ -168,7 +168,7 @@ Found X items across Y categories.
 - Category 2: Y items
 - Category 3: Z items
 
-Output validated against schemas/{{SCHEMA_NAME}}.json. Saved to {{OUTPUT_LOCATION}}/{{OUTPUT_PREFIX}}-document-20260114-143052.{{OUTPUT_EXT}}
+Schema validation passed. Saved to {{OUTPUT_LOCATION}}/{{OUTPUT_PREFIX}}-document-20260114-143052.{{OUTPUT_EXT}}
 ```
 
 ### Preview Mode

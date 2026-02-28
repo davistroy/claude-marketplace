@@ -1,5 +1,6 @@
 ---
 description: Extract questions from a document, answer them interactively, and update the document
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Finish Document
@@ -68,7 +69,7 @@ Execute the logic from `/define-questions`:
   - Dependencies or prerequisites that are undefined
   - Edge cases or scenarios not addressed
 
-- Create JSON conforming to `schemas/questions.json`:
+- Create JSON conforming to the questions schema:
 ```json
 {
   "questions": [
@@ -94,7 +95,7 @@ Execute the logic from `/define-questions`:
 }
 ```
 
-**Schema:** Output must conform to `schemas/questions.json`
+**Schema:** Output must conform to the questions schema (see inline validation rules in `/define-questions`)
 
 **Important:** Capture `location` data for each question — this enables precise document updates later.
 
@@ -106,7 +107,7 @@ Save to: `reference/questions-[document-name]-[timestamp].json`
 Before saving the questions file:
 
 1. **Generate output in memory** - Create the complete JSON structure
-2. **Validate against `schemas/questions.json`**
+2. **Validate against the questions schema rules**
 3. **If valid:** Save file and proceed to Q&A session
 4. **If invalid:** Report specific validation errors
 5. **If `--force` provided:** Save anyway with a warning
@@ -248,6 +249,14 @@ Additional commands:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+**Navigation Bounds Checking:**
+- `go to [N]`: Validate that N is within the range 1 to total questions. If out of bounds, display:
+  ```text
+  Error: Question [N] is out of range. Valid range: 1 to [total].
+  Current position: Question [current] of [total].
+  ```
+- `back`: If already at question 1, display: `Already at the first question.`
+
 **Implementation notes:**
 - Commands are case-insensitive
 - Check for session commands before processing input as an answer choice
@@ -257,14 +266,14 @@ Additional commands:
 After all questions are answered (or skipped), save to:
 `reference/answers-[document-name]-[timestamp].json`
 
-**Schema:** Output must conform to `schemas/answers.json`
+**Schema:** Output must conform to the answers schema (see inline validation rules in `/ask-questions`)
 
 #### Output Validation Behavior
 
 Before saving the answers file:
 
 1. **Generate output in memory** - Create the complete JSON structure
-2. **Validate against `schemas/answers.json`**
+2. **Validate against the answers schema rules**
 3. **If valid:** Save file and proceed to Phase 3
 4. **If invalid:** Report specific validation errors
 5. **If `--force` provided:** Save anyway with a warning
@@ -405,11 +414,29 @@ You can re-run `/finish-document PRD.md` to address skipped questions.
 
 ## Error Handling
 
-- **Document not found:** Report error and exit
-- **No questions found:** Report that document appears complete, offer to do a deeper analysis
-- **Backup failed:** Abort before making changes
-- **Parse error:** Report location and skip that update, continue with others
-- **User quits mid-session:** Save progress, allow resume with `--resume` flag
+| Error Condition | Phase | Behavior |
+|-----------------|-------|----------|
+| **Document not found** | 1 | Display: `Error: Document not found at [path].` Exit. |
+| **Document is read-only** | 3 | Display: `Error: Cannot write to [path]. Check file permissions.` Exit before modifications. |
+| **No questions found** | 1 | Display: `No questions or open items found. Document appears complete.` Suggest `/assess-document` for quality review. |
+| **Backup failed** | 3 | Display: `Error: Could not create backup. Aborting to protect original document.` Exit without modifications. |
+| **Parse error in document** | 3 | Report the specific location, skip that update, continue with remaining answers. Log skipped items in final report. |
+| **Questions file not found** | 2 | If a previous questions file is expected but missing, re-extract from source document. |
+| **Questions file has no unanswered items** | 2 | Display: `All questions in [file] are already answered. Nothing to do.` Offer to proceed to Phase 3 (document update). |
+| **Question index out of bounds** | 2 | See Navigation Bounds Checking in Session Commands section. |
+| **Malformed JSON in questions file** | 2 | Display: `Error: Could not parse [file]. JSON is malformed at [location].` Offer to re-extract. |
+| **User quits mid-session** | 2 | Save progress automatically with `status: "in_progress"`. Resume is detected on next run (see Phase 2.0 Resume Support). |
+
+## Performance Guidance
+
+For documents with a large number of questions:
+- **50+ questions**: Process in batches of 10. After each batch, display a progress indicator and offer to save progress.
+- **100+ questions**: Warn the user at startup: `This document has [N] questions. Consider running in multiple sessions using resume support.`
+- **Progress indicator**: After every 10 questions, display:
+  ```text
+  Progress: [X] of [N] questions answered ([percent]%)
+  [X] answered | [Y] skipped | [Z] remaining
+  ```
 
 ## Safety Rules
 
@@ -425,8 +452,8 @@ This command validates intermediate files at each phase. See `references/pattern
 
 | Phase | Output | Schema |
 |-------|--------|--------|
-| 1 (Extract) | `questions-*.json` | `schemas/questions.json` |
-| 2 (Answer) | `answers-*.json` | `schemas/answers.json` |
+| 1 (Extract) | `questions-*.json` | Questions schema (inline rules) |
+| 2 (Answer) | `answers-*.json` | Answers schema (inline rules) |
 
 | Flag | Behavior |
 |------|----------|
@@ -444,3 +471,10 @@ All phase completions include validation status:
 - Phase 1 output is validated before Phase 2 begins
 - Phase 2 output is validated before Phase 3 (document update) begins
 - Using `--force` allows progression despite validation failures, but may result in incomplete document updates
+
+## Related Commands
+
+- `/define-questions` — Extract questions only (Phase 1 of this command, standalone)
+- `/ask-questions` — Answer questions only (Phase 2 of this command, standalone)
+- `/assess-document` — Evaluate document quality before or after finishing
+- `/consolidate-documents` — Merge multiple document versions after completion

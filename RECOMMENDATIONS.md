@@ -1,713 +1,342 @@
-# Improvement Recommendations
+# Recommendations: Personal Plugin Command & Skill Quality Overhaul
 
-**Generated:** 2026-02-16T18:45:00
-**Analyzed Project:** claude-marketplace (davistroy/claude-marketplace)
-**Analysis Scope:** Full repository — 2 plugins, 25 commands, 11 skills, 4 Python tools (~70K LOC)
+**Generated:** 2026-02-28
+**Based On:** Critical review of all 23 commands and 9 skills (excluding 3 recently-upgraded planning commands and help skill)
+**Quality Baseline:** The recently-upgraded planning commands (`create-plan.md`, `plan-improvements.md`, `implement-plan.md`) which feature: `allowed-tools` frontmatter, task-based instructions, concrete sizing heuristics, structured output templates, error handling sections, context management, and related-command cross-references.
+**Status: ALL RECOMMENDATIONS IMPLEMENTED [2026-02-28]** -- All 24 individual recommendations (R1-R24) and 8 cross-cutting issues (S1-S8) were addressed in the Implementation Plan. See IMPLEMENTATION_PLAN.md for full traceability.
 
 ---
 
 ## Executive Summary
 
-The claude-marketplace repository is architecturally sound with excellent plugin structure, strong command/skill patterns, and proper secrets management. The primary technical debt concentrates in three areas: **test coverage gaps** (feedback-docx-generator has zero tests, visual-explainer and research-orchestrator have large untested modules), **code complexity hotspots** (god classes in position_resolver.py and prompt_generator.py, a 560-line function in visual-explainer's CLI), and **dependency management** (all floating versions with no lock files, one dangerously loose constraint).
+32 files reviewed across commands and skills. Average rating: 3.5/5. The planning pipeline upgrade exposed a significant quality gap between those three commands and the rest of the plugin. Six systemic issues affect nearly every file, and several individual files need structural overhauls.
 
-The path to zero technical debt requires 37 targeted actions across 6 phases. The highest-value work is closing test coverage gaps (currently ~645 tests but missing coverage on ~6,500 lines of source code), refactoring the 3 complexity hotspots, and tightening the dependency and CI pipeline. None of the issues are production-breaking — this is debt reduction, not emergency triage.
+**Rating Distribution:**
 
----
-
-## Recommendation Categories
-
-### Category 1: Test Coverage & Quality (T)
-
-#### T1. Add Complete Test Suite for feedback-docx-generator
-
-**Priority:** Critical
-**Effort:** M
-**Impact:** Eliminates the only tool with zero test coverage; prevents regressions in .docx generation
-
-**Current State:**
-The feedback-docx-generator tool (`plugins/personal-plugin/tools/feedback-docx-generator/`) has 2 source modules (~270 lines) and absolutely no tests — no `tests/` directory, no conftest.py, no CI job.
-
-**Recommendation:**
-Create a full test suite covering:
-- `__init__.py` module functions (69 lines)
-- `__main__.py` CLI entry point and document generation (~200 lines)
-- Edge cases: empty input, malformed data, missing python-docx dependency
-- Integration test generating an actual .docx file and validating structure
-
-**Implementation Notes:**
-- Add `tests/` directory with conftest.py providing sample feedback data fixtures
-- Add pytest + python-docx to dev dependencies in pyproject.toml
-- Add dedicated CI job in `.github/workflows/test.yml` with 90% coverage threshold
-- Pattern after visual-explainer's conftest.py for fixture design
+| Rating | Count | Files |
+|--------|-------|-------|
+| 5/5 | 3 | prime, unlock, plan-gate |
+| 4/5 | 12 | review-intent, review-pr, remove-ip, ship, summarize-feedback, visual-explainer, validate-and-ship, bump-version, clean-repo, new-skill, validate-plugin, ask-questions |
+| 3.5/5 | 4 | analyze-transcript, assess-document, finish-document, test-project |
+| 3/5 | 9 | define-questions, develop-image-prompt, review-arch, convert-hooks, convert-markdown, new-command, scaffold-plugin, security-analysis, check-updates |
+| 2.5/5 | 1 | consolidate-documents |
+| 2/5 | 2 | plan-next, setup-statusline |
 
 ---
 
-#### T2. Add Tests for visual-explainer Untested Modules (3,739 LOC)
+## Cross-Cutting Issues (Affect Multiple Files)
 
-**Priority:** Critical
-**Effort:** L
-**Impact:** Covers 6 large untested modules that contain the tool's core generation pipeline
+### S1. Missing `allowed-tools` Frontmatter [ALL FILES]
 
-**Current State:**
-6 modules totaling 3,739 lines have zero test coverage:
-- `cli.py` (1,292 lines) — main entry point, generation pipeline
-- `output.py` (869 lines) — file output handling
-- `api_setup.py` (754 lines) — API key configuration
-- `page_templates.py` (691 lines) — infographic page layouts
-- `image_evaluator.py` (534 lines) — Claude Vision quality scoring
-- `image_generator.py` (553 lines) — Gemini API image generation
+**Impact:** High | **Effort:** Low
 
-**Recommendation:**
-Add test files for each untested module:
-- `test_cli.py` — CLI argument parsing, config creation, pipeline orchestration (mock API calls)
-- `test_output.py` — File writing, directory creation, checkpoint saving/loading
-- `test_api_setup.py` — Key validation, interactive prompts, environment detection
-- `test_page_templates.py` — Template selection, zone specifications, layout validation
-- `test_image_evaluator.py` — Score parsing, threshold checking, feedback generation
-- `test_image_generator.py` — Retry logic, rate limiting, error handling, concurrency
+Every command and skill reviewed is missing `allowed-tools` in its YAML frontmatter. The planning commands specify exactly which tools are permitted, preventing unintended tool use. This is a batch fix — add appropriate `allowed-tools` declarations to all 32 files.
 
-**Implementation Notes:**
-- The existing conftest.py already provides 60+ fixtures including mock API responses — leverage these
-- Use `respx` for HTTP mocking (already in dev dependencies)
-- Focus on unit tests with mocked API calls; integration tests can use recorded responses
-- Target 90% coverage per module
+**Recommended values by command type:**
+- Read-only commands (review-arch, review-intent, check-updates): `Read, Glob, Grep`
+- Read + git (review-pr, plan-next): `Read, Glob, Grep, Bash(gh:*), Bash(git:*)`
+- File generators (analyze-transcript, assess-document, etc.): `Read, Write, Edit, Glob, Grep`
+- Shell-dependent (test-project, convert-markdown): `Read, Write, Edit, Glob, Grep, Bash`
+- Skills with external tools (research-topic, visual-explainer): `Read, Write, Bash, WebSearch, WebFetch`
 
----
+### S2. Missing Error Handling Sections [20+ FILES]
 
-#### T3. Add Tests for research-orchestrator Untested Modules (1,768 LOC)
+**Impact:** High | **Effort:** Medium
 
-**Priority:** Critical
-**Effort:** M
-**Impact:** Covers 4 untested modules including the largest module (ui.py, 692 lines)
+Most commands lack a structured `## Error Handling` section. The planning commands have explicit error handling for every failure mode with user-facing message examples. Common missing handlers: file not found, empty/binary input, context window exhaustion, tool unavailability, permission errors.
 
-**Current State:**
-4 modules totaling 1,768 lines have zero test coverage:
-- `ui.py` (692 lines) — Rich terminal UI, progress bars, result formatting
-- `cli.py` (453 lines) — CLI entry point, argument parsing, orchestration
-- `model_discovery.py` (346 lines) — API model listing, date parsing, version detection
-- `bug_reporter.py` (277 lines) — Error reporting, diagnostic collection
+### S3. Missing "Related Commands" Sections [ALL COMMANDS]
 
-**Recommendation:**
-Add test files for each untested module:
-- `test_ui.py` — Output formatting, progress callbacks, result rendering (mock Rich console)
-- `test_cli.py` — Argument parsing, config creation, async orchestration entry
-- `test_model_discovery.py` — API model listing, date format parsing, error handling
-- `test_bug_reporter.py` — Diagnostic collection, report formatting, file writing
+**Impact:** Medium | **Effort:** Low
 
-**Implementation Notes:**
-- Mock Rich console output for UI tests
-- Use `unittest.mock.AsyncMock` for async orchestrator calls in CLI tests
-- model_discovery.py has 2 silent `except Exception: pass` handlers (lines 171, 209) — tests should verify these paths log warnings after the fix in D3
+No command has a "Related Commands" section linking to related functionality. Natural groupings:
+- Document pipeline: define-questions → ask-questions → finish-document
+- Review suite: review-arch, review-intent, review-pr
+- Planning pipeline: plan-improvements → create-plan → implement-plan
+- Scaffolding: scaffold-plugin → new-command → new-skill
+- Ship pipeline: validate-plugin → validate-and-ship → ship
 
----
+### S4. Missing Proactive Trigger Sections [ALL SKILLS EXCEPT plan-gate]
 
-#### T4. Add Tests for bpmn2drawio position_resolver.py (963 LOC)
+**Impact:** High | **Effort:** Medium
 
-**Priority:** High
-**Effort:** M
-**Impact:** Covers the single largest untested module in the most-tested tool
+Only `plan-gate` has explicit "When to suggest this skill" trigger conditions. Every other skill lacks this, which is the most important differentiator between skills and commands.
 
-**Current State:**
-`position_resolver.py` is 963 lines with 13 methods and is the largest untested module in bpmn2drawio. The tool has 320 tests covering 12/21 modules, but this critical layout module has no dedicated tests. Some coverage may exist indirectly through integration tests.
+### S5. Inconsistent Flag Coverage
 
-**Recommendation:**
-Create `test_position_resolver.py` covering:
-- `resolve()` method with various pool/lane configurations
-- `_organize_by_lanes()` with single-lane, multi-lane, and laneless scenarios
-- `_place_connected_elements()` with disconnected and connected graph fragments
-- `_avoid_overlap()` with overlapping and non-overlapping positions
-- `_position_boundary_events()` with elements attached to different edge positions
-- Edge cases: empty pools, elements without DI coordinates, cross-pool references
+**Impact:** Medium | **Effort:** Medium
 
-**Implementation Notes:**
-- Create test fixtures with minimal BPMNModel instances for each scenario
-- Test coordinate math with known expected positions
-- Verify O(n^2) overlap avoidance doesn't degrade with large element counts (add performance assertion)
+Flags like `--preview`, `--no-prompt`, `--dry-run`, and `--format` exist in some commands but not others with no consistent pattern. Commands that write output files should standardize on a common flag set.
+
+### S6. Dead References to Non-Existent Files
+
+**Impact:** Medium | **Effort:** Low
+
+Three commands (`new-command.md`, `new-skill.md`, `scaffold-plugin.md`) reference `python scripts/generate-help.py` and `python scripts/update-readme.py` which do not exist. Two commands (`define-questions.md`, `finish-document.md`) reference a `schemas/` directory for validation files that does not exist.
+
+### S7. Hardcoded Plugin Lists
+
+**Impact:** Low | **Effort:** Low
+
+Multiple commands (`bump-version`, `check-updates`, `validate-plugin`) hardcode `personal-plugin` and `bpmn-plugin` instead of dynamically scanning the `plugins/` directory.
+
+### S8. Secrets Policy Violations
+
+**Impact:** High | **Effort:** Low
+
+`research-topic` and `visual-explainer` skills include API key setup wizards that write keys directly to `.env` files, contradicting the global CLAUDE.md Bitwarden-first policy. Should reference `/unlock` as primary path.
 
 ---
 
-#### T5. Add Tests for Remaining bpmn2drawio Untested Modules
+## Individual Recommendations by Priority
 
-**Priority:** Medium
-**Effort:** S
-**Impact:** Completes 100% module coverage for bpmn2drawio (currently 12/21)
+### Priority 1: Major Overhauls (Rating 2-2.5)
 
-**Current State:**
-6 additional modules lack dedicated tests:
-- `config.py` (153 lines) — Configuration loading
-- `constants.py` (127 lines) — Constant values
-- `exceptions.py` (43 lines) — Exception hierarchy
-- `icons.py` (298 lines) — SVG icon definitions
-- `styles.py` (104 lines) — Draw.io style strings
-- `waypoints.py` (149 lines) — Edge routing waypoints
+#### R1. Rewrite `plan-next.md` [Rating: 2/5]
 
-**Recommendation:**
-Add test files for modules with logic (skip pure-constant modules):
-- `test_config.py` — YAML loading, default values, error handling for malformed configs
-- `test_waypoints.py` — Waypoint calculation, edge routing between elements
-- `test_icons.py` — Icon lookup by element type, fallback behavior
-- `test_styles.py` — Style string generation, theme application
-- Skip `constants.py` and `exceptions.py` (pure definitions, no logic to test)
+**Current state:** 47 lines. Uses "Ultrathink" jargon, no methodology, no error handling, no examples, no output template.
 
-**Implementation Notes:**
-- config.py handles YAML parsing — test with valid, invalid, and missing files
-- waypoints.py calculates geometric paths — test with known coordinate inputs/outputs
+**Recommended changes:**
+1. Expand to 150-200 lines with structured methodology
+2. Add plan-awareness: check for existing IMPLEMENTATION_PLAN.md and RECOMMENDATIONS.md first
+3. Add git-awareness: check for uncommitted changes, open branches, open PRs
+4. Add decision matrix: blocked work > critical fixes > next plan phase > highest-priority recommendation
+5. Replace "~100K tokens" with standard S/M/L sizing table
+6. Add structured output template: Current State, Recommended Action, Rationale, Scope Estimate
+7. Add error handling and examples
+8. Add `allowed-tools` to frontmatter
 
----
+#### R2. Rewrite `setup-statusline.md` [Rating: 2/5]
 
-#### T6. Enforce Coverage Thresholds in CI for All Tools
+**Current state:** 175 lines. 80% PowerShell script dump with no command structure, no validation, no error handling. Overwrites `settings.json` without merging.
 
-**Priority:** High
-**Effort:** S
-**Impact:** Prevents coverage regression; currently only bpmn2drawio enforces 90%
+**Recommended changes:**
+1. Add phased structure: pre-flight checks → create script → merge settings → verification
+2. Add `pwsh` version detection (PowerShell 7+ required)
+3. Add settings.json merge logic instead of overwrite
+4. Add backup of existing files before modification
+5. Add `--dry-run` and `--uninstall` flags
+6. Add verification step that tests statusline output
+7. Add error handling section
 
-**Current State:**
-- bpmn2drawio: 90% threshold enforced via `--cov-fail-under=90` (CI fails if below)
-- research-orchestrator: Coverage reported but NOT enforced
-- visual-explainer: Coverage reported but NOT enforced
-- feedback-docx-generator: No coverage at all
+#### R3. Overhaul `consolidate-documents.md` [Rating: 2.5/5]
 
-**Recommendation:**
-Add dedicated CI jobs for each tool with coverage enforcement:
-```yaml
-research-orchestrator:
-  runs-on: ubuntu-latest
-  steps:
-    - pip install -e ".[dev]"
-    - pytest --cov=research_orchestrator --cov-fail-under=85
+**Current state:** 134 lines. Contradictory input flow, no output example, no error handling, no flags.
 
-visual-explainer:
-  runs-on: ubuntu-latest
-  steps:
-    - pip install -e ".[dev]"
-    - pytest --cov=visual_explainer --cov-fail-under=85
+**Recommended changes:**
+1. Expand to 250+ lines with proper depth
+2. Resolve contradictory input flow — pick one mechanism
+3. Add complete output example with consolidation notes
+4. Add `--format`, `--preview`, `--no-prompt` flags
+5. Add error handling for missing files, format mismatches, single document, identical documents
+6. Define how `[topic]` is derived in output filename
 
-feedback-docx-generator:
-  runs-on: ubuntu-latest
-  steps:
-    - pip install -e ".[dev]"
-    - pytest --cov=feedback_docx_generator --cov-fail-under=90
-```
+### Priority 2: Structural Improvements (Rating 3)
 
-**Implementation Notes:**
-- Start with 85% threshold for tools currently lacking tests (raise after initial test pass)
-- bpmn2drawio keeps its existing 90% threshold
-- Add `--cov-branch` for branch coverage on all tools
+#### R4. Fix `define-questions.md` phantom schema references [Rating: 3/5]
 
----
+1. Either create `schemas/questions.json` or replace references with inline validation rules
+2. Standardize on one field name (`question` or `text`) across all formats
+3. Add `priority` field to JSON schema example to match CSV format
+4. Add error handling and related-commands sections
 
-#### T7. Add CLI Parameter Validation Tests
+#### R5. Fix `finish-document.md` phantom references and resume contradiction [Rating: 3.5/5]
 
-**Priority:** Medium
-**Effort:** S
-**Impact:** Catches invalid user input before it causes confusing errors downstream
+1. Resolve schema references (same approach as R4)
+2. Pick one resume mechanism (auto-detect or explicit flag) and document consistently
+3. Expand error handling section
+4. Add bounds checking for `go to [N]` navigation
+5. Add performance guidance
 
-**Current State:**
-CLI parameters like `--pass-threshold`, `--concurrency`, and image count accept any value without bounds checking. `--pass-threshold 5.0` or `--concurrency 1000` are accepted silently.
+#### R6. Restructure `review-arch.md` [Rating: 3/5]
 
-**Recommendation:**
-Add validation tests that verify:
-- `--pass-threshold` rejects values outside 0.0-1.0
-- `--concurrency` rejects values outside 1-10
-- `--max-iterations` rejects values outside 1-20
-- Image count prompts enforce upper bound (e.g., max 50)
-- Invalid combinations are caught (e.g., `--json` with `--interactive`)
+1. Rewrite assessment dimensions as imperative tasks (matching plan-improvements style)
+2. Add structured output template: Executive Summary, Scorecard, Findings, Remediation Roadmap
+3. Define T-shirt sizes with standard S/M/L table
+4. Add examples section
+5. Move "DO NOT MAKE ANY CHANGES" guardrail to top of file
 
-**Implementation Notes:**
-- Tests should be paired with validation logic in `GenerationConfig.from_cli_and_env()` (see A5)
+#### R7. Rethink `check-updates.md` [Rating: 3/5]
 
----
+1. Either: (a) make it a true remote check fetching latest marketplace.json from GitHub, or (b) reframe as "version consistency audit"
+2. Remove misleading "Updates Available" language if keeping local-only
+3. Add proper error handling section
 
-### Category 2: Code Complexity & Refactoring (R)
+#### R8. Fix `scaffold-plugin.md` correctness bug [Rating: 3/5]
 
-#### R1. Refactor visual-explainer run_generation_pipeline() (560 LOC)
+1. Fix bug: change `skills/help.md` to `skills/help/SKILL.md` in output report (lines 259, 353)
+2. Remove dead `python scripts/` references
+3. Extract 80-line inline help template to a template file
+4. Add `--dry-run` flag
+5. Fix JSON `keywords` example
 
-**Priority:** High
-**Effort:** M
-**Impact:** Breaks the largest function in the codebase into testable, maintainable units
+#### R9. Improve `convert-hooks.md` honesty [Rating: 3/5]
 
-**Current State:**
-`visual_explainer/cli.py` lines 777-1100 contain a single 560-line function that handles concept analysis, prompt generation, image generation loop, quality evaluation, prompt refinement, and output finalization. This function is untestable as a unit and has high cognitive load.
+1. Add prominent warning that automated conversion handles only simple scripts
+2. Add concrete before/after example
+3. Add platform detection instead of listing both paths
+4. Add `--validate` step for generated PowerShell scripts
 
-**Recommendation:**
-Extract into 5 focused functions:
-1. `_analyze_concepts(config, source) -> ConceptAnalysis` (~60 LOC)
-2. `_generate_prompts(config, analysis) -> List[Prompt]` (~80 LOC)
-3. `_execute_generation_loop(config, prompts, progress) -> List[GenerationResult]` (~200 LOC)
-4. `_evaluate_and_refine(config, results) -> List[GenerationResult]` (~120 LOC)
-5. `_save_outputs(config, results) -> OutputSummary` (~60 LOC)
+#### R10. Expand `convert-markdown.md` [Rating: 3/5]
 
-The parent `run_generation_pipeline()` becomes a ~40-line orchestrator calling these functions.
+1. Either make the analysis step useful (customize pandoc flags) or remove it
+2. Add proper error handling for pandoc failures
+3. Add `--no-toc`, `--style` option flags
+4. Add `--dry-run` flag
 
-**Implementation Notes:**
-- Extract one function at a time, running tests after each extraction
-- Keep the progress callback threading unchanged (pass progress object to each function)
-- The checkpoint/resume logic stays in the orchestrator
-- Each extracted function becomes independently testable
+#### R11. Fix `new-command.md` [Rating: 3/5]
 
----
+1. Remove dead `python scripts/` references — replace with help skill update instruction
+2. Add plugin target parameter (detect or prompt)
+3. Add `orchestration` to pattern types
+4. Add post-generation validation step
 
-#### R2. Split PromptGenerator God Class (1,291 LOC, 23 methods)
+#### R12. Overhaul `security-analysis` skill [Rating: 3/5]
 
-**Priority:** High
-**Effort:** M
-**Impact:** Separates 3 distinct responsibilities into focused, testable classes
+1. Add input validation section with arguments (path scope, `--quick`, `--dependencies-only`)
+2. Add `allowed-tools` to frontmatter
+3. Add proactive trigger section
+4. Add error handling, examples, output location, performance expectations
+5. Remove inline technology patterns that duplicate the separate reference files
+6. Replace emoji severity with text labels
 
-**Current State:**
-`visual_explainer/prompt_generator.py` lines 59-1350 contain a single class handling prompt generation, infographic page prompts, and prompt refinement — three distinct responsibilities with different dependencies and change frequencies.
+### Priority 3: Targeted Fixes (Rating 3.5-4)
 
-**Recommendation:**
-Split into 3 classes:
-1. `PromptGenerator` (core) — `generate_prompts()`, `_build_generation_prompt()`, response parsing (~400 LOC)
-2. `InfographicPromptBuilder` — `_build_infographic_page_prompt()`, zone specs, page plan logic (~500 LOC)
-3. `PromptRefiner` — `refine_prompt()`, strategy determination, refinement prompt building (~300 LOC)
+#### R13. Fix `test-project.md` safety issues [Rating: 3.5/5]
 
-**Implementation Notes:**
-- Use composition: `PromptGenerator` holds references to `InfographicPromptBuilder` and `PromptRefiner`
-- External callers continue using `PromptGenerator` as the facade
-- Existing tests for `prompt_generator.py` (31 tests) will need import path updates
-- Extract in order: Refiner first (least coupled), then InfographicPromptBuilder
+1. Replace `git add -A` with selective staging
+2. Update Co-Authored-By to `Claude Opus 4.6`
+3. Replace auto-merge with user confirmation prompt
+4. Add `--coverage <n>` optional argument
+5. Add scope confirmation gate before making changes
 
----
+#### R14. Fix `assess-document.md` naming inconsistency [Rating: 3.5/5]
 
-#### R3. Refactor PositionResolver God Class (964 LOC, 13 methods)
+1. Fix output file naming — pick ONE pattern, remove alternatives
+2. Add score anchor definitions for the 1-5 rubric
+3. Fix `yaml` code fence language to `text` in examples
+4. Add error handling section
 
-**Priority:** High
-**Effort:** M
-**Impact:** Makes the most complex layout module testable and maintainable
+#### R15. Improve `analyze-transcript.md` [Rating: 3.5/5]
 
-**Current State:**
-`bpmn2drawio/position_resolver.py` is 964 lines with `_organize_by_lanes()` at 188 LOC containing 5 levels of nesting. The class handles position resolution, lane organization, boundary event positioning, subprocess positioning, and overlap avoidance.
+1. Add error handling section
+2. Add `--no-prompt` flag for consistency
+3. Replace vague "paste content" note with concrete interactive flow
+4. Add context/size management for large transcripts
 
-**Recommendation:**
-Extract into focused modules:
-1. `PositionResolver` (core) — `resolve()`, `_place_connected_elements()`, `_avoid_overlap()` (~350 LOC)
-2. `LaneOrganizer` — `_organize_by_lanes()`, height calculation, coordinate conversion (~300 LOC)
-3. `BoundaryPositioner` — boundary event and subprocess internal positioning (~250 LOC)
+#### R16. Improve `develop-image-prompt.md` [Rating: 3/5]
 
-**Implementation Notes:**
-- `PositionResolver.resolve()` orchestrates the three collaborators
-- Must maintain the same public API — `resolve(model: BPMNModel) -> BPMNModel`
-- Write tests for T4 BEFORE refactoring (characterization tests)
-- Deep nesting in `_organize_by_lanes()` will naturally flatten when extracted
+1. Add `--dimensions` flag to override default 11x17
+2. Add complete example of an actual generated prompt
+3. Resolve contradictory input flow
+4. Define when style variations are generated vs skipped
 
----
+#### R17. Fix `review-intent.md` minor issues [Rating: 4/5]
 
-#### R4. Extract Parser Namespace Helper (DRY violation, ~15 repetitions)
+1. Add argument detection instructions
+2. Add `allowed-tools` to frontmatter
+3. Replace shell redirection save suggestion with proper file write offer
+4. Define "sparse" explicitly
+5. Add calculation guidance for Phase 3.3 metrics
 
-**Priority:** Medium
-**Effort:** XS
-**Impact:** Eliminates 15 copies of the same namespace fallback pattern
+#### R18. Fix `review-pr.md` minor issues [Rating: 4/5]
 
-**Current State:**
-`bpmn2drawio/parser.py` repeats this pattern ~15 times:
-```python
-element = root.find(".//ns:Element", self.namespaces)
-if element is None:
-    element = root.find(".//{*}Element")
-```
+1. Add `Read` to allowed-tools
+2. Move review guidelines before Phase 1
+3. Inline severity definitions instead of referencing external file
+4. Add error handling for: diff exceeds context, binary files, merged PR, draft PR
 
-**Recommendation:**
-Extract to helper method:
-```python
-def _find_element(self, parent, ns_xpath: str, wildcard_xpath: str):
-    result = parent.find(ns_xpath, self.namespaces)
-    return result if result is not None else parent.find(wildcard_xpath)
-```
+#### R19. Fix `remove-ip.md` structural issue [Rating: 4/5]
 
-**Implementation Notes:**
-- Pure refactoring — behavior is identical
-- Existing parser tests (14 tests) serve as regression guard
-- Also add a `_findall_elements()` variant for the `findall` usages
+1. Remove "Trigger phrases" section (command pattern, not skill pattern)
+2. Add `allowed-tools` and error handling
+3. Add web research tool guidance
 
----
+#### R20. Fix `ship` skill issues [Rating: 4/5]
 
-#### R5. Flatten Deep Nesting in image_generator._generate_with_retry()
+1. Renumber phases consistently
+2. Add proactive trigger section
+3. Add risk/destructive-action warning
+4. Update Co-Authored-By format
 
-**Priority:** Low
-**Effort:** S
-**Impact:** Improves readability of retry logic; enables extraction to reusable pattern
+#### R21. Fix `research-topic` skill [Rating: 4/5]
 
-**Current State:**
-`image_generator.py` lines 328-461 (134 LOC) have 4-level nesting with retry loop, status checking, and progress callbacks interleaved.
+1. Extract API key setup wizard to reference file (cuts 130+ lines)
+2. Fix secrets policy violation — reference `/unlock` instead of `.env` writes
+3. Add `--skip-model-check` to arguments table
+4. Add proactive trigger section
 
-**Recommendation:**
-Extract retry strategy to separate method or use early-return pattern:
-```python
-async def _generate_with_retry(self, prompt, config):
-    for attempt in range(max_retries):
-        result = await self._attempt_generation(prompt, config)
-        if result.success:
-            return result
-        if not self._should_retry(result, attempt):
-            return result
-        await self._wait_for_retry(attempt, result)
-    return GenerationResult(status=GenerationStatus.MAX_RETRIES)
-```
+#### R22. Fix remaining skills [Rating: 4/5]
 
-**Implementation Notes:**
-- Requires T2 tests for image_generator first (characterization tests before refactoring)
-- Keep the retry delay calculation logic unchanged
-- Consider extracting to a generic `RetryStrategy` class for reuse across tools
+Batch fixes for `summarize-feedback`, `visual-explainer`, `validate-and-ship`:
+1. Add proactive trigger sections to all three
+2. `summarize-feedback`: add context-size guardrail for large entry counts
+3. `visual-explainer`: document `--json` flag, fix default threshold, reference `/unlock`
+4. `validate-and-ship`: clarify delegation mechanism, add `--skip-ship` flag
+
+#### R23. Fix utility commands [Rating: 4/5]
+
+Batch fixes for `bump-version`, `clean-repo`, `new-skill`, `validate-plugin`, `ask-questions`:
+1. `bump-version`: dynamic plugin scanning instead of hardcoded list
+2. `clean-repo`: replace `find` commands with Glob tool instructions, add context management
+3. `new-skill`: remove dead script references, add plugin target parameter
+4. `validate-plugin`: fix duplicate section numbering, fix skill path example
+5. `ask-questions`: align resume support with output schema
+
+#### R24. Fix `unlock` skill shell injection risk [Rating: 5/5]
+
+1. Fix shell injection risk in Linux `eval` pattern — use `shlex.quote()` for secret values
+2. Add proactive trigger section
 
 ---
 
-### Category 3: Dependency & Build Management (D)
-
-#### D1. Tighten google-genai Version Constraint
-
-**Priority:** Critical
-**Effort:** XS
-**Impact:** Prevents silent breaking changes from major version upgrades
-
-**Current State:**
-`visual-explainer/pyproject.toml` specifies `google-genai>=0.1.0` — this accepts any future version including hypothetical 5.0.0 with completely different API.
-
-**Recommendation:**
-Change to: `google-genai>=1.0.0,<2.0.0`
-
-Also review and tighten other loose constraints:
-- `anthropic>=0.40.0` → `anthropic>=0.40.0,<1.0.0` (if still 0.x) or `>=0.40.0,<2.0.0`
-- `openai>=1.50.0` → `openai>=1.50.0,<3.0.0`
-
-**Implementation Notes:**
-- Check current installed versions first: `pip show google-genai anthropic openai`
-- Apply same tightening to research-orchestrator's pyproject.toml
-- Keep `>=` for minimum, add `<NEXT_MAJOR` for upper bound
-
----
-
-#### D2. Add Dependency Lock Files
-
-**Priority:** High
-**Effort:** S
-**Impact:** Ensures reproducible builds in CI and across developer machines
-
-**Current State:**
-No lock files exist (no poetry.lock, Pipfile.lock, requirements.txt with pinned versions). CI installs latest compatible versions on each run, making builds non-deterministic.
-
-**Recommendation:**
-Add `requirements-lock.txt` files generated by `pip-compile` (from `pip-tools`) for each tool:
-```bash
-pip-compile pyproject.toml -o requirements-lock.txt
-pip-compile pyproject.toml --extra dev -o requirements-dev-lock.txt
-```
-
-**Implementation Notes:**
-- Add `pip-tools` to each tool's dev dependencies
-- CI should install from lock files: `pip install -r requirements-lock.txt`
-- Add a CI job or pre-commit check that verifies lock files are up-to-date
-- Developers update lock files when changing pyproject.toml: `pip-compile --upgrade`
-
----
-
-#### D3. Add Logging to Swallowed Exceptions
-
-**Priority:** Medium
-**Effort:** XS
-**Impact:** Silent API failures in model_discovery.py become diagnosable
-
-**Current State:**
-Two `except Exception: pass` handlers silently swallow API listing failures:
-- `research_orchestrator/model_discovery.py:171` — Anthropic model listing
-- `research_orchestrator/model_discovery.py:209` — OpenAI model listing
-
-One in test code:
-- `tests/integration/test_bump_version.py:60` — Version write failure
-
-**Recommendation:**
-Replace `pass` with `logging.debug()` or `logging.warning()`:
-```python
-except Exception as e:
-    logger.warning(f"Failed to list Anthropic models: {e}")
-```
-
-**Implementation Notes:**
-- Import `logging` and create module-level logger
-- Use `warning` level for API failures (user should know if model discovery fails)
-- Use `debug` level for the test helper (less critical)
-
----
-
-#### D4. Add GitHub Actions Dependency Caching
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Reduces CI build times by caching pip downloads
-
-**Current State:**
-Each CI run installs all dependencies from scratch. No `actions/cache` or `setup-python` caching configured.
-
-**Recommendation:**
-Add pip caching to all CI jobs:
-```yaml
-- uses: actions/setup-python@v5
-  with:
-    python-version: '3.11'
-    cache: 'pip'
-```
-
-**Implementation Notes:**
-- Add to both test.yml and validate.yml workflows
-- Cache key should include pyproject.toml hash for automatic invalidation
-- Expected CI time reduction: 30-60 seconds per job
-
----
-
-### Category 4: Architecture & Design (A)
-
-#### A1. Implement Checkpoint Resume for visual-explainer
-
-**Priority:** Medium
-**Effort:** L
-**Impact:** Enables resuming long-running image generation after interruption
-
-**Current State:**
-`visual_explainer/cli.py:1123` has a TODO comment: "Implement full checkpoint resume logic". The `--resume` flag exists in the CLI but returns `"resume_not_implemented"`. Checkpoint saving infrastructure exists (checkpoint files are written during generation) but loading/resuming is stubbed.
-
-**Recommendation:**
-Implement checkpoint resume:
-1. On `--resume <checkpoint_dir>`, load the checkpoint JSON
-2. Determine which images were already generated and passed evaluation
-3. Resume generation from the next pending image
-4. Merge completed results with checkpoint state
-
-**Implementation Notes:**
-- Checkpoint JSON structure already defined in `models.py`
-- The conftest.py already has checkpoint fixtures for testing
-- This is a feature completion, not a refactor — add after T2 tests are in place
-- Test with: interrupted mid-generation, all images complete, no checkpoint file
-
----
-
-#### A2. Unify Python Version Requirements
-
-**Priority:** Low
-**Effort:** XS
-**Impact:** Simplifies contributor setup; removes confusion about Python version needed
-
-**Current State:**
-- bpmn2drawio: requires Python >=3.9
-- research-orchestrator: requires Python >=3.9
-- visual-explainer: requires Python >=3.10
-- feedback-docx-generator: requires Python >=3.9
-
-The visual-explainer requires 3.10+ (uses `match` statements or union type syntax).
-
-**Recommendation:**
-Standardize all tools to `python_requires = ">=3.10"` since that's the effective minimum (visual-explainer blocks 3.9). Document this in CLAUDE.md and README.
-
-**Implementation Notes:**
-- Update pyproject.toml for 3 tools (remove 3.9 from classifiers)
-- Update CI matrix if needed (currently Python 3.11 only, so no CI change needed)
-- Check if any 3.9-specific workarounds can be removed
-
----
-
-#### A3. Add Input Validation to CLI Parameters
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Prevents confusing errors from invalid parameter combinations
-
-**Current State:**
-Visual-explainer CLI accepts:
-- `--pass-threshold 5.0` (should be 0.0-1.0)
-- `--concurrency 1000` (should be 1-10)
-- `--max-iterations 999` (should be 1-20)
-- No upper bound on interactive image count prompt
-
-**Recommendation:**
-Add validation in `GenerationConfig.from_cli_and_env()` or via argparse `type` functions:
-```python
-parser.add_argument('--pass-threshold', type=float,
-                    choices=None,  # use custom validator
-                    help='Quality threshold (0.0-1.0)')
-
-def validate_threshold(value):
-    f = float(value)
-    if not 0.0 <= f <= 1.0:
-        raise argparse.ArgumentTypeError(f"Must be 0.0-1.0, got {f}")
-    return f
-```
-
-**Implementation Notes:**
-- Add argparse type validators for bounded numeric parameters
-- Add max image count (50) to interactive prompt
-- Pair with T7 validation tests
-
----
-
-#### A4. Narrow Broad Exception Handlers
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Prevents masking of unexpected errors; improves debuggability
-
-**Current State:**
-33 `except Exception` handlers across the codebase. Most are legitimate (top-level CLI handlers, API error wrapping), but several should be narrowed:
-- `layout.py:57` — Graphviz fallback catches everything including `KeyboardInterrupt`
-- `model_discovery.py:171,209` — Silent API failures (addressed in D3)
-- `api_setup.py:55`, `cli.py:75` — Windows encoding detection
-
-**Recommendation:**
-Narrow the non-top-level handlers:
-- `layout.py:57`: Change to `except (ImportError, AttributeError, RuntimeError, OSError):`
-- `api_setup.py:55`: Change to `except (AttributeError, OSError):`
-- `cli.py:75`: Change to `except (AttributeError, OSError):`
-
-Leave top-level CLI handlers (`cli.py:1279`, `api_setup.py:747`) as `except Exception` — these are legitimate catch-alls for user-facing error messages.
-
-**Implementation Notes:**
-- Run tests after each change to verify no behavior change
-- For layout.py, verify that the graphviz fallback path still triggers correctly
-
----
-
-### Category 5: Developer Experience (X)
-
-#### X1. Add Type Checking with mypy to CI
-
-**Priority:** Medium
-**Effort:** S
-**Impact:** Catches type errors at CI time; leverages existing 90%+ type hint coverage
-
-**Current State:**
-All tools have excellent type hint coverage (90%+) but no static type checker runs in CI. Type hints are documentation-only — they don't catch errors.
-
-**Recommendation:**
-Add mypy to each tool's dev dependencies and CI:
-```yaml
-- name: Type check
-  run: mypy src/ --ignore-missing-imports
-```
-
-**Implementation Notes:**
-- Start with `--ignore-missing-imports` to avoid third-party stubs issues
-- Add `mypy.ini` or `[tool.mypy]` section to each pyproject.toml
-- Use `--strict` mode incrementally (start with basic checks, enable strictness over time)
-- Expected initial findings: some `Any` type escapes, missing return types on internal helpers
-
----
-
-#### X2. Consolidate Common Patterns Across Python Tools
-
-**Priority:** Low
-**Effort:** L
-**Impact:** Reduces duplicated code; creates a shared foundation for new tools
-
-**Current State:**
-Common patterns are reimplemented in each tool:
-- API key loading from environment (research-orchestrator, visual-explainer)
-- Rich console output with fallback (research-orchestrator, visual-explainer)
-- CLI argument parsing boilerplate (all 4 tools)
-- Retry logic with exponential backoff (research-orchestrator, visual-explainer)
-- Configuration loading from environment + defaults (all tools)
-
-**Recommendation:**
-Create a shared library `plugins/shared/claude-plugin-utils/` with:
-- `config.py` — Environment variable loading, API key management
-- `cli.py` — Common argparse patterns, output formatting
-- `retry.py` — Generic retry with exponential backoff
-- `console.py` — Rich console with graceful fallback
-
-**Implementation Notes:**
-- This is a nice-to-have, not urgent — each tool works fine independently
-- Start by extracting retry logic (most duplicated, highest value)
-- Keep tools independently runnable (shared lib is optional dependency)
-- Consider whether maintenance cost of shared lib exceeds duplication cost
-
----
-
-#### X3. Add Pre-commit Type and Lint Checks
-
-**Priority:** Low
-**Effort:** S
-**Impact:** Catches issues before commit; integrates with existing pre-commit hook
-
-**Current State:**
-The pre-commit hook validates markdown frontmatter and help skill sync but does not check Python code quality.
-
-**Recommendation:**
-Extend pre-commit hook or add `.pre-commit-config.yaml` with:
-- `ruff check` — Fast Python linting (already in dev deps)
-- `ruff format --check` — Formatting validation
-- `mypy` — Type checking (after X1)
-
-**Implementation Notes:**
-- Use the `pre-commit` framework rather than custom bash scripts
-- Configure to only check staged Python files (fast)
-- Keep existing markdown validation as-is
-
----
-
-### Category 6: Documentation & Operations (O)
-
-#### O1. Document Architectural Decisions (ADRs)
-
-**Priority:** Low
-**Effort:** S
-**Impact:** Prevents re-debating resolved decisions; helps new contributors understand "why"
-
-**Current State:**
-Key architectural decisions are embedded in CLAUDE.md comments but not formally documented:
-1. Why skills use nested directories but commands use flat files
-2. Why Python tools run from source via PYTHONPATH instead of being installed
-3. Why secrets are in Bitwarden instead of .env files
-4. Why no cross-plugin references exist
-
-**Recommendation:**
-Create `docs/adr/` directory with decision records:
-- `0001-skill-directory-structure.md`
-- `0002-python-tools-from-source.md`
-- `0003-bitwarden-secrets.md`
-- `0004-plugin-encapsulation.md`
-
-**Implementation Notes:**
-- Use lightweight ADR format (context, decision, consequences)
-- Reference from CLAUDE.md for discoverability
-- Not urgent — CLAUDE.md already captures most of this
-
----
-
-## Quick Wins
-
-Items achievable in < 2 hours each, high impact-to-effort ratio:
-
-1. **D1** — Tighten `google-genai>=0.1.0` to `>=1.0.0,<2.0.0` (5 minutes)
-2. **R4** — Extract parser namespace helper to eliminate 15 duplications (30 minutes)
-3. **D3** — Add logging to 2 swallowed exceptions in model_discovery.py (15 minutes)
-4. **A4** — Narrow `except Exception` in layout.py:57 to specific types (15 minutes)
-5. **D4** — Add pip caching to CI workflows (20 minutes)
-6. **A2** — Unify Python version requirement to >=3.10 (15 minutes)
-
----
-
-## Strategic Initiatives
-
-Larger efforts requiring multi-phase execution:
-
-1. **T1+T2+T3+T4+T5+T6** — Close all test coverage gaps and enforce thresholds (~6,500 lines to cover)
-2. **R1+R2+R3** — Refactor 3 complexity hotspots (PromptGenerator, PositionResolver, CLI pipeline)
-3. **D2** — Add dependency lock files for reproducible builds
-4. **A1** — Implement checkpoint resume for visual-explainer
-5. **X2** — Consolidate shared patterns into common library
+## Implementation Sizing Summary
+
+| Priority | Recommendations | Est. Complexity |
+|----------|----------------|-----------------|
+| P1: Major Overhauls | R1-R3 (3 files) | L (~500-1500 LOC) |
+| P2: Structural Improvements | R4-R12 (9 files) | L (~500-1500 LOC) |
+| P3: Targeted Fixes | R13-R24 (20+ files) | M-L (repetitive but extensive) |
+| Cross-cutting batch fixes | S1-S8 | M (~100-500 LOC per fix, repetitive) |
+
+**Total scope:** ~32 files modified, ~2000-3000 LOC of changes across 24 recommendations.
 
 ---
 
 ## Not Recommended
 
-Items considered but rejected, with rationale:
+### NR1. Splitting `validate-plugin.md` into multiple commands
+**Why Considered:** At 1184 lines, it's the longest command.
+**Why Rejected:** Phases are tightly coupled. `--scorecard` flag provides clean separation.
+**Reconsider If:** Command grows beyond 1500 lines.
 
-| Item | Rationale |
-|------|-----------|
-| Migrate to poetry/uv for dependency management | Current pyproject.toml + pip-tools approach is simpler and sufficient |
-| Add Docker support | Plugins run inside Claude Code's environment; containerization adds no value |
-| Add cross-plugin dependency injection | Plugins should remain independent; coupling would complicate marketplace installs |
-| Convert pre-commit hook to Python | Bash hook works, is fast, and the pre-commit framework would add a new dependency |
-| Add GraphQL API for plugin metadata | Over-engineering; marketplace.json is simple and effective |
-| Replace Rich with custom console output | Rich is well-maintained and provides significant value; replacing it wastes effort |
+### NR2. Converting `remove-ip.md` to a skill
+**Why Considered:** It has trigger phrases, which is a skill pattern.
+**Why Rejected:** Workflow is too long and complex for proactive suggestion. Better to remove trigger phrases.
+**Reconsider If:** A lightweight version is needed for proactive offering.
+
+### NR3. Merging `new-command.md` and `new-skill.md`
+**Why Considered:** They share 70% of logic.
+**Why Rejected:** Commands and skills have fundamentally different structures and frontmatter. Separate commands prevent wrong-type creation.
+**Reconsider If:** A unified `/new --type command|skill` proves more discoverable.
 
 ---
 
-*Recommendations generated by Claude on 2026-02-16T18:45:00*
+## Implementation Status
+
+All recommendations in this document have been fully implemented as of 2026-02-28:
+
+| Category | Items | Status |
+|----------|-------|--------|
+| Cross-cutting issues (S1-S8) | 8 | All implemented in IMPLEMENTATION_PLAN.md Phase 1 and Phase 7 |
+| Priority 1: Major Overhauls (R1-R3) | 3 | All implemented in Phase 2 |
+| Priority 2: Structural Improvements (R4-R12) | 9 | All implemented in Phases 3-4 |
+| Priority 3: Targeted Fixes (R13-R24) | 12 | All implemented in Phases 5-7 |
+| **Total** | **32** | **Complete** |
+
+See IMPLEMENTATION_PLAN.md Appendix (Recommendation Traceability) for the full mapping of recommendations to work items.
+
+---
+
+*Recommendations generated by Claude on 2026-02-28*
+*Source: Critical quality review of personal-plugin commands and skills*

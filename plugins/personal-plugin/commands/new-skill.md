@@ -1,5 +1,6 @@
 ---
 description: Generate a new skill file with proper nested directory structure and required frontmatter
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # New Skill Generator
@@ -15,13 +16,27 @@ Generate a new skill for this plugin with the correct directory structure and fr
 
 **Optional Arguments:**
 - `<skill-name>` - Name for the new skill (kebab-case)
+- `--plugin <plugin-name>` - Target plugin (defaults to auto-detected or prompted)
+
+**Plugin Target Resolution:**
+1. If `--plugin` is specified, use that plugin
+2. If the current working directory is inside a plugin, use that plugin
+3. If only one plugin exists in `plugins/`, use it automatically
+4. If multiple plugins exist, scan `plugins/*/` using the Glob tool and prompt the user:
+   ```text
+   Multiple plugins detected:
+     [1] personal-plugin
+     [2] bpmn-plugin
+
+   Which plugin should this skill be added to? (1/2):
+   ```
 
 **Validation:**
 If arguments are missing, the command will prompt interactively.
 
 Skill name must be:
 - kebab-case format (e.g., `my-new-skill`)
-- Unique (not already exist in skills/)
+- Unique (not already exist in the target plugin's `skills/` directory)
 - Descriptive but concise
 
 ## Instructions
@@ -41,7 +56,7 @@ What is the skill name? (kebab-case, e.g., "auto-format")
 - Must be kebab-case: lowercase letters, numbers, hyphens only
 - Must not start or end with a hyphen
 - Must not contain consecutive hyphens
-- Must not already exist in `plugins/personal-plugin/skills/`
+- Must not already exist in the target plugin's `skills/` directory
 
 If invalid:
 ```text
@@ -54,7 +69,7 @@ Please provide a valid skill name:
 
 If skill already exists:
 ```text
-Error: Skill '[name]' already exists at plugins/personal-plugin/skills/[name]/SKILL.md
+Error: Skill '[name]' already exists at plugins/[plugin-name]/skills/[name]/SKILL.md
 
 Please provide a different skill name:
 ```
@@ -96,17 +111,19 @@ Enter tool restrictions or press Enter to skip:
 Create the nested directory structure required by Claude Code:
 
 ```text
-plugins/personal-plugin/skills/[skill-name]/
+plugins/[plugin-name]/skills/[skill-name]/
   SKILL.md    # Must be exactly this name (uppercase)
 ```
 
 **Steps:**
-1. Create directory: `plugins/personal-plugin/skills/[skill-name]/`
-2. Create file: `plugins/personal-plugin/skills/[skill-name]/SKILL.md`
+1. Create directory: `plugins/[plugin-name]/skills/[skill-name]/`
+2. Create file: `plugins/[plugin-name]/skills/[skill-name]/SKILL.md`
 
 #### 2.2 Load and Customize Template
 
-Read the skill template from: `plugins/personal-plugin/references/templates/skill.md`
+Read the skill template from: `plugins/[plugin-name]/references/templates/skill.md`
+
+If the template file does not exist in the target plugin, fall back to `plugins/personal-plugin/references/templates/skill.md`. If neither exists, generate a minimal valid skill file with the required frontmatter fields.
 
 Replace placeholders:
 
@@ -141,7 +158,7 @@ description: [user-provided description]
 
 #### 2.3 Write Skill File
 
-Save to: `plugins/personal-plugin/skills/[skill-name]/SKILL.md`
+Save to: `plugins/[plugin-name]/skills/[skill-name]/SKILL.md`
 
 ### Phase 3: Post-Generation Tasks
 
@@ -153,8 +170,9 @@ Display:
 Skill Generated Successfully!
 ----------------------------------------------
 
+Plugin: [plugin-name]
 Created:
-  plugins/personal-plugin/skills/[skill-name]/
+  plugins/[plugin-name]/skills/[skill-name]/
     SKILL.md    [CREATED]
 
 Structure verified:
@@ -170,11 +188,10 @@ Structure verified:
    - [ ] Define error handling
 
 2. Update help skill:
-   - [ ] Add entry to plugins/personal-plugin/skills/help/SKILL.md
-   - [ ] Or run: python scripts/generate-help.py plugins/personal-plugin
+   - [ ] Add entry to plugins/[plugin-name]/skills/help/SKILL.md
 
 3. Validate:
-   - [ ] Run: /validate-plugin personal-plugin
+   - [ ] Run: /validate-plugin [plugin-name]
 
 **Important Reminders:**
 - Skills use NESTED directories: skills/[name]/SKILL.md
@@ -184,8 +201,8 @@ Structure verified:
 
 ## Output
 
-**Directory Created:** `plugins/personal-plugin/skills/[skill-name]/`
-**File Created:** `plugins/personal-plugin/skills/[skill-name]/SKILL.md`
+**Directory Created:** `plugins/[plugin-name]/skills/[skill-name]/`
+**File Created:** `plugins/[plugin-name]/skills/[skill-name]/SKILL.md`
 
 The generated file will contain:
 - Proper frontmatter with required `name` field
@@ -224,6 +241,7 @@ Claude:
 Skill Generated Successfully!
 ----------------------------------------------
 
+Plugin: personal-plugin
 Created:
   plugins/personal-plugin/skills/quick-test/
     SKILL.md    [CREATED]
@@ -285,3 +303,10 @@ Restrict which tools this skill can use? (leave empty for no restrictions)
 | `name` field | **FORBIDDEN** | **REQUIRED** |
 | Filename | Any `.md` name | Must be `SKILL.md` |
 | Discovery | By filename | By directory name + `name` field |
+
+## Related Commands
+
+- `/new-command` — Generate a new command file from a template (flat file structure)
+- `/scaffold-plugin` — Create an entire new plugin with proper structure
+- `/validate-plugin` — Validate the plugin after adding a new skill
+- `/bump-version` — Update plugin version after adding new skills

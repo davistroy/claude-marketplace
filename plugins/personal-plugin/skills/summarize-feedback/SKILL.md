@@ -1,9 +1,19 @@
 ---
 name: summarize-feedback
 description: Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
+allowed-tools: Read, Glob, Grep, Write
 ---
 
 You are generating a professional employee feedback assessment document. You will query Notion for feedback entries, synthesize them with Claude, and produce a formatted `.docx` file. The user may provide arguments: $ARGUMENTS
+
+## Proactive Triggers
+
+Suggest this skill when:
+1. User mentions feedback analysis, performance review, or assessment report generation
+2. User asks about synthesizing Notion Voice Captures or employee observations
+3. User wants to generate a feedback summary document or .docx assessment
+4. After a user mentions quarterly or annual review preparation
+5. User references Notion feedback entries or employee performance data
 
 ## Input Validation
 
@@ -84,6 +94,28 @@ Parse the Markdown body to extract:
 Also capture page properties: Title, Date, Tags, Related To.
 
 Display progress: `Fetched {N} of {total} entries...`
+
+## Context Size Guardrail
+
+Before synthesis, evaluate the total volume of feedback entries:
+
+- **Entry count exceeds 100:** Process in batches of 25 entries. Run synthesis on each batch, then run a final meta-synthesis pass to consolidate batch results into a single assessment.
+- **Total input text exceeds 60% of estimated context window:** Warn the user before proceeding. Offer options: (1) reduce date range, (2) process in batches, (3) proceed with truncation risk.
+- **Display warning format:**
+
+```text
+Context Size Warning
+====================
+Found {N} feedback entries totaling approximately {word_count} words.
+This exceeds the recommended processing threshold.
+
+Options:
+1. Process in batches of 25 entries (recommended for accuracy)
+2. Narrow the date range to reduce entry count
+3. Proceed anyway (risk of truncation in synthesis)
+
+Select option [1-3]:
+```
 
 ## Step 4: Synthesize Assessment
 

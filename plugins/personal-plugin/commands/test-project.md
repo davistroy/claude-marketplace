@@ -1,21 +1,37 @@
 ---
-description: Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR
+description: Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create PR (merge only with --auto-merge)
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(go:*), Bash(cargo:*), Bash(dotnet:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task
 ---
 
 # Fully Test Project Command
 
-Execute a comprehensive test-fix-ship workflow that ensures high test coverage, passes all tests, and ships the changes via a merged PR.
+Execute a comprehensive test-fix-ship workflow that ensures high test coverage, passes all tests, and ships the changes via a PR.
 
 ## Overview
 
 This command implements an iterative test-driven workflow:
-1. Verify/achieve 90%+ test coverage
+1. Verify/achieve target coverage (default 90%)
 2. Run ALL tests using parallel sub-agents
 3. Fix any failures and repeat until all pass
-4. Update documentation, clean up, create PR, and merge
+4. Update documentation, clean up, create PR
+5. Merge only if `--auto-merge` flag is provided; otherwise leave PR open for review
 
 ## Input Validation
+
+**Required Arguments:**
+- None (operates on the current project)
+
+**Optional Arguments:**
+- `--coverage <n>` - Target coverage percentage (default: 90). Example: `--coverage 80`
+- `--auto-merge` - Automatically merge the PR after creation. Without this flag, the PR is created but left open for review.
+
+**Usage:**
+```text
+/test-project
+/test-project --coverage 80
+/test-project --auto-merge
+/test-project --coverage 85 --auto-merge
+```
 
 Before proceeding, verify:
 - This is a git repository with test infrastructure present
@@ -24,6 +40,37 @@ Before proceeding, verify:
 - The project has a package manager or build tool installed
 
 If any of these prerequisites are missing, inform the user what needs to be set up before running this command.
+
+## Phase 0: Scope Confirmation Gate
+
+Before making any changes, gather and present the following to the user:
+
+1. **Test frameworks detected** - which test runner(s) and coverage tool(s) are present
+2. **Current coverage** - run coverage analysis and report the baseline percentage (if measurable)
+3. **Files that will be modified** - list source and test directories that are in scope
+4. **Target coverage** - the target percentage (from `--coverage` flag or default 90%)
+5. **Auto-merge status** - whether `--auto-merge` was specified
+
+Present this as a confirmation prompt:
+
+```text
+Scope Confirmation:
+  Test framework:  Jest (vitest.config.ts detected)
+  Coverage tool:   c8 (built-in)
+  Current coverage: 72%
+  Target coverage:  90%
+  Source dirs:      src/ (14 files)
+  Test dirs:        tests/ (8 files)
+  Auto-merge:       No (PR will be created for review)
+
+Proceed with this scope? (yes / adjust / abort)
+```
+
+- **yes** - Continue with the workflow
+- **adjust** - Ask the user what to change (coverage target, directories, etc.)
+- **abort** - Stop without making changes
+
+Do NOT proceed past this gate without user confirmation.
 
 ## Phase 1: Pre-flight Checks
 
@@ -77,24 +124,24 @@ Execute the appropriate coverage command for the detected framework:
 
 ### 2.2 Evaluate Coverage
 - Parse coverage output to determine current percentage
-- If coverage is below 90%, identify uncovered areas
+- If coverage is below the target (default 90%, or value from `--coverage` flag), identify uncovered areas
 - Report coverage by file/module
 
 ### 2.3 Coverage Gap Resolution (if needed)
-If coverage is below 90%:
+If coverage is below target:
 
 1. **Identify gaps**: List files/functions with lowest coverage
 2. **Prioritize**: Focus on critical paths and business logic first
 3. **Generate tests**: Write tests for uncovered code
 4. **Re-run coverage**: Verify improvement
-5. **Iterate**: Repeat until 90%+ achieved
+5. **Iterate**: Repeat until target achieved
 
 Report to user before proceeding:
 ```text
 Coverage Status:
 - Current: XX%
-- Target: 90%
-- Status: ✅ Met / ⚠️ Below target
+- Target: XX% (from --coverage flag or default 90%)
+- Status: Met / Below target
 ```
 
 ## Phase 3: Parallel Test Execution
@@ -127,10 +174,10 @@ Each test sub-agent should:
 Collect results from all sub-agents:
 ```text
 Test Results Summary:
-├── Unit Tests: XX passed, XX failed
-├── Integration Tests: XX passed, XX failed
-├── E2E Tests: XX passed, XX failed
-└── Total: XX passed, XX failed, XX skipped
+  Unit Tests: XX passed, XX failed
+  Integration Tests: XX passed, XX failed
+  E2E Tests: XX passed, XX failed
+  Total: XX passed, XX failed, XX skipped
 ```
 
 ## Phase 4: Fix-Test Loop
@@ -166,9 +213,9 @@ WHILE tests_failing:
 
 ### 4.4 Loop Exit Criteria
 Exit the fix loop when:
-- ✅ All tests pass
-- ❌ Max iterations reached (ask user)
-- ❌ Unfixable issue identified (report to user)
+- All tests pass
+- Max iterations reached (ask user)
+- Unfixable issue identified (report to user)
 
 ## Phase 5: Finalization
 
@@ -206,17 +253,46 @@ Only delete files that:
 - Were created during this session
 
 ### 5.3 Final Coverage Verification
-Run coverage one final time to confirm 90%+ maintained after fixes.
+Run coverage one final time to confirm target coverage is maintained after fixes.
 
-## Phase 6: Create and Merge PR
+## Phase 6: Create PR (and Optionally Merge)
 
 ### 6.1 Prepare Changes
+
+Review what will be committed using selective staging. Do NOT use `git add -A` or `git add .` which can accidentally include sensitive or unrelated files.
+
 ```bash
-git add -A
-git status
+# First, review all changes
+git status --short
+
+# Stage only the files modified during this workflow:
+# 1. Test files that were added or modified
+git add tests/      # or src/**/*.test.ts, etc. — match the project's test directory
+# 2. Source files that were fixed
+git add src/path/to/fixed-file.ts
+# 3. Documentation files that were updated
+git add README.md CHANGELOG.md
+# 4. Coverage configuration changes (if any)
+git add jest.config.ts   # or equivalent
 ```
 
-Review what will be committed. Exclude any files that shouldn't be committed.
+**Selective staging rules:**
+- Stage test files that were created or modified
+- Stage source files where bugs were fixed
+- Stage documentation files that were updated
+- Stage coverage configuration changes
+- Do NOT stage unrelated files, `.env` files, or IDE configuration
+- Run `git diff --cached --stat` after staging to confirm the staged files are correct
+
+Present the staged files to the user for confirmation before committing:
+```text
+Files staged for commit:
+  A  tests/auth.test.ts
+  M  src/auth.ts
+  M  README.md
+
+Proceed with commit? (yes/no)
+```
 
 ### 6.2 Create Feature Branch (if on main)
 If currently on main:
@@ -229,17 +305,17 @@ Example: `test-fixes-20260114-143052`
 Create a comprehensive commit:
 ```bash
 git commit -m "$(cat <<'EOF'
-test: achieve 90%+ coverage and fix all test failures
+test: achieve target coverage and fix all test failures
 
 - Added/updated tests to achieve XX% coverage
 - Fixed N failing tests
 - Updated documentation
 - Cleaned up temporary files
 
-Coverage: XX% (target: 90%)
+Coverage: XX% (target: XX%)
 Tests: XX passed, 0 failed
 
-Co-Authored-By: Claude <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -248,9 +324,9 @@ EOF
 ```bash
 git push -u origin [branch-name]
 
-gh pr create --title "test: achieve 90%+ coverage and fix all failures" --body "$(cat <<'EOF'
+gh pr create --title "test: achieve target coverage and fix all failures" --body "$(cat <<'EOF'
 ## Summary
-- Achieved XX% test coverage (target: 90%)
+- Achieved XX% test coverage (target: XX%)
 - Fixed all failing tests
 - Updated documentation
 - Cleaned up temporary files
@@ -265,44 +341,65 @@ gh pr create --title "test: achieve 90%+ coverage and fix all failures" --body "
 
 ## Checklist
 - [x] All tests passing
-- [x] Coverage ≥ 90%
+- [x] Coverage at or above target
 - [x] Documentation updated
 - [x] Temp files cleaned
 
-🤖 Generated with [Claude Code](https://claude.ai/claude-code)
+Generated with [Claude Code](https://claude.ai/claude-code)
 EOF
 )"
 ```
 
-### 6.5 Merge PR
-After PR is created:
-```bash
-gh pr merge --auto --squash
+### 6.5 Merge PR (Only with --auto-merge)
+
+**If `--auto-merge` was specified:**
+
+Ask the user for confirmation before merging:
+
+```text
+Tests passing. PR created: https://github.com/owner/repo/pull/XXX
+--auto-merge was specified. Merge this PR now? (yes/no)
 ```
 
-If auto-merge isn't available:
+If the user confirms:
 ```bash
 gh pr merge --squash
 ```
 
-### 6.6 Clean Up
-After successful merge:
+If auto-merge isn't available on the repository:
+```bash
+gh pr merge --squash
+```
+
+**If `--auto-merge` was NOT specified (default behavior):**
+
+Do NOT merge. Report the PR URL and let the user review:
+
+```text
+PR created: https://github.com/owner/repo/pull/XXX
+Review the PR and merge when ready. Use --auto-merge next time to merge automatically.
+```
+
+### 6.6 Clean Up (Only After Merge)
+After successful merge (only if merge occurred):
 ```bash
 git checkout main
 git pull
 git branch -d [feature-branch]
 ```
 
+If no merge occurred, skip cleanup and leave the user on the feature branch.
+
 ## Output Summary
 
 Upon completion, display:
-```yaml
-✅ Fully Test Project Complete
+```text
+Test Project Complete
 
 Coverage:
   Before: XX%
   After:  XX%
-  Target: 90% ✅
+  Target: XX%
 
 Tests:
   Total:   XXX
@@ -315,13 +412,13 @@ Changes:
   Docs updated:   XX
 
 PR: https://github.com/owner/repo/pull/XXX
-Status: Merged ✅
+Status: Open for review / Merged (based on --auto-merge flag)
 ```
 
 ## Error Handling
 
-### Coverage Cannot Reach 90%
-If 90% coverage is unachievable:
+### Coverage Cannot Reach Target
+If target coverage is unachievable:
 1. Report current coverage and gap
 2. List files that are difficult to test (generated code, vendor files, etc.)
 3. Ask user if they want to:
@@ -391,3 +488,10 @@ If PR creation or merge fails:
 - **Communicate progress**: Report status after each major phase
 - **Respect CI**: If the project has CI, ensure it would pass
 - **Ask when uncertain**: Don't guess on coverage exclusions or test skips
+
+## Related Commands
+
+- `/implement-plan` — Execute an IMPLEMENTATION_PLAN.md (often followed by testing)
+- `/review-pr` — Review the PR created by this command before merging
+- `/plan-improvements` — Generate improvement recommendations including test coverage gaps
+- `/review-arch` — Architectural audit that identifies testability issues

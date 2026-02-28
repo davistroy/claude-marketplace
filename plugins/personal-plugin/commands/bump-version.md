@@ -1,5 +1,6 @@
 ---
 description: Automate version bumping across plugin files with CHANGELOG placeholder
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Bump Version Command
@@ -9,7 +10,7 @@ Automate version updates across all plugin configuration files. This command ens
 ## Input Validation
 
 **Required Arguments:**
-- `<plugin-name>` - Name of the plugin to version (e.g., `personal-plugin`, `bpmn-plugin`)
+- `<plugin-name>` - Name of the plugin to version (must match a subdirectory in `plugins/` that contains `.claude-plugin/plugin.json`)
 - `<bump-type>` - Type of version bump: `major`, `minor`, or `patch`
 
 **Optional Arguments:**
@@ -35,8 +36,8 @@ Examples:
   /bump-version personal-plugin major    # 1.6.0 -> 2.0.0
 
 Available plugins:
-  - personal-plugin
-  - bpmn-plugin
+  [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
+   List each discovered plugin name.]
 ```
 
 If plugin-name is not found, display:
@@ -44,11 +45,13 @@ If plugin-name is not found, display:
 Error: Plugin '[name]' not found.
 
 Available plugins:
-  - personal-plugin
-  - bpmn-plugin
+  [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
+   List each discovered plugin name.]
 
 Check the plugins/ directory for valid plugin names.
 ```
+
+**Plugin Discovery:** Use the Glob tool to scan `plugins/*/.claude-plugin/plugin.json`. Each match yields a valid plugin name from the directory path. If no plugins are found, report: "Error: No plugins found in the plugins/ directory."
 
 If bump-type is invalid, display:
 ```text
@@ -253,3 +256,10 @@ Don't forget to:
   2. Create a git tag: git tag v1.7.0
   3. Push with tags: git push && git push --tags
 ```
+
+## Related Commands
+
+- `/validate-plugin` — Verify plugin structure and version synchronization after bumping
+- `/check-updates` — Compare installed vs marketplace versions
+- `/clean-repo` — Repository cleanup including version consistency checks
+- `/scaffold-plugin` — Create a new plugin (sets initial version to 1.0.0)

@@ -1,11 +1,21 @@
 ---
 name: visual-explainer
 description: Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation
+allowed-tools: Read, Write, Bash, WebSearch, WebFetch
 ---
 
 # Visual Concept Explainer
 
 You are orchestrating a visual concept explanation workflow that transforms text or documents into AI-generated infographic pages. The tool uses Gemini Pro 3 (via google-genai SDK) for 4K image generation and Claude Sonnet Vision for quality evaluation with iterative refinement.
+
+## Proactive Triggers
+
+Suggest this skill when:
+1. User has a document, report, or concept they want visualized as infographic pages
+2. After generating a report or analysis that would benefit from a visual summary
+3. User mentions creating infographics, visual explanations, or concept diagrams
+4. User asks to make a document more visually appealing or presentation-ready
+5. User wants to transform a whitepaper, guide, or technical document into visual content
 
 ## Infographic Mode (Recommended)
 
@@ -76,8 +86,8 @@ The system automatically selects appropriate page types based on content:
 | `--no-cache` | false | flag | Force fresh concept analysis |
 | `--resume` | null | path | Resume from checkpoint file |
 | `--dry-run` | false | flag | Show plan without generating |
-| `--setup-keys` | false | flag | Force re-run API key setup |
-| `--json` | false | flag | Output results as JSON (for programmatic use) |
+| `--setup-keys` | false | flag | Force re-check of API key availability (use `/unlock` to load keys) |
+| `--json` | false | flag | Output results as JSON (for programmatic use). Returns structured metadata including image paths, scores, concept mappings, and generation statistics. Useful for downstream automation or integration with other tools. |
 
 **Input Format Handling:**
 
@@ -104,10 +114,16 @@ with open('document.md', 'w') as f:
             f.write(para.text + '\n\n')
 ```
 
-**Environment Requirements:**
-API keys must be configured in environment variables or `.env` file:
+**Environment Requirements (Secrets Policy):**
+API keys must be loaded into the environment before use. The primary method is the `/unlock` skill, which loads secrets from Bitwarden Secrets Manager via the `bws` CLI (see CLAUDE.md Secrets Management Policy):
 - `GOOGLE_API_KEY` - For Gemini Pro 3 image generation
 - `ANTHROPIC_API_KEY` - For Claude concept analysis and image evaluation
+
+If keys are not in the environment, suggest running `/unlock` before proceeding. **Secrets policy compliance:**
+- Do NOT write API keys to `.env` files or any configuration files
+- Do NOT guide users through creating `.env` files with API key values
+- Do NOT hardcode API keys in commands or scripts
+- Always direct users to `/unlock` or the Bitwarden Secrets Manager workflow
 
 ## Tool vs Claude Responsibilities
 
@@ -155,74 +171,27 @@ pip install python-docx PyPDF2 beautifulsoup4  # Optional, for specific formats
 
 ### Phase 2: API Key Setup (if needed)
 
-**If API keys are missing, guide the user through setup:**
+**If API keys are missing:**
 
 ```text
 API Key Setup Required
 ======================
 
 This tool requires two API keys:
-- Google Gemini API - for image generation
-- Anthropic API - for concept analysis and image evaluation
+- GOOGLE_API_KEY - for Gemini Pro 3 image generation
+- ANTHROPIC_API_KEY - for Claude concept analysis and image evaluation
 
 Missing keys detected:
   - GOOGLE_API_KEY - not found
   - ANTHROPIC_API_KEY - not found
 
-Would you like me to help you set up the missing API keys? (yes/skip)
+To load API keys from Bitwarden, run: /unlock
+This loads secrets from Bitwarden Secrets Manager into the current environment.
+
+See CLAUDE.md Secrets Management Policy for details on storing and retrieving secrets.
 ```
 
-**For GOOGLE_API_KEY:**
-```text
-GOOGLE API KEY SETUP (for Gemini)
----------------------------------
-
-1. Go to: https://aistudio.google.com/apikey
-
-2. Sign in with your Google account
-
-3. Click "Create API key"
-
-4. Select or create a Google Cloud project
-
-5. Copy the key (starts with "AIza...")
-
-Note: Gemini image generation requires credits.
-Free tier: 60 requests/minute.
-
-Paste your Google API key (or 'skip' to skip this provider):
-```
-
-**For ANTHROPIC_API_KEY:**
-```text
-ANTHROPIC API KEY SETUP
------------------------
-
-1. Go to: https://console.anthropic.com/settings/keys
-
-2. Sign in or create an account
-
-3. Click "Create Key"
-
-4. Name it something like "visual-explainer"
-
-5. Copy the key (starts with "sk-ant-...")
-
-Note: New accounts get $5 free credits.
-
-Paste your Anthropic API key (or 'skip'):
-```
-
-**After collecting keys, create/update .env file and confirm:**
-```text
-API keys saved to .env
-
-Keys configured:
-  - GOOGLE_API_KEY: (AIza...xxxx)
-  - ANTHROPIC_API_KEY: (sk-ant-...xxxx)
-
-Security reminder: Never commit .env to version control.
-```
+If keys are still missing after `/unlock`, ask the user to verify the secrets are stored in their Bitwarden vault. Do NOT offer to write keys to `.env` files or guide users through creating `.env` files with API keys.
 
 ### Phase 3: Input Collection
 
@@ -442,7 +411,7 @@ The checkpoint contains:
 
 | Error | Response |
 |-------|----------|
-| Missing API key | Run setup wizard, guide user through key creation |
+| Missing API key | Suggest running `/unlock` to load keys from Bitwarden |
 | Rate limit (429) | Exponential backoff, respect Retry-After header |
 | Safety filter | Log, skip to next attempt with modified prompt |
 | Timeout | Retry with increased timeout (up to 5 min) |

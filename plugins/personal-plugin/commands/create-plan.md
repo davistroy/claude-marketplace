@@ -1,5 +1,6 @@
 ---
 description: Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs)
+allowed-tools: Read, Glob, Grep, Write, Edit, Agent
 ---
 
 # Create Plan Command
@@ -11,10 +12,12 @@ Generate a comprehensive, phased implementation plan from requirements and desig
 This command:
 
 1. Discovers requirements and design documents in the project
-2. Analyzes and synthesizes requirements across all documents
-3. Breaks down work into appropriately-sized phases
-4. Generates detailed work items with acceptance criteria
-5. Outputs IMPLEMENTATION_PLAN.md to the repository root
+2. Surveys the existing codebase to detect tech stack, test infrastructure, and already-implemented features
+3. Analyzes and synthesizes requirements across all documents, accounting for existing code
+4. Presents a scope summary (features, phases, assumptions) and waits for user approval before proceeding
+5. Breaks down work into appropriately-sized phases
+6. Generates detailed work items with acceptance criteria
+7. Outputs IMPLEMENTATION_PLAN.md to the repository root
 
 ## Input Validation
 
@@ -24,6 +27,7 @@ This command:
 - `<document-paths>` - Specific documents to use (space-separated)
 - `--output <path>` - Custom output path (default: `IMPLEMENTATION_PLAN.md`)
 - `--phases <n>` - Target number of phases (default: auto-calculated)
+- `--max-phases <n>` - Maximum number of phases to generate (default: 8). Overrides `--phases` if `--phases` exceeds this limit.
 - `--verbose` - Show detailed analysis during generation
 
 **Examples:**
@@ -118,6 +122,85 @@ Total: 7 documents, ~15,640 words
 Proceeding with plan generation...
 ```
 
+### Phase 1.5: Codebase Reconnaissance
+
+Before analyzing requirements, survey the existing codebase so the plan accounts for what already exists. This prevents greenfield-on-brownfield plans and ensures work items extend rather than rebuild existing functionality.
+
+**Time budget:** 5-10 minutes maximum. This is a lightweight scan, not a full `/plan-improvements` analysis.
+
+#### 1.5.1 Project Structure Scan
+
+Survey the codebase to understand its shape:
+
+1. **Directory tree:** Run `find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './.next/*' -not -path './dist/*' -not -path './build/*' -not -path './__pycache__/*' -not -path './venv/*' | head -200` to get a file listing (or equivalent for the platform)
+2. **Tech stack detection:** Identify from manifest files:
+   - `package.json` → Node.js/JavaScript/TypeScript (check for React, Next.js, Vue, etc.)
+   - `pyproject.toml` / `setup.py` / `requirements.txt` → Python
+   - `Cargo.toml` → Rust
+   - `go.mod` → Go
+   - `*.csproj` / `*.sln` → .NET
+   - `pom.xml` / `build.gradle` → Java/Kotlin
+3. **Entry points:** Identify main entry files (`src/index.*`, `src/main.*`, `app.*`, `__main__.py`, etc.)
+4. **Configuration:** Note config files (`.env*`, `*.config.*`, `tsconfig.json`, `eslint.*`, `prettier.*`, `.editorconfig`)
+
+#### 1.5.2 Test & CI/CD Infrastructure
+
+Identify existing quality infrastructure:
+
+1. **Test framework:** Look for test directories (`tests/`, `__tests__/`, `test/`, `spec/`), test config (`jest.config.*`, `pytest.ini`, `vitest.config.*`), and test files (`*.test.*`, `*.spec.*`, `*_test.*`)
+2. **Test coverage:** Note approximate test count and whether coverage tooling is configured
+3. **CI/CD:** Check for `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `.circleci/`, `azure-pipelines.yml`
+4. **Linting/formatting:** Note configured linters and formatters
+
+#### 1.5.3 Existing Feature Cross-Reference
+
+This is the critical step. For each major feature or capability described in the requirements documents:
+
+1. **Search the codebase** for keywords, function names, route paths, component names, or module names that correspond to the requirement
+2. **Classify each requirement** as one of:
+   - **Not implemented** — No matching code exists; plan from scratch
+   - **Partially implemented** — Some code exists but incomplete; plan should extend
+   - **Already implemented** — Feature exists and appears functional; plan should verify/skip or enhance
+3. **Flag overlaps** clearly in a table:
+
+```text
+Codebase Reconnaissance Results
+================================
+
+Tech Stack: [detected stack]
+Structure: [N] source files, [M] test files, [K] config files
+Test Infrastructure: [framework] with [N] tests
+CI/CD: [detected pipeline or "None detected"]
+
+Feature Overlap Analysis:
+| Requirement | Status | Existing Code | Recommendation |
+|-------------|--------|---------------|----------------|
+| User auth (PRD §2.1) | Already implemented | src/auth/ (JWT + OAuth) | Skip or enhance |
+| Search API (PRD §3.2) | Partially implemented | src/api/search.ts (basic) | Extend, not rebuild |
+| Dashboard (PRD §4.1) | Not implemented | — | Plan from scratch |
+| Data export (PRD §5.3) | Already implemented | src/export/ | Verify, skip if sufficient |
+```
+
+4. **Note architectural patterns** the codebase follows (e.g., MVC, layered architecture, module conventions, naming patterns) so work items conform to existing conventions
+
+#### 1.5.4 Feed Into Plan Generation
+
+The reconnaissance output directly affects subsequent phases:
+
+- **Phase 2 (Requirements Analysis):** Already-implemented features are deprioritized or marked as "verify only"
+- **Phase 3 (Phase Planning):** Work items reference existing code paths and follow detected conventions
+- **Phase 4 (Generate Plan):** Work item descriptions include "Extend existing `src/auth/` module" rather than "Create authentication system"
+- **Complexity estimates** account for existing code (extending is typically S-M; building from scratch is M-L)
+
+**If no meaningful codebase exists** (empty repo, only config files, or only requirements docs), report:
+
+```text
+Codebase Reconnaissance: Greenfield project detected.
+No existing source code found. Plan will assume fresh implementation.
+```
+
+And proceed directly to Phase 2.
+
 ### Phase 2: Requirements Analysis
 
 #### 2.1 Extract Key Information
@@ -183,6 +266,89 @@ How should I proceed?
   2. Pause for clarification
 ```
 
+### Phase 2.5: Scope Confirmation
+
+**Before generating the full plan, pause and present a scope summary for user approval.** This checkpoint prevents wasted generation time if the user disagrees with scope, phasing, or assumptions.
+
+#### 2.5.1 Build Scope Summary
+
+After completing requirements analysis (Phase 2) and codebase reconnaissance (Phase 1.5), compile a compact summary table:
+
+```text
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Plan Scope Summary — Review Before Generation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Source Documents: [N] files ([total word count] words)
+
+Extracted Features:
+| # | Feature | Priority | Status | Source |
+|---|---------|----------|--------|--------|
+| 1 | [Feature name] | P0 | Not implemented | PRD §2.1 |
+| 2 | [Feature name] | P0 | Partially implemented | PRD §3.2 |
+| 3 | [Feature name] | P1 | Already implemented | PRD §4.1 |
+| ... | ... | ... | ... | ... |
+
+Proposed Plan Shape:
+  Phases:           [N] phases
+  Total Work Items: ~[N] (estimated)
+  Estimated Effort: ~[X] LOC across ~[Y] files
+  Critical Path:    [Phase sequence summary]
+
+Phase Grouping (draft):
+  Phase 1: [Title] — [brief scope, e.g., "Foundation: auth, config, DB schema"]
+  Phase 2: [Title] — [brief scope]
+  Phase 3: [Title] — [brief scope]
+  ...
+
+Assumptions:
+  - [Assumption 1, e.g., "Using existing auth module in src/auth/"]
+  - [Assumption 2, e.g., "PostgreSQL as primary datastore per TDD §3.1"]
+  - [Assumption 3, e.g., "No mobile targets — web only"]
+  ...
+
+Features Skipped (already implemented):
+  - [Feature name] — [reason, e.g., "Fully implemented in src/export/"]
+  ...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+#### 2.5.2 Ask for Approval
+
+After presenting the summary, ask:
+
+```text
+Proceed with this scope?
+  1. Yes — generate the full implementation plan
+  2. Adjust — tell me what to change (add/remove features, regroup phases, change priorities)
+  3. Abort — stop here (analysis results above are yours to keep)
+```
+
+**Wait for the user to respond.** Do not proceed to Phase 3 until the user explicitly approves.
+
+#### 2.5.3 Handle Responses
+
+- **"Yes" / "1" / approve:** Proceed to Phase 3 (Phase Planning) with the confirmed scope.
+- **"Adjust" / "2":** Accept the user's modifications. Update the feature list, phase grouping, priorities, or assumptions as directed. Re-display the updated summary and ask for approval again.
+- **"Abort" / "3":** Stop execution. Display:
+  ```text
+  Plan generation aborted. Analysis results:
+    - [N] documents analyzed ([word count] words)
+    - [N] features extracted
+    - [N] already implemented, [N] partially implemented
+    - Codebase reconnaissance completed
+
+  To resume later, run /create-plan with the same documents.
+  ```
+
+#### 2.5.4 Design Constraints
+
+- **Keep it compact:** The summary should be scannable in 30 seconds. Use tables, not paragraphs.
+- **No partial generation:** Do not start generating plan phases before approval.
+- **Assumptions are explicit:** Every inference made during analysis (tech choices, scope exclusions, priority assignments) must appear in the Assumptions list so the user can correct them.
+- **Already-implemented features visible:** Features detected by codebase reconnaissance that will be skipped or only verified must be listed so the user can override if the detection was wrong.
+
 ### Phase 3: Phase Planning
 
 #### 3.1 Work Item Extraction
@@ -197,22 +363,25 @@ Convert requirements into discrete work items:
 5. Define acceptance criteria
 
 **Complexity estimation:**
-| Size | Token Estimate | Example |
-|------|----------------|---------|
-| XS | 1K-5K | Config change, small fix |
-| S | 5K-15K | Single component, simple feature |
-| M | 15K-30K | Feature with tests, API endpoint |
-| L | 30K-60K | Complex feature, refactoring |
-| XL | 60K-100K | Major system component |
+| Size | Files Changed | LOC Changed | Example |
+|------|---------------|-------------|---------|
+| S | 1-3 files | <100 LOC | Config change, small fix, single file edit |
+| M | 3-8 files | 100-500 LOC | Feature with tests, API endpoint, refactoring |
+| L | 8-15 files | 500-1500 LOC | Complex feature, major refactoring, integration |
+
+If a work item would be XL (15+ files or 1500+ LOC), split it into smaller items.
 
 #### 3.2 Phase Construction
 
 Group work items into phases following these rules:
 
 **Phase sizing constraints:**
-- Target: ~80,000 tokens per phase (with 20% buffer)
-- Maximum: 100,000 tokens per phase
-- Minimum: 20,000 tokens per phase (avoid tiny phases)
+Each phase should be completable by a single subagent session:
+- Target: read 5-8 files, modify 3-5 files, change ~500 LOC
+- Maximum: L complexity (8-15 files, 500-1500 LOC)
+- Minimum: 2 files changed (avoid trivial phases)
+- If a phase would be XL (15+ files or 1500+ LOC), split into sub-phases (e.g., Phase 3a, 3b)
+- Target S-M per phase (max L)
 
 **Grouping criteria:**
 1. **Dependencies:** Items depending on each other go in sequence
@@ -226,6 +395,21 @@ Group work items into phases following these rules:
 2. Core features before enhancements
 3. Integration points after dependent components
 4. Polish/optimization last
+
+#### 3.2.1 Plan Size Limits
+
+Plans must stay within bounds that `/implement-plan` can execute reliably. Apply these limits during plan generation:
+
+**Maximum phases:** 8 phases per plan file (configurable via `--max-phases`). If requirements decompose into more than the limit:
+1. Merge related phases to reduce count (prefer cohesion over granularity)
+2. If merging is insufficient, split into multiple plan files (e.g., `IMPLEMENTATION_PLAN.md` and `IMPLEMENTATION_PLAN-PHASE2.md`) and inform the user
+3. Never silently drop phases or work items to meet the limit
+
+**Maximum work items per phase:** 6 work items. If a phase has more than 6 items, split the phase.
+
+**Work item granularity:** Each work item should touch no more than 5-8 files and change ~500 LOC. If a work item exceeds these bounds, split it into sub-items (e.g., 3.1a, 3.1b) or promote sub-tasks to separate work items.
+
+**Why these limits matter:** `/implement-plan` executes each phase via a subagent with finite context. Oversized plans cause subagents to lose context mid-execution, produce incomplete work, or silently skip items. Smaller, focused phases complete reliably.
 
 #### 3.3 Dependency Analysis
 
@@ -243,20 +427,80 @@ For each phase, verify:
 - **If the file does NOT exist:** Create it fresh with the full structure below.
 - **If the file DOES exist:**
   1. Read the existing file
-  2. Preserve the existing header (everything up to and including the `---` after Plan Overview / Phase Summary Table)
+  2. Locate the machine-readable markers to find insertion points:
+     - `<!-- BEGIN PHASES -->` / `<!-- END PHASES -->` — bracket all phase sections
+     - `<!-- BEGIN TABLES -->` / `<!-- END TABLES -->` — bracket the trailing tables (Parallel Work, Risk Mitigation, Success Metrics, Traceability)
   3. Identify the highest existing phase number (e.g., if Phase 4 is the last, new phases start at Phase 5)
   4. Renumber all new phases to continue from the highest existing phase
   5. Renumber all new work items accordingly (e.g., 5.1, 5.2, 6.1...)
-  6. Append the new phases after the last existing phase section
+  6. Insert the new phases immediately before `<!-- END PHASES -->`, preceded by a separator comment: `<!-- Appended on [YYYY-MM-DD HH:MM:SS] from /create-plan -->`
   7. Update the Phase Summary Table to include both old and new phases
   8. Update the total phase count, estimated total effort, and any metadata in the header
-  9. Append new entries to Parallel Work Opportunities, Risk Mitigation, Success Metrics, and Requirement Traceability tables
-  10. Add a separator comment before the new content: `<!-- Appended on [YYYY-MM-DD HH:MM:SS] from /create-plan -->`
+  9. Append new entries to the tables between `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` (Parallel Work Opportunities, Risk Mitigation, Success Metrics, Traceability)
+  10. **Partially-executed plans:** If any existing items have `Status: COMPLETE` or `Status: IN_PROGRESS`, preserve them exactly as-is. Warn the user: `"This plan has items in progress. New phases will be appended after existing content."`
 
 **Tell the user what happened:**
 ```text
 Existing IMPLEMENTATION_PLAN.md found with [N] phases.
 Appending [M] new phases (Phase [N+1] through Phase [N+M]).
+```
+
+**Append Example — Before & After:**
+
+*Before (existing 3-phase plan):*
+```markdown
+<!-- BEGIN PHASES -->
+
+## Phase 1: Foundation
+...
+## Phase 2: Core Features
+...
+## Phase 3: Integration
+...
+
+<!-- END PHASES -->
+
+<!-- BEGIN TABLES -->
+
+## Parallel Work Opportunities
+| Work Item | Can Run With | Notes |
+|-----------|--------------|-------|
+| 1.1 | 1.2 | Independent modules |
+
+...
+<!-- END TABLES -->
+```
+
+*After (2 new phases appended):*
+```markdown
+<!-- BEGIN PHASES -->
+
+## Phase 1: Foundation
+...
+## Phase 2: Core Features
+...
+## Phase 3: Integration
+...
+
+<!-- Appended on 2026-02-28 14:30:00 from /create-plan -->
+
+## Phase 4: Error Handling
+...
+## Phase 5: Polish
+...
+
+<!-- END PHASES -->
+
+<!-- BEGIN TABLES -->
+
+## Parallel Work Opportunities
+| Work Item | Can Run With | Notes |
+|-----------|--------------|-------|
+| 1.1 | 1.2 | Independent modules |
+| 4.1 | 4.2 | New independent items |
+
+...
+<!-- END TABLES -->
 ```
 
 Create the implementation plan with this structure:
@@ -265,11 +509,9 @@ Create the implementation plan with this structure:
 # Implementation Plan
 
 **Generated:** [YYYY-MM-DD HH:MM:SS]
-**Source Documents:**
-- [List of analyzed documents]
-
+**Based On:** [List of analyzed documents]
 **Total Phases:** [N]
-**Estimated Total Effort:** ~[X]00,000 tokens
+**Estimated Total Effort:** ~[X] LOC across [Y] files
 
 ---
 
@@ -285,17 +527,19 @@ Create the implementation plan with this structure:
 
 ### Phase Summary Table
 
-| Phase | Focus Area | Key Deliverables | Est. Tokens | Dependencies |
-|-------|------------|------------------|-------------|--------------|
-| 1 | [Area] | [Deliverables] | ~X0K | None |
-| 2 | [Area] | [Deliverables] | ~X0K | Phase 1 |
+| Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies |
+|-------|------------|------------------|-----------------|--------------|
+| 1 | [Area] | [Deliverables] | M (~N files, ~N LOC) | None |
+| 2 | [Area] | [Deliverables] | M (~N files, ~N LOC) | Phase 1 |
 | ... | ... | ... | ... | ... |
+
+<!-- BEGIN PHASES -->
 
 ---
 
 ## Phase 1: [Phase Title]
 
-**Estimated Effort:** ~X0,000 tokens (including testing/fixes)
+**Estimated Complexity:** [S/M/L] (~N files, ~N LOC)
 **Dependencies:** [None | List of phases]
 **Parallelizable:** [Yes/No - can work items run concurrently]
 
@@ -307,7 +551,8 @@ Create the implementation plan with this structure:
 ### Work Items
 
 #### 1.1 [Work Item Title]
-
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
 **Requirement Refs:** [PRD §2.1, TDD §4.3]
 **Files Affected:**
 - `path/to/file1.ts` (create)
@@ -359,7 +604,11 @@ Create the implementation plan with this structure:
 ## Phase 2: [Phase Title]
 ...
 
+<!-- END PHASES -->
+
 ---
+
+<!-- BEGIN TABLES -->
 
 ## Parallel Work Opportunities
 
@@ -402,9 +651,11 @@ Create the implementation plan with this structure:
 | [Req 2] | TDD §3.2 | 1 | 1.2 |
 | ... | ... | ... | ... |
 
+<!-- END TABLES -->
+
 ---
 
-*Implementation plan generated by Claude on [timestamp]*
+*Implementation plan generated by Claude on [YYYY-MM-DD HH:MM:SS]*
 *Source: /create-plan command*
 ```
 
@@ -433,13 +684,13 @@ Source Documents: 5 files analyzed
 Plan Summary:
   Total Phases:     4
   Total Work Items: 18
-  Estimated Effort: ~320,000 tokens
+  Estimated Effort: ~2,400 LOC across 22 files
 
 Phase Breakdown:
-  Phase 1: Foundation        (~85K tokens, 5 work items)
-  Phase 2: Core Features     (~90K tokens, 6 work items)
-  Phase 3: Integration       (~75K tokens, 4 work items)
-  Phase 4: Polish & Launch   (~70K tokens, 3 work items)
+  Phase 1: Foundation        (M, ~8 files, ~500 LOC, 5 work items)
+  Phase 2: Core Features     (L, ~10 files, ~800 LOC, 6 work items)
+  Phase 3: Integration       (M, ~6 files, ~600 LOC, 4 work items)
+  Phase 4: Polish & Launch   (S, ~4 files, ~500 LOC, 3 work items)
 
 Critical Path: Phase 1 → Phase 2 → Phase 3 → Phase 4
 Parallelization: 8 work items can run concurrently
@@ -462,7 +713,8 @@ Next Steps:
 - **Be specific:** Include file paths, function names, concrete approaches
 - **Be realistic:** Estimate effort honestly; overrunning phases causes problems
 - **Be practical:** Prioritize impact over elegance; ship value to users
-- **Consider context:** Factor in existing codebase, tech debt, team constraints
+- **Consider context:** Factor in existing codebase (use reconnaissance results), tech debt, team constraints
+- **Extend, don't rebuild:** When codebase reconnaissance identifies existing features, plan to extend or enhance them rather than building from scratch
 - **Enable parallelism:** Structure phases so multiple streams can work simultaneously
 - **Preserve stability:** Each phase should leave the codebase in a working state
 - **Maintain traceability:** Link every work item back to source requirements

@@ -1,11 +1,21 @@
 ---
 name: research-topic
 description: Orchestrate parallel deep research across multiple LLM providers and synthesize results
+allowed-tools: Read, Write, Bash, WebSearch, WebFetch
 ---
 
 # Multi-Source Deep Research
 
 You are orchestrating parallel deep research across three LLM providers (Anthropic Claude, OpenAI GPT, Google Gemini) and synthesizing the results into a unified deliverable.
+
+## Proactive Triggers
+
+Suggest this skill when:
+1. User asks to research a topic in depth or wants a comprehensive analysis
+2. User wants to compare perspectives across multiple AI providers
+3. User needs a well-sourced analysis that benefits from multi-source synthesis
+4. User mentions "deep research", "research report", or "multi-provider analysis"
+5. User asks for a thorough investigation of a technical, strategic, or emerging topic
 
 ## Input Validation
 
@@ -18,14 +28,17 @@ You are orchestrating parallel deep research across three LLM providers (Anthrop
 - `--format <type>` - Output format: `md`, `docx`, `both` (default: both)
 - `--no-clarify` - Skip clarification loop, use request as-is
 - `--no-audience` - Skip audience profile detection, use default profile
+- `--skip-model-check` - Skip the model availability check at startup. Useful when you know models are available and want to start research immediately.
 
 **Environment Requirements:**
-API keys must be configured in environment variables:
+API keys must be loaded into the environment before use. Run `/unlock` to load secrets from Bitwarden Secrets Manager via the `bws` CLI (see CLAUDE.md Secrets Management Policy):
 - `ANTHROPIC_API_KEY` - For Claude with Extended Thinking
 - `OPENAI_API_KEY` - For OpenAI Deep Research (o3)
 - `GOOGLE_API_KEY` - For Gemini Deep Research
 
-**Optional Model Configuration (in .env):**
+If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files or guide users through creating `.env` files with API keys. For API key configuration details, see `references/api-key-setup.md`.
+
+**Optional Model Configuration (non-sensitive, safe for .env):**
 - `ANTHROPIC_MODEL` - Override Claude model (default: claude-opus-4-5-20251101)
 - `OPENAI_MODEL` - Override OpenAI model (default: o3-deep-research-2025-06-26)
 - `GEMINI_AGENT` - Override Gemini agent (default: deep-research-pro-preview-12-2025)
@@ -59,7 +72,7 @@ This outputs JSON with the status of:
 
 ### Step 2: Check Model Versions (OPTIONAL)
 
-**Execute this step** if user has not specified `--skip-model-check`:
+**Skip this step** if the user specified `--skip-model-check`. Otherwise, execute:
 
 ```bash
 PYTHONPATH="$TOOL_SRC" python -m research_orchestrator check-models
@@ -256,7 +269,7 @@ To ensure comprehensive research, I have a few clarifying questions:
    Would you like me to install these packages now?
    ```
 
-   **If API keys are missing, provide detailed setup guidance:**
+   **If API keys are missing:**
 
    ```
    Pre-Execution Check: FAILED
@@ -265,152 +278,14 @@ To ensure comprehensive research, I have a few clarifying questions:
      - ANTHROPIC_API_KEY (required for claude source)
      - OPENAI_API_KEY (required for openai source)
      - GOOGLE_API_KEY (required for gemini source)
+
+   To load API keys from Bitwarden, run: /unlock
+   This loads secrets from Bitwarden Secrets Manager into the current environment.
+
+   See CLAUDE.md Secrets Management Policy for details on storing and retrieving secrets.
    ```
 
-   **Then offer to help set them up:**
-   ```
-   Would you like me to help you set up the missing API keys?
-   I can guide you through getting each key and create a .env file for you.
-
-   (yes/skip)
-   ```
-
-   **If user says "yes", walk through each missing key:**
-
-   ---
-
-   **For ANTHROPIC_API_KEY:**
-   ```
-   ┌─────────────────────────────────────────────────────────────┐
-   │  ANTHROPIC API KEY SETUP                                   │
-   ├─────────────────────────────────────────────────────────────┤
-   │                                                             │
-   │  1. Go to: https://console.anthropic.com/settings/keys    │
-   │                                                             │
-   │  2. Sign in or create an account                           │
-   │                                                             │
-   │  3. Click "Create Key"                                     │
-   │                                                             │
-   │  4. Name it something like "research-orchestrator"         │
-   │                                                             │
-   │  5. Copy the key (starts with "sk-ant-...")                │
-   │                                                             │
-   │  Note: You need credits or a paid plan. New accounts       │
-   │  typically get $5 free credits.                            │
-   │                                                             │
-   └─────────────────────────────────────────────────────────────┘
-
-   Paste your Anthropic API key (or 'skip' to skip this provider):
-   ```
-
-   ---
-
-   **For OPENAI_API_KEY:**
-   ```
-   ┌─────────────────────────────────────────────────────────────┐
-   │  OPENAI API KEY SETUP                                      │
-   ├─────────────────────────────────────────────────────────────┤
-   │                                                             │
-   │  1. Go to: https://platform.openai.com/api-keys           │
-   │                                                             │
-   │  2. Sign in or create an account                           │
-   │                                                             │
-   │  3. Click "Create new secret key"                          │
-   │                                                             │
-   │  4. Name it something like "research-orchestrator"         │
-   │                                                             │
-   │  5. Copy the key (starts with "sk-...")                    │
-   │                                                             │
-   │  Note: o3 deep research requires a paid account with       │
-   │  sufficient credits. Check your usage limits at:           │
-   │  https://platform.openai.com/settings/organization/limits │
-   │                                                             │
-   └─────────────────────────────────────────────────────────────┘
-
-   Paste your OpenAI API key (or 'skip' to skip this provider):
-   ```
-
-   ---
-
-   **For GOOGLE_API_KEY:**
-   ```
-   ┌─────────────────────────────────────────────────────────────┐
-   │  GOOGLE API KEY SETUP (for Gemini)                         │
-   ├─────────────────────────────────────────────────────────────┤
-   │                                                             │
-   │  1. Go to: https://aistudio.google.com/apikey             │
-   │                                                             │
-   │  2. Sign in with your Google account                       │
-   │                                                             │
-   │  3. Click "Create API key"                                 │
-   │                                                             │
-   │  4. Select or create a Google Cloud project                │
-   │                                                             │
-   │  5. Copy the key (starts with "AIza...")                   │
-   │                                                             │
-   │  Note: Gemini deep research is available on paid plans.    │
-   │  Free tier has limited access. Check pricing at:           │
-   │  https://ai.google.dev/pricing                             │
-   │                                                             │
-   └─────────────────────────────────────────────────────────────┘
-
-   Paste your Google API key (or 'skip' to skip this provider):
-   ```
-
-   ---
-
-   **After collecting keys, create/update the .env file:**
-
-   Check if `.env` exists in the current working directory:
-   - If exists: Read it and preserve existing values
-   - If not: Create new file
-
-   Write the collected keys to `.env`:
-   ```
-   # Research Orchestrator API Keys
-   # Generated by /research-topic skill
-
-   ANTHROPIC_API_KEY=sk-ant-xxxxx
-   OPENAI_API_KEY=sk-xxxxx
-   GOOGLE_API_KEY=AIzaxxxxx
-   ```
-
-   **Confirm success:**
-   ```
-   ✓ API keys saved to .env
-
-   Keys configured:
-     - ANTHROPIC_API_KEY: ✓ (sk-ant-...xxxx)
-     - OPENAI_API_KEY: ✓ (sk-...xxxx)
-     - GOOGLE_API_KEY: ✓ (AIza...xxxx)
-
-   Your .env file is ready. These keys will be used for all future research sessions.
-
-   Security reminder: Never commit .env to version control.
-   Add ".env" to your .gitignore if not already present.
-   ```
-
-   **If user skipped some providers:**
-   ```
-   ✓ API keys saved to .env
-
-   Keys configured:
-     - ANTHROPIC_API_KEY: ✓ (sk-ant-...xxxx)
-     - OPENAI_API_KEY: ✗ (skipped)
-     - GOOGLE_API_KEY: ✓ (AIza...xxxx)
-
-   Research will proceed with: claude, gemini
-   You can add the OpenAI key later by editing .env or running this skill again.
-   ```
-
-   **Also check .gitignore:**
-   If `.gitignore` exists and doesn't contain `.env`, warn:
-   ```
-   ⚠ Warning: .env is not in your .gitignore file.
-   Add it to prevent accidentally committing your API keys:
-
-     echo ".env" >> .gitignore
-   ```
+   If keys are still missing after `/unlock`, ask the user to verify the secrets are stored in their Bitwarden vault. Do NOT offer to write keys to `.env` files or guide users through creating `.env` files with API keys.
 
 2. **If `check-ready` passed:**
    ```
@@ -762,7 +637,7 @@ No issues detected. All providers responded normally.
 
 | Error | Response |
 |-------|----------|
-| Missing API key | List missing keys, abort with setup instructions |
+| Missing API key | List missing keys, suggest running `/unlock` to load from Bitwarden |
 | Single API failure | Continue with available sources, note in output |
 | All APIs fail | Abort with error details, suggest troubleshooting |
 | Timeout (>720s) | Cancel that source, continue with others |

@@ -1,5 +1,6 @@
 ---
 description: Interactive Q&A session from questions JSON file
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # Ask Questions Command
@@ -31,7 +32,7 @@ The user will provide a JSON file path after the slash command (e.g., `/ask-ques
 ### 1. Load and Validate
 
 - Read the specified JSON file
-- Validate it conforms to `schemas/questions.json` schema structure
+- Validate it conforms to the questions schema structure (see validation rules below)
 - Verify it contains the required `questions` array and `metadata`
 - Load the original source document referenced in `metadata.source_document`
 - **Check for existing answer file** (resume support - see below)
@@ -41,9 +42,9 @@ The user will provide a JSON file path after the slash command (e.g., `/ask-ques
 
 Before starting the Q&A session, check for an incomplete previous session:
 
-1. Look for existing `answers-[source-document]-*.json` files
-2. If found with `metadata.status: "in_progress"`:
-   ```
+1. Use the Glob tool to find existing `answers-[source-document]-*.json` files in the same directory as the questions file
+2. If found, read the file and check `metadata.status`. If status is `"in_progress"`:
+   ```text
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Incomplete session detected
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -59,19 +60,26 @@ Before starting the Q&A session, check for an incomplete previous session:
 
    Your choice (R/S/A):
    ```
-3. On resume: Load existing answers and continue from `last_question_answered + 1`
-4. On start fresh: Backup existing file and start from question 1
+3. On resume: Load existing answers and continue from `metadata.last_question_answered + 1`. Each answer entry has an `answered: true/false` field to identify which questions have responses.
+4. On start fresh: Backup existing file (rename with `.bak` suffix) and start from question 1
+
+**Resume Detection Fields (in output JSON schema):**
+- `metadata.status` — `"in_progress"` or `"complete"`
+- `metadata.last_question_answered` — Integer ID of the last answered question
+- `answers[].answered` — Boolean indicating whether this question has been answered
+
+**Intermediate Saves:** When the user types `save` or `quit`, write the current state with `metadata.status: "in_progress"` and `metadata.last_question_answered` set to the ID of the last answered question. Set `metadata.completed_at` to `null` for in-progress sessions.
 
 See `references/patterns/workflow.md` for full state management specification.
 
-**Input Schema:** The input file must conform to `schemas/questions.json`
+**Input Schema:** The input file must conform to the questions schema defined by `/define-questions`
 
 #### Input Validation Behavior
 
 Before proceeding with the Q&A session:
 
 1. **Load the JSON file**
-2. **Validate against `schemas/questions.json`**
+2. **Validate against the questions schema rules**
 3. **If valid:** Proceed with the session
 4. **If invalid:** Report validation errors
 5. **If `--force` provided:** Proceed with a warning
@@ -222,6 +230,7 @@ Create a file with this structure:
       "context": "Original context from questions file",
       "selected_answer": "The answer the user selected or provided",
       "answer_type": "recommended | alternative | custom | skipped",
+      "answered": true,
       "answered_at": "2026-01-10T14:30:00Z"
     }
   ],
@@ -229,6 +238,8 @@ Create a file with this structure:
     "source_questions_file": "questions-PRD-20260110.json",
     "source_document": "PRD.md",
     "total_questions": 47,
+    "status": "in_progress | complete",
+    "last_question_answered": 15,
     "started_at": "2026-01-10T14:00:00Z",
     "completed_at": "2026-01-10T15:30:00Z",
     "answer_summary": {
@@ -247,21 +258,21 @@ Save as `answers-[source-document]-YYYYMMDD-HHMMSS.json` in the repository root.
 
 Example: `answers-PRD-20260110-143052.json`
 
-**Output Schema:** The output file must conform to `schemas/answers.json`
+**Output Schema:** The output file must conform to the answers schema defined below
 
 #### Output Validation Behavior
 
 Before saving the answers file:
 
 1. **Generate output in memory** - Create the complete JSON structure
-2. **Validate against `schemas/answers.json`**
+2. **Validate against the answers schema rules**
 3. **If valid:** Save file and report success with validation status
 4. **If invalid:** Report specific validation errors
 5. **If `--force` provided:** Save anyway with a warning
 
 **Output Validation Success Message:**
 ```text
-Output validated against schemas/answers.json. Saved to answers-PRD-20260114-143052.json
+Schema validation passed. Saved to answers-PRD-20260114-143052.json
 
 Validation: PASSED
 - Required fields: All present
@@ -367,8 +378,8 @@ This command validates both input and output against their respective schemas. S
 
 | Direction | Schema | Flag Behavior |
 |-----------|--------|---------------|
-| Input | `schemas/questions.json` | Validate before session starts |
-| Output | `schemas/answers.json` | Validate before saving |
+| Input | Questions schema (inline rules) | Validate before session starts |
+| Output | Answers schema (inline rules) | Validate before saving |
 
 | Flag | Behavior |
 |------|----------|
@@ -385,3 +396,22 @@ All command completions include validation status:
 - Input from `/define-questions` is validated to ensure compatibility
 - Output is validated for `/finish-document` compatibility
 - Using `--force` may result in files that don't work with downstream commands
+
+## Error Handling
+
+| Condition | Cause | Action |
+|-----------|-------|--------|
+| Questions file not found | Incorrect path or file was deleted | Report: "File '[path]' not found. Check the path and try again." Show example usage with `/define-questions` to generate a new file. |
+| Invalid JSON in questions file | Malformed JSON, manual editing errors, or file corruption | Report the parse error location and suggest: "The questions file contains invalid JSON. Re-generate with `/define-questions` or fix the syntax error at [location]." |
+| Schema validation failure | Questions file missing required fields or has wrong types | Display specific validation errors (as defined in Input Validation Behavior). Offer `--force` to proceed with degraded functionality. |
+| Source document not found | `metadata.source_document` references a file that no longer exists | Warn: "Source document '[path]' not found. Context and additional detail will be limited. Proceeding with questions only." |
+| Empty questions array | Questions file has no questions defined | Report: "The questions file contains no questions. Re-generate with `/define-questions` or check the source document." |
+| User cancellation mid-session | User types `quit`, `exit`, or `stop` during the session | Save current progress with `status: "in_progress"` and report how many questions were answered. Display resume instructions. |
+| Answer file write failure | Cannot save output JSON due to permissions or disk space | Display the answers summary inline and report: "Could not save to [path]. Copy the answers above manually." |
+| Resume file corrupted | Previous in-progress answer file has invalid JSON | Warn: "Previous session file is corrupted. Starting fresh." Rename corrupted file with `.corrupted` suffix and begin from question 1. |
+
+## Related Commands
+
+- `/define-questions` — Produces the questions JSON file that this command consumes
+- `/finish-document` — Uses the answers JSON to update the original document (full pipeline)
+- `/assess-document` — Evaluate document quality before or after answering questions

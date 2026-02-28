@@ -6,6 +6,23 @@ description: Create branch, commit, push, open PR, auto-review, fix issues, and 
 
 You are automating the complete git workflow to ship code changes. After creating the PR, you will automatically review it, fix any issues, and merge it. The user may provide a branch name and description as arguments: $ARGUMENTS
 
+## Proactive Triggers
+
+Suggest this skill when:
+1. User says "done", "ready to ship", "push this", "let's ship it", or similar completion phrases
+2. After completing a work item from an implementation plan
+3. After all tests pass and changes are ready
+4. User asks to create a PR or push changes
+5. After a code review cycle is complete and changes are approved
+
+## Destructive Action Warning
+
+This skill modifies git state (creates branches, commits, pushes, and merges). Before proceeding:
+- Confirm the user intends to ship the current changes
+- Never force-push or push to main/master directly
+- Always create a feature branch for changes
+- If the working directory has uncommitted changes that look unrelated, ask before staging everything
+
 ## Input Validation
 
 **Optional Arguments:**
@@ -63,29 +80,29 @@ Detect the git hosting platform and select the appropriate CLI:
 
 ## Execution Steps
 
-### Step 1: Determine Branch Name
+### Phase 1: Determine Branch Name
 - If the user provided a branch name in arguments, use it
 - If not, analyze the staged/unstaged changes and generate a descriptive kebab-case branch name (e.g., `fix-login-validation`, `add-user-export-feature`)
 - Confirm the branch name with the user before proceeding
 
-### Step 2: Create and Switch to New Branch
+### Phase 2: Create and Switch to New Branch
 ```bash
 git checkout -b <branch-name>
 ```
 
-### Step 3: Stage and Commit
+### Phase 3: Stage and Commit
 - Stage all changes: `git add -A`
 - Analyze the diff to generate a clear, conventional commit message
 - Format: `<type>: <concise description>` (e.g., `feat: add CSV export for user data`)
 - Include a body if changes are complex enough to warrant explanation
 - Show the user the proposed commit message and proceed unless they object
 
-### Step 4: Push to Remote
+### Phase 4: Push to Remote
 ```bash
 git push -u origin <branch-name>
 ```
 
-### Step 5: Create Pull Request
+### Phase 5: Create Pull Request
 - Set the PR title to match or expand on the commit message
 - Generate a PR body that includes:
   - Summary of what changed and why
@@ -120,11 +137,11 @@ After completion, display:
 
 ---
 
-## Phase 7: Auto-Review
+## Phase 6: Auto-Review
 
 After the PR is created, automatically analyze it for issues.
 
-### 7.1 Fetch PR Information
+### 6.1 Fetch PR Information
 
 **GitHub:**
 ```bash
@@ -144,7 +161,7 @@ PR_NUMBER=$(tea pr list --output json --fields index --state open | jq '.[0].ind
 tea pr view $PR_NUMBER --fields diff --output simple
 ```
 
-### 7.2 Analyze the PR
+### 6.2 Analyze the PR
 
 Perform a comprehensive review across these dimensions:
 
@@ -184,17 +201,17 @@ Perform a comprehensive review across these dimensions:
 - Complex logic without comments
 - Missing README updates for new features
 
-### 7.3 Classify Issues
+### 6.3 Classify Issues
 
 Categorize each issue by severity:
 - **CRITICAL**: Must fix - blocks merge (security vulnerabilities, data integrity risks)
 - **WARNING**: Should fix - blocks merge (quality issues, missing tests)
 - **SUGGESTION**: Nice to have - does NOT block merge
 
-### 7.4 Output
+### 6.4 Output
 
 ```text
-Phase 7: Auto-Review
+Phase 6: Auto-Review
 ====================
 PR #[number] analyzed.
 
@@ -212,11 +229,11 @@ Found [N] blocking issues. Starting fix loop.
 
 ---
 
-## Phase 8: Fix Loop
+## Phase 7: Fix Loop
 
 If there are CRITICAL or WARNING issues, attempt to fix them automatically.
 
-### 8.1 Loop Parameters
+### 7.1 Loop Parameters
 
 - **Maximum attempts**: 5
 - **Blocking issues**: CRITICAL + WARNING only (suggestions don't block)
@@ -225,11 +242,11 @@ If there are CRITICAL or WARNING issues, attempt to fix them automatically.
   - Unfixable issue detected → report and stop
   - Max attempts reached → report exhaustion and stop
 
-### 8.2 Fix Loop Logic
+### 7.2 Fix Loop Logic
 
 ```yaml
 FOR attempt = 1 TO 5:
-    IF no blocking issues: EXIT LOOP → go to Phase 9 (merge)
+    IF no blocking issues: EXIT LOOP → go to Phase 8 (merge)
 
     Display: "Fix Attempt [attempt] of 5"
     Display: "[N] critical, [N] warnings remaining"
@@ -245,7 +262,7 @@ FOR attempt = 1 TO 5:
             Mark as unfixable with reason
 
     IF has unfixable issues:
-        EXIT LOOP → go to Phase 9 (failure report)
+        EXIT LOOP → go to Phase 8 (failure report)
 
     Commit fixes:
         git add -A
@@ -255,7 +272,7 @@ FOR attempt = 1 TO 5:
         - [C1] Issue description
         - [W1] Issue description
 
-        Co-Authored-By: Claude <noreply@anthropic.com>"
+        Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
     Push:
         git push
@@ -264,13 +281,13 @@ FOR attempt = 1 TO 5:
 
     IF all blocking issues resolved:
         Display: "✓ All issues resolved!"
-        EXIT LOOP → go to Phase 9 (merge)
+        EXIT LOOP → go to Phase 8 (merge)
 
 IF attempt > 5 AND blocking issues remain:
-    EXIT LOOP → go to Phase 9 (exhaustion report)
+    EXIT LOOP → go to Phase 8 (exhaustion report)
 ```
 
-### 8.3 Fix Strategies by Issue Type
+### 7.3 Fix Strategies by Issue Type
 
 | Issue Type | Fix Approach |
 |------------|--------------|
@@ -284,7 +301,7 @@ IF attempt > 5 AND blocking issues remain:
 | Missing tests | Generate basic test stubs |
 | Missing docs | Generate JSDoc/docstring comments |
 
-### 8.4 Unfixable Issue Detection
+### 7.4 Unfixable Issue Detection
 
 Mark an issue as "unfixable" if:
 - **Requires external changes**: Database schema, external API, infrastructure
@@ -302,11 +319,11 @@ Suggestion: [what the user should do manually]
 
 ---
 
-## Phase 9: Completion
+## Phase 8: Completion
 
 Three possible outcomes: success (merge), failure (unfixable), or exhaustion (max attempts).
 
-### 9.1 Success Path (All Blocking Issues Resolved)
+### 8.1 Success Path (All Blocking Issues Resolved)
 
 Execute merge:
 ```bash
@@ -338,7 +355,7 @@ git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -d 2>/d
 
 Display:
 ```text
-Phase 9: Completion
+Phase 8: Completion
 ===================
 ✓ PR #[number] successfully merged!
 
@@ -362,11 +379,11 @@ Stale Branches Pruned:
 PR URL: [url]
 ```
 
-### 9.2 Failure Path (Unfixable Issues Exist)
+### 8.2 Failure Path (Unfixable Issues Exist)
 
 Do NOT merge. Report to user:
 ```text
-Phase 9: Completion (Manual Review Required)
+Phase 8: Completion (Manual Review Required)
 ============================================
 ✗ PR #[number] NOT merged - unfixable issues detected.
 
@@ -398,11 +415,11 @@ PR URL: [url] (still open)
 Branch: [branch-name] (preserved for manual work)
 ```
 
-### 9.3 Exhaustion Path (Max Attempts Reached)
+### 8.3 Exhaustion Path (Max Attempts Reached)
 
 Do NOT merge. Report with diagnostics:
 ```text
-Phase 9: Completion (Fix Loop Exhausted)
+Phase 8: Completion (Fix Loop Exhausted)
 ========================================
 ✗ PR #[number] NOT merged - max fix attempts (5) reached.
 
@@ -448,11 +465,11 @@ Branch: [branch-name] (preserved for manual work)
 |-------|--------|---------|
 | Pre-flight | Verify git, gh/tea, changes | Ready to ship |
 | Phase 0 | Detect platform (GitHub/Gitea) | CLI selected |
-| Step 1 | Determine branch name | Branch name confirmed |
-| Step 2 | Create branch | On new branch |
-| Step 3 | Stage and commit | Changes committed |
-| Step 4 | Push to remote | Branch pushed |
-| Step 5 | Create PR | PR opened |
-| Phase 7 | Auto-review PR | Issues identified |
-| Phase 8 | Fix loop (up to 5x) | Issues fixed or marked unfixable |
-| Phase 9 | Complete | Merged, branches pruned, or failure report |
+| Phase 1 | Determine branch name | Branch name confirmed |
+| Phase 2 | Create branch | On new branch |
+| Phase 3 | Stage and commit | Changes committed |
+| Phase 4 | Push to remote | Branch pushed |
+| Phase 5 | Create PR | PR opened |
+| Phase 6 | Auto-review PR | Issues identified |
+| Phase 7 | Fix loop (up to 5x) | Issues fixed or marked unfixable |
+| Phase 8 | Complete | Merged, branches pruned, or failure report |

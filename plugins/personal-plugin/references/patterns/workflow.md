@@ -8,7 +8,7 @@ Interactive commands SHOULD support resuming interrupted sessions. This allows u
 
 ### State File Format
 
-The answer file (`schemas/answers.json`) includes state management fields:
+The answer file includes state management fields:
 
 ```json
 {
