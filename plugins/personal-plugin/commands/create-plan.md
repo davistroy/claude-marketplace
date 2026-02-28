@@ -308,7 +308,8 @@ Create the implementation plan with this structure:
 ### Work Items
 
 #### 1.1 [Work Item Title]
-
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
 **Requirement Refs:** [PRD §2.1, TDD §4.3]
 **Files Affected:**
 - `path/to/file1.ts` (create)

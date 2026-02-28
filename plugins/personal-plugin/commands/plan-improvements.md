@@ -211,6 +211,8 @@ Transform recommendations into an actionable, phased implementation plan:
 ### Work Items
 
 #### 1.1 [Task Title]
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
 **Recommendation Ref:** [U1, A2, etc.]
 **Files Affected:**
 - `path/to/file1.ext` (create)
@@ -305,14 +307,15 @@ Transform recommendations into an actionable, phased implementation plan:
 
 #### Work Item Construction Guidelines
 
-For each work item, generate all six fields in this order:
+For each work item, generate all seven fields in this order:
 
-1. **Recommendation Ref** — the recommendation ID(s) from RECOMMENDATIONS.md (e.g., U1, A2)
-2. **Files Affected** — list with `(create)` or `(modify)` annotations per file
-3. **Description** — detailed explanation of the change and why it matters
-4. **Tasks** — numbered checkbox list of specific, actionable sub-steps that an implementer can execute sequentially. Each task should be concrete enough to complete without further decomposition. Include testing and documentation tasks.
-5. **Acceptance Criteria** — measurable conditions that verify the work item is done
-6. **Notes** — optional context, gotchas, dependencies, or implementation hints. Omit if there is nothing noteworthy to add.
+1. **Status** — always `PENDING` when generating the plan. Updated by `/implement-plan` during execution (PENDING → IN_PROGRESS → COMPLETE [YYYY-MM-DD]).
+2. **Recommendation Ref** — the recommendation ID(s) from RECOMMENDATIONS.md (e.g., U1, A2)
+3. **Files Affected** — list with `(create)` or `(modify)` annotations per file
+4. **Description** — detailed explanation of the change and why it matters
+5. **Tasks** — numbered checkbox list of specific, actionable sub-steps that an implementer can execute sequentially. Each task should be concrete enough to complete without further decomposition. Include testing and documentation tasks.
+6. **Acceptance Criteria** — measurable conditions that verify the work item is done
+7. **Notes** — optional context, gotchas, dependencies, or implementation hints. Omit if there is nothing noteworthy to add.
 
 ### Phase Sizing Guidelines
 

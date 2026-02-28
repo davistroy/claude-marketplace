@@ -132,7 +132,7 @@ The Performance sections at the bottom of each command can retain time estimates
 
 ---
 
-#### 1.4 Add Status Field to Work Item Template
+#### 1.4 Add Status Field to Work Item Template ✅ Completed 2026-02-28
 **Recommendation Ref:** U5 (partial)
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -142,12 +142,12 @@ The Performance sections at the bottom of each command can retain time estimates
 Add a machine-readable `**Status: PENDING**` field to the work item template in both commands. This field will be updated by `/implement-plan` during execution (PENDING → IN_PROGRESS → COMPLETE [date]).
 
 **Tasks:**
-1. [ ] Add `**Status: PENDING**` as the first field in the work item template (before Ref field) in both commands
-2. [ ] Document the three valid status values in a comment: `<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->`
+1. [x] Add `**Status: PENDING**` as the first field in the work item template (before Ref field) in both commands
+2. [x] Document the three valid status values in a comment: `<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->`
 
 **Acceptance Criteria:**
-- [ ] Both planning commands generate work items with `**Status: PENDING**` field
-- [ ] Status field is the first field in each work item (easy to scan)
+- [x] Both planning commands generate work items with `**Status: PENDING**` field
+- [x] Status field is the first field in each work item (easy to scan)
 
 **Notes:**
 The actual status transitions are implemented in Phase 5 (implement-plan changes). This phase just ensures the plans are generated with the field.
