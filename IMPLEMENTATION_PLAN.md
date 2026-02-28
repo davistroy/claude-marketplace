@@ -687,7 +687,7 @@ Add an instruction for what to output if the command is interrupted or stops ear
 
 ### Work Items
 
-#### 6.1 Add Machine-Readable Markers for Append Logic
+#### 6.1 Add Machine-Readable Markers for Append Logic ✅ Completed 2026-02-28
 **Recommendation Ref:** R1
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -697,23 +697,23 @@ Add an instruction for what to output if the command is interrupted or stops ear
 Add HTML comment markers to the IMPLEMENTATION_PLAN.md template so append operations have unambiguous insertion points.
 
 **Tasks:**
-1. [ ] Add `<!-- BEGIN PHASES -->` before the first `## Phase 1:` section in both templates
-2. [ ] Add `<!-- END PHASES -->` after the last phase section (before Parallel Work Opportunities) in both templates
-3. [ ] Add `<!-- BEGIN TABLES -->` before Parallel Work Opportunities in both templates
-4. [ ] Add `<!-- END TABLES -->` after the last table section in both templates
-5. [ ] Update Append vs Overwrite instructions in both commands to reference these markers instead of ambiguous `---` separators
-6. [ ] Add a before/after example showing append of 2 new phases to an existing 3-phase plan
-7. [ ] Add handling for partially-executed plans: "If some items have Status: COMPLETE, preserve them exactly. Warn: 'This plan has items in progress. New phases will be appended after existing content.'"
+1. [x] Add `<!-- BEGIN PHASES -->` before the first `## Phase 1:` section in both templates
+2. [x] Add `<!-- END PHASES -->` after the last phase section (before Parallel Work Opportunities) in both templates
+3. [x] Add `<!-- BEGIN TABLES -->` before Parallel Work Opportunities in both templates
+4. [x] Add `<!-- END TABLES -->` after the last table section in both templates
+5. [x] Update Append vs Overwrite instructions in both commands to reference these markers instead of ambiguous `---` separators
+6. [x] Add a before/after example showing append of 2 new phases to an existing 3-phase plan
+7. [x] Add handling for partially-executed plans: "If some items have Status: COMPLETE, preserve them exactly. Warn: 'This plan has items in progress. New phases will be appended after existing content.'"
 
 **Acceptance Criteria:**
-- [ ] Machine-readable markers present in both templates
-- [ ] Append instructions reference markers, not `---` separators
-- [ ] Before/after example included
-- [ ] Partially-executed plan handling documented
+- [x] Machine-readable markers present in both templates
+- [x] Append instructions reference markers, not `---` separators
+- [x] Before/after example included
+- [x] Partially-executed plan handling documented
 
 ---
 
-#### 6.2 Add Testing Circuit Breaker to implement-plan
+#### 6.2 Add Testing Circuit Breaker to implement-plan ✅ Completed 2026-02-28
 **Recommendation Ref:** R2
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -722,14 +722,17 @@ Add HTML comment markers to the IMPLEMENTATION_PLAN.md template so append operat
 Add explicit iteration limits to testing subagent prompts to prevent infinite fix loops.
 
 **Tasks:**
-1. [ ] Modify sequential testing prompt (Step A2): add "If after 3 fix-and-rerun cycles tests still fail, stop and return: TESTS_STUCK, list of remaining failures, what was tried and why it didn't work"
-2. [ ] Modify parallel testing prompt (Step B3): same circuit breaker
-3. [ ] Add main agent handling for TESTS_STUCK: "If TESTS_STUCK, offer: (1) Revert to checkpoint, (2) Skip this item, (3) Pause for manual intervention"
+1. [x] Modify sequential testing prompt (Step A2): add "If after 3 fix-and-rerun cycles tests still fail, stop and return: TESTS_STUCK, list of remaining failures, what was tried and why it didn't work"
+2. [x] Modify parallel testing prompt (Step B3): same circuit breaker
+3. [x] Add main agent handling for TESTS_STUCK: "If TESTS_STUCK, offer: (1) Revert to checkpoint, (2) Skip this item, (3) Pause for manual intervention"
 
 **Acceptance Criteria:**
-- [ ] Both testing prompts have 3-attempt circuit breaker
-- [ ] TESTS_STUCK return format defined
-- [ ] Main agent has handling for TESTS_STUCK response
+- [x] Both testing prompts have 3-attempt circuit breaker
+- [x] TESTS_STUCK return format defined
+- [x] Main agent has handling for TESTS_STUCK response
+
+**Notes:**
+Implementation was completed as part of Phase 5.2 (Rollback/Checkpoint Capability), which required TESTS_STUCK handling to exist for its rollback logic. All three circuit breaker components — sequential testing prompt (Step A2, line ~344), parallel testing prompt (Step B3, line ~455), and main agent TESTS_STUCK handling with rollback/skip/pause options (Steps A2/B3 post-prompt blocks) — were already present in implement-plan.md.
 
 ---
 
@@ -757,7 +760,7 @@ Add project context to subagent prompts and fold documentation updates into the 
 
 ---
 
-#### 6.4 Add allowed-tools to Planning Commands and Plan Size Limits
+#### 6.4 Add allowed-tools to Planning Commands and Plan Size Limits ✅ Completed 2026-02-28
 **Recommendation Ref:** R6, R7
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -767,15 +770,15 @@ Add project context to subagent prompts and fold documentation updates into the 
 Add tool restrictions to both planning commands and add guidance on maximum plan size.
 
 **Tasks:**
-1. [ ] Add `allowed-tools: Read, Glob, Grep, Write, Edit, Agent` to plan-improvements frontmatter
-2. [ ] Add `allowed-tools: Read, Glob, Grep, Write, Edit, Agent` to create-plan frontmatter
-3. [ ] Add plan size limit guidance to both: "If the plan exceeds 8 phases, suggest splitting into multiple plan files. Add `--max-phases <n>` as an optional argument."
-4. [ ] Add guidance on work item granularity: "Each work item should touch no more than 5-8 files and change ~500 LOC. If a work item exceeds these bounds, split it into sub-items."
+1. [x] Add `allowed-tools: Read, Glob, Grep, Write, Edit, Agent` to plan-improvements frontmatter
+2. [x] Add `allowed-tools: Read, Glob, Grep, Write, Edit, Agent` to create-plan frontmatter
+3. [x] Add plan size limit guidance to both: "If the plan exceeds 8 phases, suggest splitting into multiple plan files. Add `--max-phases <n>` as an optional argument."
+4. [x] Add guidance on work item granularity: "Each work item should touch no more than 5-8 files and change ~500 LOC. If a work item exceeds these bounds, split it into sub-items."
 
 **Acceptance Criteria:**
-- [ ] Both planning commands have `allowed-tools` in frontmatter
-- [ ] Plan size limit documented
-- [ ] Work item granularity guidance documented
+- [x] Both planning commands have `allowed-tools` in frontmatter
+- [x] Plan size limit documented
+- [x] Work item granularity guidance documented
 
 ---
 
@@ -804,7 +807,7 @@ Update help documentation and CLAUDE.md to reflect new arguments, flags, and cap
 - [ ] Verify append logic uses markers correctly
 - [ ] Verify testing circuit breaker fires after 3 attempts
 - [ ] Verify implementation subagent updates Status field directly
-- [ ] Verify allowed-tools restrictions are in frontmatter
+- [x] Verify allowed-tools restrictions are in frontmatter
 
 ### Phase 6 Completion Checklist
 - [ ] All work items complete

@@ -16,6 +16,7 @@ Execute an IMPLEMENTATION_PLAN.md file by orchestrating subagents in a loop. Eac
 | `--input <path>` | `IMPLEMENTATION_PLAN.md` | Path to the plan file. Supports absolute or relative paths. Use this when the plan was generated to a non-default location (e.g., `/create-plan --output docs/plan.md`). |
 | `--auto-merge` | `false` | When set, automatically merge the PR and clean up the branch after all work items are complete. Without this flag, the command creates a PR and stops. |
 | `--pause-between-phases` | `false` | When set, pause and ask the user for confirmation before starting each new phase. Useful for reviewing progress or adjusting the plan mid-execution. |
+| `--progress` | `false` | When set, generate/update PROGRESS.md even if it does not already exist. By default, PROGRESS.md is only updated if it already exists in the repo (to avoid creating tracking files that duplicate `git log`). |
 
 **Argument Resolution:**
 
@@ -81,9 +82,9 @@ Commit or stash your changes before running this command:
 This command automates the execution of a phased implementation plan by:
 
 1. Reading the plan and tracking progress
-2. Implementing each work item via subagents
+2. Implementing each work item via subagents (with project context for orientation)
 3. Running tests and fixing failures
-4. Updating documentation (PROGRESS.md, LEARNINGS.md)
+4. Optionally updating PROGRESS.md (if it exists) and LEARNINGS.md (only when tests had issues)
 5. Committing after each work item
 6. Creating a PR when complete (merge only with `--auto-merge`)
 
@@ -112,7 +113,7 @@ Before running this command, ensure:
 | Use TaskCreate/TaskUpdate for progress tracking (not subagent launching) | Hold work item details in conversational memory |
 | Spawn fresh subagents for each step | Reuse subagent context across work items |
 | Launch parallel subagents with `run_in_background: true` | Wait for one item to finish before starting an independent one |
-| Batch documentation updates for parallel items | Spawn a doc subagent for each parallel item separately |
+| Fold plan-file updates into implementation subagent | Spawn a separate doc subagent for every work item |
 | Use a single commit for parallel batches | Create individual commits for each parallel item |
 | Shed old subagent summaries every 5 items | Keep all iteration results in conversation history |
 
@@ -142,6 +143,7 @@ The state file is the **ground truth** for execution progress. It persists minim
     { "item": "2.3", "phase": "Phase 2", "description": "Update allowed-tools", "error": "Test failure in...", "attempts": 2 }
   ],
   "project_context": {
+    "project_description": "React dashboard app with REST API backend",
     "tech_stack": "TypeScript, React, Jest",
     "test_command": "npm test",
     "conventions": "kebab-case files, ESM imports"
@@ -188,18 +190,16 @@ The main agent acts as a **thin loop controller** — it decides what to do next
 
 For each incomplete work item in the plan file (`PLAN_FILE`):
 
-1. **Implementation Subagent**: Reads the plan and implements the work item
+1. **Implementation Subagent**: Reads the plan, implements the work item, and marks it complete in `PLAN_FILE` (includes project context for orientation)
 2. **Testing Subagent**: Runs all tests, fixes failures until all pass
-3. **Documentation Subagent**: Updates `PLAN_FILE`, PROGRESS.md, LEARNINGS.md
-4. **Main Agent**: Commits and pushes changes
+3. **Main Agent**: Optionally updates PROGRESS.md (if it exists) and LEARNINGS.md (if tests had issues), then commits and pushes
 
 **Parallel variant** (for independent work items within the same phase):
 
-1. **Launch N implementation subagents concurrently** (one per independent work item, `run_in_background: true`)
+1. **Launch N implementation subagents concurrently** (one per independent work item, `run_in_background: true`) — each updates `PLAN_FILE` for its own item
 2. **Collect results** as each completes — check output files for status
 3. **Single testing subagent** runs full test suite after all parallel items complete
-4. **Single documentation subagent** updates tracking files for all completed items at once
-5. **Main Agent**: Single commit covering all parallel work items, then push
+4. **Main Agent**: Optionally updates PROGRESS.md and LEARNINGS.md, then single commit covering all parallel work items, then push
 
 ### Finalization
 
@@ -253,7 +253,11 @@ Prompt the Agent to return ONLY:
 - The **first incomplete phase**: phase name, all work items in that phase (item number + brief description each)
 - Parallelization info for that phase: which items are independent (can run in parallel) vs which have dependencies
 - A **full parallelization map** for ALL phases: for each phase, list parallel groups and sequential items (this is compact metadata, not full plan content)
-- **Project context**: tech stack, test command (inferred from package.json/pyproject.toml/Makefile), key conventions (1-2 sentences)
+- **Project context** (read from CLAUDE.md, package.json, pyproject.toml, Makefile, or similar config files):
+  - `tech_stack`: primary language/framework (e.g., "TypeScript, React, Jest")
+  - `test_command`: how to run tests (e.g., "npm test", "pytest")
+  - `conventions`: 3-5 key conventions (e.g., "kebab-case files, ESM imports, SKILL.md uppercase")
+  - `project_description`: one-sentence summary of what this project is (e.g., "A Claude Code plugin marketplace repo containing multiple plugins")
 - Current progress summary (1-2 sentences)
 - Total work items remaining across all phases
 
@@ -272,6 +276,7 @@ cat > .implement-plan-state.json << 'EOF'
   "completed": [],
   "failed": [],
   "project_context": {
+    "project_description": "[from subagent]",
     "tech_stack": "[from subagent]",
     "test_command": "[from subagent]",
     "conventions": "[from subagent]"
@@ -326,9 +331,14 @@ This ensures that if the session is interrupted during implementation, the resum
 
 Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
+> **Project Context:** [project_description]. Tech stack: [tech_stack]. Test command: [test_command]. Conventions: [conventions].
+>
 > Read [PLAN_FILE]. Implement work item: **[ITEM — phase name, item number, brief description from startup or previous iteration]**.
 > Complete ALL tasks in this work item.
+> When implementation is complete, also update [PLAN_FILE]: change this item's `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`).
 > Return ONLY: (1) files created/modified, (2) implementation summary (max 3 sentences), (3) DONE or error description.
+
+(Populate `[project_description]`, `[tech_stack]`, `[test_command]`, and `[conventions]` from the `project_context` object in `.implement-plan-state.json`.)
 
 Wait for completion. Record only: files changed, success/failure status.
 
@@ -336,6 +346,8 @@ Wait for completion. Record only: files changed, success/failure status.
 
 Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
+> **Project Context:** [project_description]. Test command: [test_command].
+>
 > Run ALL project tests. If failures occur:
 > 1. Diagnose root cause
 > 2. Fix the issue
@@ -367,23 +379,22 @@ Wait for the user's choice:
 - **(2) Skip:** Add the item to the `failed` array with `"error": "Tests stuck — skipped by user", "attempts": 3`. Discard uncommitted changes with `git checkout -- .`. Update `current_item` to the next item. Continue to the NEXT ITERATION.
 - **(3) Pause:** Output the failing test details and stop execution. The user can fix manually and re-run `/implement-plan` to resume from the state file.
 
-##### Step A3: DOCUMENTATION UPDATE (Agent)
+##### Step A3: OPTIONAL DOCUMENTATION UPDATE (Main Agent — conditional)
 
-Launch an Agent (subagent_type: "general-purpose") with this prompt:
+Documentation overhead is minimized by folding the plan file update into the implementation subagent (Step A1). The remaining tracking files are updated only when warranted:
 
-> Update project tracking files:
-> 1. [PLAN_FILE] — Mark **[WORK_ITEM]** as complete: update its `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`)
-> 2. PROGRESS.md — Append entry: date, work item completed, files changed: **[FILES_LIST]**
-> 3. LEARNINGS.md — Append any testing issues: **[ISSUES_IF_ANY]**
->
-> Return: DOCS_UPDATED when complete.
+1. **PROGRESS.md** — Only update if PROGRESS.md already exists in the repo OR `--progress` flag was set. If updating, append a one-line entry: `[YYYY-MM-DD] [ITEM] — [FILES_LIST]`
+2. **LEARNINGS.md** — Only update if the testing subagent (Step A2) reported actual issues that required fixes. If the tests passed clean, skip this entirely. If updating, launch a quick Agent:
+
+   > Append to LEARNINGS.md: "[ITEM]: [ISSUE_SUMMARY] — [FIX_APPLIED]" (one line per issue).
+   > Return: DOCS_UPDATED when complete.
 
 ##### Step A4: COMMIT (Main Agent — do this yourself)
 
 Run these git commands directly:
 1. `git status --short` — review changed files
 2. **If `git status` shows unexpected untracked files not in the subagent's file list, warn the user and do not stage them.**
-3. `git add [FILES_FROM_SUBAGENT] [PLAN_FILE] PROGRESS.md LEARNINGS.md` — stage only the files reported by subagents plus tracking files (omit PROGRESS.md/LEARNINGS.md if they were not updated)
+3. `git add [FILES_FROM_SUBAGENT] [PLAN_FILE]` — stage implementation files and the plan file (which the implementation subagent already updated). Also stage PROGRESS.md and/or LEARNINGS.md only if they were updated in Step A3.
 4. `git commit -m "Complete [WORK_ITEM_NAME]"`
 5. `git push`
 
@@ -423,9 +434,14 @@ Before launching parallel implementation subagents, mark ALL items in the batch 
 
 For each independent work item, launch an Agent (subagent_type: "general-purpose") with `run_in_background: true`:
 
+> **Project Context:** [project_description]. Tech stack: [tech_stack]. Test command: [test_command]. Conventions: [conventions].
+>
 > Read [PLAN_FILE]. Implement work item: **[ITEM N.M — phase name, item number, brief description]**.
 > Complete ALL tasks in this work item.
+> When implementation is complete, also update [PLAN_FILE]: change this item's `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`).
 > Return ONLY: (1) files created/modified, (2) implementation summary (max 3 sentences), (3) DONE or error description.
+
+(Populate `[project_description]`, `[tech_stack]`, `[test_command]`, and `[conventions]` from the `project_context` object in `.implement-plan-state.json`.)
 
 Launch ALL independent items in a **single message with multiple Agent tool calls**. This ensures true concurrent execution.
 
@@ -447,6 +463,8 @@ If any agent fails, handle its work item sequentially in a follow-up step.
 
 After ALL parallel implementations complete, launch a single testing Agent:
 
+> **Project Context:** [project_description]. Test command: [test_command].
+>
 > Run ALL project tests. If failures occur:
 > 1. Diagnose root cause
 > 2. Fix the issue
@@ -478,23 +496,22 @@ Wait for the user's choice:
 - **(2) Skip:** Add all batch items to the `failed` array with `"error": "Tests stuck — skipped by user", "attempts": 3`. Discard uncommitted changes with `git checkout -- .`. Update `current_item` to the next item after the batch. Continue to the NEXT ITERATION.
 - **(3) Pause:** Output the failing test details and stop execution. The user can fix manually and re-run `/implement-plan` to resume from the state file.
 
-##### Step B4: DOCUMENTATION UPDATE (Single Agent)
+##### Step B4: OPTIONAL DOCUMENTATION UPDATE (Main Agent — conditional)
 
-Launch a single Agent to update tracking for ALL completed parallel items at once:
+Documentation overhead is minimized by folding the plan file update into each parallel implementation subagent (Step B1). The remaining tracking files are updated only when warranted:
 
-> Update project tracking files:
-> 1. [PLAN_FILE] — Mark these work items as complete: for each item in **[LIST_OF_ITEMS]**, update its `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`)
-> 2. PROGRESS.md — Append entries for each: date, work item completed, files changed: **[FILES_PER_ITEM]**
-> 3. LEARNINGS.md — Append any testing issues: **[ISSUES_IF_ANY]**
->
-> Return: DOCS_UPDATED when complete.
+1. **PROGRESS.md** — Only update if PROGRESS.md already exists in the repo OR `--progress` flag was set. If updating, append one-line entries for each completed item: `[YYYY-MM-DD] [ITEM] — [FILES_LIST]`
+2. **LEARNINGS.md** — Only update if the testing subagent (Step B3) reported actual issues that required fixes. If the tests passed clean, skip this entirely. If updating, launch a quick Agent:
+
+   > Append to LEARNINGS.md: for each issue encountered across the parallel batch, add "[ITEM]: [ISSUE_SUMMARY] — [FIX_APPLIED]" (one line per issue).
+   > Return: DOCS_UPDATED when complete.
 
 ##### Step B5: COMMIT (Main Agent — do this yourself)
 
 Single commit covering all parallel work items:
 1. `git status --short` — review changed files
 2. **If `git status` shows unexpected untracked files not in any subagent's file list, warn the user and do not stage them.**
-3. `git add [ALL_FILES_FROM_ALL_SUBAGENTS] [PLAN_FILE] PROGRESS.md LEARNINGS.md` — stage only the files reported by all parallel subagents plus tracking files (omit PROGRESS.md/LEARNINGS.md if they were not updated)
+3. `git add [ALL_FILES_FROM_ALL_SUBAGENTS] [PLAN_FILE]` — stage implementation files and the plan file (which the parallel implementation subagents already updated). Also stage PROGRESS.md and/or LEARNINGS.md only if they were updated in Step B4.
 4. `git commit -m "Complete [PHASE_NAME]: [ITEM_1], [ITEM_2], [ITEM_3]"`
 5. `git push`
 
@@ -686,15 +703,15 @@ Launch an Agent to review and update all documentation:
 > Review and update all documentation:
 > - README.md: ensure accuracy, update any outdated sections
 > - [PLAN_FILE]: verify all items marked complete
-> - PROGRESS.md: add completion summary at end
-> - LEARNINGS.md: synthesize all entries into a SUMMARY section at the top (max 10 bullet points)
+> - PROGRESS.md (if it exists): add completion summary at end
+> - LEARNINGS.md (if it exists): synthesize all entries into a SUMMARY section at the top (max 10 bullet points)
 >
 > Return: DOCS_FINALIZED
 
 #### Final Step 2: Create PR (Main Agent)
 
 1. `git status --short` — review changed files; warn the user about any unexpected untracked files
-2. `git add [PLAN_FILE] PROGRESS.md LEARNINGS.md README.md` — stage only the documentation files that were updated (omit any not modified)
+2. `git add [PLAN_FILE] README.md` — stage these files plus PROGRESS.md and/or LEARNINGS.md only if they exist and were modified
 3. `git commit -m "Polish documentation" && git push`
 4. Build a descriptive PR title from the phases actually implemented (e.g., "Implement: Unified Schema, Tool API Fix, Context Management") — do NOT use a generic title like "Implementation Complete"
 5. Create PR using `gh pr create` with:
@@ -722,12 +739,12 @@ Output the **COMPLETION REPORT** (defined in the COMPLETION REPORT section above
 
 This command creates/updates:
 
-| File | Purpose |
-|------|---------|
-| `PLAN_FILE` (default: IMPLEMENTATION_PLAN.md) | Marks work items complete with dates |
-| PROGRESS.md | Chronological log of completed work |
-| LEARNINGS.md | Issues encountered and solutions |
-| `.implement-plan-state.json` | Ephemeral execution state (gitignored, deleted on completion) |
+| File | Purpose | When Updated |
+|------|---------|--------------|
+| `PLAN_FILE` (default: IMPLEMENTATION_PLAN.md) | Marks work items complete with dates | Always (updated by implementation subagent) |
+| PROGRESS.md | Chronological log of completed work | Only if file already exists or `--progress` flag set |
+| LEARNINGS.md | Issues encountered and solutions | Only when testing subagent reports actual issues |
+| `.implement-plan-state.json` | Ephemeral execution state (gitignored, deleted on completion) | Always |
 
 ## Error Handling
 

@@ -1,5 +1,6 @@
 ---
 description: Analyze codebase and generate prioritized improvement recommendations with phased implementation plan
+allowed-tools: Read, Glob, Grep, Write, Edit, Agent
 ---
 
 # Plan Improvements Command
@@ -11,8 +12,9 @@ Perform a comprehensive analysis of the current codebase to identify improvement
 | Argument | Alias | Description |
 |----------|-------|-------------|
 | `--recommendations-only` | `--no-plan` | Stop after generating RECOMMENDATIONS.md — skip implementation plan generation. Enables a two-stage workflow where you review/edit recommendations before running `/create-plan RECOMMENDATIONS.md` to generate the plan. |
+| `--max-phases <n>` | | Maximum number of phases to generate (default: 8). If analysis yields more phases than this limit, group related items to stay within bounds or suggest splitting into multiple plan files. |
 
-**Argument detection:** Check if the user's message includes `--recommendations-only` or `--no-plan`. If either is present, set the internal flag `RECOMMENDATIONS_ONLY = true`. Otherwise, `RECOMMENDATIONS_ONLY = false`.
+**Argument detection:** Check if the user's message includes `--recommendations-only` or `--no-plan`. If either is present, set the internal flag `RECOMMENDATIONS_ONLY = true`. Otherwise, `RECOMMENDATIONS_ONLY = false`. Check for `--max-phases <n>` and set `MAX_PHASES` accordingly (default: 8).
 
 ## Input Validation
 
@@ -354,20 +356,80 @@ For each rejected item, use this template:
 - **If the file does NOT exist:** Create it fresh with the full structure below.
 - **If the file DOES exist:**
   1. Read the existing file
-  2. Preserve the existing header (everything up to and including the `---` after Plan Overview / Phase Summary Table)
+  2. Locate the machine-readable markers to find insertion points:
+     - `<!-- BEGIN PHASES -->` / `<!-- END PHASES -->` — bracket all phase sections
+     - `<!-- BEGIN TABLES -->` / `<!-- END TABLES -->` — bracket the trailing tables (Parallel Work, Risk Mitigation, Success Metrics, Traceability)
   3. Identify the highest existing phase number (e.g., if Phase 4 is the last, new phases start at Phase 5)
   4. Renumber all new phases to continue from the highest existing phase
   5. Renumber all new work items accordingly (e.g., 5.1, 5.2, 6.1...)
-  6. Append the new phases after the last existing phase section
+  6. Insert the new phases immediately before `<!-- END PHASES -->`, preceded by a separator comment: `<!-- Appended on [YYYY-MM-DD HH:MM:SS] from /plan-improvements -->`
   7. Update the Phase Summary Table to include both old and new phases
   8. Update the total phase count, estimated total effort, and any metadata in the header
-  9. Append new entries to Parallel Work Opportunities, Risk Mitigation, Success Metrics tables
-  10. Add a separator comment before the new content: `<!-- Appended on [YYYY-MM-DD HH:MM:SS] from /plan-improvements -->`
+  9. Append new entries to the tables between `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` (Parallel Work Opportunities, Risk Mitigation, Success Metrics, Traceability)
+  10. **Partially-executed plans:** If any existing items have `Status: COMPLETE` or `Status: IN_PROGRESS`, preserve them exactly as-is. Warn the user: `"This plan has items in progress. New phases will be appended after existing content."`
 
 **Tell the user what happened:**
 ```text
 Existing IMPLEMENTATION_PLAN.md found with [N] phases.
 Appending [M] new phases (Phase [N+1] through Phase [N+M]).
+```
+
+**Append Example — Before & After:**
+
+*Before (existing 3-phase plan):*
+```markdown
+<!-- BEGIN PHASES -->
+
+## Phase 1: Foundation
+...
+## Phase 2: Core Features
+...
+## Phase 3: Integration
+...
+
+<!-- END PHASES -->
+
+<!-- BEGIN TABLES -->
+
+## Parallel Work Opportunities
+| Work Item | Can Run With | Notes |
+|-----------|--------------|-------|
+| 1.1 | 1.2 | Independent modules |
+
+...
+<!-- END TABLES -->
+```
+
+*After (2 new phases appended):*
+```markdown
+<!-- BEGIN PHASES -->
+
+## Phase 1: Foundation
+...
+## Phase 2: Core Features
+...
+## Phase 3: Integration
+...
+
+<!-- Appended on 2026-02-28 14:30:00 from /plan-improvements -->
+
+## Phase 4: Error Handling
+...
+## Phase 5: Polish
+...
+
+<!-- END PHASES -->
+
+<!-- BEGIN TABLES -->
+
+## Parallel Work Opportunities
+| Work Item | Can Run With | Notes |
+|-----------|--------------|-------|
+| 1.1 | 1.2 | Independent modules |
+| 4.1 | 4.2 | New independent items |
+
+...
+<!-- END TABLES -->
 ```
 
 Transform recommendations into an actionable, phased implementation plan:
@@ -399,6 +461,8 @@ Transform recommendations into an actionable, phased implementation plan:
 | 1 | [Area] | [Deliverables] | M (~N files, ~N LOC) | None |
 | 2 | [Area] | [Deliverables] | M (~N files, ~N LOC) | Phase 1 |
 | ... | ... | ... | ... | ... |
+
+<!-- BEGIN PHASES -->
 
 ---
 
@@ -462,7 +526,11 @@ Transform recommendations into an actionable, phased implementation plan:
 ## Phase 2: [Phase Title]
 ...
 
+<!-- END PHASES -->
+
 ---
+
+<!-- BEGIN TABLES -->
 
 ## Parallel Work Opportunities
 
@@ -502,6 +570,8 @@ Transform recommendations into an actionable, phased implementation plan:
 | [U1] | RECOMMENDATIONS.md | 1 | 1.1 |
 | [A2] | RECOMMENDATIONS.md | 1 | 1.2 |
 | ... | ... | ... | ... |
+
+<!-- END TABLES -->
 
 ---
 
@@ -543,6 +613,21 @@ Each phase should be completable by a single subagent session. Use these concret
 If a phase would be XL (15+ files or 1500+ LOC), split into sub-phases (e.g., Phase 3a, 3b).
 
 **Target:** S-M per phase (max L). Minimum 2 files per phase to avoid trivial phases.
+
+### Plan Size Limits
+
+Plans must stay within bounds that `/implement-plan` can execute reliably. Apply these limits during plan generation:
+
+**Maximum phases:** 8 phases per plan file (configurable via `--max-phases`). If analysis produces more than the limit:
+1. Merge related phases to reduce count (prefer cohesion over granularity)
+2. If merging is insufficient, split into multiple plan files (e.g., `IMPLEMENTATION_PLAN.md` and `IMPLEMENTATION_PLAN-PHASE2.md`) and inform the user
+3. Never silently drop phases or work items to meet the limit
+
+**Maximum work items per phase:** 6 work items. If a phase has more than 6 items, split the phase.
+
+**Work item granularity:** Each work item should touch no more than 5-8 files and change ~500 LOC. If a work item exceeds these bounds, split it into sub-items (e.g., 3.1a, 3.1b) or promote sub-tasks to separate work items.
+
+**Why these limits matter:** `/implement-plan` executes each phase via a subagent with finite context. Oversized plans cause subagents to lose context mid-execution, produce incomplete work, or silently skip items. Smaller, focused phases complete reliably.
 
 ### Phase 4: Save and Report
 

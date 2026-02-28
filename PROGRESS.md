@@ -108,3 +108,7 @@
 | 2026-02-28 | 5.2 Add Rollback/Checkpoint Capability | Complete | plugins/personal-plugin/commands/implement-plan.md |
 | 2026-02-28 | 5.3 Add Phase Boundary Quality Gates | Complete | plugins/personal-plugin/commands/implement-plan.md |
 | 2026-02-28 | 5.4 Add Partial Completion Reporting | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 6.1 Add Machine-Readable Markers for Append Logic | Complete | plugins/personal-plugin/commands/plan-improvements.md, plugins/personal-plugin/commands/create-plan.md |
+| 2026-02-28 | 6.2 Add Testing Circuit Breaker | Complete | plugins/personal-plugin/commands/implement-plan.md (already implemented in 5.2) |
+| 2026-02-28 | 6.3 Add Subagent Project Context and Reduce Doc Overhead | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 6.4 Add Allowed-Tools and Plan Size Limits | Complete | plugins/personal-plugin/commands/plan-improvements.md, plugins/personal-plugin/commands/create-plan.md |
