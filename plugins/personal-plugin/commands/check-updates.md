@@ -25,15 +25,22 @@ Example: /check-updates --verbose
 
 ## Instructions
 
-### 1. Locate Configuration Files
+### 1. Discover Plugins and Locate Configuration Files
+
+**Plugin Discovery:** Use the Glob tool to scan `plugins/*/.claude-plugin/plugin.json` to discover all installed plugins dynamically. Do NOT rely on a hardcoded list of plugin names.
 
 Find and read the following files:
 - **Marketplace registry:** `.claude-plugin/marketplace.json` in the repository root
-- **Plugin metadata:** `plugin.json` files in each plugin's `.claude-plugin/` directory
+- **Plugin metadata:** Each `plugin.json` discovered by scanning `plugins/*/.claude-plugin/plugin.json`
+
+If no plugins are found in the `plugins/` directory, report:
+```text
+Error: No plugins found in the plugins/ directory.
+```
 
 ### 2. Extract Version Information
 
-For each plugin listed in the marketplace:
+For each plugin discovered in step 1:
 
 **From marketplace.json:**
 - Plugin name

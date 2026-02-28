@@ -10,7 +10,7 @@ Automate version updates across all plugin configuration files. This command ens
 ## Input Validation
 
 **Required Arguments:**
-- `<plugin-name>` - Name of the plugin to version (e.g., `personal-plugin`, `bpmn-plugin`)
+- `<plugin-name>` - Name of the plugin to version (must match a subdirectory in `plugins/` that contains `.claude-plugin/plugin.json`)
 - `<bump-type>` - Type of version bump: `major`, `minor`, or `patch`
 
 **Optional Arguments:**
@@ -36,8 +36,8 @@ Examples:
   /bump-version personal-plugin major    # 1.6.0 -> 2.0.0
 
 Available plugins:
-  - personal-plugin
-  - bpmn-plugin
+  [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
+   List each discovered plugin name.]
 ```
 
 If plugin-name is not found, display:
@@ -45,11 +45,13 @@ If plugin-name is not found, display:
 Error: Plugin '[name]' not found.
 
 Available plugins:
-  - personal-plugin
-  - bpmn-plugin
+  [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
+   List each discovered plugin name.]
 
 Check the plugins/ directory for valid plugin names.
 ```
+
+**Plugin Discovery:** Use the Glob tool to scan `plugins/*/.claude-plugin/plugin.json`. Each match yields a valid plugin name from the directory path. If no plugins are found, report: "Error: No plugins found in the plugins/ directory."
 
 If bump-type is invalid, display:
 ```text

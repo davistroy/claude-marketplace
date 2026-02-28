@@ -183,7 +183,7 @@ Remove or replace references to `python scripts/generate-help.py`, `python scrip
 
 #### 1.4 Replace Hardcoded Plugin Lists with Dynamic Scanning
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** S7
 **Files Affected:**
 - `plugins/personal-plugin/commands/bump-version.md` (modify)
@@ -194,15 +194,15 @@ Remove or replace references to `python scripts/generate-help.py`, `python scrip
 Replace hardcoded references to `personal-plugin` and `bpmn-plugin` with instructions to dynamically scan the `plugins/` directory for all installed plugins.
 
 **Tasks:**
-1. [ ] In `bump-version.md`: find hardcoded plugin list and replace with instruction: "Scan the `plugins/` directory to discover all installed plugins. List them for the user to select from."
-2. [ ] In `check-updates.md`: find hardcoded plugin list and replace with dynamic scanning instruction
-3. [ ] In `validate-plugin.md`: find hardcoded plugin list and replace with dynamic scanning. Update `--all` flag behavior to scan `plugins/` directory.
-4. [ ] In each file, add fallback: "If no plugins are found in `plugins/`, report an error."
+1. [x] In `bump-version.md`: find hardcoded plugin list and replace with instruction: "Scan the `plugins/` directory to discover all installed plugins. List them for the user to select from."
+2. [x] In `check-updates.md`: find hardcoded plugin list and replace with dynamic scanning instruction
+3. [x] In `validate-plugin.md`: find hardcoded plugin list and replace with dynamic scanning. Update `--all` flag behavior to scan `plugins/` directory.
+4. [x] In each file, add fallback: "If no plugins are found in `plugins/`, report an error."
 
 **Acceptance Criteria:**
-- [ ] Zero hardcoded references to `personal-plugin` or `bpmn-plugin` as fixed lists in these three files
-- [ ] All three commands discover plugins dynamically from the `plugins/` directory
-- [ ] Adding a new plugin directory automatically makes it visible to these commands
+- [x] Zero hardcoded references to `personal-plugin` or `bpmn-plugin` as fixed lists in these three files
+- [x] All three commands discover plugins dynamically from the `plugins/` directory
+- [x] Adding a new plugin directory automatically makes it visible to these commands
 
 **Notes:**
 The marketplace.json file can also be used as a secondary source. But directory scanning is the primary mechanism since a plugin can exist locally without being registered in marketplace.json yet.

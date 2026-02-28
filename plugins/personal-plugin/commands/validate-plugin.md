@@ -10,7 +10,7 @@ Perform comprehensive validation of a plugin's structure, frontmatter, version s
 ## Input Validation
 
 **Required Arguments:**
-- `<plugin-name>` - Name of the plugin to validate (e.g., `personal-plugin`, `bpmn-plugin`)
+- `<plugin-name>` - Name of the plugin to validate (must match a subdirectory in `plugins/` that contains `.claude-plugin/plugin.json`)
 
 **Optional Arguments:**
 - `--all` - Validate all plugins in the repository
@@ -35,8 +35,8 @@ Examples:
   /validate-plugin --all --scorecard        # Generate maturity scorecard
 
 Available plugins:
-  - personal-plugin
-  - bpmn-plugin
+  [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
+   List each discovered plugin name.]
 ```
 
 If plugin-name is not found (and --all not specified), display:
@@ -44,11 +44,15 @@ If plugin-name is not found (and --all not specified), display:
 Error: Plugin '[name]' not found.
 
 Available plugins:
-  - personal-plugin
-  - bpmn-plugin
+  [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
+   List each discovered plugin name.]
 
 Use --all to validate all plugins.
 ```
+
+**Plugin Discovery:** Use the Glob tool to scan `plugins/*/.claude-plugin/plugin.json`. Each match yields a valid plugin name from the directory path. If no plugins are found, report: "Error: No plugins found in the plugins/ directory."
+
+**--all Flag Behavior:** When `--all` is specified, scan `plugins/` for all subdirectories containing `.claude-plugin/plugin.json` and validate each one. Do NOT rely on a hardcoded list of plugin names.
 
 ## Instructions
 
