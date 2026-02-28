@@ -95,3 +95,4 @@
 | 2026-02-28 | 2.1 Rewrite Subagent Invocations to Use Agent Tool | Complete | plugins/personal-plugin/commands/implement-plan.md |
 | 2026-02-28 | 2.2 Replace git add -A with Selective Staging | Complete | plugins/personal-plugin/commands/implement-plan.md |
 | 2026-02-28 | 2.3 Update Allowed-Tools and Default Behavior | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 2.4 Add Input Arguments | Complete | plugins/personal-plugin/commands/implement-plan.md |

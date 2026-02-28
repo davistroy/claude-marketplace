@@ -266,18 +266,20 @@ Test whether subagents inherit parent's allowed-tools restrictions. If they do, 
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
 
+**Status:** COMPLETE (2026-02-28)
+
 **Description:**
 Add optional arguments that the command currently lacks: `--input <path>` for non-default plan locations, `--auto-merge` for opting into merge behavior, and `--pause-between-phases` for interactive mode.
 
 **Tasks:**
-1. [ ] Add Optional Arguments section to Input Validation: `--input <path>` (default: IMPLEMENTATION_PLAN.md), `--auto-merge` (default: false), `--pause-between-phases` (default: false)
-2. [ ] Update the IMPLEMENTATION_PLAN.md existence check to use the `--input` path
-3. [ ] Thread the input path through all subagent prompts that reference "Read IMPLEMENTATION_PLAN.md"
+1. [x] Add Optional Arguments section to Input Validation: `--input <path>` (default: IMPLEMENTATION_PLAN.md), `--auto-merge` (default: false), `--pause-between-phases` (default: false)
+2. [x] Update the IMPLEMENTATION_PLAN.md existence check to use the `--input` path
+3. [x] Thread the input path through all subagent prompts that reference "Read IMPLEMENTATION_PLAN.md"
 
 **Acceptance Criteria:**
-- [ ] `--input` flag works for custom plan file locations
-- [ ] `--auto-merge` and `--pause-between-phases` flags documented
-- [ ] Default behavior (no flags) reads from repo root and stops at PR creation
+- [x] `--input` flag works for custom plan file locations
+- [x] `--auto-merge` and `--pause-between-phases` flags documented
+- [x] Default behavior (no flags) reads from repo root and stops at PR creation
 
 **Notes:**
 This resolves the misalignment where `/create-plan --output docs/plan.md` creates a plan that `/implement-plan` can't find.
