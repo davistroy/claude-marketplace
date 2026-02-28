@@ -316,19 +316,26 @@ For each work item, generate all six fields in this order:
 
 ### Phase Sizing Guidelines
 
-Each phase should:
-- Fit within approximately 100,000 tokens of work (including testing and fixes)
+Each phase should be completable by a single subagent session. Use these concrete heuristics:
+
+**Per-phase guidelines:**
+- Read 5-8 files, modify 3-5 files, change ~500 LOC
 - Have clear boundaries and deliverables
 - Be independently testable
 - Not leave the codebase in a broken state if stopped mid-plan
 - Enable parallel work where possible
+- If a phase exceeds these bounds, split it
 
-When estimating phase size:
-- Simple file edits: ~1K-5K tokens
-- New feature with tests: ~10K-30K tokens
-- Refactoring with migration: ~20K-50K tokens
-- Complex integration: ~30K-60K tokens
-- Reserve ~20% buffer for debugging and fixes
+**Complexity scale:**
+| Size | Files Changed | LOC Changed | Example |
+|------|---------------|-------------|---------|
+| S | 1-3 files | <100 LOC | Config change, small fix, single file edit |
+| M | 3-8 files | 100-500 LOC | Feature with tests, API endpoint, refactoring |
+| L | 8-15 files | 500-1500 LOC | Complex feature, major refactoring, integration |
+
+If a phase would be XL (15+ files or 1500+ LOC), split into sub-phases (e.g., Phase 3a, 3b).
+
+**Target:** S-M per phase (max L). Minimum 2 files per phase to avoid trivial phases.
 
 ### Phase 4: Save and Report
 

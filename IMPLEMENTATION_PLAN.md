@@ -102,7 +102,7 @@ The Based On value differs by design (RECOMMENDATIONS.md vs document list). The 
 
 ---
 
-#### 1.3 Replace Token Estimates with Concrete Sizing Heuristics
+#### 1.3 Replace Token Estimates with Concrete Sizing Heuristics ✅ Completed 2026-02-28
 **Recommendation Ref:** S3, S4
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -112,20 +112,20 @@ The Based On value differs by design (RECOMMENDATIONS.md vs document list). The 
 Replace token-based phase sizing throughout both commands with concrete, observable heuristics (file count, LOC estimate, relative complexity). Reframe the "100K token" constraint as a context window limit rather than an output budget.
 
 **Tasks:**
-1. [ ] Rewrite Phase Sizing Guidelines in plan-improvements to use file/LOC heuristics
-2. [ ] Rewrite Phase Sizing Guidelines in create-plan (Section 3.2) to match
-3. [ ] Change Phase Summary Table column from `Est. Tokens` to `Est. Complexity` in both templates
-4. [ ] Change per-phase header from `**Estimated Effort:** ~X0,000 tokens` to `**Estimated Complexity:** [S/M/L] (~N files, ~N LOC)`
-5. [ ] Reframe phase constraint: "Each phase should be completable by a single subagent session. Guideline: read 5-8 files, modify 3-5 files, change ~500 LOC. If a phase exceeds these bounds, split it."
-6. [ ] Update complexity scale: S (1-3 files, <100 LOC), M (3-8 files, 100-500 LOC), L (8-15 files, 500-1500 LOC)
-7. [ ] Add: "If a phase would be XL (15+ files), split into sub-phases (e.g., Phase 3a, 3b)"
-8. [ ] Unify both commands to use same target (S-M per phase, max L), min 2 files per phase
+1. [x] Rewrite Phase Sizing Guidelines in plan-improvements to use file/LOC heuristics
+2. [x] Rewrite Phase Sizing Guidelines in create-plan (Section 3.2) to match
+3. [x] Change Phase Summary Table column from `Est. Tokens` to `Est. Complexity` in both templates
+4. [x] Change per-phase header from `**Estimated Effort:** ~X0,000 tokens` to `**Estimated Complexity:** [S/M/L] (~N files, ~N LOC)`
+5. [x] Reframe phase constraint: "Each phase should be completable by a single subagent session. Guideline: read 5-8 files, modify 3-5 files, change ~500 LOC. If a phase exceeds these bounds, split it."
+6. [x] Update complexity scale: S (1-3 files, <100 LOC), M (3-8 files, 100-500 LOC), L (8-15 files, 500-1500 LOC)
+7. [x] Add: "If a phase would be XL (15+ files), split into sub-phases (e.g., Phase 3a, 3b)"
+8. [x] Unify both commands to use same target (S-M per phase, max L), min 2 files per phase
 
 **Acceptance Criteria:**
-- [ ] No references to "tokens" in Phase Sizing Guidelines, Phase Summary Table, or per-phase headers
-- [ ] Both commands use identical sizing scale and guidelines
-- [ ] Per-phase and per-work-item estimates use files/LOC, not tokens
-- [ ] Explicit guidance for splitting oversized phases
+- [x] No references to "tokens" in Phase Sizing Guidelines, Phase Summary Table, or per-phase headers
+- [x] Both commands use identical sizing scale and guidelines
+- [x] Per-phase and per-work-item estimates use files/LOC, not tokens
+- [x] Explicit guidance for splitting oversized phases
 
 **Notes:**
 The Performance sections at the bottom of each command can retain time estimates (those are for the command's own runtime, not the plan's execution).

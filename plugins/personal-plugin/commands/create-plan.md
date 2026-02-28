@@ -197,22 +197,25 @@ Convert requirements into discrete work items:
 5. Define acceptance criteria
 
 **Complexity estimation:**
-| Size | Token Estimate | Example |
-|------|----------------|---------|
-| XS | 1K-5K | Config change, small fix |
-| S | 5K-15K | Single component, simple feature |
-| M | 15K-30K | Feature with tests, API endpoint |
-| L | 30K-60K | Complex feature, refactoring |
-| XL | 60K-100K | Major system component |
+| Size | Files Changed | LOC Changed | Example |
+|------|---------------|-------------|---------|
+| S | 1-3 files | <100 LOC | Config change, small fix, single file edit |
+| M | 3-8 files | 100-500 LOC | Feature with tests, API endpoint, refactoring |
+| L | 8-15 files | 500-1500 LOC | Complex feature, major refactoring, integration |
+
+If a work item would be XL (15+ files or 1500+ LOC), split it into smaller items.
 
 #### 3.2 Phase Construction
 
 Group work items into phases following these rules:
 
 **Phase sizing constraints:**
-- Target: ~80,000 tokens per phase (with 20% buffer)
-- Maximum: 100,000 tokens per phase
-- Minimum: 20,000 tokens per phase (avoid tiny phases)
+Each phase should be completable by a single subagent session:
+- Target: read 5-8 files, modify 3-5 files, change ~500 LOC
+- Maximum: L complexity (8-15 files, 500-1500 LOC)
+- Minimum: 2 files changed (avoid trivial phases)
+- If a phase would be XL (15+ files or 1500+ LOC), split into sub-phases (e.g., Phase 3a, 3b)
+- Target S-M per phase (max L)
 
 **Grouping criteria:**
 1. **Dependencies:** Items depending on each other go in sequence
