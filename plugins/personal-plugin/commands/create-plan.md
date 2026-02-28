@@ -11,10 +11,12 @@ Generate a comprehensive, phased implementation plan from requirements and desig
 This command:
 
 1. Discovers requirements and design documents in the project
-2. Analyzes and synthesizes requirements across all documents
-3. Breaks down work into appropriately-sized phases
-4. Generates detailed work items with acceptance criteria
-5. Outputs IMPLEMENTATION_PLAN.md to the repository root
+2. Surveys the existing codebase to detect tech stack, test infrastructure, and already-implemented features
+3. Analyzes and synthesizes requirements across all documents, accounting for existing code
+4. Presents a scope summary (features, phases, assumptions) and waits for user approval before proceeding
+5. Breaks down work into appropriately-sized phases
+6. Generates detailed work items with acceptance criteria
+7. Outputs IMPLEMENTATION_PLAN.md to the repository root
 
 ## Input Validation
 
@@ -118,6 +120,85 @@ Total: 7 documents, ~15,640 words
 Proceeding with plan generation...
 ```
 
+### Phase 1.5: Codebase Reconnaissance
+
+Before analyzing requirements, survey the existing codebase so the plan accounts for what already exists. This prevents greenfield-on-brownfield plans and ensures work items extend rather than rebuild existing functionality.
+
+**Time budget:** 5-10 minutes maximum. This is a lightweight scan, not a full `/plan-improvements` analysis.
+
+#### 1.5.1 Project Structure Scan
+
+Survey the codebase to understand its shape:
+
+1. **Directory tree:** Run `find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './.next/*' -not -path './dist/*' -not -path './build/*' -not -path './__pycache__/*' -not -path './venv/*' | head -200` to get a file listing (or equivalent for the platform)
+2. **Tech stack detection:** Identify from manifest files:
+   - `package.json` → Node.js/JavaScript/TypeScript (check for React, Next.js, Vue, etc.)
+   - `pyproject.toml` / `setup.py` / `requirements.txt` → Python
+   - `Cargo.toml` → Rust
+   - `go.mod` → Go
+   - `*.csproj` / `*.sln` → .NET
+   - `pom.xml` / `build.gradle` → Java/Kotlin
+3. **Entry points:** Identify main entry files (`src/index.*`, `src/main.*`, `app.*`, `__main__.py`, etc.)
+4. **Configuration:** Note config files (`.env*`, `*.config.*`, `tsconfig.json`, `eslint.*`, `prettier.*`, `.editorconfig`)
+
+#### 1.5.2 Test & CI/CD Infrastructure
+
+Identify existing quality infrastructure:
+
+1. **Test framework:** Look for test directories (`tests/`, `__tests__/`, `test/`, `spec/`), test config (`jest.config.*`, `pytest.ini`, `vitest.config.*`), and test files (`*.test.*`, `*.spec.*`, `*_test.*`)
+2. **Test coverage:** Note approximate test count and whether coverage tooling is configured
+3. **CI/CD:** Check for `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `.circleci/`, `azure-pipelines.yml`
+4. **Linting/formatting:** Note configured linters and formatters
+
+#### 1.5.3 Existing Feature Cross-Reference
+
+This is the critical step. For each major feature or capability described in the requirements documents:
+
+1. **Search the codebase** for keywords, function names, route paths, component names, or module names that correspond to the requirement
+2. **Classify each requirement** as one of:
+   - **Not implemented** — No matching code exists; plan from scratch
+   - **Partially implemented** — Some code exists but incomplete; plan should extend
+   - **Already implemented** — Feature exists and appears functional; plan should verify/skip or enhance
+3. **Flag overlaps** clearly in a table:
+
+```text
+Codebase Reconnaissance Results
+================================
+
+Tech Stack: [detected stack]
+Structure: [N] source files, [M] test files, [K] config files
+Test Infrastructure: [framework] with [N] tests
+CI/CD: [detected pipeline or "None detected"]
+
+Feature Overlap Analysis:
+| Requirement | Status | Existing Code | Recommendation |
+|-------------|--------|---------------|----------------|
+| User auth (PRD §2.1) | Already implemented | src/auth/ (JWT + OAuth) | Skip or enhance |
+| Search API (PRD §3.2) | Partially implemented | src/api/search.ts (basic) | Extend, not rebuild |
+| Dashboard (PRD §4.1) | Not implemented | — | Plan from scratch |
+| Data export (PRD §5.3) | Already implemented | src/export/ | Verify, skip if sufficient |
+```
+
+4. **Note architectural patterns** the codebase follows (e.g., MVC, layered architecture, module conventions, naming patterns) so work items conform to existing conventions
+
+#### 1.5.4 Feed Into Plan Generation
+
+The reconnaissance output directly affects subsequent phases:
+
+- **Phase 2 (Requirements Analysis):** Already-implemented features are deprioritized or marked as "verify only"
+- **Phase 3 (Phase Planning):** Work items reference existing code paths and follow detected conventions
+- **Phase 4 (Generate Plan):** Work item descriptions include "Extend existing `src/auth/` module" rather than "Create authentication system"
+- **Complexity estimates** account for existing code (extending is typically S-M; building from scratch is M-L)
+
+**If no meaningful codebase exists** (empty repo, only config files, or only requirements docs), report:
+
+```text
+Codebase Reconnaissance: Greenfield project detected.
+No existing source code found. Plan will assume fresh implementation.
+```
+
+And proceed directly to Phase 2.
+
 ### Phase 2: Requirements Analysis
 
 #### 2.1 Extract Key Information
@@ -182,6 +263,89 @@ How should I proceed?
   1. Continue with conservative assumptions
   2. Pause for clarification
 ```
+
+### Phase 2.5: Scope Confirmation
+
+**Before generating the full plan, pause and present a scope summary for user approval.** This checkpoint prevents wasted generation time if the user disagrees with scope, phasing, or assumptions.
+
+#### 2.5.1 Build Scope Summary
+
+After completing requirements analysis (Phase 2) and codebase reconnaissance (Phase 1.5), compile a compact summary table:
+
+```text
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Plan Scope Summary — Review Before Generation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Source Documents: [N] files ([total word count] words)
+
+Extracted Features:
+| # | Feature | Priority | Status | Source |
+|---|---------|----------|--------|--------|
+| 1 | [Feature name] | P0 | Not implemented | PRD §2.1 |
+| 2 | [Feature name] | P0 | Partially implemented | PRD §3.2 |
+| 3 | [Feature name] | P1 | Already implemented | PRD §4.1 |
+| ... | ... | ... | ... | ... |
+
+Proposed Plan Shape:
+  Phases:           [N] phases
+  Total Work Items: ~[N] (estimated)
+  Estimated Effort: ~[X] LOC across ~[Y] files
+  Critical Path:    [Phase sequence summary]
+
+Phase Grouping (draft):
+  Phase 1: [Title] — [brief scope, e.g., "Foundation: auth, config, DB schema"]
+  Phase 2: [Title] — [brief scope]
+  Phase 3: [Title] — [brief scope]
+  ...
+
+Assumptions:
+  - [Assumption 1, e.g., "Using existing auth module in src/auth/"]
+  - [Assumption 2, e.g., "PostgreSQL as primary datastore per TDD §3.1"]
+  - [Assumption 3, e.g., "No mobile targets — web only"]
+  ...
+
+Features Skipped (already implemented):
+  - [Feature name] — [reason, e.g., "Fully implemented in src/export/"]
+  ...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+#### 2.5.2 Ask for Approval
+
+After presenting the summary, ask:
+
+```text
+Proceed with this scope?
+  1. Yes — generate the full implementation plan
+  2. Adjust — tell me what to change (add/remove features, regroup phases, change priorities)
+  3. Abort — stop here (analysis results above are yours to keep)
+```
+
+**Wait for the user to respond.** Do not proceed to Phase 3 until the user explicitly approves.
+
+#### 2.5.3 Handle Responses
+
+- **"Yes" / "1" / approve:** Proceed to Phase 3 (Phase Planning) with the confirmed scope.
+- **"Adjust" / "2":** Accept the user's modifications. Update the feature list, phase grouping, priorities, or assumptions as directed. Re-display the updated summary and ask for approval again.
+- **"Abort" / "3":** Stop execution. Display:
+  ```text
+  Plan generation aborted. Analysis results:
+    - [N] documents analyzed ([word count] words)
+    - [N] features extracted
+    - [N] already implemented, [N] partially implemented
+    - Codebase reconnaissance completed
+
+  To resume later, run /create-plan with the same documents.
+  ```
+
+#### 2.5.4 Design Constraints
+
+- **Keep it compact:** The summary should be scannable in 30 seconds. Use tables, not paragraphs.
+- **No partial generation:** Do not start generating plan phases before approval.
+- **Assumptions are explicit:** Every inference made during analysis (tech choices, scope exclusions, priority assignments) must appear in the Assumptions list so the user can correct them.
+- **Already-implemented features visible:** Features detected by codebase reconnaissance that will be skipped or only verified must be listed so the user can override if the detection was wrong.
 
 ### Phase 3: Phase Planning
 
@@ -464,7 +628,8 @@ Next Steps:
 - **Be specific:** Include file paths, function names, concrete approaches
 - **Be realistic:** Estimate effort honestly; overrunning phases causes problems
 - **Be practical:** Prioritize impact over elegance; ship value to users
-- **Consider context:** Factor in existing codebase, tech debt, team constraints
+- **Consider context:** Factor in existing codebase (use reconnaissance results), tech debt, team constraints
+- **Extend, don't rebuild:** When codebase reconnaissance identifies existing features, plan to extend or enhance them rather than building from scratch
 - **Enable parallelism:** Structure phases so multiple streams can work simultaneously
 - **Preserve stability:** Each phase should leave the codebase in a working state
 - **Maintain traceability:** Link every work item back to source requirements

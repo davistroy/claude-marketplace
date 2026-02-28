@@ -50,36 +50,133 @@ Before reading any source files, apply the following sampling strategy to avoid 
 Focus on:
 
 #### Usability Assessment
-- How intuitive is the current workflow?
-- Are there friction points in common operations?
-- Is the documentation clear and complete?
-- Are error messages helpful and actionable?
-- Is configuration straightforward?
+- Trace the 3 most common user workflows from entry point to completion. For each, count the number of steps, identify any redundant or unnecessary operations, and note where error handling is missing or unhelpful.
+- Locate all user-facing error messages (catch blocks, validation failures, CLI output). Classify each as actionable ("File not found: expected config.json at /path") vs. opaque ("Something went wrong"). Count the ratio.
+- List every configuration option and its discovery path. Flag options that require reading source code to understand, lack defaults, or have no documentation.
+- Identify all points where the user must provide input or make a decision. For each, assess whether the prompt is clear, whether defaults are sensible, and whether invalid input is handled gracefully.
 
 #### Output Quality Assessment
-- Does the output meet professional standards?
-- Are there consistency issues in generated content?
-- Could templates or patterns improve output quality?
-- Are there edge cases that produce poor results?
-- What validation or quality checks are missing?
+- Generate or trace sample output from 3 representative inputs (one minimal, one typical, one edge-case). Compare each against professional standards for the output type. Note format inconsistencies, missing sections, or degraded quality.
+- Identify all output templates, format strings, or generation patterns. Check for consistency: do all outputs use the same date format, naming convention, section structure, and style?
+- List all validation or quality checks applied to output before it is saved or displayed. Flag any output path that writes results without validation.
+- Find 3 edge cases that produce poor, empty, or malformed output. Document the input, the actual output, and what the expected output should be.
 
 #### Architecture & Design
-- Is the code organized logically?
-- Are there opportunities for better abstraction?
-- Are patterns applied consistently?
-- Are there scalability concerns?
-- Is the design extensible for future needs?
+- Map the dependency graph between top-level modules or directories. Identify circular dependencies and modules with more than 5 direct dependents.
+- List all files exceeding 300 lines. For each, identify whether the length is justified (e.g., generated code, data tables) or indicates a need to split.
+- Flag all functions or methods exceeding 50 lines as complexity hotspots. Note the file path and function name.
+- Identify all `catch`/`except`/error-handling blocks that swallow errors silently (no re-throw, no logging, no user notification). Count them and list locations.
+- Check for consistent application of patterns: if the codebase uses a pattern (e.g., factory, middleware, plugin), verify it is applied uniformly. List any deviations.
 
 #### Developer Experience
-- How easy is it to add new features?
-- Is the code self-documenting?
-- Are conventions clear and enforced?
-- Are there testing gaps?
+- Execute the "add a new feature" workflow: determine what files must be created or modified, what conventions must be followed, and what documentation must be updated. Note every undocumented convention a new contributor would miss.
+- Check for a contributing guide, code style documentation, and example implementations. Assess completeness — can a new developer ship a feature using only the documentation?
+- Identify all testing patterns: unit tests, integration tests, end-to-end tests. Count coverage by module. Flag modules with zero test coverage.
+- List all manual steps required for common development tasks (build, test, lint, deploy). Flag any that could be automated but are not.
 
 #### Missing Capabilities
-- What features would users expect but are missing?
-- What integrations would add value?
-- What automation opportunities exist?
+- Build a capabilities checklist appropriate for this project type and compare against the codebase. For CLI tools: help system, verbose/quiet modes, config file support, meaningful exit codes, shell completion, version flag. For web apps: error pages, loading states, accessibility (WCAG), responsive design. For libraries: API documentation, usage examples, changelog, type definitions.
+- Identify 3-5 features that comparable projects in the ecosystem provide but this project lacks. Reference specific projects where possible.
+- List all manual or repetitive tasks in the project's workflow that could be automated (e.g., release process, changelog generation, dependency updates, code generation).
+
+#### Security Posture
+- Scan for hardcoded secrets, API keys, tokens, or credentials in source files (check `.env` files committed to version control, config files with inline secrets, string literals matching key patterns)
+- Assess input validation gaps: identify user-facing inputs (CLI args, HTTP params, file uploads) that lack sanitization or type checking
+- Review authentication and authorization patterns: are protected routes/endpoints enforced consistently? Are there privilege escalation paths?
+- Check for dependency CVEs: run `npm audit`, `pip-audit`, `cargo audit`, or equivalent if the tooling is available; otherwise note the absence of audit tooling
+- Identify unsafe patterns: `eval()`, SQL string concatenation, shell injection via unsanitized interpolation, disabled TLS verification
+
+#### Performance & Scalability
+- Identify N+1 query patterns: look for database calls inside loops, repeated API requests that could be batched, sequential awaits that could be parallelized
+- Flag blocking operations in async contexts: synchronous file I/O, CPU-heavy computation on the event loop, missing `await` on promises
+- Assess caching: are there repeated expensive computations or API calls without caching? Is there a caching layer and is it invalidated correctly?
+- Check resource cleanup: unclosed file handles, database connections, event listeners that accumulate without removal
+- Review memory management: unbounded collections that grow with input size, large objects retained beyond their useful lifetime, missing pagination on large result sets
+
+#### Dependency Health
+- Check for outdated dependencies: compare installed versions against latest stable releases. Flag any dependency more than 2 major versions behind.
+- Assess version pinning: are dependencies pinned to exact versions or using floating ranges? Is there a lock file (`package-lock.json`, `poetry.lock`, `Cargo.lock`) and is it committed?
+- Review license compliance: identify dependencies with copyleft licenses (GPL, AGPL) that may conflict with the project's license
+- Check for transitive vulnerability exposure: identify dependencies that pull in known-vulnerable transitive dependencies
+- Flag abandoned dependencies: packages with no releases in 2+ years or archived repositories
+
+#### CI/CD Pipeline
+- Assess build pipeline completeness: is there a CI configuration (GitHub Actions, GitLab CI, etc.)? Does it run on PRs and on merge to main?
+- Check test coverage enforcement: is there a coverage threshold configured? Does CI fail on coverage regression?
+- Review quality gates: linting, type checking, security scanning — which are present and which are missing from the pipeline?
+- Evaluate deployment complexity: how many manual steps are required to deploy? Is there a staging environment? Are rollbacks automated?
+- Check for environment parity: do dev, test, and production configurations diverge in ways that cause "works on my machine" failures?
+
+### Priority Rubric
+
+When assigning **Priority** to each recommendation, apply these definitions consistently. Definitions are ported from `/review-arch` Phase 3 (Technical Debt Inventory) for cross-command consistency.
+
+| Priority | Definition | Examples |
+|----------|-----------|----------|
+| **Critical** | Security vulnerability, data integrity risk, or production stability threat. Fix before shipping anything else. | Hardcoded secrets in source, SQL injection, unhandled crash in core path, data loss on edge case |
+| **High** | Architectural violation or gap that blocks feature development or causes regular developer friction. Should be addressed in the current planning cycle. | Missing validation causing repeated bugs, circular dependency blocking refactoring, broken CI pipeline |
+| **Medium** | Code quality issue that slows velocity but does not block work. Address when touching affected code or in a dedicated quality sprint. | Inconsistent naming conventions, duplicated logic across modules, missing test coverage for non-critical paths |
+| **Low** | Nice-to-have optimization, style improvement, or minor inconsistency. Address opportunistically or batch into a polish phase. | Minor code style inconsistencies, optional performance micro-optimizations, cosmetic UI tweaks |
+
+**Effort scale reference:**
+
+| Effort | Time Estimate | Scope |
+|--------|---------------|-------|
+| **XS** | < 30 min | Single-line fix, config change, typo |
+| **S** | 30 min – 2 hrs | Single-file change, small refactor |
+| **M** | 2 hrs – 1 day | Multi-file change, new feature with tests |
+| **L** | 1 – 3 days | Cross-module refactor, significant new capability |
+| **XL** | 3+ days | Architectural change, migration, major new system |
+
+### Impact/Effort Matrix
+
+After categorizing all recommendations, plot each one on the following 2x2 Impact vs Effort matrix. Use this matrix to mechanically populate the Quick Wins and Strategic Initiatives sections — do not populate those sections by ad-hoc judgment.
+
+```
+                    HIGH IMPACT
+                        │
+     ┌──────────────────┼──────────────────┐
+     │                  │                  │
+     │   QUICK WINS     │   STRATEGIC      │
+     │   (Do First)     │   INITIATIVES    │
+     │                  │   (Plan Carefully)│
+     │   High Impact    │   High Impact    │
+     │   Low Effort     │   High Effort    │
+     │   (XS, S, M)     │   (L, XL)        │
+     │                  │                  │
+─────┼──────────────────┼──────────────────┼───── EFFORT
+     │                  │                  │
+     │   FILL-INS       │   DEPRIORITIZE   │
+     │   (Batch Later)  │   (Reconsider)   │
+     │                  │                  │
+     │   Low Impact     │   Low Impact     │
+     │   Low Effort     │   High Effort    │
+     │   (XS, S, M)     │   (L, XL)        │
+     │                  │                  │
+     └──────────────────┼──────────────────┘
+                        │
+                    LOW IMPACT
+```
+
+**Quadrant-to-section mapping:**
+
+| Quadrant | Priority + Effort | Populates Section |
+|----------|-------------------|-------------------|
+| Quick Wins | Critical/High impact + XS/S/M effort | `## Quick Wins` |
+| Strategic Initiatives | Critical/High impact + L/XL effort | `## Strategic Initiatives` |
+| Fill-Ins | Medium/Low impact + XS/S/M effort | Include in phased plan, batch into polish phases |
+| Deprioritize | Medium/Low impact + L/XL effort | Candidates for `## Not Recommended` or defer indefinitely |
+
+**Impact assessment criteria** (use to determine High vs Low Impact):
+- **High Impact**: Fixes a Critical/High priority issue, OR affects >50% of users/workflows, OR unblocks multiple downstream improvements
+- **Low Impact**: Fixes a Medium/Low priority issue AND affects a narrow use case AND has no downstream dependencies
+
+**Instructions:**
+1. After writing all recommendations with their Priority and Effort ratings, classify each into one of the four quadrants
+2. Populate `## Quick Wins` with all items from the Quick Wins quadrant, ordered by Priority (Critical first) then Effort (XS first)
+3. Populate `## Strategic Initiatives` with all items from the Strategic Initiatives quadrant, ordered by Priority then dependency order
+4. Items in the Fill-Ins quadrant go into the implementation plan phases but are not highlighted in Quick Wins or Strategic Initiatives
+5. Items in the Deprioritize quadrant should be evaluated for the `## Not Recommended` section
 
 ### Phase 2: Generate RECOMMENDATIONS.md
 
@@ -101,7 +198,23 @@ Create a comprehensive recommendations document with this structure:
 
 ## Recommendation Categories
 
-### Category 1: Usability Improvements
+Use 3-7 categories derived from actual findings. The categories below are starting suggestions, not a rigid structure. Add Security, Performance, CI/CD, or Dependency Health categories when findings warrant them. Omit categories with no findings.
+
+**Category prefix mapping for recommendation IDs:**
+
+| Prefix | Category |
+|--------|----------|
+| U | Usability Improvements |
+| Q | Output Quality Enhancements |
+| A | Architectural Improvements |
+| D | Developer Experience |
+| N | New Capabilities |
+| S | Security |
+| P | Performance |
+| CI | CI/CD Pipeline |
+| DH | Dependency Health |
+
+### Category: Usability Improvements
 
 #### U1. [Recommendation Title]
 
@@ -120,49 +233,103 @@ Create a comprehensive recommendations document with this structure:
 
 ---
 
-### Category 2: Output Quality Enhancements
+### Category: Output Quality Enhancements
 
 #### Q1. [Recommendation Title]
 ...
 
 ---
 
-### Category 3: Architectural Improvements
+### Category: Architectural Improvements
 
 #### A1. [Recommendation Title]
 ...
 
 ---
 
-### Category 4: Developer Experience
+### Category: Developer Experience
 
 #### D1. [Recommendation Title]
 ...
 
 ---
 
-### Category 5: New Capabilities
+### Category: New Capabilities
 
 #### N1. [Recommendation Title]
 ...
 
 ---
 
+### Category: Security
+
+#### S1. [Recommendation Title]
+...
+
+---
+
+### Category: Performance
+
+#### P1. [Recommendation Title]
+...
+
+---
+
+### Category: CI/CD Pipeline
+
+#### CI1. [Recommendation Title]
+...
+
+---
+
+### Category: Dependency Health
+
+#### DH1. [Recommendation Title]
+...
+
+---
+
 ## Quick Wins
 
-[List of low-effort, high-impact items that can be done immediately]
+Populated mechanically from the Impact/Effort matrix — High-Impact/Low-Effort quadrant (Critical/High priority items with XS/S/M effort). Order by Priority (Critical first), then by Effort (XS first). Each entry should reference the recommendation ID and include a one-line summary.
+
+| Ref | Recommendation | Priority | Effort | Why Quick Win |
+|-----|---------------|----------|--------|---------------|
+| [U1] | [Title] | Critical | S | [One-line rationale] |
+| ... | ... | ... | ... | ... |
 
 ---
 
 ## Strategic Initiatives
 
-[List of larger changes that require planning]
+Populated mechanically from the Impact/Effort matrix — High-Impact/High-Effort quadrant (Critical/High priority items with L/XL effort). Order by Priority, then by dependency order (items that unblock others first). Each entry should include sequencing rationale.
+
+| Ref | Recommendation | Priority | Effort | Dependencies / Sequencing |
+|-----|---------------|----------|--------|---------------------------|
+| [A1] | [Title] | Critical | L | [Why this order, what it unblocks] |
+| ... | ... | ... | ... | ... |
 
 ---
 
 ## Not Recommended
 
-[Items considered but rejected, with rationale - prevents revisiting]
+Include a minimum of 3 items. Every non-trivial analysis should identify at least 3 approaches that were considered and rejected — this prevents future revisiting and documents decision rationale.
+
+For each rejected item, use this template:
+
+### [NR-1] [Item Title]
+
+**Why Considered:** [What made this seem like a viable improvement]
+**Why Rejected:** [Specific reason it was rejected — cost/benefit, architectural conflict, better alternative exists, premature optimization, etc.]
+**Conditions for Reconsideration:** [What would need to change for this to become worth doing — e.g., "If codebase exceeds 500 files", "If team grows beyond 3 developers", "If performance benchmarks show >2s response time"]
+
+---
+
+### [NR-2] [Item Title]
+...
+
+### [NR-3] [Item Title]
+...
 
 ---
 

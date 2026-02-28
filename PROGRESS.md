@@ -99,3 +99,8 @@
 | 2026-02-28 | 3.1 Add Sampling Strategy for Large Codebases | Complete | plugins/personal-plugin/commands/plan-improvements.md |
 | 2026-02-28 | 3.2 Restructure implement-plan Loop for State Shedding | Complete | plugins/personal-plugin/commands/implement-plan.md |
 | 2026-02-28 | 3.3 Add Optional Two-Stage Output | Complete | plugins/personal-plugin/commands/plan-improvements.md |
+| 2026-02-28 | 4.1 Add Missing Analysis Dimensions | Complete | plugins/personal-plugin/commands/plan-improvements.md |
+| 2026-02-28 | 4.2 Define Priority Rubric and Impact/Effort Matrix | Complete | plugins/personal-plugin/commands/plan-improvements.md |
+| 2026-02-28 | 4.3 Replace Question-Based with Task-Based Analysis | Complete | plugins/personal-plugin/commands/plan-improvements.md |
+| 2026-02-28 | 4.4 Add Codebase Reconnaissance to create-plan | Complete | plugins/personal-plugin/commands/create-plan.md |
+| 2026-02-28 | 4.5 Add Confirmation Checkpoint to create-plan | Complete | plugins/personal-plugin/commands/create-plan.md |

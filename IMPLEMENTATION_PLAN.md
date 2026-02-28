@@ -414,7 +414,7 @@ This requires `/create-plan` to accept RECOMMENDATIONS.md as a valid "requiremen
 
 ### Work Items
 
-#### 4.1 Add Missing Analysis Dimensions to plan-improvements
+#### 4.1 Add Missing Analysis Dimensions to plan-improvements ✅ Completed 2026-02-28
 **Recommendation Ref:** A1
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -423,25 +423,25 @@ This requires `/create-plan` to accept RECOMMENDATIONS.md as a valid "requiremen
 Add Security Posture, Performance, Dependency Health, and CI/CD Pipeline as first-class analysis dimensions in Phase 1. Port specific analysis patterns from `/review-arch`. Make recommendation categories dynamic rather than fixed at 5.
 
 **Tasks:**
-1. [ ] Add "Security Posture" subsection: hardcoded secrets/credentials, input validation gaps, authentication/authorization patterns, dependency CVEs (check with audit tools if available)
-2. [ ] Add "Performance & Scalability" subsection: N+1 queries, blocking ops in async contexts, missing caching, resource cleanup, memory management
-3. [ ] Add "Dependency Health" subsection: outdated dependencies, floating versions without lock files, license compliance, transitive vulnerabilities
-4. [ ] Add "CI/CD Pipeline" subsection: build pipeline health, coverage enforcement, quality gates, deployment complexity
-5. [ ] Change recommendation categories instruction: "Use 3-7 categories derived from actual findings. The listed categories are starting suggestions, not a rigid structure. Add Security, Performance, or CI/CD categories when findings warrant them."
-6. [ ] Add category prefix mapping for new categories: S = Security, P = Performance, CI = CI/CD, DH = Dependency Health
+1. [x] Add "Security Posture" subsection: hardcoded secrets/credentials, input validation gaps, authentication/authorization patterns, dependency CVEs (check with audit tools if available)
+2. [x] Add "Performance & Scalability" subsection: N+1 queries, blocking ops in async contexts, missing caching, resource cleanup, memory management
+3. [x] Add "Dependency Health" subsection: outdated dependencies, floating versions without lock files, license compliance, transitive vulnerabilities
+4. [x] Add "CI/CD Pipeline" subsection: build pipeline health, coverage enforcement, quality gates, deployment complexity
+5. [x] Change recommendation categories instruction: "Use 3-7 categories derived from actual findings. The listed categories are starting suggestions, not a rigid structure. Add Security, Performance, or CI/CD categories when findings warrant them."
+6. [x] Add category prefix mapping for new categories: S = Security, P = Performance, CI = CI/CD, DH = Dependency Health
 
 **Acceptance Criteria:**
-- [ ] 9 analysis dimensions total (5 existing + 4 new)
-- [ ] Each new dimension has 3-5 specific things to look for (not open questions)
-- [ ] Recommendation categories are dynamic (3-7) not fixed (5)
-- [ ] New category prefixes defined for recommendation IDs
+- [x] 9 analysis dimensions total (5 existing + 4 new)
+- [x] Each new dimension has 3-5 specific things to look for (not open questions)
+- [x] Recommendation categories are dynamic (3-7) not fixed (5)
+- [x] New category prefixes defined for recommendation IDs
 
 **Notes:**
 These additions increase analysis thoroughness but also increase context consumption. The sampling strategy from Phase 3 (work item 3.1) helps offset this.
 
 ---
 
-#### 4.2 Define Priority Rubric and Impact/Effort Matrix
+#### 4.2 Define Priority Rubric and Impact/Effort Matrix ✅ Completed 2026-02-28
 **Recommendation Ref:** A2
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -450,21 +450,21 @@ These additions increase analysis thoroughness but also increase context consump
 Add explicit definitions for Priority levels and instruction to populate Quick Wins mechanically from an Impact/Effort matrix.
 
 **Tasks:**
-1. [ ] Add Priority Rubric subsection before Phase 2: Critical = production outage risk, security vulnerability, or data integrity threat. High = blocks feature development or causes regular developer friction. Medium = improves code quality but is not blocking. Low = nice-to-have optimization or style improvement.
-2. [ ] Add instruction: "After categorizing all recommendations, plot them on a 2x2 Impact vs Effort matrix. Populate the Quick Wins section from the High-Impact/Low-Effort quadrant. Populate Strategic Initiatives from the High-Impact/High-Effort quadrant."
-3. [ ] Add minimum 3 items requirement for Not Recommended section with per-item template: Title, Why Considered, Why Rejected, Conditions for Reconsideration
+1. [x] Add Priority Rubric subsection before Phase 2: Critical = production outage risk, security vulnerability, or data integrity threat. High = blocks feature development or causes regular developer friction. Medium = improves code quality but is not blocking. Low = nice-to-have optimization or style improvement.
+2. [x] Add instruction: "After categorizing all recommendations, plot them on a 2x2 Impact vs Effort matrix. Populate the Quick Wins section from the High-Impact/Low-Effort quadrant. Populate Strategic Initiatives from the High-Impact/High-Effort quadrant."
+3. [x] Add minimum 3 items requirement for Not Recommended section with per-item template: Title, Why Considered, Why Rejected, Conditions for Reconsideration
 
 **Acceptance Criteria:**
-- [ ] Priority definitions documented with examples
-- [ ] Quick Wins populated mechanically from matrix
-- [ ] Not Recommended section has structured template and minimum 3 items
+- [x] Priority definitions documented with examples
+- [x] Quick Wins populated mechanically from matrix
+- [x] Not Recommended section has structured template and minimum 3 items
 
 **Notes:**
 Port severity definitions from `/review-arch` Phase 3 (Technical Debt Inventory).
 
 ---
 
-#### 4.3 Replace Question-Based with Task-Based Analysis
+#### 4.3 Replace Question-Based with Task-Based Analysis ✅ Completed 2026-02-28
 **Recommendation Ref:** A3
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -473,23 +473,23 @@ Port severity definitions from `/review-arch` Phase 3 (Technical Debt Inventory)
 Rewrite Phase 1 analysis subsections from open-ended questions to concrete, countable tasks that produce evidence-based findings with file references.
 
 **Tasks:**
-1. [ ] Rewrite Usability Assessment: "Trace the 3 most common user workflows from entry point to completion. For each, count the steps, identify redundant operations, and note error handling gaps."
-2. [ ] Rewrite Output Quality Assessment: "Generate sample output from 3 representative inputs. Compare against professional standards. Identify format inconsistencies, missing validations, and edge cases that produce degraded output."
-3. [ ] Rewrite Architecture & Design: "Map the dependency graph between top-level modules. Identify all files exceeding 300 lines. Flag functions over 50 lines as complexity hotspots. List all `catch`/`except` blocks that swallow errors silently."
-4. [ ] Rewrite Developer Experience: "Attempt the 'new feature' workflow: what files must be created/modified and what conventions must be followed? Identify all undocumented conventions that a new contributor would miss."
-5. [ ] Rewrite Missing Capabilities: "Compare against a capabilities checklist for this project type. For CLI tools: help system, verbose/quiet modes, config file support, exit codes, shell completion. For web apps: error pages, loading states, accessibility. For libraries: documentation, examples, changelog."
+1. [x] Rewrite Usability Assessment: "Trace the 3 most common user workflows from entry point to completion. For each, count the steps, identify redundant operations, and note error handling gaps."
+2. [x] Rewrite Output Quality Assessment: "Generate sample output from 3 representative inputs. Compare against professional standards. Identify format inconsistencies, missing validations, and edge cases that produce degraded output."
+3. [x] Rewrite Architecture & Design: "Map the dependency graph between top-level modules. Identify all files exceeding 300 lines. Flag functions over 50 lines as complexity hotspots. List all `catch`/`except` blocks that swallow errors silently."
+4. [x] Rewrite Developer Experience: "Attempt the 'new feature' workflow: what files must be created/modified and what conventions must be followed? Identify all undocumented conventions that a new contributor would miss."
+5. [x] Rewrite Missing Capabilities: "Compare against a capabilities checklist for this project type. For CLI tools: help system, verbose/quiet modes, config file support, exit codes, shell completion. For web apps: error pages, loading states, accessibility. For libraries: documentation, examples, changelog."
 
 **Acceptance Criteria:**
-- [ ] Each analysis dimension uses 3-5 concrete tasks instead of open questions
-- [ ] Tasks produce countable, file-referenced findings
-- [ ] No analysis prompt is phrased as a yes/no or subjective question
+- [x] Each analysis dimension uses 3-5 concrete tasks instead of open questions
+- [x] Tasks produce countable, file-referenced findings
+- [x] No analysis prompt is phrased as a yes/no or subjective question
 
 **Notes:**
 This is the biggest quality-of-output improvement. Task-based prompts produce enumerated findings; question-based prompts produce paragraphs of commentary.
 
 ---
 
-#### 4.4 Add Codebase Reconnaissance to create-plan
+#### 4.4 Add Codebase Reconnaissance to create-plan ✅ Completed 2026-02-28
 **Recommendation Ref:** A4
 **Files Affected:**
 - `plugins/personal-plugin/commands/create-plan.md` (modify)
@@ -498,22 +498,22 @@ This is the biggest quality-of-output improvement. Task-based prompts produce en
 Add a lightweight codebase scan between document discovery and requirements analysis so plans account for existing code rather than assuming greenfield.
 
 **Tasks:**
-1. [ ] Add "Phase 1.5: Codebase Reconnaissance" section between Phase 1 (Document Discovery) and Phase 2 (Requirements Analysis)
-2. [ ] Scan: project structure, tech stack, test infrastructure, CI/CD configuration
-3. [ ] Cross-reference: identify features in requirements documents that already exist in the codebase. Flag: "PRD section X describes [feature] — the project already has [path]. Plan should extend, not rebuild."
-4. [ ] Feed into Phase 3: existing code patterns inform implementation approach in work items
+1. [x] Add "Phase 1.5: Codebase Reconnaissance" section between Phase 1 (Document Discovery) and Phase 2 (Requirements Analysis)
+2. [x] Scan: project structure, tech stack, test infrastructure, CI/CD configuration
+3. [x] Cross-reference: identify features in requirements documents that already exist in the codebase. Flag: "PRD section X describes [feature] — the project already has [path]. Plan should extend, not rebuild."
+4. [x] Feed into Phase 3: existing code patterns inform implementation approach in work items
 
 **Acceptance Criteria:**
-- [ ] Codebase reconnaissance step documented
-- [ ] Already-implemented features detected and flagged
-- [ ] Plan accounts for existing code (extends rather than rebuilds)
+- [x] Codebase reconnaissance step documented
+- [x] Already-implemented features detected and flagged
+- [x] Plan accounts for existing code (extends rather than rebuilds)
 
 **Notes:**
 Keep this lightweight (5-10 minutes max). It's not a full `/plan-improvements` analysis — just enough to avoid greenfield-on-brownfield plans.
 
 ---
 
-#### 4.5 Add Confirmation Checkpoint to create-plan
+#### 4.5 Add Confirmation Checkpoint to create-plan ✅ Completed 2026-02-28
 **Recommendation Ref:** U1
 **Files Affected:**
 - `plugins/personal-plugin/commands/create-plan.md` (modify)
@@ -522,16 +522,16 @@ Keep this lightweight (5-10 minutes max). It's not a full `/plan-improvements` a
 Add a user approval gate between requirements analysis and plan generation, presenting the extracted feature list, proposed phases, and assumptions.
 
 **Tasks:**
-1. [ ] Add "Phase 2.5: Scope Confirmation" section after Phase 2 (Requirements Analysis)
-2. [ ] Present: extracted feature list with proposed priorities, proposed number of phases and rough grouping, scoping assumptions, any features flagged as already implemented
-3. [ ] Ask: "Proceed with this scope? (yes / adjust / abort)"
-4. [ ] If "adjust": accept modifications and re-plan
-5. [ ] If "abort": stop and report what was analyzed
+1. [x] Add "Phase 2.5: Scope Confirmation" section after Phase 2 (Requirements Analysis)
+2. [x] Present: extracted feature list with proposed priorities, proposed number of phases and rough grouping, scoping assumptions, any features flagged as already implemented
+3. [x] Ask: "Proceed with this scope? (yes / adjust / abort)"
+4. [x] If "adjust": accept modifications and re-plan
+5. [x] If "abort": stop and report what was analyzed
 
 **Acceptance Criteria:**
-- [ ] Scope confirmation presented before plan generation begins
-- [ ] User can approve, adjust, or abort
-- [ ] Assumptions explicitly listed
+- [x] Scope confirmation presented before plan generation begins
+- [x] User can approve, adjust, or abort
+- [x] Assumptions explicitly listed
 
 **Notes:**
 Keep the confirmation compact — a table, not a multi-page document. The goal is a 30-second review, not a deep read.
