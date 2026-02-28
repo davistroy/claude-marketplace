@@ -19,7 +19,7 @@ Before proceeding, verify:
 - The repository has meaningful content (not an empty init)
 
 If the repository is empty or inaccessible, stop and report:
-```
+```text
 Error: Cannot analyze repository
 
 The repository appears to be empty or inaccessible. Ensure you are in the
@@ -150,7 +150,7 @@ Handle these edge cases explicitly:
 
 ### Example 1: Plan In Progress
 
-```
+```text
 ### Current State
 
 | Aspect | Status |
@@ -188,7 +188,7 @@ moves the plan toward Phase 4.
 
 ### Example 2: No Plan Exists
 
-```
+```text
 ### Current State
 
 | Aspect | Status |

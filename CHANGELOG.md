@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin 4.1.0] - 2026-02-28
+
+### Added
+- `allowed-tools` frontmatter to all 28 commands/skills that lacked them
+- `Related Commands` sections to all 23 commands
+- Proactive trigger sections to all 10 skills
+- Error handling tables to all 36 command/skill files
+- `references/api-key-setup.md` — extracted Bitwarden-based key setup workflow
+- `references/flag-consistency.md` — comprehensive flag reference across all commands
+- `plan-gate` skill for assessing task complexity and routing to right planning approach
+
+### Changed
+- Rewrote `plan-next.md` from scratch (47 → 234 lines) with priority decision matrix and plan-awareness
+- Rewrote `setup-statusline.md` with 4-phase approach, safety checks, and `--dry-run`/`--uninstall` flags
+- Overhauled `consolidate-documents.md` with standardized input flow and 4 new flags
+- Restructured `review-arch.md` with task-based assessment and Architecture Scorecard
+- Reimplemented `check-updates.md` with true remote version checking via GitHub API
+- Overhauled `security-analysis` skill with input validation, trigger conditions, and structured error handling
+- Expanded `convert-hooks.md` with limitation warnings, before/after examples, and `--validate` flag
+- Expanded `convert-markdown.md` with analysis-driven flag selection and 4 new flags
+- Expanded `develop-image-prompt.md` with `--dimensions` flag (8 presets) and 8 style presets
+- Improved `test-project.md` safety: selective staging replaces `git add -A`, PR-only default (merge requires `--auto-merge`)
+- Fixed `ship` skill phase numbering and updated Co-Authored-By to `Claude Opus 4.6`
+- Replaced hardcoded plugin lists with dynamic filesystem scanning in bump-version, check-updates, validate-plugin
+
+### Fixed
+- Removed 37 dead references to non-existent `scripts/` and `schemas/` across 17 files
+- Fixed secrets policy violations in research-topic and visual-explainer (removed API key wizards, use `/unlock` instead)
+- Fixed shell injection vulnerability in `unlock` skill (safe quoting, key name validation)
+- Fixed `scaffold-plugin.md` skills path references (`help.md` → `help/SKILL.md`)
+- Fixed `define-questions.md` phantom schema references
+- Fixed `finish-document.md` resume contradiction
+- Fixed `validate-plugin.md` duplicate section numbering
+- Fixed `remove-ip.md` trigger phrase removal
+- Removed contradictory input patterns in consolidate-documents
+
 ## [personal-plugin 4.0.0] - 2026-02-16
 
 ### Added
@@ -228,25 +264,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [personal-plugin 3.0.0] - 2026-01-17
 
-### Added
-- [Describe new features]
-
 ### Changed
-- [Describe changes to existing features]
-
-### Fixed
-- [Describe bug fixes]
+- Major version bump for breaking changes in plugin structure and command conventions
 
 ## [bpmn-plugin 2.0.0] - 2026-01-17
 
-### Added
-- [Describe new features]
-
 ### Changed
-- [Describe changes to existing features]
-
-### Fixed
-- [Describe bug fixes]
+- Major version bump for breaking changes in plugin structure
 
 ## [bpmn-plugin 1.8.0] - 2026-01-16
 
@@ -508,7 +532,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `troy-statusline` for custom Windows/PowerShell status line
 - `ship` skill for git workflow automation
 
-[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/davistroy/claude-marketplace/compare/v2.4.0...HEAD
 [2.5.0]: https://github.com/davistroy/claude-marketplace/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/davistroy/claude-marketplace/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/davistroy/claude-marketplace/compare/v2.2.0...v2.3.0

@@ -11,7 +11,7 @@ A collection of Claude Code plugins containing custom slash commands and skills 
 
 First, add this marketplace to Claude Code:
 
-```
+```text
 /plugin marketplace add davistroy/claude-marketplace
 ```
 
@@ -19,7 +19,7 @@ First, add this marketplace to Claude Code:
 
 Then install the plugins you want:
 
-```
+```text
 /plugin install personal-plugin@troys-plugins
 /plugin install bpmn-plugin@troys-plugins
 ```
@@ -28,7 +28,7 @@ Then install the plugins you want:
 
 You can install to different scopes:
 
-```
+```text
 /plugin install personal-plugin@troys-plugins --scope user      # Global (all projects)
 /plugin install personal-plugin@troys-plugins --scope project   # Team-shared (.claude/settings.json)
 /plugin install personal-plugin@troys-plugins --scope local     # Personal only (gitignored)
@@ -66,7 +66,7 @@ Custom commands and skills for productivity workflows.
 | [`/review-intent`](plugins/personal-plugin/commands/review-intent.md) | Determine original project intent and compare against current implementation |
 | [`/review-pr`](plugins/personal-plugin/commands/review-pr.md) | Structured PR review with security, performance, and code quality analysis |
 | [`/scaffold-plugin`](plugins/personal-plugin/commands/scaffold-plugin.md) | Create a new plugin with proper directory structure, metadata, and starter files |
-| [`/setup-statusline`](plugins/personal-plugin/commands/setup-statusline.md) | "[Personal] Troy's custom status line setup (Windows/PowerShell)" |
+| [`/setup-statusline`](plugins/personal-plugin/commands/setup-statusline.md) | Custom status line setup (Windows/PowerShell) |
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
 | [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content for consistency and correctness |
 
@@ -74,6 +74,7 @@ Custom commands and skills for productivity workflows.
 | Skill | Description |
 |-------|-------------|
 | [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills in this plugin with usage information |
+| [`/plan-gate`](plugins/personal-plugin/skills/plan-gate/SKILL.md) | Assess task complexity and route to the right planning approach |
 | [`/prime`](plugins/personal-plugin/skills/prime/SKILL.md) | Evaluate codebase: purpose, health, status, and recommended next steps |
 | [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | [`/security-analysis`](plugins/personal-plugin/skills/security-analysis/SKILL.md) | Comprehensive security vulnerability scanning with technology-specific patterns |
@@ -107,7 +108,7 @@ BPMN 2.0 workflow tools for generating and converting process diagrams.
 
 ## Repository Structure
 
-```
+```text
 .claude-plugin/
   marketplace.json          # Marketplace configuration
 
@@ -117,14 +118,17 @@ plugins/
       plugin.json           # Plugin metadata
     commands/               # Slash commands
     skills/                 # Proactive skills
+    references/             # Shared patterns and templates
+    tools/                  # Bundled Python tools
 
   bpmn-plugin/
     .claude-plugin/
       plugin.json           # Plugin metadata
-    skills/                 # BPMN generator skill
+    skills/                 # BPMN generator skills
     references/             # BPMN element documentation
     templates/              # XML templates and lane mappings
     examples/               # Sample BPMN files
+    tools/                  # Bundled bpmn2drawio converter
 ```
 
 ## Documentation

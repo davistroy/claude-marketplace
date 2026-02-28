@@ -19,7 +19,7 @@ Set up a custom status line for Claude Code on Windows using PowerShell. This co
 If no flags are provided, the command runs in normal install mode.
 
 If unrecognized flags are provided, display:
-```
+```text
 Warning: Unrecognized flag "[flag]" — ignoring.
 Supported flags: --dry-run, --uninstall
 ```
@@ -58,7 +58,7 @@ If `settings.json` exists, read it and check:
 
 Display a summary before proceeding:
 
-```
+```text
 Status Line Setup — Pre-Flight Report
 ======================================
 PowerShell:      pwsh [version] ✓
@@ -285,7 +285,7 @@ If the script produces output without errors, report success. If it fails, repor
 
 Display a final summary:
 
-```
+```text
 Status Line Setup — Complete
 =============================
 Script:     [path to statusline.ps1] (written)
@@ -325,7 +325,7 @@ Check for backup files (`statusline.ps1.backup.*`, `settings.json.backup.*`):
 
 ### Step 4: Report
 
-```
+```text
 Status Line Uninstalled
 ========================
 Settings:   statusLine key removed from settings.json

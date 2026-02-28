@@ -135,6 +135,8 @@ plugins/
         SKILL.md            # Transform text/docs into AI-generated visual explanations
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
+      api-key-setup.md      # Bitwarden-based API key setup workflow
+      flag-consistency.md   # Comprehensive flag reference across all commands
     tools/
       feedback-docx-generator/ # Python tool for feedback assessment .docx generation (run via PYTHONPATH)
       research-orchestrator/  # Python tool for multi-LLM research (run via PYTHONPATH)
