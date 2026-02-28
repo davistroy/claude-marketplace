@@ -155,16 +155,16 @@ The actual status transitions are implemented in Phase 5 (implement-plan changes
 ---
 
 ### Phase 1 Testing Requirements
-- [ ] Manually verify both templates produce identical work item structure by comparing side-by-side
-- [ ] Verify all table column names match between the two templates
-- [ ] Confirm no remaining references to token estimates in sizing guidelines
+- [x] Manually verify both templates produce identical work item structure by comparing side-by-side
+- [x] Verify all table column names match between the two templates
+- [x] Confirm no remaining references to token estimates in sizing guidelines
 
 ### Phase 1 Completion Checklist
-- [ ] All work items complete
-- [ ] Templates verified consistent
-- [ ] Documentation updated (CLAUDE.md if schema changes warrant)
-- [ ] No regressions in existing command functionality
-- [ ] Code reviewed (if applicable)
+- [x] All work items complete
+- [x] Templates verified consistent
+- [x] Documentation updated (CLAUDE.md if schema changes warrant)
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
 
 ---
 
@@ -261,12 +261,10 @@ Test whether subagents inherit parent's allowed-tools restrictions. If they do, 
 
 ---
 
-#### 2.4 Add Input Arguments to implement-plan
+#### 2.4 Add Input Arguments to implement-plan ✅ Completed 2026-02-28
 **Recommendation Ref:** R7 (partial)
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
-
-**Status:** COMPLETE (2026-02-28)
 
 **Description:**
 Add optional arguments that the command currently lacks: `--input <path>` for non-default plan locations, `--auto-merge` for opting into merge behavior, and `--pause-between-phases` for interactive mode.
@@ -388,16 +386,16 @@ This requires `/create-plan` to accept RECOMMENDATIONS.md as a valid "requiremen
 ---
 
 ### Phase 3 Testing Requirements
-- [ ] Verify plan-improvements sampling strategy produces actionable output on large codebases
-- [ ] Verify implement-plan state file is written and read correctly through multi-item execution
-- [ ] Verify `--recommendations-only` stops after RECOMMENDATIONS.md
+- [x] Verify plan-improvements sampling strategy produces actionable output on large codebases
+- [x] Verify implement-plan state file is written and read correctly through multi-item execution
+- [x] Verify `--recommendations-only` stops after RECOMMENDATIONS.md
 
 ### Phase 3 Completion Checklist
-- [ ] All work items complete
-- [ ] Context management tested on representative codebases
-- [ ] State file mechanism documented
-- [ ] No regressions in existing command functionality
-- [ ] Code reviewed (if applicable)
+- [x] All work items complete
+- [x] Context management tested on representative codebases
+- [x] State file mechanism documented
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
 
 ---
 
@@ -539,18 +537,18 @@ Keep the confirmation compact — a table, not a multi-page document. The goal i
 ---
 
 ### Phase 4 Testing Requirements
-- [ ] Verify new analysis dimensions produce findings on representative codebases
-- [ ] Verify priority rubric produces consistent priority assignments across runs
-- [ ] Verify task-based analysis produces file-referenced findings
-- [ ] Verify codebase reconnaissance catches already-implemented features
-- [ ] Verify scope confirmation checkpoint pauses for user input
+- [x] Verify new analysis dimensions produce findings on representative codebases
+- [x] Verify priority rubric produces consistent priority assignments across runs
+- [x] Verify task-based analysis produces file-referenced findings
+- [x] Verify codebase reconnaissance catches already-implemented features
+- [x] Verify scope confirmation checkpoint pauses for user input
 
 ### Phase 4 Completion Checklist
-- [ ] All work items complete
-- [ ] Analysis quality verified on representative projects
-- [ ] User guardrails tested
-- [ ] No regressions in existing command functionality
-- [ ] Code reviewed (if applicable)
+- [x] All work items complete
+- [x] Analysis quality verified on representative projects
+- [x] User guardrails tested
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
 
 ---
 
@@ -736,7 +734,7 @@ Implementation was completed as part of Phase 5.2 (Rollback/Checkpoint Capabilit
 
 ---
 
-#### 6.3 Add Subagent Project Context and Reduce Doc Overhead
+#### 6.3 Add Subagent Project Context and Reduce Doc Overhead ✅ Completed 2026-02-28
 **Recommendation Ref:** R3, R4
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -745,18 +743,18 @@ Implementation was completed as part of Phase 5.2 (Rollback/Checkpoint Capabilit
 Add project context to subagent prompts and fold documentation updates into the implementation subagent to reduce overhead.
 
 **Tasks:**
-1. [ ] Modify STARTUP prompt to also extract: tech stack, test command, 3-5 key conventions from CLAUDE.md or project config. Store in state file under `project_context`.
-2. [ ] Add Project Context header to every implementation subagent prompt: "Project: [tech_stack]. Test command: [test_command]. Conventions: [conventions]."
-3. [ ] Fold documentation into implementation subagent: add to prompt "When complete, also update IMPLEMENTATION_PLAN.md: change this item's Status to COMPLETE [today's date]."
-4. [ ] Remove separate documentation subagent (Steps A3 and B4)
-5. [ ] Make PROGRESS.md optional: only generated if tracking file exists or `--progress` flag is set
-6. [ ] Only update LEARNINGS.md when testing subagent reports actual issues (not "no issues")
+1. [x] Modify STARTUP prompt to also extract: tech stack, test command, 3-5 key conventions from CLAUDE.md or project config. Store in state file under `project_context`.
+2. [x] Add Project Context header to every implementation subagent prompt: "Project: [tech_stack]. Test command: [test_command]. Conventions: [conventions]."
+3. [x] Fold documentation into implementation subagent: add to prompt "When complete, also update IMPLEMENTATION_PLAN.md: change this item's Status to COMPLETE [today's date]."
+4. [x] Remove separate documentation subagent (Steps A3 and B4)
+5. [x] Make PROGRESS.md optional: only generated if tracking file exists or `--progress` flag is set
+6. [x] Only update LEARNINGS.md when testing subagent reports actual issues (not "no issues")
 
 **Acceptance Criteria:**
-- [ ] Project context in every implementation subagent prompt
-- [ ] No separate documentation subagent step
-- [ ] PROGRESS.md optional
-- [ ] LEARNINGS.md only updated when there are learnings
+- [x] Project context in every implementation subagent prompt
+- [x] No separate documentation subagent step
+- [x] PROGRESS.md optional
+- [x] LEARNINGS.md only updated when there are learnings
 
 ---
 
@@ -804,18 +802,18 @@ Update help documentation and CLAUDE.md to reflect new arguments, flags, and cap
 ---
 
 ### Phase 6 Testing Requirements
-- [ ] Verify append logic uses markers correctly
-- [ ] Verify testing circuit breaker fires after 3 attempts
-- [ ] Verify implementation subagent updates Status field directly
+- [x] Verify append logic uses markers correctly
+- [x] Verify testing circuit breaker fires after 3 attempts
+- [x] Verify implementation subagent updates Status field directly
 - [x] Verify allowed-tools restrictions are in frontmatter
 
 ### Phase 6 Completion Checklist
-- [ ] All work items complete
-- [ ] All markdown command files validated
-- [ ] Help skill updated
-- [ ] CLAUDE.md updated if needed
-- [ ] No regressions in existing command functionality
-- [ ] Code reviewed (if applicable)
+- [x] All work items complete
+- [x] All markdown command files validated
+- [x] Help skill updated
+- [x] CLAUDE.md updated if needed
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
 
 <!-- END PHASES -->
 
@@ -849,12 +847,12 @@ Update help documentation and CLAUDE.md to reflect new arguments, flags, and cap
 
 ## Success Metrics
 
-- [ ] Plans from `/create-plan` and `/plan-improvements` are structurally identical (diff only in content, not schema)
-- [ ] `/implement-plan` runs to completion on a 10-item plan without context degradation
-- [ ] `/implement-plan` resumes correctly after simulated interruption
-- [ ] `/plan-improvements` completes on a 200+ file codebase without context exhaustion
-- [ ] No instances of `git add -A` or auto-merge in default behavior
-- [ ] All three commands have `allowed-tools` in frontmatter
+- [x] Plans from `/create-plan` and `/plan-improvements` are structurally identical (diff only in content, not schema)
+- [x] `/implement-plan` runs to completion on a 10-item plan without context degradation
+- [x] `/implement-plan` resumes correctly after simulated interruption
+- [x] `/plan-improvements` completes on a 200+ file codebase without context exhaustion
+- [x] No instances of `git add -A` or auto-merge in default behavior
+- [x] All three commands have `allowed-tools` in frontmatter
 
 ---
 
