@@ -120,11 +120,66 @@
 
 **All 25 work items across 6 phases completed on 2026-02-28.**
 
-### Final Completion Summary
+### Cycle Completion Summary
 
-Two full implementation cycles were executed against this repository:
+First two implementation cycles complete: 62 work items across 12 phases. See Overall Project Completion Summary at the bottom for the full three-cycle total.
+
+---
+
+## Personal Plugin Command & Skill Quality Overhaul
+
+**Plan:** IMPLEMENTATION_PLAN.md (Personal Plugin Command & Skill Quality Overhaul)
+**Started:** 2026-02-28
+
+### Progress Log
+
+| Date | Work Item | Status | Files Changed |
+|------|-----------|--------|---------------|
+| 2026-02-28 | 1.1 Add `allowed-tools` Frontmatter to All Commands and Skills | Complete | 32 command/skill files |
+| 2026-02-28 | 1.2 Add "Related Commands" Sections to All Commands | Complete | 23 command files |
+| 2026-02-28 | 1.3 Remove Dead References to Non-Existent Files | Complete | new-command.md, new-skill.md, scaffold-plugin.md, define-questions.md, finish-document.md, ask-questions.md, validate-plugin.md, 8 template files, validation.md, workflow.md |
+| 2026-02-28 | 1.4 Replace Hardcoded Plugin Lists with Dynamic Scanning | Complete | bump-version.md, check-updates.md, validate-plugin.md |
+| 2026-02-28 | 1.5 Fix Secrets Policy Violations | Complete | research-topic/SKILL.md, visual-explainer/SKILL.md |
+| 2026-02-28 | 2.1 Rewrite `plan-next.md` | Complete | plan-next.md |
+| 2026-02-28 | 2.2 Rewrite `setup-statusline.md` | Complete | setup-statusline.md |
+| 2026-02-28 | 2.3 Overhaul `consolidate-documents.md` | Complete | consolidate-documents.md |
+| 2026-02-28 | 3.1 Fix `define-questions.md` Phantom Schema References | Complete | define-questions.md |
+| 2026-02-28 | 3.2 Fix `finish-document.md` Phantom References | Complete | finish-document.md |
+| 2026-02-28 | 3.3 Restructure `review-arch.md` | Complete | review-arch.md |
+| 2026-02-28 | 3.4 Rethink `check-updates.md` | Complete | check-updates.md |
+| 2026-02-28 | 4.1 Fix `scaffold-plugin.md` Correctness Bug | Complete | scaffold-plugin.md |
+| 2026-02-28 | 4.2 Improve `convert-hooks.md` Honesty | Complete | convert-hooks.md |
+| 2026-02-28 | 4.3 Expand `convert-markdown.md` | Complete | convert-markdown.md |
+| 2026-02-28 | 4.4 Fix `new-command.md` | Complete | new-command.md |
+| 2026-02-28 | 4.5 Overhaul `security-analysis` Skill | Complete | security-analysis/SKILL.md |
+| 2026-02-28 | 5.1 Fix `test-project.md` Safety Issues | Complete | test-project.md |
+| 2026-02-28 | 5.2 Fix `assess-document.md` Naming Inconsistency | Complete | assess-document.md |
+| 2026-02-28 | 5.3 Improve `analyze-transcript.md` | Complete | analyze-transcript.md |
+| 2026-02-28 | 5.4 Improve `develop-image-prompt.md` | Complete | develop-image-prompt.md |
+| 2026-02-28 | 6.1 Fix `review-intent.md` Minor Issues | Complete | review-intent.md |
+| 2026-02-28 | 6.2 Fix `review-pr.md` Minor Issues | Complete | review-pr.md |
+| 2026-02-28 | 6.3 Fix `remove-ip.md` Structural Issue | Complete | remove-ip.md |
+| 2026-02-28 | 6.4 Fix `ship` Skill Issues | Complete | ship/SKILL.md |
+| 2026-02-28 | 6.5 Fix `research-topic` Skill | Complete | research-topic/SKILL.md, references/api-key-setup.md |
+| 2026-02-28 | 7.1 Fix Remaining Skills Batch | Complete | summarize-feedback/SKILL.md, visual-explainer/SKILL.md, validate-and-ship/SKILL.md |
+| 2026-02-28 | 7.2 Fix Utility Commands Batch | Complete | bump-version.md, clean-repo.md, new-skill.md, validate-plugin.md, ask-questions.md |
+| 2026-02-28 | 7.3 Fix `unlock` Skill Shell Injection Risk | Complete | unlock/SKILL.md |
+| 2026-02-28 | 7.4 Error Handling Audit | Complete | 5 files added error handling (plan-improvements.md, review-intent.md, clean-repo.md, ask-questions.md, plan-gate/SKILL.md) |
+| 2026-02-28 | 7.5 Proactive Trigger Audit and Flag Consistency | Complete | 9 skill files audited, prime and help triggers added |
+| 2026-02-28 | 7.6 Update Help Skill and Final Verification | Complete | help/SKILL.md |
+
+---
+
+## Summary
+
+**All 32 work items across 7 phases completed on 2026-02-28.**
+
+### Overall Project Completion Summary
+
+Three full implementation cycles were executed against this repository:
 
 1. **Zero Tech Debt** (2026-02-16): 37 work items across 6 phases. Focused on dependency hygiene, CI pipeline hardening, test coverage (645 to 1,463 tests), god class/function refactoring, and ADR documentation.
 2. **Planning & Execution Pipeline** (2026-02-28): 25 work items across 6 phases. Focused on unifying the IMPLEMENTATION_PLAN.md schema, fixing implement-plan tool API, context window management, analysis quality improvements, resume/rollback/phase gates, and robustness polish.
+3. **Command & Skill Quality Overhaul** (2026-02-28): 32 work items across 7 phases. Focused on elevating all 23 commands and 9 skills to match the quality bar of the planning pipeline: allowed-tools, error handling, related commands, proactive triggers, flag consistency, dead reference removal, secrets policy enforcement, and three full command rewrites.
 
-**Combined totals:** 62 work items, 12 phases, all complete. Both IMPLEMENTATION_PLAN.md files fully checked off. No outstanding work items remain.
+**Combined totals:** 94 work items, 19 phases, all complete. No outstanding work items remain.
