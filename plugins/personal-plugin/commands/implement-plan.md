@@ -52,6 +52,22 @@ Create a feature branch first:
 ```
 
 **If working directory is dirty:**
+
+Check if `.implement-plan-state.json` exists and contains an `"in_progress"` or `"in_progress_batch"` field. If so, the dirty state is likely from an interrupted implementation session:
+
+```text
+Uncommitted changes detected. State file shows work item [X.Y] was in progress.
+This may be leftover from an interrupted session.
+
+Options:
+  (1) Commit these changes and resume (git add + commit as "[X.Y] interrupted work")
+  (2) Stash these changes and resume (git stash)
+  (3) Abort — inspect manually first
+```
+
+Wait for the user's choice and execute accordingly before proceeding.
+
+If there is NO state file or no IN_PROGRESS item, use the standard error:
 ```text
 Error: Uncommitted changes detected.
 
@@ -112,9 +128,15 @@ The state file is the **ground truth** for execution progress. It persists minim
   "started_at": "2026-02-28T14:30:00",
   "current_phase": "Phase 3: Context Window Management",
   "current_item": "3.2",
+  "in_progress": {
+    "item": "3.2",
+    "phase": "Phase 3",
+    "description": "Restructure implement-plan loop",
+    "started_at": "2026-02-28T15:42:00"
+  },
   "completed": [
-    { "item": "1.1", "phase": "Phase 1", "description": "Add Tasks and Notes fields", "sha": "abc1234", "files": ["plan-improvements.md"] },
-    { "item": "1.2", "phase": "Phase 1", "description": "Standardize headers", "sha": "def5678", "files": ["plan-improvements.md", "create-plan.md"] }
+    { "item": "1.1", "phase": "Phase 1", "description": "Add Tasks and Notes fields", "status": "COMPLETE", "sha": "abc1234", "files": ["plan-improvements.md"] },
+    { "item": "1.2", "phase": "Phase 1", "description": "Standardize headers", "status": "COMPLETE", "sha": "def5678", "files": ["plan-improvements.md", "create-plan.md"] }
   ],
   "failed": [
     { "item": "2.3", "phase": "Phase 2", "description": "Update allowed-tools", "error": "Test failure in...", "attempts": 2 }
@@ -124,6 +146,7 @@ The state file is the **ground truth** for execution progress. It persists minim
     "test_command": "npm test",
     "conventions": "kebab-case files, ESM imports"
   },
+  "last_good_sha": "def5678",
   "checkpoints": {
     "1.1": "abc1234",
     "1.2": "def5678"
@@ -135,10 +158,14 @@ The state file is the **ground truth** for execution progress. It persists minim
 }
 ```
 
+**Note on `in_progress` field:** This field is present only while a work item is being actively implemented. It is set in Step A0/B0 (before implementation) and removed in Step A5/B6 (after commit). On resume, if this field exists, it indicates an interrupted session — the resume logic in Step 0 handles this case.
+
 **State file rules:**
 - Created during STARTUP, updated after every work item completion
+- Updated BEFORE implementation starts (mark item IN_PROGRESS) and AFTER commit succeeds (mark item COMPLETE, clear `in_progress`)
 - Added to `.gitignore` (ephemeral execution state, not a project artifact)
 - If the state file exists at STARTUP, resume from where it left off instead of re-reading the full plan
+- If resume detects an `in_progress` entry, offer the user retry/skip/complete options before continuing
 - The main agent reads this file directly (it is small and structured) — no subagent needed
 - Delete the state file during FINALIZATION after the PR is created
 
@@ -192,8 +219,31 @@ Follow these steps exactly. Use the **Agent tool** to spawn subagents (with `sub
 
 Check if `.implement-plan-state.json` exists in the repository root. Read it directly (it is small JSON — no subagent needed).
 
-- **If the state file exists and is valid:** Resume execution. Skip the STARTUP subagent. Read `current_phase`, `current_item`, `completed`, and `parallelization_map` from the state file. Report to the user: "Resuming from [current_item] in [current_phase]. [N] items already completed." Proceed directly to the MAIN LOOP.
 - **If the state file does not exist or is corrupted:** Continue with Step 1 below.
+- **If the state file exists and is valid:** Resume execution. Skip the STARTUP subagent. Read `current_phase`, `current_item`, `completed`, `failed`, and `parallelization_map` from the state file.
+
+  **Check for interrupted work items (IN_PROGRESS detection):**
+
+  Check if the state file contains an `"in_progress"` field (sequential item) or `"in_progress_batch"` field (parallel items). These fields are set in Step A0/B0 before implementation and cleared in Step A5/B6 after commit. If either field is present, an item was interrupted mid-implementation:
+
+  ```text
+  Resuming from interrupted session. [N] items already completed.
+  Work item [X.Y] ("[description]") was in progress when the previous session ended.
+
+  Options:
+    (1) Retry — re-implement this work item from scratch
+    (2) Skip — mark as skipped and move to the next item
+    (3) Mark complete — the work was finished but not recorded; mark it done and continue
+  ```
+
+  Wait for the user's choice:
+  - **(1) Retry:** Remove the `in_progress` (or `in_progress_batch`) entry from the state file. Set `current_item` to this item (or the first item in the batch). Proceed to the MAIN LOOP — the item(s) will be implemented fresh.
+  - **(2) Skip:** Move the item(s) to the `failed` array with `"error": "Skipped by user on resume"`. Advance `current_item` to the next item after the skipped one(s). Proceed to the MAIN LOOP.
+  - **(3) Mark complete:** Run `git log -1 --format="%H"` to get the current HEAD SHA. Add the item(s) to `completed` with that SHA. Update the plan file's Status field(s) to `COMPLETE [today's date]` via a subagent. Advance `current_item` to the next item. Proceed to the MAIN LOOP.
+
+  For `in_progress_batch` (parallel items), present ALL interrupted items in the message and apply the user's choice to the entire batch.
+
+  **If no IN_PROGRESS items found:** Report to the user: "Resuming from [current_item] in [current_phase]. [N] items already completed." Proceed directly to the MAIN LOOP.
 
 **Step 1: Initial plan scan (subagent)**
 
@@ -226,6 +276,7 @@ cat > .implement-plan-state.json << 'EOF'
     "test_command": "[from subagent]",
     "conventions": "[from subagent]"
   },
+  "last_good_sha": null,
   "checkpoints": {},
   "parallelization_map": { [from subagent — all phases] }
 }
@@ -259,6 +310,18 @@ Before each iteration, check whether the next batch of work items can be paralle
 
 #### PATH A: SEQUENTIAL (single work item, or item has dependencies on incomplete items)
 
+##### Step A0: MARK IN_PROGRESS (Main Agent — do this yourself)
+
+Before launching the implementation subagent, mark the work item as in progress:
+
+1. **Update state file:** Read `.implement-plan-state.json`. Set `current_item` to the item number. Add or update the item's entry: `"in_progress": { "item": "[N.M]", "phase": "[phase name]", "description": "[brief]", "started_at": "[ISO timestamp]" }`. Write the state file back.
+2. **Update plan file:** Launch a quick Agent (subagent_type: "general-purpose") with this prompt:
+
+   > In [PLAN_FILE], find work item **[N.M]** and update its `**Status:**` field from `PENDING` to `IN_PROGRESS`.
+   > Return: STATUS_UPDATED when complete.
+
+This ensures that if the session is interrupted during implementation, the resume logic can detect the incomplete work.
+
 ##### Step A1: IMPLEMENTATION (Agent)
 
 Launch an Agent (subagent_type: "general-purpose") with this prompt:
@@ -278,20 +341,38 @@ Launch an Agent (subagent_type: "general-purpose") with this prompt:
 > 2. Fix the issue
 > 3. Re-run ALL tests
 > 4. Repeat until ALL tests pass
+> 5. If after 3 fix attempts the same test(s) still fail, STOP and return TESTS_STUCK with: failing test names, error messages, and what you tried.
 >
 > When all tests pass, return:
 > - Test summary (pass count, any issues found)
 > - For each issue fixed: problem, solution, prevention tip (1 line each)
 > - ALL_TESTS_PASS confirmation
 
-Wait for ALL_TESTS_PASS. If issues were fixed, note them briefly for the LEARNINGS.md update.
+**If ALL_TESTS_PASS:** Proceed to Step A3. Note any issues briefly for the LEARNINGS.md update.
+
+**If TESTS_STUCK:** The testing subagent could not fix the failures. Offer the user a rollback choice:
+
+```text
+Tests cannot be fixed for work item [N.M] after 3 attempts.
+Failing: [test names from subagent]
+
+Options:
+  (1) Rollback — revert to last checkpoint [last_good_sha] and skip this item
+  (2) Skip — keep the changes but mark the item as failed, continue to next item
+  (3) Pause — stop execution for manual intervention
+```
+
+Wait for the user's choice:
+- **(1) Rollback:** Discard all uncommitted changes with `git checkout -- .` (the failed work has not been committed, so this restores the codebase to `last_good_sha`). Then: add the item to the `failed` array in the state file with `"error": "Tests stuck — rolled back by user", "attempts": 3`. Update `current_item` to the next item. Record in LEARNINGS.md via a quick Agent. Continue to the NEXT ITERATION.
+- **(2) Skip:** Add the item to the `failed` array with `"error": "Tests stuck — skipped by user", "attempts": 3`. Discard uncommitted changes with `git checkout -- .`. Update `current_item` to the next item. Continue to the NEXT ITERATION.
+- **(3) Pause:** Output the failing test details and stop execution. The user can fix manually and re-run `/implement-plan` to resume from the state file.
 
 ##### Step A3: DOCUMENTATION UPDATE (Agent)
 
 Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
 > Update project tracking files:
-> 1. [PLAN_FILE] — Mark **[WORK_ITEM]** as complete with today's date
+> 1. [PLAN_FILE] — Mark **[WORK_ITEM]** as complete: update its `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`)
 > 2. PROGRESS.md — Append entry: date, work item completed, files changed: **[FILES_LIST]**
 > 3. LEARNINGS.md — Append any testing issues: **[ISSUES_IF_ANY]**
 >
@@ -311,10 +392,12 @@ Run these git commands directly:
 After the commit succeeds, update `.implement-plan-state.json`:
 
 1. Read the current state file
-2. Add the completed item to `completed` array: `{ "item": "[N.M]", "phase": "[phase name]", "description": "[brief]", "sha": "[commit SHA from step A4]", "files": [files changed] }`
-3. Update `checkpoints` with item→SHA mapping
-4. Update `current_item` to the next item (or null if phase is complete)
-5. Write the updated state file back
+2. Remove the `in_progress` entry (the item is no longer in progress)
+3. Add the completed item to `completed` array: `{ "item": "[N.M]", "phase": "[phase name]", "description": "[brief]", "status": "COMPLETE", "sha": "[commit SHA from step A4]", "files": [files changed] }`
+4. Update `checkpoints` with item→SHA mapping
+5. Update `last_good_sha` to the commit SHA from step A4 (this is the most recent known-good checkpoint)
+6. Update `current_item` to the next item (or null if phase is complete)
+7. Write the updated state file back
 
 Mark the corresponding task as completed using TaskUpdate.
 
@@ -325,6 +408,16 @@ Mark the corresponding task as completed using TaskUpdate.
 #### PATH B: PARALLEL (multiple independent work items in the same phase)
 
 Use this path when 2+ work items have no dependencies on each other. This is the **preferred path** — always check for parallelization opportunities before falling back to sequential.
+
+##### Step B0: MARK IN_PROGRESS (Main Agent — do this yourself)
+
+Before launching parallel implementation subagents, mark ALL items in the batch as in progress:
+
+1. **Update state file:** Read `.implement-plan-state.json`. Add an `"in_progress_batch"` entry listing all items: `[{ "item": "[N.M]", "phase": "[phase name]", "description": "[brief]", "started_at": "[ISO timestamp]" }, ...]`. Write the state file back.
+2. **Update plan file:** Launch a single Agent (subagent_type: "general-purpose") with this prompt:
+
+   > In [PLAN_FILE], find work items **[N.M, N.N, ...]** and update each item's `**Status:**` field from `PENDING` to `IN_PROGRESS`.
+   > Return: STATUS_UPDATED when complete.
 
 ##### Step B1: PARALLEL IMPLEMENTATION (Multiple Agents)
 
@@ -359,18 +452,38 @@ After ALL parallel implementations complete, launch a single testing Agent:
 > 2. Fix the issue
 > 3. Re-run ALL tests
 > 4. Repeat until ALL tests pass
+> 5. If after 3 fix attempts the same test(s) still fail, STOP and return TESTS_STUCK with: failing test names, error messages, and what you tried.
 >
 > When all tests pass, return:
 > - Test summary (pass count, any issues found)
 > - For each issue fixed: problem, solution, prevention tip (1 line each)
 > - ALL_TESTS_PASS confirmation
 
+**If ALL_TESTS_PASS:** Proceed to Step B4.
+
+**If TESTS_STUCK:** The testing subagent could not fix the failures across the parallel batch. Offer the user a rollback choice:
+
+```text
+Tests cannot be fixed for parallel batch [N.M, N.N, ...] after 3 attempts.
+Failing: [test names from subagent]
+
+Options:
+  (1) Rollback — revert all changes to last checkpoint [last_good_sha] and skip this batch
+  (2) Skip — keep the changes but mark all items in the batch as failed, continue
+  (3) Pause — stop execution for manual intervention
+```
+
+Wait for the user's choice:
+- **(1) Rollback:** Discard all uncommitted changes with `git checkout -- .`. Add all batch items to the `failed` array with `"error": "Tests stuck — rolled back by user", "attempts": 3`. Update `current_item` to the next item after the batch. Record in LEARNINGS.md via a quick Agent. Continue to the NEXT ITERATION.
+- **(2) Skip:** Add all batch items to the `failed` array with `"error": "Tests stuck — skipped by user", "attempts": 3`. Discard uncommitted changes with `git checkout -- .`. Update `current_item` to the next item after the batch. Continue to the NEXT ITERATION.
+- **(3) Pause:** Output the failing test details and stop execution. The user can fix manually and re-run `/implement-plan` to resume from the state file.
+
 ##### Step B4: DOCUMENTATION UPDATE (Single Agent)
 
 Launch a single Agent to update tracking for ALL completed parallel items at once:
 
 > Update project tracking files:
-> 1. [PLAN_FILE] — Mark these work items as complete with today's date: **[LIST_OF_ITEMS]**
+> 1. [PLAN_FILE] — Mark these work items as complete: for each item in **[LIST_OF_ITEMS]**, update its `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`)
 > 2. PROGRESS.md — Append entries for each: date, work item completed, files changed: **[FILES_PER_ITEM]**
 > 3. LEARNINGS.md — Append any testing issues: **[ISSUES_IF_ANY]**
 >
@@ -390,10 +503,12 @@ Single commit covering all parallel work items:
 After the commit succeeds, update `.implement-plan-state.json`:
 
 1. Read the current state file
-2. Add ALL completed parallel items to `completed` array (one entry per item with shared SHA)
-3. Update `checkpoints` with item→SHA mappings for all completed items
-4. Update `current_item` to the next item (or null if phase is complete)
-5. Write the updated state file back
+2. Remove the `in_progress_batch` entry (all items are no longer in progress)
+3. Add ALL completed parallel items to `completed` array (one entry per item with shared SHA, each with `"status": "COMPLETE"`)
+4. Update `checkpoints` with item→SHA mappings for all completed items
+5. Update `last_good_sha` to the commit SHA from step B5 (this is the most recent known-good checkpoint)
+6. Update `current_item` to the next item (or null if phase is complete)
+7. Write the updated state file back
 
 Mark all corresponding tasks as completed using TaskUpdate.
 
@@ -436,22 +551,64 @@ If the state file does not exist, is corrupted, or the parallelization map does 
 
 If the fallback path was used, rewrite `.implement-plan-state.json` with the updated information.
 
-**Phase transition handling (when `--pause-between-phases` is set):**
+**Phase transition handling (quality gate + optional pause):**
 
-If the routing determination (from state file or subagent fallback) indicates `PHASE_CHANGE` and the user passed `--pause-between-phases`:
-1. Display a summary of the phase just completed (items done, any issues)
-2. Display the upcoming phase name and its work items
-3. **Ask the user for confirmation** before proceeding:
+If the routing determination (from state file or subagent fallback) indicates `PHASE_CHANGE`, run the phase boundary quality gate **before** proceeding to the next phase. This happens regardless of whether `--pause-between-phases` is set.
+
+**Step T1: Phase Validation (Agent)**
+
+Launch an Agent (subagent_type: "general-purpose") to validate the completed phase:
+
+> Read [PLAN_FILE]. Find the **Phase Completion Checklist** and **Testing Requirements** sections for **[completed phase name]**.
+> For each checklist item and testing requirement, verify whether it has been satisfied (marked with [x] or evidenced by work item completions).
+> Cross-reference against the completed work items: [list item numbers from state file's completed array for this phase].
+> Return ONLY:
+> - `PHASE_VALID` if all checklist items and testing requirements are satisfied, OR
+> - `PHASE_ISSUES: [list of unchecked/unsatisfied items]` if any items remain incomplete.
+
+**Step T2: Present Phase Summary**
+
+Display the phase summary to the user (always, regardless of flags):
+
+```text
+Phase [completed phase] complete. [M] items implemented, [F] failed/skipped.
+Validation: [PHASE_VALID | PHASE_ISSUES]
+[If PHASE_ISSUES: list the unchecked items]
+Next up: Phase [new phase] ([N] work items).
+```
+
+**Step T3: Handle Validation Issues**
+
+If the validation subagent returned `PHASE_ISSUES`:
+1. Present the list of unchecked items to the user
+2. Ask for guidance:
    ```text
-   Phase [completed phase] finished. Next up: Phase [new phase] ([N] work items).
-   Continue? (yes/no/skip phase/abort)
+   Phase [completed phase] has unchecked completion items:
+   [list of issues]
+
+   Options:
+     (1) Continue anyway — proceed to the next phase despite incomplete items
+     (2) Pause — stop execution to address the issues manually, then resume with /implement-plan
+     (3) Abort — proceed to FINALIZATION with whatever is complete so far
    ```
-4. Wait for user response:
+3. Wait for user response:
+   - **(1) Continue anyway**: log the issues to LEARNINGS.md via a quick Agent, then proceed
+   - **(2) Pause**: stop execution. The user can fix issues and re-run `/implement-plan` to resume from the state file
+   - **(3) Abort**: proceed to FINALIZATION
+
+**Step T4: Phase Pause (only when `--pause-between-phases` is set)**
+
+If `--pause-between-phases` was passed AND the phase validated successfully (PHASE_VALID or user chose "Continue anyway"):
+1. **Ask the user for confirmation** before proceeding:
+   ```text
+   Continue to Phase [new phase]? (yes/no/skip phase/abort)
+   ```
+2. Wait for user response:
    - **yes**: proceed to the next phase (PATH A or PATH B as indicated)
    - **no** or **abort**: proceed to FINALIZATION with whatever is complete so far
-   - **skip phase**: mark all items in the upcoming phase as skipped and continue to the phase after
+   - **skip phase**: mark all items in the upcoming phase as skipped in the state file's `failed` array with `"error": "Phase skipped by user"`, and continue to the phase after
 
-If `--pause-between-phases` is NOT set (default), ignore `PHASE_CHANGE` prefixes and proceed automatically.
+If `--pause-between-phases` is NOT set (default) and the phase is valid, proceed automatically to the next phase.
 
 **Routing:**
 - If **PARALLEL**: return to PATH B.
@@ -459,6 +616,58 @@ If `--pause-between-phases` is NOT set (default), ignore `PHASE_CHANGE` prefixes
 - If **ALL_COMPLETE**: proceed to FINALIZATION.
 
 **Do not stop early.** Continue looping until the state file (or subagent fallback) indicates ALL_COMPLETE (or the user aborts via `--pause-between-phases` confirmation). Every work item in the plan must be implemented, tested, and committed before moving to finalization.
+
+**If execution cannot continue** (context window exhaustion, user interrupt, unfixable error, or user abort from phase gate), proceed to the COMPLETION REPORT section before stopping.
+
+### COMPLETION REPORT (output on EVERY exit path)
+
+Before stopping execution — whether from normal completion, early termination, user abort, or error — read `.implement-plan-state.json` and output the following report. This is the **last thing the command outputs** regardless of how it exits.
+
+```text
+═══════════════════════════════════════════════════════
+ IMPLEMENTATION PROGRESS REPORT
+═══════════════════════════════════════════════════════
+
+ Status: [COMPLETE | PARTIAL — reason]
+ Session started: [started_at from state file]
+ Current phase: [current_phase from state file]
+
+ ✓ Completed ([N] items):
+   [For each item in completed array:]
+   - [item] [description] (SHA: [first 7 chars of sha])
+
+ ✗ Failed/Skipped ([N] items):
+   [For each item in failed array:]
+   - [item] [description] — [error]
+
+ ◌ Remaining ([N] items):
+   [For each item not in completed or failed:]
+   - [item] [description]
+
+ [If in_progress or in_progress_batch exists:]
+ ⚠ In Progress (interrupted):
+   - [item] [description] — started [started_at]
+
+ Last checkpoint: [last_good_sha from state file] ([item number])
+
+ To resume: /implement-plan [include --input flag if non-default path]
+ The state file (.implement-plan-state.json) will resume from where this session stopped.
+═══════════════════════════════════════════════════════
+```
+
+**Report generation rules:**
+
+1. **Read the state file** — it contains `completed`, `failed`, `in_progress`/`in_progress_batch`, `current_phase`, `last_good_sha`, and `plan_file`
+2. **Determine remaining items** — compare completed + failed items against the full item list from `parallelization_map` (which lists all items per phase). Items not in `completed` or `failed` are remaining.
+3. **Set the Status line:**
+   - `COMPLETE` — all items in completed, none remaining
+   - `PARTIAL — context exhaustion` — the agent is running low on context window
+   - `PARTIAL — user abort` — user chose to stop at a phase gate or confirmation prompt
+   - `PARTIAL — unfixable error` — TESTS_STUCK with user choosing Pause
+   - `PARTIAL — interrupted` — any other early stop
+4. **Include resume guidance** — always show the `/implement-plan` command needed to resume, including any `--input` flag if the plan file is not the default path
+5. **On normal completion** (ALL_COMPLETE path), the report uses `Status: COMPLETE` and the "Remaining" section shows `(none)`. The resume line is omitted.
+6. **If the state file does not exist** (e.g., error before state file creation), output a minimal report: "No state file found. No work items were completed. Run `/implement-plan` to start fresh."
 
 ### FINALIZATION (only when ALL work items are complete)
 
@@ -503,12 +712,11 @@ If the user passed `--auto-merge`:
 2. Delete the remote branch
 3. `git checkout main && git pull`
 
-#### Final Step 3: Output
+#### Final Step 3: Output (Completion Report)
 
-Report completion to the user with:
-- Summary of what was implemented (phases, work item count)
+Output the **COMPLETION REPORT** (defined in the COMPLETION REPORT section above) with `Status: COMPLETE`. Then add:
 - PR URL (if PR-only mode) or merge confirmation (if `--auto-merge`)
-- Any learnings or issues encountered
+- Any key learnings or issues encountered (1-3 bullet points max)
 
 ## Output Files
 
@@ -533,12 +741,26 @@ Run '/plan-improvements' or '/create-plan' first to generate an implementation p
 Or specify a custom path: /implement-plan --input <path-to-plan>
 ```
 
-### Test Failures That Cannot Be Fixed
+### Test Failures That Cannot Be Fixed (TESTS_STUCK)
 
-If a test failure cannot be resolved after multiple attempts:
-1. The testing subagent will report the specific failure
-2. The orchestrator will pause and ask for guidance
-3. User can choose to skip, provide context, or abort
+If the testing subagent cannot fix failures after 3 attempts, it returns TESTS_STUCK. The orchestrator then offers rollback options:
+
+1. **Rollback** — discard all uncommitted changes from the failed work item and skip it. The codebase returns to `last_good_sha` (the most recent successful checkpoint). Safe: no history rewriting.
+2. **Skip** — discard changes and mark the item as failed, continue to the next work item.
+3. **Pause** — stop execution so the user can investigate and fix manually. Resume with `/implement-plan` (picks up from state file).
+
+The `last_good_sha` field in the state file always points to the most recent commit where all tests passed. Rollback uses `git checkout -- .` to discard uncommitted work (since failed items are never committed), preserving full git history.
+
+### Early Termination
+
+If execution stops before all work items are complete, the COMPLETION REPORT is output with the appropriate partial status. This covers:
+
+1. **Context window exhaustion** — the agent detects it is running low on context. Output the report with `Status: PARTIAL — context exhaustion` and stop. The state file preserves all progress.
+2. **User interrupt** — the user cancels or the session is terminated. On the next run, `/implement-plan` resumes from the state file. If the agent has an opportunity to output before stopping (e.g., user types "stop" or "abort"), output the report with `Status: PARTIAL — user abort`.
+3. **Unfixable error (Pause)** — user chose "Pause" at a TESTS_STUCK prompt. Output the report with `Status: PARTIAL — unfixable error` including the failing test details.
+4. **User abort at phase gate** — user chose "Abort" at a phase transition prompt or "no" at a `--pause-between-phases` confirmation. Output the report with `Status: PARTIAL — user abort`.
+
+In all cases, the `.implement-plan-state.json` file is preserved (NOT deleted) so that `/implement-plan` can resume from where it stopped.
 
 ### Git/PR Failures
 
@@ -651,8 +873,10 @@ Claude: Starting implementation plan execution...
 ...
 [Completes all Phase 1 work items]
 
-Phase 1 (Input Validation) finished. Next up: Phase 2 (Error Handling) (4 work items).
-Continue? (yes/no/skip phase/abort)
+Phase 1 (Input Validation) complete. 4 items implemented, 0 failed/skipped.
+Validation: PHASE_VALID
+Next up: Phase 2 (Error Handling) (4 work items).
+Continue to Phase 2? (yes/no/skip phase/abort)
 
 User: yes
 

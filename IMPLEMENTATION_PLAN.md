@@ -567,7 +567,7 @@ Keep the confirmation compact — a table, not a multi-page document. The goal i
 
 ### Work Items
 
-#### 5.1 Implement Machine-Readable Resume with State File
+#### 5.1 Implement Machine-Readable Resume with State File ✅ Completed 2026-02-28
 **Recommendation Ref:** U5
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -576,22 +576,22 @@ Keep the confirmation compact — a table, not a multi-page document. The goal i
 Implement robust resume using the `.implement-plan-state.json` file (defined in Phase 3, work item 3.2). Mark items IN_PROGRESS before implementation starts. Detect IN_PROGRESS items on resume and offer retry/skip/complete options.
 
 **Tasks:**
-1. [ ] Add to implementation subagent pre-step: update state file to mark current item `IN_PROGRESS`, update IMPLEMENTATION_PLAN.md Status field to `IN_PROGRESS`
-2. [ ] Add to post-test step: update state file to mark current item `COMPLETE`, update IMPLEMENTATION_PLAN.md Status field to `COMPLETE [YYYY-MM-DD]`
-3. [ ] Add resume detection in STARTUP: if state file exists, check for IN_PROGRESS items. If found, present: "Work item [X] was in progress when the previous session ended. Options: (1) Retry implementation, (2) Skip and mark incomplete, (3) Mark as complete (if it was finished but not recorded)"
-4. [ ] Add to Prerequisites validation: if working directory is dirty AND state file shows an IN_PROGRESS item, offer to commit or stash the interrupted work before resuming
+1. [x] Add to implementation subagent pre-step: update state file to mark current item `IN_PROGRESS`, update IMPLEMENTATION_PLAN.md Status field to `IN_PROGRESS`
+2. [x] Add to post-test step: update state file to mark current item `COMPLETE`, update IMPLEMENTATION_PLAN.md Status field to `COMPLETE [YYYY-MM-DD]`
+3. [x] Add resume detection in STARTUP: if state file exists, check for IN_PROGRESS items. If found, present: "Work item [X] was in progress when the previous session ended. Options: (1) Retry implementation, (2) Skip and mark incomplete, (3) Mark as complete (if it was finished but not recorded)"
+4. [x] Add to Prerequisites validation: if working directory is dirty AND state file shows an IN_PROGRESS item, offer to commit or stash the interrupted work before resuming
 
 **Acceptance Criteria:**
-- [ ] Items marked IN_PROGRESS before implementation, COMPLETE after testing
-- [ ] Resume detects IN_PROGRESS items and offers options
-- [ ] Dirty working directory from interrupted session handled gracefully
+- [x] Items marked IN_PROGRESS before implementation, COMPLETE after testing
+- [x] Resume detects IN_PROGRESS items and offers options
+- [x] Dirty working directory from interrupted session handled gracefully
 
 **Notes:**
 The Status field in IMPLEMENTATION_PLAN.md was added in Phase 1, work item 1.4. This phase adds the transitions.
 
 ---
 
-#### 5.2 Add Rollback/Checkpoint Capability
+#### 5.2 Add Rollback/Checkpoint Capability ✅ Completed 2026-02-28
 **Recommendation Ref:** U3
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -600,22 +600,22 @@ The Status field in IMPLEMENTATION_PLAN.md was added in Phase 1, work item 1.4. 
 Record commit SHA checkpoints after each successful test pass. Offer rollback to last checkpoint when tests can't be fixed.
 
 **Tasks:**
-1. [ ] After each successful test pass (ALL_TESTS_PASS), record the commit SHA in state file: `checkpoints[item_id] = sha`
-2. [ ] Also record `last_good_sha` in state file (the most recent checkpoint)
-3. [ ] When testing subagent returns TESTS_STUCK (see Phase 6, work item 6.2): offer "(1) Revert to last checkpoint [sha], (2) Skip this item and continue, (3) Pause for manual intervention"
-4. [ ] If revert chosen: `git revert --no-commit HEAD~N` back to checkpoint, then `git commit -m "Revert: [item] - tests could not be fixed"`
+1. [x] After each successful test pass (ALL_TESTS_PASS), record the commit SHA in state file: `checkpoints[item_id] = sha`
+2. [x] Also record `last_good_sha` in state file (the most recent checkpoint)
+3. [x] When testing subagent returns TESTS_STUCK (see Phase 6, work item 6.2): offer "(1) Revert to last checkpoint [sha], (2) Skip this item and continue, (3) Pause for manual intervention"
+4. [x] If revert chosen: `git revert --no-commit HEAD~N` back to checkpoint, then `git commit -m "Revert: [item] - tests could not be fixed"`
 
 **Acceptance Criteria:**
-- [ ] Checkpoint SHAs recorded after each successful test
-- [ ] Rollback offered on unfixable test failures
-- [ ] Revert produces a clean commit (not destructive reset)
+- [x] Checkpoint SHAs recorded after each successful test
+- [x] Rollback offered on unfixable test failures
+- [x] Revert produces a clean commit (not destructive reset)
 
 **Notes:**
 Use `git revert` not `git reset --hard` — reverts are safe and preserve history.
 
 ---
 
-#### 5.3 Add Phase Boundary Quality Gates
+#### 5.3 Add Phase Boundary Quality Gates ✅ Completed 2026-02-28
 **Recommendation Ref:** U4
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -624,23 +624,23 @@ Use `git revert` not `git reset --hard` — reverts are safe and preserve histor
 After the last work item in each phase, validate the phase's completion checklist and testing requirements before proceeding. Optionally pause for user confirmation.
 
 **Tasks:**
-1. [ ] After the NEXT ITERATION subagent signals a phase transition (next item is in a new phase), spawn a validation subagent: "Read IMPLEMENTATION_PLAN.md Phase [N] Completion Checklist and Testing Requirements. Verify each item. Return: PHASE_VALID or PHASE_ISSUES with list of unchecked items."
-2. [ ] Present phase summary: "Phase [N] complete. [M] items implemented. Validation: [PASS/ISSUES]."
-3. [ ] If `--pause-between-phases` flag set: ask "Proceed to Phase [N+1]? (yes / review / abort)"
-4. [ ] If PHASE_ISSUES: present the unchecked items and ask for guidance
+1. [x] After the NEXT ITERATION subagent signals a phase transition (next item is in a new phase), spawn a validation subagent: "Read IMPLEMENTATION_PLAN.md Phase [N] Completion Checklist and Testing Requirements. Verify each item. Return: PHASE_VALID or PHASE_ISSUES with list of unchecked items."
+2. [x] Present phase summary: "Phase [N] complete. [M] items implemented. Validation: [PASS/ISSUES]."
+3. [x] If `--pause-between-phases` flag set: ask "Proceed to Phase [N+1]? (yes / review / abort)"
+4. [x] If PHASE_ISSUES: present the unchecked items and ask for guidance
 
 **Acceptance Criteria:**
-- [ ] Phase boundary detected by NEXT ITERATION subagent
-- [ ] Completion checklist validated at each boundary
-- [ ] Summary presented to user
-- [ ] `--pause-between-phases` pauses for confirmation
+- [x] Phase boundary detected by NEXT ITERATION subagent
+- [x] Completion checklist validated at each boundary
+- [x] Summary presented to user
+- [x] `--pause-between-phases` pauses for confirmation
 
 **Notes:**
 Default behavior (no flag) presents summary and continues. The pause flag is for when the user wants tighter control.
 
 ---
 
-#### 5.4 Add Partial Completion Reporting
+#### 5.4 Add Partial Completion Reporting ✅ Completed 2026-02-28
 **Recommendation Ref:** R4 (partial)
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify)
@@ -649,27 +649,27 @@ Default behavior (no flag) presents summary and continues. The pause flag is for
 Add an instruction for what to output if the command is interrupted or stops early, so the user knows exactly what was accomplished and how to resume.
 
 **Tasks:**
-1. [ ] Add "Early Termination" section: "If execution stops before ALL_COMPLETE (context exhaustion, user interrupt, unfixable error), output a completion report: items completed this session, current item status, last checkpoint SHA, how to resume (`/implement-plan` will pick up from the state file)"
-2. [ ] Add instruction to always output this report even on normal completion
+1. [x] Add "Early Termination" section: "If execution stops before ALL_COMPLETE (context exhaustion, user interrupt, unfixable error), output a completion report: items completed this session, current item status, last checkpoint SHA, how to resume (`/implement-plan` will pick up from the state file)"
+2. [x] Add instruction to always output this report even on normal completion
 
 **Acceptance Criteria:**
-- [ ] Completion report documented for all exit paths (normal, interrupt, error)
-- [ ] Report includes items completed, current status, resume guidance
+- [x] Completion report documented for all exit paths (normal, interrupt, error)
+- [x] Report includes items completed, current status, resume guidance
 
 ---
 
 ### Phase 5 Testing Requirements
-- [ ] Verify resume detects IN_PROGRESS items from interrupted session
-- [ ] Verify rollback produces clean git history
-- [ ] Verify phase boundary validation catches incomplete checklists
-- [ ] Verify completion report outputs on all exit paths
+- [x] Verify resume detects IN_PROGRESS items from interrupted session
+- [x] Verify rollback produces clean git history
+- [x] Verify phase boundary validation catches incomplete checklists
+- [x] Verify completion report outputs on all exit paths
 
 ### Phase 5 Completion Checklist
-- [ ] All work items complete
-- [ ] Resume/rollback tested with simulated interruptions
-- [ ] Phase gates tested with incomplete checklists
-- [ ] No regressions in existing command functionality
-- [ ] Code reviewed (if applicable)
+- [x] All work items complete
+- [x] Resume/rollback tested with simulated interruptions
+- [x] Phase gates tested with incomplete checklists
+- [x] No regressions in existing command functionality
+- [x] Code reviewed (if applicable)
 
 ---
 

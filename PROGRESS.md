@@ -104,3 +104,7 @@
 | 2026-02-28 | 4.3 Replace Question-Based with Task-Based Analysis | Complete | plugins/personal-plugin/commands/plan-improvements.md |
 | 2026-02-28 | 4.4 Add Codebase Reconnaissance to create-plan | Complete | plugins/personal-plugin/commands/create-plan.md |
 | 2026-02-28 | 4.5 Add Confirmation Checkpoint to create-plan | Complete | plugins/personal-plugin/commands/create-plan.md |
+| 2026-02-28 | 5.1 Implement Machine-Readable Resume | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 5.2 Add Rollback/Checkpoint Capability | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 5.3 Add Phase Boundary Quality Gates | Complete | plugins/personal-plugin/commands/implement-plan.md |
+| 2026-02-28 | 5.4 Add Partial Completion Reporting | Complete | plugins/personal-plugin/commands/implement-plan.md |
