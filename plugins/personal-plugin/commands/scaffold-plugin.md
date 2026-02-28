@@ -257,7 +257,8 @@ Created structure:
       plugin.json           [CREATED]
     commands/               [CREATED] (empty)
     skills/
-      help.md               [CREATED]
+      help/
+        SKILL.md            [CREATED]
 
 Updated:
   .claude-plugin/marketplace.json  [UPDATED]
@@ -274,8 +275,7 @@ Updated:
    - Commands: plugins/[plugin-name]/commands/
    - Skills: plugins/[plugin-name]/skills/[name]/SKILL.md
 
-4. After adding commands/skills, update documentation:
-   python scripts/generate-help.py plugins/[plugin-name]
+4. After adding commands/skills, update the plugin's `skills/help/SKILL.md` with new entries
 
 5. Update README.md with plugin information
 
@@ -351,7 +351,8 @@ Created structure:
       plugin.json           [CREATED]
     commands/               [CREATED] (empty)
     skills/
-      help.md               [CREATED]
+      help/
+        SKILL.md            [CREATED]
 
 Updated:
   .claude-plugin/marketplace.json  [UPDATED]
@@ -364,8 +365,7 @@ Updated:
 2. Or manually create commands in:
    plugins/api-client-plugin/commands/
 
-3. After adding commands, update documentation:
-   python scripts/generate-help.py plugins/api-client-plugin
+3. After adding commands, update the plugin's `skills/help/SKILL.md` with new entries
 
 ...
 ```

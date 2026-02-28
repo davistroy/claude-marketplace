@@ -165,8 +165,7 @@ File created: plugins/personal-plugin/commands/[command-name].md
    - [ ] Write example usage
 
 2. Update documentation:
-   - [ ] Run: python scripts/generate-help.py plugins/personal-plugin
-   - [ ] Run: python scripts/update-readme.py (if available)
+   - [ ] Update the plugin's `skills/help/SKILL.md` with the new command entry
    - [ ] Add entry to CHANGELOG.md under [Unreleased]
 
 3. Validate:
@@ -232,8 +231,7 @@ File created: plugins/personal-plugin/commands/check-dependencies.md
    - [ ] Write example usage
 
 2. Update documentation:
-   - [ ] Run: python scripts/generate-help.py plugins/personal-plugin
-   - [ ] Run: python scripts/update-readme.py (if available)
+   - [ ] Update the plugin's `skills/help/SKILL.md` with the new command entry
    - [ ] Add entry to CHANGELOG.md under [Unreleased]
 
 3. Validate:

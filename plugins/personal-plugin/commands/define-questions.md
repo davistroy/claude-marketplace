@@ -185,13 +185,11 @@ id,text,context,topic,sections,priority
 
 ## Output Schema
 
-The output JSON must conform to the schema defined in `schemas/questions.json`.
-
-**Schema Location:** `schemas/questions.json`
+The output JSON must conform to the questions schema defined below.
 
 ### Schema Validation Behavior
 
-Before saving the output file, validate against `schemas/questions.json`:
+Before saving the output file, validate against the inline questions schema rules:
 
 1. **Generate output in memory** - Create the complete JSON structure
 2. **Validate against schema** - Check all required fields and types
@@ -216,7 +214,7 @@ Before saving the output file, validate against `schemas/questions.json`:
 
 After successful validation, display:
 ```text
-Output validated against schemas/questions.json. Saved to questions-PRD-20260114-143052.json
+Schema validation passed. Saved to questions-PRD-20260114-143052.json
 
 Validation: PASSED
 - Required fields: All present
@@ -246,7 +244,7 @@ Output saved to questions-PRD-20260114-143052.json
 This file may not work correctly with /ask-questions or /finish-document.
 ```
 
-See `schemas/README.md` for validation instructions and tools.
+See `references/patterns/validation.md` for full validation patterns.
 
 ## Important Notes
 
@@ -255,11 +253,11 @@ See `schemas/README.md` for validation instructions and tools.
 - Avoid duplicate questions - consolidate similar questions into one with comprehensive context
 - Preserve the original intent - don't rephrase questions in ways that change their meaning
 - The JSON must be valid and properly formatted for downstream use with AI tools
-- Output must conform to `schemas/questions.json` for compatibility with `/ask-questions` and `/finish-document`
+- Output must conform to the questions schema (see inline validation rules above) for compatibility with `/ask-questions` and `/finish-document`
 
 ## Schema Validation Summary
 
-This command validates output against `schemas/questions.json`. See `references/patterns/validation.md` for full validation behavior.
+This command validates output against the inline questions schema rules. See `references/patterns/validation.md` for full validation behavior.
 
 | Flag | Behavior |
 |------|----------|

@@ -32,7 +32,7 @@ The user will provide a JSON file path after the slash command (e.g., `/ask-ques
 ### 1. Load and Validate
 
 - Read the specified JSON file
-- Validate it conforms to `schemas/questions.json` schema structure
+- Validate it conforms to the questions schema structure (see validation rules below)
 - Verify it contains the required `questions` array and `metadata`
 - Load the original source document referenced in `metadata.source_document`
 - **Check for existing answer file** (resume support - see below)
@@ -65,14 +65,14 @@ Before starting the Q&A session, check for an incomplete previous session:
 
 See `references/patterns/workflow.md` for full state management specification.
 
-**Input Schema:** The input file must conform to `schemas/questions.json`
+**Input Schema:** The input file must conform to the questions schema defined by `/define-questions`
 
 #### Input Validation Behavior
 
 Before proceeding with the Q&A session:
 
 1. **Load the JSON file**
-2. **Validate against `schemas/questions.json`**
+2. **Validate against the questions schema rules**
 3. **If valid:** Proceed with the session
 4. **If invalid:** Report validation errors
 5. **If `--force` provided:** Proceed with a warning
@@ -248,21 +248,21 @@ Save as `answers-[source-document]-YYYYMMDD-HHMMSS.json` in the repository root.
 
 Example: `answers-PRD-20260110-143052.json`
 
-**Output Schema:** The output file must conform to `schemas/answers.json`
+**Output Schema:** The output file must conform to the answers schema defined below
 
 #### Output Validation Behavior
 
 Before saving the answers file:
 
 1. **Generate output in memory** - Create the complete JSON structure
-2. **Validate against `schemas/answers.json`**
+2. **Validate against the answers schema rules**
 3. **If valid:** Save file and report success with validation status
 4. **If invalid:** Report specific validation errors
 5. **If `--force` provided:** Save anyway with a warning
 
 **Output Validation Success Message:**
 ```text
-Output validated against schemas/answers.json. Saved to answers-PRD-20260114-143052.json
+Schema validation passed. Saved to answers-PRD-20260114-143052.json
 
 Validation: PASSED
 - Required fields: All present
@@ -368,8 +368,8 @@ This command validates both input and output against their respective schemas. S
 
 | Direction | Schema | Flag Behavior |
 |-----------|--------|---------------|
-| Input | `schemas/questions.json` | Validate before session starts |
-| Output | `schemas/answers.json` | Validate before saving |
+| Input | Questions schema (inline rules) | Validate before session starts |
+| Output | Answers schema (inline rules) | Validate before saving |
 
 | Flag | Behavior |
 |------|----------|

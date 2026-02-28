@@ -638,11 +638,11 @@ Hook Script Validation
 
 ### Phase 8: Pattern Compliance Checks
 
-Validate commands against the schema defined in `schemas/command.json` and pattern conventions.
+Validate commands against the command frontmatter rules and pattern conventions.
 
 #### 8.1 Command Frontmatter Schema Validation
 
-For each command markdown file, validate frontmatter against `schemas/command.json`:
+For each command markdown file, validate frontmatter against these rules:
 
 **Check:**
 - `description` field present (required)

@@ -149,7 +149,7 @@ Place the "Related Commands" section at the very end of each file, after all oth
 
 #### 1.3 Remove Dead References to Non-Existent Files
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE [2026-02-28]**
 **Recommendation Ref:** S6
 **Files Affected:**
 - `plugins/personal-plugin/commands/new-command.md` (modify)
@@ -157,22 +157,27 @@ Place the "Related Commands" section at the very end of each file, after all oth
 - `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
 - `plugins/personal-plugin/commands/define-questions.md` (modify)
 - `plugins/personal-plugin/commands/finish-document.md` (modify)
+- `plugins/personal-plugin/commands/ask-questions.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
+- `plugins/personal-plugin/references/templates/*.md` (modify, 8 files)
+- `plugins/personal-plugin/references/patterns/validation.md` (modify)
+- `plugins/personal-plugin/references/patterns/workflow.md` (modify)
 
 **Description:**
 Remove or replace references to `python scripts/generate-help.py`, `python scripts/update-readme.py`, and `schemas/` directory that do not exist in the repository.
 
 **Tasks:**
-1. [ ] In `new-command.md`: find and remove references to `python scripts/generate-help.py` and `python scripts/update-readme.py`. Replace with instruction: "Update the plugin's `skills/help/SKILL.md` with the new command entry."
-2. [ ] In `new-skill.md`: find and remove the same dead script references. Replace with the same help skill update instruction.
-3. [ ] In `scaffold-plugin.md`: find and remove dead `python scripts/` references. Replace with instruction to manually update help skill.
-4. [ ] In `define-questions.md`: find references to `schemas/questions.json` or `schemas/` directory. Replace with inline validation rules embedded in the command itself.
-5. [ ] In `finish-document.md`: find and remove `schemas/` directory references. Replace with inline validation rules matching the approach taken in `define-questions.md`.
-6. [ ] Search all other files for any remaining references to `scripts/generate-help.py`, `scripts/update-readme.py`, or `schemas/` and fix any found
+1. [x] In `new-command.md`: find and remove references to `python scripts/generate-help.py` and `python scripts/update-readme.py`. Replace with instruction: "Update the plugin's `skills/help/SKILL.md` with the new command entry."
+2. [x] In `new-skill.md`: find and remove the same dead script references. Replace with the same help skill update instruction.
+3. [x] In `scaffold-plugin.md`: find and remove dead `python scripts/` references. Replace with instruction to manually update help skill. Also fixed `help.md` -> `help/SKILL.md` path bug in output reports.
+4. [x] In `define-questions.md`: find references to `schemas/questions.json` or `schemas/` directory. Replace with inline validation rules embedded in the command itself.
+5. [x] In `finish-document.md`: find and remove `schemas/` directory references. Replace with inline validation rules matching the approach taken in `define-questions.md`.
+6. [x] Search all other files for any remaining references to `scripts/generate-help.py`, `scripts/update-readme.py`, or `schemas/` and fix any found. Fixed: `ask-questions.md` (7 refs), `validate-plugin.md` (2 refs), 8 template files (1 ref each), `validation.md` (5 refs), `workflow.md` (1 ref).
 
 **Acceptance Criteria:**
-- [ ] Zero references to `python scripts/generate-help.py` or `python scripts/update-readme.py` in any file
-- [ ] Zero references to `schemas/` directory in any file
-- [ ] All removed references replaced with working alternatives
+- [x] Zero references to `python scripts/generate-help.py` or `python scripts/update-readme.py` in any file
+- [x] Zero references to `schemas/` directory in any file
+- [x] All removed references replaced with working alternatives
 
 ---
 

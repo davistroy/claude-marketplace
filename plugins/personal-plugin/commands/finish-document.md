@@ -69,7 +69,7 @@ Execute the logic from `/define-questions`:
   - Dependencies or prerequisites that are undefined
   - Edge cases or scenarios not addressed
 
-- Create JSON conforming to `schemas/questions.json`:
+- Create JSON conforming to the questions schema:
 ```json
 {
   "questions": [
@@ -95,7 +95,7 @@ Execute the logic from `/define-questions`:
 }
 ```
 
-**Schema:** Output must conform to `schemas/questions.json`
+**Schema:** Output must conform to the questions schema (see inline validation rules in `/define-questions`)
 
 **Important:** Capture `location` data for each question — this enables precise document updates later.
 
@@ -107,7 +107,7 @@ Save to: `reference/questions-[document-name]-[timestamp].json`
 Before saving the questions file:
 
 1. **Generate output in memory** - Create the complete JSON structure
-2. **Validate against `schemas/questions.json`**
+2. **Validate against the questions schema rules**
 3. **If valid:** Save file and proceed to Q&A session
 4. **If invalid:** Report specific validation errors
 5. **If `--force` provided:** Save anyway with a warning
@@ -258,14 +258,14 @@ Additional commands:
 After all questions are answered (or skipped), save to:
 `reference/answers-[document-name]-[timestamp].json`
 
-**Schema:** Output must conform to `schemas/answers.json`
+**Schema:** Output must conform to the answers schema (see inline validation rules in `/ask-questions`)
 
 #### Output Validation Behavior
 
 Before saving the answers file:
 
 1. **Generate output in memory** - Create the complete JSON structure
-2. **Validate against `schemas/answers.json`**
+2. **Validate against the answers schema rules**
 3. **If valid:** Save file and proceed to Phase 3
 4. **If invalid:** Report specific validation errors
 5. **If `--force` provided:** Save anyway with a warning
@@ -426,8 +426,8 @@ This command validates intermediate files at each phase. See `references/pattern
 
 | Phase | Output | Schema |
 |-------|--------|--------|
-| 1 (Extract) | `questions-*.json` | `schemas/questions.json` |
-| 2 (Answer) | `answers-*.json` | `schemas/answers.json` |
+| 1 (Extract) | `questions-*.json` | Questions schema (inline rules) |
+| 2 (Answer) | `answers-*.json` | Answers schema (inline rules) |
 
 | Flag | Behavior |
 |------|----------|

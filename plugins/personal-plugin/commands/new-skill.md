@@ -172,7 +172,6 @@ Structure verified:
 
 2. Update help skill:
    - [ ] Add entry to plugins/personal-plugin/skills/help/SKILL.md
-   - [ ] Or run: python scripts/generate-help.py plugins/personal-plugin
 
 3. Validate:
    - [ ] Run: /validate-plugin personal-plugin

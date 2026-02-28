@@ -1,7 +1,7 @@
 <!-- ============================================================
      WORKFLOW COMMAND TEMPLATE
 
-     Canonical Section Order (per schemas/command.json):
+     Canonical Section Order:
      1. Frontmatter (description, allowed-tools)
      2. Title (# Command Name)
      3. Brief description paragraph

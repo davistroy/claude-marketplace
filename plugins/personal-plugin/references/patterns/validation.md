@@ -100,10 +100,10 @@ Commands generating or consuming JSON output MUST validate against their respect
 
 | Command | Direction | Schema |
 |---------|-----------|--------|
-| `/define-questions` | Output | `schemas/questions.json` |
-| `/ask-questions` | Input | `schemas/questions.json` |
-| `/ask-questions` | Output | `schemas/answers.json` |
-| `/finish-document` | Input | `schemas/answers.json` |
+| `/define-questions` | Output | Questions schema (inline rules) |
+| `/ask-questions` | Input | Questions schema (inline rules) |
+| `/ask-questions` | Output | Answers schema (inline rules) |
+| `/finish-document` | Input | Answers schema (inline rules) |
 
 ### Validation Behavior
 
@@ -118,7 +118,7 @@ Commands generating JSON output follow this process:
 ### Validation Success Message Format
 
 ```
-Output validated against schemas/questions.json. Saved to reports/questions-PRD-20260114-143052.json
+Schema validation passed. Saved to reports/questions-PRD-20260114-143052.json
 
 Validation: PASSED
 - Required fields: All present

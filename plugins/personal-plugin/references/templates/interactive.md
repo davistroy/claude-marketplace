@@ -1,7 +1,7 @@
 <!-- ============================================================
      INTERACTIVE COMMAND TEMPLATE
 
-     Canonical Section Order (per schemas/command.json):
+     Canonical Section Order:
      1. Frontmatter (description, allowed-tools)
      2. Title (# Command Name)
      3. Brief description paragraph
@@ -188,7 +188,7 @@ See `references/patterns/output.md` for completion summary format.
 
 **File Naming:** `{{OUTPUT_PREFIX}}-[source]-YYYYMMDD-HHMMSS.{{OUTPUT_EXT}}`
 
-**Schema:** Output must conform to `schemas/{{SCHEMA_NAME}}.json`
+**Schema:** Output must conform to the {{SCHEMA_NAME}} schema (see inline validation rules)
 
 <!-- SECTION 7: EXAMPLES -->
 ## Examples
