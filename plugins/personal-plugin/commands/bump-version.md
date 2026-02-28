@@ -68,7 +68,7 @@ Valid bump types:
 ### Phase 1: Read Current Version
 
 1. **Locate plugin.json:**
-   ```
+   ```text
    plugins/[plugin-name]/.claude-plugin/plugin.json
    ```
 
@@ -77,7 +77,7 @@ Valid bump types:
    - Validate it follows semver format (X.Y.Z)
 
 3. **Report current state:**
-   ```
+   ```text
    Current version: [plugin-name] v[X.Y.Z]
    ```
 
