@@ -1,835 +1,1178 @@
 # Implementation Plan
 
-**Generated:** 2026-02-28T14:30:00
-**Based On:** RECOMMENDATIONS.md (Planning & Execution Pipeline Analysis)
-**Total Phases:** 6
-**Estimated Total Effort:** ~3,500 LOC across 6 files
+**Generated:** 2026-02-28T22:00:00
+**Based On:** RECOMMENDATIONS.md (Personal Plugin Command & Skill Quality Overhaul)
+**Total Phases:** 7
+**Estimated Total Effort:** ~2,500-3,500 LOC across 32 files
 
 ---
 
 ## Executive Summary
 
-This plan upgrades the three core planning and execution commands (`create-plan`, `plan-improvements`, `implement-plan`) plus the `plan-gate` skill to production quality. The work is organized into 6 phases across 3 tiers. Tier 1 (Phases 1-2) fixes broken functionality — the unified schema and implement-plan tool API corrections. Tier 2 (Phases 3-4) improves execution quality — context management, analysis depth, and user guardrails. Tier 3 (Phases 5-6) adds robustness and polish — append logic, parallel safety, documentation overhead reduction.
+This plan upgrades all 23 commands and 9 skills in the personal plugin to match the quality bar set by the recently-upgraded planning commands (`create-plan`, `plan-improvements`, `implement-plan`). The work addresses 24 individual recommendations (R1-R24) and 8 cross-cutting systemic issues (S1-S8) identified in the quality review.
 
-Each phase modifies markdown command files (no source code). Changes are to prompt/instruction text only. The risk of breaking existing functionality is low since the changes refine instructions rather than alter architecture.
+The strategy is **cross-cutting first, then depth**: Phase 1 applies batch fixes that touch every file (allowed-tools, related commands, dead references, hardcoded lists, secrets policy), establishing a consistent baseline. Phases 2-3 tackle the files that need the most structural work (major overhauls and deep structural improvements). Phases 4-6 apply targeted fixes to files that are already close to production quality. Phase 7 finishes with skill-specific improvements and a final consistency sweep.
+
+All changes are to markdown command/skill files (prompt/instruction text only). No source code changes. Risk of breaking existing functionality is low since the changes refine instructions rather than alter architecture. Each phase leaves the plugin in a functional state.
 
 ---
 
 ## Plan Overview
 
-The strategy is **bottom-up stabilization**: fix the structural foundation first (schema, tool API), then improve what flows through that foundation (analysis quality, context management), then harden the edges (error handling, resume, parallelism). Phases 1-2 must be done first because every downstream improvement depends on a consistent schema and a working executor. Phases 3-6 can be done in any order after Phases 1-2, though the listed order minimizes rework.
+The seven phases are organized into three tiers:
+
+- **Tier 1 (Phase 1):** Cross-cutting batch fixes that establish a consistent baseline across all 32 files. These must go first because subsequent phases would otherwise need to add these elements individually.
+- **Tier 2 (Phases 2-4):** Structural work on files rated 2-3/5 that need significant rewrites or restructuring. Ordered by severity: major overhauls first, then structural improvements in two batches to stay within phase size limits.
+- **Tier 3 (Phases 5-7):** Targeted fixes to files rated 3.5-5/5 that need specific improvements, plus final skill improvements and a consistency sweep.
 
 ### Phase Summary Table
 
 | Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies |
 |-------|------------|------------------|-----------------|--------------|
-| 1 | Unified Schema | Canonical work item schema, standardized headers, sizing heuristics | M (~3 files, ~200 LOC changed) | None |
-| 2 | implement-plan Tool API Fix | Agent tool references, selective git staging, PR-only default | M (~1 file, ~300 LOC changed) | None |
-| 3 | Context Window Management | Sampling strategy, state file, two-stage output option | M (~3 files, ~150 LOC changed) | Phases 1-2 |
-| 4 | Analysis Quality & User Guardrails | Missing dimensions, priority rubric, task-based analysis, confirmation gates | M (~2 files, ~250 LOC changed) | Phase 1 |
-| 5 | Resume, Rollback & Phase Gates | Machine-readable status, checkpoint SHAs, phase validation, circuit breakers | M (~2 files, ~200 LOC changed) | Phases 1-2 |
-| 6 | Robustness & Polish | Append markers, parallel safety, doc overhead reduction, allowed-tools, plan limits | S (~4 files, ~150 LOC changed) | Phases 1-2 |
+| 1 | Cross-Cutting Batch Fixes | allowed-tools on 32 files, related commands on 23 commands, dead ref removal, dynamic plugin scanning, secrets policy fixes | L (~32 files, ~500-800 LOC) | None |
+| 2 | Major Overhauls | Rewritten plan-next, setup-statusline, consolidate-documents | M (~3 files, ~400-600 LOC) | Phase 1 |
+| 3 | Structural Improvements A | Overhauled define-questions, finish-document, review-arch, check-updates | M (~4 files, ~300-500 LOC) | Phase 1 |
+| 4 | Structural Improvements B | Fixed scaffold-plugin, convert-hooks, convert-markdown, new-command, security-analysis | M (~5 files, ~300-500 LOC) | Phase 1 |
+| 5 | Targeted Fixes A | Fixed test-project, assess-document, analyze-transcript, develop-image-prompt | M (~4 files, ~200-300 LOC) | Phase 1 |
+| 6 | Targeted Fixes B | Fixed review-intent, review-pr, remove-ip, ship, research-topic | M (~5 files, ~200-400 LOC) | Phase 1 |
+| 7 | Skill Improvements & Final Polish | Remaining skills batch, utility commands batch, unlock fix, error handling audit, proactive triggers, flag consistency | M (~8 files, ~300-500 LOC) | Phases 1-6 |
 
 <!-- BEGIN PHASES -->
 
 ---
 
-## Phase 1: Unified IMPLEMENTATION_PLAN.md Schema
+## Phase 1: Cross-Cutting Batch Fixes
 
-**Estimated Complexity:** M (~3 files, ~200 LOC changed)
+**Estimated Complexity:** L (~32 files, ~500-800 LOC)
 **Dependencies:** None
-**Parallel Groups:** [1.1, 1.2] then [1.3] then [1.4]
+**Parallelizable:** Yes — work items 1.1 through 1.5 touch different aspects of the same files but can be done in a single pass per file
 
 ### Goals
-- Both planning commands produce structurally identical IMPLEMENTATION_PLAN.md files
-- `/implement-plan` can consume plans from either source with zero parsing differences
-- Phase sizing uses concrete heuristics instead of fictional token estimates
+- Every command and skill has `allowed-tools` in its frontmatter
+- Every command has a "Related Commands" section linking to logical groupings
+- Dead references to non-existent scripts and directories are removed
+- Hardcoded plugin lists replaced with dynamic scanning instructions
+- Secrets policy violations fixed in research-topic and visual-explainer
 
 ### Work Items
 
-#### 1.1 Add Tasks and Notes Fields to plan-improvements Work Item Template ✅ Completed 2026-02-28
+#### 1.1 Add `allowed-tools` Frontmatter to All Commands and Skills
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
 **Recommendation Ref:** S1
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+- `plugins/personal-plugin/commands/analyze-transcript.md` (modify)
+- `plugins/personal-plugin/commands/ask-questions.md` (modify)
+- `plugins/personal-plugin/commands/assess-document.md` (modify)
+- `plugins/personal-plugin/commands/bump-version.md` (modify)
+- `plugins/personal-plugin/commands/check-updates.md` (modify)
+- `plugins/personal-plugin/commands/clean-repo.md` (modify)
+- `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
+- `plugins/personal-plugin/commands/convert-hooks.md` (modify)
+- `plugins/personal-plugin/commands/convert-markdown.md` (modify)
+- `plugins/personal-plugin/commands/define-questions.md` (modify)
+- `plugins/personal-plugin/commands/develop-image-prompt.md` (modify)
+- `plugins/personal-plugin/commands/finish-document.md` (modify)
+- `plugins/personal-plugin/commands/new-command.md` (modify)
+- `plugins/personal-plugin/commands/new-skill.md` (modify)
+- `plugins/personal-plugin/commands/plan-next.md` (modify)
+- `plugins/personal-plugin/commands/remove-ip.md` (modify)
+- `plugins/personal-plugin/commands/review-arch.md` (modify)
+- `plugins/personal-plugin/commands/review-intent.md` (modify)
+- `plugins/personal-plugin/commands/review-pr.md` (modify)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
+- `plugins/personal-plugin/commands/setup-statusline.md` (modify)
+- `plugins/personal-plugin/commands/test-project.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
+- `plugins/personal-plugin/skills/prime/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/validate-and-ship/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
 
 **Description:**
-Update the IMPLEMENTATION_PLAN.md template section in plan-improvements.md to include the **Tasks** (numbered checkbox list) and **Notes** fields that exist in create-plan's template. Also add (create)/(modify) annotations to the Files Affected field.
+Add `allowed-tools` declarations to the YAML frontmatter of every command and skill that currently lacks one. Use the recommended values by command type from S1 in RECOMMENDATIONS.md.
 
 **Tasks:**
-1. [x] Locate the work item template in plan-improvements.md (lines ~207-218)
-2. [x] Add `**Tasks:**` field with numbered checkboxes between Description and Acceptance Criteria
-3. [x] Add `**Notes:**` field after Acceptance Criteria
-4. [x] Update Files Affected format to include `(create)` / `(modify)` annotations
-5. [x] Update the work item instructions in Phase 3 to instruct Claude to generate Tasks sub-steps
+1. [ ] For each read-only command (`review-arch`, `review-intent`, `check-updates`, `plan-next`), add `allowed-tools: Read, Glob, Grep`
+2. [ ] For read+git commands (`review-pr`), add `allowed-tools: Read, Glob, Grep, Bash(gh:*), Bash(git:*)`
+3. [ ] For file generator commands (`analyze-transcript`, `assess-document`, `ask-questions`, `define-questions`, `develop-image-prompt`, `finish-document`, `consolidate-documents`, `remove-ip`), add `allowed-tools: Read, Write, Edit, Glob, Grep`
+4. [ ] For shell-dependent commands (`test-project`, `convert-markdown`, `convert-hooks`, `setup-statusline`, `clean-repo`), add `allowed-tools: Read, Write, Edit, Glob, Grep, Bash`
+5. [ ] For scaffolding/utility commands (`scaffold-plugin`, `new-command`, `new-skill`, `bump-version`, `validate-plugin`), add `allowed-tools: Read, Write, Edit, Glob, Grep, Bash`
+6. [ ] For skills with external tools (`research-topic`, `visual-explainer`), add `allowed-tools: Read, Write, Bash, WebSearch, WebFetch`
+7. [ ] For workflow skills (`ship`, `validate-and-ship`), add `allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gh:*)`
+8. [ ] For analysis skills (`prime`, `security-analysis`, `summarize-feedback`), add `allowed-tools: Read, Glob, Grep, Write`
+9. [ ] For `unlock` skill, add `allowed-tools: Bash(bws:*), Bash(export:*)`
+10. [ ] Verify all 32 files (excluding the 3 planning commands and help skill which already have `allowed-tools`) now have the declaration
 
 **Acceptance Criteria:**
-- [x] plan-improvements work item template has all 6 fields matching create-plan: Ref, Files Affected (annotated), Description, Tasks, Acceptance Criteria, Notes
-- [x] The ordering of fields is identical between both commands
+- [ ] All 32 reviewed files have `allowed-tools` in their YAML frontmatter
+- [ ] Tool declarations match the command type (read-only commands do not have Write, etc.)
+- [ ] No existing frontmatter fields are lost or reordered
 
 **Notes:**
-The ref field name intentionally differs (Recommendation Ref vs Requirement Refs) since the semantics differ. The structural position and all other fields should be identical.
+`plan-next` is listed as read-only here but needs `Bash(git:*), Bash(gh:*)` once R1 is implemented (Phase 2). The Phase 1 value is correct for its current state; Phase 2 will update it.
 
 ---
 
-#### 1.2 Standardize Headers, Metadata, and Table Columns ✅ Completed 2026-02-28
-**Recommendation Ref:** S2
+#### 1.2 Add "Related Commands" Sections to All Commands
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** S3
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
+- All 23 command files in `plugins/personal-plugin/commands/` (modify)
 
 **Description:**
-Align the header metadata, section structure, and table column names across both planning commands so the IMPLEMENTATION_PLAN.md they produce is structurally identical above and below the phase content.
+Add a `## Related Commands` section to the bottom of every command file, linking to logically related commands and skills. Use the natural groupings defined in S3.
 
 **Tasks:**
-1. [x] Add `**Estimated Total Effort:**` line to plan-improvements header template
-2. [x] Add `## Executive Summary` section to plan-improvements template (after header, before Plan Overview)
-3. [x] Standardize Risk Mitigation table column: both use `Mitigation Strategy` (not `Mitigation`)
-4. [x] Standardize Parallel Work table column: both use `Work Item` (not `Work Item A`)
-5. [x] Add `## Appendix: Recommendation Traceability` table to plan-improvements template (maps recommendation IDs to phases/items)
-6. [x] Standardize the Phase Completion Checklist to 5 items in both (add "Code reviewed (if applicable)" to plan-improvements)
-7. [x] Standardize Testing Requirements format to checkbox lists in both
-8. [x] Standardize Generated timestamp format to `[YYYY-MM-DD HH:MM:SS]` in both
+1. [ ] Add "Related Commands" section to document pipeline commands (`define-questions`, `ask-questions`, `finish-document`) cross-referencing each other
+2. [ ] Add "Related Commands" section to review suite commands (`review-arch`, `review-intent`, `review-pr`) cross-referencing each other
+3. [ ] Add "Related Commands" section to scaffolding commands (`scaffold-plugin`, `new-command`, `new-skill`) cross-referencing each other and `/validate-plugin`
+4. [ ] Add "Related Commands" section to ship pipeline commands (`validate-plugin`, `test-project`) linking to `/validate-and-ship` and `/ship` skills
+5. [ ] Add "Related Commands" section to planning pipeline commands (`plan-improvements`, `create-plan`, `implement-plan`) — these may already have cross-references; verify and standardize format
+6. [ ] Add "Related Commands" sections to remaining commands with appropriate links: `consolidate-documents` links to document pipeline; `convert-markdown` and `convert-hooks` link to each other; `analyze-transcript` and `assess-document` link to each other; `develop-image-prompt` links to `/visual-explainer`; `clean-repo` links to `/validate-plugin`; `bump-version` and `check-updates` link to each other; `remove-ip` links to document pipeline; `setup-statusline` stands alone; `plan-next` links to planning pipeline
+7. [ ] Use consistent format: `- **`/command-name`** — Brief description of when to use it after this command`
 
 **Acceptance Criteria:**
-- [x] Header fields are identical (Generated, Based On/Source Documents, Total Phases, Estimated Total Effort)
-- [x] Both have Executive Summary section
-- [x] All table column names match exactly
-- [x] Both have traceability appendix (Requirement or Recommendation)
-- [x] Footer format matches
+- [ ] All 23 commands have a "Related Commands" section
+- [ ] Cross-references are bidirectional (if A links to B, B links to A)
+- [ ] Format is consistent across all commands
 
 **Notes:**
-The Based On value differs by design (RECOMMENDATIONS.md vs document list). The header field name should be `**Based On:**` in both, with the value varying.
+Place the "Related Commands" section at the very end of each file, after all other content. Keep entries to 1 line each with a dash-separated command name and brief context.
 
 ---
 
-#### 1.3 Replace Token Estimates with Concrete Sizing Heuristics ✅ Completed 2026-02-28
-**Recommendation Ref:** S3, S4
+#### 1.3 Remove Dead References to Non-Existent Files
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** S6
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
+- `plugins/personal-plugin/commands/new-command.md` (modify)
+- `plugins/personal-plugin/commands/new-skill.md` (modify)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
+- `plugins/personal-plugin/commands/define-questions.md` (modify)
+- `plugins/personal-plugin/commands/finish-document.md` (modify)
 
 **Description:**
-Replace token-based phase sizing throughout both commands with concrete, observable heuristics (file count, LOC estimate, relative complexity). Reframe the "100K token" constraint as a context window limit rather than an output budget.
+Remove or replace references to `python scripts/generate-help.py`, `python scripts/update-readme.py`, and `schemas/` directory that do not exist in the repository.
 
 **Tasks:**
-1. [x] Rewrite Phase Sizing Guidelines in plan-improvements to use file/LOC heuristics
-2. [x] Rewrite Phase Sizing Guidelines in create-plan (Section 3.2) to match
-3. [x] Change Phase Summary Table column from `Est. Tokens` to `Est. Complexity` in both templates
-4. [x] Change per-phase header from `**Estimated Effort:** ~X0,000 tokens` to `**Estimated Complexity:** [S/M/L] (~N files, ~N LOC)`
-5. [x] Reframe phase constraint: "Each phase should be completable by a single subagent session. Guideline: read 5-8 files, modify 3-5 files, change ~500 LOC. If a phase exceeds these bounds, split it."
-6. [x] Update complexity scale: S (1-3 files, <100 LOC), M (3-8 files, 100-500 LOC), L (8-15 files, 500-1500 LOC)
-7. [x] Add: "If a phase would be XL (15+ files), split into sub-phases (e.g., Phase 3a, 3b)"
-8. [x] Unify both commands to use same target (S-M per phase, max L), min 2 files per phase
+1. [ ] In `new-command.md`: find and remove references to `python scripts/generate-help.py` and `python scripts/update-readme.py`. Replace with instruction: "Update the plugin's `skills/help/SKILL.md` with the new command entry."
+2. [ ] In `new-skill.md`: find and remove the same dead script references. Replace with the same help skill update instruction.
+3. [ ] In `scaffold-plugin.md`: find and remove dead `python scripts/` references. Replace with instruction to manually update help skill.
+4. [ ] In `define-questions.md`: find references to `schemas/questions.json` or `schemas/` directory. Replace with inline validation rules embedded in the command itself.
+5. [ ] In `finish-document.md`: find and remove `schemas/` directory references. Replace with inline validation rules matching the approach taken in `define-questions.md`.
+6. [ ] Search all other files for any remaining references to `scripts/generate-help.py`, `scripts/update-readme.py`, or `schemas/` and fix any found
 
 **Acceptance Criteria:**
-- [x] No references to "tokens" in Phase Sizing Guidelines, Phase Summary Table, or per-phase headers
-- [x] Both commands use identical sizing scale and guidelines
-- [x] Per-phase and per-work-item estimates use files/LOC, not tokens
-- [x] Explicit guidance for splitting oversized phases
-
-**Notes:**
-The Performance sections at the bottom of each command can retain time estimates (those are for the command's own runtime, not the plan's execution).
+- [ ] Zero references to `python scripts/generate-help.py` or `python scripts/update-readme.py` in any file
+- [ ] Zero references to `schemas/` directory in any file
+- [ ] All removed references replaced with working alternatives
 
 ---
 
-#### 1.4 Add Status Field to Work Item Template ✅ Completed 2026-02-28
-**Recommendation Ref:** U5 (partial)
+#### 1.4 Replace Hardcoded Plugin Lists with Dynamic Scanning
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** S7
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
+- `plugins/personal-plugin/commands/bump-version.md` (modify)
+- `plugins/personal-plugin/commands/check-updates.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
 
 **Description:**
-Add a machine-readable `**Status: PENDING**` field to the work item template in both commands. This field will be updated by `/implement-plan` during execution (PENDING → IN_PROGRESS → COMPLETE [date]).
+Replace hardcoded references to `personal-plugin` and `bpmn-plugin` with instructions to dynamically scan the `plugins/` directory for all installed plugins.
 
 **Tasks:**
-1. [x] Add `**Status: PENDING**` as the first field in the work item template (before Ref field) in both commands
-2. [x] Document the three valid status values in a comment: `<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->`
+1. [ ] In `bump-version.md`: find hardcoded plugin list and replace with instruction: "Scan the `plugins/` directory to discover all installed plugins. List them for the user to select from."
+2. [ ] In `check-updates.md`: find hardcoded plugin list and replace with dynamic scanning instruction
+3. [ ] In `validate-plugin.md`: find hardcoded plugin list and replace with dynamic scanning. Update `--all` flag behavior to scan `plugins/` directory.
+4. [ ] In each file, add fallback: "If no plugins are found in `plugins/`, report an error."
 
 **Acceptance Criteria:**
-- [x] Both planning commands generate work items with `**Status: PENDING**` field
-- [x] Status field is the first field in each work item (easy to scan)
+- [ ] Zero hardcoded references to `personal-plugin` or `bpmn-plugin` as fixed lists in these three files
+- [ ] All three commands discover plugins dynamically from the `plugins/` directory
+- [ ] Adding a new plugin directory automatically makes it visible to these commands
 
 **Notes:**
-The actual status transitions are implemented in Phase 5 (implement-plan changes). This phase just ensures the plans are generated with the field.
+The marketplace.json file can also be used as a secondary source. But directory scanning is the primary mechanism since a plugin can exist locally without being registered in marketplace.json yet.
+
+---
+
+#### 1.5 Fix Secrets Policy Violations
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** S8
+**Files Affected:**
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
+
+**Description:**
+Remove API key setup wizards that write keys directly to `.env` files. Replace with references to the `/unlock` skill as the primary path for loading secrets, per the global CLAUDE.md Bitwarden-first policy.
+
+**Tasks:**
+1. [ ] In `research-topic/SKILL.md`: locate the API key setup wizard section. Replace with: "API keys should be loaded via the `/unlock` skill (Bitwarden-first policy). If secrets are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files."
+2. [ ] In `visual-explainer/SKILL.md`: locate the API key setup wizard section. Apply the same replacement.
+3. [ ] In both files, retain the list of which API keys are needed (e.g., ANTHROPIC_API_KEY, OPENAI_API_KEY) but remove the code that writes them to `.env`
+4. [ ] Add a note: "See CLAUDE.md Secrets Management Policy for details."
+
+**Acceptance Criteria:**
+- [ ] Zero instances of writing API keys to `.env` files in any skill
+- [ ] Both skills reference `/unlock` as the primary secrets path
+- [ ] Required API key names are still documented (for user awareness)
 
 ---
 
 ### Phase 1 Testing Requirements
-- [x] Manually verify both templates produce identical work item structure by comparing side-by-side
-- [x] Verify all table column names match between the two templates
-- [x] Confirm no remaining references to token estimates in sizing guidelines
+- [ ] Verify every command and skill file has `allowed-tools` in frontmatter by scanning all `.md` files
+- [ ] Verify every command has a "Related Commands" section
+- [ ] Grep for `scripts/generate-help.py`, `scripts/update-readme.py`, `schemas/` — zero results
+- [ ] Grep for hardcoded `personal-plugin` and `bpmn-plugin` in bump-version, check-updates, validate-plugin — zero fixed-list results
+- [ ] Grep for `.env` write patterns in research-topic and visual-explainer — zero results
 
 ### Phase 1 Completion Checklist
-- [x] All work items complete
-- [x] Templates verified consistent
-- [x] Documentation updated (CLAUDE.md if schema changes warrant)
-- [x] No regressions in existing command functionality
-- [x] Code reviewed (if applicable)
+- [ ] All work items complete
+- [ ] All 32 files have consistent frontmatter
+- [ ] Cross-references are bidirectional
+- [ ] No dead references remain
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 2: Fix implement-plan Tool API and Safety
+## Phase 2: Major Overhauls
 
-**Estimated Complexity:** M (~1 file, ~300 LOC changed)
-**Dependencies:** None
-**Parallel Groups:** [2.1, 2.2, 2.3] then [2.4]
+**Estimated Complexity:** M (~3 files, ~400-600 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all three files are independent
 
 ### Goals
-- All subagent invocations reference the correct Agent tool API
-- Git operations are safe (selective staging, no auto-merge)
-- Parallel execution path uses actual background agent mechanism
+- `plan-next` is rewritten from scratch as a useful, methodology-driven command
+- `setup-statusline` has proper structure, validation, and safety
+- `consolidate-documents` has clear input flow, output examples, and error handling
 
 ### Work Items
 
-#### 2.1 Rewrite Subagent Invocations to Use Agent Tool ✅ Completed 2026-02-28
-**Recommendation Ref:** T1
+#### 2.1 Rewrite `plan-next.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R1
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/plan-next.md` (modify)
 
 **Description:**
-Replace all references to "Task tool" with "Agent tool" throughout implement-plan.md. Update parameter names and invocation patterns to match the actual Claude Code Agent tool API. Fix the parallel path (Path B) to use `run_in_background: true` on Agent tool calls and `TaskOutput` for collecting results.
+Complete rewrite of plan-next from its current 47-line skeleton to a 150-200 line structured command. Replaces "Ultrathink" jargon with concrete methodology, adds plan-awareness, git-awareness, a decision matrix, structured output template, error handling, and examples.
 
 **Tasks:**
-1. [x] Replace STARTUP instructions: change "Spawn a subagent (subagent_type: 'general-purpose')" to "Launch an Agent (subagent_type: 'general-purpose', prompt: '...')"
-2. [x] Update all sequential subagent invocations (Steps A1, A2, A3) with correct Agent tool syntax
-3. [x] Update all parallel subagent invocations (Steps B1) to use `run_in_background: true` on Agent tool
-4. [x] Rewrite Step B2 (Collect Results): replace "read output files" with "use TaskOutput to check background agent results; you will be notified when each completes"
-5. [x] Update NEXT ITERATION subagent invocation
-6. [x] Update finalization documentation polish subagent invocation
-7. [x] Clarify in the Context Window Discipline table: "Task" refers to TaskCreate/TaskUpdate/TaskList (progress tracking), "Agent" refers to launching subagents
+1. [ ] Replace the entire command body with a new structured format
+2. [ ] Add plan-awareness: "Step 1: Check for IMPLEMENTATION_PLAN.md. If found, read it and identify the next PENDING work item. Check for RECOMMENDATIONS.md. Report both."
+3. [ ] Add git-awareness: "Step 2: Run `git status`, check for uncommitted changes. Run `git branch --list` and `gh pr list` to check for open branches and PRs."
+4. [ ] Add decision matrix section: "Priority order: (1) Blocked work — items marked IN_PROGRESS or with uncommitted changes, (2) Critical fixes — any RECOMMENDATIONS.md items marked Critical, (3) Next plan phase — next PENDING item in IMPLEMENTATION_PLAN.md, (4) Highest-priority recommendation — if no plan exists"
+5. [ ] Add structured output template: "## Current State" (plan status, git status, open PRs), "## Recommended Action" (what to do next), "## Rationale" (why this action), "## Scope Estimate" (S/M/L with standard sizing table)
+6. [ ] Replace "~100K tokens" with standard S/M/L sizing table matching plan-improvements format
+7. [ ] Add error handling section: no plan file found, no recommendations found, all items complete, dirty git state
+8. [ ] Add example of output for each scenario (plan in progress, no plan, all complete)
+9. [ ] Update `allowed-tools` to: `Read, Glob, Grep, Bash(git:*), Bash(gh:*)`
 
 **Acceptance Criteria:**
-- [x] Zero references to "Task tool" for spawning subagents (Task is only for TaskCreate/TaskUpdate/TaskList)
-- [x] All subagent invocations use Agent tool with correct parameters
-- [x] Path B uses `run_in_background: true` and `TaskOutput` for result collection
-- [x] Context Window Discipline table correctly distinguishes Task (tracking) from Agent (delegation)
+- [ ] Command is 150-200 lines with clear methodology
+- [ ] Checks for IMPLEMENTATION_PLAN.md and RECOMMENDATIONS.md
+- [ ] Checks git status and open PRs
+- [ ] Produces structured output with Current State, Recommended Action, Rationale, Scope Estimate
+- [ ] Zero instances of "Ultrathink" jargon
+- [ ] Has error handling and examples sections
 
 **Notes:**
-The `allowed-tools` frontmatter currently lists `Task, Skill`. After this change, it should list `Agent, Task` (Agent for subagents, Task for progress tracking). See work item 2.3 for allowed-tools changes.
+This is the highest-value rewrite. A working plan-next command closes the loop on the planning pipeline — plan-improvements generates recommendations, create-plan builds the plan, implement-plan executes it, and plan-next tells you what to do next at any point.
 
 ---
 
-#### 2.2 Replace git add -A with Selective Staging ✅ Completed 2026-02-28
-**Recommendation Ref:** T3
+#### 2.2 Rewrite `setup-statusline.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R2
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/setup-statusline.md` (modify)
 
 **Description:**
-Replace all instances of `git add -A` with selective staging using the file lists returned by subagents. Add a pre-staging check to surface unexpected files.
+Restructure setup-statusline from a PowerShell script dump into a proper phased command with pre-flight checks, safe file operations, and verification. Currently 175 lines with 80% being a raw script and no validation or error handling.
 
 **Tasks:**
-1. [x] Replace Step A4 commit sequence with: (a) `git status --short` to detect unexpected files, (b) `git add [files-from-subagent] IMPLEMENTATION_PLAN.md`, (c) optionally add PROGRESS.md and LEARNINGS.md if they were updated, (d) `git commit -m "..."`
-2. [x] Replace Step B5 commit sequence with same pattern but collecting file lists from all parallel subagents
-3. [x] Replace finalization commit with explicit file staging
-4. [x] Add instruction: "If `git status` shows unexpected untracked files not in the subagent's file list, warn the user and do not stage them"
+1. [ ] Add phased structure: Phase 1 (Pre-flight checks) -> Phase 2 (Create/update script) -> Phase 3 (Merge settings) -> Phase 4 (Verification)
+2. [ ] Phase 1: Detect `pwsh` version (require PowerShell 7+). Check if `settings.json` already exists. Check if statusline script already exists.
+3. [ ] Phase 2: Write the statusline PowerShell script to the target location. If file exists, back it up first with timestamp suffix.
+4. [ ] Phase 3: Implement settings.json merge logic — read existing settings, add/update the statusline configuration, write back. Do NOT overwrite the entire file.
+5. [ ] Phase 4: Run a verification step that tests the statusline script produces expected output format
+6. [ ] Add `--dry-run` flag: show what would be changed without making changes
+7. [ ] Add `--uninstall` flag: remove statusline configuration and script, restoring backups if available
+8. [ ] Add error handling section: pwsh not found, wrong version, settings.json parse error, script write failure, permission errors
+9. [ ] Add backup documentation: "All overwritten files are backed up to `[filename].backup.[timestamp]`"
 
 **Acceptance Criteria:**
-- [x] Zero instances of `git add -A` in the command
-- [x] All commit sequences start with `git status --short` check
-- [x] Staging uses explicit file paths from subagent results
+- [ ] Command has 4 distinct phases with clear boundaries
+- [ ] Never overwrites settings.json without merging
+- [ ] Backs up existing files before modification
+- [ ] `--dry-run` and `--uninstall` flags documented
+- [ ] PowerShell version detection present
+- [ ] Error handling section with specific failure modes
 
 **Notes:**
-The implementation subagent prompt already says "Return ONLY: (1) files created/modified" — this output is what drives the staging list.
+The PowerShell script content itself is fine and does not need to change. The issue is the command's structure around it — no validation, no merge logic, no safety nets.
 
 ---
 
-#### 2.3 Update allowed-tools and Default Behavior ✅ Completed 2026-02-28
-**Recommendation Ref:** T2, U2
+#### 2.3 Overhaul `consolidate-documents.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R3
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
 
 **Description:**
-Update the frontmatter `allowed-tools` to include Agent tool and comprehensive Bash permissions (matching test-project patterns). Remove unused Skill permission. Change finalization default from auto-merge to PR-only.
+Expand consolidate-documents from 134 lines to 250+ lines. Resolve contradictory input flow, add complete output example with consolidation notes, add flags, and add error handling.
 
 **Tasks:**
-1. [x] Update frontmatter `allowed-tools` to: `Agent, Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task`
-2. [x] Remove `Skill` from allowed-tools
-3. [x] Change Finalization Step 2 default: create PR with comprehensive body, output URL, STOP
-4. [x] Add `--auto-merge` flag description in Input Validation section
-5. [x] When `--auto-merge` is specified, execute current merge behavior
-6. [x] Generate descriptive PR title from actual phases implemented, not "Implementation Complete"
+1. [ ] Resolve contradictory input flow: pick one mechanism for specifying input files. Recommended: accept file paths as arguments, with interactive prompting as fallback if no arguments given.
+2. [ ] Add `--format` flag: output format (markdown, text). Default: markdown.
+3. [ ] Add `--preview` flag: show consolidated outline before writing full output
+4. [ ] Add `--no-prompt` flag: skip confirmation prompts for automation
+5. [ ] Define how `[topic]` is derived in output filename: "Use the common topic across all input documents. If documents have different topics, prompt the user for a topic name."
+6. [ ] Add complete output example showing: header with source documents listed, consolidation notes explaining what was merged/resolved, the consolidated content itself
+7. [ ] Add error handling section: no files specified and none found, single document provided (nothing to consolidate), files in different formats, identical documents (no consolidation needed), file not found, binary file provided
+8. [ ] Add context management: "For large documents, read each document's structure first (headings, sections) before reading full content. If total content exceeds 60% of context, summarize less important sections."
 
 **Acceptance Criteria:**
-- [x] `allowed-tools` includes Agent and comprehensive Bash permissions
-- [x] `Skill` removed from allowed-tools
-- [x] Default finalization creates PR and stops (no merge)
-- [x] `--auto-merge` flag documented and triggers merge behavior
-- [x] PR title is descriptive (e.g., "Implement: [Phase titles]")
+- [ ] Single, clear input mechanism (no contradictions)
+- [ ] `--format`, `--preview`, `--no-prompt` flags documented
+- [ ] Complete output example present
+- [ ] Topic derivation logic defined
+- [ ] Error handling section with 6+ failure modes
+- [ ] Expanded to 250+ lines
 
 **Notes:**
-Test whether subagents inherit parent's allowed-tools restrictions. If they do, the comprehensive Bash list is critical. If they don't, it's still good practice for the parent agent.
-
----
-
-#### 2.4 Add Input Arguments to implement-plan ✅ Completed 2026-02-28
-**Recommendation Ref:** R7 (partial)
-**Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
-
-**Description:**
-Add optional arguments that the command currently lacks: `--input <path>` for non-default plan locations, `--auto-merge` for opting into merge behavior, and `--pause-between-phases` for interactive mode.
-
-**Tasks:**
-1. [x] Add Optional Arguments section to Input Validation: `--input <path>` (default: IMPLEMENTATION_PLAN.md), `--auto-merge` (default: false), `--pause-between-phases` (default: false)
-2. [x] Update the IMPLEMENTATION_PLAN.md existence check to use the `--input` path
-3. [x] Thread the input path through all subagent prompts that reference "Read IMPLEMENTATION_PLAN.md"
-
-**Acceptance Criteria:**
-- [x] `--input` flag works for custom plan file locations
-- [x] `--auto-merge` and `--pause-between-phases` flags documented
-- [x] Default behavior (no flags) reads from repo root and stops at PR creation
-
-**Notes:**
-This resolves the misalignment where `/create-plan --output docs/plan.md` creates a plan that `/implement-plan` can't find.
+This is the most complex overhaul in terms of design decisions. The contradictory input flow is the root cause of user confusion — resolving it cleanly is the priority.
 
 ---
 
 ### Phase 2 Testing Requirements
-- [x] Verify all subagent invocation patterns match actual Agent tool API
-- [x] Verify no instances of `git add -A` remain
-- [x] Verify finalization defaults to PR-only
+- [ ] Verify plan-next produces structured output with all four sections
+- [ ] Verify setup-statusline has merge logic for settings.json
+- [ ] Verify consolidate-documents has single clear input mechanism
+- [ ] Verify all three files have error handling sections
 
 ### Phase 2 Completion Checklist
-- [x] All work items complete
-- [x] Agent tool references verified correct
-- [x] Git safety improvements in place
-- [x] No regressions in existing command functionality
-- [x] Code reviewed (if applicable)
+- [ ] All work items complete
+- [ ] All three commands significantly expanded and restructured
+- [ ] Documentation updated (help skill entries for changed commands)
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 3: Context Window Management
+## Phase 3: Structural Improvements Part A
 
-**Estimated Complexity:** M (~3 files, ~150 LOC changed)
-**Dependencies:** Phases 1-2
-**Parallel Groups:** [3.1, 3.2] then [3.3]
+**Estimated Complexity:** M (~4 files, ~300-500 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all four files are independent
 
 ### Goals
-- plan-improvements reliably completes on 200+ file codebases
-- implement-plan remains coherent through 30+ work items
-- Graceful degradation when context pressure is detected
+- define-questions and finish-document have consistent, working schema references
+- review-arch uses task-based assessment with structured output template
+- check-updates has an honest description of what it actually does
 
 ### Work Items
 
-#### 3.1 Add Sampling Strategy to plan-improvements ✅ Completed 2026-02-28
-**Recommendation Ref:** C1
+#### 3.1 Fix `define-questions.md` Phantom Schema References
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R4
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+- `plugins/personal-plugin/commands/define-questions.md` (modify)
 
 **Description:**
-Add explicit context management instructions to Phase 1 (Deep Codebase Analysis) that prevent context exhaustion on medium-to-large codebases. Add a Context Budget row to the Performance table.
+Replace references to non-existent `schemas/questions.json` with inline validation rules. Standardize field names and add missing fields to ensure JSON and CSV formats are consistent.
 
 **Tasks:**
-1. [x] Add "Context Management" subsection at the start of Phase 1 with sampling strategy: (a) always read config/metadata files, (b) always read entry points and public API surfaces, (c) sample 2-3 representative files per module/directory, (d) deep-read only files flagged as high-complexity or problematic
-2. [x] Add threshold: "For codebases over 100 files, use sampling. For under 100 files, full analysis is fine."
-3. [x] Add instruction: "Reserve at least 40% of context for output generation. If analysis has consumed over 60% of available context, stop reading files and begin generating output."
-4. [x] Add Context Budget row to Performance table: "Small: ~30K tokens for analysis. Medium: ~50K. Large: ~70K. Reserve remainder for output."
+1. [ ] Remove all references to `schemas/questions.json` or `schemas/` directory
+2. [ ] Add inline validation rules section: define the expected JSON schema directly in the command file with required fields, types, and constraints
+3. [ ] Standardize on one field name: use `question` (not `text`) across all output formats
+4. [ ] Add `priority` field to JSON schema example to match CSV format (both formats should have the same fields)
+5. [ ] Add error handling section: file not found, empty document, binary file, no questions found, document too large for context
+6. [ ] Add "Related Commands" section linking to `/ask-questions` and `/finish-document` (if not already added in Phase 1)
 
 **Acceptance Criteria:**
-- [x] Sampling strategy documented with clear thresholds
-- [x] Context budget guidance in Performance table
-- [x] 40% reservation instruction present
-
-**Notes:**
-The sampling strategy should also mention using Agent tool with `subagent_type=Explore` for broad codebase searches to avoid flooding main context.
+- [ ] Zero references to `schemas/` directory
+- [ ] Inline validation rules present in the command
+- [ ] Field names consistent between JSON and CSV formats
+- [ ] `priority` field present in both formats
+- [ ] Error handling section present
 
 ---
 
-#### 3.2 Restructure implement-plan Loop for State Shedding ✅ Completed 2026-02-28
-**Recommendation Ref:** C2
+#### 3.2 Fix `finish-document.md` Phantom References and Resume Contradiction
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R5
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/finish-document.md` (modify)
 
 **Description:**
-Redesign the main loop to use a lightweight state file as the ground truth rather than accumulating conversational state. STARTUP returns only the first batch, not everything. NEXT ITERATION uses the state file rather than re-reading the full plan.
+Resolve phantom schema references (same approach as 3.1), fix the contradictory resume mechanism, add bounds checking for navigation, and expand error handling.
 
 **Tasks:**
-1. [x] Define state file format: `.implement-plan-state.json` with fields: `current_phase`, `current_item`, `completed` (array), `failed` (array), `project_context` (tech_stack, test_command, conventions), `checkpoints` (item→SHA mapping)
-2. [x] Modify STARTUP: return only the first phase's items + parallelization info + project context. Write initial state file.
-3. [x] Modify NEXT ITERATION: read state file to determine next item/batch. Only spawn a plan-reading subagent if state file is missing or ambiguous.
-4. [x] Add state shedding instruction: "After every 5 completed work items, discard previous subagent summaries from conversational memory. The state file is the sole source of truth."
-5. [x] After each work item completion, update state file (add to `completed`, update `current_item`)
+1. [ ] Remove all `schemas/` directory references. Add inline validation rules matching the approach in define-questions (work item 3.1)
+2. [ ] Pick one resume mechanism: auto-detect unanswered questions from the JSON file (recommended). Remove the contradictory explicit flag approach. Document the chosen mechanism clearly.
+3. [ ] Add bounds checking for `go to [N]` navigation: "Validate that N is within the range of questions (1 to total). If out of bounds, display available range and reprompt."
+4. [ ] Expand error handling section: questions file not found, questions file has no unanswered items, source document not found, source document is read-only, question index out of bounds, malformed JSON in questions file
+5. [ ] Add performance guidance: "For documents with 50+ questions, process in batches of 10. Show progress indicator."
 
 **Acceptance Criteria:**
-- [x] `.implement-plan-state.json` defined with all required fields
-- [x] STARTUP returns only first batch, not full inventory
-- [x] NEXT ITERATION reads state file, not full plan
-- [x] State shedding instruction present
-
-**Notes:**
-The state file should be added to `.gitignore` since it's ephemeral execution state, not a project artifact.
+- [ ] Zero references to `schemas/` directory
+- [ ] Single, clear resume mechanism (no contradiction)
+- [ ] Bounds checking for question navigation
+- [ ] Error handling section with 6+ failure modes
+- [ ] Performance guidance for large question sets
 
 ---
 
-#### 3.3 Add Optional Two-Stage Output to plan-improvements ✅ Completed 2026-02-28
-**Recommendation Ref:** C3
+#### 3.3 Restructure `review-arch.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R6
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+- `plugins/personal-plugin/commands/review-arch.md` (modify)
 
 **Description:**
-Add a `--recommendations-only` flag that stops after generating RECOMMENDATIONS.md. Add graceful degradation that saves recommendations early if context pressure is detected.
+Rewrite assessment dimensions as imperative tasks (matching plan-improvements style). Add structured output template. Define T-shirt sizes. Add examples. Move read-only guardrail to top.
 
 **Tasks:**
-1. [x] Add `--recommendations-only` (alias `--no-plan`) to Optional Arguments section
-2. [x] When flag is set, skip Phase 3 (plan generation) and go directly to Phase 4 (save and report)
-3. [x] Add instruction in Phase 2 → Phase 3 transition: "Save RECOMMENDATIONS.md to disk before beginning Phase 3 (plan generation). This ensures recommendations are preserved if the session is interrupted during plan generation."
-4. [x] Add to summary report: "To generate an implementation plan from these recommendations, run `/create-plan RECOMMENDATIONS.md`"
+1. [ ] Move "DO NOT MAKE ANY CHANGES TO FILES" guardrail from wherever it is to the top of the file, immediately after frontmatter, before any instructions
+2. [ ] Rewrite assessment dimensions from descriptive/question format to imperative task-based format. For example: "Trace the 3 most common user workflows..." instead of "Consider the usability of..."
+3. [ ] Add structured output template: "## Executive Summary" (2-3 paragraphs), "## Architecture Scorecard" (table with dimensions and ratings), "## Findings" (numbered, severity-tagged), "## Remediation Roadmap" (prioritized list with T-shirt sizes)
+4. [ ] Define T-shirt sizes with standard S/M/L table matching plan-improvements complexity scale
+5. [ ] Add examples section: show a sample scorecard table and 2-3 sample findings with proper formatting
+6. [ ] Add error handling section: empty project, project too large for context, no source code found
 
 **Acceptance Criteria:**
-- [x] `--recommendations-only` flag documented and functional
-- [x] RECOMMENDATIONS.md saved before plan generation begins
-- [x] Summary report includes next-step guidance when plan is skipped
+- [ ] Read-only guardrail is at the top of the file
+- [ ] Assessment dimensions use imperative tasks, not questions
+- [ ] Structured output template with 4 sections
+- [ ] T-shirt size definitions present
+- [ ] Examples section present
+
+---
+
+#### 3.4 Rethink `check-updates.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R7
+**Files Affected:**
+- `plugins/personal-plugin/commands/check-updates.md` (modify)
+
+**Description:**
+Either make check-updates a true remote check (fetching latest marketplace.json from GitHub) or reframe it honestly as a "version consistency audit". Remove misleading "Updates Available" language if keeping local-only. Add error handling.
+
+**Tasks:**
+1. [ ] Decide approach: implement true remote check using `gh api` to fetch the latest `marketplace.json` from the `davistroy/claude-marketplace` repository, comparing remote versions against locally installed versions
+2. [ ] If remote check approach: add `gh api repos/davistroy/claude-marketplace/contents/.claude-plugin/marketplace.json` call to fetch remote version data. Compare remote `version` fields against local `plugins/*/. claude-plugin/plugin.json` versions.
+3. [ ] Remove misleading "Updates Available" language if the command cannot actually check remote versions. Replace with "Version Consistency Report" if local-only.
+4. [ ] Add proper error handling section: GitHub API unavailable, no network connection, marketplace not configured, invalid version format, local plugin not in marketplace
+5. [ ] Add output format: table showing plugin name, local version, remote version (or N/A), status (up-to-date, update available, local-only)
+
+**Acceptance Criteria:**
+- [ ] Command either checks remote versions or is honestly labeled as local-only
+- [ ] No misleading "Updates Available" language if local-only
+- [ ] Error handling section present
+- [ ] Clear output format defined
 
 **Notes:**
-This requires `/create-plan` to accept RECOMMENDATIONS.md as a valid "requirements document" in its discovery phase. Add "RECOMMENDATIONS.md" to the search patterns in create-plan's Phase 1.1.
+The remote check approach is preferred since the entire point of this command is to know if updates exist. A local-only version consistency audit is a fallback if remote access proves unreliable.
 
 ---
 
 ### Phase 3 Testing Requirements
-- [x] Verify plan-improvements sampling strategy produces actionable output on large codebases
-- [x] Verify implement-plan state file is written and read correctly through multi-item execution
-- [x] Verify `--recommendations-only` stops after RECOMMENDATIONS.md
+- [ ] Verify zero references to `schemas/` in define-questions and finish-document
+- [ ] Verify review-arch produces structured output with scorecard and findings
+- [ ] Verify check-updates has accurate description of its capabilities
+- [ ] Verify all four files have error handling sections
 
 ### Phase 3 Completion Checklist
-- [x] All work items complete
-- [x] Context management tested on representative codebases
-- [x] State file mechanism documented
-- [x] No regressions in existing command functionality
-- [x] Code reviewed (if applicable)
+- [ ] All work items complete
+- [ ] Schema references resolved consistently
+- [ ] Review-arch output template tested
+- [ ] Check-updates honestly represents its capabilities
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 4: Analysis Quality and User Guardrails
+## Phase 4: Structural Improvements Part B
 
-**Estimated Complexity:** M (~2 files, ~250 LOC changed)
+**Estimated Complexity:** M (~5 files, ~300-500 LOC)
 **Dependencies:** Phase 1
-**Parallel Groups:** [4.1, 4.2, 4.3] then [4.4, 4.5]
+**Parallelizable:** Yes — all five files are independent
 
 ### Goals
-- plan-improvements catches security, performance, and dependency issues
-- Analysis produces evidence-based findings rather than subjective commentary
-- create-plan accounts for existing codebase and confirms scope with user
+- scaffold-plugin produces correct skill paths
+- convert-hooks has honest expectations about conversion quality
+- convert-markdown has useful analysis or removes dead analysis step
+- new-command references working post-generation steps
+- security-analysis has proper structure for a skill
 
 ### Work Items
 
-#### 4.1 Add Missing Analysis Dimensions to plan-improvements ✅ Completed 2026-02-28
-**Recommendation Ref:** A1
+#### 4.1 Fix `scaffold-plugin.md` Correctness Bug
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R8
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
 
 **Description:**
-Add Security Posture, Performance, Dependency Health, and CI/CD Pipeline as first-class analysis dimensions in Phase 1. Port specific analysis patterns from `/review-arch`. Make recommendation categories dynamic rather than fixed at 5.
+Fix the bug where scaffold-plugin outputs `skills/help.md` instead of the correct `skills/help/SKILL.md`. Remove dead script references. Extract inline help template. Add `--dry-run` flag. Fix JSON keywords example.
 
 **Tasks:**
-1. [x] Add "Security Posture" subsection: hardcoded secrets/credentials, input validation gaps, authentication/authorization patterns, dependency CVEs (check with audit tools if available)
-2. [x] Add "Performance & Scalability" subsection: N+1 queries, blocking ops in async contexts, missing caching, resource cleanup, memory management
-3. [x] Add "Dependency Health" subsection: outdated dependencies, floating versions without lock files, license compliance, transitive vulnerabilities
-4. [x] Add "CI/CD Pipeline" subsection: build pipeline health, coverage enforcement, quality gates, deployment complexity
-5. [x] Change recommendation categories instruction: "Use 3-7 categories derived from actual findings. The listed categories are starting suggestions, not a rigid structure. Add Security, Performance, or CI/CD categories when findings warrant them."
-6. [x] Add category prefix mapping for new categories: S = Security, P = Performance, CI = CI/CD, DH = Dependency Health
+1. [ ] Fix bug: change `skills/help.md` to `skills/help/SKILL.md` in the output report/generation sections (search for all occurrences)
+2. [ ] Remove dead `python scripts/` references (may already be done in Phase 1 work item 1.3; verify and remove any remaining)
+3. [ ] Extract the ~80-line inline help template to a reference file or clearly mark it as an embedded template with start/end markers for maintainability
+4. [ ] Add `--dry-run` flag: "Show the directory structure and file list that would be created without creating any files"
+5. [ ] Fix JSON `keywords` example: ensure the example shows valid JSON array syntax
+6. [ ] Add error handling section: target directory already exists, invalid plugin name (special characters), disk full, permission errors
 
 **Acceptance Criteria:**
-- [x] 9 analysis dimensions total (5 existing + 4 new)
-- [x] Each new dimension has 3-5 specific things to look for (not open questions)
-- [x] Recommendation categories are dynamic (3-7) not fixed (5)
-- [x] New category prefixes defined for recommendation IDs
-
-**Notes:**
-These additions increase analysis thoroughness but also increase context consumption. The sampling strategy from Phase 3 (work item 3.1) helps offset this.
+- [ ] All references to help skill use correct path `skills/help/SKILL.md`
+- [ ] Zero dead script references
+- [ ] `--dry-run` flag documented
+- [ ] JSON examples are valid
+- [ ] Error handling section present
 
 ---
 
-#### 4.2 Define Priority Rubric and Impact/Effort Matrix ✅ Completed 2026-02-28
-**Recommendation Ref:** A2
+#### 4.2 Improve `convert-hooks.md` Honesty
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R9
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+- `plugins/personal-plugin/commands/convert-hooks.md` (modify)
 
 **Description:**
-Add explicit definitions for Priority levels and instruction to populate Quick Wins mechanically from an Impact/Effort matrix.
+Add prominent warning about conversion limitations, add concrete before/after example, add platform detection, and add validation step for generated scripts.
 
 **Tasks:**
-1. [x] Add Priority Rubric subsection before Phase 2: Critical = production outage risk, security vulnerability, or data integrity threat. High = blocks feature development or causes regular developer friction. Medium = improves code quality but is not blocking. Low = nice-to-have optimization or style improvement.
-2. [x] Add instruction: "After categorizing all recommendations, plot them on a 2x2 Impact vs Effort matrix. Populate the Quick Wins section from the High-Impact/Low-Effort quadrant. Populate Strategic Initiatives from the High-Impact/High-Effort quadrant."
-3. [x] Add minimum 3 items requirement for Not Recommended section with per-item template: Title, Why Considered, Why Rejected, Conditions for Reconsideration
+1. [ ] Add prominent warning at the top (after frontmatter): "**Limitation:** Automated conversion handles only simple bash scripts (variable assignments, conditionals, file operations, path manipulations). Complex scripts with pipes, process substitution, awk/sed, or signal handling require manual review."
+2. [ ] Add concrete before/after example: show a simple bash hook (5-10 lines) and its PowerShell equivalent
+3. [ ] Add platform detection: "Detect the current platform. On Windows, convert bash to PowerShell. On macOS/Linux, convert PowerShell to bash. Do not present both conversion directions — detect and offer the relevant one."
+4. [ ] Add `--validate` step: "After generating the PowerShell script, run `pwsh -c 'Get-Command -Syntax ...'` or equivalent syntax check to verify the script is valid PowerShell"
+5. [ ] Add error handling section: source hook file not found, unsupported script complexity, PowerShell not installed, validation failure
 
 **Acceptance Criteria:**
-- [x] Priority definitions documented with examples
-- [x] Quick Wins populated mechanically from matrix
-- [x] Not Recommended section has structured template and minimum 3 items
-
-**Notes:**
-Port severity definitions from `/review-arch` Phase 3 (Technical Debt Inventory).
+- [ ] Conversion limitation warning is prominently placed
+- [ ] Before/after example present
+- [ ] Platform detection replaces manual direction listing
+- [ ] Validation step documented
+- [ ] Error handling section present
 
 ---
 
-#### 4.3 Replace Question-Based with Task-Based Analysis ✅ Completed 2026-02-28
-**Recommendation Ref:** A3
+#### 4.3 Expand `convert-markdown.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R10
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+- `plugins/personal-plugin/commands/convert-markdown.md` (modify)
 
 **Description:**
-Rewrite Phase 1 analysis subsections from open-ended questions to concrete, countable tasks that produce evidence-based findings with file references.
+Either make the pre-conversion analysis step useful (by customizing pandoc flags based on document content) or remove it. Add error handling for pandoc failures. Add optional flags.
 
 **Tasks:**
-1. [x] Rewrite Usability Assessment: "Trace the 3 most common user workflows from entry point to completion. For each, count the steps, identify redundant operations, and note error handling gaps."
-2. [x] Rewrite Output Quality Assessment: "Generate sample output from 3 representative inputs. Compare against professional standards. Identify format inconsistencies, missing validations, and edge cases that produce degraded output."
-3. [x] Rewrite Architecture & Design: "Map the dependency graph between top-level modules. Identify all files exceeding 300 lines. Flag functions over 50 lines as complexity hotspots. List all `catch`/`except` blocks that swallow errors silently."
-4. [x] Rewrite Developer Experience: "Attempt the 'new feature' workflow: what files must be created/modified and what conventions must be followed? Identify all undocumented conventions that a new contributor would miss."
-5. [x] Rewrite Missing Capabilities: "Compare against a capabilities checklist for this project type. For CLI tools: help system, verbose/quiet modes, config file support, exit codes, shell completion. For web apps: error pages, loading states, accessibility. For libraries: documentation, examples, changelog."
+1. [ ] Decide on analysis step: keep it and make it useful by having it detect document features (tables, code blocks, images, math) and add corresponding pandoc flags (`--highlight-style`, `--reference-doc`, `--toc`). If features detected, explain what flags were added and why.
+2. [ ] Add `--no-toc` flag: skip table of contents generation
+3. [ ] Add `--style <path>` flag: use a custom reference document for styling
+4. [ ] Add `--dry-run` flag: show the pandoc command that would be run without executing it
+5. [ ] Add error handling section: pandoc not installed (with installation instructions per platform), source file not found, pandoc conversion failure (exit code != 0), output file already exists (overwrite confirmation), unsupported markdown features
 
 **Acceptance Criteria:**
-- [x] Each analysis dimension uses 3-5 concrete tasks instead of open questions
-- [x] Tasks produce countable, file-referenced findings
-- [x] No analysis prompt is phrased as a yes/no or subjective question
-
-**Notes:**
-This is the biggest quality-of-output improvement. Task-based prompts produce enumerated findings; question-based prompts produce paragraphs of commentary.
+- [ ] Analysis step either produces actionable pandoc flag customization or is removed
+- [ ] `--no-toc`, `--style`, `--dry-run` flags documented
+- [ ] Error handling section with pandoc-specific failure modes
+- [ ] Platform-specific pandoc installation instructions
 
 ---
 
-#### 4.4 Add Codebase Reconnaissance to create-plan ✅ Completed 2026-02-28
-**Recommendation Ref:** A4
+#### 4.4 Fix `new-command.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R11
 **Files Affected:**
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
+- `plugins/personal-plugin/commands/new-command.md` (modify)
 
 **Description:**
-Add a lightweight codebase scan between document discovery and requirements analysis so plans account for existing code rather than assuming greenfield.
+Remove dead script references (verify Phase 1 cleanup), add plugin target parameter, add `orchestration` pattern type, add post-generation validation.
 
 **Tasks:**
-1. [x] Add "Phase 1.5: Codebase Reconnaissance" section between Phase 1 (Document Discovery) and Phase 2 (Requirements Analysis)
-2. [x] Scan: project structure, tech stack, test infrastructure, CI/CD configuration
-3. [x] Cross-reference: identify features in requirements documents that already exist in the codebase. Flag: "PRD section X describes [feature] — the project already has [path]. Plan should extend, not rebuild."
-4. [x] Feed into Phase 3: existing code patterns inform implementation approach in work items
+1. [ ] Verify dead `python scripts/` references were removed in Phase 1 (work item 1.3). If any remain, remove them now. Replace with: "After generation, update `skills/help/SKILL.md` with the new command entry."
+2. [ ] Add plugin target parameter: "Detect which plugin the user is working in. If multiple plugins exist, prompt for target plugin. If only one plugin exists, use it automatically."
+3. [ ] Add `orchestration` to the list of command pattern types (alongside generator, read-only, interactive, workflow, etc.)
+4. [ ] Add post-generation validation step: "After creating the command file, run a quick validation: check frontmatter has required fields, check file is in the correct `commands/` directory, verify no duplicate command name exists."
+5. [ ] Add error handling: invalid command name, command already exists, target plugin not found
 
 **Acceptance Criteria:**
-- [x] Codebase reconnaissance step documented
-- [x] Already-implemented features detected and flagged
-- [x] Plan accounts for existing code (extends rather than rebuilds)
-
-**Notes:**
-Keep this lightweight (5-10 minutes max). It's not a full `/plan-improvements` analysis — just enough to avoid greenfield-on-brownfield plans.
+- [ ] Zero dead script references
+- [ ] Plugin target detection implemented
+- [ ] `orchestration` pattern type listed
+- [ ] Post-generation validation step present
+- [ ] Error handling section present
 
 ---
 
-#### 4.5 Add Confirmation Checkpoint to create-plan ✅ Completed 2026-02-28
-**Recommendation Ref:** U1
+#### 4.5 Overhaul `security-analysis` Skill
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R12
 **Files Affected:**
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
+- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
 
 **Description:**
-Add a user approval gate between requirements analysis and plan generation, presenting the extracted feature list, proposed phases, and assumptions.
+Add input validation with arguments, add proactive trigger section, add error handling, remove duplicate inline technology patterns (that duplicate separate reference files), and replace emoji severity labels with text.
 
 **Tasks:**
-1. [x] Add "Phase 2.5: Scope Confirmation" section after Phase 2 (Requirements Analysis)
-2. [x] Present: extracted feature list with proposed priorities, proposed number of phases and rough grouping, scoping assumptions, any features flagged as already implemented
-3. [x] Ask: "Proceed with this scope? (yes / adjust / abort)"
-4. [x] If "adjust": accept modifications and re-plan
-5. [x] If "abort": stop and report what was analyzed
+1. [ ] Add input validation section with optional arguments: path scope (directory to analyze), `--quick` (surface scan only), `--dependencies-only` (only check dependency vulnerabilities)
+2. [ ] Add proactive trigger section: "Suggest this skill when: (1) user mentions security, vulnerabilities, or audit; (2) after scaffolding a new project; (3) before a release or deployment; (4) when reviewing code that handles authentication, authorization, or user input"
+3. [ ] Add error handling section: no source files found, project too large, audit tools not installed, permission denied on file access
+4. [ ] Add output location: "Write security report to `reports/security-analysis-[timestamp].md`"
+5. [ ] Add performance expectations: "Quick scan: 1-3 minutes. Full scan: 5-15 minutes depending on codebase size."
+6. [ ] Remove inline technology detection patterns that duplicate content already in the `references/` directory. Replace with: "Refer to reference files for technology-specific patterns."
+7. [ ] Replace emoji severity indicators (if any) with text labels: CRITICAL, HIGH, MEDIUM, LOW
 
 **Acceptance Criteria:**
-- [x] Scope confirmation presented before plan generation begins
-- [x] User can approve, adjust, or abort
-- [x] Assumptions explicitly listed
-
-**Notes:**
-Keep the confirmation compact — a table, not a multi-page document. The goal is a 30-second review, not a deep read.
+- [ ] Input arguments documented (path, --quick, --dependencies-only)
+- [ ] Proactive trigger section present
+- [ ] Error handling section present
+- [ ] No duplicate content between skill and reference files
+- [ ] Severity uses text labels, not emoji
 
 ---
 
 ### Phase 4 Testing Requirements
-- [x] Verify new analysis dimensions produce findings on representative codebases
-- [x] Verify priority rubric produces consistent priority assignments across runs
-- [x] Verify task-based analysis produces file-referenced findings
-- [x] Verify codebase reconnaissance catches already-implemented features
-- [x] Verify scope confirmation checkpoint pauses for user input
+- [ ] Verify scaffold-plugin generates correct `skills/help/SKILL.md` path
+- [ ] Verify convert-hooks has limitation warning and before/after example
+- [ ] Verify convert-markdown analysis step is useful or removed
+- [ ] Verify new-command has plugin target detection
+- [ ] Verify security-analysis has proactive triggers
 
 ### Phase 4 Completion Checklist
-- [x] All work items complete
-- [x] Analysis quality verified on representative projects
-- [x] User guardrails tested
-- [x] No regressions in existing command functionality
-- [x] Code reviewed (if applicable)
+- [ ] All work items complete
+- [ ] All five files significantly improved
+- [ ] Documentation updated (help skill entries for changed commands/skills)
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 5: Resume, Rollback, and Phase Gates
+## Phase 5: Targeted Fixes Part A
 
-**Estimated Complexity:** M (~2 files, ~200 LOC changed)
-**Dependencies:** Phases 1-2
-**Parallel Groups:** [5.1] then [5.2, 5.3] then [5.4]
+**Estimated Complexity:** M (~4 files, ~200-300 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all four files are independent
 
 ### Goals
-- implement-plan resume works reliably after interruption
-- Bad commits can be reverted without restarting the plan
-- Phase boundaries are validated before moving forward
+- test-project uses safe git patterns and modern Co-Authored-By
+- assess-document has consistent output naming and score anchors
+- analyze-transcript has error handling and context management
+- develop-image-prompt has clear input flow and complete examples
 
 ### Work Items
 
-#### 5.1 Implement Machine-Readable Resume with State File ✅ Completed 2026-02-28
-**Recommendation Ref:** U5
+#### 5.1 Fix `test-project.md` Safety Issues
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R13
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/test-project.md` (modify)
 
 **Description:**
-Implement robust resume using the `.implement-plan-state.json` file (defined in Phase 3, work item 3.2). Mark items IN_PROGRESS before implementation starts. Detect IN_PROGRESS items on resume and offer retry/skip/complete options.
+Replace unsafe git patterns, update Co-Authored-By format, replace auto-merge with confirmation, add coverage argument, and add scope confirmation gate.
 
 **Tasks:**
-1. [x] Add to implementation subagent pre-step: update state file to mark current item `IN_PROGRESS`, update IMPLEMENTATION_PLAN.md Status field to `IN_PROGRESS`
-2. [x] Add to post-test step: update state file to mark current item `COMPLETE`, update IMPLEMENTATION_PLAN.md Status field to `COMPLETE [YYYY-MM-DD]`
-3. [x] Add resume detection in STARTUP: if state file exists, check for IN_PROGRESS items. If found, present: "Work item [X] was in progress when the previous session ended. Options: (1) Retry implementation, (2) Skip and mark incomplete, (3) Mark as complete (if it was finished but not recorded)"
-4. [x] Add to Prerequisites validation: if working directory is dirty AND state file shows an IN_PROGRESS item, offer to commit or stash the interrupted work before resuming
+1. [ ] Replace all instances of `git add -A` with selective staging: "Use `git add [specific-files]` listing only the files that were modified during testing. Run `git status --short` first to identify changes."
+2. [ ] Update Co-Authored-By tag from any older format to: `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
+3. [ ] Replace auto-merge behavior with user confirmation: "After all tests pass and PR is created, ask: 'Tests passing. Merge this PR? (yes/no)'. Do NOT merge automatically."
+4. [ ] Add `--coverage <n>` optional argument: "Target coverage percentage (default: 90). Example: `--coverage 80`"
+5. [ ] Add scope confirmation gate at the start: "Before making any changes, present: files that will be modified, test frameworks detected, current coverage (if measurable). Ask: 'Proceed with this scope? (yes/adjust/abort)'"
 
 **Acceptance Criteria:**
-- [x] Items marked IN_PROGRESS before implementation, COMPLETE after testing
-- [x] Resume detects IN_PROGRESS items and offers options
-- [x] Dirty working directory from interrupted session handled gracefully
-
-**Notes:**
-The Status field in IMPLEMENTATION_PLAN.md was added in Phase 1, work item 1.4. This phase adds the transitions.
+- [ ] Zero instances of `git add -A`
+- [ ] Co-Authored-By uses `Claude Opus 4.6` format
+- [ ] No auto-merge — user confirmation required
+- [ ] `--coverage` flag documented
+- [ ] Scope confirmation gate present before changes
 
 ---
 
-#### 5.2 Add Rollback/Checkpoint Capability ✅ Completed 2026-02-28
-**Recommendation Ref:** U3
+#### 5.2 Fix `assess-document.md` Naming Inconsistency
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R14
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/assess-document.md` (modify)
 
 **Description:**
-Record commit SHA checkpoints after each successful test pass. Offer rollback to last checkpoint when tests can't be fixed.
+Fix output file naming to use ONE consistent pattern. Add score anchor definitions. Fix code fence language. Add error handling.
 
 **Tasks:**
-1. [x] After each successful test pass (ALL_TESTS_PASS), record the commit SHA in state file: `checkpoints[item_id] = sha`
-2. [x] Also record `last_good_sha` in state file (the most recent checkpoint)
-3. [x] When testing subagent returns TESTS_STUCK (see Phase 6, work item 6.2): offer "(1) Revert to last checkpoint [sha], (2) Skip this item and continue, (3) Pause for manual intervention"
-4. [x] If revert chosen: `git revert --no-commit HEAD~N` back to checkpoint, then `git commit -m "Revert: [item] - tests could not be fixed"`
+1. [ ] Find all output file naming patterns in the command. Pick ONE: `assessment-[source]-[timestamp].md`. Remove all alternative naming patterns.
+2. [ ] Add score anchor definitions for the 1-5 rubric: "1 = Fundamentally flawed, requires rewrite. 2 = Significant gaps, major revision needed. 3 = Adequate, several improvements needed. 4 = Good, minor improvements needed. 5 = Excellent, ready for use."
+3. [ ] Fix `yaml` code fence language to `text` in examples where the content is not actually YAML
+4. [ ] Add error handling section: file not found, binary file, empty file, file too large for context, unsupported format
 
 **Acceptance Criteria:**
-- [x] Checkpoint SHAs recorded after each successful test
-- [x] Rollback offered on unfixable test failures
-- [x] Revert produces a clean commit (not destructive reset)
-
-**Notes:**
-Use `git revert` not `git reset --hard` — reverts are safe and preserve history.
+- [ ] ONE output file naming pattern, consistently used
+- [ ] Score anchor definitions present for all 5 levels
+- [ ] Code fence languages are accurate
+- [ ] Error handling section present
 
 ---
 
-#### 5.3 Add Phase Boundary Quality Gates ✅ Completed 2026-02-28
-**Recommendation Ref:** U4
+#### 5.3 Improve `analyze-transcript.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R15
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/analyze-transcript.md` (modify)
 
 **Description:**
-After the last work item in each phase, validate the phase's completion checklist and testing requirements before proceeding. Optionally pause for user confirmation.
+Add error handling, add `--no-prompt` flag, replace vague input flow with concrete interactive flow, add context management for large transcripts.
 
 **Tasks:**
-1. [x] After the NEXT ITERATION subagent signals a phase transition (next item is in a new phase), spawn a validation subagent: "Read IMPLEMENTATION_PLAN.md Phase [N] Completion Checklist and Testing Requirements. Verify each item. Return: PHASE_VALID or PHASE_ISSUES with list of unchecked items."
-2. [x] Present phase summary: "Phase [N] complete. [M] items implemented. Validation: [PASS/ISSUES]."
-3. [x] If `--pause-between-phases` flag set: ask "Proceed to Phase [N+1]? (yes / review / abort)"
-4. [x] If PHASE_ISSUES: present the unchecked items and ask for guidance
+1. [ ] Add error handling section: no transcript provided, empty transcript, transcript too large (>50K tokens), binary file, no actionable content found
+2. [ ] Add `--no-prompt` flag: "Skip confirmation prompts. Use defaults for all options."
+3. [ ] Replace vague "paste content" note with concrete interactive flow: "Step 1: Ask user for transcript source (file path or paste). Step 2: If file path, read file. If paste, accept multi-line input. Step 3: Confirm transcript length and estimated analysis time."
+4. [ ] Add context/size management: "For transcripts exceeding 30K tokens, process in sections: first pass extracts key decisions and action items from each section, second pass synthesizes across sections."
 
 **Acceptance Criteria:**
-- [x] Phase boundary detected by NEXT ITERATION subagent
-- [x] Completion checklist validated at each boundary
-- [x] Summary presented to user
-- [x] `--pause-between-phases` pauses for confirmation
-
-**Notes:**
-Default behavior (no flag) presents summary and continues. The pause flag is for when the user wants tighter control.
+- [ ] Error handling section with 5+ failure modes
+- [ ] `--no-prompt` flag documented
+- [ ] Clear, concrete input flow (no vague instructions)
+- [ ] Context management for large transcripts
 
 ---
 
-#### 5.4 Add Partial Completion Reporting ✅ Completed 2026-02-28
-**Recommendation Ref:** R4 (partial)
+#### 5.4 Improve `develop-image-prompt.md`
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R16
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/develop-image-prompt.md` (modify)
 
 **Description:**
-Add an instruction for what to output if the command is interrupted or stops early, so the user knows exactly what was accomplished and how to resume.
+Add dimensions flag, add complete example, resolve contradictory input flow, define when style variations are generated.
 
 **Tasks:**
-1. [x] Add "Early Termination" section: "If execution stops before ALL_COMPLETE (context exhaustion, user interrupt, unfixable error), output a completion report: items completed this session, current item status, last checkpoint SHA, how to resume (`/implement-plan` will pick up from the state file)"
-2. [x] Add instruction to always output this report even on normal completion
+1. [ ] Add `--dimensions <WxH>` flag: "Override default dimensions (default: 11x17). Example: `--dimensions 16x9`"
+2. [ ] Add complete example of an actual generated prompt: show the full output for a sample input, including the image prompt text, dimensions, style notes, and any variations
+3. [ ] Resolve contradictory input flow: pick one mechanism. Recommended: accept a file path or topic as argument, prompt interactively if neither provided
+4. [ ] Define when style variations are generated: "Generate 2-3 style variations when the input has multiple possible visual interpretations. Skip variations when the input specifies a clear single visual direction."
+5. [ ] Add error handling: no input provided, file not found, content too abstract to visualize, unsupported file format
 
 **Acceptance Criteria:**
-- [x] Completion report documented for all exit paths (normal, interrupt, error)
-- [x] Report includes items completed, current status, resume guidance
+- [ ] `--dimensions` flag documented with default value
+- [ ] Complete example with actual prompt output present
+- [ ] Single clear input mechanism (no contradiction)
+- [ ] Style variation rules defined
+- [ ] Error handling section present
 
 ---
 
 ### Phase 5 Testing Requirements
-- [x] Verify resume detects IN_PROGRESS items from interrupted session
-- [x] Verify rollback produces clean git history
-- [x] Verify phase boundary validation catches incomplete checklists
-- [x] Verify completion report outputs on all exit paths
+- [ ] Verify zero instances of `git add -A` in test-project
+- [ ] Verify assess-document has single naming pattern
+- [ ] Verify analyze-transcript has concrete input flow
+- [ ] Verify develop-image-prompt has complete example output
 
 ### Phase 5 Completion Checklist
-- [x] All work items complete
-- [x] Resume/rollback tested with simulated interruptions
-- [x] Phase gates tested with incomplete checklists
-- [x] No regressions in existing command functionality
-- [x] Code reviewed (if applicable)
+- [ ] All work items complete
+- [ ] All four files have targeted improvements
+- [ ] Documentation updated (help skill entries)
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 ---
 
-## Phase 6: Robustness and Polish
+## Phase 6: Targeted Fixes Part B
 
-**Estimated Complexity:** S (~4 files, ~150 LOC changed)
-**Dependencies:** Phases 1-2
-**Parallel Groups:** [6.1, 6.2, 6.3, 6.4] then [6.5]
+**Estimated Complexity:** M (~5 files, ~200-400 LOC)
+**Dependencies:** Phase 1
+**Parallelizable:** Yes — all five files are independent
 
 ### Goals
-- Append logic is deterministic with machine-readable markers
-- Parallel execution has safety checks
-- Documentation overhead is reduced
-- Planning commands have proper tool restrictions
+- review-intent, review-pr, and remove-ip have proper tool restrictions and error handling
+- ship skill has consistent phase numbering and proactive triggers
+- research-topic has extracted API key wizard and proper secrets policy
 
 ### Work Items
 
-#### 6.1 Add Machine-Readable Markers for Append Logic ✅ Completed 2026-02-28
-**Recommendation Ref:** R1
+#### 6.1 Fix `review-intent.md` Minor Issues
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R17
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
+- `plugins/personal-plugin/commands/review-intent.md` (modify)
 
 **Description:**
-Add HTML comment markers to the IMPLEMENTATION_PLAN.md template so append operations have unambiguous insertion points.
+Add argument detection, update allowed-tools, replace shell redirection save with proper file write offer, define "sparse" explicitly, add calculation guidance.
 
 **Tasks:**
-1. [x] Add `<!-- BEGIN PHASES -->` before the first `## Phase 1:` section in both templates
-2. [x] Add `<!-- END PHASES -->` after the last phase section (before Parallel Work Opportunities) in both templates
-3. [x] Add `<!-- BEGIN TABLES -->` before Parallel Work Opportunities in both templates
-4. [x] Add `<!-- END TABLES -->` after the last table section in both templates
-5. [x] Update Append vs Overwrite instructions in both commands to reference these markers instead of ambiguous `---` separators
-6. [x] Add a before/after example showing append of 2 new phases to an existing 3-phase plan
-7. [x] Add handling for partially-executed plans: "If some items have Status: COMPLETE, preserve them exactly. Warn: 'This plan has items in progress. New phases will be appended after existing content.'"
+1. [ ] Add argument detection instructions: "Check if the user provided a file path or directory as argument. If provided, scope the review to that path. If not provided, review the entire project."
+2. [ ] Verify `allowed-tools` was set correctly in Phase 1 (should be `Read, Glob, Grep` for a read-only command). Confirm it does not include Write.
+3. [ ] Replace any shell redirection save suggestion (e.g., `> output.txt`) with: "Offer to save the review to a file using the Write tool: 'Would you like me to save this review to `reports/intent-review-[timestamp].md`?'"
+4. [ ] Define "sparse" explicitly: "A 'sparse' area is one where fewer than 20% of source files have corresponding test files, or where documentation covers fewer than 50% of public APIs."
+5. [ ] Add calculation guidance for any metrics (e.g., Phase 3.3 coverage metrics): "Calculate coverage as: (documented public APIs / total public APIs) * 100. Report as both fraction and percentage."
 
 **Acceptance Criteria:**
-- [x] Machine-readable markers present in both templates
-- [x] Append instructions reference markers, not `---` separators
-- [x] Before/after example included
-- [x] Partially-executed plan handling documented
-
----
-
-#### 6.2 Add Testing Circuit Breaker to implement-plan ✅ Completed 2026-02-28
-**Recommendation Ref:** R2
-**Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
-
-**Description:**
-Add explicit iteration limits to testing subagent prompts to prevent infinite fix loops.
-
-**Tasks:**
-1. [x] Modify sequential testing prompt (Step A2): add "If after 3 fix-and-rerun cycles tests still fail, stop and return: TESTS_STUCK, list of remaining failures, what was tried and why it didn't work"
-2. [x] Modify parallel testing prompt (Step B3): same circuit breaker
-3. [x] Add main agent handling for TESTS_STUCK: "If TESTS_STUCK, offer: (1) Revert to checkpoint, (2) Skip this item, (3) Pause for manual intervention"
-
-**Acceptance Criteria:**
-- [x] Both testing prompts have 3-attempt circuit breaker
-- [x] TESTS_STUCK return format defined
-- [x] Main agent has handling for TESTS_STUCK response
+- [ ] Argument detection documented
+- [ ] Correct `allowed-tools` in frontmatter
+- [ ] No shell redirection patterns — uses Write tool for saving
+- [ ] "Sparse" defined with concrete thresholds
+- [ ] Metric calculation guidance present
 
 **Notes:**
-Implementation was completed as part of Phase 5.2 (Rollback/Checkpoint Capability), which required TESTS_STUCK handling to exist for its rollback logic. All three circuit breaker components — sequential testing prompt (Step A2, line ~344), parallel testing prompt (Step B3, line ~455), and main agent TESTS_STUCK handling with rollback/skip/pause options (Steps A2/B3 post-prompt blocks) — were already present in implement-plan.md.
+If the user wants to save the review, the command needs `Write` in allowed-tools. Update to `Read, Glob, Grep, Write` and add the save-to-file offer.
 
 ---
 
-#### 6.3 Add Subagent Project Context and Reduce Doc Overhead ✅ Completed 2026-02-28
-**Recommendation Ref:** R3, R4
+#### 6.2 Fix `review-pr.md` Minor Issues
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R18
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/review-pr.md` (modify)
 
 **Description:**
-Add project context to subagent prompts and fold documentation updates into the implementation subagent to reduce overhead.
+Add Read to allowed-tools, reorder review guidelines, inline severity definitions, add error handling for edge cases.
 
 **Tasks:**
-1. [x] Modify STARTUP prompt to also extract: tech stack, test command, 3-5 key conventions from CLAUDE.md or project config. Store in state file under `project_context`.
-2. [x] Add Project Context header to every implementation subagent prompt: "Project: [tech_stack]. Test command: [test_command]. Conventions: [conventions]."
-3. [x] Fold documentation into implementation subagent: add to prompt "When complete, also update IMPLEMENTATION_PLAN.md: change this item's Status to COMPLETE [today's date]."
-4. [x] Remove separate documentation subagent (Steps A3 and B4)
-5. [x] Make PROGRESS.md optional: only generated if tracking file exists or `--progress` flag is set
-6. [x] Only update LEARNINGS.md when testing subagent reports actual issues (not "no issues")
+1. [ ] Add `Read` to the `allowed-tools` frontmatter (needed to read file contents during review)
+2. [ ] Move review guidelines section to appear before Phase 1 (before analysis begins), so guidelines are established before code is read
+3. [ ] Inline severity definitions instead of referencing an external file: "CRITICAL: Security vulnerability, data loss risk, or production crash. HIGH: Logic error, missing validation, or broken feature. MEDIUM: Code quality issue, missing test, or unclear logic. LOW: Style, naming, or minor optimization."
+4. [ ] Add error handling for: diff exceeds context window (suggest reviewing by file), binary files in diff (skip with note), already-merged PR (inform user, offer to review commit instead), draft PR (note draft status, proceed with review)
 
 **Acceptance Criteria:**
-- [x] Project context in every implementation subagent prompt
-- [x] No separate documentation subagent step
-- [x] PROGRESS.md optional
-- [x] LEARNINGS.md only updated when there are learnings
+- [ ] `Read` in allowed-tools
+- [ ] Review guidelines appear before Phase 1
+- [ ] Severity definitions inlined (no external file reference)
+- [ ] Error handling for 4 edge cases
 
 ---
 
-#### 6.4 Add allowed-tools to Planning Commands and Plan Size Limits ✅ Completed 2026-02-28
-**Recommendation Ref:** R6, R7
+#### 6.3 Fix `remove-ip.md` Structural Issue
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R19
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
+- `plugins/personal-plugin/commands/remove-ip.md` (modify)
 
 **Description:**
-Add tool restrictions to both planning commands and add guidance on maximum plan size.
+Remove the "Trigger phrases" section (which is a skill pattern, not a command pattern). Add allowed-tools and error handling. Add web research tool guidance.
 
 **Tasks:**
-1. [x] Add `allowed-tools: Read, Glob, Grep, Write, Edit, Agent` to plan-improvements frontmatter
-2. [x] Add `allowed-tools: Read, Glob, Grep, Write, Edit, Agent` to create-plan frontmatter
-3. [x] Add plan size limit guidance to both: "If the plan exceeds 8 phases, suggest splitting into multiple plan files. Add `--max-phases <n>` as an optional argument."
-4. [x] Add guidance on work item granularity: "Each work item should touch no more than 5-8 files and change ~500 LOC. If a work item exceeds these bounds, split it into sub-items."
+1. [ ] Remove the "Trigger phrases" section entirely — commands are invoked explicitly, not triggered by phrases
+2. [ ] Verify `allowed-tools` was set correctly in Phase 1 (should be `Read, Write, Edit, Glob, Grep` for a file generator)
+3. [ ] Add error handling section: file not found, binary file, file has no identifiable IP to remove, file is already de-identified, permission errors
+4. [ ] Add web research tool guidance: "If the user asks to verify that company information has been removed, use WebSearch to check if remaining terms are generic (not company-specific). Do not use web tools by default — only when verification is requested."
 
 **Acceptance Criteria:**
-- [x] Both planning commands have `allowed-tools` in frontmatter
-- [x] Plan size limit documented
-- [x] Work item granularity guidance documented
+- [ ] Zero "Trigger phrases" sections
+- [ ] Correct `allowed-tools` in frontmatter
+- [ ] Error handling section present
+- [ ] Web research guidance present (optional use only)
 
 ---
 
-#### 6.5 Update Help Skill and CLAUDE.md ✅ Completed 2026-02-28
-**Recommendation Ref:** (housekeeping)
+#### 6.4 Fix `ship` Skill Issues
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R20
 **Files Affected:**
-- `plugins/personal-plugin/skills/help/SKILL.md` (modify)
-- `C:\Users\Troy Davis\dev\personal\claude-marketplace\CLAUDE.md` (modify)
+- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
 
 **Description:**
-Update help documentation and CLAUDE.md to reflect new arguments, flags, and capabilities added across all phases.
+Fix phase numbering inconsistency, add proactive trigger section, add destructive action warning, update Co-Authored-By format.
 
 **Tasks:**
-1. [x] Update `/create-plan` help entry: add `--max-phases` flag, mention codebase reconnaissance and scope confirmation, append logic, standardized schema, concrete sizing, plan size limits, allowed-tools
-2. [x] Update `/plan-improvements` help entry: add `--recommendations-only` and `--max-phases`, mention sampling strategy, expanded analysis dimensions, priority rubric, impact/effort matrix, two-stage workflow, append logic, standardized schema, concrete sizing, plan size limits, allowed-tools
-3. [x] Update `/implement-plan` help entry: add `--input`, `--auto-merge`, `--pause-between-phases`, `--progress` flags; mention Agent tool API, selective staging, PR-only default, state file resume, rollback/checkpoint, phase boundary quality gates, testing circuit breaker, partial completion reporting, project context
-4. [x] Update CLAUDE.md: add plan-gate skill to repository structure, update command descriptions, expand Planning and Orchestration pattern descriptions with pipeline details
+1. [ ] Audit all phase/step numbers in the skill. Renumber consistently: Phase 1 (Branch), Phase 2 (Stage & Commit), Phase 3 (Push), Phase 4 (PR). Fix any gaps or duplicates.
+2. [ ] Add proactive trigger section: "Suggest this skill when: (1) user says 'done', 'ready to ship', or 'push this'; (2) after completing a work item from an implementation plan; (3) after all tests pass; (4) user asks to create a PR"
+3. [ ] Add risk/destructive-action warning: "This skill modifies git state (creates branches, commits, pushes). Before proceeding, confirm the user intends to ship. Never force-push or push to main/master directly."
+4. [ ] Update Co-Authored-By to: `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 
 **Acceptance Criteria:**
-- [x] Help entries reflect all new arguments and flags
-- [x] CLAUDE.md accurate for the updated pipeline
+- [ ] Phase numbers are consistent and sequential
+- [ ] Proactive trigger section present
+- [ ] Destructive action warning present
+- [ ] Co-Authored-By uses current format
+
+---
+
+#### 6.5 Fix `research-topic` Skill
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R21
+**Files Affected:**
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+
+**Description:**
+Extract API key setup wizard to reduce file size, fix secrets policy violation (reference /unlock), add `--skip-model-check` argument, add proactive trigger section.
+
+**Tasks:**
+1. [ ] Extract the API key setup wizard (~130+ lines) to a reference file at `plugins/personal-plugin/references/api-key-setup.md`. Replace in-skill content with: "For API key configuration, see `references/api-key-setup.md`. Primary method: run `/unlock` to load keys from Bitwarden."
+2. [ ] Fix secrets policy: ensure the extracted reference file and the skill itself reference `/unlock` as the primary path. Remove any instructions that write keys to `.env` files (verify Phase 1 work item 1.5 is complete).
+3. [ ] Add `--skip-model-check` to the arguments table: "Skip the model availability check at startup. Useful when you know models are available and want to start immediately."
+4. [ ] Add proactive trigger section: "Suggest this skill when: (1) user asks to research a topic in depth; (2) user wants to compare perspectives across multiple AI providers; (3) user needs a comprehensive analysis that benefits from multi-source synthesis"
+
+**Acceptance Criteria:**
+- [ ] API key setup wizard extracted to reference file (~130+ lines removed from skill)
+- [ ] `/unlock` is the primary secrets path
+- [ ] Zero `.env` write instructions in the skill
+- [ ] `--skip-model-check` documented
+- [ ] Proactive trigger section present
 
 ---
 
 ### Phase 6 Testing Requirements
-- [x] Verify append logic uses markers correctly
-- [x] Verify testing circuit breaker fires after 3 attempts
-- [x] Verify implementation subagent updates Status field directly
-- [x] Verify allowed-tools restrictions are in frontmatter
+- [ ] Verify review-intent has argument detection and defined metrics
+- [ ] Verify review-pr has inlined severity definitions
+- [ ] Verify remove-ip has no trigger phrases section
+- [ ] Verify ship has consistent phase numbering
+- [ ] Verify research-topic API key wizard is extracted and /unlock is primary
 
 ### Phase 6 Completion Checklist
-- [x] All work items complete
-- [x] All markdown command files validated
-- [x] Help skill updated
-- [x] CLAUDE.md updated if needed
-- [x] No regressions in existing command functionality
-- [x] Code reviewed (if applicable)
+- [ ] All work items complete
+- [ ] All five files have targeted improvements
+- [ ] Documentation updated (help skill entries)
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
+
+---
+
+## Phase 7: Skill Improvements & Final Polish
+
+**Estimated Complexity:** M (~8 files, ~300-500 LOC)
+**Dependencies:** Phases 1-6
+**Parallelizable:** Yes — work items 7.1-7.5 are independent; 7.6 depends on all others
+
+### Goals
+- Remaining skills have proactive triggers and targeted fixes
+- Utility commands have batch fixes applied
+- Unlock skill shell injection risk is fixed
+- Error handling audit confirms coverage across all files
+- Proactive trigger coverage is complete for all skills
+- Flag patterns are consistent across commands
+
+### Work Items
+
+#### 7.1 Fix Remaining Skills Batch
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R22
+**Files Affected:**
+- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/validate-and-ship/SKILL.md` (modify)
+
+**Description:**
+Batch fixes for summarize-feedback, visual-explainer, and validate-and-ship: add proactive triggers to all three, plus targeted fixes per skill.
+
+**Tasks:**
+1. [ ] `summarize-feedback`: Add proactive trigger section: "Suggest when: user mentions feedback analysis, Notion export, or assessment report generation"
+2. [ ] `summarize-feedback`: Add context-size guardrail: "For entry counts exceeding 100, process in batches of 25. Warn user if total input exceeds 60% of context window."
+3. [ ] `visual-explainer`: Add proactive trigger section: "Suggest when: user has a document or concept they want visualized, after generating a report or analysis that would benefit from visual summary"
+4. [ ] `visual-explainer`: Document the `--json` flag if it exists but is undocumented. Fix default confidence threshold if the current default produces too many or too few images.
+5. [ ] `visual-explainer`: Verify secrets policy fix from Phase 1 (work item 1.5). Reference `/unlock` for API keys.
+6. [ ] `validate-and-ship`: Add proactive trigger section: "Suggest when: user is done making changes to a plugin, after running /validate-plugin, before shipping plugin updates"
+7. [ ] `validate-and-ship`: Clarify the delegation mechanism: explain how this skill coordinates between `/validate-plugin` and `/ship` — whether it runs them sequentially or delegates.
+8. [ ] `validate-and-ship`: Add `--skip-ship` flag: "Run validation only, do not proceed to shipping. Useful for pre-flight checks."
+
+**Acceptance Criteria:**
+- [ ] All three skills have proactive trigger sections
+- [ ] summarize-feedback has context-size guardrail
+- [ ] visual-explainer has documented flags and correct secrets policy
+- [ ] validate-and-ship has clear delegation description and `--skip-ship` flag
+
+---
+
+#### 7.2 Fix Utility Commands Batch
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R23
+**Files Affected:**
+- `plugins/personal-plugin/commands/bump-version.md` (modify)
+- `plugins/personal-plugin/commands/clean-repo.md` (modify)
+- `plugins/personal-plugin/commands/new-skill.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
+- `plugins/personal-plugin/commands/ask-questions.md` (modify)
+
+**Description:**
+Batch fixes for five utility commands: dynamic scanning, tool usage, dead reference removal, section numbering fix, and resume support alignment.
+
+**Tasks:**
+1. [ ] `bump-version`: Verify dynamic plugin scanning was implemented in Phase 1 (work item 1.4). Add any remaining improvements to plugin discovery.
+2. [ ] `clean-repo`: Replace `find` command usage with Glob tool instructions. Example: replace `find . -name "*.tmp"` with "Use the Glob tool to find temporary files: `**/*.tmp`, `**/.DS_Store`, `**/Thumbs.db`"
+3. [ ] `clean-repo`: Add context management: "For large repositories (100+ files), process directories in batches. Show progress."
+4. [ ] `new-skill`: Remove dead script references (verify Phase 1 work item 1.3). Add plugin target parameter: "Detect which plugin the user is working in. If multiple plugins exist, prompt."
+5. [ ] `validate-plugin`: Fix duplicate section numbering: search for any duplicate heading numbers and renumber sequentially
+6. [ ] `validate-plugin`: Fix skill path example: ensure examples show `skills/name/SKILL.md` (nested), not `skills/name.md` (flat)
+7. [ ] `ask-questions`: Align resume support with the output JSON schema. Ensure the JSON format includes a field (e.g., `answered: true/false`) that enables resume detection when re-running the command.
+
+**Acceptance Criteria:**
+- [ ] bump-version discovers plugins dynamically
+- [ ] clean-repo uses Glob tool, not shell `find`
+- [ ] new-skill has no dead references and has plugin target parameter
+- [ ] validate-plugin has correct section numbering and skill path examples
+- [ ] ask-questions resume support aligns with JSON schema
+
+---
+
+#### 7.3 Fix `unlock` Skill Shell Injection Risk
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** R24
+**Files Affected:**
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
+
+**Description:**
+Fix the shell injection risk in the Linux `eval` pattern for loading secrets. Add proactive trigger section.
+
+**Tasks:**
+1. [ ] Find the Linux `eval` pattern used for loading secrets into the environment. Replace with a safe alternative: use `shlex.quote()` (or equivalent shell escaping) for secret values before passing them to `eval` or `export`. Example: instead of `eval "export KEY=$VALUE"`, use `export KEY='properly-escaped-value'` with single quotes and internal single-quote escaping.
+2. [ ] Alternatively, replace `eval` entirely with direct `export` statements that properly quote values: `export KEY="$(bws get secret <id> | jq -r .value)"` where the subshell handles escaping naturally.
+3. [ ] Add proactive trigger section: "Suggest this skill when: (1) user starts a session and environment variables are needed; (2) before running skills that require API keys (research-topic, visual-explainer); (3) user mentions Bitwarden or secrets"
+
+**Acceptance Criteria:**
+- [ ] No unescaped `eval` patterns with user/external data
+- [ ] Secret values are properly quoted or escaped before shell expansion
+- [ ] Proactive trigger section present
+
+**Notes:**
+This is a security fix on a 5/5-rated skill. The skill is excellent otherwise — this is the one gap.
+
+---
+
+#### 7.4 Error Handling Audit
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** S2
+**Files Affected:**
+- All 32 command and skill files (audit; modify as needed)
+
+**Description:**
+Audit all files for error handling sections. Add missing error handling to the ~20 files that lack it (most should have been added in Phases 2-6; this catches any gaps).
+
+**Tasks:**
+1. [ ] Scan all 32 files for `## Error Handling` sections
+2. [ ] For files modified in Phases 2-6 that should already have error handling, verify it is present and adequate (3+ failure modes per file)
+3. [ ] For any remaining files without error handling, add a minimal section with the most likely failure modes: file not found, empty input, context window exhaustion, tool unavailability
+4. [ ] Ensure every error handling section uses a consistent format: failure mode name, description, recommended recovery action
+
+**Acceptance Criteria:**
+- [ ] All 32 files have an error handling section (or equivalent inline handling)
+- [ ] Each error handling section has at least 3 failure modes
+- [ ] Consistent format across all files
+
+**Notes:**
+This is a sweep to catch gaps. Most error handling should have been added in the individual file improvements (Phases 2-6). This work item adds the last few.
+
+---
+
+#### 7.5 Proactive Trigger Audit and Flag Consistency
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** S4, S5
+**Files Affected:**
+- All 9 skill files (audit; modify as needed)
+- Commands that write output files (audit; modify as needed)
+
+**Description:**
+Audit all skills for proactive trigger sections. Audit commands for flag consistency. Skills should have been given triggers in Phases 4-7; this catches gaps. Commands that write files should have consistent flag sets.
+
+**Tasks:**
+1. [ ] Audit all 9 skills (excluding plan-gate which already has triggers) for proactive trigger sections. Skills modified in earlier phases should already have them; verify.
+2. [ ] For `prime` skill: add proactive trigger: "Suggest when: user starts a new session, asks about the project, or says 'what is this project'"
+3. [ ] For `help` skill: add proactive trigger: "Suggest when: user asks what commands are available, says 'help', or seems unsure of what to do"
+4. [ ] Audit flag consistency across commands that write output files: ensure `--no-prompt`, `--preview`, and `--format` flags are consistently available where appropriate. At minimum: all file-generating commands should support `--no-prompt` for automation.
+5. [ ] Create a flag consistency reference: document which flags each command supports. This is for internal reference, not for end users.
+
+**Acceptance Criteria:**
+- [ ] All 9 skills (excluding plan-gate) have proactive trigger sections
+- [ ] Commands that write files consistently support `--no-prompt`
+- [ ] Flag usage patterns documented for reference
+
+---
+
+#### 7.6 Update Help Skill and Final Verification
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: PENDING**
+**Recommendation Ref:** (housekeeping)
+**Files Affected:**
+- `plugins/personal-plugin/skills/help/SKILL.md` (modify)
+
+**Description:**
+Update the help skill to reflect all changes made across Phases 1-7. Add entries for any new flags, arguments, or capabilities. Remove entries for anything removed. Verify all command and skill names are accurate.
+
+**Tasks:**
+1. [ ] Review every command entry in help skill. Update descriptions to reflect new capabilities, flags, and arguments added in this plan.
+2. [ ] Review every skill entry in help skill. Update descriptions to reflect new proactive triggers and arguments.
+3. [ ] Verify all command names match actual filenames in `commands/` directory
+4. [ ] Verify all skill names match actual directory names in `skills/` directory
+5. [ ] Add entries for any new reference files created (e.g., `references/api-key-setup.md`)
+6. [ ] Run a final cross-check: for each command/skill listed in help, verify the file exists and the description is accurate
+
+**Acceptance Criteria:**
+- [ ] Help skill accurately reflects all 23 commands and 9+ skills
+- [ ] All new flags and arguments are documented in help entries
+- [ ] No stale or inaccurate entries remain
+
+---
+
+### Phase 7 Testing Requirements
+- [ ] Verify all skills have proactive trigger sections
+- [ ] Verify unlock skill has no shell injection vulnerability
+- [ ] Verify error handling is present in all 32 files
+- [ ] Verify help skill is accurate and complete
+- [ ] Verify flag patterns are consistent
+
+### Phase 7 Completion Checklist
+- [ ] All work items complete
+- [ ] All skills have proactive triggers
+- [ ] Error handling audit complete
+- [ ] Flag consistency verified
+- [ ] Help skill updated
+- [ ] No regressions in existing command functionality
+- [ ] Code reviewed (if applicable)
 
 <!-- END PHASES -->
 
 ---
 
+<!-- BEGIN TABLES -->
+
 ## Parallel Work Opportunities
 
 | Work Item | Can Run With | Notes |
 |-----------|--------------|-------|
-| 1.1 | 1.2 | Different files; 1.1 modifies plan-improvements, 1.2 modifies both but different sections |
-| 2.1 | 2.2, 2.3 | All modify implement-plan but different sections (subagent invocations vs git staging vs frontmatter) |
-| 3.1 | 3.2 | Different files (plan-improvements vs implement-plan) |
-| 4.1 | 4.2, 4.3 | All modify plan-improvements but different sections |
-| 4.4 | 4.5 | Both modify create-plan but different sections |
-| 5.2 | 5.3 | Both modify implement-plan but different sections (rollback vs phase gates) |
-| 6.1 | 6.2, 6.3, 6.4 | Different files or non-overlapping sections |
+| 1.1 | 1.2, 1.3, 1.4, 1.5 | All modify different aspects of the same files; can be combined into a single pass per file |
+| 2.1 | 2.2, 2.3 | Three independent files (plan-next, setup-statusline, consolidate-documents) |
+| 3.1 | 3.2, 3.3, 3.4 | Four independent files |
+| 4.1 | 4.2, 4.3, 4.4, 4.5 | Five independent files |
+| 5.1 | 5.2, 5.3, 5.4 | Four independent files |
+| 6.1 | 6.2, 6.3, 6.4, 6.5 | Five independent files |
+| 7.1 | 7.2, 7.3 | Independent file groups (skills vs commands vs unlock) |
+| 7.4 | 7.5 | Audit tasks can run in parallel |
+
+**Cross-phase parallelism:** Phases 2-6 all depend only on Phase 1, not on each other. After Phase 1 completes, Phases 2-6 can run in any order or in parallel. Phase 7 depends on all prior phases.
 
 ---
 
@@ -837,22 +1180,28 @@ Update help documentation and CLAUDE.md to reflect new arguments, flags, and cap
 
 | Risk | Likelihood | Impact | Mitigation Strategy |
 |------|------------|--------|---------------------|
-| Template changes break existing plans | Medium | High | Only add fields; never remove or rename existing fields. Existing plans remain valid. |
-| Agent tool API assumptions wrong | Low | Critical | Test subagent invocations in a real session before committing. Work item 2.1 should be validated empirically. |
-| Sampling strategy too aggressive | Medium | Medium | Default to full analysis for <100 files. Sampling only for larger codebases. |
-| State file introduces new failure mode | Medium | Medium | State file is optional — if missing, fall back to plan file parsing (current behavior). |
-| Parallel safety checks too restrictive | Low | Low | Default to sequential when in doubt. Parallel is an optimization, not a requirement. |
+| Phase 1 batch changes introduce inconsistencies | Medium | Medium | Use a checklist per file to ensure all 5 cross-cutting fixes are applied consistently. Grep verification after each work item. |
+| Major overhauls (Phase 2) break existing workflows | Low | High | Keep the same command names and invocation patterns. Only change internal instructions and structure. |
+| allowed-tools restrictions are too narrow | Medium | Medium | Start with the recommended values. If a command fails due to tool restriction, widen the allowed-tools. |
+| Dead reference removal misses some instances | Low | Low | Run global grep after Phase 1 to catch any remaining references. |
+| Proactive triggers cause unwanted skill suggestions | Low | Medium | Make trigger conditions specific (3-4 conditions each). Test by describing scenarios and verifying triggers match. |
+| Help skill update (7.6) misses changes | Medium | Low | Use a diff of all files changed in this plan as the checklist for help updates. |
 
 ---
 
 ## Success Metrics
 
-- [x] Plans from `/create-plan` and `/plan-improvements` are structurally identical (diff only in content, not schema)
-- [x] `/implement-plan` runs to completion on a 10-item plan without context degradation
-- [x] `/implement-plan` resumes correctly after simulated interruption
-- [x] `/plan-improvements` completes on a 200+ file codebase without context exhaustion
-- [x] No instances of `git add -A` or auto-merge in default behavior
-- [x] All three commands have `allowed-tools` in frontmatter
+- [ ] All 32 files have `allowed-tools` in frontmatter
+- [ ] All 23 commands have "Related Commands" sections
+- [ ] All 9 skills (excluding plan-gate) have proactive trigger sections
+- [ ] All 32 files have error handling sections
+- [ ] Zero dead references to non-existent scripts or directories
+- [ ] Zero hardcoded plugin lists
+- [ ] Zero secrets policy violations
+- [ ] Average file rating improves from 3.5/5 to 4.5/5
+- [ ] All 24 individual recommendations (R1-R24) addressed
+- [ ] All 8 cross-cutting issues (S1-S8) resolved
+- [ ] Help skill accurately reflects all commands and skills
 
 ---
 
@@ -860,37 +1209,42 @@ Update help documentation and CLAUDE.md to reflect new arguments, flags, and cap
 
 | Recommendation | Category | Phase | Work Item |
 |----------------|----------|-------|-----------|
-| S1 | Schema | 1 | 1.1 |
-| S2 | Schema | 1 | 1.2 |
-| S3 | Schema | 1 | 1.3 |
-| S4 | Schema | 1 | 1.3 |
-| U5 (partial) | User Experience | 1 | 1.4 |
-| T1 | Tool API | 2 | 2.1 |
-| T3 | Tool API | 2 | 2.2 |
-| T2 | Tool API | 2 | 2.3 |
-| U2 | User Experience | 2 | 2.3 |
-| R7 (partial) | Robustness | 2 | 2.4 |
-| C1 | Context | 3 | 3.1 |
-| C2 | Context | 3 | 3.2 |
-| C3 | Context | 3 | 3.3 |
-| A1 | Analysis | 4 | 4.1 |
-| A2 | Analysis | 4 | 4.2 |
-| A3 | Analysis | 4 | 4.3 |
-| A4 | Analysis | 4 | 4.4 |
-| U1 | User Experience | 4 | 4.5 |
-| U5 | User Experience | 5 | 5.1 |
-| U3 | User Experience | 5 | 5.2 |
-| U4 | User Experience | 5 | 5.3 |
-| R4 (partial) | Robustness | 5 | 5.4 |
-| R1 | Robustness | 6 | 6.1 |
-| R2 | Robustness | 6 | 6.2 |
-| R3 | Robustness | 6 | 6.3 |
-| R4 | Robustness | 6 | 6.3 |
-| R6 | Robustness | 6 | 6.4 |
-| R7 | Robustness | 6 | 6.4 |
-| R8 | Robustness | 4 | 4.2 |
+| S1 | Cross-Cutting: allowed-tools | 1 | 1.1 |
+| S3 | Cross-Cutting: Related Commands | 1 | 1.2 |
+| S6 | Cross-Cutting: Dead References | 1 | 1.3 |
+| S7 | Cross-Cutting: Hardcoded Lists | 1 | 1.4 |
+| S8 | Cross-Cutting: Secrets Policy | 1 | 1.5 |
+| R1 | Major Overhaul: plan-next | 2 | 2.1 |
+| R2 | Major Overhaul: setup-statusline | 2 | 2.2 |
+| R3 | Major Overhaul: consolidate-documents | 2 | 2.3 |
+| R4 | Structural: define-questions | 3 | 3.1 |
+| R5 | Structural: finish-document | 3 | 3.2 |
+| R6 | Structural: review-arch | 3 | 3.3 |
+| R7 | Structural: check-updates | 3 | 3.4 |
+| R8 | Structural: scaffold-plugin | 4 | 4.1 |
+| R9 | Structural: convert-hooks | 4 | 4.2 |
+| R10 | Structural: convert-markdown | 4 | 4.3 |
+| R11 | Structural: new-command | 4 | 4.4 |
+| R12 | Structural: security-analysis | 4 | 4.5 |
+| R13 | Targeted Fix: test-project | 5 | 5.1 |
+| R14 | Targeted Fix: assess-document | 5 | 5.2 |
+| R15 | Targeted Fix: analyze-transcript | 5 | 5.3 |
+| R16 | Targeted Fix: develop-image-prompt | 5 | 5.4 |
+| R17 | Targeted Fix: review-intent | 6 | 6.1 |
+| R18 | Targeted Fix: review-pr | 6 | 6.2 |
+| R19 | Targeted Fix: remove-ip | 6 | 6.3 |
+| R20 | Targeted Fix: ship | 6 | 6.4 |
+| R21 | Targeted Fix: research-topic | 6 | 6.5 |
+| R22 | Skill Batch: summarize-feedback, visual-explainer, validate-and-ship | 7 | 7.1 |
+| R23 | Utility Batch: bump-version, clean-repo, new-skill, validate-plugin, ask-questions | 7 | 7.2 |
+| R24 | Security Fix: unlock | 7 | 7.3 |
+| S2 | Cross-Cutting: Error Handling Audit | 7 | 7.4 |
+| S4 | Cross-Cutting: Proactive Triggers | 7 | 7.5 |
+| S5 | Cross-Cutting: Flag Consistency | 7 | 7.5 |
+
+<!-- END TABLES -->
 
 ---
 
-*Implementation plan generated by Claude on 2026-02-28T14:30:00*
-*Source: /plan-improvements command — Planning & Execution Pipeline overhaul*
+*Implementation plan generated by Claude on 2026-02-28T22:00:00*
+*Source: /plan-improvements command — Personal Plugin Command & Skill Quality Overhaul*
