@@ -47,7 +47,7 @@ The strategy is **bottom-up stabilization**: fix the structural foundation first
 
 ### Work Items
 
-#### 1.1 Add Tasks and Notes Fields to plan-improvements Work Item Template
+#### 1.1 Add Tasks and Notes Fields to plan-improvements Work Item Template ✅ Completed 2026-02-28
 **Recommendation Ref:** S1
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -56,15 +56,15 @@ The strategy is **bottom-up stabilization**: fix the structural foundation first
 Update the IMPLEMENTATION_PLAN.md template section in plan-improvements.md to include the **Tasks** (numbered checkbox list) and **Notes** fields that exist in create-plan's template. Also add (create)/(modify) annotations to the Files Affected field.
 
 **Tasks:**
-1. [ ] Locate the work item template in plan-improvements.md (lines ~207-218)
-2. [ ] Add `**Tasks:**` field with numbered checkboxes between Description and Acceptance Criteria
-3. [ ] Add `**Notes:**` field after Acceptance Criteria
-4. [ ] Update Files Affected format to include `(create)` / `(modify)` annotations
-5. [ ] Update the work item instructions in Phase 3 to instruct Claude to generate Tasks sub-steps
+1. [x] Locate the work item template in plan-improvements.md (lines ~207-218)
+2. [x] Add `**Tasks:**` field with numbered checkboxes between Description and Acceptance Criteria
+3. [x] Add `**Notes:**` field after Acceptance Criteria
+4. [x] Update Files Affected format to include `(create)` / `(modify)` annotations
+5. [x] Update the work item instructions in Phase 3 to instruct Claude to generate Tasks sub-steps
 
 **Acceptance Criteria:**
-- [ ] plan-improvements work item template has all 6 fields matching create-plan: Ref, Files Affected (annotated), Description, Tasks, Acceptance Criteria, Notes
-- [ ] The ordering of fields is identical between both commands
+- [x] plan-improvements work item template has all 6 fields matching create-plan: Ref, Files Affected (annotated), Description, Tasks, Acceptance Criteria, Notes
+- [x] The ordering of fields is identical between both commands
 
 **Notes:**
 The ref field name intentionally differs (Recommendation Ref vs Requirement Refs) since the semantics differ. The structural position and all other fields should be identical.
