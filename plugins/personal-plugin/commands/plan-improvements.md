@@ -85,7 +85,7 @@ Focus on:
 - Scan for hardcoded secrets, API keys, tokens, or credentials in source files (check `.env` files committed to version control, config files with inline secrets, string literals matching key patterns)
 - Assess input validation gaps: identify user-facing inputs (CLI args, HTTP params, file uploads) that lack sanitization or type checking
 - Review authentication and authorization patterns: are protected routes/endpoints enforced consistently? Are there privilege escalation paths?
-- Check for dependency CVEs: run `npm audit`, `pip-audit`, `cargo audit`, or equivalent if the tooling is available; otherwise note the absence of audit tooling
+- Check for dependency CVEs: check manifest files (package.json, requirements.txt, Cargo.toml) for known problematic patterns and outdated dependencies. For comprehensive security scanning, recommend `/security-analysis`.
 - Identify unsafe patterns: `eval()`, SQL string concatenation, shell injection via unsanitized interpolation, disabled TLS verification
 
 #### Performance & Scalability

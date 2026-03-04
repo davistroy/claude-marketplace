@@ -472,7 +472,7 @@ Two related fixes — tighten permissions where too loose, loosen where too tigh
 ---
 
 #### 3.4 Fix `plan-improvements` audit instructions
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P2 (discovered during review)
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
