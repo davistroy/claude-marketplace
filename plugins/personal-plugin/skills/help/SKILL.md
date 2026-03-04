@@ -31,7 +31,7 @@ Suggest this skill when:
 When invoked without arguments, display this table:
 
 ```text
-personal-plugin Commands and Skills (24 commands, 10 skills)
+personal-plugin Commands and Skills (23 commands, 10 skills)
 ============================================================
 
 COMMANDS — Planning & Analysis
@@ -73,10 +73,9 @@ COMMANDS — Maintenance & Utilities
 | Command              | Description                                                                             |
 |----------------------|-----------------------------------------------------------------------------------------|
 | /bump-version        | Automate version bumping across plugin files with CHANGELOG placeholder                 |
-| /check-updates       | Check for available plugin updates by comparing local vs remote marketplace versions    |
 | /clean-repo          | Comprehensive repository cleanup, organization, and documentation refresh               |
 | /test-project        | Ensure 90%+ test coverage, run all tests, fix failures, then create PR                  |
-| /validate-plugin     | Validate plugin structure, frontmatter, and content for consistency and correctness      |
+| /validate-plugin     | Validate plugin structure, frontmatter, and content (use --check-updates for version check) |
 
 SKILLS
 ------
@@ -156,17 +155,6 @@ Use this reference to provide detailed help. Read the actual command file to get
 /bump-version personal-plugin minor    # 1.6.0 -> 1.7.0
 /bump-version bpmn-plugin patch        # 1.5.0 -> 1.5.1
 /bump-version personal-plugin major    # 1.6.0 -> 2.0.0
-```
-
----
-
-#### /check-updates
-**Description:** Check for available plugin updates by comparing local versions against remote marketplace
-**Arguments:** [--verbose]
-**Output:** In-conversation update report
-**Example:**
-```text
-/check-updates --verbose
 ```
 
 ---
@@ -396,13 +384,14 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /validate-plugin
 **Description:** Validate plugin structure, frontmatter, and content for consistency and correctness
-**Arguments:** `<plugin-name>` [--all] [--fix] [--verbose]
+**Arguments:** `<plugin-name>` [--all] [--fix] [--verbose] [--check-updates]
 **Output:** In-conversation validation report
 **Example:**
 ```text
 /validate-plugin personal-plugin          # Validate single plugin
 /validate-plugin --all                    # Validate all plugins
 /validate-plugin bpmn-plugin --verbose    # Detailed output
+/validate-plugin --all --check-updates    # Include remote version check
 ```
 
 ---
@@ -549,7 +538,7 @@ Command '[name]' not found in personal-plugin.
 
 Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version,
-  /check-updates, /clean-repo, /consolidate-documents,
+  /clean-repo, /consolidate-documents,
   /convert-markdown, /create-plan, /define-questions, /develop-image-prompt,
   /finish-document, /implement-plan, /new-command, /new-skill,
   /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent,

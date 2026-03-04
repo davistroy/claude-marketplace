@@ -291,7 +291,7 @@ Claude Code now has a built-in `statusline-setup` agent type that configures sta
 ---
 
 #### 2.3 Fold `check-updates` logic into `validate-plugin`, then deprecate
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P1 #9
 **Files Affected:**
 - `plugins/personal-plugin/commands/check-updates.md` (move)
