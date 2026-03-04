@@ -324,7 +324,7 @@ The `check-updates` logic is ~200 lines. When folding into validate-plugin, add 
 ---
 
 #### 2.4 Update marketplace references and version
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P1 (cross-cutting)
 **Files Affected:**
 - `plugins/personal-plugin/.claude-plugin/plugin.json` (modify — bump version)

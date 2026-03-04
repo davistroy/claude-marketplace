@@ -90,10 +90,8 @@ plugins/
       ask-questions.md        # Interactive Q&A session from JSON file
       assess-document.md      # Document quality evaluation with scoring
       bump-version.md         # Automate version bumping across plugin files
-      check-updates.md        # Check for plugin updates from marketplace
       clean-repo.md           # Repository cleanup, organization, and documentation refresh
       consolidate-documents.md # Merge multiple document versions into one
-      convert-hooks.md        # Convert bash hooks to PowerShell for Windows
       convert-markdown.md     # Convert markdown to formatted Word document
       create-plan.md          # Generate IMPLEMENTATION_PLAN.md from requirements docs with codebase recon
       define-questions.md     # Extract questions/TBDs from docs to JSON
@@ -109,9 +107,9 @@ plugins/
       review-intent.md        # Determine original intent vs current implementation discrepancies
       review-pr.md            # Structured PR review with code analysis
       scaffold-plugin.md      # Create new plugin with proper structure
-      setup-statusline.md     # Custom status line setup (Windows/PowerShell)
       test-project.md         # Run all tests, fix failures, achieve 90%+ coverage, merge PR
       validate-plugin.md      # Validate plugin structure and content
+    deprecated/               # Archived commands (convert-hooks, setup-statusline, check-updates)
     skills/
       help/
         SKILL.md            # Show commands/skills with usage information
@@ -244,7 +242,7 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Workflow commands** (`ship` skill): Multi-step automation with confirmation points
 - **Generator commands** (`define-questions`, `analyze-transcript`): Create structured output files
 - **Synthesis commands** (`consolidate-documents`): Merge multiple sources into optimized output
-- **Conversion commands** (`convert-markdown`, `convert-hooks`): Transform files between formats
+- **Conversion commands** (`convert-markdown`): Transform files between formats
 - **Generation commands** (`develop-image-prompt`): Create prompts or content for external tools
 - **Planning commands** (`create-plan`, `plan-improvements`, `plan-next`): Generate implementation plans from requirements or codebase analysis. Both `create-plan` and `plan-improvements` produce a unified IMPLEMENTATION_PLAN.md schema with standardized work item fields (Status, Tasks, Acceptance Criteria, Notes), concrete sizing (S/M/L using file count and LOC), machine-readable markers for append logic, and plan size limits (max 8 phases, max 6 items per phase). `create-plan` adds codebase reconnaissance and scope confirmation. `plan-improvements` adds sampling strategy, expanded analysis dimensions, priority rubric, and a two-stage `--recommendations-only` workflow.
 - **Testing commands** (`test-project`): Comprehensive test, fix, and ship workflows
@@ -252,7 +250,7 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Cleanup commands** (`clean-repo`): Repository cleanup, organization, and documentation refresh
 - **Sanitization commands** (`remove-ip`): De-identify documents by removing company info and intellectual property
 - **Scaffolding commands** (`scaffold-plugin`, `new-command`, `new-skill`): Create new plugin/command/skill structures from templates
-- **Utility commands** (`bump-version`, `validate-plugin`, `setup-statusline`, `check-updates`): Plugin/repository maintenance and configuration tasks
+- **Utility commands** (`bump-version`, `validate-plugin`): Plugin/repository maintenance and configuration tasks. `validate-plugin` supports `--check-updates` to check for plugin updates from the marketplace.
 
 ### Output File Naming
 Commands that generate files use: `[type]-[source]-[timestamp].json` or `.md`
