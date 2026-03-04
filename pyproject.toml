@@ -16,3 +16,7 @@ pythonpath = [
 ]
 addopts = "--import-mode=importlib"
 asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow-running (deselect with '-m \"not slow\"')",
+]

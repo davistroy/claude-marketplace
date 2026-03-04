@@ -182,9 +182,9 @@ This item exists for traceability — the actual work is in 1.1. Mark complete w
 
 ### Work Items
 
-#### 2.1 Remove Committed .coverage Files
+#### 2.1 Remove Committed .coverage Files (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** A1
 **Files Affected:**
 - `.coverage` (remove from tracking)
@@ -208,9 +208,9 @@ Remove 5 `.coverage` files (~588 KB total) from git tracking. These were committ
 
 ---
 
-#### 2.2 Add pytest.ini for Local Testing
+#### 2.2 Add pytest.ini for Local Testing — COMPLETE 2026-03-04
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** D1
 **Files Affected:**
 - `pytest.ini` (create)
@@ -230,9 +230,9 @@ Create a root-level `pytest.ini` that configures test discovery for running `pyt
 
 ---
 
-#### 2.3 Standardize Examples Section Headings
+#### 2.3 Standardize Examples Section Headings (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** Q4
 **Files Affected:**
 - `plugins/personal-plugin/commands/convert-markdown.md` (modify)
@@ -253,9 +253,9 @@ Rename non-standard example section headings to `## Examples` for consistency. `
 
 ---
 
-#### 2.4 Clean Dead Code in bpmn2drawio converter.py
+#### 2.4 Clean Dead Code in bpmn2drawio converter.py — COMPLETE 2026-03-04
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** A2
 **Files Affected:**
 - `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/converter.py` (modify)
@@ -275,9 +275,9 @@ Remove the dead `merge_theme_with_config` call at line ~54 that is immediately o
 
 ---
 
-#### 2.5 Review TROUBLESHOOTING.md
+#### 2.5 Review TROUBLESHOOTING.md (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** U1
 **Files Affected:**
 - `TROUBLESHOOTING.md` (modify or remove)

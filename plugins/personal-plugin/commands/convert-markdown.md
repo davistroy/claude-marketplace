@@ -231,7 +231,7 @@ The generated Word document will include:
 | TOC missing | Document needs at least 3 headings (or use explicit `--toc`) |
 | Encoding issues | Save markdown as UTF-8 |
 
-## Example Usage
+## Examples
 
 ```yaml
 User: /convert-markdown docs/api-guide.md

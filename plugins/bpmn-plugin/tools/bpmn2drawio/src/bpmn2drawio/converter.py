@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
 
-from .config import load_brand_config, merge_theme_with_config
+from .config import load_brand_config
 from .generator import DrawioGenerator, GenerationResult
 from .models import BPMNModel
 from .parser import parse_bpmn
@@ -50,10 +50,7 @@ class Converter:
         # Build the actual theme object
         bpmn_theme = get_theme(theme or "default")
         if config:
-            config_theme = load_brand_config(config)
-            bpmn_theme = merge_theme_with_config(bpmn_theme, {})
-            # Use config theme if provided
-            bpmn_theme = config_theme
+            bpmn_theme = load_brand_config(config)
 
         self.generator = DrawioGenerator(theme=bpmn_theme)
 
