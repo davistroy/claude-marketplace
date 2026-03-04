@@ -287,7 +287,6 @@ No files were created or modified.
 
 ## Related Commands
 
-- `/convert-hooks` -- Convert bash hook scripts to PowerShell (another conversion command)
 - `/analyze-transcript` -- Generate markdown reports that can then be converted to Word
 - `/consolidate-documents` -- Merge documents before converting to Word
 - `/assess-document` -- Evaluate document quality before conversion

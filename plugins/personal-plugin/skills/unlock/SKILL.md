@@ -20,7 +20,7 @@ Suggest this skill when:
 
 | Item | Value |
 |------|-------|
-| BWS project ID | `5022ea9c-e711-4f4e-bf5f-b3df0181a41d` |
+| BWS project ID | `$BWS_PROJECT_ID` env var, or `5022ea9c-e711-4f4e-bf5f-b3df0181a41d` (default project ID for Troy's vault — override via `BWS_PROJECT_ID`. Default as of 2026-03-04 — verify if errors occur) |
 | Access token env var | `TROY` |
 | bws install docs | https://bitwarden.com/help/secrets-manager-cli/ |
 
@@ -69,8 +69,12 @@ Run bws with the access token set for that single command, then parse the JSON o
 
 **Windows:**
 ```powershell
+# Use BWS_PROJECT_ID env var if set, otherwise fall back to default
+# Default project ID for Troy's vault — override via BWS_PROJECT_ID
+# Default as of 2026-03-04 — verify if errors occur
+$projectId = if ($env:BWS_PROJECT_ID) { $env:BWS_PROJECT_ID } else { '5022ea9c-e711-4f4e-bf5f-b3df0181a41d' }
 $env:BWS_ACCESS_TOKEN = $token
-$json = bws secret list 5022ea9c-e711-4f4e-bf5f-b3df0181a41d 2>&1
+$json = bws secret list $projectId 2>&1
 Remove-Item env:BWS_ACCESS_TOKEN -ErrorAction SilentlyContinue
 $secrets = $json | ConvertFrom-Json
 foreach ($s in $secrets) {
@@ -88,7 +92,11 @@ foreach ($s in $secrets) {
 **SECURITY: No eval with external data.** Use Python to write a temporary script with properly escaped values, source it, then delete it.
 
 ```bash
-JSON=$(BWS_ACCESS_TOKEN="$TOKEN" bws secret list 5022ea9c-e711-4f4e-bf5f-b3df0181a41d 2>&1)
+# Use BWS_PROJECT_ID env var if set, otherwise fall back to default
+# Default project ID for Troy's vault — override via BWS_PROJECT_ID
+# Default as of 2026-03-04 — verify if errors occur
+PROJECT_ID="${BWS_PROJECT_ID:-5022ea9c-e711-4f4e-bf5f-b3df0181a41d}"
+JSON=$(BWS_ACCESS_TOKEN="$TOKEN" bws secret list "$PROJECT_ID" 2>&1)
 
 # Generate safe export statements using shlex.quote() — never eval raw values
 EXPORT_FILE=$(mktemp /tmp/bws-exports.XXXXXX)

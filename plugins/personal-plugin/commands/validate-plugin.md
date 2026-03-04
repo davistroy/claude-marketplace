@@ -19,11 +19,12 @@ Perform comprehensive validation of a plugin's structure, frontmatter, version s
 - `--strict` - Fail on any pattern violation (treats warnings as errors)
 - `--report` - Generate detailed compliance report to `reports/validation-[timestamp].md`
 - `--scorecard` - Generate maturity scorecard for plugins (see Maturity Scorecard section)
+- `--check-updates` - Check for available plugin updates by comparing local vs remote marketplace versions
 
 **Validation:**
 If arguments are missing, display:
 ```text
-Usage: /validate-plugin <plugin-name> [--all] [--fix] [--verbose] [--strict] [--report] [--scorecard]
+Usage: /validate-plugin <plugin-name> [--all] [--fix] [--verbose] [--strict] [--report] [--scorecard] [--check-updates]
 
 Examples:
   /validate-plugin personal-plugin          # Validate single plugin
@@ -33,6 +34,7 @@ Examples:
   /validate-plugin --all --strict           # Fail on any violation
   /validate-plugin --all --report           # Generate compliance report
   /validate-plugin --all --scorecard        # Generate maturity scorecard
+  /validate-plugin --all --check-updates    # Include remote version check
 
 Available plugins:
   [Scan the plugins/ directory for subdirectories containing .claude-plugin/plugin.json.
@@ -604,12 +606,8 @@ Hook Windows Compatibility
          - hooks/stop-hook.sh
          - hooks/pre-tool-hook.sh
 
-       To fix, run:
-         /convert-hooks [plugin-name]
-
-       This will:
-         1. Convert bash scripts to PowerShell
-         2. Update hooks.json to use PowerShell on Windows
+       To fix, manually convert bash scripts to PowerShell equivalents
+       and update hooks.json to use PowerShell on Windows.
 ```
 
 **If all hooks are Windows-compatible:**
@@ -786,6 +784,140 @@ Result: PASS (with warnings)
 Warnings don't block commits but should be addressed.
 ```
 
+### Phase 9.5: Version Update Check (--check-updates only)
+
+This phase only executes when `--check-updates` is passed. It does NOT run during normal validation (no new network calls without the flag).
+
+#### 9.5.1 Discover Local Plugin Versions
+
+Use the Glob tool to scan `plugins/*/.claude-plugin/plugin.json` to discover all installed plugins dynamically. Do NOT rely on a hardcoded list of plugin names.
+
+Read each discovered `plugin.json` to extract the `version` field.
+
+Also read the local marketplace registry: `.claude-plugin/marketplace.json` in the repository root.
+
+If no plugins are found in the `plugins/` directory, report:
+```text
+Error: No plugins found in the plugins/ directory.
+```
+
+#### 9.5.2 Fetch Remote Version Data
+
+Fetch the latest marketplace.json from GitHub:
+
+```bash
+gh api repos/davistroy/claude-marketplace/contents/.claude-plugin/marketplace.json \
+  --jq '.content' | base64 -d
+```
+
+**If the `gh` command fails** (not installed, not authenticated, no network):
+```text
+Note: Could not fetch remote versions (gh CLI unavailable or network error).
+Falling back to local version consistency report.
+
+To enable remote checks:
+  1. Install gh CLI: https://cli.github.com
+  2. Authenticate: gh auth login
+```
+
+Then proceed with local-only comparison (Step 9.5.3 only compares local files against each other).
+
+#### 9.5.3 Compare Versions
+
+For each locally discovered plugin:
+
+**From remote marketplace.json (if available):**
+- Latest version available on the remote repository
+
+**From local plugin.json:**
+- Currently installed version
+
+**From local marketplace.json:**
+- Locally registered version
+
+Compare using semantic versioning (MAJOR.MINOR.PATCH):
+- Determine if a remote update is available (remote version > local version)
+- Determine if local versions are consistent (plugin.json matches local marketplace.json)
+- Categorize update type:
+  - **MAJOR**: Breaking changes (X.0.0)
+  - **MINOR**: New features (0.X.0)
+  - **PATCH**: Bug fixes (0.0.X)
+
+#### 9.5.4 Generate Version Report
+
+**With remote data available:**
+
+```text
+Version Update Check
+--------------------
+
+| Plugin           | Local   | Remote  | Status           |
+|------------------|---------|---------|------------------|
+| personal-plugin  | 2.0.0   | 2.1.0   | Update available [MINOR] |
+| bpmn-plugin      | 1.6.0   | 1.6.0   | Up to date       |
+
+Updates available: 1
+
+To update, pull the latest changes from the repository:
+  git pull origin main
+```
+
+**Without remote data (local-only fallback):**
+
+```text
+Version Update Check (Local Only)
+----------------------------------
+
+Note: Remote check unavailable. Showing local version consistency only.
+
+| Plugin           | plugin.json | marketplace.json | Consistent |
+|------------------|-------------|------------------|------------|
+| personal-plugin  | 2.0.0       | 2.0.0            | Yes        |
+| bpmn-plugin      | 1.6.0       | 1.5.0            | No         |
+
+Inconsistencies: 1
+
+To sync versions, run: /bump-version [plugin-name] [major|minor|patch]
+```
+
+#### 9.5.5 Verbose Output (--verbose)
+
+When `--verbose` is also specified alongside `--check-updates`, include per-plugin file path detail:
+
+```text
+Version Update Check (Verbose)
+-------------------------------
+
+personal-plugin
+  Local version:  2.0.0  (plugins/personal-plugin/.claude-plugin/plugin.json)
+  Remote version: 2.1.0  (davistroy/claude-marketplace@main)
+  Update type:    MINOR
+  Status:         Update available
+
+bpmn-plugin
+  Local version:  1.6.0  (plugins/bpmn-plugin/.claude-plugin/plugin.json)
+  Remote version: 1.6.0  (davistroy/claude-marketplace@main)
+  Status:         Up to date
+```
+
+#### 9.5.6 Edge Cases
+
+**Plugin not in local marketplace.json:**
+```text
+Warning: [plugin-name] exists in plugins/ but is not registered in marketplace.json.
+  Run /validate-plugin [plugin-name] to check plugin structure.
+```
+
+**Remote plugin not installed locally:**
+```text
+Available remotely: [plugin-name] v1.0.0 (not installed locally)
+```
+
+**Version parsing errors:**
+```text
+Warning: Could not parse version for [plugin-name] (local: "[value]", remote: "[value]")
+```
+
 ### Exit Codes (for CI/Script Use)
 
 When validation completes:
@@ -924,169 +1056,13 @@ Report saved to: reports/validation-20260115-103000.md
 
 ## Maturity Scorecard Mode (--scorecard)
 
-When `--scorecard` is specified, evaluate plugins against a 4-level maturity model and generate a comprehensive scorecard.
+When `--scorecard` is requested, read `references/validation-maturity-scorecard.md` (relative to this plugin's directory) for the complete scoring framework, including:
+- 4-level maturity model (Basic, Standard, Complete, Exemplary) with criteria for each level
+- Scorecard output format with per-level progress bars and criteria checklists
+- Scorecard calculation logic (weighted scoring formula, level assignment rules)
+- Example usage and aggregate scorecard format
 
-### Maturity Levels
-
-| Level | Name | Criteria | Score Range |
-|-------|------|----------|-------------|
-| **1** | Basic | Valid plugin.json, commands parse without errors | 0-25% |
-| **2** | Standard | Help.md complete, all patterns followed, frontmatter valid | 26-50% |
-| **3** | Complete | Tests exist, all standard flags implemented, no warnings | 51-75% |
-| **4** | Exemplary | Full documentation, CI validation passing, 90%+ test coverage | 76-100% |
-
-### Level 1 (Basic) Criteria
-
-A plugin achieves Level 1 when:
-- `plugin.json` exists and contains valid JSON
-- Required fields present: `name`, `description`, `version`
-- Version follows semver format (X.Y.Z)
-- All command `.md` files have valid frontmatter
-- All skills use correct directory structure (`skills/[name]/SKILL.md`)
-- YAML in frontmatter parses without errors
-
-### Level 2 (Standard) Criteria
-
-A plugin achieves Level 2 when all Level 1 criteria are met, plus:
-- `help.md` exists and documents all commands/skills
-- All commands have `## Input Validation` section
-- All commands have `## Instructions` section
-- No forbidden `name` field in frontmatter
-- Output naming follows convention: `[type]-[source]-[timestamp].[ext]`
-- Error messages follow standard format
-
-### Level 3 (Complete) Criteria
-
-A plugin achieves Level 3 when all Level 2 criteria are met, plus:
-- Tests exist in `tests/` directory for the plugin
-- Standard flags implemented where applicable:
-  - `--verbose` for detailed output
-  - `--preview` for commands generating output
-  - `--force` for validation override
-- Zero warnings in validation output
-- All code blocks have language specifiers
-- All internal references resolve correctly
-
-### Level 4 (Exemplary) Criteria
-
-A plugin achieves Level 4 when all Level 3 criteria are met, plus:
-- Documentation complete (README, CONTRIBUTING if applicable)
-- CI/CD workflow validates the plugin
-- Test coverage at 90% or higher
-- Examples provided for all commands
-- Performance notes for long-running commands
-
-### Scorecard Output Format
-
-```text
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Plugin Maturity Scorecard
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Plugin: personal-plugin
------------------------
-Level 1 (Basic)        [################] 100%
-  [x] Valid plugin.json
-  [x] Required fields present
-  [x] Semver version format
-  [x] Skill structure correct (skills/[name]/SKILL.md)
-  [x] Frontmatter parses
-
-Level 2 (Standard)     [################] 100%
-  [x] help.md complete
-  [x] Input Validation sections
-  [x] Instructions sections
-  [x] No forbidden fields
-  [x] Output naming compliant
-
-Level 3 (Complete)     [############----]  75%
-  [x] Tests exist
-  [x] Standard flags implemented
-  [ ] Zero warnings (2 warnings found)
-  [x] Code block languages
-
-Level 4 (Exemplary)    [########--------]  50%
-  [x] CI/CD workflow exists
-  [ ] Test coverage 90%+ (currently 85%)
-  [x] Examples in all commands
-  [ ] Performance notes missing
-
-Current Level: 3 (Complete)
-Overall Score: 81%
-
------------------------
-Plugin: bpmn-plugin
------------------------
-Level 1 (Basic)        [################] 100%
-Level 2 (Standard)     [################] 100%
-Level 3 (Complete)     [################] 100%
-Level 4 (Exemplary)    [################] 100%
-
-Current Level: 4 (Exemplary)
-Overall Score: 100%
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Aggregate Scorecard
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-| Plugin | Level | Score | Status |
-|--------|-------|-------|--------|
-| personal-plugin | 3 | 81% | Complete |
-| bpmn-plugin | 4 | 100% | Exemplary |
-
-Average Score: 90.5%
-Plugins at Level 4: 1/2 (50%)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Improvement Suggestions
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-personal-plugin:
-  To reach Level 4 (Exemplary):
-  1. Fix 2 code block warnings (add language specifiers)
-  2. Increase test coverage to 90%+ (currently 85%)
-  3. Add Performance section to long-running commands
-
-Priority: Address warnings first (quick win for Level 3 completion)
-```
-
-### Scorecard Calculation Logic
-
-**Level Score Calculation:**
-- Each level has a set of criteria (checkboxes)
-- Level percentage = (criteria met / total criteria) * 100
-- A level is "achieved" when 100% of its criteria are met
-
-**Overall Score Calculation:**
-```text
-Overall Score = (L1_score * 0.1) + (L2_score * 0.2) + (L3_score * 0.3) + (L4_score * 0.4)
-```
-
-**Current Level Assignment:**
-- Level 1: All L1 criteria met
-- Level 2: Level 1 + all L2 criteria met
-- Level 3: Level 2 + all L3 criteria met
-- Level 4: Level 3 + all L4 criteria met
-
-### Example Usage with Scorecard
-
-```yaml
-User: /validate-plugin --all --scorecard
-
-Claude: [Evaluates all plugins and generates scorecard]
-
-Plugin Maturity Scorecard generated.
-
-Summary:
-- personal-plugin: Level 3 (81%)
-- bpmn-plugin: Level 4 (100%)
-
-Average marketplace maturity: 90.5%
-
-Top improvement opportunities:
-1. personal-plugin: Add language specifiers to reach 100% Level 3
-2. personal-plugin: Increase test coverage for Level 4
-```
+Evaluate each plugin against the criteria defined in the reference file and generate the scorecard output.
 
 ## Error Handling
 
@@ -1154,12 +1130,10 @@ Tip: Run with --fix to auto-add language specifiers.
 ## Related Commands
 
 - `/bump-version` — Update version numbers (run validation after bumping)
-- `/check-updates` — Compare installed vs marketplace versions
 - `/scaffold-plugin` — Create a new plugin with proper structure
 - `/new-command` — Add a new command (run validation after adding)
 - `/new-skill` — Add a new skill (run validation after adding)
 - `/clean-repo` — Full repository cleanup and documentation sync
-- `/convert-hooks` — Fix Windows hook compatibility issues flagged by validation
 
 ```yaml
 User: /validate-plugin --all

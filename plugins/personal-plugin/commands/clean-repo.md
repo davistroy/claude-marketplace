@@ -13,6 +13,7 @@ Perform a thorough cleanup and organization pass on this repository. **This comm
 - `--dry-run` - Preview all changes without executing them
 - `--audit` - Log all actions to `.claude-plugin/audit.log`
 - `--docs-only` - Skip artifact cleanup, focus only on documentation sync
+- `--json` - Output results as structured JSON instead of text. Enables CI/CD pipeline integration and programmatic consumption.
 
 **Dry-Run Mode:**
 When `--dry-run` is specified:
@@ -413,10 +414,43 @@ Verify `.gitignore` includes patterns for all artifacts found in Phase 1.
 - **Update, don't fabricate** - Fix stale docs, don't invent new content
 - **Ask when uncertain** - Flag ambiguous issues for user decision
 
+## JSON Output Mode
+
+When `--json` is specified, output ONLY the JSON to stdout. Do not include any surrounding text, headers, or formatting — just the raw JSON object. If `--output` is also specified, write the JSON to that file path instead.
+
+Default behavior (no `--json` flag) is unchanged.
+
+**JSON Output Schema:**
+
+```json
+{
+  "phases": [
+    {
+      "name": "string — phase name (e.g., 'Artifact Cleanup', 'Structure Validation')",
+      "actions": [
+        {
+          "type": "string — delete | move | update | create | skip",
+          "path": "string — file or directory path affected",
+          "status": "string — completed | skipped | failed | dry-run",
+          "detail": "string — optional description of what was done"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "files_deleted": "number — count of files removed",
+    "files_moved": "number — count of files relocated",
+    "docs_updated": "number — count of documentation files modified"
+  }
+}
+```
+
+---
+
 ## Related Commands
 
 - `/validate-plugin` — Validate plugin structure and catch errors before committing
 - `/bump-version` — Update version numbers after cleanup
-- `/check-updates` — Compare installed vs marketplace versions
+- `/validate-plugin --check-updates` — Compare installed vs marketplace versions
 - `/review-arch` — Quick architectural audit (read-only complement to cleanup)
 - `/plan-improvements` — Generate comprehensive improvement recommendations

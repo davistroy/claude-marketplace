@@ -16,6 +16,11 @@ Perform a comprehensive evaluation of the specified document, identifying gaps, 
 - `--format [md|json]` - Output format (default: md)
   - `md`: Markdown report with tables and sections (default)
   - `json`: Structured data with scores, issues array, and recommendations
+- `--focus <dimensions>` - Comma-separated list of dimensions to evaluate (default: all dimensions)
+  - Valid dimensions: `completeness`, `clarity`, `consistency`, `specificity`, `structure`, `feasibility`
+  - Example: `--focus completeness,clarity,specificity`
+  - When used, only the specified dimensions are scored and reported
+  - Overall score is the average of the focused dimensions only
 - `--no-prompt` - Disable interactive prompting for missing arguments (for scripts and CI/CD)
 
 **Validation:**
@@ -25,9 +30,10 @@ If the document path is missing:
 ```text
 Error: Missing required argument
 
-Usage: /assess-document <document-path> [--format md|json] [--no-prompt]
+Usage: /assess-document <document-path> [--format md|json] [--focus <dimensions>] [--no-prompt]
 Example: /assess-document PRD.md
 Example: /assess-document PRD.md --format json
+Example: /assess-document PRD.md --focus completeness,clarity
 ```
 
 2. **Otherwise (default), prompt interactively**:
@@ -41,6 +47,16 @@ Please provide the path to the document to assess:
 ```
 
 Wait for the user to provide the document path, then proceed with assessment.
+
+**Focus Flag Validation:**
+If `--focus` is provided, validate each dimension name. If any are invalid, display:
+```text
+Error: Invalid focus dimension(s): [invalid-names]
+
+Valid dimensions: completeness, clarity, consistency, specificity, structure, feasibility
+
+Example: /assess-document PRD.md --focus completeness,clarity,specificity
+```
 
 ## Error Handling
 
@@ -69,6 +85,14 @@ Thoroughly read the specified document from start to finish. Build a mental mode
 - How sections relate to each other
 
 ### 2. Evaluate Against Quality Dimensions
+
+**If `--focus` is specified**, only evaluate the listed dimensions. Skip all other dimensions entirely — do not score, analyze, or report on them. At the top of the output, include the note:
+
+```text
+Focused analysis — only [dimension1, dimension2, ...] evaluated.
+```
+
+**If `--focus` is not specified**, evaluate all dimensions (default behavior unchanged).
 
 Assess the document across these dimensions:
 
@@ -127,7 +151,8 @@ Apply the following anchors when scoring each dimension. Use these definitions c
 **Scoring guidelines:**
 - Score the document against its own goals and context (a draft has different expectations than a final document)
 - Half-point scores (e.g., 3.5) are acceptable for the Overall score but not for individual dimensions
-- The Overall score is the weighted average of all dimensions (equal weight unless the document type suggests otherwise)
+- The Overall score is the weighted average of all evaluated dimensions (equal weight unless the document type suggests otherwise)
+- When `--focus` is active, the Overall score is the average of only the focused dimensions
 
 ### 4. Identify Specific Issues
 
@@ -390,6 +415,31 @@ Issue Summary:
 - SUGGESTION: 4
 
 Full assessment saved to: reports/assessment-PRD-20260110-143052.json (JSON format)
+```
+
+### Focused Assessment
+
+```text
+User: /assess-document PRD.md --focus completeness,specificity
+
+Claude: [Reads PRD.md, evaluates only Completeness and Specificity dimensions]
+
+Focused analysis — only completeness, specificity evaluated.
+
+Overall Score: 3.0/5
+
+| Dimension | Score (1-5) | Notes |
+|-----------|-------------|-------|
+| Completeness | 4 | Good coverage with minor gaps |
+| Specificity | 2 | Several vague requirements need quantification |
+| **Overall** | **3.0** | Average of focused dimensions |
+
+Issue Summary:
+- CRITICAL: 1
+- WARNING: 3
+- SUGGESTION: 2
+
+Full assessment saved to: reports/assessment-PRD-20260110-143052.md (Markdown format)
 ```
 
 ## Related Commands

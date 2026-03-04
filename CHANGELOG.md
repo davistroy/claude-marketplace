@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v5.0.0] - 2026-03-04
+
+### Breaking Changes
+- Deprecated `/convert-hooks` — use Claude ad-hoc for bash-to-PowerShell conversion
+- Deprecated `/setup-statusline` — use built-in statusline-setup agent
+- Deprecated `/check-updates` — use `/validate-plugin --check-updates`
+
+### Added
+- `/validate-plugin --check-updates` — version drift detection (folded from check-updates)
+- `/review-pr` MCP GitHub integration — line-level review comments
+- `--json` output flag on `/consolidate-documents`, `/clean-repo`, `/review-arch`
+- `--focus` dimension filter on `/assess-document`, `/review-arch`
+- Dynamic help skill — auto-discovers commands/skills at runtime
+- Shared plan template at `references/plan-template.md`
+- Environment variable overrides for model names and Bitwarden project ID
+
+### Fixed
+- `/test-project` missing Read/Write/Edit/Glob/Grep in allowed-tools (command was non-functional)
+- `summarize-feedback` skill missing Bash for Python execution
+- `security-analysis` skill missing Write for report generation
+- `prime` skill contradictory allowed-tools (had Write, claimed read-only)
+- `ship` skill missing Read/Edit for auto-fix loop
+- Schema inconsistency: `generated_at` vs `generated_date` standardized
+- Severity label mismatch in `/review-pr` standardized to 5-level scale
+
+### Changed
+- Extracted reference tables from `research-topic`, `bpmn-generator`, `validate-plugin` to reduce prompt length
+- Tightened `new-command` and `new-skill` allowed-tools (removed unnecessary Bash)
+- Added `Bash(git:*)` to `review-intent` and `create-plan` for git history access
+- `plan-improvements` security dimension scoped to static analysis
+
+## [bpmn-plugin v2.3.0] - 2026-03-04
+
+### Added
+- `allowed-tools` declarations on all 3 skills (bpmn-generator, bpmn-to-drawio, help)
+
+### Changed
+- Extracted BPMN element mapping tables to `references/bpmn-elements.md`
+- `bpmn-generator` SKILL.md reduced from ~620 to <500 lines
+
 ## [personal-plugin 4.1.0] - 2026-02-28
 
 ### Added

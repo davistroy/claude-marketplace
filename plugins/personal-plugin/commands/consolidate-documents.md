@@ -20,6 +20,7 @@ Consolidate multiple variations of a document into a single, optimized version. 
 | `--preview` | (none — boolean flag) | off | Show consolidated outline and key decisions before writing full output |
 | `--no-prompt` | (none — boolean flag) | off | Skip confirmation prompts (for automation/scripting) |
 | `--baseline` | `<doc-path>` | (none) | Designate one document as the primary reference. Structure and terminology from this document take precedence when sources are equivalent. |
+| `--json` | (none — boolean flag) | off | Output results as structured JSON instead of markdown/text. Enables CI/CD pipeline integration and programmatic consumption. |
 
 **Argument Parsing Rules:**
 - File paths are positional arguments (no flag prefix)
@@ -33,6 +34,7 @@ Consolidate multiple variations of a document into a single, optimized version. 
 /consolidate-documents spec-a.md spec-b.md spec-c.md --preview
 /consolidate-documents old.md new.md --baseline old.md --format text
 /consolidate-documents "path with spaces/doc1.md" doc2.md --no-prompt
+/consolidate-documents draft-v1.md draft-v2.md --json
 ```
 
 ### Validation Checks
@@ -64,6 +66,7 @@ Optional flags:
   --preview        Show outline before writing full output
   --no-prompt      Skip confirmation prompts
   --baseline <doc> Designate primary reference document
+  --json           Output results as structured JSON
 
 Examples:
   /consolidate-documents draft-v1.md draft-v2.md
@@ -242,6 +245,43 @@ Handle these scenarios explicitly:
 | **Document too large for context** | Use the context management strategy from Step 1. If even the structure-first approach exceeds context, report: "Documents are too large for single-pass consolidation. Consider splitting into sections and consolidating each section separately." |
 | **Write permission denied** | Report the target path and suggest an alternative location. |
 | **reports/ directory creation fails** | Fall back to writing in the current directory. Report the fallback. |
+
+---
+
+## JSON Output Mode
+
+When `--json` is specified, output ONLY the JSON to stdout. Do not include any surrounding text, headers, or formatting — just the raw JSON object. If `--output` is also specified, write the JSON to that file path instead.
+
+Default behavior (no `--json` flag) is unchanged.
+
+**JSON Output Schema:**
+
+```json
+{
+  "sources": [
+    {
+      "path": "string — full path to the source document",
+      "lines": "number — line count of the source document",
+      "format": "string — detected format (markdown, text, etc.)"
+    }
+  ],
+  "baseline": "string | null — path to baseline document, or null if none",
+  "consolidation_decisions": [
+    {
+      "section": "string — section or element name",
+      "winner": "string — which source was chosen",
+      "reason": "string — why this version was selected",
+      "type": "string — clarity | completeness | conflict_resolution | unique_value"
+    }
+  ],
+  "output_file": "string — full path to the generated consolidated document",
+  "stats": {
+    "sections_merged": "number — total sections in the consolidated output",
+    "conflicts_resolved": "number — count of conflicts between sources",
+    "content_dropped": "number — count of items intentionally excluded"
+  }
+}
+```
 
 ---
 

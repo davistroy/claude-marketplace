@@ -1,6 +1,6 @@
 ---
 description: Generate a new command file from a template with proper structure and conventions
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
 # New Command Generator
@@ -123,7 +123,7 @@ Select the command pattern type:
                      Examples: /consolidate-documents
 
 [7] conversion     - Commands that transform files between formats
-                     Examples: /convert-markdown, /convert-hooks
+                     Examples: /convert-markdown
 
 [8] planning       - Commands that analyze and generate improvement plans
                      Examples: /plan-improvements, /plan-next

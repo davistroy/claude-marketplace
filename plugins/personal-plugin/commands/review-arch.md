@@ -11,6 +11,34 @@ Perform a quick architectural audit of this project. This command provides an in
 
 ## Input Validation
 
+**Optional Flags:**
+
+| Flag | Values | Default | Description |
+|------|--------|---------|-------------|
+| `--json` | (none — boolean flag) | off | Output results as structured JSON instead of text. Enables CI/CD pipeline integration and programmatic consumption. |
+| `--focus` | Comma-separated dimension names | all dimensions | Limit analysis to specific dimensions. Valid values: `code-quality`, `architecture`, `security`, `performance`, `testing`, `dependencies`. |
+
+**Focus Flag Validation:**
+If `--focus` is provided, validate each dimension name. If any are invalid, display:
+```text
+Error: Invalid focus dimension(s): [invalid-names]
+
+Valid dimensions: code-quality, architecture, security, performance, testing, dependencies
+
+Example: /review-arch --focus security,testing
+```
+
+**Dimension Name Mapping:**
+
+| Focus Flag Value | Corresponds To |
+|------------------|----------------|
+| `architecture` | Dimension 1: Structure & Organization |
+| `code-quality` | Dimension 2: Code Quality |
+| `dependencies` | Dimension 3: Dependency Management |
+| `testing` | Dimension 4: Testing |
+| `security` | Dimension 5: Security |
+| `performance` | Dimension 6: Performance & Scalability |
+
 Before proceeding, verify:
 - This is a code project (not just documentation or data)
 - Project structure is readable and contains source files
@@ -29,6 +57,14 @@ Execute these tasks to map the project:
 5. **Map data flow** — Trace the 3 most common user-facing workflows from entry point through to data persistence or response
 
 ## Phase 2: Architectural Assessment
+
+**If `--focus` is specified**, only evaluate the dimensions listed. Skip all other dimensions entirely — do not score, analyze, or report on them. At the top of the output, include the note:
+
+```text
+Focused analysis — only [dimension1, dimension2, ...] evaluated.
+```
+
+**If `--focus` is not specified**, evaluate all dimensions (default behavior unchanged).
 
 Evaluate each dimension using the imperative tasks below. For each dimension, assign a rating from the Architecture Scorecard scale.
 
@@ -149,8 +185,10 @@ Present findings using this structure:
 | **Overall**            | X/5    | [Weighted average, round to 0.5]   |
 ```
 
+When `--focus` is active, only include rows for the focused dimensions. The Overall score is the average of only the focused dimensions.
+
 ### Findings
-Numbered findings with severity tags, organized by dimension.
+Numbered findings with severity tags, organized by dimension. When `--focus` is active, only include findings from focused dimensions.
 
 ### Remediation Roadmap
 Prioritized list with T-shirt sizes and dependencies.
@@ -199,6 +237,70 @@ try/catch pattern. Estimated effort: M (6 files, ~150 LOC).
 - Identify any architectural decisions that need documentation (ADRs)
 - Flag areas where you need clarification on intent before judging
 - Start with reconnaissance and present the executive summary before diving into detailed findings
+
+## Example: Focused Analysis
+
+```text
+User: /review-arch --focus security,testing
+
+Claude:
+Focused analysis — only security, testing evaluated.
+
+### Architecture Scorecard
+
+| Dimension              | Rating | Notes                                          |
+|------------------------|--------|-------------------------------------------------|
+| Testing                | 2/5    | 30% coverage, no integration tests              |
+| Security               | 3/5    | No hardcoded secrets, missing input validation   |
+|------------------------|--------|-------------------------------------------------|
+| **Overall**            | 2.5/5  | Average of focused dimensions                    |
+
+[Findings and remediation for security and testing only...]
+```
+
+## JSON Output Mode
+
+When `--json` is specified, output ONLY the JSON to stdout. Do not include any surrounding text, headers, or formatting — just the raw JSON object. If `--output` is also specified, write the JSON to that file path instead.
+
+Default behavior (no `--json` flag) is unchanged.
+
+**JSON Output Schema:**
+
+```json
+{
+  "scorecard": {
+    "structure_and_org": "number — rating 1-5",
+    "code_quality": "number — rating 1-5",
+    "dependency_management": "number — rating 1-5",
+    "testing": "number — rating 1-5",
+    "security": "number — rating 1-5",
+    "performance": "number — rating 1-5",
+    "overall": "number — weighted average, rounded to 0.5"
+  },
+  "findings": [
+    {
+      "id": "string — sequential identifier (e.g., F1, F2)",
+      "severity": "string — CRITICAL | HIGH | MEDIUM | LOW",
+      "category": "string — dimension name the finding falls under",
+      "description": "string — what the issue is and why it matters",
+      "location": "string — specific files and line numbers",
+      "recommendation": "string — concrete fix approach"
+    }
+  ],
+  "remediation": [
+    {
+      "id": "string — sequential identifier (e.g., R1, R2)",
+      "effort": "string — S | M | L | XL",
+      "impact": "string — low | medium | high",
+      "description": "string — specific refactoring approach",
+      "files_affected": ["string — list of file paths"],
+      "depends_on": ["string — list of remediation IDs this depends on"]
+    }
+  ]
+}
+```
+
+---
 
 ## Related Commands
 

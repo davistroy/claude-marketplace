@@ -1,7 +1,7 @@
 ---
 name: summarize-feedback
 description: Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
-allowed-tools: Read, Glob, Grep, Write
+allowed-tools: Read, Glob, Grep, Write, Bash(python:*), Bash(pip:*)
 ---
 
 You are generating a professional employee feedback assessment document. You will query Notion for feedback entries, synthesize them with Claude, and produce a formatted `.docx` file. The user may provide arguments: $ARGUMENTS

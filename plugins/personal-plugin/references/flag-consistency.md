@@ -2,7 +2,7 @@
 
 **Purpose:** Internal reference documenting which flags each command supports. Used for consistency audits.
 
-**Last Updated:** 2026-02-28
+**Last Updated:** 2026-03-04
 
 ## File-Generating Commands
 
@@ -11,8 +11,8 @@ These commands write output files. All support `--no-prompt` for automation.
 | Command | `--format` | `--preview` | `--no-prompt` | `--force` | `--dry-run` | Other Flags |
 |---------|-----------|------------|--------------|----------|------------|-------------|
 | `/analyze-transcript` | `md`, `json` | Yes | Yes | -- | -- | -- |
-| `/assess-document` | `md`, `json` | -- | Yes | -- | -- | -- |
-| `/consolidate-documents` | `markdown`, `text` | Yes | Yes | -- | -- | `--baseline <doc>` |
+| `/assess-document` | `md`, `json` | -- | Yes | -- | -- | `--focus <dimensions>` |
+| `/consolidate-documents` | `markdown`, `text` | Yes | Yes | -- | -- | `--baseline <doc>`, `--json` |
 | `/define-questions` | `json`, `csv` | Yes | Yes | Yes | -- | -- |
 | `/develop-image-prompt` | -- | -- | Yes | -- | -- | `--style <style>`, `--dimensions <WxH>` |
 | `/finish-document` | -- | -- | -- | Yes | -- | `--auto` (serves as non-interactive mode) |
@@ -29,15 +29,12 @@ These commands produce in-conversation output or modify files directly.
 | Command | `--dry-run` | `--verbose` | `--audit` | Other Flags |
 |---------|------------|------------|----------|-------------|
 | `/bump-version` | Yes | -- | -- | -- |
-| `/check-updates` | -- | Yes | -- | `--local` |
-| `/clean-repo` | Yes | -- | Yes | `--docs-only` |
-| `/convert-hooks` | Yes | Yes | -- | `--list`, `--validate` |
+| `/clean-repo` | Yes | -- | Yes | `--docs-only`, `--json` |
 | `/convert-markdown` | Yes | -- | -- | `--no-toc`, `--style <path>`, `--highlight <style>` |
 | `/new-command` | -- | -- | -- | `--plugin <name>` |
 | `/new-skill` | -- | -- | -- | `--plugin <name>` |
 | `/scaffold-plugin` | Yes | -- | -- | -- |
-| `/setup-statusline` | Yes | -- | -- | `--uninstall` |
-| `/validate-plugin` | -- | Yes | -- | `--all`, `--fix`, `--strict`, `--report`, `--scorecard` |
+| `/validate-plugin` | -- | Yes | -- | `--all`, `--fix`, `--strict`, `--report`, `--scorecard`, `--check-updates` |
 
 ## Read-Only Analysis Commands
 
@@ -46,7 +43,7 @@ These commands produce in-conversation reports and never modify files.
 | Command | Flags |
 |---------|-------|
 | `/plan-next` | None |
-| `/review-arch` | None |
+| `/review-arch` | `--json`, `--focus <dimensions>` |
 | `/review-intent` | `--deep`, `--save` |
 | `/review-pr` | None (takes PR number/URL as argument) |
 
@@ -79,6 +76,13 @@ These commands produce in-conversation reports and never modify files.
 - `--force`: Proceed despite validation errors (with warning).
 - `--verbose`: Show additional detail in output.
 - `--audit`: Log operations to `.claude-plugin/audit.log` as JSON lines.
+- `--json`: Emit machine-readable JSON output instead of human-readable markdown/text.
+- `--focus <dimensions>`: Limit analysis to specific dimensions (comma-separated).
+- `--check-updates`: Check remote marketplace for plugin version drift and available updates.
+
+**`--focus` valid dimension values:**
+- `/assess-document`: `completeness`, `accuracy`, `clarity`, `structure`, `actionability`
+- `/review-arch`: `security`, `performance`, `maintainability`, `scalability`, `testing`
 
 **Mutually exclusive flags:**
 - `--recommendations-only` and `--no-plan` are aliases (same behavior)

@@ -260,6 +260,6 @@ Don't forget to:
 ## Related Commands
 
 - `/validate-plugin` — Verify plugin structure and version synchronization after bumping
-- `/check-updates` — Compare installed vs marketplace versions
+- `/validate-plugin --check-updates` — Compare installed vs marketplace versions
 - `/clean-repo` — Repository cleanup including version consistency checks
 - `/scaffold-plugin` — Create a new plugin (sets initial version to 1.0.0)

@@ -49,14 +49,11 @@ Alternatively, create the file manually in `plugins/[plugin-name]/commands/[comm
 
 ### Step 2: Update Documentation
 
-Run the automation scripts to update help files and README:
+The `/help` skill uses dynamic Glob-based discovery, so it updates automatically. Optionally, you can regenerate static help files:
 
 ```bash
-# Update help.md files
+# Optional: regenerate help.md files
 python scripts/generate-help.py --all
-
-# Update README.md tables
-python scripts/update-readme.py
 ```
 
 ### Step 3: Update CHANGELOG
@@ -104,11 +101,14 @@ This will:
 
 Use `/new-command` to add commands to your new plugin.
 
-### Step 3: Update Documentation
+### Step 3: Validate and Update Documentation
 
 ```bash
+# Validate the plugin structure
+/validate-plugin [plugin-name]
+
+# Optional: regenerate static help files
 python scripts/generate-help.py plugins/[plugin-name]
-python scripts/update-readme.py
 ```
 
 ### Step 4: Update CHANGELOG and Commit
@@ -248,11 +248,25 @@ description: Brief description of the skill
 
 ## Maintaining the Help Skill
 
-**IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills. This skill must be kept in sync with the plugin's contents.
+**IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills.
 
-### Automated Help Generation (Recommended)
+### Dynamic Help (Automatic)
 
-Use the `generate-help.py` script to automatically generate help.md files from command metadata:
+The `/help` skill uses **Glob-based discovery** to dynamically list all commands and skills at runtime. It scans `commands/*.md` and `skills/*/SKILL.md` and extracts descriptions from frontmatter. This means:
+
+- **No manual help file updates needed** when adding, renaming, or removing commands/skills
+- Help output is always in sync with the actual plugin contents
+- New commands and skills are automatically discovered
+
+### Help Skill Location
+
+```
+plugins/[plugin-name]/skills/help/SKILL.md
+```
+
+### Automated Help Generation (Optional)
+
+For plugins that prefer static help content, the `generate-help.py` script can generate help files from command metadata:
 
 ```bash
 # Generate help.md for a specific plugin
@@ -265,24 +279,13 @@ python scripts/generate-help.py --all
 python scripts/generate-help.py --all --check
 ```
 
-The script extracts:
-- **Description** from frontmatter
-- **Arguments** from "Input Validation" section
-- **Output** from "Output" or "File Naming" sections
-- **Examples** from code blocks containing `/command-name`
-
 ### Pre-commit Hook Enforcement
 
-**IMPORTANT:** The pre-commit hook enforces help.md completeness to ensure all commands and skills are documented.
+The pre-commit hook validates plugin files on commit:
 
 **Blocking Behavior:**
 - When you **add a new command/skill**, the hook **blocks** if it's not documented in help.md
 - When you **modify existing files**, the hook shows an informational message but allows the commit
-
-**Why this approach?**
-- Some plugins maintain custom help content with enhanced descriptions
-- Strict exact-match checking would reject legitimate custom content
-- The hook still verifies all commands/skills are mentioned (Check 3)
 
 **If your commit is blocked due to missing documentation:**
 
@@ -300,49 +303,12 @@ git add plugins/*/skills/help/SKILL.md
 git commit -m "your message"
 ```
 
-**Custom Help Content:**
-If you maintain enhanced help.md content (not auto-generated), the hook will show an informational message about the difference but won't block your commit as long as all commands/skills are documented.
-
-### When to Regenerate Help
-
-| Action | What to Do |
-|--------|------------|
-| Add a command/skill | Run `python scripts/generate-help.py plugins/<plugin>` |
-| Rename a command/skill | Regenerate help.md |
-| Change arguments/output | Regenerate help.md |
-| Remove a command/skill | Regenerate help.md |
-| Create a new plugin | Run generator on the new plugin |
-
-### Help Skill Location
-
-```
-plugins/[plugin-name]/skills/help/SKILL.md
-```
-
-### Manual Updates (If Needed)
-
-If you need to add custom content not captured by the generator, you can still manually edit help.md. However, note that regenerating will overwrite your changes.
-
-Add this for each new command or skill:
-
-```markdown
-#### /command-name
-**Description:** Brief description of what it does
-**Arguments:** `<required-arg>` `[optional-arg]` - Description of arguments
-**Output:** What the command produces (files, reports, etc.)
-**Example:**
-```
-/command-name example-usage
-```
-```
-
 ### Checklist
 
 Before submitting a PR that modifies commands or skills:
 
-- [ ] Ran `python scripts/generate-help.py --all` to update help files
-- [ ] Verified description matches the command's frontmatter description
-- [ ] Verified arguments section matches the command's Input Validation
+- [ ] Verified the new command/skill has valid frontmatter with a `description` field
+- [ ] Ran `/validate-plugin` to confirm the plugin structure is correct
 - [ ] Verified examples are accurate and functional
 
 ---

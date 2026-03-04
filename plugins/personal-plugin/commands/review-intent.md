@@ -1,6 +1,6 @@
 ---
 description: Determine original project intent and compare against current implementation, reporting discrepancies
-allowed-tools: Read, Glob, Grep, Write
+allowed-tools: Read, Glob, Grep, Write, Bash(git:*)
 ---
 
 # Review Intent

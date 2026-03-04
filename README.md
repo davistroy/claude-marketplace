@@ -38,19 +38,17 @@ You can install to different scopes:
 
 ### personal-plugin
 
-Custom commands and skills for productivity workflows.
+23 commands and 10 skills for productivity workflows, code review, document processing, and security analysis.
 
-**Commands:**
+**23 Commands:**
 | Command | Description |
 |---------|-------------|
 | [`/analyze-transcript`](plugins/personal-plugin/commands/analyze-transcript.md) | Meeting transcript to structured markdown report |
 | [`/ask-questions`](plugins/personal-plugin/commands/ask-questions.md) | Interactive Q&A session from questions JSON file |
-| [`/assess-document`](plugins/personal-plugin/commands/assess-document.md) | Document quality evaluation with scored assessment report |
+| [`/assess-document`](plugins/personal-plugin/commands/assess-document.md) | Document quality evaluation with scored assessment report (supports `--focus`) |
 | [`/bump-version`](plugins/personal-plugin/commands/bump-version.md) | Automate version bumping across plugin files with CHANGELOG placeholder |
-| [`/check-updates`](plugins/personal-plugin/commands/check-updates.md) | Check for available plugin updates by comparing installed versions to marketplace |
-| [`/clean-repo`](plugins/personal-plugin/commands/clean-repo.md) | Comprehensive repository cleanup, organization, and documentation refresh |
-| [`/consolidate-documents`](plugins/personal-plugin/commands/consolidate-documents.md) | Analyze multiple document variations and synthesize a superior consolidated version |
-| [`/convert-hooks`](plugins/personal-plugin/commands/convert-hooks.md) | Convert plugin hook bash scripts to PowerShell for Windows compatibility |
+| [`/clean-repo`](plugins/personal-plugin/commands/clean-repo.md) | Comprehensive repository cleanup, organization, and documentation refresh (supports `--json`) |
+| [`/consolidate-documents`](plugins/personal-plugin/commands/consolidate-documents.md) | Analyze multiple document variations and synthesize a superior consolidated version (supports `--json`) |
 | [`/convert-markdown`](plugins/personal-plugin/commands/convert-markdown.md) | Convert a markdown file to a nicely formatted Microsoft Word document |
 | [`/create-plan`](plugins/personal-plugin/commands/create-plan.md) | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs) |
 | [`/define-questions`](plugins/personal-plugin/commands/define-questions.md) | Extract questions and open items from documents to JSON |
@@ -59,21 +57,20 @@ Custom commands and skills for productivity workflows.
 | [`/implement-plan`](plugins/personal-plugin/commands/implement-plan.md) | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing and git workflow |
 | [`/new-command`](plugins/personal-plugin/commands/new-command.md) | Generate a new command file from a template with proper structure and conventions |
 | [`/new-skill`](plugins/personal-plugin/commands/new-skill.md) | Generate a new skill file with proper nested directory structure and required frontmatter |
-| [`/plan-improvements`](plugins/personal-plugin/commands/plan-improvements.md) | Analyze codebase and generate prioritized improvement recommendations with phased implementation... |
+| [`/plan-improvements`](plugins/personal-plugin/commands/plan-improvements.md) | Analyze codebase and generate prioritized improvement recommendations with phased implementation plan |
 | [`/plan-next`](plugins/personal-plugin/commands/plan-next.md) | Analyze repo and recommend the next logical action |
-| [`/remove-ip`](plugins/personal-plugin/commands/remove-ip.md) | Sanitize documents by removing company identifiers and non-public intellectual property while pre... |
-| [`/review-arch`](plugins/personal-plugin/commands/review-arch.md) | Quick architectural audit with technical debt assessment (read-only, no files generated) |
+| [`/remove-ip`](plugins/personal-plugin/commands/remove-ip.md) | Sanitize documents by removing company identifiers and non-public intellectual property |
+| [`/review-arch`](plugins/personal-plugin/commands/review-arch.md) | Quick architectural audit with technical debt assessment (supports `--json`, `--focus`) |
 | [`/review-intent`](plugins/personal-plugin/commands/review-intent.md) | Determine original project intent and compare against current implementation |
-| [`/review-pr`](plugins/personal-plugin/commands/review-pr.md) | Structured PR review with security, performance, and code quality analysis |
+| [`/review-pr`](plugins/personal-plugin/commands/review-pr.md) | Structured PR review with MCP GitHub integration and line-level comments |
 | [`/scaffold-plugin`](plugins/personal-plugin/commands/scaffold-plugin.md) | Create a new plugin with proper directory structure, metadata, and starter files |
-| [`/setup-statusline`](plugins/personal-plugin/commands/setup-statusline.md) | Custom status line setup (Windows/PowerShell) |
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
-| [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content for consistency and correctness |
+| [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content (supports `--check-updates`) |
 
-**Skills:**
+**10 Skills:**
 | Skill | Description |
 |-------|-------------|
-| [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills in this plugin with usage information |
+| [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills with usage information |
 | [`/plan-gate`](plugins/personal-plugin/skills/plan-gate/SKILL.md) | Assess task complexity and route to the right planning approach |
 | [`/prime`](plugins/personal-plugin/skills/prime/SKILL.md) | Evaluate codebase: purpose, health, status, and recommended next steps |
 | [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
