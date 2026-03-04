@@ -410,6 +410,20 @@ The checkpoint contains:
 - Claude concept analysis: ~$0.02 per document
 - Claude image evaluation: ~$0.03 per evaluation
 
+## Performance
+
+| Scenario | Images | Expected Duration | Estimated API Cost |
+|----------|--------|-------------------|--------------------|
+| Simple document, 1 image | 1 | 2-4 minutes | ~$0.28 |
+| Medium document, 3 images | 3 | 5-10 minutes | ~$0.95 |
+| Complex document, 5 images | 5 | 12-20 minutes | ~$2.10 |
+| Infographic mode, 3 pages | 3 | 8-15 minutes | ~$1.20 |
+| Infographic mode, 6 pages | 6 | 15-30 minutes | ~$2.80 |
+
+Duration scales linearly with image count. Each image takes approximately 2 minutes including Gemini generation, Claude evaluation, and potential refinement. Refinement retries (when score < pass threshold) add ~1.5 minutes per retry.
+
+**API cost breakdown per image:** Gemini Pro 3 generation ~$0.10, Claude concept analysis ~$0.02/document (one-time), Claude image evaluation ~$0.03/evaluation. Costs increase with refinement retries. At default settings (max 5 iterations, 0.85 threshold), typical cost is $0.15-0.25 per final image. Use `--dry-run` to preview the generation plan without incurring any API costs.
+
 ## Error Handling
 
 | Error | Response |

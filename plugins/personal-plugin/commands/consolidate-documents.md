@@ -285,6 +285,17 @@ Default behavior (no `--json` flag) is unchanged.
 
 ---
 
+## Performance
+
+| Input Size | Expected Duration |
+|------------|-------------------|
+| 2 small documents (< 500 lines each) | 1-2 minutes |
+| 2-3 medium documents (500-2,000 lines each) | 2-5 minutes |
+| 3-5 large documents (2,000+ lines each) | 5-15 minutes |
+| Documents exceeding 60% of context window | 10-20 minutes (structure-first strategy) |
+
+Duration scales with total content volume across all documents and the number of divergences requiring conflict resolution. The element-by-element comparison (Step 3) is the most time-intensive phase. Using `--baseline` can reduce conflict resolution time by providing a clear preference. Using `--preview` adds a pause but does not increase processing time.
+
 ## Related Commands
 
 - `/assess-document` — Evaluate document quality before or after consolidation

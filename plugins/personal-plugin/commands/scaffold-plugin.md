@@ -431,6 +431,10 @@ No files were created or modified.
 | Missing marketplace.json | `.claude-plugin/marketplace.json` does not exist | Report error, provide instructions to create it manually |
 | Disk full | Cannot write files | Report the OS error and suggest freeing disk space |
 
+## Performance
+
+Typically completes in under 15 seconds once all inputs are provided.
+
 ## Related Commands
 
 - `/new-command` -- Add a new command to the scaffolded plugin

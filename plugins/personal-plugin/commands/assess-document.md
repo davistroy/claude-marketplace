@@ -442,6 +442,17 @@ Issue Summary:
 Full assessment saved to: reports/assessment-PRD-20260110-143052.md (Markdown format)
 ```
 
+## Performance
+
+| Input Size | Expected Duration |
+|------------|-------------------|
+| Short document (< 500 lines) | 30-60 seconds |
+| Medium document (500-2,000 lines) | 1-3 minutes |
+| Large document (2,000-5,000 lines) | 3-7 minutes |
+| Very large document (5,000+ lines) | 7-15 minutes (may focus on first N sections) |
+
+Duration scales with document length and the number of dimensions evaluated. Using `--focus` to limit dimensions reduces time roughly proportionally. JSON output adds negligible overhead versus markdown.
+
 ## Related Commands
 
 - `/define-questions` — Extract open questions from the assessed document into a structured JSON

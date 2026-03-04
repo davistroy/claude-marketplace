@@ -523,6 +523,10 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+## Performance
+
+Typically completes in under 5 seconds. Discovery uses Glob and frontmatter reads only.
+
 ## Error Handling
 
 If the requested command or skill is not found, re-run the Glob discovery from Mode 1 to list all available commands and skills dynamically:

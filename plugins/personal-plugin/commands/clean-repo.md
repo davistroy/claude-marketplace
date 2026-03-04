@@ -447,6 +447,17 @@ Default behavior (no `--json` flag) is unchanged.
 
 ---
 
+## Performance
+
+| Repository Size | Expected Duration |
+|-----------------|-------------------|
+| Small (< 50 files) | 1-2 minutes |
+| Medium (50-200 files) | 2-5 minutes |
+| Large (200-1,000 files) | 5-15 minutes |
+| Very large (1,000+ files) | 15-30 minutes (batched directory processing) |
+
+Duration scales primarily with repository file count and documentation volume. Phase 0 (analysis) and Phase 3 (documentation sync) are the most time-intensive phases, requiring reads of every documentation file and cross-referencing against the codebase. The `--docs-only` flag skips artifact cleanup (Phase 1) but does not significantly reduce total time since documentation sync dominates. Git operations in Phase 5 are fast regardless of repo size.
+
 ## Related Commands
 
 - `/validate-plugin` — Validate plugin structure and catch errors before committing

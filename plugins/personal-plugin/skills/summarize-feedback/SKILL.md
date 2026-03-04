@@ -258,6 +258,17 @@ Document sections:
   6. Appendix: Individual Entries
 ```
 
+## Performance
+
+| Scenario | Expected Duration | Notes |
+|----------|-------------------|-------|
+| 1-10 feedback entries | 1-3 minutes | Single-pass synthesis, fast .docx generation |
+| 10-50 feedback entries | 3-8 minutes | Dominated by Notion fetch and LLM synthesis |
+| 50-100 feedback entries | 8-15 minutes | Batch processing may trigger context guardrail |
+| 100+ feedback entries | 15-30 minutes | Multi-batch synthesis with meta-consolidation pass |
+
+Duration is dominated by Notion API fetches (Step 3) and LLM synthesis (Step 4). The .docx generation via the Python tool adds under 5 seconds regardless of entry count. Batch processing (triggered at 100+ entries) adds a final meta-synthesis pass that roughly doubles synthesis time.
+
 ## Error Handling
 
 | Error | Action |

@@ -291,6 +291,17 @@ When `--preview` is specified:
 
 Use the timestamp format `YYYYMMDD-HHMMSS`. Use the meeting date if known (with current time), or the current date and time if not specified.
 
+## Performance
+
+| Input Size | Expected Duration |
+|------------|-------------------|
+| Short transcript (< 5K tokens) | 30-60 seconds |
+| Medium transcript (5K-30K tokens) | 1-3 minutes |
+| Large transcript (30K-50K tokens) | 3-5 minutes |
+| Very large transcript (50K+ tokens) | 5-15 minutes (multi-pass chunked processing) |
+
+Duration is dominated by LLM analysis passes. Large transcripts trigger the two-pass extraction/synthesis pipeline described in Context Management, which roughly doubles processing time. JSON output adds negligible overhead versus markdown.
+
 ## Related Commands
 
 - `/consolidate-documents` — Merge multiple meeting transcripts or document versions into one

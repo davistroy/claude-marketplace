@@ -326,9 +326,9 @@ Check if TROUBLESHOOTING.md has substantive content. If it's a stub with fewer t
 
 ### Work Items
 
-#### 3.1 Add Performance Sections to Fast Commands
+#### 3.1 Add Performance Sections to Fast Commands (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** Q1
 **Files Affected:**
 - `plugins/personal-plugin/commands/bump-version.md` (modify)
@@ -355,9 +355,9 @@ Format: `## Performance\n\nTypically completes in under [N] seconds.`
 
 ---
 
-#### 3.2 Add Performance Sections to Scaling Commands
+#### 3.2 Add Performance Sections to Scaling Commands — COMPLETE 2026-03-04
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** Q1
 **Files Affected:**
 - `plugins/personal-plugin/commands/analyze-transcript.md` (modify)
@@ -395,9 +395,9 @@ Add table-format Performance sections to commands whose execution time scales wi
 
 ---
 
-#### 3.3 Add Performance Sections to Skills
+#### 3.3 Add Performance Sections to Skills (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** Q2
 **Files Affected:**
 - `plugins/personal-plugin/skills/help/SKILL.md` (modify)
@@ -423,9 +423,9 @@ Add Performance sections to 6 personal-plugin skills (batch 1). For cost-bearing
 
 ---
 
-#### 3.4 Add Performance Sections to Remaining Skills
+#### 3.4 Add Performance Sections to Remaining Skills — COMPLETE 2026-03-04
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** Q2
 **Files Affected:**
 - `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)

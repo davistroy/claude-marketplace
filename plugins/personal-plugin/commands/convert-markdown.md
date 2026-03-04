@@ -231,6 +231,17 @@ The generated Word document will include:
 | TOC missing | Document needs at least 3 headings (or use explicit `--toc`) |
 | Encoding issues | Save markdown as UTF-8 |
 
+## Performance
+
+| Input Size | Expected Duration |
+|------------|-------------------|
+| Small document (< 50 KB) | 10-30 seconds |
+| Medium document (50-500 KB) | 30-60 seconds |
+| Large document (500 KB-5 MB) | 1-3 minutes |
+| Very large document (5 MB+) | 3-10 minutes |
+
+Duration is dominated by the pandoc conversion step, which is an external process. Document analysis (Step 3) adds 5-15 seconds of LLM overhead. Documents with many images, complex tables, or math expressions take longer due to pandoc rendering. The `--dry-run` flag completes in under 15 seconds since it skips the actual conversion.
+
 ## Examples
 
 ```yaml

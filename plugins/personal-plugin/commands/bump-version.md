@@ -257,6 +257,10 @@ Don't forget to:
   3. Push with tags: git push && git push --tags
 ```
 
+## Performance
+
+Typically completes in under 15 seconds regardless of repository size.
+
 ## Related Commands
 
 - `/validate-plugin` — Verify plugin structure and version synchronization after bumping

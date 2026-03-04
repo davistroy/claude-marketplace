@@ -33,11 +33,15 @@ Suggest this skill when:
 5. When the user adds or updates dependencies (package.json, requirements.txt, etc.)
 6. After cloning or pulling a new/unfamiliar repository
 
-## Performance Expectations
+## Performance
 
-- **Quick scan (`--quick`):** 1-3 minutes. Covers technology detection, dependency audit, and surface-level code patterns.
-- **Full scan:** 5-15 minutes depending on codebase size. Includes deep taint analysis, data flow tracing, and comprehensive code review.
-- **Dependencies-only (`--dependencies-only`):** 1-2 minutes. Runs native audit tools and checks for known CVEs.
+| Scan Mode | Expected Duration | Notes |
+|-----------|-------------------|-------|
+| Quick (`--quick`) | 1-3 minutes | Technology detection, dependency audit, surface-level code patterns |
+| Full scan | 5-15 minutes | Deep taint analysis, data flow tracing, comprehensive code review |
+| Dependencies-only (`--dependencies-only`) | 1-2 minutes | Native audit tools and known CVE checks |
+
+Duration scales with codebase size (file count and total LOC). Web searches for CVE verification add latency when network-dependent lookups are required.
 
 ## Core Security Analysis Process
 

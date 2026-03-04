@@ -494,6 +494,17 @@ If the `bpmn2drawio` tool is unavailable and cannot be installed, fall back to m
 
 ---
 
+## Performance
+
+| BPMN Size | Elements | Expected Duration | Notes |
+|-----------|----------|-------------------|-------|
+| Small | 5-15 | Under 10 seconds | Simple processes, single pool |
+| Medium | 15-50 | 10-30 seconds | Multiple lanes, moderate gateways |
+| Large | 50-100 | 30-90 seconds | Multiple pools, complex routing |
+| Very large | 100+ | 1-3 minutes | Graphviz layout dominates at scale |
+
+Duration is dominated by Graphviz layout computation for files without DI coordinates. Using `--layout=preserve` (when DI coordinates exist) reduces conversion to under 5 seconds regardless of size. Dependency installation (first run only) may add 30-60 seconds.
+
 ## References
 
 - **Bundled Tool**: `../tools/bpmn2drawio/` (source code included in this plugin)

@@ -150,6 +150,10 @@ Loaded 8 secret(s) from Bitwarden Secrets Manager:
 | Invalid key name in secrets | Log warning, skip that secret, continue with remaining secrets |
 | Temp file creation fails | Print error and stop — do not fall back to eval |
 
+## Performance
+
+Typically completes in under 5 seconds. Single bws CLI call with JSON parsing.
+
 ## Security Considerations
 
 - **No eval with external data:** The Linux/macOS path uses `shlex.quote()` to escape secret values and writes to a temporary file with `chmod 600` permissions, then sources it. The dangerous `eval` pattern that could allow shell injection through crafted secret values is eliminated.

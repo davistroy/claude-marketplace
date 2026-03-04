@@ -256,6 +256,17 @@ PR URL: [url] (still open)
 
 ---
 
+## Performance
+
+| Phase | Expected Duration | Notes |
+|-------|-------------------|-------|
+| Phase 1: Validation | 10-30 seconds | Reads and validates all plugin files (Glob + frontmatter parsing) |
+| Phase 2: Cleanup | 5-20 seconds | File system scan and artifact removal |
+| Phase 3: Ship | 1-5 minutes | Git operations, PR creation, auto-review, and merge |
+| **Full workflow** | **2-6 minutes** | End-to-end with all phases enabled |
+
+The ship phase dominates total duration due to git push, GitHub API calls for PR creation, and the auto-review/fix loop. Skipping phases with `--skip-validate` or `--skip-cleanup` saves 15-50 seconds. Dry-run mode completes in under 30 seconds since no git operations execute.
+
 ## Stopping Conditions
 
 The workflow stops only when:

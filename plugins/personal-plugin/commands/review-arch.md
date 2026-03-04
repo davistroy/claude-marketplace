@@ -302,6 +302,17 @@ Default behavior (no `--json` flag) is unchanged.
 
 ---
 
+## Performance
+
+| Codebase Size | Expected Duration |
+|---------------|-------------------|
+| Small project (< 20 files) | 1-2 minutes |
+| Medium project (20-100 files) | 2-5 minutes |
+| Large project (100-500 files) | 5-12 minutes |
+| Very large project (500+ files) | 12-20 minutes (limited to top-level module analysis) |
+
+Duration scales with the number of source files and the complexity of the dependency graph. Phase 1 (reconnaissance) accounts for roughly 40% of total time due to file scanning and structure mapping. Using `--focus` to limit dimensions reduces time roughly proportionally. The `--json` flag adds negligible overhead. Very large codebases (500+ files) trigger the automatic scoping described in Error Handling, which limits analysis depth.
+
 ## Related Commands
 
 - `/plan-improvements` — Comprehensive analysis that generates RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md
