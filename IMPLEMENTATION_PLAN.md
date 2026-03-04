@@ -563,7 +563,7 @@ The category grouping in personal-plugin help (Planning & Analysis, Document Pro
 ### Work Items
 
 #### 4.1 Migrate `/review-pr` to use MCP GitHub tools
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P3 #15
 **Files Affected:**
 - `plugins/personal-plugin/commands/review-pr.md` (modify)
@@ -593,7 +593,7 @@ Migrate the command to use MCP tools as the primary interface, with `gh` CLI as 
 ---
 
 #### 4.2 Add `--json` output flag to `consolidate-documents`, `clean-repo`, and `review-arch`
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P3 #16
 **Files Affected:**
 - `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
@@ -620,7 +620,7 @@ Add a `--json` flag to 3 commands that currently only output markdown/text. This
 ---
 
 #### 4.3 Add `--focus` flags to `assess-document` and `review-arch`
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P3 #18
 **Files Affected:**
 - `plugins/personal-plugin/commands/assess-document.md` (modify)

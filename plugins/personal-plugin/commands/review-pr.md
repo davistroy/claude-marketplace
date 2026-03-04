@@ -1,6 +1,7 @@
 ---
 description: Structured PR review with security, performance, and code quality analysis
 allowed-tools: Read, Bash(gh:*), Bash(git:*)
+# MCP tools used (no allowed-tools declaration needed): pull_request_read, add_comment_to_pending_review, pull_request_review_write
 ---
 
 # PR Review Command
@@ -79,9 +80,36 @@ Establish these guidelines BEFORE beginning the review analysis.
 
 ## Instructions
 
+### Phase 0: Determine Tool Availability
+
+This command supports two modes of GitHub interaction:
+
+| Mode | Tools Used | Capability |
+|------|-----------|------------|
+| **MCP (primary)** | `pull_request_read`, `add_comment_to_pending_review`, `pull_request_review_write` | Line-level review comments on specific files and lines |
+| **gh CLI (fallback)** | `gh pr view`, `gh pr diff`, `gh pr review` | Single review body comment (no line-level precision) |
+
+**Detection:** Attempt to use `pull_request_read` first. If the MCP tool is available, use MCP mode for all phases. If it fails or is unavailable, fall back to `gh` CLI mode.
+
+Parse the PR URL if provided to extract owner, repo, and PR number. For `gh` CLI fallback, the owner/repo can be inferred from the current git remote.
+
 ### Phase 1: Fetch PR Information
 
-Use the GitHub CLI to gather PR context:
+#### MCP Mode (Primary)
+
+Use `pull_request_read` to gather PR context:
+
+1. **Get PR details** — Call `pull_request_read` with method `get`, providing `owner`, `repo`, and `pullNumber`. This returns title, body, author, base/head branches, labels, and review requests.
+
+2. **Get the diff** — Call `pull_request_read` with method `get_diff`. This returns the full diff of all changes in the PR.
+
+3. **Get changed files list** — Call `pull_request_read` with method `get_files`. This returns the list of files changed with additions/deletions counts per file. Use pagination parameters (`page`, `perPage`) for large PRs.
+
+4. **Get existing reviews** — Call `pull_request_read` with method `get_reviews` to see any prior reviews.
+
+#### gh CLI Fallback
+
+If MCP tools are not available, fall back to `gh` CLI:
 
 ```bash
 # Get PR details
@@ -93,8 +121,6 @@ gh pr diff [number]
 # Get existing reviews if any
 gh pr view [number] --json reviews
 ```
-
-Parse the PR URL if provided to extract owner/repo and PR number.
 
 ### Phase 2: Analyze Changes
 
@@ -266,7 +292,45 @@ Options:
 Enter your choice (1-4):
 ```
 
-If the user chooses to post, use:
+#### MCP Mode (Primary) — Line-Level Comments
+
+When MCP tools are available, post the review with line-level comments for each finding:
+
+**Step 1: Create a pending review**
+
+Call `pull_request_review_write` with:
+- `method`: `create`
+- `owner`, `repo`, `pullNumber`
+- Do NOT include `event` — this creates a pending (draft) review
+
+**Step 2: Add line-level comments for each finding**
+
+For each issue found during analysis (CRITICAL, HIGH, MEDIUM, LOW, INFO), call `add_comment_to_pending_review` with:
+- `owner`, `repo`, `pullNumber`
+- `path`: the relative file path where the issue was found
+- `line`: the specific line number in the diff (for multi-line issues, this is the last line of the range)
+- `startLine`: (for multi-line comments) the first line of the range
+- `side`: `RIGHT` (commenting on the new/changed code)
+- `startSide`: `RIGHT` (for multi-line comments)
+- `subjectType`: `LINE`
+- `body`: Format as `**[SEVERITY]:** [Issue description]\n\n**Suggestion:** [How to fix]`
+
+If a finding is file-level (not tied to a specific line), use `subjectType: FILE` instead and omit `line`/`side`.
+
+**Step 3: Submit the review**
+
+Call `pull_request_review_write` with:
+- `method`: `submit_pending`
+- `owner`, `repo`, `pullNumber`
+- `body`: The review summary (from the Summary section of the report)
+- `event`: One of:
+  - `APPROVE` — no CRITICAL or HIGH issues found
+  - `REQUEST_CHANGES` — CRITICAL or HIGH issues found
+  - `COMMENT` — user chose comment-only
+
+#### gh CLI Fallback
+
+If MCP tools are not available, post as a single review body:
 
 ```bash
 # For approval
@@ -278,6 +342,8 @@ gh pr review [number] --request-changes --body "[review body]"
 # For comment only
 gh pr review [number] --comment --body "[review body]"
 ```
+
+**Note:** The `gh` CLI fallback posts the entire review as a single comment body. It does not support line-level comments. When using fallback mode, inform the user: "Posting review as a single comment (line-level comments require MCP GitHub tools)."
 
 ### Phase 5: Report Results
 
@@ -318,6 +384,8 @@ Handle these error conditions gracefully:
 | **Already-merged PR** | PR state is "merged" | Inform user: "PR #[number] is already merged. Would you like to review the merge commit instead?" |
 | **Draft PR** | PR is in draft state | Note: "PR #[number] is a draft. Proceeding with review — note that the author may still be making changes." |
 | **Empty PR** | No changed files | Display: "PR #[number] has no changed files. Nothing to review." |
+| **MCP tools unavailable** | `pull_request_read` call fails or is not recognized | Fall back to `gh` CLI mode. Inform user: "MCP GitHub tools not available. Using gh CLI fallback (line-level comments unavailable)." |
+| **Pending review conflict** | `pull_request_review_write` create fails because a pending review already exists | Call `pull_request_review_write` with method `delete_pending` first, then retry creating a new pending review. |
 
 ## Related Commands
 
