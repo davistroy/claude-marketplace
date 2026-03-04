@@ -768,7 +768,7 @@ Replace with environment variable overrides and date-annotated defaults.
 ### Work Items
 
 #### 6.1 Full CLAUDE.md audit
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Documentation completeness (cross-cutting)
 **Files Affected:**
 - `CLAUDE.md` (modify)
@@ -796,7 +796,7 @@ CLAUDE.md is the authoritative reference for this repository. After all 5 phases
 ---
 
 #### 6.2 README.md and supporting docs update
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Documentation completeness (cross-cutting)
 **Files Affected:**
 - `README.md` (modify)
@@ -821,7 +821,7 @@ Update all user-facing documentation beyond CLAUDE.md to reflect the changes. RE
 ---
 
 #### 6.3 CHANGELOG.md entries and flag consistency update
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Documentation completeness (cross-cutting)
 **Files Affected:**
 - `CHANGELOG.md` (modify)

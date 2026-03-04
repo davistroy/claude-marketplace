@@ -90,7 +90,7 @@ The `/ship` command includes automatic secret detection as part of its auto-revi
 
 ### Commands WITHOUT Built-in Secret Scanning
 
-Most commands do **not** automatically scan for secrets:
+Most commands do **not** automatically scan for secrets. This includes (non-exhaustive):
 - `/define-questions`
 - `/analyze-transcript`
 - `/convert-markdown`
@@ -103,6 +103,8 @@ Most commands do **not** automatically scan for secrets:
 - `/unlock`
 - `/prime`
 - `/review-intent`
+- `/plan-improvements`
+- `/assess-document`
 
 **Recommendation:** If processing sensitive documents, manually review output files before committing.
 

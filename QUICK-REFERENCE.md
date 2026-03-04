@@ -76,6 +76,9 @@ If arguments missing, prompt or show usage.
 | `--no-clarify` | Skip clarification | Skip clarification questions |
 | `--audit` | Audit logging | Log actions to audit file |
 | `--deep` | Deep analysis | Include git history analysis |
+| `--json` | Machine-readable output | Output JSON instead of markdown/text |
+| `--focus` | Targeted analysis | Limit to specific dimensions (comma-separated) |
+| `--check-updates` | Version check | Compare local vs remote plugin versions |
 
 ## Personal-Plugin Skills
 
@@ -84,6 +87,7 @@ Skills are proactive actions Claude may suggest after completing related work. I
 | Skill | Purpose |
 |-------|---------|
 | `help` | Show available commands and skills with usage information |
+| `plan-gate` | Assess task complexity and route to the right planning approach |
 | `prime` | Prime Claude with project context for faster onboarding |
 | `research-topic` | Multi-source deep research across LLM providers |
 | `security-analysis` | Comprehensive security analysis with tech stack detection |

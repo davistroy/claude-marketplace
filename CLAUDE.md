@@ -86,55 +86,60 @@ plugins/
     .claude-plugin/
       plugin.json           # Plugin metadata
     commands/
-      analyze-transcript.md   # Meeting transcript to structured report
-      ask-questions.md        # Interactive Q&A session from JSON file
-      assess-document.md      # Document quality evaluation with scoring
-      bump-version.md         # Automate version bumping across plugin files
-      clean-repo.md           # Repository cleanup, organization, and documentation refresh
-      consolidate-documents.md # Merge multiple document versions into one
-      convert-markdown.md     # Convert markdown to formatted Word document
-      create-plan.md          # Generate IMPLEMENTATION_PLAN.md from requirements docs with codebase recon
+      analyze-transcript.md   # Meeting transcript to structured markdown report
+      ask-questions.md        # Interactive Q&A session from questions JSON file
+      assess-document.md      # Document quality evaluation with scored assessment report
+      bump-version.md         # Automate version bumping across plugin files with CHANGELOG placeholder
+      clean-repo.md           # Comprehensive repository cleanup, organization, and documentation refresh
+      consolidate-documents.md # Analyze multiple document variations and synthesize a superior consolidated version
+      convert-markdown.md     # Convert a markdown file to a nicely formatted Microsoft Word document
+      create-plan.md          # Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs)
       define-questions.md     # Extract questions/TBDs from docs to JSON
-      develop-image-prompt.md # Generate AI image prompts from content
-      finish-document.md      # Extract questions, answer, update document
-      implement-plan.md       # Execute IMPLEMENTATION_PLAN.md via Agent tool with resume and rollback
-      new-command.md          # Generate new command file from template
-      new-skill.md            # Generate new skill with nested directory structure and frontmatter
-      plan-improvements.md    # Analyze codebase and generate recommendations with phased implementation plan
-      plan-next.md            # Analyze repo and recommend next action
-      remove-ip.md            # De-identify documents by removing company info and IP
-      review-arch.md          # Quick architectural audit (read-only, no files generated)
-      review-intent.md        # Determine original intent vs current implementation discrepancies
-      review-pr.md            # Structured PR review with code analysis
-      scaffold-plugin.md      # Create new plugin with proper structure
-      test-project.md         # Run all tests, fix failures, achieve 90%+ coverage, merge PR
-      validate-plugin.md      # Validate plugin structure and content
+      develop-image-prompt.md # Generate detailed image generator prompts from content, with configurable dimensions and style options
+      finish-document.md      # Extract questions from a document, answer them interactively, and update the document
+      implement-plan.md       # Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing, documentation, and git workflow
+      new-command.md          # Generate a new command file from a template with proper structure and conventions
+      new-skill.md            # Generate a new skill file with proper nested directory structure and required frontmatter
+      plan-improvements.md    # Analyze codebase and generate prioritized improvement recommendations with phased implementation plan
+      plan-next.md            # Analyze repo and recommend the next logical action
+      remove-ip.md            # Sanitize documents by removing company identifiers and non-public intellectual property
+      review-arch.md          # Quick architectural audit with technical debt assessment (read-only, no files generated)
+      review-intent.md        # Determine original project intent and compare against current implementation, reporting discrepancies
+      review-pr.md            # Structured PR review with security, performance, and code quality analysis
+      scaffold-plugin.md      # Create a new plugin with proper directory structure, metadata, and starter files
+      test-project.md         # Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create PR
+      validate-plugin.md      # Validate plugin structure, frontmatter, and content for consistency and correctness
     deprecated/               # Archived commands (convert-hooks, setup-statusline, check-updates)
     skills/
       help/
-        SKILL.md            # Show commands/skills with usage information
+        SKILL.md            # Show available commands and skills with usage information (dynamic, Glob-based discovery)
       plan-gate/
-        SKILL.md            # Assess task complexity and route to right planning approach
+        SKILL.md            # Assess scope and route to the right planning approach (native plan mode, /plan-improvements, or /create-plan)
       prime/
-        SKILL.md            # Evaluate codebase: purpose, health, status, and next steps
+        SKILL.md            # Evaluate an existing codebase to produce a detailed report on project purpose, health, status, and next steps
       research-topic/
-        SKILL.md            # Multi-source deep research across LLM providers
+        SKILL.md            # Orchestrate parallel deep research across multiple LLM providers and synthesize results
       security-analysis/
-        SKILL.md            # Comprehensive security analysis with tech stack detection
+        SKILL.md            # Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning
       ship/
-        SKILL.md            # Git workflow: branch, commit, push, PR
+        SKILL.md            # Create branch, commit, push, open PR, auto-review, fix issues, and merge
       summarize-feedback/
-        SKILL.md            # Synthesize Notion feedback into .docx assessment
+        SKILL.md            # Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
       unlock/
-        SKILL.md            # Load Bitwarden secrets into environment via bws CLI
+        SKILL.md            # Load secrets from Bitwarden Secrets Manager into environment using bws CLI
       validate-and-ship/
-        SKILL.md            # Validate plugins, clean repo, and ship in one workflow
+        SKILL.md            # Validate plugins, clean repository, and ship changes in one automated workflow
       visual-explainer/
-        SKILL.md            # Transform text/docs into AI-generated visual explanations
+        SKILL.md            # Transform text or documents into AI-generated infographic pages using Gemini Pro 3 and Claude Vision
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
       api-key-setup.md      # Bitwarden-based API key setup workflow
       flag-consistency.md   # Comprehensive flag reference across all commands
+      plan-template.md      # Shared IMPLEMENTATION_PLAN.md template for create-plan and plan-improvements
+      research-models.md    # LLM provider model configuration for research-topic
+      validation-maturity-scorecard.md  # Plugin maturity scoring rubric for validate-plugin
+      patterns/             # Extracted pattern references (logging, naming, output, etc.)
+      templates/            # Command/skill pattern templates (conversion, generator, etc.)
     tools/
       feedback-docx-generator/ # Python tool for feedback assessment .docx generation (run via PYTHONPATH)
       research-orchestrator/  # Python tool for multi-LLM research (run via PYTHONPATH)
@@ -150,7 +155,7 @@ plugins/
         SKILL.md            # Convert BPMN XML to Draw.io format
       help/
         SKILL.md            # Show skills with usage information
-    references/             # BPMN element documentation and guides
+    references/             # BPMN element documentation and guides (includes bpmn-elements.md)
     templates/              # XML/Draw.io skeletons and style mappings
     examples/               # Sample BPMN and Draw.io files
     tools/
@@ -242,7 +247,7 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Workflow commands** (`ship` skill): Multi-step automation with confirmation points
 - **Generator commands** (`define-questions`, `analyze-transcript`): Create structured output files
 - **Synthesis commands** (`consolidate-documents`): Merge multiple sources into optimized output
-- **Conversion commands** (`convert-markdown`): Transform files between formats
+- **Conversion commands** (`convert-markdown`): Transform files between formats (e.g., markdown to Word document)
 - **Generation commands** (`develop-image-prompt`): Create prompts or content for external tools
 - **Planning commands** (`create-plan`, `plan-improvements`, `plan-next`): Generate implementation plans from requirements or codebase analysis. Both `create-plan` and `plan-improvements` produce a unified IMPLEMENTATION_PLAN.md schema with standardized work item fields (Status, Tasks, Acceptance Criteria, Notes), concrete sizing (S/M/L using file count and LOC), machine-readable markers for append logic, and plan size limits (max 8 phases, max 6 items per phase). `create-plan` adds codebase reconnaissance and scope confirmation. `plan-improvements` adds sampling strategy, expanded analysis dimensions, priority rubric, and a two-stage `--recommendations-only` workflow.
 - **Testing commands** (`test-project`): Comprehensive test, fix, and ship workflows
@@ -250,7 +255,7 @@ allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 - **Cleanup commands** (`clean-repo`): Repository cleanup, organization, and documentation refresh
 - **Sanitization commands** (`remove-ip`): De-identify documents by removing company info and intellectual property
 - **Scaffolding commands** (`scaffold-plugin`, `new-command`, `new-skill`): Create new plugin/command/skill structures from templates
-- **Utility commands** (`bump-version`, `validate-plugin`): Plugin/repository maintenance and configuration tasks. `validate-plugin` supports `--check-updates` to check for plugin updates from the marketplace.
+- **Utility commands** (`bump-version`, `validate-plugin`): Plugin/repository maintenance and configuration tasks. `validate-plugin` supports `--check-updates` to check for plugin updates from the marketplace
 
 ### Output File Naming
 Commands that generate files use: `[type]-[source]-[timestamp].json` or `.md`
@@ -474,12 +479,9 @@ Each plugin maintains its own independent version:
 
 ## Help Skill Maintenance
 
-**IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills.
+**IMPORTANT:** Each plugin must have a `/help` skill at `skills/help/SKILL.md` (not `skills/help.md`).
 
-When modifying a plugin:
-- **Adding a command/skill**: Update the plugin's `skills/help/SKILL.md` with the new entry
-- **Changing a command/skill**: Update the corresponding entry in `skills/help/SKILL.md`
-- **Removing a command/skill**: Remove the entry from `skills/help/SKILL.md`
-- **Creating a new plugin**: Create a `skills/help/SKILL.md` skill following the pattern in existing plugins
-
-**Remember:** The help skill must be at `skills/help/SKILL.md` (not `skills/help.md`).
+Help skills use **dynamic discovery** via Glob-based scanning of `commands/*.md` and `skills/*/SKILL.md` at runtime. This means:
+- Help output is always accurate -- it reads frontmatter descriptions directly from command/skill files
+- **No manual updates to help skills are needed** when adding, changing, or removing commands/skills
+- When creating a new plugin, create a `skills/help/SKILL.md` following the dynamic discovery pattern used in existing plugins

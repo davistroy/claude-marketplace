@@ -117,7 +117,8 @@ or
 - Security analysis
 - Performance assessment
 - Code quality evaluation
-- Categorized issues (CRITICAL, WARNING, SUGGESTION)
+- Categorized issues (CRITICAL, HIGH, MEDIUM, LOW, INFO)
+- Line-level review comments via MCP GitHub integration (with `gh` CLI fallback)
 
 #### Step 2: Fix Issues
 
@@ -262,6 +263,11 @@ This checks:
 - No `name` field in frontmatter (uses filename)
 - `/help` skill is up to date
 - No orphaned files
+
+Optionally, include `--check-updates` to compare local versions against the remote marketplace:
+```
+/validate-plugin --check-updates
+```
 
 Fix any reported issues before proceeding.
 
