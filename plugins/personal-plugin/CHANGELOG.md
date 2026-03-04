@@ -5,6 +5,26 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-03-04
+
+### Added
+- Performance sections to all 13 commands and 6 skills missing them
+- Examples sections to 4 commands and 3 skills missing them
+- Ruff linting/formatting CI job with `ruff.toml` configuration
+- `pip-audit` dependency security scanning in CI
+- Windows CI test matrix support
+- `pytest.ini` for local test discovery
+- Type hints to feedback-docx-generator utility functions
+
+### Changed
+- Markdown linting now blocking in CI (removed `|| true`)
+- Standardized example section headings to `## Examples`
+
+### Fixed
+- Removed 5 committed `.coverage` files from git tracking
+- Dead code removal in bpmn2drawio converter.py
+- TROUBLESHOOTING.md content review
+
 ## [5.0.0] - 2026-03-04
 
 ### Breaking Changes

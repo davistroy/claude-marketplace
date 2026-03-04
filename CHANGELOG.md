@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v5.1.0] - 2026-03-04
+
+### Added
+- Performance sections to all 25 commands and skills (13 commands, 12 skills)
+- Examples sections to 7 files missing them (4 commands, 3 skills)
+- Ruff linting and formatting enforcement in CI (`ruff.toml`, validate.yml)
+- Dependency security scanning via `pip-audit` in CI
+- Windows (`windows-latest`) added to CI test matrix
+- `pytest.ini` for local test discovery from repo root
+- Type hints to feedback-docx-generator utility functions
+
+### Changed
+- Markdown linting now blocking in CI (removed `|| true`)
+- Standardized example section headings to `## Examples` across all commands
+
+### Fixed
+- Removed 5 committed `.coverage` files (~588 KB) from git tracking
+- Removed dead `merge_theme_with_config` call in bpmn2drawio converter.py
+- TROUBLESHOOTING.md reviewed and verified substantive
+
+## [bpmn-plugin v2.4.0] - 2026-03-04
+
+### Added
+- Performance sections to all 3 skills (help, bpmn-generator, bpmn-to-drawio)
+
+### Fixed
+- Dead code removal in bpmn2drawio converter.py
+
 ## [personal-plugin v5.0.0] - 2026-03-04
 
 ### Breaking Changes
