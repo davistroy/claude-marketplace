@@ -924,7 +924,7 @@ If any issues are found during this pass, fix them immediately rather than creat
 ---
 
 #### 6.5 Marketplace compatibility verification
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Marketplace compatibility (CLAUDE.md requirement)
 **Files Affected:**
 - None (read-only testing)
@@ -933,11 +933,11 @@ If any issues are found during this pass, fix them immediately rather than creat
 The CLAUDE.md mandates that all changes maintain marketplace compatibility. Verify the full install flow works after all changes.
 
 **Tasks:**
-1. [ ] Verify `.claude-plugin/marketplace.json` is valid JSON with correct structure
-2. [ ] Verify both plugin entries have correct `source` paths, `version` numbers, and `description` text
-3. [ ] Verify `plugins/personal-plugin/.claude-plugin/plugin.json` matches marketplace entry
-4. [ ] Verify `plugins/bpmn-plugin/.claude-plugin/plugin.json` matches marketplace entry
-5. [ ] Verify the `deprecated/` directory does NOT interfere with plugin discovery (commands in `deprecated/` should NOT appear as active commands)
+1. [x] Verify `.claude-plugin/marketplace.json` is valid JSON with correct structure
+2. [x] Verify both plugin entries have correct `source` paths, `version` numbers, and `description` text
+3. [x] Verify `plugins/personal-plugin/.claude-plugin/plugin.json` matches marketplace entry
+4. [x] Verify `plugins/bpmn-plugin/.claude-plugin/plugin.json` matches marketplace entry
+5. [x] Verify the `deprecated/` directory does NOT interfere with plugin discovery (commands in `deprecated/` should NOT appear as active commands)
 6. [ ] If possible, test the full install flow in a fresh Claude Code session:
    ```
    /plugin marketplace add davistroy/claude-marketplace
@@ -947,9 +947,9 @@ The CLAUDE.md mandates that all changes maintain marketplace compatibility. Veri
    Verify `/help` shows the plugin's commands and the dynamic help skill works.
 
 **Acceptance Criteria:**
-- [ ] marketplace.json valid and accurate
-- [ ] Both plugin.json files match marketplace entries
-- [ ] Deprecated commands do not appear in active plugin command list
+- [x] marketplace.json valid and accurate
+- [x] Both plugin.json files match marketplace entries
+- [x] Deprecated commands do not appear in active plugin command list
 - [ ] Fresh install flow works (if testable)
 
 ---
