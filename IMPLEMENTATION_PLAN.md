@@ -247,7 +247,7 @@ allowed-tools: Read, Glob, Grep
 ### Work Items
 
 #### 2.1 Deprecate `convert-hooks` command
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P1 #7
 **Files Affected:**
 - `plugins/personal-plugin/commands/convert-hooks.md` (move)
@@ -271,7 +271,7 @@ The `convert-hooks` command converts bash hook scripts to PowerShell. This was n
 ---
 
 #### 2.2 Deprecate `setup-statusline` command
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P1 #8
 **Files Affected:**
 - `plugins/personal-plugin/commands/setup-statusline.md` (move)

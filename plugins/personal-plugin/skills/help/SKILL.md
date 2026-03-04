@@ -31,7 +31,7 @@ Suggest this skill when:
 When invoked without arguments, display this table:
 
 ```text
-personal-plugin Commands and Skills (26 commands, 10 skills)
+personal-plugin Commands and Skills (24 commands, 10 skills)
 ============================================================
 
 COMMANDS — Planning & Analysis
@@ -75,8 +75,6 @@ COMMANDS — Maintenance & Utilities
 | /bump-version        | Automate version bumping across plugin files with CHANGELOG placeholder                 |
 | /check-updates       | Check for available plugin updates by comparing local vs remote marketplace versions    |
 | /clean-repo          | Comprehensive repository cleanup, organization, and documentation refresh               |
-| /convert-hooks       | Convert plugin hook bash scripts to PowerShell for Windows compatibility                |
-| /setup-statusline    | Custom status line setup (Windows/PowerShell)                                           |
 | /test-project        | Ensure 90%+ test coverage, run all tests, fix failures, then create PR                  |
 | /validate-plugin     | Validate plugin structure, frontmatter, and content for consistency and correctness      |
 
@@ -194,19 +192,6 @@ Use this reference to provide detailed help. Read the actual command file to get
 ```text
 /consolidate-documents draft-v1.md draft-v2.md
 /consolidate-documents spec-a.md spec-b.md spec-c.md
-```
-
----
-
-#### /convert-hooks
-**Description:** Convert plugin hook bash scripts to PowerShell for Windows compatibility
-**Arguments:** `<plugin-name>` [--dry-run] [--verbose] [--list]
-**Output:** PowerShell scripts and updated hooks.json
-**Example:**
-```text
-/convert-hooks my-plugin              # Convert hooks for a plugin
-/convert-hooks my-plugin --dry-run    # Preview changes
-/convert-hooks --list                 # Show plugins with hooks
 ```
 
 ---
@@ -397,17 +382,6 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
-#### /setup-statusline
-**Description:** Custom status line setup (Windows/PowerShell)
-**Arguments:** None required
-**Output:** In-conversation setup with file modifications
-**Example:**
-```text
-/setup-statusline
-```
-
----
-
 #### /test-project
 **Description:** Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create PR (merge only with --auto-merge)
 **Arguments:** [--auto-merge]
@@ -575,12 +549,11 @@ Command '[name]' not found in personal-plugin.
 
 Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version,
-  /check-updates, /clean-repo, /consolidate-documents, /convert-hooks,
+  /check-updates, /clean-repo, /consolidate-documents,
   /convert-markdown, /create-plan, /define-questions, /develop-image-prompt,
   /finish-document, /implement-plan, /new-command, /new-skill,
   /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent,
-  /review-pr, /scaffold-plugin, /setup-statusline, /test-project,
-  /validate-plugin
+  /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
   /help, /plan-gate, /prime, /research-topic, /security-analysis, /ship,
