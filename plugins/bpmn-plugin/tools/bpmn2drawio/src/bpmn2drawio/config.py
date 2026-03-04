@@ -6,8 +6,8 @@ from typing import Any, Dict
 
 import yaml
 
-from .themes import BPMNTheme, THEMES
 from .exceptions import ConfigurationError
+from .themes import THEMES, BPMNTheme
 
 
 def load_brand_config(config_path: str) -> BPMNTheme:

@@ -410,6 +410,10 @@ All command completions include validation status:
 | Answer file write failure | Cannot save output JSON due to permissions or disk space | Display the answers summary inline and report: "Could not save to [path]. Copy the answers above manually." |
 | Resume file corrupted | Previous in-progress answer file has invalid JSON | Warn: "Previous session file is corrupted. Starting fresh." Rename corrupted file with `.corrupted` suffix and begin from question 1. |
 
+## Performance
+
+Session setup completes in under 15 seconds. Total duration depends on user response time.
+
 ## Related Commands
 
 - `/define-questions` — Produces the questions JSON file that this command consumes

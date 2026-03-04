@@ -197,6 +197,25 @@ jobs:
         run: |
           pytest tests/ -v --tb=short
 
+  python-lint:
+    name: Python Lint & Format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ruff
+        run: pip install ruff==0.14.10
+
+      - name: Ruff lint check
+        run: |
+          ruff check plugins/*/tools/*/src/ tests/ --output-format=github
+
+      - name: Ruff format check
+        run: |
+          ruff format --check plugins/*/tools/*/src/ tests/
+
   lint-markdown:
     name: Lint Markdown
     runs-on: ubuntu-latest
@@ -213,23 +232,9 @@ jobs:
       - name: Install markdownlint-cli
         run: npm install -g markdownlint-cli
 
-      - name: Create markdownlint config
-        run: |
-          cat > .markdownlint.json << 'EOF'
-          {
-            "default": true,
-            "MD013": false,
-            "MD033": false,
-            "MD041": false,
-            "MD024": { "siblings_only": true },
-            "MD046": false,
-            "MD007": { "indent": 2 }
-          }
-          EOF
-
       - name: Lint markdown files
         run: |
-          markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' || true
+          markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'
 
   help-sync:
     name: Help.md Synchronization

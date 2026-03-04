@@ -287,8 +287,15 @@ def detect_input_type(input_source: str) -> tuple[str, str | None]:
         return "url", url
 
     # Check if it's a file path that exists
+    # Guard against very long strings that cause OSError on Linux
+    if len(input_source) > 4096:
+        return "text", None
     potential_path = Path(input_source)
-    if potential_path.exists() and potential_path.is_file():
+    try:
+        path_exists = potential_path.exists() and potential_path.is_file()
+    except OSError:
+        return "text", None
+    if path_exists:
         return "file", str(potential_path.resolve())
 
     # Check if it looks like a file path even if it doesn't exist

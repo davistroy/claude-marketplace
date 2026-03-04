@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -107,6 +108,10 @@ def create_mock_gemini_safety_block() -> dict[str, Any]:
 class TestFullPipeline:
     """Integration tests for the complete generation pipeline."""
 
+    @pytest.mark.skipif(
+        not os.environ.get("ANTHROPIC_API_KEY"),
+        reason="Requires ANTHROPIC_API_KEY environment variable",
+    )
     @pytest.mark.asyncio
     async def test_full_pipeline_success(
         self,

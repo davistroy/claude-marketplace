@@ -1,9 +1,8 @@
 """File comparison utilities for testing."""
 
 import re
-from pathlib import Path
 from difflib import unified_diff
-
+from pathlib import Path
 
 # Regex patterns for normalizing content
 TIMESTAMP_PATTERN = re.compile(
@@ -182,12 +181,14 @@ def extract_tbd_markers(content: str) -> list[dict]:
 
     for i, line in enumerate(content.splitlines(), start=1):
         for match in tbd_pattern.finditer(line):
-            markers.append({
-                "line": i,
-                "text": line.strip(),
-                "marker": match.group(0),
-                "content": match.group(1).strip() if match.group(1) else "",
-            })
+            markers.append(
+                {
+                    "line": i,
+                    "text": line.strip(),
+                    "marker": match.group(0),
+                    "content": match.group(1).strip() if match.group(1) else "",
+                }
+            )
 
     return markers
 

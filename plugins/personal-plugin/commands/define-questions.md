@@ -291,6 +291,10 @@ All command completions include validation status:
 - `Validation: FAILED` - Errors listed, file not saved (unless `--force`)
 - `Validation: SKIPPED` - Used with `--force`, file saved with warning
 
+## Performance
+
+Typically completes in under 30 seconds regardless of document size.
+
 ## Related Commands
 
 - `/ask-questions` — Interactively walk through answering the extracted questions

@@ -68,9 +68,7 @@ def get_element_style(element_type: str) -> str:
     return STYLE_MAP.get(element_type, STYLE_MAP["task"])
 
 
-def get_edge_style(
-    flow_type: str, is_default: bool = False, has_condition: bool = False
-) -> str:
+def get_edge_style(flow_type: str, is_default: bool = False, has_condition: bool = False) -> str:
     """Get Draw.io style string for a flow type.
 
     Args:

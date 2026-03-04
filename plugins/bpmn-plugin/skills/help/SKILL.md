@@ -112,6 +112,10 @@ When invoked with a skill name, display detailed information.
 
 ---
 
+## Performance
+
+Typically completes in under 5 seconds. Discovery uses Glob and frontmatter reads only.
+
 ## Error Handling
 
 If the requested skill is not found, re-run the Glob discovery from Mode 1 to list all available skills dynamically:

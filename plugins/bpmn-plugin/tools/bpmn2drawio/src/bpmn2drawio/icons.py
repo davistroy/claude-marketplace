@@ -5,7 +5,6 @@ from xml.etree import ElementTree as ET
 
 from .models import BPMNElement
 
-
 # Task icon definitions
 TASK_ICONS: Dict[str, Dict] = {
     "userTask": {

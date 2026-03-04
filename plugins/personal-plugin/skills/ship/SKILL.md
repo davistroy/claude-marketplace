@@ -459,6 +459,17 @@ Branch: [branch-name] (preserved for manual work)
 
 ---
 
+## Performance
+
+| Scenario | Expected Duration |
+|----------|-------------------|
+| Clean PR, no issues | 30-60 seconds (branch, commit, push, PR create, review, merge) |
+| PR with fixable issues | 1-3 minutes (includes fix loop iterations) |
+| PR with CI checks | 2-10 minutes (depends on CI pipeline duration) |
+| Max fix loop (5 attempts) | 3-5 minutes (excludes CI wait time) |
+
+Duration scales with the number of changed files (affects review time) and CI pipeline configuration. Gitea operations may be slightly slower than GitHub due to CLI differences.
+
 ## Summary of Workflow
 
 | Phase | Action | Outcome |

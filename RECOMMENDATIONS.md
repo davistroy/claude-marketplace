@@ -1,342 +1,351 @@
-# Recommendations: Personal Plugin Command & Skill Quality Overhaul
+# Improvement Recommendations
 
-**Generated:** 2026-02-28
-**Based On:** Critical review of all 23 commands and 9 skills (excluding 3 recently-upgraded planning commands and help skill)
-**Quality Baseline:** The recently-upgraded planning commands (`create-plan.md`, `plan-improvements.md`, `implement-plan.md`) which feature: `allowed-tools` frontmatter, task-based instructions, concrete sizing heuristics, structured output templates, error handling sections, context management, and related-command cross-references.
-**Status: ALL RECOMMENDATIONS IMPLEMENTED [2026-02-28]** -- All 24 individual recommendations (R1-R24) and 8 cross-cutting issues (S1-S8) were addressed in the Implementation Plan. See IMPLEMENTATION_PLAN.md for full traceability.
+**Generated:** 2026-03-04 21:30:00
+**Analyzed Project:** claude-marketplace (2 plugins, 21 commands, 13 skills, 4 Python tools)
 
 ---
 
 ## Executive Summary
 
-32 files reviewed across commands and skills. Average rating: 3.5/5. The planning pipeline upgrade exposed a significant quality gap between those three commands and the rest of the plugin. Six systemic issues affect nearly every file, and several individual files need structural overhauls.
+The claude-marketplace repository is in excellent shape following the comprehensive v5.0.0 quality overhaul. All commands and skills have consistent frontmatter, error handling, input validation, and related command references. The four Python tools are production-grade with ~96% test-to-source file parity and zero security issues.
 
-**Rating Distribution:**
+The remaining improvement opportunities fall into two categories: (1) **CI/CD hardening** — the pipeline lacks Python linting, security scanning, and cross-platform testing, and (2) **documentation completeness** — 62% of commands and 92% of skills are missing Performance sections, and 7 files lack Examples sections. These are polish-tier issues, not structural problems.
 
-| Rating | Count | Files |
-|--------|-------|-------|
-| 5/5 | 3 | prime, unlock, plan-gate |
-| 4/5 | 12 | review-intent, review-pr, remove-ip, ship, summarize-feedback, visual-explainer, validate-and-ship, bump-version, clean-repo, new-skill, validate-plugin, ask-questions |
-| 3.5/5 | 4 | analyze-transcript, assess-document, finish-document, test-project |
-| 3/5 | 9 | define-questions, develop-image-prompt, review-arch, convert-hooks, convert-markdown, new-command, scaffold-plugin, security-analysis, check-updates |
-| 2.5/5 | 1 | consolidate-documents |
-| 2/5 | 2 | plan-next, setup-statusline |
+No critical or blocking issues were found. The highest-impact work is adding ruff to CI (catches real bugs) and adding a local pytest.ini (reduces friction for contributors).
 
 ---
 
-## Cross-Cutting Issues (Affect Multiple Files)
+## Recommendation Categories
 
-### S1. Missing `allowed-tools` Frontmatter [ALL FILES]
+### Category: CI/CD Pipeline
 
-**Impact:** High | **Effort:** Low
+#### CI1. Add Python Linting with Ruff to CI
 
-Every command and skill reviewed is missing `allowed-tools` in its YAML frontmatter. The planning commands specify exactly which tools are permitted, preventing unintended tool use. This is a batch fix — add appropriate `allowed-tools` declarations to all 32 files.
+**Priority:** High
+**Effort:** S
+**Impact:** Catches real bugs (unused imports, unreachable code, type errors) and enforces consistent style across all 4 Python tools
 
-**Recommended values by command type:**
-- Read-only commands (review-arch, review-intent, check-updates): `Read, Glob, Grep`
-- Read + git (review-pr, plan-next): `Read, Glob, Grep, Bash(gh:*), Bash(git:*)`
-- File generators (analyze-transcript, assess-document, etc.): `Read, Write, Edit, Glob, Grep`
-- Shell-dependent (test-project, convert-markdown): `Read, Write, Edit, Glob, Grep, Bash`
-- Skills with external tools (research-topic, visual-explainer): `Read, Write, Bash, WebSearch, WebFetch`
+**Current State:**
+No Python linting in CI. The `validate.yml` workflow checks markdown and JSON schemas but skips Python entirely. The `test.yml` workflow runs mypy (non-blocking) but no linter. There is a `.ruff_cache/0.14.10` directory suggesting ruff has been used locally but is not enforced.
 
-### S2. Missing Error Handling Sections [20+ FILES]
+**Recommendation:**
+Add a ruff lint + format check job to `validate.yml`. Configure with a shared `ruff.toml` at the repo root targeting all 4 tool directories. Use `ruff check --output-format=github` for inline PR annotations.
 
-**Impact:** High | **Effort:** Medium
-
-Most commands lack a structured `## Error Handling` section. The planning commands have explicit error handling for every failure mode with user-facing message examples. Common missing handlers: file not found, empty/binary input, context window exhaustion, tool unavailability, permission errors.
-
-### S3. Missing "Related Commands" Sections [ALL COMMANDS]
-
-**Impact:** Medium | **Effort:** Low
-
-No command has a "Related Commands" section linking to related functionality. Natural groupings:
-- Document pipeline: define-questions → ask-questions → finish-document
-- Review suite: review-arch, review-intent, review-pr
-- Planning pipeline: plan-improvements → create-plan → implement-plan
-- Scaffolding: scaffold-plugin → new-command → new-skill
-- Ship pipeline: validate-plugin → validate-and-ship → ship
-
-### S4. Missing Proactive Trigger Sections [ALL SKILLS EXCEPT plan-gate]
-
-**Impact:** High | **Effort:** Medium
-
-Only `plan-gate` has explicit "When to suggest this skill" trigger conditions. Every other skill lacks this, which is the most important differentiator between skills and commands.
-
-### S5. Inconsistent Flag Coverage
-
-**Impact:** Medium | **Effort:** Medium
-
-Flags like `--preview`, `--no-prompt`, `--dry-run`, and `--format` exist in some commands but not others with no consistent pattern. Commands that write output files should standardize on a common flag set.
-
-### S6. Dead References to Non-Existent Files
-
-**Impact:** Medium | **Effort:** Low
-
-Three commands (`new-command.md`, `new-skill.md`, `scaffold-plugin.md`) reference `python scripts/generate-help.py` and `python scripts/update-readme.py` which do not exist. Two commands (`define-questions.md`, `finish-document.md`) reference a `schemas/` directory for validation files that does not exist.
-
-### S7. Hardcoded Plugin Lists
-
-**Impact:** Low | **Effort:** Low
-
-Multiple commands (`bump-version`, `check-updates`, `validate-plugin`) hardcode `personal-plugin` and `bpmn-plugin` instead of dynamically scanning the `plugins/` directory.
-
-### S8. Secrets Policy Violations
-
-**Impact:** High | **Effort:** Low
-
-`research-topic` and `visual-explainer` skills include API key setup wizards that write keys directly to `.env` files, contradicting the global CLAUDE.md Bitwarden-first policy. Should reference `/unlock` as primary path.
+**Implementation Notes:**
+- Target: `plugins/*/tools/*/src/` and `tests/`
+- Rule set: Start with `E`, `F`, `W`, `I` (errors, pyflakes, warnings, isort) — expand later
+- Format check: `ruff format --check` to enforce consistent formatting without autofix
+- This will likely surface a few issues on first run (unused imports, etc.)
 
 ---
 
-## Individual Recommendations by Priority
+#### CI2. Add Dependency Security Scanning
 
-### Priority 1: Major Overhauls (Rating 2-2.5)
+**Priority:** High
+**Effort:** S
+**Impact:** Detects known CVEs in Python dependencies before they ship. Four tools pull 15+ external packages including `anthropic`, `openai`, `google-genai`, `lxml`, and `httpx`.
 
-#### R1. Rewrite `plan-next.md` [Rating: 2/5]
+**Current State:**
+SECURITY.md documents a security model and vulnerability reporting process, but the CI pipeline has no automated dependency scanning. No Dependabot, Snyk, Trivy, or `pip-audit` configured.
 
-**Current state:** 47 lines. Uses "Ultrathink" jargon, no methodology, no error handling, no examples, no output template.
+**Recommendation:**
+Add `pip-audit` to the test workflow. It's lightweight, runs in seconds, and catches known CVEs in installed packages. Alternatively, enable GitHub's built-in Dependabot alerts for the repository.
 
-**Recommended changes:**
-1. Expand to 150-200 lines with structured methodology
-2. Add plan-awareness: check for existing IMPLEMENTATION_PLAN.md and RECOMMENDATIONS.md first
-3. Add git-awareness: check for uncommitted changes, open branches, open PRs
-4. Add decision matrix: blocked work > critical fixes > next plan phase > highest-priority recommendation
-5. Replace "~100K tokens" with standard S/M/L sizing table
-6. Add structured output template: Current State, Recommended Action, Rationale, Scope Estimate
-7. Add error handling and examples
-8. Add `allowed-tools` to frontmatter
-
-#### R2. Rewrite `setup-statusline.md` [Rating: 2/5]
-
-**Current state:** 175 lines. 80% PowerShell script dump with no command structure, no validation, no error handling. Overwrites `settings.json` without merging.
-
-**Recommended changes:**
-1. Add phased structure: pre-flight checks → create script → merge settings → verification
-2. Add `pwsh` version detection (PowerShell 7+ required)
-3. Add settings.json merge logic instead of overwrite
-4. Add backup of existing files before modification
-5. Add `--dry-run` and `--uninstall` flags
-6. Add verification step that tests statusline output
-7. Add error handling section
-
-#### R3. Overhaul `consolidate-documents.md` [Rating: 2.5/5]
-
-**Current state:** 134 lines. Contradictory input flow, no output example, no error handling, no flags.
-
-**Recommended changes:**
-1. Expand to 250+ lines with proper depth
-2. Resolve contradictory input flow — pick one mechanism
-3. Add complete output example with consolidation notes
-4. Add `--format`, `--preview`, `--no-prompt` flags
-5. Add error handling for missing files, format mismatches, single document, identical documents
-6. Define how `[topic]` is derived in output filename
-
-### Priority 2: Structural Improvements (Rating 3)
-
-#### R4. Fix `define-questions.md` phantom schema references [Rating: 3/5]
-
-1. Either create `schemas/questions.json` or replace references with inline validation rules
-2. Standardize on one field name (`question` or `text`) across all formats
-3. Add `priority` field to JSON schema example to match CSV format
-4. Add error handling and related-commands sections
-
-#### R5. Fix `finish-document.md` phantom references and resume contradiction [Rating: 3.5/5]
-
-1. Resolve schema references (same approach as R4)
-2. Pick one resume mechanism (auto-detect or explicit flag) and document consistently
-3. Expand error handling section
-4. Add bounds checking for `go to [N]` navigation
-5. Add performance guidance
-
-#### R6. Restructure `review-arch.md` [Rating: 3/5]
-
-1. Rewrite assessment dimensions as imperative tasks (matching plan-improvements style)
-2. Add structured output template: Executive Summary, Scorecard, Findings, Remediation Roadmap
-3. Define T-shirt sizes with standard S/M/L table
-4. Add examples section
-5. Move "DO NOT MAKE ANY CHANGES" guardrail to top of file
-
-#### R7. Rethink `check-updates.md` [Rating: 3/5]
-
-1. Either: (a) make it a true remote check fetching latest marketplace.json from GitHub, or (b) reframe as "version consistency audit"
-2. Remove misleading "Updates Available" language if keeping local-only
-3. Add proper error handling section
-
-#### R8. Fix `scaffold-plugin.md` correctness bug [Rating: 3/5]
-
-1. Fix bug: change `skills/help.md` to `skills/help/SKILL.md` in output report (lines 259, 353)
-2. Remove dead `python scripts/` references
-3. Extract 80-line inline help template to a template file
-4. Add `--dry-run` flag
-5. Fix JSON `keywords` example
-
-#### R9. Improve `convert-hooks.md` honesty [Rating: 3/5]
-
-1. Add prominent warning that automated conversion handles only simple scripts
-2. Add concrete before/after example
-3. Add platform detection instead of listing both paths
-4. Add `--validate` step for generated PowerShell scripts
-
-#### R10. Expand `convert-markdown.md` [Rating: 3/5]
-
-1. Either make the analysis step useful (customize pandoc flags) or remove it
-2. Add proper error handling for pandoc failures
-3. Add `--no-toc`, `--style` option flags
-4. Add `--dry-run` flag
-
-#### R11. Fix `new-command.md` [Rating: 3/5]
-
-1. Remove dead `python scripts/` references — replace with help skill update instruction
-2. Add plugin target parameter (detect or prompt)
-3. Add `orchestration` to pattern types
-4. Add post-generation validation step
-
-#### R12. Overhaul `security-analysis` skill [Rating: 3/5]
-
-1. Add input validation section with arguments (path scope, `--quick`, `--dependencies-only`)
-2. Add `allowed-tools` to frontmatter
-3. Add proactive trigger section
-4. Add error handling, examples, output location, performance expectations
-5. Remove inline technology patterns that duplicate the separate reference files
-6. Replace emoji severity with text labels
-
-### Priority 3: Targeted Fixes (Rating 3.5-4)
-
-#### R13. Fix `test-project.md` safety issues [Rating: 3.5/5]
-
-1. Replace `git add -A` with selective staging
-2. Update Co-Authored-By to `Claude Opus 4.6`
-3. Replace auto-merge with user confirmation prompt
-4. Add `--coverage <n>` optional argument
-5. Add scope confirmation gate before making changes
-
-#### R14. Fix `assess-document.md` naming inconsistency [Rating: 3.5/5]
-
-1. Fix output file naming — pick ONE pattern, remove alternatives
-2. Add score anchor definitions for the 1-5 rubric
-3. Fix `yaml` code fence language to `text` in examples
-4. Add error handling section
-
-#### R15. Improve `analyze-transcript.md` [Rating: 3.5/5]
-
-1. Add error handling section
-2. Add `--no-prompt` flag for consistency
-3. Replace vague "paste content" note with concrete interactive flow
-4. Add context/size management for large transcripts
-
-#### R16. Improve `develop-image-prompt.md` [Rating: 3/5]
-
-1. Add `--dimensions` flag to override default 11x17
-2. Add complete example of an actual generated prompt
-3. Resolve contradictory input flow
-4. Define when style variations are generated vs skipped
-
-#### R17. Fix `review-intent.md` minor issues [Rating: 4/5]
-
-1. Add argument detection instructions
-2. Add `allowed-tools` to frontmatter
-3. Replace shell redirection save suggestion with proper file write offer
-4. Define "sparse" explicitly
-5. Add calculation guidance for Phase 3.3 metrics
-
-#### R18. Fix `review-pr.md` minor issues [Rating: 4/5]
-
-1. Add `Read` to allowed-tools
-2. Move review guidelines before Phase 1
-3. Inline severity definitions instead of referencing external file
-4. Add error handling for: diff exceeds context, binary files, merged PR, draft PR
-
-#### R19. Fix `remove-ip.md` structural issue [Rating: 4/5]
-
-1. Remove "Trigger phrases" section (command pattern, not skill pattern)
-2. Add `allowed-tools` and error handling
-3. Add web research tool guidance
-
-#### R20. Fix `ship` skill issues [Rating: 4/5]
-
-1. Renumber phases consistently
-2. Add proactive trigger section
-3. Add risk/destructive-action warning
-4. Update Co-Authored-By format
-
-#### R21. Fix `research-topic` skill [Rating: 4/5]
-
-1. Extract API key setup wizard to reference file (cuts 130+ lines)
-2. Fix secrets policy violation — reference `/unlock` instead of `.env` writes
-3. Add `--skip-model-check` to arguments table
-4. Add proactive trigger section
-
-#### R22. Fix remaining skills [Rating: 4/5]
-
-Batch fixes for `summarize-feedback`, `visual-explainer`, `validate-and-ship`:
-1. Add proactive trigger sections to all three
-2. `summarize-feedback`: add context-size guardrail for large entry counts
-3. `visual-explainer`: document `--json` flag, fix default threshold, reference `/unlock`
-4. `validate-and-ship`: clarify delegation mechanism, add `--skip-ship` flag
-
-#### R23. Fix utility commands [Rating: 4/5]
-
-Batch fixes for `bump-version`, `clean-repo`, `new-skill`, `validate-plugin`, `ask-questions`:
-1. `bump-version`: dynamic plugin scanning instead of hardcoded list
-2. `clean-repo`: replace `find` commands with Glob tool instructions, add context management
-3. `new-skill`: remove dead script references, add plugin target parameter
-4. `validate-plugin`: fix duplicate section numbering, fix skill path example
-5. `ask-questions`: align resume support with output schema
-
-#### R24. Fix `unlock` skill shell injection risk [Rating: 5/5]
-
-1. Fix shell injection risk in Linux `eval` pattern — use `shlex.quote()` for secret values
-2. Add proactive trigger section
+**Implementation Notes:**
+- `pip-audit` is simpler to add (single step in CI)
+- Dependabot is zero-config but requires repo settings change (not a CI file)
+- Both can coexist — pip-audit for CI blocking, Dependabot for PR-based updates
+- Consider also adding `safety` as a second scanner for broader coverage
 
 ---
 
-## Implementation Sizing Summary
+#### CI3. Make Markdown Linting Blocking
 
-| Priority | Recommendations | Est. Complexity |
-|----------|----------------|-----------------|
-| P1: Major Overhauls | R1-R3 (3 files) | L (~500-1500 LOC) |
-| P2: Structural Improvements | R4-R12 (9 files) | L (~500-1500 LOC) |
-| P3: Targeted Fixes | R13-R24 (20+ files) | M-L (repetitive but extensive) |
-| Cross-cutting batch fixes | S1-S8 | M (~100-500 LOC per fix, repetitive) |
+**Priority:** Medium
+**Effort:** XS
+**Impact:** Currently markdown lint errors are silently ignored (`|| true` suffix). This undermines the entire validation step — errors accumulate without visibility.
 
-**Total scope:** ~32 files modified, ~2000-3000 LOC of changes across 24 recommendations.
+**Current State:**
+Line 232 of `validate.yml` runs markdownlint with `|| true`, making all lint failures non-blocking. This was likely added to unblock a release when lint errors existed, but should now be corrected since the v5.0.0 overhaul fixed all code block language specifiers.
+
+**Recommendation:**
+Remove `|| true` from the markdownlint step. If there are remaining lint issues, fix them rather than suppressing the check.
+
+**Implementation Notes:**
+- Run markdownlint locally first to identify any remaining violations
+- May need to add a few more rules to `.markdownlint.json` exclusions if there are intentional violations (e.g., long lines in tables)
+
+---
+
+#### CI4. Add Cross-Platform Testing (Windows)
+
+**Priority:** Medium
+**Effort:** M
+**Impact:** The plugin is used on Windows (the primary developer is on Windows 11). Path handling, shell commands, and Python tool invocations may behave differently on Windows vs Linux.
+
+**Current State:**
+CI runs only on `ubuntu-latest`. The bpmn2drawio tool uses `pathlib.Path` (good), but the research-orchestrator and visual-explainer tools invoke shell commands that may differ on Windows. The `/unlock` skill explicitly handles Windows with PowerShell-specific commands.
+
+**Recommendation:**
+Add `windows-latest` to the test matrix in `test.yml`. Start with the Python tool tests only (not the full validation suite which depends on Linux-specific tools).
+
+**Implementation Notes:**
+- Use `matrix.os: [ubuntu-latest, windows-latest]` in the test job
+- May need to skip or adapt some tests that depend on Unix-specific behavior
+- The bpmn2drawio tool's optional `pygraphviz` dependency won't install on Windows easily — use `if: runner.os != 'Windows'` for that step
+- Start with just the test suite, not the validation workflow
+
+---
+
+### Category: Developer Experience
+
+#### D1. Add pytest.ini for Local Test Execution
+
+**Priority:** High
+**Effort:** XS
+**Impact:** Currently test configuration is embedded in CI workflow files and individual `pyproject.toml` files. Running tests locally requires knowing the exact pytest invocation from `test.yml`. A root-level `pytest.ini` enables `pytest` from the repo root.
+
+**Current State:**
+Each tool's `pyproject.toml` has `[tool.pytest.ini_options]` for tool-specific settings. But there's no root-level pytest configuration that lets a contributor run `pytest` from the repo root to execute all tests. The CI workflow specifies test paths explicitly.
+
+**Recommendation:**
+Add a `pytest.ini` (or `pyproject.toml` section) at the repo root that discovers all test directories. Include markers for `integration` tests so they can be skipped with `-m "not integration"`.
+
+**Implementation Notes:**
+- Root `pytest.ini` with `testpaths = tests` and `addopts = -v --tb=short`
+- Register markers: `integration`, `slow`
+- Each tool's tests can still be run individually via `cd tools/[name] && pytest`
+
+---
+
+#### D2. Add Code Formatting Enforcement
+
+**Priority:** Medium
+**Effort:** S
+**Impact:** No formatting standard is enforced. While code is generally well-formatted, there are minor inconsistencies (e.g., `Optional[str]` vs `str | None` style) that formatting tools could catch.
+
+**Current State:**
+No `black`, `isort`, or `ruff format` configuration. The `.ruff_cache` directory suggests ruff has been used but formatting is not enforced.
+
+**Recommendation:**
+Add `ruff format --check` to CI alongside CI1's lint check. Use ruff's built-in formatter (compatible with black) to enforce consistent style. Configure line length to 100 (matches the existing code style).
+
+**Implementation Notes:**
+- Combine with CI1 — ruff handles both linting and formatting
+- First run will likely require a one-time `ruff format .` to normalize the codebase
+- Add `ruff.toml` at repo root with shared config
+
+---
+
+### Category: Output Quality Enhancements
+
+#### Q1. Add Performance Sections to Commands Missing Them
+
+**Priority:** Medium
+**Effort:** M
+**Impact:** 13 of 21 commands (62%) lack Performance sections. Users and the `/implement-plan` orchestrator have no guidance on expected execution times, which makes it harder to plan and detect stuck commands.
+
+**Current State:**
+Only 8 commands have Performance sections: `create-plan`, `finish-document`, `implement-plan`, `plan-improvements`, `review-intent`, and 3 others. The remaining 13 commands — including long-running ones like `clean-repo`, `consolidate-documents`, and `review-arch` — lack any duration guidance.
+
+**Recommendation:**
+Add a `## Performance` section to each of the 13 commands missing them. Use the same format as existing Performance sections (table with codebase size vs expected duration). For quick commands (bump-version, new-command), a single line like "Typically completes in under 10 seconds" is sufficient.
+
+**Implementation Notes:**
+- Commands that are inherently fast (bump-version, new-command, new-skill, define-questions): 1-line performance note
+- Commands that scale with input size (analyze-transcript, assess-document, consolidate-documents, review-arch, etc.): Table format with size tiers
+- Commands that depend on external tools (convert-markdown with pandoc, review-pr with GitHub API): Note external dependency latency
+
+---
+
+#### Q2. Add Performance Sections to Skills Missing Them
+
+**Priority:** Medium
+**Effort:** S
+**Impact:** 12 of 13 skills lack Performance sections. Only `prime` has one. Skills like `research-topic` and `visual-explainer` can run for minutes and cost money — users need expectations set.
+
+**Current State:**
+`prime` skill has a proper Performance section with a duration table. The remaining 12 skills, including cost-bearing ones like `research-topic` (up to $5/query) and `visual-explainer`, have no performance guidance.
+
+**Recommendation:**
+Add Performance sections to all 12 skills missing them. For cost-bearing skills (`research-topic`, `visual-explainer`), include both duration and cost estimates. For quick skills (`plan-gate`, `help`), a single line suffices.
+
+**Implementation Notes:**
+- `research-topic` already has cost data in `references/research-models.md` — reference it rather than duplicating
+- `visual-explainer` costs depend on Gemini image generation — estimate per-page
+- Quick skills (help, plan-gate, unlock, ship): "Typically completes in under N seconds"
+
+---
+
+#### Q3. Add Examples to Commands and Skills Missing Them
+
+**Priority:** Medium
+**Effort:** M
+**Impact:** 4 commands and 3 skills lack explicit Examples sections. The most complex command (`implement-plan` at 2000+ lines) has no usage example — users must infer usage from the Instructions section.
+
+**Current State:**
+Missing Examples:
+- Commands: `clean-repo`, `consolidate-documents`, `implement-plan`, `scaffold-plugin`
+- Skills: `security-analysis`, `summarize-feedback`, `unlock`
+
+**Recommendation:**
+Add `## Examples` sections showing typical invocations and expected output summaries. For `implement-plan`, show both fresh execution and resume scenarios. For `scaffold-plugin`, show the generated directory structure.
+
+**Implementation Notes:**
+- Follow the existing example format (yaml code blocks with User/Claude dialog)
+- `implement-plan` needs at least 2 examples (fresh run + resume with `--progress`)
+- `scaffold-plugin` example should show the generated file tree
+
+---
+
+#### Q4. Standardize Examples Section Headings
+
+**Priority:** Low
+**Effort:** XS
+**Impact:** Minor consistency issue. Commands use three different headings: `## Examples` (most), `## Example Usage` (2 commands), and `## Complete Example` (1 command).
+
+**Current State:**
+- `## Examples` — used by most commands
+- `## Example Usage` — used by `convert-markdown`, `plan-improvements`
+- `## Complete Example` — used by `develop-image-prompt`
+
+**Recommendation:**
+Standardize all to `## Examples` for consistency. This matches the majority convention.
+
+**Implementation Notes:**
+- Simple find-and-replace in 3 files
+- No content changes needed, just the heading text
+
+---
+
+### Category: Architectural Improvements
+
+#### A1. Remove Committed .coverage Files from Git
+
+**Priority:** Medium
+**Effort:** XS
+**Impact:** 5 `.coverage` files (~588 KB) are tracked in git despite being in `.gitignore`. They were committed before the gitignore entry was added and persist in the tree.
+
+**Current State:**
+`.coverage` files exist at:
+- Repository root (52 KB)
+- `plugins/bpmn-plugin/tools/bpmn2drawio/` (164 KB)
+- `plugins/personal-plugin/tools/feedback-docx-generator/` (68 KB)
+- `plugins/personal-plugin/tools/research-orchestrator/` (120 KB)
+- `plugins/personal-plugin/tools/visual-explainer/` (184 KB)
+
+**Recommendation:**
+Remove from tracking with `git rm --cached` for each file. The `.gitignore` already prevents re-addition.
+
+**Implementation Notes:**
+- `git rm --cached .coverage plugins/*/tools/*/.coverage`
+- Single commit with message explaining the cleanup
+- No history rewriting needed — just stop tracking them going forward
+
+---
+
+#### A2. Clean Dead Code in bpmn2drawio converter.py
+
+**Priority:** Low
+**Effort:** XS
+**Impact:** Line 54 of `converter.py` merges a theme config that is immediately overwritten on the next line — appears to be leftover from a refactor.
+
+**Current State:**
+```python
+bpmn_theme = merge_theme_with_config(bpmn_theme, {})
+bpmn_theme = config_theme  # Overwrites the merge result
+```
+
+**Recommendation:**
+Remove the dead merge line. Verify with a test run that behavior is unchanged.
+
+**Implementation Notes:**
+- Read the full context around line 54 to confirm the merge result is truly unused
+- Run bpmn2drawio tests after the change
+
+---
+
+#### A3. Add Type Hints to feedback-docx Utility Functions
+
+**Priority:** Low
+**Effort:** S
+**Impact:** The feedback-docx-generator's helper functions (lines 49-138) lack parameter type annotations. While the tool works correctly, this makes it harder to maintain and inconsistent with the other three tools which all have comprehensive type hints.
+
+**Current State:**
+Functions like `_set_run_style()`, `_add_heading()`, `_add_body()` have untyped parameters. The tool's 462-line single-file architecture is otherwise clean.
+
+**Recommendation:**
+Add type annotations to all public and private functions. Use `python-docx` types where available, `str | None` for optional parameters.
+
+**Implementation Notes:**
+- Run mypy after adding hints to catch any latent type errors
+- Use `from __future__ import annotations` for PEP 604 syntax compatibility with Python 3.10
+
+---
+
+### Category: Usability Improvements
+
+#### U1. Add TROUBLESHOOTING.md Content or Remove Empty File
+
+**Priority:** Low
+**Effort:** XS
+**Impact:** A `TROUBLESHOOTING.md` file exists at the repo root but may be sparse. If it lacks useful content, it creates false expectations for users seeking help.
+
+**Current State:**
+File exists but was not deeply analyzed. If it's substantive, no action needed. If it's a stub, either populate it or remove it.
+
+**Recommendation:**
+Review the file. If it has fewer than 3 troubleshooting entries, either populate it with common issues (marketplace installation failures, Python dependency conflicts, API key configuration) or remove it and fold any content into README.md.
+
+**Implementation Notes:**
+- Common troubleshooting topics: `bws` CLI not found, `pip install` failures on Windows, markdown lint failures locally
+
+---
+
+## Quick Wins
+
+| Ref | Recommendation | Priority | Effort | Why Quick Win |
+|-----|---------------|----------|--------|---------------|
+| CI3 | Make markdown linting blocking | Medium | XS | Remove `\|\| true` from one line in validate.yml |
+| A1 | Remove committed .coverage files | Medium | XS | Single `git rm --cached` command |
+| Q4 | Standardize Examples headings | Low | XS | 3-file heading rename |
+| D1 | Add pytest.ini for local testing | High | XS | Single config file creation |
+| A2 | Clean dead code in converter.py | Low | XS | Remove one line, run tests |
+
+---
+
+## Strategic Initiatives
+
+| Ref | Recommendation | Priority | Effort | Dependencies / Sequencing |
+|-----|---------------|----------|--------|---------------------------|
+| CI1 | Add ruff linting to CI | High | S | Do first — may surface issues that other items depend on |
+| CI2 | Add dependency security scanning | High | S | Independent of CI1, but natural to add in same CI update |
+| Q1+Q2 | Add Performance sections to 25 files | Medium | M | Can be done in parallel; no dependencies |
+| Q3 | Add Examples to 7 files | Medium | M | Independent of Q1+Q2 |
+| CI4 | Add Windows to CI test matrix | Medium | M | Do after CI1 (ruff may find platform-specific issues) |
 
 ---
 
 ## Not Recommended
 
-### NR1. Splitting `validate-plugin.md` into multiple commands
-**Why Considered:** At 1184 lines, it's the longest command.
-**Why Rejected:** Phases are tightly coupled. `--scorecard` flag provides clean separation.
-**Reconsider If:** Command grows beyond 1500 lines.
+### NR-1: Standardize All Type Hints to PEP 604 Syntax
 
-### NR2. Converting `remove-ip.md` to a skill
-**Why Considered:** It has trigger phrases, which is a skill pattern.
-**Why Rejected:** Workflow is too long and complex for proactive suggestion. Better to remove trigger phrases.
-**Reconsider If:** A lightweight version is needed for proactive offering.
+**Why Considered:** The four Python tools use a mix of `Optional[str]` (typing module) and `str | None` (PEP 604). Standardizing would improve consistency.
+**Why Rejected:** Both syntaxes are correct Python 3.10+. The inconsistency is cosmetic and would touch dozens of files across all tools for no functional benefit. The tools are independent (no shared code), so cross-tool consistency matters less.
+**Conditions for Reconsideration:** If a shared utility library is extracted across tools, standardize at that point.
 
-### NR3. Merging `new-command.md` and `new-skill.md`
-**Why Considered:** They share 70% of logic.
-**Why Rejected:** Commands and skills have fundamentally different structures and frontmatter. Separate commands prevent wrong-type creation.
-**Reconsider If:** A unified `/new --type command|skill` proves more discoverable.
+### NR-2: Extract Shared Utilities Across Python Tools
 
----
+**Why Considered:** Research-orchestrator and visual-explainer share dependencies (anthropic, google-genai, pydantic, python-dotenv, rich) and patterns (async providers, Rich UI, environment config loading).
+**Why Rejected:** The tools are deliberately isolated — each is self-contained with its own `pyproject.toml` and test suite. Extracting shared code would create coupling between tools that are installed and run independently. The current duplication (~50 lines of similar patterns) is acceptable for the isolation benefit.
+**Conditions for Reconsideration:** If a 5th tool is added that shares the same patterns, consider extracting a `marketplace-tool-utils` package.
 
-## Implementation Status
+### NR-3: Add Shell Completion for CLI Tools
 
-All recommendations in this document have been fully implemented as of 2026-02-28:
-
-| Category | Items | Status |
-|----------|-------|--------|
-| Cross-cutting issues (S1-S8) | 8 | All implemented in IMPLEMENTATION_PLAN.md Phase 1 and Phase 7 |
-| Priority 1: Major Overhauls (R1-R3) | 3 | All implemented in Phase 2 |
-| Priority 2: Structural Improvements (R4-R12) | 9 | All implemented in Phases 3-4 |
-| Priority 3: Targeted Fixes (R13-R24) | 12 | All implemented in Phases 5-7 |
-| **Total** | **32** | **Complete** |
-
-See IMPLEMENTATION_PLAN.md Appendix (Recommendation Traceability) for the full mapping of recommendations to work items.
+**Why Considered:** The Python CLI tools use argparse, which can generate shell completion scripts. This would improve developer experience.
+**Why Rejected:** These tools are invoked by Claude Code skills via `PYTHONPATH` + `python -m`, not by humans at the terminal. Shell completion provides no value for the primary usage pattern. The effort (L — need to support bash, zsh, PowerShell) is disproportionate to the benefit.
+**Conditions for Reconsideration:** If tools are ever packaged for standalone installation via `pip install`, add completion at that point.
 
 ---
 
-*Recommendations generated by Claude on 2026-02-28*
-*Source: Critical quality review of personal-plugin commands and skills*
+*Recommendations generated by Claude on 2026-03-04 21:30:00*

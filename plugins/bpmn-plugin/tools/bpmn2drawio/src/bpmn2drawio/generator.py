@@ -1,15 +1,15 @@
 """Draw.io XML generator."""
 
+from dataclasses import dataclass
 from typing import Dict, Optional
 from xml.etree import ElementTree as ET
-from dataclasses import dataclass
 
-from .models import BPMNModel, BPMNElement, BPMNFlow
-from .styles import get_element_style, get_edge_style
-from .constants import ELEMENT_DIMENSIONS, GATEWAY_TYPES, TASK_TYPES, EVENT_TYPES
+from .constants import ELEMENT_DIMENSIONS, EVENT_TYPES, GATEWAY_TYPES, TASK_TYPES
+from .icons import create_event_icon, create_task_icon
 from .markers import create_gateway_marker
-from .icons import create_task_icon, create_event_icon
-from .swimlanes import create_pool_cell, create_lane_cell, SwimlaneSizer
+from .models import BPMNElement, BPMNFlow, BPMNModel
+from .styles import get_edge_style, get_element_style
+from .swimlanes import SwimlaneSizer, create_lane_cell, create_pool_cell
 from .themes import BPMNTheme
 
 
@@ -97,13 +97,9 @@ class DrawioGenerator:
         for pool in model.pools:
             # Calculate pool size if not set
             pool_elements = [e for e in model.elements if e.parent_id == pool.id]
-            pool_lanes = [
-                lane for lane in model.lanes if lane.parent_pool_id == pool.id
-            ]
+            pool_lanes = [lane for lane in model.lanes if lane.parent_pool_id == pool.id]
             if not pool.width or not pool.height:
-                pool.width, pool.height = sizer.calculate_pool_size(
-                    pool, pool_elements, pool_lanes
-                )
+                pool.width, pool.height = sizer.calculate_pool_size(pool, pool_elements, pool_lanes)
 
             cell_id = str(self._cell_counter)
             self._cell_counter += 1
@@ -144,9 +140,7 @@ class DrawioGenerator:
 
             # Add gateway markers
             if element.type in GATEWAY_TYPES:
-                marker_result = create_gateway_marker(
-                    element, cell_id, self._cell_counter
-                )
+                marker_result = create_gateway_marker(element, cell_id, self._cell_counter)
                 if marker_result:
                     marker_cell, self._cell_counter = marker_result
                     root.append(marker_cell)
@@ -258,16 +252,10 @@ class DrawioGenerator:
             if element.parent_id in self._subprocess_cell_ids:
                 parent_cell_id = self._subprocess_cell_ids[element.parent_id]
             # Check if parent is a lane
-            elif (
-                hasattr(self, "_lane_cell_ids")
-                and element.parent_id in self._lane_cell_ids
-            ):
+            elif hasattr(self, "_lane_cell_ids") and element.parent_id in self._lane_cell_ids:
                 parent_cell_id = self._lane_cell_ids[element.parent_id]
             # Check if parent is a pool
-            elif (
-                hasattr(self, "_pool_cell_ids")
-                and element.parent_id in self._pool_cell_ids
-            ):
+            elif hasattr(self, "_pool_cell_ids") and element.parent_id in self._pool_cell_ids:
                 parent_cell_id = self._pool_cell_ids[element.parent_id]
             # Fallback to element_cell_ids (for elements parented to other elements)
             elif element.parent_id in self._element_cell_ids:
@@ -334,15 +322,9 @@ class DrawioGenerator:
                 parent_cell_id = self._subprocess_cell_ids[subprocess_id]
         # Then check parent_id for lane/pool
         if parent_cell_id == "1" and element.parent_id:
-            if (
-                hasattr(self, "_lane_cell_ids")
-                and element.parent_id in self._lane_cell_ids
-            ):
+            if hasattr(self, "_lane_cell_ids") and element.parent_id in self._lane_cell_ids:
                 parent_cell_id = self._lane_cell_ids[element.parent_id]
-            elif (
-                hasattr(self, "_pool_cell_ids")
-                and element.parent_id in self._pool_cell_ids
-            ):
+            elif hasattr(self, "_pool_cell_ids") and element.parent_id in self._pool_cell_ids:
                 parent_cell_id = self._pool_cell_ids[element.parent_id]
         cell.set("parent", parent_cell_id)
 

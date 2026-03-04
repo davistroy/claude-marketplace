@@ -304,6 +304,10 @@ Restrict which tools this skill can use? (leave empty for no restrictions)
 | Filename | Any `.md` name | Must be `SKILL.md` |
 | Discovery | By filename | By directory name + `name` field |
 
+## Performance
+
+Typically completes in under 15 seconds once all inputs are provided.
+
 ## Related Commands
 
 - `/new-command` — Generate a new command file from a template (flat file structure)

@@ -588,7 +588,7 @@ Plans must stay within bounds that `/implement-plan` can execute reliably. Apply
 
 ---
 
-## Example Usage
+## Examples
 
 ### Full mode (default)
 

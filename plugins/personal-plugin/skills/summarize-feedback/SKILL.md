@@ -258,6 +258,55 @@ Document sections:
   6. Appendix: Individual Entries
 ```
 
+## Performance
+
+| Scenario | Expected Duration | Notes |
+|----------|-------------------|-------|
+| 1-10 feedback entries | 1-3 minutes | Single-pass synthesis, fast .docx generation |
+| 10-50 feedback entries | 3-8 minutes | Dominated by Notion fetch and LLM synthesis |
+| 50-100 feedback entries | 8-15 minutes | Batch processing may trigger context guardrail |
+| 100+ feedback entries | 15-30 minutes | Multi-batch synthesis with meta-consolidation pass |
+
+Duration is dominated by Notion API fetches (Step 3) and LLM synthesis (Step 4). The .docx generation via the Python tool adds under 5 seconds regardless of entry count. Batch processing (triggered at 100+ entries) adds a final meta-synthesis pass that roughly doubles synthesis time.
+
+## Examples
+
+**Basic feedback assessment for an employee:**
+```text
+/summarize-feedback employee_name="Jane Smith"
+```
+Output: Queries Notion Voice Captures for the last 365 days, synthesizes all feedback entries, and generates `./output/Feedback_Summary_Jane_Smith_20260304_143000.docx`.
+
+**Assessment with custom date range:**
+```text
+/summarize-feedback employee_name="John Doe" start_date=2025-07-01 end_date=2025-12-31
+```
+Output: Scopes feedback to H2 2025 only. Useful for mid-year or quarterly reviews.
+
+**Short lookback with custom output path:**
+```text
+/summarize-feedback employee_name="Maria Garcia" days=90 output_path="./reviews/Q1_Maria.docx"
+```
+Output: Last 90 days of feedback, written to a custom path.
+
+**Typical completion summary:**
+```yaml
+Feedback Assessment Generated
+==============================
+Employee:    Jane Smith
+Period:      2025-03-04 to 2026-03-04
+Entries:     14 feedback entries analyzed
+Output:      ./output/Feedback_Summary_Jane_Smith_20260304_143000.docx
+
+Document sections:
+  1. Executive Summary
+  2. Strengths (4 identified)
+  3. Areas for Development (2 identified)
+  4. Patterns and Themes
+  5. Recommendations (5 total)
+  6. Appendix: Individual Entries
+```
+
 ## Error Handling
 
 | Error | Action |

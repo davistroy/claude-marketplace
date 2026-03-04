@@ -8,8 +8,9 @@ Tests validate:
 
 import json
 import re
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 def parse_semver(version: str) -> tuple:
@@ -141,11 +142,9 @@ class TestPluginVersionOperations:
         plugin_dir.mkdir()
 
         plugin_json = plugin_dir / "plugin.json"
-        plugin_json.write_text(json.dumps({
-            "name": "test-plugin",
-            "description": "Test",
-            "version": "1.0.0"
-        }, indent=2))
+        plugin_json.write_text(
+            json.dumps({"name": "test-plugin", "description": "Test", "version": "1.0.0"}, indent=2)
+        )
 
         # Update the version
         success = update_plugin_json_version(tmp_path, "2.0.0")
@@ -165,7 +164,7 @@ class TestPluginVersionOperations:
             "description": "Test description",
             "version": "1.0.0",
             "author": "Test Author",
-            "dependencies": {"other-plugin": ">=1.0.0"}
+            "dependencies": {"other-plugin": ">=1.0.0"},
         }
 
         plugin_json = plugin_dir / "plugin.json"
@@ -195,24 +194,21 @@ class TestMultiFileVersionSync:
         plugin_dir.mkdir(parents=True)
 
         plugin_json = plugin_dir / "plugin.json"
-        plugin_json.write_text(json.dumps({
-            "name": "test-plugin",
-            "description": "Test",
-            "version": "1.0.0"
-        }, indent=2))
+        plugin_json.write_text(
+            json.dumps({"name": "test-plugin", "description": "Test", "version": "1.0.0"}, indent=2)
+        )
 
         # Create marketplace.json
         marketplace_json = tmp_path / "marketplace.json"
-        marketplace_json.write_text(json.dumps({
-            "version": "1.0.0",
-            "plugins": [
+        marketplace_json.write_text(
+            json.dumps(
                 {
-                    "name": "test-plugin",
                     "version": "1.0.0",
-                    "path": "test-plugin"
-                }
-            ]
-        }, indent=2))
+                    "plugins": [{"name": "test-plugin", "version": "1.0.0", "path": "test-plugin"}],
+                },
+                indent=2,
+            )
+        )
 
         # Simulate bump operation
         new_version = bump_version("1.0.0", "minor")
@@ -240,8 +236,7 @@ class TestMultiFileVersionSync:
             marketplace_data = json.load(f)
 
         plugin_entry = next(
-            (p for p in marketplace_data["plugins"] if p["name"] == "test-plugin"),
-            None
+            (p for p in marketplace_data["plugins"] if p["name"] == "test-plugin"), None
         )
         assert plugin_entry is not None
         assert plugin_entry["version"] == "1.1.0"
@@ -288,19 +283,17 @@ class TestBumpVersionIntegration:
 
         # Create plugin.json with initial version
         plugin_json = plugin_config_dir / "plugin.json"
-        plugin_json.write_text(json.dumps({
-            "name": plugin_name,
-            "description": "Test plugin",
-            "version": "1.5.3"
-        }, indent=2))
+        plugin_json.write_text(
+            json.dumps(
+                {"name": plugin_name, "description": "Test plugin", "version": "1.5.3"}, indent=2
+            )
+        )
 
         # Create marketplace.json
         marketplace_json = tmp_path / "marketplace.json"
-        marketplace_json.write_text(json.dumps({
-            "plugins": [
-                {"name": plugin_name, "version": "1.5.3"}
-            ]
-        }, indent=2))
+        marketplace_json.write_text(
+            json.dumps({"plugins": [{"name": plugin_name, "version": "1.5.3"}]}, indent=2)
+        )
 
         # Execute: Bump minor version
         current_version = get_plugin_version(plugin_path)
@@ -333,13 +326,9 @@ class TestBumpVersionIntegration:
 
         plugin_json = plugin_path.parent / ".claude-plugin" / "plugin.json"
         plugin_json.parent.mkdir(parents=True, exist_ok=True)
-        plugin_json.write_text(json.dumps({
-            "name": "test",
-            "version": "1.0.0"
-        }, indent=2))
+        plugin_json.write_text(json.dumps({"name": "test", "version": "1.0.0"}, indent=2))
 
         # Series of bumps
-        versions = ["1.0.0"]
         bumps = [("patch", "1.0.1"), ("patch", "1.0.2"), ("minor", "1.1.0"), ("major", "2.0.0")]
 
         current = "1.0.0"

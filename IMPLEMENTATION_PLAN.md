@@ -1,978 +1,594 @@
 # Implementation Plan
 
-**Generated:** 2026-03-04 18:45:00
-**Based On:** Comprehensive plugin marketplace evaluation report (39 commands/skills audited)
-**Total Phases:** 6
-**Estimated Total Effort:** ~1,400 LOC across ~40 files
+**Generated:** 2026-03-04 21:35:00
+**Based On:** RECOMMENDATIONS.md
+**Total Phases:** 4
+**Estimated Total Effort:** ~600 LOC across ~35 files
 
 ---
 
 ## Executive Summary
 
-This plan addresses all findings from the comprehensive evaluation of the claude-marketplace plugin repository. The evaluation audited all 26 commands and 13 skills across 2 plugins, identifying 5 blocking bugs (broken allowed-tools), 3 deprecation candidates, 5 quality/consistency issues, and 5 enhancement opportunities.
+This plan addresses all findings from the post-v5.0.0 codebase analysis. The repository is already in excellent structural shape — no blocking bugs or architectural issues remain. The work focuses on two themes: hardening the CI/CD pipeline (adding Python linting, security scanning, cross-platform testing) and completing documentation coverage (Performance and Examples sections across 25+ files).
 
-The implementation follows a risk-ordered approach: fix blocking bugs first (Phase 1), then clean up deprecated commands (Phase 2), improve quality and consistency (Phase 3), add enhancements (Phases 4-5), and finish with a comprehensive documentation audit and marketplace verification (Phase 6). Each phase leaves the repository in a working, marketplace-compatible state.
+The implementation follows a dependency-ordered approach: CI improvements first (Phase 1) since they may surface issues that affect later phases, then quick wins (Phase 2) that clean up minor inconsistencies, then documentation completeness (Phases 3-4). Each phase leaves the repository in a working, marketplace-compatible state.
 
-Key architectural decisions:
-- Deprecated commands move to `plugins/personal-plugin/deprecated/` with README explaining why
-- `check-updates` logic folds into `validate-plugin` as a `--check-updates` flag rather than being silently dropped
-- Help skills become dynamic (Glob-based discovery) to eliminate the static table maintenance burden
-- The shared IMPLEMENTATION_PLAN.md template extracts to `references/plan-template.md` to DRY up `create-plan` and `plan-improvements`
+Key decisions:
+- Ruff is used for both linting and formatting (single tool, already cached locally)
+- Performance sections use a tiered format (single-line for fast commands, table for scaling commands)
+- Windows CI testing targets Python tool tests only (not the full validation suite which depends on Linux tools)
 
 ---
 
 ## Plan Overview
 
-Phases are ordered by blast radius and dependency:
-- **Phase 1** (S) fixes frontmatter-only bugs — zero risk, immediate value
-- **Phase 2** (M) handles deprecations — requires help skill updates and marketplace.json cleanup
-- **Phase 3** (M) improves quality — depends on Phase 2 (help skills rebuilt, command count changes)
-- **Phase 4** (M) enhances commands — independent of Phase 3, but logically follows
-- **Phase 5** (M) optimizes skills — independent of Phase 4
-- **Phase 6** (M) final documentation audit — depends on all previous phases completing
+Phases are ordered by dependency and blast radius:
+- **Phase 1** (S) hardens CI/CD — adds ruff, pip-audit, fixes markdown linting. May surface issues that later phases need to address.
+- **Phase 2** (S) handles quick wins — removes .coverage files, fixes heading inconsistencies, adds pytest.ini, cleans dead code.
+- **Phase 3** (M) adds Performance sections to all 25 files missing them — the largest batch of changes.
+- **Phase 4** (M) adds Examples sections to 7 files and adds Windows to CI matrix.
 
 ### Phase Summary Table
 
 | Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies |
 |-------|------------|------------------|-----------------|--------------|
-| 1 | Fix Blocking Tool Restriction Bugs | 9 frontmatter fixes across 9 files | S (~9 files, ~30 LOC) | None |
-| 2 | Deprecations & Consolidation | 3 commands deprecated, check-updates logic folded into validate-plugin | M (~10 files, ~250 LOC) | None |
-| 3 | Quality & Consistency Improvements | Template extraction, schema fixes, permission tightening, dynamic help | M (~12 files, ~400 LOC) | Phase 2 |
-| 4 | Command Enhancements | MCP migration for review-pr, --json and --focus flags | M (~6 files, ~300 LOC) | None |
-| 5 | Skill Optimization | Extract reference tables, replace hardcoded values | M (~8 files, ~250 LOC) | None |
-| 6 | Documentation & Final Polish | Full doc audit, CHANGELOG, flag consistency, marketplace verification | M (~10 files, ~200 LOC) | Phases 1-5 |
+| 1 | CI/CD Hardening | Ruff linting, pip-audit, markdown lint fix | S (~5 files, ~80 LOC) | None |
+| 2 | Quick Wins & Cleanup | .coverage removal, pytest.ini, heading standardization, dead code | S (~8 files, ~30 LOC) | None |
+| 3 | Performance Documentation | Performance sections for 13 commands + 12 skills | M (~25 files, ~300 LOC) | Phase 1 (ruff may flag issues) |
+| 4 | Examples & Cross-Platform CI | Examples for 7 files, Windows CI matrix | M (~8 files, ~200 LOC) | Phase 1 |
 
 <!-- BEGIN PHASES -->
 
 ---
 
-## Phase 1: Fix Blocking Tool Restriction Bugs
+## Phase 1: CI/CD Hardening
 
-**Estimated Complexity:** S (~9 files, ~30 LOC)
+**Estimated Complexity:** S (~5 files, ~80 LOC)
 **Dependencies:** None
-**Parallelizable:** Yes — all 6 work items are independent frontmatter edits
+**Parallelizable:** Yes — all 4 work items are independent CI config changes
 
 ### Goals
 
-- Fix 5 skills and 1 command with broken or contradictory `allowed-tools` declarations
-- Add missing `allowed-tools` to all 3 bpmn-plugin skills
-- Ensure every command and skill can execute its documented functionality
+- Add Python linting and formatting enforcement to CI
+- Add dependency security scanning
+- Make markdown linting blocking
+- Establish a shared ruff configuration
 
 ### Work Items
 
-#### 1.1 Fix `/test-project` allowed-tools — add Read, Write, Edit, Glob, Grep
+#### 1.1 Add Ruff Linting and Formatting to CI (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P0 #1
+**Recommendation Ref:** CI1, D2
 **Files Affected:**
-- `plugins/personal-plugin/commands/test-project.md` (modify)
+- `ruff.toml` (create)
+- `.github/workflows/validate.yml` (modify)
 
 **Description:**
-The `/test-project` command generates test files and fixes source code (Phase 2.3 and Phase 4.2) but its `allowed-tools` only includes Bash variants and Task. Without `Read, Write, Edit, Glob, Grep`, the command cannot read files, write new tests, or edit source code — its core purpose is completely broken.
+Add a `ruff.toml` configuration at the repo root targeting all Python tool source directories. Add a ruff lint + format check job to `validate.yml`. Start with a conservative rule set (`E`, `F`, `W`, `I`) and expand later. Use `ruff format --check` to enforce formatting without autofix.
 
 **Tasks:**
-1. [ ] Edit the frontmatter `allowed-tools` line to add `Read, Write, Edit, Glob, Grep` before the existing Bash entries
-
-**Current frontmatter:**
-```yaml
-allowed-tools: Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(go:*), Bash(cargo:*), Bash(dotnet:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task
-```
-
-**Target frontmatter:**
-```yaml
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(go:*), Bash(cargo:*), Bash(dotnet:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task
-```
+1. [ ] Create `ruff.toml` at repo root with target directories (`plugins/*/tools/*/src/`, `tests/`), line-length=100, rule selection `E`, `F`, `W`, `I`
+2. [ ] Add a `python-lint` job to `validate.yml` that installs ruff and runs `ruff check --output-format=github` and `ruff format --check`
+3. [ ] Run ruff locally to identify and fix any existing violations
+4. [ ] Verify CI passes with the new job
 
 **Acceptance Criteria:**
-- [ ] `allowed-tools` includes `Read, Write, Edit, Glob, Grep` in addition to existing entries
-- [ ] No other frontmatter fields changed
-- [ ] Command body unchanged
+- [ ] `ruff.toml` exists with documented rule selections
+- [ ] `validate.yml` has a `python-lint` job that blocks on failures
+- [ ] All existing Python code passes ruff check and format check
+- [ ] CI workflow passes
 
 **Notes:**
-Most critical bug — this command is completely non-functional without file access tools.
+The `.ruff_cache/0.14.10` directory suggests ruff 0.14.10 has been used locally. Pin ruff version in CI to match.
 
 ---
 
-#### 1.2 Fix `summarize-feedback` skill allowed-tools — add Bash
+#### 1.2 Add Dependency Security Scanning — COMPLETE 2026-03-04
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P0 #2
+**Recommendation Ref:** CI2
 **Files Affected:**
-- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
+- `.github/workflows/test.yml` (modify)
 
 **Description:**
-The skill runs `python -m feedback_docx_generator` and `python -c "import docx"` for prerequisites checks, both requiring Bash access. Current `allowed-tools: Read, Glob, Grep, Write` lacks Bash entirely.
+Add `pip-audit` as a step in the test workflow to scan installed Python packages for known CVEs. Run after `pip install` but before tests, so vulnerabilities are detected early.
 
 **Tasks:**
-1. [ ] Add `Bash(python:*), Bash(pip:*)` to the `allowed-tools` line
-
-**Current:** `allowed-tools: Read, Glob, Grep, Write`
-**Target:** `allowed-tools: Read, Glob, Grep, Write, Bash(python:*), Bash(pip:*)`
+1. [ ] Add `pip install pip-audit` step to the test workflow
+2. [ ] Add `pip-audit --strict` step after each tool's dependency installation
+3. [ ] Verify the step passes (no known CVEs in current dependencies)
+4. [ ] Add a comment explaining that pip-audit checks the NIST NVD and PyPI advisory databases
 
 **Acceptance Criteria:**
-- [ ] `allowed-tools` includes `Bash(python:*), Bash(pip:*)`
-- [ ] Bash access is scoped to python/pip only (not open Bash)
+- [ ] `pip-audit` runs in CI for all 4 Python tools
+- [ ] Current dependencies have no known CVEs (or any are documented as accepted risks)
+- [ ] CI workflow passes
 
 ---
 
-#### 1.3 Fix `security-analysis` skill allowed-tools — add Write
+#### 1.3 Make Markdown Linting Blocking (2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P0 #3
+**Recommendation Ref:** CI3
 **Files Affected:**
-- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
+- `.github/workflows/validate.yml` (modify)
 
 **Description:**
-The skill writes a report to `reports/security-analysis-[timestamp].md` but `Write` is not in `allowed-tools`. The skill cannot produce its primary output.
+Remove the `|| true` suffix from the markdownlint step in `validate.yml` so that markdown lint failures actually block the build. Run markdownlint locally first to identify and fix any remaining violations.
 
 **Tasks:**
-1. [ ] Add `Write` to the `allowed-tools` line
-
-**Current:** `allowed-tools: Read, Glob, Grep, Bash, WebSearch`
-**Target:** `allowed-tools: Read, Write, Glob, Grep, Bash, WebSearch`
+1. [ ] Run markdownlint locally against all `.md` files to identify current violations
+2. [ ] Fix any remaining violations (or add targeted exclusions to `.markdownlint.json` for intentional deviations like long table lines)
+3. [ ] Remove `|| true` from the markdownlint step in `validate.yml`
+4. [ ] Verify CI passes
 
 **Acceptance Criteria:**
-- [ ] `allowed-tools` includes `Write`
+- [ ] Markdown linting step in CI fails on errors (no `|| true`)
+- [ ] All `.md` files pass markdownlint
+- [ ] Any exclusions in `.markdownlint.json` are documented with rationale
 
 ---
 
-#### 1.4 Fix `prime` skill allowed-tools — remove Write, add Bash(git:*)
+#### 1.4 Add ruff.toml Configuration (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P0 #4
+**Recommendation Ref:** CI1
 **Files Affected:**
-- `plugins/personal-plugin/skills/prime/SKILL.md` (modify)
+- `ruff.toml` (create — same file as 1.1, but this item covers the detailed configuration)
 
 **Description:**
-The skill declares itself "read-only" in its body but has `Write` in allowed-tools (contradiction). It also references git history analysis commands (`git log`, `git shortlog`) but lacks Bash access to execute them.
+This work item is merged into 1.1. The ruff.toml creation and CI integration are done together.
 
 **Tasks:**
-1. [ ] Replace `Write` with `Bash(git:*)` in the `allowed-tools` line
-
-**Current:** `allowed-tools: Read, Glob, Grep, Write`
-**Target:** `allowed-tools: Read, Glob, Grep, Bash(git:*)`
+1. [ ] (Covered by 1.1)
 
 **Acceptance Criteria:**
-- [ ] `Write` removed from allowed-tools
-- [ ] `Bash(git:*)` added to allowed-tools
-- [ ] Skill body "read-only" claim is now consistent with tool restrictions
+- [ ] (Covered by 1.1)
 
----
-
-#### 1.5 Fix `ship` skill allowed-tools — add Read, Edit for fix loop
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P0 #5
-**Files Affected:**
-- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
-
-**Description:**
-The ship skill's auto-review + fix loop (Phases 6-7) needs to read files and apply code fixes, but `allowed-tools` only grants `Bash(git:*), Bash(gh:*), Bash(tea:*)`. Without `Read` and `Edit`, the fix loop cannot inspect or modify source code.
-
-**Tasks:**
-1. [ ] Add `Read, Edit, Glob, Grep` to the `allowed-tools` line
-
-**Current:** `allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*)`
-**Target:** `allowed-tools: Read, Edit, Glob, Grep, Bash(git:*), Bash(gh:*), Bash(tea:*)`
-
-**Acceptance Criteria:**
-- [ ] `allowed-tools` includes `Read, Edit, Glob, Grep`
-- [ ] Existing Bash restrictions preserved
-
----
-
-#### 1.6 Add `allowed-tools` to all 3 bpmn-plugin skills
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P0 #6
-**Files Affected:**
-- `plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md` (modify)
-- `plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md` (modify)
-- `plugins/bpmn-plugin/skills/help/SKILL.md` (modify)
-
-**Description:**
-None of the 3 bpmn-plugin skills declare `allowed-tools`, making them unrestricted. Each should have appropriate restrictions based on what they actually do.
-
-**Tasks:**
-1. [ ] Add `allowed-tools: Read, Write, Glob, Grep` to `bpmn-generator/SKILL.md` frontmatter (reads input docs, writes BPMN XML)
-2. [ ] Add `allowed-tools: Read, Write, Bash, Glob, Grep` to `bpmn-to-drawio/SKILL.md` frontmatter (reads BPMN XML, runs Python tool, writes .drawio)
-3. [ ] Add `allowed-tools: Read, Glob, Grep` to `help/SKILL.md` frontmatter (read-only help display)
-
-**For bpmn-generator, insert after the closing description block:**
-```yaml
-allowed-tools: Read, Write, Glob, Grep
-```
-
-**For bpmn-to-drawio, insert after the closing description block:**
-```yaml
-allowed-tools: Read, Write, Bash, Glob, Grep
-```
-
-**For help, add after the description line:**
-```yaml
-allowed-tools: Read, Glob, Grep
-```
-
-**Acceptance Criteria:**
-- [ ] All 3 bpmn-plugin skills have `allowed-tools` in frontmatter
-- [ ] bpmn-generator: `Read, Write, Glob, Grep`
-- [ ] bpmn-to-drawio: `Read, Write, Bash, Glob, Grep`
-- [ ] help: `Read, Glob, Grep`
-- [ ] No changes to skill bodies
+**Notes:**
+This item exists for traceability — the actual work is in 1.1. Mark complete when 1.1 is complete.
 
 ---
 
 ### Phase 1 Testing Requirements
 
-- [ ] Run `/validate-plugin personal-plugin` — all frontmatter checks pass
-- [ ] Run `/validate-plugin bpmn-plugin` — all frontmatter checks pass, allowed-tools present
-- [ ] Spot-check: invoke `/test-project --help` or similar to confirm it loads without error
+- [ ] `ruff check` and `ruff format --check` pass on all Python code
+- [ ] `pip-audit` passes for all 4 tools
+- [ ] `markdownlint` passes on all `.md` files
+- [ ] Full CI workflow (test.yml + validate.yml) passes
 
 ### Phase 1 Completion Checklist
 
-- [ ] All 6 work items complete
-- [ ] All 9 files modified with correct frontmatter
-- [ ] `/validate-plugin --all` passes
-- [ ] No regressions in other commands/skills
+- [ ] All work items complete
+- [ ] All tests passing
+- [ ] CI workflow passes end-to-end
+- [ ] No regressions in existing validation steps
 
 ---
 
-## Phase 2: Deprecations & Consolidation
+## Phase 2: Quick Wins & Cleanup
 
-**Estimated Complexity:** M (~10 files, ~250 LOC)
-**Dependencies:** None (can run in parallel with Phase 1, but logically follows)
-**Parallelizable:** Items 2.1-2.2 can run concurrently; 2.3 is independent
+**Estimated Complexity:** S (~8 files, ~30 LOC)
+**Dependencies:** None
+**Parallelizable:** Yes — all 5 work items are independent
 
 ### Goals
 
-- Remove 3 commands that overlap with built-in Claude Code features or have minimal use
-- Preserve the unique `check-updates` logic (version drift detection) by folding it into `validate-plugin`
-- Update all references (help skills, marketplace config, CLAUDE.md)
+- Remove tracked files that should be gitignored
+- Add local test configuration
+- Standardize minor inconsistencies
+- Clean dead code
 
 ### Work Items
 
-#### 2.1 Deprecate `convert-hooks` command
+#### 2.1 Remove Committed .coverage Files (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P1 #7
+**Recommendation Ref:** A1
 **Files Affected:**
-- `plugins/personal-plugin/commands/convert-hooks.md` (move)
-- `plugins/personal-plugin/deprecated/README.md` (create)
-- `plugins/personal-plugin/skills/help/SKILL.md` (modify — remove entry)
+- `.coverage` (remove from tracking)
+- `plugins/bpmn-plugin/tools/bpmn2drawio/.coverage` (remove from tracking)
+- `plugins/personal-plugin/tools/feedback-docx-generator/.coverage` (remove from tracking)
+- `plugins/personal-plugin/tools/research-orchestrator/.coverage` (remove from tracking)
+- `plugins/personal-plugin/tools/visual-explainer/.coverage` (remove from tracking)
 
 **Description:**
-The `convert-hooks` command converts bash hook scripts to PowerShell. This was needed once during Windows setup but is rarely used. Claude Code may now handle cross-platform hooks natively, and users can ask Claude ad-hoc for this conversion.
+Remove 5 `.coverage` files (~588 KB total) from git tracking. These were committed before `.gitignore` was properly configured. The `.gitignore` already has entries to prevent re-addition.
 
 **Tasks:**
-1. [ ] Create directory `plugins/personal-plugin/deprecated/`
-2. [ ] Move `plugins/personal-plugin/commands/convert-hooks.md` to `plugins/personal-plugin/deprecated/convert-hooks.md`
-3. [ ] Create `plugins/personal-plugin/deprecated/README.md` with deprecation notices for all 3 deprecated commands (convert-hooks, setup-statusline, check-updates) including dates, reasons, and replacements
-4. [ ] Remove the `/convert-hooks` entry from `plugins/personal-plugin/skills/help/SKILL.md`
+1. [ ] Run `git rm --cached .coverage plugins/*/tools/*/.coverage` (or list each path explicitly)
+2. [ ] Verify `.gitignore` has `.coverage` and `.coverage.*` entries
+3. [ ] Commit the removal
 
 **Acceptance Criteria:**
-- [ ] `convert-hooks.md` no longer in `commands/` directory
-- [ ] `deprecated/` directory exists with README and archived command
-- [ ] Help skill no longer lists `/convert-hooks`
+- [ ] No `.coverage` files in `git ls-files` output
+- [ ] `.gitignore` prevents re-addition
+- [ ] Repository size reduced by ~588 KB
 
 ---
 
-#### 2.2 Deprecate `setup-statusline` command
+#### 2.2 Add pytest.ini for Local Testing — COMPLETE 2026-03-04
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P1 #8
+**Recommendation Ref:** D1
 **Files Affected:**
-- `plugins/personal-plugin/commands/setup-statusline.md` (move)
-- `plugins/personal-plugin/skills/help/SKILL.md` (modify — remove entry)
+- `pytest.ini` (create)
 
 **Description:**
-Claude Code now has a built-in `statusline-setup` agent type that configures status lines. This command is Windows/PowerShell-specific and duplicates built-in functionality.
+Create a root-level `pytest.ini` that configures test discovery for running `pytest` from the repo root. Register markers for `integration` and `slow` tests.
 
 **Tasks:**
-1. [ ] Move `plugins/personal-plugin/commands/setup-statusline.md` to `plugins/personal-plugin/deprecated/setup-statusline.md`
-2. [ ] Remove the `/setup-statusline` entry from `plugins/personal-plugin/skills/help/SKILL.md`
+1. [ ] Create `pytest.ini` with `testpaths = tests`, `addopts = -v --tb=short`, and marker registrations
+2. [ ] Verify `pytest` from repo root discovers and runs tests
+3. [ ] Verify `pytest -m "not integration"` skips integration tests
 
 **Acceptance Criteria:**
-- [ ] `setup-statusline.md` no longer in `commands/` directory
-- [ ] Help skill no longer lists `/setup-statusline`
+- [ ] `pytest` from repo root runs all tests
+- [ ] Markers `integration` and `slow` are registered (no warnings)
+- [ ] CI behavior unchanged (CI specifies test paths explicitly)
 
 ---
 
-#### 2.3 Fold `check-updates` logic into `validate-plugin`, then deprecate
+#### 2.3 Standardize Examples Section Headings (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P1 #9
+**Recommendation Ref:** Q4
 **Files Affected:**
-- `plugins/personal-plugin/commands/check-updates.md` (move)
-- `plugins/personal-plugin/commands/validate-plugin.md` (modify — add --check-updates phase)
-- `plugins/personal-plugin/skills/help/SKILL.md` (modify — remove check-updates, update validate-plugin entry)
+- `plugins/personal-plugin/commands/convert-markdown.md` (modify)
+- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+- `plugins/personal-plugin/commands/develop-image-prompt.md` (modify)
 
 **Description:**
-The `check-updates` command's unique value is its three-way version comparison (remote marketplace.json vs local plugin.json vs local marketplace.json). This logic should be folded into `validate-plugin` as a new `--check-updates` flag, adding a Phase 9.5 (Version Update Check) between the existing Phase 9 (Summary) and the report output. The remote fetch via `gh api` and local consistency check logic transfers directly. After folding, deprecate the standalone command.
+Rename non-standard example section headings to `## Examples` for consistency. `convert-markdown` and `plan-improvements` use `## Example Usage`, `develop-image-prompt` uses `## Complete Example`.
 
 **Tasks:**
-1. [ ] Read `check-updates.md` fully to extract the version comparison logic
-2. [ ] Add a `--check-updates` flag to `validate-plugin.md`:
-   - Document the flag in the Optional Arguments section
-   - Add a new Phase 9.5: Version Update Check section after the existing Phase 9
-   - Include: remote marketplace.json fetch via `gh api`, semver comparison, local consistency check (plugin.json vs marketplace.json version drift), and tabular report output
-   - The phase should gracefully degrade if `gh` is unavailable (local consistency only)
-   - Include `--verbose` support for per-plugin file path detail
-3. [ ] Move `check-updates.md` to `plugins/personal-plugin/deprecated/check-updates.md`
-4. [ ] Update help skill: remove `/check-updates` entry, add `--check-updates` flag to `/validate-plugin` description
+1. [ ] Change `## Example Usage` to `## Examples` in `convert-markdown.md`
+2. [ ] Change `## Example Usage` to `## Examples` in `plan-improvements.md`
+3. [ ] Change `## Complete Example` to `## Examples` in `develop-image-prompt.md`
 
 **Acceptance Criteria:**
-- [ ] `/validate-plugin --check-updates` produces same output as old `/check-updates`
-- [ ] `/validate-plugin` without `--check-updates` is unchanged (no new network calls)
-- [ ] `check-updates.md` no longer in `commands/` directory
-- [ ] Help skill updated
-
-**Notes:**
-The `check-updates` logic is ~200 lines. When folding into validate-plugin, add it as a self-contained section that only executes when `--check-updates` is passed. Do not interleave it with existing validation phases.
+- [ ] All commands use `## Examples` as the section heading
+- [ ] No content changes — only the heading text changes
 
 ---
 
-#### 2.4 Update marketplace references and version
+#### 2.4 Clean Dead Code in bpmn2drawio converter.py — COMPLETE 2026-03-04
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P1 (cross-cutting)
+**Recommendation Ref:** A2
 **Files Affected:**
-- `plugins/personal-plugin/.claude-plugin/plugin.json` (modify — bump version)
-- `.claude-plugin/marketplace.json` (modify — bump personal-plugin version)
-- `plugins/bpmn-plugin/.claude-plugin/plugin.json` (modify — bump version)
-- `.claude-plugin/marketplace.json` (modify — bump bpmn-plugin version)
-- `CLAUDE.md` (modify — update command count, remove deprecated command references)
+- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/converter.py` (modify)
 
 **Description:**
-After deprecations, update version numbers and documentation to reflect the new command count (23 commands instead of 26) and bpmn-plugin changes (added allowed-tools).
+Remove the dead `merge_theme_with_config` call at line ~54 that is immediately overwritten by the next assignment. Verify behavior is unchanged by running the bpmn2drawio test suite.
 
 **Tasks:**
-1. [ ] Bump `personal-plugin` version from 4.1.0 to 5.0.0 in both `plugin.json` and `marketplace.json` (major bump: 3 commands deprecated/removed is a breaking change)
-2. [ ] Bump `bpmn-plugin` version from 2.2.0 to 2.3.0 in both `plugin.json` and `marketplace.json` (minor bump: added allowed-tools, no breaking changes)
-3. [ ] Update CLAUDE.md: remove `convert-hooks.md`, `setup-statusline.md`, `check-updates.md` from the command listing; add `deprecated/` directory to the structure diagram; update command count from 26 to 23
-4. [ ] Add `--check-updates` to the validate-plugin entry in CLAUDE.md
+1. [ ] Read converter.py to confirm the merge result at line ~54 is unused
+2. [ ] Remove the dead line
+3. [ ] Run `pytest` for bpmn2drawio to verify no regressions
 
 **Acceptance Criteria:**
-- [ ] personal-plugin version: 5.0.0 in both files
-- [ ] bpmn-plugin version: 2.3.0 in both files
-- [ ] CLAUDE.md accurately reflects current command inventory
-- [ ] No references to deprecated commands in active documentation
+- [ ] Dead code line removed
+- [ ] All bpmn2drawio tests pass
+- [ ] No behavior change
+
+---
+
+#### 2.5 Review TROUBLESHOOTING.md (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE 2026-03-04**
+**Recommendation Ref:** U1
+**Files Affected:**
+- `TROUBLESHOOTING.md` (modify or remove)
+
+**Description:**
+Check if TROUBLESHOOTING.md has substantive content. If it's a stub with fewer than 3 entries, populate it with common issues (marketplace installation, Python dependency conflicts, API key configuration, Windows-specific issues) or remove it and reference troubleshooting in README.md instead.
+
+**Tasks:**
+1. [ ] Read TROUBLESHOOTING.md and assess content depth
+2. [ ] If substantive (3+ entries), leave as-is
+3. [ ] If stub, either populate with common troubleshooting entries or remove and add a troubleshooting section to README.md
+
+**Acceptance Criteria:**
+- [ ] TROUBLESHOOTING.md either has 3+ useful entries or is removed
+- [ ] If removed, README.md includes basic troubleshooting guidance
 
 ---
 
 ### Phase 2 Testing Requirements
 
-- [ ] Run `/validate-plugin --all` — passes with no errors about missing commands
-- [ ] Verify `deprecated/` directory has all 3 archived commands plus README
-- [ ] Verify help skill shows 23 commands (not 26)
-- [ ] Confirm CLAUDE.md command listing matches actual `commands/` directory
+- [ ] `git ls-files` shows no `.coverage` files
+- [ ] `pytest` from repo root discovers tests
+- [ ] All headings in commands use `## Examples`
+- [ ] bpmn2drawio tests pass after dead code removal
 
 ### Phase 2 Completion Checklist
 
-- [ ] All 4 work items complete
-- [ ] 3 commands archived to `deprecated/`
-- [ ] validate-plugin has `--check-updates` functionality
-- [ ] Version numbers bumped
-- [ ] CLAUDE.md updated
-- [ ] Help skill updated
+- [ ] All work items complete
+- [ ] All tests passing
+- [ ] No regressions introduced
+- [ ] Markdown linting passes (Phase 1 makes this blocking)
 
 ---
 
-## Phase 3: Quality & Consistency Improvements
+## Phase 3: Performance Documentation
 
-**Estimated Complexity:** M (~12 files, ~400 LOC)
-**Dependencies:** Phase 2 (help skills are updated there; command count changes affect this phase)
-**Parallelizable:** Items 3.1-3.4 can run concurrently; 3.5 depends on Phase 2 completion
+**Estimated Complexity:** M (~25 files, ~300 LOC)
+**Dependencies:** Phase 1 (ruff may flag issues in files we're editing)
+**Parallelizable:** Yes — command and skill updates are independent
 
 ### Goals
 
-- Eliminate template duplication between `create-plan` and `plan-improvements`
-- Fix schema field naming inconsistencies across commands
-- Tighten tool restrictions on commands with unnecessarily broad Bash access
-- Make help skills dynamic to eliminate static table maintenance
+- Add Performance sections to all 13 commands missing them
+- Add Performance sections to all 12 skills missing them
+- Use consistent format: single-line for fast operations, table for scaling operations
 
 ### Work Items
 
-#### 3.1 Extract shared IMPLEMENTATION_PLAN.md template to `references/plan-template.md`
+#### 3.1 Add Performance Sections to Fast Commands (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P2 #10
+**Recommendation Ref:** Q1
 **Files Affected:**
-- `plugins/personal-plugin/references/plan-template.md` (create)
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
-
-**Description:**
-Both `create-plan` and `plan-improvements` contain near-identical IMPLEMENTATION_PLAN.md output templates (~200 lines each). Extract the shared template into `references/plan-template.md` and have both commands reference it. This prevents drift when one command's template is updated but not the other's.
-
-**Tasks:**
-1. [ ] Read the Phase 4 template section from `create-plan.md` (the markdown template starting from "Create the implementation plan with this structure:")
-2. [ ] Read the equivalent template section from `plan-improvements.md`
-3. [ ] Diff the two templates to identify any intentional differences
-4. [ ] Create `plugins/personal-plugin/references/plan-template.md` containing the unified template with a header explaining its purpose
-5. [ ] In `create-plan.md`, replace the inline template with a reference: "Read the plan template from `references/plan-template.md` (relative to this command's plugin directory) and use it as the output structure."
-6. [ ] In `plan-improvements.md`, replace the inline template with the same reference
-7. [ ] Preserve any command-specific additions (e.g., append/overwrite logic stays in create-plan, not in the shared template)
-
-**Acceptance Criteria:**
-- [ ] `references/plan-template.md` exists with the unified template
-- [ ] Both commands reference the shared template instead of inlining it
-- [ ] Command-specific logic (append behavior, etc.) remains in the individual commands
-- [ ] The generated IMPLEMENTATION_PLAN.md output is unchanged
-
-**Notes:**
-The append/overwrite logic with `<!-- BEGIN PHASES -->` / `<!-- END PHASES -->` markers is specific to `create-plan` and should stay there. The shared template is the markdown structure itself.
-
----
-
-#### 3.2 Fix schema inconsistencies across commands
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P2 #11
-**Files Affected:**
-- `plugins/personal-plugin/commands/define-questions.md` (modify)
-- `plugins/personal-plugin/commands/finish-document.md` (modify)
-- `plugins/personal-plugin/commands/review-pr.md` (modify)
-
-**Description:**
-Two distinct inconsistencies need fixing:
-
-**Issue A — `generated_date` vs `generated_at`:**
-In `define-questions.md`: the schema template (line ~80) and example output (line ~180) use `generated_date`, but the validation rules section (line ~210) and validation error examples (line ~243) use `generated_at`. Same pattern in `finish-document.md` (schema uses `generated_date`, validation uses `generated_at`). Standardize to `generated_date` everywhere (it's the more common usage and appears in the authoritative schema section).
-
-**Issue B — Severity labels in `review-pr`:**
-The report template uses CRITICAL/WARNING/SUGGESTION but the severity definitions section uses CRITICAL/HIGH/MEDIUM/LOW/INFO. Standardize to CRITICAL/HIGH/MEDIUM/LOW/INFO (the 5-level scale) everywhere, and map the report display to use these same labels.
-
-**Tasks:**
-1. [ ] In `define-questions.md`: replace all occurrences of `generated_at` with `generated_date` in the validation rules section and validation error examples
-2. [ ] In `finish-document.md`: replace all occurrences of `generated_at` with `generated_date` in the validation error examples
-3. [ ] In `review-pr.md`: replace CRITICAL/WARNING/SUGGESTION labels in the report template with CRITICAL/HIGH/MEDIUM/LOW/INFO to match the severity definitions; update the issue count format and Analysis Summary table accordingly
-
-**Acceptance Criteria:**
-- [ ] `define-questions.md` uses `generated_date` consistently (zero occurrences of `generated_at`)
-- [ ] `finish-document.md` uses `generated_date` consistently (zero occurrences of `generated_at`)
-- [ ] `review-pr.md` uses CRITICAL/HIGH/MEDIUM/LOW/INFO consistently in both definitions and report template
-
----
-
-#### 3.3 Tighten and loosen tool permissions on 4 commands
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P2 #12, #13
-**Files Affected:**
+- `plugins/personal-plugin/commands/bump-version.md` (modify)
 - `plugins/personal-plugin/commands/new-command.md` (modify)
 - `plugins/personal-plugin/commands/new-skill.md` (modify)
-- `plugins/personal-plugin/commands/review-intent.md` (modify)
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
+- `plugins/personal-plugin/commands/define-questions.md` (modify)
+- `plugins/personal-plugin/commands/ask-questions.md` (modify)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
 
 **Description:**
-Two related fixes — tighten permissions where too loose, loosen where too tight:
+Add single-line Performance sections to commands that complete quickly regardless of input size. These commands don't scale with codebase size — they operate on single files or generate boilerplate.
 
-**Tighten:** `new-command` and `new-skill` include open `Bash` access but only need to create files. Remove `Bash`.
-
-**Loosen:** `review-intent` has a `--deep` flag that analyzes git history but lacks `Bash(git:*)`. `create-plan` references `find` commands in codebase reconnaissance but lacks Bash. Add scoped Bash access to both.
+Format: `## Performance\n\nTypically completes in under [N] seconds.`
 
 **Tasks:**
-1. [ ] `new-command.md`: Change `allowed-tools: Read, Write, Edit, Glob, Grep, Bash` to `allowed-tools: Read, Write, Edit, Glob, Grep`
-2. [ ] `new-skill.md`: Change `allowed-tools: Read, Write, Edit, Glob, Grep, Bash` to `allowed-tools: Read, Write, Edit, Glob, Grep`
-3. [ ] `review-intent.md`: Change `allowed-tools: Read, Glob, Grep, Write` to `allowed-tools: Read, Glob, Grep, Write, Bash(git:*)`
-4. [ ] `create-plan.md`: Change `allowed-tools: Read, Glob, Grep, Write, Edit, Agent` to `allowed-tools: Read, Glob, Grep, Write, Edit, Agent, Bash(git:*)`
+1. [ ] Add `## Performance` section to each of the 6 commands listed above
+2. [ ] Place the section after `## Error Handling` and before `## Related Commands` (consistent with existing commands)
+3. [ ] Verify section placement matches the pattern used in `review-intent.md` and `create-plan.md`
 
 **Acceptance Criteria:**
-- [ ] `new-command.md` and `new-skill.md` have no `Bash` in allowed-tools
-- [ ] `review-intent.md` and `create-plan.md` have `Bash(git:*)` in allowed-tools
+- [ ] All 6 commands have a Performance section
+- [ ] Section placement is consistent across all commands
+- [ ] Markdown linting passes
 
 ---
 
-#### 3.4 Fix `plan-improvements` audit instructions
+#### 3.2 Add Performance Sections to Scaling Commands — COMPLETE 2026-03-04
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P2 (discovered during review)
+**Recommendation Ref:** Q1
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+- `plugins/personal-plugin/commands/analyze-transcript.md` (modify)
+- `plugins/personal-plugin/commands/assess-document.md` (modify)
+- `plugins/personal-plugin/commands/clean-repo.md` (modify)
+- `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
+- `plugins/personal-plugin/commands/convert-markdown.md` (modify)
+- `plugins/personal-plugin/commands/remove-ip.md` (modify)
+- `plugins/personal-plugin/commands/review-arch.md` (modify)
 
 **Description:**
-The `plan-improvements` command references running `npm audit`, `pip-audit`, and `cargo audit` in its security analysis dimension but only has `Read, Glob, Grep, Write, Edit, Agent` in allowed-tools. Revise the instructions to scope security checks to static analysis (reading manifest files), since the command's primary purpose is improvement planning, not security scanning.
+Add table-format Performance sections to commands whose execution time scales with input size or codebase size. Use the same format as `create-plan.md` and `plan-improvements.md`:
+
+```markdown
+## Performance
+
+| Input Size | Expected Duration |
+|------------|-------------------|
+| Small (< X) | Y seconds |
+| Medium (X-Y) | Z seconds |
+| Large (Y+) | W+ seconds |
+```
 
 **Tasks:**
-1. [ ] In the security analysis dimension section, change instructions from "Run npm audit, pip-audit, cargo audit" to "Check manifest files (package.json, requirements.txt, Cargo.toml) for known problematic patterns and outdated dependencies. For comprehensive security scanning, recommend `/security-analysis`."
-2. [ ] No change to allowed-tools
+1. [ ] Add table-format Performance sections to each of the 7 commands
+2. [ ] Calibrate duration estimates based on what the command does (file I/O, LLM calls, git operations)
+3. [ ] For `convert-markdown`, note external dependency latency (pandoc)
+4. [ ] For `review-arch`, note that duration scales with codebase size
+5. [ ] Place sections consistently (after Error Handling, before Related Commands)
 
 **Acceptance Criteria:**
-- [ ] Security analysis dimension references static manifest analysis, not CLI audit tools
-- [ ] Cross-reference to `/security-analysis` added
+- [ ] All 7 commands have table-format Performance sections
+- [ ] Duration estimates are realistic for the command's workload
+- [ ] Markdown linting passes
 
 ---
 
-#### 3.5 Make help skills dynamic
+#### 3.3 Add Performance Sections to Skills (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P2 #14
+**Recommendation Ref:** Q2
 **Files Affected:**
-- `plugins/personal-plugin/skills/help/SKILL.md` (modify — major rewrite of Mode 1)
-- `plugins/bpmn-plugin/skills/help/SKILL.md` (modify — major rewrite of Mode 1)
+- `plugins/personal-plugin/skills/help/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/plan-gate/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
 
 **Description:**
-Both help skills maintain static hardcoded tables that go stale whenever commands/skills are added, removed, or modified. Replace the static tables with dynamic discovery using Glob to read the `commands/` and `skills/` directories at runtime, then read each file's frontmatter to build the table dynamically.
+Add Performance sections to 6 personal-plugin skills (batch 1). For cost-bearing skills (`research-topic`), include both duration and cost. For quick skills (`help`, `plan-gate`, `unlock`), use single-line format.
 
 **Tasks:**
-1. [ ] Rewrite Mode 1 of `personal-plugin/skills/help/SKILL.md`:
-   - Replace the static table with instructions to:
-     a. Use Glob to list all `*.md` files in the plugin's `commands/` directory
-     b. Use Glob to list all `*/SKILL.md` files in the plugin's `skills/` directory
-     c. Read the first 5 lines of each file to extract the `description` from frontmatter
-     d. Build and display the table dynamically, grouping commands by category using keyword matching on descriptions (Planning, Document, Review, Utility, etc.)
-   - Remove the hardcoded "26 commands, 10 skills" count — compute dynamically
-   - Keep Mode 2 (detailed help) which already reads individual files
-   - Remove the "IMPORTANT: This skill must be updated whenever commands or skills are added" warning
-2. [ ] Rewrite Mode 1 of `bpmn-plugin/skills/help/SKILL.md` with the same dynamic pattern:
-   - Glob `skills/*/SKILL.md` to discover skills
-   - Read frontmatter for descriptions
-   - Build table dynamically
-   - Remove "IMPORTANT" update warning
+1. [ ] Add single-line Performance to: help, plan-gate, unlock
+2. [ ] Add table-format Performance to: ship (scales with number of changes), security-analysis (scales with codebase)
+3. [ ] Add Performance with cost reference to: research-topic (reference `references/research-models.md` for cost details)
+4. [ ] Place sections consistently within each skill file
 
 **Acceptance Criteria:**
-- [ ] Help skills discover commands/skills at runtime via Glob
-- [ ] No static counts or hardcoded tables remain in Mode 1
-- [ ] Adding a new command/skill automatically appears in `/help` output
-- [ ] Mode 2 (detailed help) still works correctly
-- [ ] Output format is visually comparable to current static tables
+- [ ] All 6 skills have Performance sections
+- [ ] Cost-bearing skills reference external cost data
+- [ ] Markdown linting passes
 
-**Notes:**
-The category grouping in personal-plugin help (Planning & Analysis, Document Processing, etc.) is valuable. Implement keyword-based categorization: if description contains "plan", "review", "arch" -> Planning & Analysis; "document", "transcript", "question" -> Document Processing; etc. Include a fallback "Other" category.
+---
+
+#### 3.4 Add Performance Sections to Remaining Skills — COMPLETE 2026-03-04
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE 2026-03-04**
+**Recommendation Ref:** Q2
+**Files Affected:**
+- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/validate-and-ship/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
+- `plugins/bpmn-plugin/skills/help/SKILL.md` (modify)
+- `plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md` (modify)
+- `plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md` (modify)
+
+**Description:**
+Add Performance sections to remaining 6 skills (batch 2). `visual-explainer` is cost-bearing (Gemini image generation). BPMN skills scale with process complexity.
+
+**Tasks:**
+1. [ ] Add single-line Performance to: bpmn-plugin help
+2. [ ] Add table-format Performance to: bpmn-generator, bpmn-to-drawio (scale with process complexity)
+3. [ ] Add Performance with cost note to: visual-explainer (Gemini per-image cost), summarize-feedback (Python tool execution time)
+4. [ ] Add table-format Performance to: validate-and-ship (depends on validation + git operations)
+
+**Acceptance Criteria:**
+- [ ] All 6 skills have Performance sections
+- [ ] Markdown linting passes
 
 ---
 
 ### Phase 3 Testing Requirements
 
-- [ ] Run `/validate-plugin --all` — passes with updated frontmatter
-- [ ] Run `/personal-plugin:help` — dynamically discovers all 23 commands and 10 skills
-- [ ] Run `/bpmn-plugin:help` — dynamically discovers all 3 skills
-- [ ] Verify `references/plan-template.md` exists and is well-formed
-- [ ] Grep for `generated_at` in define-questions.md and finish-document.md — zero matches
-- [ ] Grep for `WARNING` or `SUGGESTION` severity labels in review-pr.md report template — zero matches
+- [ ] All modified `.md` files pass markdownlint
+- [ ] Performance section placement is consistent across all commands and skills
+- [ ] No content outside the Performance section was changed
 
 ### Phase 3 Completion Checklist
 
-- [ ] All 5 work items complete
-- [ ] Shared template extracted
-- [ ] Schema inconsistencies resolved
-- [ ] Tool permissions tightened/loosened as specified
-- [ ] Help skills are dynamic
-- [ ] No regressions
+- [ ] All work items complete
+- [ ] 25 files updated with Performance sections
+- [ ] All tests passing
+- [ ] No regressions introduced
 
 ---
 
-## Phase 4: Command Enhancements
+## Phase 4: Examples & Cross-Platform CI
 
-**Estimated Complexity:** M (~6 files, ~300 LOC)
-**Dependencies:** None (independent of Phases 1-3)
-**Parallelizable:** Items 4.1-4.3 can run concurrently
+**Estimated Complexity:** M (~8 files, ~200 LOC)
+**Dependencies:** Phase 1 (CI must be healthy before adding Windows matrix)
+**Parallelizable:** Yes — examples (4.1, 4.2) and CI (4.3) are independent
 
 ### Goals
 
-- Enhance `/review-pr` with MCP GitHub integration for richer reviews
-- Add `--json` output to key commands for CI/CD integration
-- Add `--focus` flags for targeted analysis
+- Add Examples sections to all 7 files missing them
+- Add Windows to the CI test matrix
+- Add type hints to feedback-docx utility functions
 
 ### Work Items
 
-#### 4.1 Migrate `/review-pr` to use MCP GitHub tools
+#### 4.1 Add Examples to Commands Missing Them (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P3 #15
+**Recommendation Ref:** Q3
 **Files Affected:**
-- `plugins/personal-plugin/commands/review-pr.md` (modify)
-
-**Description:**
-The current `/review-pr` command uses only `gh` CLI for PR interaction. The environment has MCP GitHub tools (`pull_request_read`, `add_comment_to_pending_review`, `pull_request_review_write`) that enable richer integration — specifically line-level review comments instead of a single review body.
-
-Migrate the command to use MCP tools as the primary interface, with `gh` CLI as fallback.
-
-**Tasks:**
-1. [ ] Update the allowed-tools to note MCP tool usage (MCP tools don't require allowed-tools declaration but should be documented)
-2. [ ] Rewrite Phase 1 (Fetch PR Data) to use `pull_request_read` with method `get` and `get_diff` instead of `gh pr view` and `gh pr diff`
-3. [ ] Rewrite Phase 2 file listing to use `pull_request_read` with method `get_files`
-4. [ ] Rewrite Phase 4 (Post Review) to use MCP tools:
-   - Create a pending review (`pull_request_review_write` method `create`, no event)
-   - Add line-level comments for each finding (`add_comment_to_pending_review` with `line`, `path`, `side: RIGHT`)
-   - Submit the review (`pull_request_review_write` method `submit_pending` with event: APPROVE/REQUEST_CHANGES/COMMENT)
-5. [ ] Keep `gh` CLI as fallback for environments without MCP tools
-6. [ ] Update the "Post to GitHub" flow to explain line-level comments as the default
-
-**Acceptance Criteria:**
-- [ ] Command uses MCP tools for PR data fetching when available
-- [ ] Line-level comments posted for specific findings
-- [ ] Fallback to `gh` CLI works if MCP tools unavailable
-- [ ] Severity labels use the unified CRITICAL/HIGH/MEDIUM/LOW/INFO scale
-
----
-
-#### 4.2 Add `--json` output flag to `consolidate-documents`, `clean-repo`, and `review-arch`
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P3 #16
-**Files Affected:**
-- `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
 - `plugins/personal-plugin/commands/clean-repo.md` (modify)
-- `plugins/personal-plugin/commands/review-arch.md` (modify)
+- `plugins/personal-plugin/commands/consolidate-documents.md` (modify)
+- `plugins/personal-plugin/commands/implement-plan.md` (modify)
+- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
 
 **Description:**
-Add a `--json` flag to 3 commands that currently only output markdown/text. This enables CI/CD pipeline integration and programmatic consumption of results.
+Add `## Examples` sections showing typical invocations and expected output summaries. Follow the existing yaml code block format with User/Claude dialog. For `implement-plan`, show both fresh execution and resume scenarios.
 
 **Tasks:**
-1. [ ] For each command, add `--json` to the Optional Arguments section with description
-2. [ ] For each command, define a JSON output schema:
-   - `consolidate-documents`: `{sources: [], consolidation_decisions: [], output_file: string, stats: {sections_merged, conflicts_resolved, content_dropped}}`
-   - `clean-repo`: `{phases: [{name, actions: [{type, path, status}]}], summary: {files_deleted, files_moved, docs_updated}}`
-   - `review-arch`: `{scorecard: {dimension: score}, findings: [{id, severity, category, description, recommendation}], remediation: [{id, effort, impact, description}]}`
-3. [ ] Add instructions: "When `--json` is specified, output ONLY the JSON to stdout. Write to file if `--output` is also specified."
+1. [ ] Add Examples to `clean-repo.md` showing `--dry-run` and full execution
+2. [ ] Add Examples to `consolidate-documents.md` showing multi-document synthesis
+3. [ ] Add Examples to `implement-plan.md` showing: fresh run, resume with `--progress`, `--pause-between-phases`
+4. [ ] Add Examples to `scaffold-plugin.md` showing generated directory tree
+5. [ ] Use consistent yaml code block format matching existing examples
 
 **Acceptance Criteria:**
-- [ ] Each command accepts `--json` flag
-- [ ] JSON output is valid, parseable JSON
-- [ ] JSON captures same information as text output
-- [ ] Default behavior (no flag) unchanged
+- [ ] All 4 commands have `## Examples` sections
+- [ ] `implement-plan` has at least 2 examples (fresh + resume)
+- [ ] Examples follow existing format conventions
+- [ ] Markdown linting passes
 
 ---
 
-#### 4.3 Add `--focus` flags to `assess-document` and `review-arch`
+#### 4.2 Add Examples to Skills Missing Them (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 **Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P3 #18
+**Recommendation Ref:** Q3
 **Files Affected:**
-- `plugins/personal-plugin/commands/assess-document.md` (modify)
-- `plugins/personal-plugin/commands/review-arch.md` (modify)
+- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
 
 **Description:**
-Add a `--focus` flag that limits analysis to specific dimensions, saving time and context when users only care about particular aspects.
+Add Examples sections to the 3 skills missing them. Show typical trigger scenarios and expected output format.
 
 **Tasks:**
-1. [ ] `assess-document`: Add `--focus <dimensions>` flag accepting comma-separated names from: `completeness, clarity, consistency, specificity, structure, feasibility`. Only score and report focused dimensions. Overall score = average of focused dimensions.
-2. [ ] `review-arch`: Add `--focus <dimensions>` flag accepting comma-separated names from: `code-quality, architecture, security, performance, testing, dependencies`. Only analyze focused dimensions.
-3. [ ] Both: document flag, add examples, add output note: "Focused analysis — only [dimensions] evaluated."
+1. [ ] Add Examples to `security-analysis` showing typical scan output summary
+2. [ ] Add Examples to `summarize-feedback` showing input format and generated .docx description
+3. [ ] Add Examples to `unlock` showing successful key loading and partial-key scenarios
 
 **Acceptance Criteria:**
-- [ ] Both commands accept `--focus` with comma-separated dimension names
-- [ ] Output only includes focused dimensions
-- [ ] Invalid dimension names produce helpful error with valid options listed
-- [ ] Default behavior unchanged
+- [ ] All 3 skills have Examples sections
+- [ ] Markdown linting passes
+
+---
+
+#### 4.3 Add Windows to CI Test Matrix (COMPLETE 2026-03-04)
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE 2026-03-04**
+**Recommendation Ref:** CI4
+**Files Affected:**
+- `.github/workflows/test.yml` (modify)
+
+**Description:**
+Add `windows-latest` to the test matrix in `test.yml`. Target the Python tool test suites only. Skip the optional `pygraphviz` dependency on Windows (it requires system-level Graphviz which is difficult to install in CI).
+
+**Tasks:**
+1. [ ] Add `matrix.os: [ubuntu-latest, windows-latest]` to the test job
+2. [ ] Add `if: runner.os != 'Windows'` condition to the pygraphviz installation step
+3. [ ] Verify all 4 Python tool test suites pass on Windows
+4. [ ] Fix any Windows-specific path issues (backslash vs forward slash)
+
+**Acceptance Criteria:**
+- [ ] CI runs tests on both Ubuntu and Windows
+- [ ] All tests pass on both platforms (excluding pygraphviz on Windows)
+- [ ] No new test failures introduced
+
+---
+
+#### 4.4 Add Type Hints to feedback-docx Utility Functions
+<!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+**Status: COMPLETE 2026-03-04**
+**Recommendation Ref:** A3
+**Files Affected:**
+- `plugins/personal-plugin/tools/feedback-docx-generator/src/feedback_docx_generator/generator.py` (modify)
+
+**Description:**
+Add type annotations to all utility functions in the feedback-docx-generator (lines 49-138). Use `python-docx` types where available, `str | None` syntax for optionals. Run mypy after to catch any latent type errors.
+
+**Tasks:**
+1. [ ] Add `from __future__ import annotations` at the top of `generator.py`
+2. [ ] Add type hints to all functions: `_set_run_style()`, `_add_heading()`, `_add_body()`, `_safe_get()`, etc.
+3. [ ] Run mypy to verify type correctness
+4. [ ] Run pytest to verify no regressions
+
+**Acceptance Criteria:**
+- [ ] All functions in generator.py have type annotations
+- [ ] mypy passes without errors
+- [ ] All tests pass
 
 ---
 
 ### Phase 4 Testing Requirements
 
-- [ ] Test `/review-pr` on a real PR with MCP tools — line-level comments appear
-- [ ] Test `--json` output on each command — valid JSON produced
-- [ ] Test `--focus` on each command — only specified dimensions in output
-- [ ] Verify default behavior unchanged on all modified commands
+- [ ] All modified `.md` files pass markdownlint
+- [ ] CI passes on both Ubuntu and Windows
+- [ ] feedback-docx-generator tests pass with new type hints
+- [ ] mypy passes for feedback-docx-generator
 
 ### Phase 4 Completion Checklist
 
-- [ ] All 3 work items complete
-- [ ] MCP integration working for review-pr
-- [ ] JSON output validated on 3 commands
-- [ ] Focus flags working on 2 commands
-- [ ] No regressions
-
----
-
-## Phase 5: Skill Optimization
-
-**Estimated Complexity:** M (~8 files, ~250 LOC)
-**Dependencies:** None (independent of Phases 1-4)
-**Parallelizable:** Items 5.1 and 5.2 can run concurrently
-
-### Goals
-
-- Reduce skill prompt length by extracting reference tables to files
-- Replace hardcoded model names with dynamic detection or configuration
-
-### Work Items
-
-#### 5.1 Extract long reference tables from skills >500 lines
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P3 #17
-**Files Affected:**
-- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
-- `plugins/personal-plugin/references/research-models.md` (create)
-- `plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md` (modify)
-- `plugins/bpmn-plugin/references/bpmn-elements.md` (create)
-- `plugins/personal-plugin/commands/validate-plugin.md` (modify)
-- `plugins/personal-plugin/references/validation-maturity-scorecard.md` (create)
-
-**Description:**
-Three items exceed 500 lines and contain large reference tables that don't need to be in the main prompt. Extract these to reference files that are loaded on demand, reducing the base prompt size and improving instruction adherence.
-
-**Tasks:**
-1. [ ] `research-topic` skill (~698 lines): Extract model configuration tables (model names, parameters, API endpoints), cost estimation tables, and provider-specific instructions into `references/research-models.md`. Keep workflow phases and core logic in SKILL.md. Add pointer: "Read `references/research-models.md` for model configuration and provider-specific parameters."
-2. [ ] `bpmn-generator` skill (~620 lines): Extract BPMN element mapping tables (task types, gateway types, event types, DI dimension constants, ID pattern tables) into `references/bpmn-elements.md`. Keep workflow phases, interactive Q&A framework, and generation rules in SKILL.md. Add pointer: "Read `references/bpmn-elements.md` for element type mappings and DI constants."
-3. [ ] `validate-plugin` command (~1160 lines): Extract maturity scorecard section (Level 1-4 criteria, weighted scoring formula, example scorecards) into `references/validation-maturity-scorecard.md`. Load only when `--scorecard` is passed. Add: "When `--scorecard` is requested, read `references/validation-maturity-scorecard.md` for the scoring framework."
-
-**Acceptance Criteria:**
-- [ ] `research-topic` SKILL.md reduced to <500 lines
-- [ ] `bpmn-generator` SKILL.md reduced to <500 lines
-- [ ] `validate-plugin` base prompt reduced (scorecard loaded on demand)
-- [ ] All reference files created with clear table of contents
-- [ ] Functionality unchanged
-
-**Notes:**
-Use the pattern: "For [specific data], read `references/[file].md` relative to this plugin's directory." Claude Code resolves plugin-relative paths via `CLAUDE_PLUGIN_ROOT`.
-
----
-
-#### 5.2 Replace hardcoded model names with dynamic detection
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Evaluation Report P3 #19
-**Files Affected:**
-- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
-
-**Description:**
-Three skills contain hardcoded values that will go stale:
-- `research-topic`: Model names like `claude-opus-4-5-20251101`, `o3-deep-research-2025-06-26`
-- `visual-explainer`: `gemini-3-pro-image-preview`
-- `unlock`: Bitwarden project ID `5022ea9c-e711-4f4e-bf5f-b3df0181a41d`
-
-Replace with environment variable overrides and date-annotated defaults.
-
-**Tasks:**
-1. [ ] `research-topic`: Replace hardcoded model strings with instructions to check environment variables first (`ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GOOGLE_MODEL`), fall back to the skill's existing model check feature, use hardcoded names only as last-resort defaults marked "default as of 2026-03-04, may be outdated"
-2. [ ] `visual-explainer`: Replace `gemini-3-pro-image-preview` with check for `GOOGLE_IMAGE_MODEL` env var, fall back to current value with date annotation
-3. [ ] `unlock`: Replace hardcoded Bitwarden project ID with check for `BWS_PROJECT_ID` env var, fall back to current ID with comment: "Default project ID for Troy's vault — override via BWS_PROJECT_ID"
-4. [ ] Add comment pattern to all hardcoded defaults: `# Default as of 2026-03-04 — verify with provider if errors occur`
-
-**Acceptance Criteria:**
-- [ ] No hardcoded model names without env var override and date annotation
-- [ ] Bitwarden project ID configurable via `BWS_PROJECT_ID`
-- [ ] Existing functionality works with current defaults
-- [ ] New env var overrides work when set
-
----
-
-### Phase 5 Testing Requirements
-
-- [ ] Verify extracted reference files are well-formed and complete
-- [ ] Run `/research-topic` — confirm it reads from reference file correctly
-- [ ] Run `/bpmn-generator` — confirm element mappings load from reference
-- [ ] Run `/validate-plugin --scorecard` — confirm scorecard loads from reference
-- [ ] Test env var override: set `BWS_PROJECT_ID` to a test value, verify `unlock` uses it
-
-### Phase 5 Completion Checklist
-
-- [ ] All 2 work items complete
-- [ ] 3 reference files created
-- [ ] 3 skills updated with dynamic model detection
-- [ ] Skill line counts reduced below 500
-- [ ] No regressions
-
----
-
-## Phase 6: Documentation & Final Polish
-
-**Estimated Complexity:** M (~10 files, ~200 LOC)
-**Dependencies:** Phases 1-5 (this is the final verification pass after all changes land)
-**Parallelizable:** Items 6.1-6.3 can run concurrently; 6.4-6.5 are sequential finalization
-
-### Goals
-
-- Ensure all documentation accurately reflects the post-implementation state of the repository
-- Produce CHANGELOG entries for both plugin version bumps
-- Update flag consistency reference with all new flags
-- Run final validation and clean-repo audit to catch anything missed
-- Verify marketplace install flow works end-to-end
-
-### Work Items
-
-#### 6.1 Full CLAUDE.md audit
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Documentation completeness (cross-cutting)
-**Files Affected:**
-- `CLAUDE.md` (modify)
-
-**Description:**
-CLAUDE.md is the authoritative reference for this repository. After all 5 phases of changes, it needs a comprehensive audit to ensure every section accurately reflects reality. This goes beyond the targeted updates in 2.4 — it's a full reconciliation pass.
-
-**Tasks:**
-1. [ ] **Repository Structure diagram:** Verify every directory and file listed actually exists. Add `deprecated/` directory. Remove any files that were moved or deleted. Verify `references/` section lists the new files (`plan-template.md`, `research-models.md`, `validation-maturity-scorecard.md`). Verify bpmn-plugin `references/` lists `bpmn-elements.md`.
-2. [ ] **Commands listing:** Verify the command list matches the actual contents of `plugins/personal-plugin/commands/`. Confirm exactly 23 commands (26 minus 3 deprecated). Verify each command's description matches its current frontmatter. Update any description text that changed during implementation.
-3. [ ] **Skills listing:** Verify all 10 personal-plugin skills and 3 bpmn-plugin skills are listed with accurate descriptions.
-4. [ ] **Command Conventions section:** Verify the pattern descriptions still match. Add any new patterns introduced (e.g., MCP tool usage pattern for review-pr). Update the "Patterns Used" list if any patterns changed.
-5. [ ] **Command vs Skills section:** No changes expected, but verify the directory structure examples are still accurate.
-6. [ ] **Bundled Python Tools section:** Verify tool paths and descriptions are accurate.
-7. [ ] **Versioning Strategy section:** Verify it reflects the current version numbers (personal-plugin 5.0.0, bpmn-plugin 2.3.0).
-8. [ ] **Help Skill Maintenance section:** Update to reflect that help skills are now dynamic and no longer need manual updates when commands/skills change. Remove or revise the "When modifying a plugin" checklist items about updating help skills.
-
-**Acceptance Criteria:**
-- [ ] Every file path in CLAUDE.md exists on disk
-- [ ] Every command/skill listed in CLAUDE.md has a corresponding file
-- [ ] No references to deprecated commands (`convert-hooks`, `setup-statusline`, `check-updates`) appear in active sections
-- [ ] Version numbers match `plugin.json` and `marketplace.json`
-- [ ] Structure diagram matches `find . -type d` output
-
----
-
-#### 6.2 README.md and supporting docs update
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Documentation completeness (cross-cutting)
-**Files Affected:**
-- `README.md` (modify)
-- `CONTRIBUTING.md` (modify if it references commands/skills)
-- `QUICK-REFERENCE.md` (modify if it exists and references commands)
-
-**Description:**
-Update all user-facing documentation beyond CLAUDE.md to reflect the changes. README.md is what GitHub visitors see first and must be accurate.
-
-**Tasks:**
-1. [ ] **README.md:** Update command/skill counts, remove any references to deprecated commands, verify installation instructions still work, update version badges or references if present, ensure feature list matches current capabilities
-2. [ ] **CONTRIBUTING.md:** If it references adding commands or skills, verify the instructions match the current structure (especially the dynamic help skill — contributors no longer need to manually update help)
-3. [ ] **QUICK-REFERENCE.md:** If it lists commands, update to match current 23-command set. Add new flags (`--json`, `--focus`, `--check-updates`) to relevant command entries
-4. [ ] **SECURITY.md:** No changes expected unless the security-analysis skill changes affected security documentation
-5. [ ] **WORKFLOWS.md:** Verify any documented workflows still reference valid commands
-
-**Acceptance Criteria:**
-- [ ] README.md accurately represents current plugin capabilities
-- [ ] No references to deprecated commands in any docs
-- [ ] New features (MCP integration, --json, --focus, --check-updates) mentioned where relevant
-
----
-
-#### 6.3 CHANGELOG.md entries and flag consistency update
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Documentation completeness (cross-cutting)
-**Files Affected:**
-- `CHANGELOG.md` (modify)
-- `plugins/personal-plugin/references/flag-consistency.md` (modify)
-
-**Description:**
-Add structured CHANGELOG entries for both plugin version bumps and update the flag consistency reference with all new flags introduced across the plan.
-
-**Tasks:**
-1. [ ] **CHANGELOG.md** — Add entry for personal-plugin v5.0.0:
-   ```markdown
-   ## [personal-plugin v5.0.0] - 2026-03-XX
-
-   ### Breaking Changes
-   - Deprecated `/convert-hooks` — use Claude ad-hoc for bash-to-PowerShell conversion
-   - Deprecated `/setup-statusline` — use built-in statusline-setup agent
-   - Deprecated `/check-updates` — use `/validate-plugin --check-updates`
-
-   ### Added
-   - `/validate-plugin --check-updates` — version drift detection (folded from check-updates)
-   - `/review-pr` MCP GitHub integration — line-level review comments
-   - `--json` output flag on `/consolidate-documents`, `/clean-repo`, `/review-arch`
-   - `--focus` dimension filter on `/assess-document`, `/review-arch`
-   - Dynamic help skill — auto-discovers commands/skills at runtime
-   - Shared plan template at `references/plan-template.md`
-   - Environment variable overrides for model names and Bitwarden project ID
-
-   ### Fixed
-   - `/test-project` missing Read/Write/Edit/Glob/Grep in allowed-tools (command was non-functional)
-   - `summarize-feedback` skill missing Bash for Python execution
-   - `security-analysis` skill missing Write for report generation
-   - `prime` skill contradictory allowed-tools (had Write, claimed read-only)
-   - `ship` skill missing Read/Edit for auto-fix loop
-   - Schema inconsistency: `generated_at` vs `generated_date` standardized
-   - Severity label mismatch in `/review-pr` standardized to 5-level scale
-
-   ### Changed
-   - Extracted reference tables from `research-topic`, `bpmn-generator`, `validate-plugin` to reduce prompt length
-   - Tightened `new-command` and `new-skill` allowed-tools (removed unnecessary Bash)
-   - Added `Bash(git:*)` to `review-intent` and `create-plan` for git history access
-   - `plan-improvements` security dimension scoped to static analysis
-   ```
-2. [ ] **CHANGELOG.md** — Add entry for bpmn-plugin v2.3.0:
-   ```markdown
-   ## [bpmn-plugin v2.3.0] - 2026-03-XX
-
-   ### Added
-   - `allowed-tools` declarations on all 3 skills (bpmn-generator, bpmn-to-drawio, help)
-
-   ### Changed
-   - Extracted BPMN element mapping tables to `references/bpmn-elements.md`
-   - `bpmn-generator` SKILL.md reduced from ~620 to <500 lines
-   ```
-3. [ ] **flag-consistency.md** — Add new flags to the reference:
-   - `--check-updates` on `/validate-plugin` — check for remote plugin updates and local version drift
-   - `--json` on `/consolidate-documents`, `/clean-repo`, `/review-arch` — machine-readable JSON output
-   - `--focus <dimensions>` on `/assess-document`, `/review-arch` — limit analysis to specific dimensions
-   - Document the valid dimension values for each `--focus` flag
-   - Verify all existing flag entries are still accurate
-
-**Acceptance Criteria:**
-- [ ] CHANGELOG.md has complete entries for both version bumps
-- [ ] All breaking changes, additions, fixes, and changes documented
-- [ ] flag-consistency.md lists every flag across all 23 commands with accurate descriptions
-- [ ] No flag is documented that doesn't exist, and no existing flag is missing
-
----
-
-#### 6.4 Final validation pass
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Quality gate (cross-cutting)
-**Files Affected:**
-- None (read-only validation)
-
-**Description:**
-Run comprehensive validation to catch anything missed across all 5 implementation phases.
-
-**Tasks:**
-1. [ ] Run `/validate-plugin personal-plugin` — expect zero errors, zero warnings
-2. [ ] Run `/validate-plugin bpmn-plugin` — expect zero errors, zero warnings
-3. [ ] Run `/validate-plugin --all` — cross-plugin namespace collision check passes
-4. [ ] Run `/validate-plugin --check-updates` — verify the newly folded logic works (should show "up to date" for local consistency)
-5. [ ] Run `/clean-repo --audit` — verify no stale artifacts, broken references, or orphaned files
-6. [ ] Spot-check dynamic help: invoke `/personal-plugin:help` and verify it discovers all 23 commands and 10 skills with correct descriptions
-7. [ ] Spot-check dynamic help: invoke `/bpmn-plugin:help` and verify it discovers all 3 skills
-8. [ ] Verify no `generated_at` occurrences remain: grep across all command files
-9. [ ] Verify no deprecated commands are referenced in active files: grep for `convert-hooks`, `setup-statusline`, `check-updates` in files outside `deprecated/`
-10. [ ] Verify version consistency: personal-plugin 5.0.0 in plugin.json, marketplace.json, CLAUDE.md, and CHANGELOG.md. Same for bpmn-plugin 2.3.0.
-
-**Acceptance Criteria:**
-- [ ] Zero validation errors across both plugins
-- [ ] Zero stale references to deprecated commands
-- [ ] Zero schema inconsistencies
-- [ ] Version numbers consistent across all 4 touchpoints per plugin
-- [ ] Dynamic help produces correct, complete output
-
-**Notes:**
-If any issues are found during this pass, fix them immediately rather than creating new work items. This is the cleanup sweep.
-
----
-
-#### 6.5 Marketplace compatibility verification
-**Status: COMPLETE 2026-03-04**
-**Requirement Refs:** Marketplace compatibility (CLAUDE.md requirement)
-**Files Affected:**
-- None (read-only testing)
-
-**Description:**
-The CLAUDE.md mandates that all changes maintain marketplace compatibility. Verify the full install flow works after all changes.
-
-**Tasks:**
-1. [x] Verify `.claude-plugin/marketplace.json` is valid JSON with correct structure
-2. [x] Verify both plugin entries have correct `source` paths, `version` numbers, and `description` text
-3. [x] Verify `plugins/personal-plugin/.claude-plugin/plugin.json` matches marketplace entry
-4. [x] Verify `plugins/bpmn-plugin/.claude-plugin/plugin.json` matches marketplace entry
-5. [x] Verify the `deprecated/` directory does NOT interfere with plugin discovery (commands in `deprecated/` should NOT appear as active commands)
-6. [ ] If possible, test the full install flow in a fresh Claude Code session:
-   ```
-   /plugin marketplace add davistroy/claude-marketplace
-   /plugin install personal-plugin@troys-plugins
-   /help
-   ```
-   Verify `/help` shows the plugin's commands and the dynamic help skill works.
-
-**Acceptance Criteria:**
-- [x] marketplace.json valid and accurate
-- [x] Both plugin.json files match marketplace entries
-- [x] Deprecated commands do not appear in active plugin command list
-- [ ] Fresh install flow works (if testable)
-
----
-
-### Phase 6 Testing Requirements
-
-- [ ] All validation commands pass with zero errors
-- [ ] CHANGELOG entries are complete and correctly formatted
-- [ ] flag-consistency.md covers all flags across all 23 commands
-- [ ] No stale references found by grep across the repository
-- [ ] Version numbers are consistent across all files
-- [ ] Marketplace install flow verified
-
-### Phase 6 Completion Checklist
-
-- [ ] All 5 work items complete
-- [ ] CLAUDE.md fully audited and accurate
-- [ ] README.md and supporting docs updated
-- [ ] CHANGELOG.md entries written for both plugins
-- [ ] flag-consistency.md updated with new flags
-- [ ] Final validation pass clean
-- [ ] Marketplace compatibility verified
-- [ ] Repository is ready for commit and release
+- [ ] All work items complete
+- [ ] All tests passing on both platforms
+- [ ] Documentation updated
+- [ ] No regressions introduced
 
 <!-- END PHASES -->
 
@@ -984,19 +600,9 @@ The CLAUDE.md mandates that all changes maintain marketplace compatibility. Veri
 
 | Work Item | Can Run With | Notes |
 |-----------|--------------|-------|
-| 1.1 | 1.2, 1.3, 1.4, 1.5, 1.6 | All Phase 1 items are independent frontmatter edits |
-| 2.1 | 2.2 | Both are simple move+delete operations |
-| 2.3 | — | Must be done carefully (logic folding into validate-plugin) |
-| 3.1 | 3.2, 3.3, 3.4 | Template extraction is independent of schema/permission fixes |
-| 3.2 | 3.1, 3.3, 3.4 | Schema fixes are independent |
-| 3.3 | 3.1, 3.2, 3.4 | Permission fixes are independent |
-| 4.1 | 4.2, 4.3 | MCP migration is independent of JSON/focus flags |
-| 4.2 | 4.1, 4.3 | JSON output is independent |
-| 5.1 | 5.2 | Reference extraction is independent of model name changes |
-| Phase 4 | Phase 5 | Entire phases are independent of each other |
-| 6.1 | 6.2, 6.3 | CLAUDE.md audit, README update, and CHANGELOG are independent |
-| 6.4 | — | Must run after 6.1-6.3 complete (validates their output) |
-| 6.5 | — | Final step, depends on everything passing |
+| Phase 1 (all items) | Phase 2 (all items) | CI changes and cleanup are independent |
+| 3.1 | 3.2, 3.3, 3.4 | All Performance section additions are independent |
+| 4.1 | 4.2, 4.3, 4.4 | Examples, CI, and type hints are independent |
 
 ---
 
@@ -1004,67 +610,46 @@ The CLAUDE.md mandates that all changes maintain marketplace compatibility. Veri
 
 | Risk | Likelihood | Impact | Mitigation Strategy |
 |------|------------|--------|---------------------|
-| Dynamic help skills produce inconsistent output | Medium | Medium | Include fallback static table; test thoroughly with current command set |
-| Extracted reference files not found at runtime | Low | High | Use `CLAUDE_PLUGIN_ROOT` for path resolution; test in fresh install |
-| MCP GitHub tools not available in all environments | Medium | Low | Keep `gh` CLI fallback in review-pr; detect MCP availability at runtime |
-| Deprecating commands breaks user workflows | Low | Medium | Archive to `deprecated/` (not deleted); document migration path in README |
-| Version bump to 5.0.0 causes marketplace compatibility | Low | High | Test with `/plugin marketplace add` after bump; verify install flow |
-| Documentation drift after implementation | Medium | Medium | Phase 6 dedicated audit catches inconsistencies before release |
+| Ruff flags many existing violations | Medium | Low | Fix violations in 1.1 before merging. Start with conservative rule set. |
+| pip-audit finds CVEs in current deps | Low | Medium | Document accepted risks. Update deps if patches available. |
+| Windows CI tests fail on path handling | Medium | Low | Use `pathlib.Path` consistently. Add `if: runner.os != 'Windows'` for known incompatibilities. |
+| Markdown linting removal of `\|\| true` reveals many errors | Low | Low | Run locally first. The v5.0.0 overhaul already fixed code block specifiers. |
 
 ---
 
 ## Success Metrics
 
-- [ ] All 6 phases completed
-- [ ] `/validate-plugin --all` passes with zero errors
-- [ ] All 5 blocking bugs fixed (Phase 1)
-- [ ] 3 commands deprecated with clear migration paths (Phase 2)
-- [ ] Zero schema inconsistencies across all commands (Phase 3)
-- [ ] Help skills dynamically discover all commands/skills (Phase 3)
-- [ ] `/review-pr` posts line-level GitHub comments (Phase 4)
-- [ ] 3 commands support `--json` output (Phase 4)
-- [ ] All skills under 500 lines (Phase 5)
-- [ ] Zero hardcoded model names without env var override (Phase 5)
-- [ ] All documentation (CLAUDE.md, README.md, CHANGELOG.md) accurate and complete (Phase 6)
-- [ ] flag-consistency.md covers all flags across all commands (Phase 6)
-- [ ] Marketplace install flow verified end-to-end (Phase 6)
-- [ ] Zero stale references to deprecated commands anywhere in active files (Phase 6)
+- [ ] All phases completed
+- [ ] All acceptance criteria met
+- [ ] CI pipeline has: Python linting, security scanning, blocking markdown lint, Windows testing
+- [ ] 100% of commands have Performance and Examples sections
+- [ ] 100% of skills have Performance and Examples sections
+- [ ] Zero .coverage files tracked in git
 
 ---
 
-## Appendix: Requirement Traceability
+## Appendix: Recommendation Traceability
 
-| Requirement | Source | Phase | Work Item |
-|-------------|--------|-------|-----------|
-| Fix test-project allowed-tools | Eval Report P0 #1 | 1 | 1.1 |
-| Fix summarize-feedback allowed-tools | Eval Report P0 #2 | 1 | 1.2 |
-| Fix security-analysis allowed-tools | Eval Report P0 #3 | 1 | 1.3 |
-| Fix prime skill allowed-tools | Eval Report P0 #4 | 1 | 1.4 |
-| Fix ship skill allowed-tools | Eval Report P0 #5 | 1 | 1.5 |
-| Add allowed-tools to bpmn-plugin skills | Eval Report P0 #6 | 1 | 1.6 |
-| Deprecate convert-hooks | Eval Report P1 #7 | 2 | 2.1 |
-| Deprecate setup-statusline | Eval Report P1 #8 | 2 | 2.2 |
-| Fold check-updates into validate-plugin | Eval Report P1 #9 | 2 | 2.3 |
-| Update versions and references | Eval Report P1 (cross-cutting) | 2 | 2.4 |
-| Extract shared plan template | Eval Report P2 #10 | 3 | 3.1 |
-| Fix schema inconsistencies | Eval Report P2 #11 | 3 | 3.2 |
-| Tighten/loosen tool permissions | Eval Report P2 #12, #13 | 3 | 3.3 |
-| Fix plan-improvements audit instructions | Eval Report P2 (discovered) | 3 | 3.4 |
-| Make help skills dynamic | Eval Report P2 #14 | 3 | 3.5 |
-| Migrate review-pr to MCP tools | Eval Report P3 #15 | 4 | 4.1 |
-| Add --json output to commands | Eval Report P3 #16 | 4 | 4.2 |
-| Add --focus flags | Eval Report P3 #18 | 4 | 4.3 |
-| Extract reference tables from long skills | Eval Report P3 #17 | 5 | 5.1 |
-| Replace hardcoded model names | Eval Report P3 #19 | 5 | 5.2 |
-| Full CLAUDE.md audit | Documentation completeness | 6 | 6.1 |
-| README and supporting docs update | Documentation completeness | 6 | 6.2 |
-| CHANGELOG entries and flag consistency | Documentation completeness | 6 | 6.3 |
-| Final validation pass | Quality gate | 6 | 6.4 |
-| Marketplace compatibility verification | Marketplace compatibility | 6 | 6.5 |
+| Recommendation | Source | Phase | Work Item |
+|----------------|--------|-------|-----------|
+| CI1 | RECOMMENDATIONS.md | 1 | 1.1 |
+| CI2 | RECOMMENDATIONS.md | 1 | 1.2 |
+| CI3 | RECOMMENDATIONS.md | 1 | 1.3 |
+| D2 | RECOMMENDATIONS.md | 1 | 1.1 |
+| A1 | RECOMMENDATIONS.md | 2 | 2.1 |
+| D1 | RECOMMENDATIONS.md | 2 | 2.2 |
+| Q4 | RECOMMENDATIONS.md | 2 | 2.3 |
+| A2 | RECOMMENDATIONS.md | 2 | 2.4 |
+| U1 | RECOMMENDATIONS.md | 2 | 2.5 |
+| Q1 | RECOMMENDATIONS.md | 3 | 3.1, 3.2 |
+| Q2 | RECOMMENDATIONS.md | 3 | 3.3, 3.4 |
+| Q3 | RECOMMENDATIONS.md | 4 | 4.1, 4.2 |
+| CI4 | RECOMMENDATIONS.md | 4 | 4.3 |
+| A3 | RECOMMENDATIONS.md | 4 | 4.4 |
 
 <!-- END TABLES -->
 
 ---
 
-*Implementation plan generated by Claude on 2026-03-04 18:45:00*
-*Source: /create-plan command — based on comprehensive plugin evaluation report*
+*Implementation plan generated by Claude on 2026-03-04 21:35:00*
+*Source: /plan-improvements command*

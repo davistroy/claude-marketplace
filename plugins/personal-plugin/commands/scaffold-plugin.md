@@ -343,7 +343,7 @@ Updated:
 - `plugins/[plugin-name]/skills/`
 - `plugins/[plugin-name]/skills/help/`
 
-## Example Usage
+## Examples
 
 ```yaml
 User: /scaffold-plugin
@@ -430,6 +430,10 @@ No files were created or modified.
 | Write permission denied | File system permissions prevent creation | Report error and suggest checking directory permissions |
 | Missing marketplace.json | `.claude-plugin/marketplace.json` does not exist | Report error, provide instructions to create it manually |
 | Disk full | Cannot write files | Report the OS error and suggest freeing disk space |
+
+## Performance
+
+Typically completes in under 15 seconds once all inputs are provided.
 
 ## Related Commands
 

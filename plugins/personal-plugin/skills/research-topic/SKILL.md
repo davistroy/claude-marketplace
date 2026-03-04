@@ -442,6 +442,16 @@ After research completes, check if any bugs/anomalies were detected during execu
 | Rate limit | Retry with exponential backoff (2s, 4s, 8s, 16s) |
 | Invalid response | Log error, exclude from synthesis |
 
+## Performance
+
+| Depth | Expected Duration | Notes |
+|-------|-------------------|-------|
+| Brief | 2-5 minutes | Synchronous calls, minimal polling |
+| Standard | 5-15 minutes | Deep research polling for OpenAI and Gemini |
+| Comprehensive | 10-30 minutes | Extended thinking, deep research, full synthesis |
+
+Duration depends primarily on provider response times (OpenAI and Gemini deep research use async polling). Synthesis phase (Phase 5) adds 1-3 minutes regardless of depth. For cost estimates, see the Cost Considerations section below and `references/research-models.md`.
+
 ## Cost Considerations
 
 Running all three providers at "comprehensive" depth may cost $2-5+ per query. For detailed cost estimates by depth level, read `references/research-models.md` (relative to this plugin's directory). Consider using `--sources` to select specific providers for cost management.

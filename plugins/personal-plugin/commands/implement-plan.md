@@ -817,7 +817,7 @@ If commit or PR operations fail:
 3. Review PROGRESS.md for last successful work item
 4. Consider interrupting and re-running — the command will resume from `.implement-plan-state.json` (picks up at the last incomplete work item)
 
-## Example Usage
+## Examples
 
 ```yaml
 # Default: PR-only (no merge)

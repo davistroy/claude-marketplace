@@ -262,7 +262,7 @@ Dimensions: [WxH] ([orientation])
 - [How to iterate on the prompt]
 ```
 
-## Complete Example
+## Examples
 
 Below is an end-to-end example showing how input content is transformed into a generated prompt.
 

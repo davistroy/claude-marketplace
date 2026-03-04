@@ -375,6 +375,10 @@ File created: plugins/bpmn-plugin/commands/export-data.md
 | Target plugin not found | `--plugin` value doesn't match any registered plugin | List available plugins from marketplace.json |
 | No plugins available | `plugins/` directory is empty or has no valid plugins | Suggest running `/scaffold-plugin` first |
 
+## Performance
+
+Typically completes in under 15 seconds once all inputs are provided.
+
 ## Related Commands
 
 - `/new-skill` -- Generate a new skill with nested directory structure and required frontmatter

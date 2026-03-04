@@ -2,11 +2,12 @@
 
 import logging
 from typing import Dict, List, Tuple
+
 import networkx as nx
 
-from .models import BPMNElement, BPMNFlow
 from .constants import ELEMENT_DIMENSIONS, LayoutConstants
 from .exceptions import LayoutError
+from .models import BPMNElement, BPMNFlow
 
 logger = logging.getLogger(__name__)
 
@@ -283,8 +284,7 @@ class LayoutEngine:
             if elem.id not in positions:
                 positions[elem.id] = (primary_pos, LayoutConstants.DIAGRAM_MARGIN)
                 primary_pos += (
-                    self._get_element_dimensions(elem)[0]
-                    + LayoutConstants.NODE_HORIZONTAL_GAP
+                    self._get_element_dimensions(elem)[0] + LayoutConstants.NODE_HORIZONTAL_GAP
                 )
 
         return positions

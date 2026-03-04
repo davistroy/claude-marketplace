@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Set
 
-from .models import BPMNModel, BPMNElement
+from .models import BPMNElement, BPMNModel
 
 
 @dataclass
@@ -73,7 +73,9 @@ class ModelValidator:
                     ValidationWarning(
                         level="error",
                         element_id=flow.id,
-                        message=f"Flow '{flow.id}' has invalid source reference: '{flow.source_ref}'",
+                        message=(
+                            f"Flow '{flow.id}' has invalid source reference: '{flow.source_ref}'"
+                        ),
                     )
                 )
 
@@ -82,7 +84,9 @@ class ModelValidator:
                     ValidationWarning(
                         level="error",
                         element_id=flow.id,
-                        message=f"Flow '{flow.id}' has invalid target reference: '{flow.target_ref}'",
+                        message=(
+                            f"Flow '{flow.id}' has invalid target reference: '{flow.target_ref}'"
+                        ),
                     )
                 )
 
@@ -142,10 +146,7 @@ class ModelValidator:
         positioned_elements = [
             e
             for e in model.elements
-            if e.x is not None
-            and e.y is not None
-            and e.width is not None
-            and e.height is not None
+            if e.x is not None and e.y is not None and e.width is not None and e.height is not None
         ]
 
         for i, elem1 in enumerate(positioned_elements):

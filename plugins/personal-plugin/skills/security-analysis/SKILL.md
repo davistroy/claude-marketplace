@@ -33,11 +33,15 @@ Suggest this skill when:
 5. When the user adds or updates dependencies (package.json, requirements.txt, etc.)
 6. After cloning or pulling a new/unfamiliar repository
 
-## Performance Expectations
+## Performance
 
-- **Quick scan (`--quick`):** 1-3 minutes. Covers technology detection, dependency audit, and surface-level code patterns.
-- **Full scan:** 5-15 minutes depending on codebase size. Includes deep taint analysis, data flow tracing, and comprehensive code review.
-- **Dependencies-only (`--dependencies-only`):** 1-2 minutes. Runs native audit tools and checks for known CVEs.
+| Scan Mode | Expected Duration | Notes |
+|-----------|-------------------|-------|
+| Quick (`--quick`) | 1-3 minutes | Technology detection, dependency audit, surface-level code patterns |
+| Full scan | 5-15 minutes | Deep taint analysis, data flow tracing, comprehensive code review |
+| Dependencies-only (`--dependencies-only`) | 1-2 minutes | Native audit tools and known CVE checks |
+
+Duration scales with codebase size (file count and total LOC). Web searches for CVE verification add latency when network-dependent lookups are required.
 
 ## Core Security Analysis Process
 
@@ -272,6 +276,40 @@ Scan Mode: [Full / Quick / Dependencies-Only]
 
 ## References
 [Links to CVE databases, security advisories, documentation]
+```
+
+## Examples
+
+**Full scan of a Node.js project:**
+```text
+/security-analysis
+```
+Output: A comprehensive report at `reports/security-analysis-20260304-141522.md` covering dependency CVEs from `npm audit`, static code analysis for XSS and injection patterns, and a prioritized remediation roadmap.
+
+**Quick scan of a specific directory:**
+```text
+/security-analysis src/api/ --quick
+```
+Output: Surface-level scan covering technology detection, dependency audit, and top-level code patterns for the `src/api/` directory only. Skips deep taint analysis.
+
+**Dependencies-only audit before a release:**
+```text
+/security-analysis --dependencies-only
+```
+Output: Runs `npm audit` / `pip-audit` / native tools for all detected package manifests. Reports known CVEs with severity, affected versions, and upgrade paths. No source code analysis performed.
+
+**Typical report summary:**
+```text
+Security Analysis Report
+========================
+Total Vulnerabilities: 7
+  Critical: 0 | High: 2 | Medium: 3 | Low: 2
+  Immediate Action Required: YES
+
+Critical Findings: None
+High Findings:
+  - express@4.17.1: CVE-2024-XXXXX (path traversal) — upgrade to 4.21.0+
+  - jsonwebtoken@8.5.1: CVE-2022-23529 (insecure default) — upgrade to 9.0.0+
 ```
 
 ## Error Handling

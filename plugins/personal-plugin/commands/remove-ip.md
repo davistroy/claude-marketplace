@@ -307,6 +307,17 @@ Handle these error conditions before proceeding with sanitization:
 
 If the user asks to verify that company information has been removed, use WebSearch to check if remaining terms are generic (not company-specific). Do not use web research tools by default -- only when verification is explicitly requested by the user or when `--web-research yes` is specified.
 
+## Performance
+
+| Input Size | Expected Duration |
+|------------|-------------------|
+| Short document (< 500 lines) | 30-90 seconds |
+| Medium document (500-2,000 lines) | 2-5 minutes |
+| Large document (2,000-5,000 lines) | 5-10 minutes |
+| Very large document (5,000+ lines) | 10-20 minutes |
+
+Duration scales with document length and density of sensitive content. Strict mode takes 20-40% longer than standard mode due to the mosaic test pass and more aggressive analysis. Web research (`--web-research yes`) adds 10-30 seconds per entity verified. The redaction log generation adds minor overhead regardless of document size.
+
 ## Related Commands
 
 - `/assess-document` - Evaluate document quality before sanitization

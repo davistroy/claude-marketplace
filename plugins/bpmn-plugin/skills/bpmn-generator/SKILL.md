@@ -454,6 +454,17 @@ After generating XML, display validation results confirming: structural checks p
 
 ---
 
+## Performance
+
+| Process Complexity | Elements | Expected Duration | Notes |
+|--------------------|----------|-------------------|-------|
+| Simple (linear flow) | 5-10 | 1-3 minutes | Few gateways, single pool |
+| Medium (branching) | 10-30 | 3-8 minutes | Multiple gateways, 2-4 lanes |
+| Complex (collaboration) | 30-60 | 8-15 minutes | Multiple pools, message flows, subprocesses |
+| Document parsing mode | varies | 2-5 minutes | Faster than interactive; no Q&A overhead |
+
+Interactive mode duration is dominated by the Q&A clarification phases (user response time not included). XML generation and DI coordinate calculation add 10-30 seconds regardless of complexity. Document parsing mode is faster because it skips the interactive question framework and extracts structure directly from markdown.
+
 # REFERENCES
 
 For detailed specifications, see:

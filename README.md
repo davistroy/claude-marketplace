@@ -128,12 +128,25 @@ plugins/
     tools/                  # Bundled bpmn2drawio converter
 ```
 
+## CI/CD Pipeline
+
+The repository includes a comprehensive CI pipeline:
+
+- **Plugin validation** - Structure, frontmatter, and content checks
+- **Python linting** - Ruff lint + format enforcement (`ruff.toml` at repo root)
+- **Dependency security** - `pip-audit` scans for known CVEs in all Python tools
+- **Markdown linting** - Blocking markdownlint checks on all `.md` files
+- **Cross-platform testing** - Python tool tests run on both Ubuntu and Windows
+- **Test coverage** - pytest suites for all 4 bundled Python tools
+
 ## Documentation
 
 - [QUICK-REFERENCE.md](QUICK-REFERENCE.md) - Essential patterns for plugin development
 - [WORKFLOWS.md](WORKFLOWS.md) - How to chain commands for common use cases
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Solutions to common issues
 - [SECURITY.md](SECURITY.md) - Security model and vulnerability reporting
+
+All commands include Performance and Examples sections for consistent documentation coverage.
 
 ## License
 

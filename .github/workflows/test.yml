@@ -8,12 +8,12 @@ on:
 
 jobs:
   test:
-    name: Run Tests
+    name: Run Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest]
         python-version: ['3.11']
 
     steps:
@@ -39,10 +39,14 @@ jobs:
         run: |
           pytest tests/ -v --tb=short
 
-  # Additional job for bpmn2drawio tests if they exist
+  # Additional job for bpmn2drawio tests
   bpmn2drawio:
-    name: BPMN2DrawIO Tests
-    runs-on: ubuntu-latest
+    name: BPMN2DrawIO Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     defaults:
       run:
         working-directory: plugins/bpmn-plugin/tools/bpmn2drawio
@@ -72,8 +76,12 @@ jobs:
           mypy src/ --ignore-missing-imports
 
   research-orchestrator:
-    name: Research Orchestrator Tests
-    runs-on: ubuntu-latest
+    name: Research Orchestrator Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     defaults:
       run:
         working-directory: plugins/personal-plugin/tools/research-orchestrator
@@ -103,8 +111,12 @@ jobs:
           mypy src/ --ignore-missing-imports
 
   visual-explainer:
-    name: Visual Explainer Tests
-    runs-on: ubuntu-latest
+    name: Visual Explainer Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     defaults:
       run:
         working-directory: plugins/personal-plugin/tools/visual-explainer
@@ -134,8 +146,12 @@ jobs:
           mypy src/ --ignore-missing-imports
 
   feedback-docx-generator:
-    name: Feedback DOCX Generator Tests
-    runs-on: ubuntu-latest
+    name: Feedback DOCX Generator Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     defaults:
       run:
         working-directory: plugins/personal-plugin/tools/feedback-docx-generator
@@ -162,6 +178,38 @@ jobs:
       - name: Type check
         run: |
           mypy src/ --ignore-missing-imports
+
+  # pip-audit scans installed Python packages for known CVEs.
+  # It checks the NIST NVD and PyPI advisory databases.
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install pip-audit and all tool dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+          pip install "plugins/bpmn-plugin/tools/bpmn2drawio[dev]"
+          pip install "plugins/personal-plugin/tools/research-orchestrator[dev]"
+          pip install "plugins/personal-plugin/tools/visual-explainer[dev,all]"
+          pip install "plugins/personal-plugin/tools/feedback-docx-generator[dev]"
+
+      - name: Run pip-audit for all tool dependencies
+        run: |
+          # Audit dependencies for known vulnerabilities
+          # Note: --strict is omitted because local packages (bpmn2drawio, etc.)
+          # aren't on PyPI and would cause false failures with --strict mode
+          pip-audit
 
   schema-validation:
     name: Schema Validation

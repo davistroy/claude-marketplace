@@ -447,6 +447,101 @@ Default behavior (no `--json` flag) is unchanged.
 
 ---
 
+## Performance
+
+| Repository Size | Expected Duration |
+|-----------------|-------------------|
+| Small (< 50 files) | 1-2 minutes |
+| Medium (50-200 files) | 2-5 minutes |
+| Large (200-1,000 files) | 5-15 minutes |
+| Very large (1,000+ files) | 15-30 minutes (batched directory processing) |
+
+Duration scales primarily with repository file count and documentation volume. Phase 0 (analysis) and Phase 3 (documentation sync) are the most time-intensive phases, requiring reads of every documentation file and cross-referencing against the codebase. The `--docs-only` flag skips artifact cleanup (Phase 1) but does not significantly reduce total time since documentation sync dominates. Git operations in Phase 5 are fast regardless of repo size.
+
+## Examples
+
+```text
+User: /clean-repo --dry-run
+
+Claude:
+## Repository Analysis
+
+**Project:** claude-marketplace - Claude Code plugin marketplace
+**Type:** monorepo (plugin marketplace)
+**Main Components:**
+- personal-plugin: 21 commands, 10 skills, 3 Python tools
+- bpmn-plugin: 2 skills, 1 Python tool
+
+**Documentation Map:**
+- Root: README.md, CLAUDE.md, CHANGELOG.md, CONTRIBUTING.md
+- plugins/personal-plugin/: references/, tools/
+- plugins/bpmn-plugin/: references/, templates/, examples/
+
+**Proceeding to cleanup...**
+
+### Phase 1: Artifact Cleanup
+[DRY-RUN] Would delete: .coverage (294 KB)
+[DRY-RUN] Would delete: plugins/bpmn-plugin/tools/bpmn2drawio/.coverage (147 KB)
+[DRY-RUN] Would add to .gitignore: *.pyc
+
+### Phase 2: Structure Validation
+All standard files present (README.md, LICENSE, .gitignore, CHANGELOG.md)
+Plugin structure valid for personal-plugin and bpmn-plugin
+
+### Phase 3: Documentation Deep Sync
+[DRY-RUN] Would update README.md: version reference 4.0.0 -> 5.0.0
+[DRY-RUN] Would update CLAUDE.md: add new command "plan-next" to listing
+
+No files were modified (dry-run mode).
+```
+
+```text
+User: /clean-repo
+
+Claude:
+## Repository Analysis
+...
+
+## Repository Cleanup Complete
+
+### Artifacts Removed
+- 3 .coverage files cleaned (588 KB recovered)
+- 2 __pycache__ directories removed
+
+### Documentation Updated
+- README.md: updated version references, fixed 2 dead links
+- CLAUDE.md: added missing command entries, corrected directory structure
+- CHANGELOG.md: current (no updates needed)
+
+### Configuration Synced
+- marketplace.json version matches plugin.json (both 5.0.0)
+
+### Git Hygiene
+- .gitignore updated with 2 new patterns
+- No stale branches found
+
+### Remaining Items
+- None
+```
+
+```text
+User: /clean-repo --docs-only --audit
+
+Claude:
+[Skipping Phase 1: Artifact Cleanup (--docs-only)]
+
+## Repository Analysis
+...
+
+### Phase 3: Documentation Deep Sync
+Updated README.md: corrected installation command syntax
+Updated CLAUDE.md: added 3 new skills to listing
+Audit log written to .claude-plugin/audit.log (12 entries)
+
+### Phase 4: Configuration Consistency
+All versions consistent across manifests.
+```
+
 ## Related Commands
 
 - `/validate-plugin` — Validate plugin structure and catch errors before committing

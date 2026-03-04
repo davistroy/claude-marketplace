@@ -1,0 +1,43 @@
+# Ruff configuration for claude-marketplace Python tools
+# Ruff version: 0.14.10+
+
+# Target Python 3.10+ (minimum for bundled tools)
+target-version = "py310"
+
+# Line length matching project convention
+line-length = 100
+
+# Source directories for linting and formatting
+src = [
+    "plugins/*/tools/*/src",
+    "tests",
+]
+
+[lint]
+# Conservative rule set: errors, pyflakes, warnings, import sorting
+# Expand later as codebase matures
+select = ["E", "F", "W", "I"]
+
+[lint.per-file-ignores]
+# Style/theme/template files contain long Draw.io and BPMN style strings
+# that cannot be meaningfully broken across lines
+"plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/styles.py" = ["E501"]
+"plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/themes.py" = ["E501"]
+"plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/icons.py" = ["E501"]
+"plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/markers.py" = ["E501"]
+"plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/page_templates.py" = ["E501"]
+
+[lint.isort]
+# Group first-party imports together
+known-first-party = [
+    "bpmn2drawio",
+    "feedback_docx_generator",
+    "research_orchestrator",
+    "visual_explainer",
+]
+
+[format]
+# Use double quotes (Python convention)
+quote-style = "double"
+# Unix-style line endings
+line-ending = "lf"
