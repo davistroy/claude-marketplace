@@ -206,7 +206,10 @@ jobs:
 
       - name: Run pip-audit for all tool dependencies
         run: |
-          pip-audit --strict
+          # Audit only third-party dependencies via requirements, not local packages
+          # Local packages (bpmn2drawio, etc.) aren't on PyPI so pip-audit can't check them
+          pip freeze | grep -v -E "^(bpmn2drawio|feedback-docx-generator|research-orchestrator|visual-explainer)==" > /tmp/audit-requirements.txt
+          pip-audit --strict -r /tmp/audit-requirements.txt
 
   schema-validation:
     name: Schema Validation
