@@ -154,6 +154,55 @@ Loaded 8 secret(s) from Bitwarden Secrets Manager:
 
 Typically completes in under 5 seconds. Single bws CLI call with JSON parsing.
 
+## Examples
+
+**Standard unlock at session start:**
+```text
+/unlock
+```
+Output:
+```text
+Loaded 8 secret(s) from Bitwarden Secrets Manager:
+  ANTHROPIC_API_KEY
+  OPENAI_API_KEY
+  GOOGLE_API_KEY
+  NOTION_API_KEY
+  PUSHOVER_API_TOKEN
+  PUSHOVER_USER_KEY
+  NOTION_VOICE_CAPTURES_DB_ID
+  NOTION_WEEKLY_SUMMARIES_DB_ID
+```
+
+**Proactive trigger before research:**
+```text
+User: /research-topic "RAG system best practices"
+Claude: I need API keys to run multi-provider research. Let me load them first.
+  → Runs /unlock automatically
+  → Loaded 8 secret(s) from Bitwarden Secrets Manager
+  → Proceeds with research-topic
+```
+
+**When bws CLI is not installed:**
+```text
+/unlock
+```
+Output:
+```text
+bws CLI not found. Install it from:
+  https://bitwarden.com/help/secrets-manager-cli/
+```
+
+**When access token is not configured:**
+```text
+/unlock
+```
+Output:
+```text
+TROY environment variable is not set.
+Windows: [System.Environment]::SetEnvironmentVariable('TROY', 'your-token', 'User')
+Linux/macOS: Add export TROY="your-token" to ~/.bashrc or ~/.zshrc
+```
+
 ## Security Considerations
 
 - **No eval with external data:** The Linux/macOS path uses `shlex.quote()` to escape secret values and writes to a temporary file with `chmod 600` permissions, then sources it. The dangerous `eval` pattern that could allow shell injection through crafted secret values is eliminated.

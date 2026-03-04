@@ -343,7 +343,7 @@ Updated:
 - `plugins/[plugin-name]/skills/`
 - `plugins/[plugin-name]/skills/help/`
 
-## Example Usage
+## Examples
 
 ```yaml
 User: /scaffold-plugin

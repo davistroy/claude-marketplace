@@ -296,6 +296,84 @@ Default behavior (no `--json` flag) is unchanged.
 
 Duration scales with total content volume across all documents and the number of divergences requiring conflict resolution. The element-by-element comparison (Step 3) is the most time-intensive phase. Using `--baseline` can reduce conflict resolution time by providing a clear preference. Using `--preview` adds a pause but does not increase processing time.
 
+## Examples
+
+```text
+User: /consolidate-documents requirements-v1.md requirements-v2.md
+
+Claude:
+## Source Catalog
+
+| Document | Path | Size | Sections | Key Topics |
+|----------|------|------|----------|------------|
+| Doc 1 | requirements-v1.md | 245 lines | 8 | Auth, API, Data model |
+| Doc 2 | requirements-v2.md | 312 lines | 10 | Auth, API, Data model, Caching |
+
+## Structural Comparison
+
+| Aspect | Doc 1 | Doc 2 | Winner |
+|--------|-------|-------|--------|
+| Section count | 8 | 10 | Doc 2 (more complete) |
+| Hierarchy depth | 2 levels | 3 levels | Doc 2 |
+| Format quality | Basic lists | Tables + code | Doc 2 |
+
+...
+
+Consolidation Complete
+======================
+Output:    reports/consolidated-requirements-20260304-143052.md
+Sources:   2 documents consolidated
+Conflicts: 3 resolved (0 baseline, 3 by quality)
+Omissions: 1 item intentionally excluded
+
+Review the Consolidation Notes section at the end of the output file
+for full details on merge decisions.
+```
+
+```text
+User: /consolidate-documents spec-a.md spec-b.md spec-c.md --preview --baseline spec-a.md
+
+Claude:
+## Source Catalog
+
+| Document | Path | Size | Sections | Key Topics |
+|----------|------|------|----------|------------|
+| Doc 1 | spec-a.md | 180 lines | 6 | Deployment, Monitoring |
+| Doc 2 | spec-b.md | 210 lines | 7 | Deployment, Monitoring, Alerts |
+| Doc 3 | spec-c.md | 195 lines | 6 | Deployment, Monitoring |
+
+Baseline: spec-a.md (structure and terminology take precedence)
+
+## Preview: Proposed Outline
+
+1. Introduction (from spec-a.md — baseline)
+2. Deployment Architecture (merged: spec-a.md structure + spec-b.md details)
+3. Monitoring Configuration (from spec-b.md — most complete)
+4. Alert Rules (unique to spec-b.md — preserved)
+5. Runbook Procedures (from spec-a.md — baseline)
+6. Appendix (merged from all three)
+
+## Key Conflict Resolutions
+- Deployment target: spec-a.md says "ECS", spec-b.md says "EKS" → using spec-a.md (baseline)
+- Monitoring interval: spec-b.md (30s) vs spec-c.md (60s) → using spec-b.md (more granular)
+
+## Content to Exclude
+- spec-c.md section 4 (draft notes marked "TODO") — incomplete content
+
+Proceed with this consolidation plan? (yes/no)
+
+User: yes
+
+Claude:
+...
+Consolidation Complete
+======================
+Output:    reports/consolidated-spec-20260304-150112.md
+Sources:   3 documents consolidated
+Conflicts: 2 resolved (1 in favor of baseline, 1 by quality)
+Omissions: 1 item intentionally excluded
+```
+
 ## Related Commands
 
 - `/assess-document` — Evaluate document quality before or after consolidation

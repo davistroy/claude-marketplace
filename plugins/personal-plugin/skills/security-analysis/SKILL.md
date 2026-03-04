@@ -278,6 +278,40 @@ Scan Mode: [Full / Quick / Dependencies-Only]
 [Links to CVE databases, security advisories, documentation]
 ```
 
+## Examples
+
+**Full scan of a Node.js project:**
+```text
+/security-analysis
+```
+Output: A comprehensive report at `reports/security-analysis-20260304-141522.md` covering dependency CVEs from `npm audit`, static code analysis for XSS and injection patterns, and a prioritized remediation roadmap.
+
+**Quick scan of a specific directory:**
+```text
+/security-analysis src/api/ --quick
+```
+Output: Surface-level scan covering technology detection, dependency audit, and top-level code patterns for the `src/api/` directory only. Skips deep taint analysis.
+
+**Dependencies-only audit before a release:**
+```text
+/security-analysis --dependencies-only
+```
+Output: Runs `npm audit` / `pip-audit` / native tools for all detected package manifests. Reports known CVEs with severity, affected versions, and upgrade paths. No source code analysis performed.
+
+**Typical report summary:**
+```text
+Security Analysis Report
+========================
+Total Vulnerabilities: 7
+  Critical: 0 | High: 2 | Medium: 3 | Low: 2
+  Immediate Action Required: YES
+
+Critical Findings: None
+High Findings:
+  - express@4.17.1: CVE-2024-XXXXX (path traversal) — upgrade to 4.21.0+
+  - jsonwebtoken@8.5.1: CVE-2022-23529 (insecure default) — upgrade to 9.0.0+
+```
+
 ## Error Handling
 
 | Error | Cause | Resolution |

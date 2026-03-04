@@ -479,9 +479,9 @@ Add Performance sections to remaining 6 skills (batch 2). `visual-explainer` is 
 
 ### Work Items
 
-#### 4.1 Add Examples to Commands Missing Them
+#### 4.1 Add Examples to Commands Missing Them (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** Q3
 **Files Affected:**
 - `plugins/personal-plugin/commands/clean-repo.md` (modify)
@@ -507,9 +507,9 @@ Add `## Examples` sections showing typical invocations and expected output summa
 
 ---
 
-#### 4.2 Add Examples to Skills Missing Them
+#### 4.2 Add Examples to Skills Missing Them (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** Q3
 **Files Affected:**
 - `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
@@ -530,9 +530,9 @@ Add Examples sections to the 3 skills missing them. Show typical trigger scenari
 
 ---
 
-#### 4.3 Add Windows to CI Test Matrix
+#### 4.3 Add Windows to CI Test Matrix (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** CI4
 **Files Affected:**
 - `.github/workflows/test.yml` (modify)
@@ -555,7 +555,7 @@ Add `windows-latest` to the test matrix in `test.yml`. Target the Python tool te
 
 #### 4.4 Add Type Hints to feedback-docx Utility Functions
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** A3
 **Files Affected:**
 - `plugins/personal-plugin/tools/feedback-docx-generator/src/feedback_docx_generator/generator.py` (modify)

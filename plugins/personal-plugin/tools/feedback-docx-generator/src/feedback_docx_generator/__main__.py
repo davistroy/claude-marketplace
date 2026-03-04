@@ -8,16 +8,22 @@ Usage:
     cat data.json | python -m feedback_docx_generator --output report.docx
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 try:
     from docx import Document
+    from docx.document import Document as DocumentType
     from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.shared import Inches, Pt, RGBColor
+    from docx.shared import Inches, Length, Pt, RGBColor
+    from docx.text.paragraph import Paragraph
+    from docx.text.run import Run
 except ImportError:
     print(
         "ERROR: python-docx is not installed.\nInstall it with: pip install python-docx>=1.0",
@@ -46,14 +52,14 @@ COLOR_BODY = RGBColor(0x1A, 0x1A, 0x1A)
 
 
 def _set_run_style(
-    run,
+    run: Run,
     *,
-    font_name=FONT_BODY,
-    size=FONT_SIZE_BODY,
-    color=COLOR_BODY,
-    bold=False,
-    italic=False,
-):
+    font_name: str = FONT_BODY,
+    size: Length = FONT_SIZE_BODY,
+    color: RGBColor = COLOR_BODY,
+    bold: bool = False,
+    italic: bool = False,
+) -> None:
     """Apply consistent font styling to a run."""
     run.font.name = font_name
     run.font.size = size
@@ -62,7 +68,7 @@ def _set_run_style(
     run.font.italic = italic
 
 
-def _add_heading(doc, text, level=1):
+def _add_heading(doc: DocumentType, text: str, level: int = 1) -> Paragraph:
     """Add a styled heading paragraph."""
     heading = doc.add_heading(text, level=level)
     for run in heading.runs:
@@ -77,7 +83,7 @@ def _add_heading(doc, text, level=1):
     return heading
 
 
-def _add_body(doc, text):
+def _add_body(doc: DocumentType, text: str) -> Paragraph:
     """Add a body paragraph with standard styling."""
     para = doc.add_paragraph()
     run = para.add_run(text)
@@ -85,7 +91,7 @@ def _add_body(doc, text):
     return para
 
 
-def _add_metadata_line(doc, text):
+def _add_metadata_line(doc: DocumentType, text: str) -> Paragraph:
     """Add a grey metadata line."""
     para = doc.add_paragraph()
     run = para.add_run(text)
@@ -93,7 +99,7 @@ def _add_metadata_line(doc, text):
     return para
 
 
-def _add_bullet(doc, text, *, bold_prefix=None):
+def _add_bullet(doc: DocumentType, text: str, *, bold_prefix: str | None = None) -> Paragraph:
     """Add a bullet-point paragraph, optionally with a bold prefix."""
     para = doc.add_paragraph(style="List Bullet")
     if bold_prefix:
@@ -107,7 +113,7 @@ def _add_bullet(doc, text, *, bold_prefix=None):
     return para
 
 
-def _format_date(date_str):
+def _format_date(date_str: str) -> str:
     """Best-effort date formatting. Returns the original string on failure."""
     if not date_str:
         return "N/A"
@@ -124,9 +130,9 @@ def _format_date(date_str):
     return date_str
 
 
-def _safe_get(data, *keys, default=""):
+def _safe_get(data: dict[str, Any], *keys: str, default: Any = "") -> Any:
     """Safely traverse nested dicts."""
-    current = data
+    current: Any = data
     for key in keys:
         if isinstance(current, dict):
             current = current.get(key, default)
@@ -140,7 +146,7 @@ def _safe_get(data, *keys, default=""):
 # ---------------------------------------------------------------------------
 
 
-def _build_title_page(doc, data):
+def _build_title_page(doc: DocumentType, data: dict[str, Any]) -> None:
     """Title page header with employee name, period, and metadata."""
     # Title
     title_para = doc.add_paragraph()
@@ -179,7 +185,7 @@ def _build_title_page(doc, data):
     doc.add_page_break()
 
 
-def _build_executive_summary(doc, synthesis):
+def _build_executive_summary(doc: DocumentType, synthesis: dict[str, Any]) -> None:
     """Executive Summary section."""
     _add_heading(doc, "Executive Summary", level=1)
     summary_text = _safe_get(
@@ -188,7 +194,7 @@ def _build_executive_summary(doc, synthesis):
     _add_body(doc, summary_text)
 
 
-def _build_strengths(doc, synthesis):
+def _build_strengths(doc: DocumentType, synthesis: dict[str, Any]) -> None:
     """Strengths section with evidence citations."""
     _add_heading(doc, "Strengths", level=1)
     strengths = synthesis.get("strengths", [])
@@ -217,7 +223,7 @@ def _build_strengths(doc, synthesis):
                 _add_bullet(doc, f" {summary}", bold_prefix=f"[{date_str}]")
 
 
-def _build_areas_for_development(doc, synthesis):
+def _build_areas_for_development(doc: DocumentType, synthesis: dict[str, Any]) -> None:
     """Areas for Development section with evidence citations."""
     _add_heading(doc, "Areas for Development", level=1)
     areas = synthesis.get("areas_for_development", [])
@@ -249,7 +255,7 @@ def _build_areas_for_development(doc, synthesis):
                 _add_bullet(doc, f" {summary}", bold_prefix=f"[{date_str}]")
 
 
-def _build_patterns_and_themes(doc, synthesis):
+def _build_patterns_and_themes(doc: DocumentType, synthesis: dict[str, Any]) -> None:
     """Patterns and Themes section."""
     _add_heading(doc, "Patterns and Themes", level=1)
     patterns = synthesis.get("patterns_and_themes", {})
@@ -269,7 +275,7 @@ def _build_patterns_and_themes(doc, synthesis):
             _add_body(doc, text)
 
 
-def _build_recommendations(doc, synthesis):
+def _build_recommendations(doc: DocumentType, synthesis: dict[str, Any]) -> None:
     """Recommendations section grouped by type."""
     _add_heading(doc, "Recommendations", level=1)
     recommendations = synthesis.get("recommendations", [])
@@ -306,7 +312,7 @@ def _build_recommendations(doc, synthesis):
                 _set_run_style(run, size=FONT_SIZE_METADATA, color=COLOR_METADATA, italic=True)
 
 
-def _build_appendix(doc, entries):
+def _build_appendix(doc: DocumentType, entries: list[dict[str, Any]]) -> None:
     """Appendix with individual feedback entries in chronological order."""
     doc.add_page_break()
     _add_heading(doc, "Appendix: Individual Feedback Entries", level=1)
@@ -375,7 +381,7 @@ def _build_appendix(doc, entries):
 # ---------------------------------------------------------------------------
 
 
-def generate_docx(data: dict, output_path: str):
+def generate_docx(data: dict[str, Any], output_path: str) -> str:
     """Build the complete .docx document from structured JSON data."""
     doc = Document()
 
@@ -417,7 +423,7 @@ def generate_docx(data: dict, output_path: str):
 # ---------------------------------------------------------------------------
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate a feedback assessment .docx from JSON input.",
     )
