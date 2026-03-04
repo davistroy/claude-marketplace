@@ -606,12 +606,8 @@ Hook Windows Compatibility
          - hooks/stop-hook.sh
          - hooks/pre-tool-hook.sh
 
-       To fix, run:
-         /convert-hooks [plugin-name]
-
-       This will:
-         1. Convert bash scripts to PowerShell
-         2. Update hooks.json to use PowerShell on Windows
+       To fix, manually convert bash scripts to PowerShell equivalents
+       and update hooks.json to use PowerShell on Windows.
 ```
 
 **If all hooks are Windows-compatible:**
@@ -1138,7 +1134,6 @@ Tip: Run with --fix to auto-add language specifiers.
 - `/new-command` — Add a new command (run validation after adding)
 - `/new-skill` — Add a new skill (run validation after adding)
 - `/clean-repo` — Full repository cleanup and documentation sync
-- `/convert-hooks` — Fix Windows hook compatibility issues flagged by validation
 
 ```yaml
 User: /validate-plugin --all

@@ -451,6 +451,6 @@ Default behavior (no `--json` flag) is unchanged.
 
 - `/validate-plugin` — Validate plugin structure and catch errors before committing
 - `/bump-version` — Update version numbers after cleanup
-- `/check-updates` — Compare installed vs marketplace versions
+- `/validate-plugin --check-updates` — Compare installed vs marketplace versions
 - `/review-arch` — Quick architectural audit (read-only complement to cleanup)
 - `/plan-improvements` — Generate comprehensive improvement recommendations

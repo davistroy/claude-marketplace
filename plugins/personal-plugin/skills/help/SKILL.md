@@ -55,7 +55,7 @@ Assign each command to a category based on keyword matching on its description a
 | Planning & Analysis | plan, review, arch, intent, audit, pr, implement, improvement, next |
 | Document Processing | document, transcript, question, assess, consolidate, convert, markdown, finish, ask, define, remove-ip, sanitize |
 | Scaffolding & Generation | scaffold, new-command, new-skill, image-prompt, generate, develop, template |
-| Maintenance & Utilities | bump, version, clean, test, validate, setup, check, convert-hooks |
+| Maintenance & Utilities | bump, version, clean, test, validate |
 
 Commands that do not match any category go into an **Other** category.
 

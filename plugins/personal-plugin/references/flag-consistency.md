@@ -29,14 +29,11 @@ These commands produce in-conversation output or modify files directly.
 | Command | `--dry-run` | `--verbose` | `--audit` | Other Flags |
 |---------|------------|------------|----------|-------------|
 | `/bump-version` | Yes | -- | -- | -- |
-| `/check-updates` | -- | Yes | -- | `--local` *(deprecated — use `/validate-plugin --check-updates`)* |
 | `/clean-repo` | Yes | -- | Yes | `--docs-only`, `--json` |
-| `/convert-hooks` | Yes | Yes | -- | `--list`, `--validate` |
 | `/convert-markdown` | Yes | -- | -- | `--no-toc`, `--style <path>`, `--highlight <style>` |
 | `/new-command` | -- | -- | -- | `--plugin <name>` |
 | `/new-skill` | -- | -- | -- | `--plugin <name>` |
 | `/scaffold-plugin` | Yes | -- | -- | -- |
-| `/setup-statusline` | Yes | -- | -- | `--uninstall` |
 | `/validate-plugin` | -- | Yes | -- | `--all`, `--fix`, `--strict`, `--report`, `--scorecard`, `--check-updates` |
 
 ## Read-Only Analysis Commands

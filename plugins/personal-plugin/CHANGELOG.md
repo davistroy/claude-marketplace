@@ -2,6 +2,51 @@
 
 All notable changes to personal-plugin will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [5.0.0] - 2026-03-04
+
+### Breaking Changes
+- Deprecated `/convert-hooks` — use Claude ad-hoc for bash-to-PowerShell conversion
+- Deprecated `/setup-statusline` — use built-in statusline-setup agent
+- Deprecated `/check-updates` — use `/validate-plugin --check-updates`
+
+### Added
+- `/validate-plugin --check-updates` — version drift detection (folded from check-updates)
+- `/review-pr` MCP GitHub integration — line-level review comments
+- `--json` output flag on `/consolidate-documents`, `/clean-repo`, `/review-arch`
+- `--focus` dimension filter on `/assess-document`, `/review-arch`
+- Dynamic help skill — auto-discovers commands/skills at runtime
+- Shared plan template at `references/plan-template.md`
+- Environment variable overrides for model names and Bitwarden project ID
+
+### Fixed
+- `/test-project` missing Read/Write/Edit/Glob/Grep in allowed-tools (command was non-functional)
+- `summarize-feedback` skill missing Bash for Python execution
+- `security-analysis` skill missing Write for report generation
+- `prime` skill contradictory allowed-tools (had Write, claimed read-only)
+- `ship` skill missing Read/Edit for auto-fix loop
+- Schema inconsistency: `generated_at` vs `generated_date` standardized
+- Severity label mismatch in `/review-pr` standardized to 5-level scale
+
+### Changed
+- Extracted reference tables from `research-topic`, `bpmn-generator`, `validate-plugin` to reduce prompt length
+- Tightened `new-command` and `new-skill` allowed-tools (removed unnecessary Bash)
+- Added `Bash(git:*)` to `review-intent` and `create-plan` for git history access
+- `plan-improvements` security dimension scoped to static analysis
+
+## [4.1.0] - 2026-02-28
+
+### Added
+- `allowed-tools` frontmatter to all 28 commands/skills that lacked them
+- `Related Commands` sections to all 23 commands
+- Proactive trigger sections to all 10 skills
+- Error handling tables to all 36 command/skill files
+- `references/api-key-setup.md` — extracted Bitwarden-based key setup workflow
+- `references/flag-consistency.md` — comprehensive flag reference across all commands
+- `plan-gate` skill for assessing task complexity and routing to right planning approach
+
 ## [3.13.0] - 2026-01-27
 
 ### Added
