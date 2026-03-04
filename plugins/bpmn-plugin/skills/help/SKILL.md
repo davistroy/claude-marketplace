@@ -1,5 +1,6 @@
 ---
 name: help
+allowed-tools: Read, Glob, Grep
 description: Show available skills in this plugin with usage information
 ---
 

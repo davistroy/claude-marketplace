@@ -135,7 +135,7 @@ The skill writes a report to `reports/security-analysis-[timestamp].md` but `Wri
 ---
 
 #### 1.4 Fix `prime` skill allowed-tools — remove Write, add Bash(git:*)
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P0 #4
 **Files Affected:**
 - `plugins/personal-plugin/skills/prime/SKILL.md` (modify)
@@ -157,7 +157,7 @@ The skill declares itself "read-only" in its body but has `Write` in allowed-too
 ---
 
 #### 1.5 Fix `ship` skill allowed-tools — add Read, Edit for fix loop
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P0 #5
 **Files Affected:**
 - `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
@@ -178,7 +178,7 @@ The ship skill's auto-review + fix loop (Phases 6-7) needs to read files and app
 ---
 
 #### 1.6 Add `allowed-tools` to all 3 bpmn-plugin skills
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P0 #6
 **Files Affected:**
 - `plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md` (modify)

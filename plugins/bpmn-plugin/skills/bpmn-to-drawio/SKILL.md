@@ -1,5 +1,6 @@
 ---
 name: bpmn-to-drawio
+allowed-tools: Read, Write, Bash, Glob, Grep
 description: >
   Convert BPMN 2.0 XML files into Draw.io native format (.drawio) using the
   bpmn2drawio Python tool. Renders properly in Draw.io Desktop or web applications.

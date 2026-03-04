@@ -1,6 +1,6 @@
 ---
 name: ship
-allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*)
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Read, Edit, Glob, Grep
 description: Create branch, commit, push, open PR, auto-review, fix issues, and merge
 ---
 
