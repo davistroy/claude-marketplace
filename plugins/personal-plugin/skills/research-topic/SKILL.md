@@ -39,11 +39,13 @@ API keys must be loaded into the environment before use. Run `/unlock` to load s
 If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files or guide users through creating `.env` files with API keys. For API key configuration details, see `references/api-key-setup.md`.
 
 **Optional Model Configuration (non-sensitive, safe for .env):**
-- `ANTHROPIC_MODEL` - Override Claude model (default: claude-opus-4-5-20251101)
-- `OPENAI_MODEL` - Override OpenAI model (default: o3-deep-research-2025-06-26)
-- `GEMINI_AGENT` - Override Gemini agent (default: deep-research-pro-preview-12-2025)
+- `ANTHROPIC_MODEL` - Override Claude model. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `claude-opus-4-5-20251101` (default as of 2026-03-04 — verify with provider if errors occur)
+- `OPENAI_MODEL` - Override OpenAI model. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `o3-deep-research-2025-06-26` (default as of 2026-03-04 — verify with provider if errors occur)
+- `GEMINI_AGENT` - Override Gemini agent. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `deep-research-pro-preview-12-2025` (default as of 2026-03-04 — verify with provider if errors occur)
 - `CHECK_MODEL_UPDATES` - Check for newer models on startup (default: true)
 - `AUTO_UPGRADE_MODELS` - Auto-upgrade without prompting (default: false)
+
+**Model Resolution Order:** Environment variable (`ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GEMINI_AGENT`) > `check-models` dynamic detection > hardcoded last-resort defaults (may be outdated).
 
 **Validation:**
 Before proceeding, run the background dependency check and handle any issues.
@@ -78,30 +80,7 @@ This outputs JSON with the status of:
 PYTHONPATH="$TOOL_SRC" python -m research_orchestrator check-models
 ```
 
-**If newer models are found:**
-```yaml
-Model Version Check
-===================
-Current models:
-  Anthropic: claude-opus-4-5-20251101
-  OpenAI:    o3-deep-research-2025-06-26
-  Gemini:    deep-research-pro-preview-12-2025
-
-Upgrades Available:
-  ⬆ Anthropic: claude-opus-4-5-20260115 (2026-01-15)
-    Newer model available. Update ANTHROPIC_MODEL in .env to use.
-
-Would you like to:
-1. Continue with current models
-2. Update .env to use newer models (recommended)
-```
-
-**If AUTO_UPGRADE_MODELS=true:** Skip prompt and automatically use the newest available models for this session (does not modify .env).
-
-**If no upgrades available:**
-```text
-✓ All models are up to date.
-```
+For model check output format examples (upgrade prompts, auto-upgrade behavior, up-to-date messages), read `references/research-models.md` (relative to this plugin's directory).
 
 ## Tool vs Claude Responsibilities
 
@@ -148,75 +127,13 @@ Look for sections matching these patterns (case-insensitive):
 
 Extract the profile content (everything under the header until the next same-level or higher header).
 
-**Step 2A: If Profile Found**
+**Step 2A: If Profile Found** -- Display a summary (Role, Background, Preferences) with source path. Ask user to confirm or modify. If "modify", show full profile text and let user edit (session-only, no save).
 
-Display a concise summary and confirm:
-```yaml
-Audience Profile Detected
-=========================
-Source: [path to CLAUDE.md where found]
+**Step 2B: If No Profile Found** -- Prompt user to describe their target audience (role, background, expertise, preferences, technical depth). Provide a default executive profile as example. Offer to save the profile to `~/.claude/CLAUDE.md` for future sessions.
 
-Summary:
-  - Role: [extracted role/title]
-  - Background: [key expertise areas]
-  - Preferences: [communication style preferences]
+**Step 3: Store for Session** -- Store the confirmed profile for use in Phase 4 prompt construction.
 
-Use this profile for research? (yes/modify)
-```
-
-If user says "modify":
-- Show the full profile text
-- Let user edit inline or provide replacement text
-- Use modified version for this session only (don't save changes)
-
-**Step 2B: If No Profile Found**
-
-Prompt user to provide audience context:
-```text
-No audience profile found in CLAUDE.md files.
-
-For better-tailored research, describe your target audience:
-
-Example profile (modify as needed):
-─────────────────────────────────────
-Role: Senior technology executive (Director/VP level)
-Background: Enterprise software architecture, cloud infrastructure
-Expertise: AI/ML systems, digital transformation
-Preferences:
-  - Actionable insights over theoretical discussion
-  - Data-driven analysis with concrete examples
-  - Strategic framing with ROI considerations
-Technical depth: Comfortable with technical details but values strategic clarity
-─────────────────────────────────────
-
-Enter your audience profile (or press Enter to use the example above):
-```
-
-After user provides profile (or accepts default):
-```text
-Would you like to save this profile to your global CLAUDE.md for future sessions?
-This will add an "Audience Profile" section to ~/.claude/CLAUDE.md
-
-(yes/no)
-```
-
-If "yes":
-- Read existing `~/.claude/CLAUDE.md` (create if doesn't exist)
-- Append the audience profile section:
-```markdown
-
-# Audience Profile
-
-[user's profile content]
-```
-
-**Step 3: Store for Session**
-
-Store the confirmed/provided audience profile for use in Phase 4 prompt construction.
-
-**Skip Conditions:**
-- If `--no-audience` flag is provided, skip this phase entirely and use the default profile
-- If user explicitly says "skip" or "none", use the default profile
+**Skip Conditions:** Skip with `--no-audience` flag or if user says "skip"/"none" (use default profile).
 
 ### Phase 2: Clarification Loop (max 4 rounds)
 
@@ -362,13 +279,7 @@ Structure your response with:
 Include relevant examples, data points, and citations where available.
 ```
 
-**Depth Parameter Mapping:**
-
-| User Selection | Anthropic budget_tokens | OpenAI effort | Google thinking_level |
-|----------------|-------------------------|---------------|-----------------------|
-| Brief          | 4,000                   | medium        | low                   |
-| Standard       | 10,000                  | high          | high                  |
-| Comprehensive  | 32,000                  | xhigh         | high                  |
+**Depth Parameter Mapping:** Read `references/research-models.md` (relative to this plugin's directory) for the depth-to-provider parameter mapping table.
 
 **API Calls:**
 
@@ -399,15 +310,7 @@ The tool handles:
 - Real-time progress updates with status indicators
 - Error recovery (continue with available sources if one fails)
 
-**Provider Configurations:**
-
-| Provider | Default Model | Endpoint | Mode |
-|----------|---------------|----------|------|
-| Anthropic | claude-opus-4-5-20251101 | /v1/messages | Synchronous (extended thinking) |
-| OpenAI | o3-deep-research-2025-06-26 | /v1/responses | Async (background + web_search_preview) |
-| Google | deep-research-pro-preview-12-2025 | /v1beta/interactions | Async (deep-research agent) |
-
-**Note:** Models can be overridden via environment variables (`ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GEMINI_AGENT`).
+**Provider Configurations:** Read `references/research-models.md` (relative to this plugin's directory) for provider configuration details, model names, endpoints, and modes. Models are resolved in priority order: environment variable > `check-models` dynamic detection > hardcoded last-resort defaults.
 
 **Progress Display:**
 ```text
@@ -506,65 +409,7 @@ Note: DOCX output requires pandoc. Install with:
 Markdown report has been generated. Run the pandoc command above to create DOCX.
 ```
 
-**Report Structure:**
-
-```markdown
-# [Research Topic]
-
-**Generated:** [date]
-**Sources:** [list of providers used]
-**Depth:** [brief/standard/comprehensive]
-
-## Executive Summary
-[2-3 paragraph synthesis of key findings]
-
-## Key Findings
-
-### [Finding 1]
-[Content with source attribution]
-
-### [Finding 2]
-[Content with source attribution]
-
-...
-
-## Detailed Analysis
-
-### [Section 1]
-[Comprehensive coverage]
-
-### [Section 2]
-[Comprehensive coverage]
-
-...
-
-## Contradictions & Nuances
-[Where sources disagreed, with analysis of which perspective seems more accurate]
-
-## Unique Insights by Source
-
-### From Claude
-[Insights unique to Claude's response]
-
-### From OpenAI
-[Insights unique to OpenAI's response]
-
-### From Gemini
-[Insights unique to Gemini's response]
-
-## Recommendations
-[Actionable next steps based on research]
-
-## Sources & Attribution
-- **Claude:** Extended thinking analysis (model: [configured model])
-- **OpenAI:** o3 Deep research with web search (model: [configured model])
-- **Gemini:** Deep research agent (agent: [configured agent])
-
-## Methodology Note
-This report synthesizes research from multiple AI providers to provide
-balanced, cross-validated insights. Areas of consensus are highlighted,
-while disagreements are explicitly noted for reader consideration.
-```
+**Report Structure:** Read the Report Structure Template in `references/research-models.md` for the complete markdown template. Key sections: Executive Summary, Key Findings (with attribution), Detailed Analysis, Contradictions & Nuances, Unique Insights by Source, Recommendations, Sources & Attribution, Methodology Note.
 
 **Final Output:**
 ```yaml
@@ -584,54 +429,7 @@ Sections: [N]
 
 ### Phase 7: Bug Report Summary
 
-After research completes, check if any bugs/anomalies were detected during execution.
-
-**The tool automatically detects:**
-- API errors (failed provider calls)
-- Timeouts (requests exceeding 720s)
-- Empty responses (less than 100 characters)
-- Truncated content (detected via truncation indicators)
-- Suspiciously short responses for the depth level
-- Partial failures (some providers failed)
-
-**If bugs were detected:**
-```text
-Bug Report Summary
-==================
-Detected [N] issues during research execution:
-
-[warning] OPENAI: Response shorter than expected for comprehensive depth (2847 < 3000 chars)
-[error] GEMINI: Request timed out after 720s
-
-Bug reports saved to: reports/bugs/
-  - bug-20260118-143052-openai.json
-  - bug-20260118-143055-gemini.json
-
-These issues may affect research quality. Review the individual provider reports for details.
-```
-
-**If no bugs detected:**
-```text
-Bug Report Summary
-==================
-No issues detected. All providers responded normally.
-```
-
-**Bug report JSON format:**
-```json
-{
-  "id": "bug-20260118-143052-openai",
-  "timestamp": "2026-01-18T14:30:52Z",
-  "category": "timeout",
-  "provider": "openai",
-  "severity": "error",
-  "prompt_preview": "Research the impact of...",
-  "depth": "comprehensive",
-  "error_message": "Request timed out after 720s",
-  "duration_seconds": 720.3,
-  "model_version": "o3-deep-research-2025-06-26"
-}
-```
+After research completes, check if any bugs/anomalies were detected during execution. Display a summary of detected issues (API errors, timeouts, empty/truncated responses, partial failures) with severity levels. If bugs were detected, show the count, per-issue details, and saved bug report file paths in `reports/bugs/`. If no bugs, confirm all providers responded normally. For the bug report JSON schema and detectable anomaly types, read `references/research-models.md`.
 
 ## Error Handling
 
@@ -646,16 +444,7 @@ No issues detected. All providers responded normally.
 
 ## Cost Considerations
 
-Running all three providers at "comprehensive" depth may cost $2-5+ per query.
-
-**Cost Estimates by Depth:**
-| Depth | Claude | OpenAI | Gemini | Total (est.) |
-|-------|--------|--------|--------|--------------|
-| Brief | ~$0.20 | ~$0.30 | ~$0.25 | ~$0.75 |
-| Standard | ~$0.50 | ~$0.75 | ~$0.60 | ~$1.85 |
-| Comprehensive | ~$1.50 | ~$2.00 | ~$1.50 | ~$5.00 |
-
-Consider using `--sources` to select specific providers for cost management.
+Running all three providers at "comprehensive" depth may cost $2-5+ per query. For detailed cost estimates by depth level, read `references/research-models.md` (relative to this plugin's directory). Consider using `--sources` to select specific providers for cost management.
 
 ## Examples
 

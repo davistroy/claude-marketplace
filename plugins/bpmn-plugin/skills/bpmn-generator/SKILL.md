@@ -234,18 +234,7 @@ Use this mode when the user provides a markdown file containing a structured bus
 
 ### Step 1: Identify Document Structure
 
-Analyze the markdown document for these structural elements:
-
-| Element | Markdown Indicators | BPMN Mapping |
-|---------|---------------------|--------------|
-| **Process Name** | H1 heading, title in frontmatter | `<bpmn:process name="...">` |
-| **Phases/Stages** | H2/H3 headings like "Step 1:", "Phase:", numbered sections | Phase comments `<!-- Phase N: ... -->` |
-| **Workflow Steps** | Numbered lists, H3/H4 subheadings under phases | Tasks and events |
-| **Roles/Actors** | "Roles Involved:", tables with role columns, bold text at step start | Lanes in LaneSet |
-| **Decision Points** | "if/then", conditional language, branching described | Gateways |
-| **Parallel Activities** | "simultaneously", "at the same time", "in parallel" | Parallel gateways |
-| **Process Triggers** | "begins when", "triggered by", "starts with" | Start events |
-| **Process Outcomes** | "completes when", "ends with", outcome sections | End events |
+Analyze the markdown document for structural elements that map to BPMN constructs. Key patterns: H1 = process name, H2/H3 "Phase/Step" = phase comments, numbered lists = tasks, role tables = lanes, conditional language = gateways, "begins when" = start events, "completes when" = end events. See `../references/markdown-parsing-guide.md` for the complete document structure mapping table.
 
 ### Step 2: Extract Process Metadata
 
@@ -262,44 +251,17 @@ phases: [ordered list of phase names from section headings]
 
 ### Step 3: Map Roles to Lanes
 
-Use the lane mapping configuration in `../templates/lane-mapping.yaml` to assign colors:
-
-| Document Role Pattern | Lane Name | Fill / Stroke Color |
-|----------------------|-----------|---------------------|
-| Sales, Commercial | Sales | `#dae8fc` / `#6c8ebf` |
-| Legal, Compliance | Legal Operations | `#d5e8d4` / `#82b366` |
-| Finance, Billing | Finance | `#ffe6cc` / `#d79b00` |
-| IT, Security | Security/IT | `#f8cecc` / `#b85450` |
-| Implementation, Project | Implementation | `#e1d5e7` / `#9673a6` |
-| Training, Enablement | Training | `#fff2cc` / `#d6b656` |
-| Customer Success | Customer Success | `#d5e8d4` / `#82b366` |
-| Support, Help Desk | Support | `#f5f5f5` / `#666666` |
-| Customer (External) | Customer Pool | `#f5f5f5` / `#666666` |
+Use the lane mapping configuration in `../templates/lane-mapping.yaml` to assign colors. Read `references/bpmn-elements.md` for the complete role-to-lane color mapping table (Sales, Legal, Finance, IT, Implementation, Training, Customer Success, Support, Customer).
 
 ### Step 4: Parse Phases and Tasks
 
 #### Phase Detection Patterns
 
-```regex
-# Explicit step numbering
-^#{2,4}\s*[\d.]*\s*Step\s+\d+[:.]?\s*(.+)$
-
-# Phase/Stage keywords
-^#{2,3}\s*(Phase|Stage|Step)\s+\d+[:.]?\s*(.+)$
-
-# Numbered workflow sections
-^#{2,4}\s*([\d.]+)\s+(.+)$
-```
+Match headings like "## Step 1:", "### Phase 2:", or "## 1.1 Section" using H2-H4 with step/phase/stage keywords or numbered sections. See `../references/markdown-parsing-guide.md` for regex patterns.
 
 #### Task Type Inference
 
-| Markdown Language | Task Type | BPMN Element |
-|-------------------|-----------|--------------|
-| "reviews", "approves", "manually", "person" | User Task | `<bpmn:userTask>` |
-| "system", "automated", "API", "queries" | Service Task | `<bpmn:serviceTask>` |
-| "sends", "notifies", "emails", "alerts" | Send Task | `<bpmn:sendTask>` |
-| "waits for", "receives", "awaits" | Receive Task | `<bpmn:receiveTask>` |
-| "subprocess", "sub-process" reference | Subprocess | `<bpmn:subProcess>` |
+Use the task type selection table in `references/bpmn-elements.md` to map markdown language to BPMN task types. Common shortcuts: "reviews/approves" = userTask, "system/API" = serviceTask, "sends/notifies" = sendTask, "waits for/receives" = receiveTask, "subprocess" = subProcess.
 
 ### Step 5: Extract Documentation
 
@@ -332,45 +294,10 @@ Both modes use the same BPMN generation rules.
 
 ## BPMN Element Mapping
 
-### Task Type Selection
-
-| Keywords in Description | BPMN Task Type | XML Element |
-|------------------------|----------------|-------------|
-| "user reviews", "person approves", "manually enters", "human performs" | User Task | `<bpmn:userTask>` |
-| "system calls API", "automated process", "service executes", "integration" | Service Task | `<bpmn:serviceTask>` |
-| "send email", "send notification", "notify user", "alert" | Send Task | `<bpmn:sendTask>` |
-| "wait for response", "receive message", "await confirmation" | Receive Task | `<bpmn:receiveTask>` |
-| "run script", "execute code", "calculate", "transform data" | Script Task | `<bpmn:scriptTask>` |
-| "apply business rule", "decision table", "evaluate rules" | Business Rule Task | `<bpmn:businessRuleTask>` |
-| "call external process", "invoke subprocess" | Call Activity | `<bpmn:callActivity>` |
-| Generic activity with no specific type | Task | `<bpmn:task>` |
-
-### Gateway Selection
-
-| Decision Pattern | Gateway Type | XML Element | Symbol |
-|-----------------|--------------|-------------|--------|
-| "if/then/else", "either A or B", "based on condition" | Exclusive (XOR) | `<bpmn:exclusiveGateway>` | X |
-| "do all of", "simultaneously", "in parallel" | Parallel (AND) | `<bpmn:parallelGateway>` | + |
-| "one or more of", "any combination", "at least one" | Inclusive (OR) | `<bpmn:inclusiveGateway>` | O |
-| "wait for first event", "whichever happens first" | Event-Based | `<bpmn:eventBasedGateway>` | Pentagon |
-
-### Event Selection
-
-#### Start Events
-| Trigger | Event Type | XML Element |
-|---------|-----------|-------------|
-| Process begins manually or undefined | None | `<bpmn:startEvent>` |
-| External message received | Message | `<bpmn:startEvent><bpmn:messageEventDefinition/></bpmn:startEvent>` |
-| Scheduled time/date | Timer | `<bpmn:startEvent><bpmn:timerEventDefinition/></bpmn:startEvent>` |
-| Condition becomes true | Conditional | `<bpmn:startEvent><bpmn:conditionalEventDefinition/></bpmn:startEvent>` |
-
-#### End Events
-| Outcome | Event Type | XML Element |
-|---------|-----------|-------------|
-| Normal completion | None | `<bpmn:endEvent>` |
-| Send final message | Message | `<bpmn:endEvent><bpmn:messageEventDefinition/></bpmn:endEvent>` |
-| Error occurred | Error | `<bpmn:endEvent><bpmn:errorEventDefinition/></bpmn:endEvent>` |
-| Stop all process instances | Terminate | `<bpmn:endEvent><bpmn:terminateEventDefinition/></bpmn:endEvent>` |
+Read `references/bpmn-elements.md` (relative to this plugin's directory) for element type mappings and DI constants, including:
+- **Task Type Selection** - keyword-to-BPMN-task-type mapping (userTask, serviceTask, sendTask, etc.)
+- **Gateway Selection** - decision-pattern-to-gateway-type mapping (exclusive, parallel, inclusive, event-based)
+- **Event Selection** - start and end event type mappings with XML elements
 
 ## Phase Comments (CRITICAL for PowerPoint)
 
@@ -423,17 +350,7 @@ Both modes use the same BPMN generation rules.
 
 ### ID Generation Rules
 
-| Element Type | ID Pattern | Example |
-|--------------|------------|---------|
-| Process | `Process_[ProcessName]` | `Process_OrderFulfillment` |
-| Start Event | `StartEvent_[Trigger]` | `StartEvent_OrderReceived` |
-| End Event | `EndEvent_[Outcome]` | `EndEvent_Complete` |
-| User Task | `Activity_[ActionVerb][Noun]` | `Activity_ReviewApplication` |
-| Service Task | `Activity_[SystemAction]` | `Activity_ValidateOrder` |
-| Gateway (XOR) | `ExclusiveGateway_[Decision]` | `ExclusiveGateway_Approved` |
-| Gateway (AND) | `ParallelGateway_[Split/Join]` | `ParallelGateway_SplitTracks` |
-| Lane | `Lane_[RoleName]` | `Lane_CommunityManager` |
-| Flow | `Flow_[Source]_[Target]` | `Flow_Review_Route` |
+Read `references/bpmn-elements.md` for the complete ID pattern table (Process, StartEvent, EndEvent, Activity, Gateway, Lane, Flow patterns with examples).
 
 ### Sequence Flow Rules
 
@@ -461,30 +378,9 @@ Both modes use the same BPMN generation rules.
 
 ## Diagram Interchange Generation
 
-### Element Dimensions
+### Element Dimensions and Layout Constants
 
-| Element | Width | Height |
-|---------|-------|--------|
-| Start Event | 36 | 36 |
-| End Event | 36 | 36 |
-| Intermediate Event | 36 | 36 |
-| Task | 100 | 80 |
-| Gateway | 50 | 50 |
-| Collapsed Subprocess | 100 | 80 |
-| Expanded Subprocess | 350+ | 200+ |
-
-### Layout Constants (Draw.io Compatible)
-
-```text
-POOL_LABEL_WIDTH     = 30px
-LANE_LEFT_OFFSET     = 30px
-ELEMENT_LEFT_MARGIN  = 60px
-ELEMENT_SPACING_H    = 140px  (horizontal gap between elements)
-ELEMENT_SPACING_V    = 45px   (vertical gap for branching paths)
-LANE_MIN_HEIGHT      = 100px
-LANE_BRANCH_HEIGHT   = 130px  (lane with 2 branches)
-LANE_TRIPLE_HEIGHT   = 150px  (lane with 3+ branches)
-```
+Read `references/bpmn-elements.md` for element dimension tables (width/height for events, tasks, gateways, subprocesses) and Draw.io-compatible layout constants (pool label width, lane offsets, element spacing).
 
 ### Cross-Lane Edge Rule (CRITICAL)
 
@@ -535,29 +431,10 @@ Before outputting XML, verify:
 ## For Interactive Mode
 
 ### 1. Decision Summary
-```markdown
-## Process Configuration Summary
-
-**Process Name:** [name]
-**Process ID:** [id]
-
-### Decisions Made:
-| # | Topic | Decision |
-|---|-------|----------|
-| 1 | Start Event | [type] |
-| 2 | Main Tasks | [list] |
-...
-```
+Display a "Process Configuration Summary" with process name, ID, and a decisions table (# / Topic / Decision).
 
 ### 2. Process Description
-```text
-## Generated Process Structure
-
-[Brief narrative description of the process flow]
-
-**Flow Summary:**
-Start → [Task 1] → [Gateway] → [Branch A] / [Branch B] → [Merge] → End
-```
+Show a brief narrative of the process flow with a flow summary line (Start -> Task -> Gateway -> End).
 
 ### 3. BPMN XML File
 Write the complete XML to a file named `[process-name].bpmn` in the current directory.
@@ -565,23 +442,7 @@ Write the complete XML to a file named `[process-name].bpmn` in the current dire
 ## For Document Parsing Mode
 
 ### 1. Conversion Summary
-```markdown
-## Conversion Summary
-
-**Source Document:** [filename.md]
-**Process Name:** [name]
-**Process ID:** [id]
-
-### Extracted Structure:
-- Phases: [count]
-- Roles/Lanes: [list]
-- Tasks: [count by type]
-- Gateways: [count by type]
-- Events: [count by type]
-
-### Assumptions Made:
-[List any inferences or assumptions about unclear elements]
-```
+Display source document, process name/ID, extracted structure counts (phases, roles/lanes, tasks by type, gateways, events), and any assumptions made during parsing.
 
 ### 2. BPMN XML File
 Write complete XML to `[process-name].bpmn`
@@ -589,23 +450,14 @@ Write complete XML to `[process-name].bpmn`
 ## Common Output
 
 ### Validation Confirmation
-```text
-## Validation Results
-
-✓ All structural checks passed
-✓ All flow validity checks passed
-✓ BPMN 2.0 compliance verified
-✓ Diagram interchange complete
-✓ Phase comments included
-
-File written: [filename].bpmn
-```
+After generating XML, display validation results confirming: structural checks passed, flow validity passed, BPMN 2.0 compliance verified, diagram interchange complete, phase comments included, and the output filename.
 
 ---
 
 # REFERENCES
 
 For detailed specifications, see:
+- `../references/bpmn-elements.md` - Element type mappings, DI constants, ID patterns, and lane colors
 - `../references/bpmn-elements-reference.md` - Complete element catalog
 - `../references/xml-namespaces.md` - Namespace documentation
 - `../references/clarification-patterns.md` - Question templates (Interactive mode)

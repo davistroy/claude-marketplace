@@ -44,7 +44,7 @@ The system automatically selects appropriate page types based on content:
 ## Technical Notes
 
 **Image Generation:**
-- Uses `google-genai` SDK with model `gemini-3-pro-image-preview`
+- Uses `google-genai` SDK with model from `$GOOGLE_IMAGE_MODEL` env var, falling back to `gemini-3-pro-image-preview` (default as of 2026-03-04 — verify with provider if errors occur)
 - Configuration: `response_modalities=["IMAGE"]` with `ImageConfig` for aspect ratio/size
 - 4K images are approximately 6-7.5MB each (JPEG format)
 
@@ -118,6 +118,9 @@ with open('document.md', 'w') as f:
 API keys must be loaded into the environment before use. The primary method is the `/unlock` skill, which loads secrets from Bitwarden Secrets Manager via the `bws` CLI (see CLAUDE.md Secrets Management Policy):
 - `GOOGLE_API_KEY` - For Gemini Pro 3 image generation
 - `ANTHROPIC_API_KEY` - For Claude concept analysis and image evaluation
+
+**Optional Model Configuration (non-sensitive, safe for .env):**
+- `GOOGLE_IMAGE_MODEL` - Override Gemini image model (default: `gemini-3-pro-image-preview`, as of 2026-03-04 — verify with provider if errors occur)
 
 If keys are not in the environment, suggest running `/unlock` before proceeding. **Secrets policy compliance:**
 - Do NOT write API keys to `.env` files or any configuration files

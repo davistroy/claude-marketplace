@@ -673,7 +673,7 @@ Add a `--focus` flag that limits analysis to specific dimensions, saving time an
 ### Work Items
 
 #### 5.1 Extract long reference tables from skills >500 lines
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P3 #17
 **Files Affected:**
 - `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
@@ -704,7 +704,7 @@ Use the pattern: "For [specific data], read `references/[file].md` relative to t
 ---
 
 #### 5.2 Replace hardcoded model names with dynamic detection
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P3 #19
 **Files Affected:**
 - `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
