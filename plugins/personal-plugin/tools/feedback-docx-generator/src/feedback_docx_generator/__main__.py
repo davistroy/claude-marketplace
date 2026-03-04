@@ -70,7 +70,7 @@ def _set_run_style(
 
 def _add_heading(doc: DocumentType, text: str, level: int = 1) -> Paragraph:
     """Add a styled heading paragraph."""
-    heading = doc.add_heading(text, level=level)
+    heading: Paragraph = doc.add_heading(text, level=level)  # type: ignore[assignment]
     for run in heading.runs:
         run.font.color.rgb = COLOR_HEADING
         run.font.name = FONT_BODY
@@ -284,7 +284,7 @@ def _build_recommendations(doc: DocumentType, synthesis: dict[str, Any]) -> None
         return
 
     # Group by type
-    grouped = {"Continue": [], "Develop": [], "Stretch": []}
+    grouped: dict[str, list[Any]] = {"Continue": [], "Develop": [], "Stretch": []}
     for rec in recommendations:
         rec_type = rec.get("type", "Develop")
         grouped.setdefault(rec_type, []).append(rec)

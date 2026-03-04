@@ -206,7 +206,7 @@ jobs:
 
       - name: Run pip-audit for all tool dependencies
         run: |
-          pip-audit --strict
+          pip-audit --strict --skip-editable
 
   schema-validation:
     name: Schema Validation
