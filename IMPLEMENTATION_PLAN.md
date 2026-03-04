@@ -491,7 +491,7 @@ The `plan-improvements` command references running `npm audit`, `pip-audit`, and
 ---
 
 #### 3.5 Make help skills dynamic
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P2 #14
 **Files Affected:**
 - `plugins/personal-plugin/skills/help/SKILL.md` (modify — major rewrite of Mode 1)

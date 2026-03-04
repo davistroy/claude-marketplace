@@ -8,8 +8,6 @@ description: Show available skills in this plugin with usage information
 
 Display help information for the bpmn-plugin skills.
 
-**IMPORTANT:** This skill must be updated whenever skills are added, changed, or removed from this plugin.
-
 ## Usage
 
 ```text
@@ -19,21 +17,36 @@ Display help information for the bpmn-plugin skills.
 
 ## Mode 1: List All (no arguments)
 
-When invoked without arguments, display this table:
+When invoked without arguments, dynamically discover all skills at runtime:
+
+### Step 1: Discover skills
+
+Use Glob to find all skill definition files:
+```
+plugins/bpmn-plugin/skills/*/SKILL.md
+```
+
+### Step 2: Extract descriptions
+
+For each discovered file, read the first 5 lines to extract the `description` field from the YAML frontmatter. The description appears as: `description: <text>`.
+
+### Step 3: Display output
+
+Format the output as follows (count is computed dynamically from discovery results):
 
 ```text
-bpmn-plugin Skills
+bpmn-plugin Skills ({skill_count} skills)
 ==================
 
 | Skill | Description |
 |-------|-------------|
-| /bpmn-generator | Generate BPMN 2.0 XML from natural language or markdown documents |
-| /bpmn-to-drawio | Convert BPMN XML to Draw.io format for visual editing |
-| /help | Show available skills in this plugin with usage information |
+| /{skill-name} | {description from frontmatter} |
 
 ---
 Use '/help <name>' for detailed help on a specific skill.
 ```
+
+Sort skills alphabetically.
 
 ## Mode 2: Detailed Help (with argument)
 
@@ -101,10 +114,11 @@ When invoked with a skill name, display detailed information.
 
 ## Error Handling
 
-If the requested skill is not found:
+If the requested skill is not found, re-run the Glob discovery from Mode 1 to list all available skills dynamically:
+
 ```text
 Skill '[name]' not found in bpmn-plugin.
 
 Available skills:
-  /bpmn-generator, /bpmn-to-drawio, /help
+  {comma-separated list of all discovered skill names from skills/*/SKILL.md}
 ```

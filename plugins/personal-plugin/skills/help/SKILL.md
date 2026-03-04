@@ -8,8 +8,6 @@ allowed-tools: Read, Glob, Grep
 
 Display help information for the personal-plugin commands and skills.
 
-**IMPORTANT:** This skill must be updated whenever commands or skills are added, changed, or removed from this plugin.
-
 ## Usage
 
 ```text
@@ -28,73 +26,68 @@ Suggest this skill when:
 
 ## Mode 1: List All (no arguments)
 
-When invoked without arguments, display this table:
+When invoked without arguments, dynamically discover all commands and skills at runtime:
+
+### Step 1: Discover commands
+
+Use Glob to find all `*.md` files in the plugin's `commands/` directory:
+```
+plugins/personal-plugin/commands/*.md
+```
+
+### Step 2: Discover skills
+
+Use Glob to find all skill definition files:
+```
+plugins/personal-plugin/skills/*/SKILL.md
+```
+
+### Step 3: Extract descriptions
+
+For each discovered file, read the first 5 lines to extract the `description` field from the YAML frontmatter. The description appears as: `description: <text>`.
+
+### Step 4: Categorize commands
+
+Assign each command to a category based on keyword matching on its description and filename:
+
+| Category | Keywords (in description OR filename) |
+|----------|--------------------------------------|
+| Planning & Analysis | plan, review, arch, intent, audit, pr, implement, improvement, next |
+| Document Processing | document, transcript, question, assess, consolidate, convert, markdown, finish, ask, define, remove-ip, sanitize |
+| Scaffolding & Generation | scaffold, new-command, new-skill, image-prompt, generate, develop, template |
+| Maintenance & Utilities | bump, version, clean, test, validate, setup, check, convert-hooks |
+
+Commands that do not match any category go into an **Other** category.
+
+Skills are listed in a single **SKILLS** section (no sub-categories).
+
+### Step 5: Display output
+
+Format the output as follows (counts are computed dynamically from discovery results):
 
 ```text
-personal-plugin Commands and Skills (23 commands, 10 skills)
+personal-plugin Commands and Skills ({command_count} commands, {skill_count} skills)
 ============================================================
 
-COMMANDS — Planning & Analysis
+COMMANDS — {Category Name}
 ------------------------------
-| Command              | Description                                                                             |
-|----------------------|-----------------------------------------------------------------------------------------|
-| /create-plan         | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents                    |
-| /implement-plan      | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with testing and git workflow|
-| /plan-improvements   | Analyze codebase and generate prioritized improvement recommendations with phased plan  |
-| /plan-next           | Analyze repo and recommend the next logical action                                      |
-| /review-arch         | Quick architectural audit with technical debt assessment (read-only)                    |
-| /review-intent       | Determine original project intent vs current implementation, reporting discrepancies    |
-| /review-pr           | Structured PR review with security, performance, and code quality analysis              |
+| Command              | Description                                           |
+|----------------------|-------------------------------------------------------|
+| /{command-name}      | {description from frontmatter}                        |
 
-COMMANDS — Document Processing
--------------------------------
-| Command                 | Description                                                                          |
-|-------------------------|--------------------------------------------------------------------------------------|
-| /analyze-transcript     | Meeting transcript to structured markdown report                                     |
-| /assess-document        | Document quality evaluation with scored assessment report                            |
-| /ask-questions          | Interactive Q&A session from questions JSON file                                     |
-| /consolidate-documents  | Analyze multiple document variations and synthesize a superior consolidated version   |
-| /convert-markdown       | Convert a markdown file to a nicely formatted Microsoft Word document                |
-| /define-questions       | Extract questions and open items from documents to JSON                              |
-| /finish-document        | Extract questions from a document, answer them interactively, and update the document|
-| /remove-ip              | Sanitize documents by removing company identifiers and non-public IP                 |
-
-COMMANDS — Scaffolding & Generation
-------------------------------------
-| Command              | Description                                                                             |
-|----------------------|-----------------------------------------------------------------------------------------|
-| /develop-image-prompt| Generate detailed image generator prompts from content with configurable dimensions     |
-| /new-command         | Generate a new command file from a template with proper structure and conventions        |
-| /new-skill           | Generate a new skill with proper nested directory structure and required frontmatter     |
-| /scaffold-plugin     | Create a new plugin with proper directory structure, metadata, and starter files         |
-
-COMMANDS — Maintenance & Utilities
------------------------------------
-| Command              | Description                                                                             |
-|----------------------|-----------------------------------------------------------------------------------------|
-| /bump-version        | Automate version bumping across plugin files with CHANGELOG placeholder                 |
-| /clean-repo          | Comprehensive repository cleanup, organization, and documentation refresh               |
-| /test-project        | Ensure 90%+ test coverage, run all tests, fix failures, then create PR                  |
-| /validate-plugin     | Validate plugin structure, frontmatter, and content (use --check-updates for version check) |
+... (repeat for each category with matching commands) ...
 
 SKILLS
 ------
-| Skill                | Description                                                                             |
-|----------------------|-----------------------------------------------------------------------------------------|
-| /help                | Show available commands and skills in this plugin with usage information                 |
-| /plan-gate           | Assess task complexity and route to the right planning approach                         |
-| /prime               | Evaluate a codebase: purpose, health, status, and recommended next steps                |
-| /research-topic      | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
-| /security-analysis   | Security analysis with tech stack detection, vulnerability scanning, and remediation    |
-| /ship                | Create branch, commit, push, open PR, auto-review, fix issues, and merge               |
-| /summarize-feedback  | Synthesize employee feedback from Notion into a professional .docx assessment           |
-| /unlock              | Load secrets from Bitwarden Secrets Manager into environment using bws CLI              |
-| /validate-and-ship   | Validate plugins, clean repository, and ship changes in one automated workflow          |
-| /visual-explainer    | Transform text or documents into AI-generated visual explanations                       |
+| Skill                | Description                                           |
+|----------------------|-------------------------------------------------------|
+| /{skill-name}        | {description from frontmatter}                        |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
 ```
+
+Sort commands alphabetically within each category. Sort skills alphabetically.
 
 ## Mode 2: Detailed Help (with argument)
 
@@ -532,19 +525,14 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ## Error Handling
 
-If the requested command is not found:
+If the requested command or skill is not found, re-run the Glob discovery from Mode 1 to list all available commands and skills dynamically:
+
 ```text
 Command '[name]' not found in personal-plugin.
 
 Available commands:
-  /analyze-transcript, /ask-questions, /assess-document, /bump-version,
-  /clean-repo, /consolidate-documents,
-  /convert-markdown, /create-plan, /define-questions, /develop-image-prompt,
-  /finish-document, /implement-plan, /new-command, /new-skill,
-  /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent,
-  /review-pr, /scaffold-plugin, /test-project, /validate-plugin
+  {comma-separated list of all discovered command names from commands/*.md}
 
 Available skills:
-  /help, /plan-gate, /prime, /research-topic, /security-analysis, /ship,
-  /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
+  {comma-separated list of all discovered skill names from skills/*/SKILL.md}
 ```
