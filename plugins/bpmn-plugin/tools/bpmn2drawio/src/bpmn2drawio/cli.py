@@ -5,8 +5,8 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .converter import Converter
 from .config import get_env_config
+from .converter import Converter
 
 
 def create_parser() -> argparse.ArgumentParser:

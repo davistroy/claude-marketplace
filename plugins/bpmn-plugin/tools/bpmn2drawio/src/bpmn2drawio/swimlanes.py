@@ -3,9 +3,9 @@
 from typing import Dict, List, Tuple
 from xml.etree import ElementTree as ET
 
-from .models import Pool, Lane, BPMNElement, BPMNModel
-from .styles import SWIMLANE_STYLES
 from .constants import LayoutConstants
+from .models import BPMNElement, BPMNModel, Lane, Pool
+from .styles import SWIMLANE_STYLES
 
 
 class SwimlaneSizer:

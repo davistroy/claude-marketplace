@@ -639,7 +639,7 @@ function validateEdge(edge, registry) {
 
 **Symptom:** Multiple branch targets (e.g., three training tiers) render on top of each other.
 
-**Solution:** 
+**Solution:**
 1. Increase lane height to accommodate branches
 2. Explicitly set different y-coordinates for each branch target
 3. Use formula: `y = lane_top + (branch_index * vertical_spacing)`
@@ -654,7 +654,7 @@ function validateEdge(edge, registry) {
 
 **Symptom:** Gateway condition labels overlap with other labels or elements.
 
-**Solution:** 
+**Solution:**
 1. Use waypoints to route edges away from congested areas
 2. For crowded areas, shorten labels (e.g., "Y" instead of "Yes")
 3. Adjust element spacing to create label space

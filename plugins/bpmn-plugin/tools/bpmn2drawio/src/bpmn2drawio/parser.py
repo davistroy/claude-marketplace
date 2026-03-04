@@ -2,16 +2,17 @@
 
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
+
 from lxml import etree
 
-from .models import BPMNElement, BPMNFlow, Pool, Lane, BPMNModel
 from .constants import (
-    BPMN_NAMESPACES,
     ALL_ELEMENT_TYPES,
-    FLOW_TYPES,
+    BPMN_NAMESPACES,
     ELEMENT_DIMENSIONS,
+    FLOW_TYPES,
 )
 from .exceptions import BPMNParseError
+from .models import BPMNElement, BPMNFlow, BPMNModel, Lane, Pool
 
 
 class BPMNParser:
@@ -54,9 +55,7 @@ class BPMNParser:
                 root = tree.getroot()
             else:
                 # It's an XML string
-                root = etree.fromstring(
-                    source.encode() if isinstance(source, str) else source
-                )
+                root = etree.fromstring(source.encode() if isinstance(source, str) else source)
         except etree.XMLSyntaxError as e:
             raise BPMNParseError(f"Invalid XML: {e}") from e
         except FileNotFoundError as e:
@@ -113,9 +112,7 @@ class BPMNParser:
         self._di_edges = {}
 
         # Find BPMNDiagram element
-        di_diagram = self._find_element(
-            root, ".//bpmndi:BPMNDiagram", ".//{*}BPMNDiagram"
-        )
+        di_diagram = self._find_element(root, ".//bpmndi:BPMNDiagram", ".//{*}BPMNDiagram")
         if di_diagram is None:
             return
 
@@ -146,9 +143,7 @@ class BPMNParser:
             bpmn_element = edge.get("bpmnElement")
             if bpmn_element:
                 waypoints = []
-                points = self._findall_elements(
-                    edge, ".//di:waypoint", ".//{*}waypoint"
-                )
+                points = self._findall_elements(edge, ".//di:waypoint", ".//{*}waypoint")
                 for point in points:
                     x = float(point.get("x", 0))
                     y = float(point.get("y", 0))
@@ -182,12 +177,8 @@ class BPMNParser:
                 process_ref = participant.get("processRef")
                 if process_ref:
                     referenced_process = root.find(f".//*[@id='{process_ref}']")
-                    if referenced_process is not None and referenced_process not in [
-                        process
-                    ]:
-                        self._parse_process_contents(
-                            referenced_process, model, process_ref
-                        )
+                    if referenced_process is not None and referenced_process not in [process]:
+                        self._parse_process_contents(referenced_process, model, process_ref)
 
     def _parse_process_contents(
         self,
@@ -214,9 +205,7 @@ class BPMNParser:
             if tag == "subProcess":
                 # Parse subprocess as element
                 element = self._parse_element(child, tag)
-                element.properties["_is_subprocess"] = (
-                    True  # Mark as subprocess container
-                )
+                element.properties["_is_subprocess"] = True  # Mark as subprocess container
                 if process_id:
                     element.properties["_process_id"] = process_id
                 model.elements.append(element)
@@ -415,9 +404,7 @@ class BPMNParser:
 
     def _parse_collaboration(self, root: etree._Element, model: BPMNModel) -> None:
         """Parse collaboration (pools and message flows)."""
-        collaboration = self._find_element(
-            root, ".//bpmn:collaboration", ".//{*}collaboration"
-        )
+        collaboration = self._find_element(root, ".//bpmn:collaboration", ".//{*}collaboration")
         if collaboration is None:
             return
 
@@ -453,9 +440,7 @@ class BPMNParser:
             if elem_process_id and elem_process_id in process_to_pool:
                 pool = process_to_pool[elem_process_id]
                 # Check if pool has lanes
-                lanes_for_pool = [
-                    lane for lane in model.lanes if lane.parent_pool_id == pool.id
-                ]
+                lanes_for_pool = [lane for lane in model.lanes if lane.parent_pool_id == pool.id]
                 if not lanes_for_pool:
                     # Pool has no lanes - element should be direct child of pool
                     element.parent_id = pool.id
@@ -526,9 +511,7 @@ class BPMNParser:
                 if element.id in lane.element_refs:
                     element.parent_id = lane.id
 
-    def _parse_lane(
-        self, lane_elem: etree._Element, process_id: Optional[str] = None
-    ) -> Lane:
+    def _parse_lane(self, lane_elem: etree._Element, process_id: Optional[str] = None) -> Lane:
         """Parse a lane element.
 
         Args:

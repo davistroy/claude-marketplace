@@ -1,7 +1,6 @@
 """Schema validation utilities for testing."""
 
-from typing import Any
-from jsonschema import Draft202012Validator, ValidationError
+from jsonschema import Draft202012Validator
 from jsonschema.exceptions import best_match
 
 
@@ -116,9 +115,7 @@ def validate_questions_structure(questions_data: dict) -> list[str]:
         # Check priority if present
         priority = question.get("priority")
         if priority and priority not in ("high", "medium", "low"):
-            issues.append(
-                f"Question {i} (ID={q_id}): Invalid priority '{priority}'"
-            )
+            issues.append(f"Question {i} (ID={q_id}): Invalid priority '{priority}'")
 
     return issues
 
@@ -170,9 +167,7 @@ def validate_answers_structure(answers_data: dict) -> list[str]:
         if answer_type != "skipped":
             selected = answer.get("selected_answer", "")
             if not selected or not selected.strip():
-                issues.append(
-                    f"Answer {i} (ID={a_id}): Non-skipped answer has empty content"
-                )
+                issues.append(f"Answer {i} (ID={a_id}): Non-skipped answer has empty content")
 
     # Validate counts match metadata if present
     metadata = answers_data.get("metadata", {})
@@ -182,8 +177,7 @@ def validate_answers_structure(answers_data: dict) -> list[str]:
         actual = answer_type_counts.get(answer_type, 0)
         if actual != expected:
             issues.append(
-                f"Answer type '{answer_type}': metadata says {expected}, "
-                f"but found {actual}"
+                f"Answer type '{answer_type}': metadata says {expected}, but found {actual}"
             )
 
     return issues

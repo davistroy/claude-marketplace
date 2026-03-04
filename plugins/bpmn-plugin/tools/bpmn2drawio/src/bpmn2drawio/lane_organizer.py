@@ -2,8 +2,8 @@
 
 from typing import Dict, List
 
-from .models import BPMNModel, BPMNElement, Lane
 from .constants import LayoutConstants
+from .models import BPMNElement, BPMNModel, Lane
 
 
 class LaneOrganizer:
@@ -48,19 +48,11 @@ class LaneOrganizer:
         pool_lanes = self._group_lanes_by_pool(model.lanes)
 
         lane_width = max_x - min_x + LayoutConstants.LANE_PADDING * 2
-        lane_y_positions, pool_heights = self._calculate_lane_y_positions(
-            pool_lanes, lane_heights
-        )
+        lane_y_positions, pool_heights = self._calculate_lane_y_positions(pool_lanes, lane_heights)
 
-        self._update_lane_dimensions(
-            model.lanes, lane_y_positions, lane_heights, lane_width
-        )
-        self._adjust_element_positions(
-            lane_elements, lane_y_positions, lane_heights, min_x
-        )
-        self._update_pool_dimensions(
-            model, pool_heights, lane_width, lane_elements, min_x
-        )
+        self._update_lane_dimensions(model.lanes, lane_y_positions, lane_heights, lane_width)
+        self._adjust_element_positions(lane_elements, lane_y_positions, lane_heights, min_x)
+        self._update_pool_dimensions(model, pool_heights, lane_width, lane_elements, min_x)
         self._position_laneless_pool_elements(model, min_x)
 
     # --- DI preserve mode ---
@@ -177,9 +169,7 @@ class LaneOrganizer:
 
         return lane_elements
 
-    def _calculate_horizontal_extent(
-        self, elements: List[BPMNElement]
-    ) -> tuple[float, float]:
+    def _calculate_horizontal_extent(self, elements: List[BPMNElement]) -> tuple[float, float]:
         """Calculate the horizontal extent (min_x, max_x) from all elements.
 
         Args:

@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
 
-from .parser import parse_bpmn
+from .config import load_brand_config, merge_theme_with_config
 from .generator import DrawioGenerator, GenerationResult
 from .models import BPMNModel
+from .parser import parse_bpmn
 from .position_resolver import resolve_positions
 from .themes import get_theme
-from .config import load_brand_config, merge_theme_with_config
 
 
 @dataclass

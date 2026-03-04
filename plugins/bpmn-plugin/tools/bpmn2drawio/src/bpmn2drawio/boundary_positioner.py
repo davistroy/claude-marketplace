@@ -2,7 +2,7 @@
 
 from typing import Dict, List
 
-from .models import BPMNModel, BPMNElement
+from .models import BPMNElement, BPMNModel
 
 
 class BoundaryPositioner:
@@ -59,9 +59,7 @@ class BoundaryPositioner:
             return
 
         for element in model.elements:
-            subprocess_id = element.subprocess_id or element.properties.get(
-                "subprocess_id"
-            )
+            subprocess_id = element.subprocess_id or element.properties.get("subprocess_id")
             if subprocess_id and subprocess_id in subprocess_lookup:
                 self._make_coords_relative(element, subprocess_lookup[subprocess_id])
 
@@ -119,10 +117,7 @@ class BoundaryPositioner:
         for other_id, other in elem_lookup.items():
             if other.type not in attachable_types:
                 continue
-            if (
-                other_id in boundary.id
-                or boundary.id.replace("Boundary", "") in other_id
-            ):
+            if other_id in boundary.id or boundary.id.replace("Boundary", "") in other_id:
                 return other_id
 
         return None
@@ -156,9 +151,7 @@ class BoundaryPositioner:
         boundary.x = x_offset
         boundary.y = attached_height - (event_height / 2)
 
-    def _build_subprocess_lookup(
-        self, elements: List[BPMNElement]
-    ) -> Dict[str, BPMNElement]:
+    def _build_subprocess_lookup(self, elements: List[BPMNElement]) -> Dict[str, BPMNElement]:
         """Build a lookup of subprocess elements.
 
         Args:
@@ -169,9 +162,7 @@ class BoundaryPositioner:
         """
         return {e.id: e for e in elements if e.properties.get("_is_subprocess")}
 
-    def _make_coords_relative(
-        self, element: BPMNElement, subprocess: BPMNElement
-    ) -> None:
+    def _make_coords_relative(self, element: BPMNElement, subprocess: BPMNElement) -> None:
         """Convert element coordinates from absolute to subprocess-relative.
 
         Args:

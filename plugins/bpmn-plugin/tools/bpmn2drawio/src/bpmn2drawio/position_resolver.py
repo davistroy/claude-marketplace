@@ -1,13 +1,13 @@
 """Position resolver for BPMN elements."""
 
-from typing import Optional, List, Dict, Tuple, Set
 from copy import deepcopy
+from typing import Dict, List, Optional, Set, Tuple
 
-from .models import BPMNModel, BPMNElement
-from .layout import LayoutEngine
-from .constants import ELEMENT_DIMENSIONS, DATA_TYPES
 from .boundary_positioner import BoundaryPositioner
+from .constants import DATA_TYPES, ELEMENT_DIMENSIONS
 from .lane_organizer import LaneOrganizer
+from .layout import LayoutEngine
+from .models import BPMNElement, BPMNModel
 
 
 class PositionResolver:
@@ -104,9 +104,7 @@ class PositionResolver:
             positions = self.layout_engine.calculate_layout(model.elements, model.flows)
             self._apply_layout_positions(model.elements, positions)
         elif connected_elements:
-            self._place_connected_elements(
-                connected_elements, with_di, model.flows, bounds
-            )
+            self._place_connected_elements(connected_elements, with_di, model.flows, bounds)
 
         self._place_disconnected_elements(disconnected_elements, bounds)
 

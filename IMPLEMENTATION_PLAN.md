@@ -56,9 +56,9 @@ Phases are ordered by dependency and blast radius:
 
 ### Work Items
 
-#### 1.1 Add Ruff Linting and Formatting to CI
+#### 1.1 Add Ruff Linting and Formatting to CI (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** CI1, D2
 **Files Affected:**
 - `ruff.toml` (create)
@@ -84,9 +84,9 @@ The `.ruff_cache/0.14.10` directory suggests ruff 0.14.10 has been used locally.
 
 ---
 
-#### 1.2 Add Dependency Security Scanning
+#### 1.2 Add Dependency Security Scanning — COMPLETE 2026-03-04
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** CI2
 **Files Affected:**
 - `.github/workflows/test.yml` (modify)
@@ -107,9 +107,9 @@ Add `pip-audit` as a step in the test workflow to scan installed Python packages
 
 ---
 
-#### 1.3 Make Markdown Linting Blocking
+#### 1.3 Make Markdown Linting Blocking (2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** CI3
 **Files Affected:**
 - `.github/workflows/validate.yml` (modify)
@@ -130,9 +130,9 @@ Remove the `|| true` suffix from the markdownlint step in `validate.yml` so that
 
 ---
 
-#### 1.4 Add ruff.toml Configuration
+#### 1.4 Add ruff.toml Configuration (COMPLETE 2026-03-04)
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Recommendation Ref:** CI1
 **Files Affected:**
 - `ruff.toml` (create — same file as 1.1, but this item covers the detailed configuration)

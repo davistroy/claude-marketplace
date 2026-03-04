@@ -8,20 +8,15 @@ Tests validate the complete workflow:
 These tests validate schema compliance and data flow between commands.
 """
 
-import json
-import pytest
-from pathlib import Path
-
-from tests.helpers.schema_validator import (
-    validate_against_schema,
-    get_validation_errors,
-    validate_questions_structure,
-    validate_answers_structure,
-)
 from tests.helpers.file_comparator import (
-    compare_markdown_content,
-    extract_tbd_markers,
     count_resolved_tbds,
+    extract_tbd_markers,
+)
+from tests.helpers.schema_validator import (
+    get_validation_errors,
+    validate_against_schema,
+    validate_answers_structure,
+    validate_questions_structure,
 )
 
 
@@ -126,9 +121,7 @@ class TestAnswersSchemaCompliance:
         for i, answer in enumerate(answers):
             answer_type = answer.get("answer_type")
             if answer_type:
-                assert answer_type in valid_types, (
-                    f"Answer {i} has invalid type '{answer_type}'"
-                )
+                assert answer_type in valid_types, f"Answer {i} has invalid type '{answer_type}'"
 
     def test_answers_structure_validation(self, sample_answers: dict):
         """Verify answers pass structural validation."""
@@ -139,9 +132,7 @@ class TestAnswersSchemaCompliance:
 class TestWorkflowDataFlow:
     """Tests for data flow between Q&A workflow commands."""
 
-    def test_questions_ids_match_answers_ids(
-        self, expected_questions: dict, sample_answers: dict
-    ):
+    def test_questions_ids_match_answers_ids(self, expected_questions: dict, sample_answers: dict):
         """Verify answer IDs correspond to question IDs."""
         question_ids = {q.get("id") for q in expected_questions.get("questions", [])}
         answer_ids = {a.get("id") for a in sample_answers.get("answers", [])}
@@ -189,9 +180,7 @@ class TestDocumentUpdate:
         markers = extract_tbd_markers(sample_prd)
         assert len(markers) > 0, "Original PRD should contain TBD markers"
 
-    def test_updated_prd_has_fewer_tbd_markers(
-        self, sample_prd: str, expected_updated_prd: str
-    ):
+    def test_updated_prd_has_fewer_tbd_markers(self, sample_prd: str, expected_updated_prd: str):
         """Verify updated PRD has fewer TBD markers than original."""
         original_markers = extract_tbd_markers(sample_prd)
         updated_markers = extract_tbd_markers(expected_updated_prd)
@@ -211,9 +200,7 @@ class TestDocumentUpdate:
         # Count non-skipped answers (answered + alternative + custom)
         summary = metadata.get("answer_summary", {})
         answered_count = (
-            summary.get("recommended", 0)
-            + summary.get("alternative", 0)
-            + summary.get("custom", 0)
+            summary.get("recommended", 0) + summary.get("alternative", 0) + summary.get("custom", 0)
         )
 
         # Resolved should match answered (skipped questions remain as TBD)
@@ -222,14 +209,11 @@ class TestDocumentUpdate:
             f"answered questions ({answered_count})"
         )
 
-    def test_skipped_questions_remain_as_tbd(
-        self, expected_updated_prd: str, sample_answers: dict
-    ):
+    def test_skipped_questions_remain_as_tbd(self, expected_updated_prd: str, sample_answers: dict):
         """Verify skipped questions remain as TBD in updated document."""
         # Get skipped questions
         skipped = [
-            a for a in sample_answers.get("answers", [])
-            if a.get("answer_type") == "skipped"
+            a for a in sample_answers.get("answers", []) if a.get("answer_type") == "skipped"
         ]
 
         # Check that their original text markers still exist
@@ -247,25 +231,19 @@ class TestInvalidInput:
 
     def test_questions_missing_metadata_fails_schema(self, questions_schema: dict):
         """Verify questions without metadata fail validation."""
-        invalid_data = {
-            "questions": [
-                {"id": 1, "text": "Test?", "context": "Test context"}
-            ]
-        }
+        invalid_data = {"questions": [{"id": 1, "text": "Test?", "context": "Test context"}]}
 
         assert not validate_against_schema(invalid_data, questions_schema)
         errors = get_validation_errors(invalid_data, questions_schema)
         assert any("metadata" in e.lower() for e in errors)
 
-    def test_questions_missing_questions_array_fails_schema(
-        self, questions_schema: dict
-    ):
+    def test_questions_missing_questions_array_fails_schema(self, questions_schema: dict):
         """Verify questions without questions array fail validation."""
         invalid_data = {
             "metadata": {
                 "source_document": "test.md",
                 "generated_at": "2026-01-14T10:00:00Z",
-                "total_questions": 0
+                "total_questions": 0,
             }
         }
 
@@ -276,17 +254,14 @@ class TestInvalidInput:
     def test_answer_invalid_type_fails_schema(self, answers_schema: dict):
         """Verify answers with invalid answer_type fail validation."""
         invalid_data = {
-            "metadata": {
-                "source_document": "test.md",
-                "total_questions": 1
-            },
+            "metadata": {"source_document": "test.md", "total_questions": 1},
             "answers": [
                 {
                     "id": 1,
                     "selected_answer": "test",
-                    "answer_type": "invalid_type"  # Not a valid enum value
+                    "answer_type": "invalid_type",  # Not a valid enum value
                 }
-            ]
+            ],
         }
 
         assert not validate_against_schema(invalid_data, answers_schema)
@@ -299,16 +274,16 @@ class TestInvalidInput:
             "metadata": {
                 "source_document": "test.md",
                 "generated_at": "2026-01-14T10:00:00Z",
-                "total_questions": 1
+                "total_questions": 1,
             },
             "questions": [
                 {
                     "id": 1,
                     "text": "Test question?",
                     "context": "Test context",
-                    "priority": "urgent"  # Not a valid priority
+                    "priority": "urgent",  # Not a valid priority
                 }
-            ]
+            ],
         }
 
         issues = validate_questions_structure(invalid_questions)

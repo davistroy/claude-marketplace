@@ -16,12 +16,11 @@ from pathlib import Path
 
 try:
     from docx import Document
-    from docx.shared import Pt, Inches, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Inches, Pt, RGBColor
 except ImportError:
     print(
-        "ERROR: python-docx is not installed.\n"
-        "Install it with: pip install python-docx>=1.0",
+        "ERROR: python-docx is not installed.\nInstall it with: pip install python-docx>=1.0",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -119,9 +118,7 @@ def _format_date(date_str):
         "%Y-%m-%dT%H:%M:%S%z",
     ):
         try:
-            return datetime.strptime(date_str[:19], fmt[: min(len(fmt), 19)]).strftime(
-                "%B %d, %Y"
-            )
+            return datetime.strptime(date_str[:19], fmt[: min(len(fmt), 19)]).strftime("%B %d, %Y")
         except (ValueError, TypeError):
             continue
     return date_str
@@ -306,9 +303,7 @@ def _build_recommendations(doc, synthesis):
                 para = doc.add_paragraph()
                 para.paragraph_format.left_indent = Inches(0.5)
                 run = para.add_run(f"Rationale: {rationale}")
-                _set_run_style(
-                    run, size=FONT_SIZE_METADATA, color=COLOR_METADATA, italic=True
-                )
+                _set_run_style(run, size=FONT_SIZE_METADATA, color=COLOR_METADATA, italic=True)
 
 
 def _build_appendix(doc, entries):

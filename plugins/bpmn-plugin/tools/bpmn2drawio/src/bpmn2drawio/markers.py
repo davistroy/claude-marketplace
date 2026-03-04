@@ -5,7 +5,6 @@ from xml.etree import ElementTree as ET
 
 from .models import BPMNElement
 
-
 # Gateway marker definitions
 GATEWAY_MARKERS: Dict[str, Dict] = {
     "exclusiveGateway": {

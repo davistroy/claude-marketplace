@@ -1,10 +1,10 @@
 """Recovery strategies for handling errors gracefully."""
 
-from typing import Dict, Tuple
 import logging
+from typing import Dict, Tuple
 
-from .models import BPMNModel, BPMNElement, BPMNFlow
 from .constants import ELEMENT_DIMENSIONS
+from .models import BPMNElement, BPMNFlow, BPMNModel
 from .styles import STYLE_MAP
 
 logger = logging.getLogger(__name__)
@@ -47,8 +47,7 @@ class RecoveryStrategy:
         """
         if element.parent_id and element.parent_id not in valid_parents:
             logger.warning(
-                f"Invalid parent '{element.parent_id}' for element '{element.id}', "
-                f"placing at root"
+                f"Invalid parent '{element.parent_id}' for element '{element.id}', placing at root"
             )
             element.parent_id = None
             self.recovered_count += 1
@@ -82,24 +81,18 @@ class RecoveryStrategy:
             True if flow is valid, False if should be skipped
         """
         if flow.source_ref not in element_ids:
-            logger.warning(
-                f"Skipping flow '{flow.id}': invalid source '{flow.source_ref}'"
-            )
+            logger.warning(f"Skipping flow '{flow.id}': invalid source '{flow.source_ref}'")
             self.recovered_count += 1
             return False
 
         if flow.target_ref not in element_ids:
-            logger.warning(
-                f"Skipping flow '{flow.id}': invalid target '{flow.target_ref}'"
-            )
+            logger.warning(f"Skipping flow '{flow.id}': invalid target '{flow.target_ref}'")
             self.recovered_count += 1
             return False
 
         return True
 
-    def recover_graphviz_failure(
-        self, model: BPMNModel
-    ) -> Dict[str, Tuple[float, float]]:
+    def recover_graphviz_failure(self, model: BPMNModel) -> Dict[str, Tuple[float, float]]:
         """Use simple grid layout if Graphviz fails.
 
         Args:
@@ -144,9 +137,7 @@ def recover_model(model: BPMNModel) -> Tuple[BPMNModel, int]:
     """
     strategy = RecoveryStrategy()
     element_ids = {e.id for e in model.elements}
-    valid_parents = (
-        element_ids | {p.id for p in model.pools} | {lane.id for lane in model.lanes}
-    )
+    valid_parents = element_ids | {p.id for p in model.pools} | {lane.id for lane in model.lanes}
 
     # Recover elements
     for i, element in enumerate(model.elements):
@@ -154,9 +145,7 @@ def recover_model(model: BPMNModel) -> Tuple[BPMNModel, int]:
         strategy.recover_invalid_parent(element, valid_parents)
 
     # Filter invalid flows
-    valid_flows = [
-        flow for flow in model.flows if strategy.recover_invalid_flow(flow, element_ids)
-    ]
+    valid_flows = [flow for flow in model.flows if strategy.recover_invalid_flow(flow, element_ids)]
     model.flows = valid_flows
 
     return model, strategy.get_recovery_count()

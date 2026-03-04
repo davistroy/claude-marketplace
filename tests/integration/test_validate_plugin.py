@@ -8,9 +8,10 @@ Tests validate:
 
 import json
 import re
+from pathlib import Path
+
 import pytest
 import yaml
-from pathlib import Path
 
 
 @pytest.fixture
@@ -78,7 +79,8 @@ def validate_frontmatter(file_path: Path, is_skill: bool = False) -> list:
 
     Args:
         file_path: Path to the markdown file
-        is_skill: If True, validate as skill (name required). If False, validate as command (name forbidden).
+        is_skill: If True, validate as skill (name required).
+            If False, validate as command (name forbidden).
     """
     errors = []
 
