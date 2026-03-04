@@ -62,7 +62,7 @@ Phases are ordered by blast radius and dependency:
 
 #### 1.1 Fix `/test-project` allowed-tools — add Read, Write, Edit, Glob, Grep
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P0 #1
 **Files Affected:**
 - `plugins/personal-plugin/commands/test-project.md` (modify)
@@ -94,7 +94,7 @@ Most critical bug — this command is completely non-functional without file acc
 ---
 
 #### 1.2 Fix `summarize-feedback` skill allowed-tools — add Bash
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P0 #2
 **Files Affected:**
 - `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
@@ -115,7 +115,7 @@ The skill runs `python -m feedback_docx_generator` and `python -c "import docx"`
 ---
 
 #### 1.3 Fix `security-analysis` skill allowed-tools — add Write
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P0 #3
 **Files Affected:**
 - `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
