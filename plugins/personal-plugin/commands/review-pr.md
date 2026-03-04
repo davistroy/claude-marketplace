@@ -192,18 +192,32 @@ Create a structured review with this format:
 **Issue:** [Description]
 **Suggestion:** [How to fix]
 
-### WARNING Issues (Should Fix)
+### HIGH Issues (Should Fix)
 
 [List important issues that should be addressed]
 
-#### W1. [Issue Title]
+#### H1. [Issue Title]
 ...
 
-### SUGGESTION Issues (Nice to Have)
+### MEDIUM Issues (Should Fix, Not Blocking)
 
-[List minor improvements and nice-to-haves]
+[List code quality issues and missing tests]
 
-#### S1. [Issue Title]
+#### M1. [Issue Title]
+...
+
+### LOW Issues (Nice to Have)
+
+[List minor improvements and style suggestions]
+
+#### L1. [Issue Title]
+...
+
+### INFO (Observations)
+
+[List positive feedback and context-only notes]
+
+#### I1. [Issue Title]
 ...
 
 ---
@@ -278,8 +292,10 @@ Recommendation: [APPROVE/REQUEST_CHANGES/COMMENT]
 
 Issues Found:
   CRITICAL: [count]
-  WARNING: [count]
-  SUGGESTION: [count]
+  HIGH: [count]
+  MEDIUM: [count]
+  LOW: [count]
+  INFO: [count]
 
 [If posted] Review posted to GitHub: [URL]
 [If not posted] Review saved locally.
@@ -339,9 +355,9 @@ This PR adds a comprehensive authentication module with JWT support. The impleme
 **Issue:** JWT secret is hardcoded in source code
 **Suggestion:** Move to environment variable: `process.env.JWT_SECRET`
 
-### WARNING Issues (Should Fix)
+### HIGH Issues (Should Fix)
 
-#### W1. Missing Rate Limiting
+#### H1. Missing Rate Limiting
 **File:** `src/auth/login.ts` (lines 20-45)
 **Issue:** Login endpoint has no rate limiting, vulnerable to brute force
 **Suggestion:** Add rate limiting middleware (e.g., express-rate-limit)

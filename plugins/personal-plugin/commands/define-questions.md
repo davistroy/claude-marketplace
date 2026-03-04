@@ -207,7 +207,7 @@ Before saving the output file, validate against the inline questions schema rule
 
 **Required fields (metadata):**
 - `metadata.source_document` - Source document path
-- `metadata.generated_at` - ISO 8601 timestamp
+- `metadata.generated_date` - ISO 8601 timestamp
 - `metadata.total_questions` - Integer count
 
 **Required fields (per question):**
@@ -240,7 +240,7 @@ Schema validation failed:
 Errors:
   - questions[3].id: Required field missing
   - questions[7].priority: Must be one of: high, medium, low
-  - metadata.generated_at: Invalid date-time format
+  - metadata.generated_date: Invalid date-time format
 
 Fix these issues or use --force to save anyway (not recommended).
 ```

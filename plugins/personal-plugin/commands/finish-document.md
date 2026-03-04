@@ -118,7 +118,7 @@ Schema validation failed for questions file:
 
 Errors:
   - questions[3].id: Required field missing
-  - metadata.generated_at: Invalid date-time format
+  - metadata.generated_date: Invalid date-time format
 
 Fix these issues or use --force to save anyway (not recommended).
 ```

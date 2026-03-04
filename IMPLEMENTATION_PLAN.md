@@ -384,7 +384,7 @@ After deprecations, update version numbers and documentation to reflect the new 
 ### Work Items
 
 #### 3.1 Extract shared IMPLEMENTATION_PLAN.md template to `references/plan-template.md`
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P2 #10
 **Files Affected:**
 - `plugins/personal-plugin/references/plan-template.md` (create)
@@ -415,7 +415,7 @@ The append/overwrite logic with `<!-- BEGIN PHASES -->` / `<!-- END PHASES -->` 
 ---
 
 #### 3.2 Fix schema inconsistencies across commands
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P2 #11
 **Files Affected:**
 - `plugins/personal-plugin/commands/define-questions.md` (modify)
@@ -444,7 +444,7 @@ The report template uses CRITICAL/WARNING/SUGGESTION but the severity definition
 ---
 
 #### 3.3 Tighten and loosen tool permissions on 4 commands
-**Status: PENDING**
+**Status: COMPLETE 2026-03-04**
 **Requirement Refs:** Evaluation Report P2 #12, #13
 **Files Affected:**
 - `plugins/personal-plugin/commands/new-command.md` (modify)
