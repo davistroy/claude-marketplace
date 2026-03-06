@@ -389,6 +389,19 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 ---
 
+#### /evaluate-pipeline-output
+**Description:** Thoroughly evaluate contact-center-lab pipeline output quality against input, checking sanitization correctness, atom/entity/triple quality, graph structure, and procedure integrity across all stages
+**Arguments:** `<output-dir>` [--articles `<N>`] [--input `<path>`]
+**Output:** In-conversation evaluation report with severity-rated findings
+**Example:**
+```text
+/evaluate-pipeline-output ./output/single-2026-03-05-1803
+/evaluate-pipeline-output ./output/full-run --articles 10357
+/evaluate-pipeline-output ./output/test-5 --input ./pipeline/tests/fixtures/five
+```
+
+---
+
 #### /help
 **Description:** Show available commands and skills in this plugin with usage information
 **Arguments:** [`<command-or-skill-name>`]
