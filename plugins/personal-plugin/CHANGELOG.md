@@ -5,6 +5,18 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.1] - 2026-03-13
+
+### Changed
+- Rewrote evaluate-pipeline-output skill for resilience to pipeline code changes
+- Skill now discovers schemas, field names, thresholds, and config at runtime from pipeline source code
+- Added Finding Analysis Protocol mandating symptom/issue/root-cause/cascade/fix/verification per finding
+- Added Infrastructure Health phase (LLM failure rates, HDBSCAN success, processing time)
+- Added Stage A ingestion evaluation (previously unchecked)
+- Added regression analysis via --baseline flag for run-over-run comparison
+- Added --mode test|validation|production for severity calibration
+- Added causal chain summary consolidating findings with shared root causes
+
 ## [5.1.0] - 2026-03-04
 
 ### Added

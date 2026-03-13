@@ -85,8 +85,9 @@ This command automates the execution of a phased implementation plan by:
 2. Implementing each work item via subagents (with project context for orientation)
 3. Running tests and fixing failures
 4. Optionally updating PROGRESS.md (if it exists) and LEARNINGS.md (only when tests had issues)
-5. Committing after each work item
-6. Creating a PR when complete (merge only with `--auto-merge`)
+5. Capturing non-trivial learnings to project memory files at phase boundaries
+6. Committing after each work item
+7. Creating a PR when complete (merge only with `--auto-merge`)
 
 ## Prerequisites
 
@@ -116,6 +117,7 @@ Before running this command, ensure:
 | Fold plan-file updates into implementation subagent | Spawn a separate doc subagent for every work item |
 | Use a single commit for parallel batches | Create individual commits for each parallel item |
 | Shed old subagent summaries every 5 items | Keep all iteration results in conversation history |
+| Capture non-trivial learnings to memory files at phase boundaries | Skip memory updates because "context discipline" says to shed state |
 
 ### State File (`.implement-plan-state.json`)
 
@@ -192,14 +194,14 @@ For each incomplete work item in the plan file (`PLAN_FILE`):
 
 1. **Implementation Subagent**: Reads the plan, implements the work item, and marks it complete in `PLAN_FILE` (includes project context for orientation)
 2. **Testing Subagent**: Runs all tests, fixes failures until all pass
-3. **Main Agent**: Optionally updates PROGRESS.md (if it exists) and LEARNINGS.md (if tests had issues), then commits and pushes
+3. **Main Agent**: Optionally updates PROGRESS.md (if it exists) and LEARNINGS.md (if tests had issues). At phase boundaries, captures non-trivial learnings to project memory files. Then commits and pushes.
 
 **Parallel variant** (for independent work items within the same phase):
 
 1. **Launch N implementation subagents concurrently** (one per independent work item, `run_in_background: true`) — each updates `PLAN_FILE` for its own item
 2. **Collect results** as each completes — check output files for status
 3. **Single testing subagent** runs full test suite after all parallel items complete
-4. **Main Agent**: Optionally updates PROGRESS.md and LEARNINGS.md, then single commit covering all parallel work items, then push
+4. **Main Agent**: Optionally updates PROGRESS.md and LEARNINGS.md. At phase boundaries, captures non-trivial learnings to project memory files. Then single commit covering all parallel work items, then push.
 
 ### Finalization
 
@@ -389,6 +391,22 @@ Documentation overhead is minimized by folding the plan file update into the imp
    > Append to LEARNINGS.md: "[ITEM]: [ISSUE_SUMMARY] — [FIX_APPLIED]" (one line per issue).
    > Return: DOCS_UPDATED when complete.
 
+##### Step A3b: LEARNING CAPTURE (Main Agent — at phase boundaries)
+
+**This step runs at the LAST work item of each phase, not after every item.** When the current work item is the final item in its phase (check `parallelization_map`), capture learnings from the entire phase:
+
+Check if the project has a CLAUDE.md with learning capture rules (look for "memory" or "learnings" sections). If so, review the implementation and testing summaries retained from this phase's work items. If any non-trivial findings occurred during this phase (SQL injection fixes, architectural pattern discoveries, deployment gotchas, test infrastructure patterns, dead code found, etc.):
+
+1. **Update the project's memory files** — write findings to the appropriate topic file in the project's memory directory. Include: what was found, why it matters, and what to watch for.
+2. **Update MEMORY.md** — add a concise bullet + link to the topic file.
+3. **Update CLAUDE.md** — add operational rules if the finding warrants one (e.g., "never use sql.raw() with variables").
+
+If the project has no CLAUDE.md learning rules or no memory directory, skip this step entirely.
+
+**What counts as non-trivial:** Security fixes, patterns that took multiple attempts, architectural decisions made during implementation, dead code or orphaned files discovered, integration test infrastructure choices, any fix where the root cause was not obvious.
+
+**What to skip:** Routine implementation (added a function, wrote tests that passed first try), documentation-only updates, config file changes.
+
 ##### Step A4: COMMIT (Main Agent — do this yourself)
 
 Run these git commands directly:
@@ -505,6 +523,12 @@ Documentation overhead is minimized by folding the plan file update into each pa
 
    > Append to LEARNINGS.md: for each issue encountered across the parallel batch, add "[ITEM]: [ISSUE_SUMMARY] — [FIX_APPLIED]" (one line per issue).
    > Return: DOCS_UPDATED when complete.
+
+##### Step B4b: LEARNING CAPTURE (Main Agent — at phase boundaries)
+
+**Same as Step A3b but for parallel batches.** If this batch completes the current phase, capture learnings from the entire phase. See Step A3b for full instructions on what to capture and where to write it.
+
+Since parallel batches often complete an entire phase at once, this step will fire more frequently in the parallel path. Review all implementation summaries from the batch's subagents and any test fixes for non-trivial findings.
 
 ##### Step B5: COMMIT (Main Agent — do this yourself)
 
