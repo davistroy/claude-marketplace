@@ -38,7 +38,7 @@ You can install to different scopes:
 
 ### personal-plugin
 
-23 commands and 10 skills for productivity workflows, code review, document processing, and security analysis.
+23 commands and 11 skills for productivity workflows, code review, document processing, and security analysis.
 
 **23 Commands:**
 | Command | Description |
@@ -67,7 +67,7 @@ You can install to different scopes:
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
 | [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content (supports `--check-updates`) |
 
-**10 Skills:**
+**11 Skills:**
 | Skill | Description |
 |-------|-------------|
 | [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills with usage information |
@@ -80,6 +80,7 @@ You can install to different scopes:
 | [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment |
 | [`/validate-and-ship`](plugins/personal-plugin/skills/validate-and-ship/SKILL.md) | Validate plugins, clean repository, and ship changes in one workflow |
 | [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated visual explanations |
+| [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input |
 
 ### bpmn-plugin
 

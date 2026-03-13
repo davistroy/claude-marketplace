@@ -1,3 +1,42 @@
+## Operational Rules — Learning Capture
+
+**These rules apply in every session. Do not skip them.**
+
+### When a plugin structure issue, discovery failure, or marketplace problem is diagnosed and fixed
+
+After any non-trivial finding during plugin development, validation, or marketplace integration:
+
+1. **Update `CLAUDE.md`** (this file) — add or update a bullet in the relevant section with the operational rule. This is the always-loaded, always-enforced file.
+2. **Update the memory file** — write a detailed entry in `C:\Users\Troy Davis\.claude\projects\C--Users-Troy-Davis-dev-personal-claude-marketplace\memory\` in the appropriate topic file. Include the root cause, the fix, and what to watch for.
+3. **Update `MEMORY.md`** — add a concise bullet + link to the topic file so it survives context compaction.
+
+### What counts as a "non-trivial finding"
+
+- Any plugin discovery failure (skill not found, command not loading, marketplace install error)
+- Any frontmatter requirement discovered (missing `name` field, wrong key format)
+- Any directory structure requirement (flat commands vs nested skills)
+- Any Python tool invocation issue (PYTHONPATH, dependency gaps, entry point naming)
+- Any fix that took more than one attempt to get right
+
+### Learning file locations
+
+| File | Purpose | When to write |
+|------|---------|---------------|
+| `CLAUDE.md` (this file) | Operational rules, always enforced | Every session with new learnings |
+| `memory/MEMORY.md` | Concise index, survives compaction | After each new topic file entry |
+| `memory/plugin-structure-learnings.md` | Discovery failures, frontmatter, directory layout | Plugin structure findings |
+| `memory/marketplace-learnings.md` | Install behavior, versioning, namespace collisions | Marketplace findings |
+| `memory/tool-integration-learnings.md` | Python tool invocation, PYTHONPATH, deps | Tool integration findings |
+
+### Verified operational rules (do not repeat these mistakes)
+
+- **Skills MUST use nested directory structure** — `skills/name/SKILL.md` not `skills/name.md`. Flat files are not discovered.
+- **Skills MUST have `name` in frontmatter** — without it the skill is not registered.
+- **Commands MUST NOT have `name` in frontmatter** — adding `name` prevents command discovery.
+- **Do NOT add `tools` field to plugin.json** — causes "Unrecognized key: tools" error.
+
+---
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code when working with code in this repository.
