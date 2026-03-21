@@ -101,8 +101,10 @@ improving existing code, so I should analyze the codebase first to produce
 prioritized recommendations and a phased implementation plan.
 
 Recommended: /plan-improvements
-  - Generates RECOMMENDATIONS.md with prioritized findings
+  - Deep investigation of root causes and interrelationships between issues
+  - Generates RECOMMENDATIONS.md with integrated, architecturally coherent fixes
   - Generates IMPLEMENTATION_PLAN.md with phased work items
+  - Produces cohesive changes, not isolated patches
   - Execute later with /implement-plan
 
 Estimated planning time: [size-based estimate]
@@ -124,7 +126,9 @@ The right approach is to generate a structured implementation plan from
 these requirements.
 
 Recommended: /create-plan
-  - Synthesizes requirements across all documents
+  - Deep investigation of each requirement's impact and dependencies
+  - Maps interrelationships between requirements to avoid conflicting changes
+  - Synthesizes requirements into integrated, architecturally coherent phases
   - Generates phased IMPLEMENTATION_PLAN.md
   - Execute later with /implement-plan
 

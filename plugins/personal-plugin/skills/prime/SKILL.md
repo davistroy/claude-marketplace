@@ -157,6 +157,8 @@ Identify potential problems and blockers.
 
 Based on ALL findings, produce a prioritized action plan.
 
+**Before constructing recommendations**, review all findings from Phases 2-5 holistically. Identify shared root causes and interrelationships between issues. Group related findings into integrated corrective actions rather than listing isolated fixes. The goal is recommendations that, when executed together, produce architecturally coherent improvements — not a whack-a-mole list of patches where fixing one issue creates or worsens another.
+
 1. **Immediate actions** (do now, < 1 hour each):
    - Critical security fixes
    - Broken CI/tests
@@ -177,6 +179,7 @@ Based on ALL findings, produce a prioritized action plan.
 4. **Suggested first task:**
    - Based on the full analysis, recommend the single most impactful thing to do next
    - Explain WHY this is the highest-leverage action
+   - If multiple issues share a root cause, recommend addressing that root cause rather than the individual symptoms
 
 ## Output
 

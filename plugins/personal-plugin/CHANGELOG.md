@@ -5,6 +5,20 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.2] - 2026-03-21
+
+### Changed
+- Added deep investigation philosophy to all planning commands and skills: root cause analysis, interrelationship mapping, and architectural coherence requirements
+- Updated create-plan with "Deep Investigation Before Planning" execution guidelines
+- Updated plan-improvements Phase 1 with root cause and interrelationship analysis mandate
+- Updated review-arch Phase 4 with cross-cutting analysis before remediation roadmap construction
+- Updated plan-next recommendation output to reference integrated planning approach
+- Updated review-intent realignment actions to require grouped, root-cause-driven corrective actions
+- Updated implement-plan with implementation philosophy section for architectural coherence
+- Updated plan-gate routing descriptions for /plan-improvements and /create-plan paths
+- Updated prime Phase 6 recommendations to require holistic finding review before action planning
+- Updated plan-template executive summary and overview to reference integrated solutions
+
 ## [5.1.1] - 2026-03-13
 
 ### Changed
