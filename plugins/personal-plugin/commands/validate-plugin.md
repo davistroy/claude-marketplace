@@ -1,5 +1,6 @@
 ---
 description: Validate plugin structure, frontmatter, and content for consistency and correctness
+argument-hint: "<plugin-name> [--all] [--fix] [--verbose] [--strict]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 

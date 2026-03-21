@@ -1,5 +1,6 @@
 ---
 description: Automate version bumping across plugin files with CHANGELOG placeholder
+argument-hint: "<plugin-name> <major|minor|patch> [--dry-run]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 

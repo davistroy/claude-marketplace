@@ -1,5 +1,6 @@
 ---
 description: Extract questions from a document, answer them interactively, and update the document
+argument-hint: "<document-path> [--auto] [--force]"
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
@@ -471,6 +472,41 @@ All phase completions include validation status:
 - Phase 1 output is validated before Phase 2 begins
 - Phase 2 output is validated before Phase 3 (document update) begins
 - Using `--force` allows progression despite validation failures, but may result in incomplete document updates
+
+## Examples
+
+```text
+User: /finish-document PRD.md
+
+Claude:
+Reading document: PRD.md (3,200 words)
+
+Scanning for open items...
+  Found 5 questions marked with [TBD] or [TODO]
+  Found 2 incomplete sections
+
+Question 1 of 5:
+  Section: "Authentication Requirements" (line 45)
+  Question: [TBD: Which OAuth providers should we support?]
+
+  What OAuth providers should this system support?
+
+User: Google and GitHub for v1, add Microsoft in v2
+
+Claude: Updated PRD.md line 45:
+  "Support Google OAuth and GitHub OAuth for v1 launch.
+   Microsoft OAuth planned for v2."
+
+Question 2 of 5:
+  ...
+
+[Continues through all 5 questions]
+
+Document updated: PRD.md
+  5 questions resolved
+  2 sections completed
+  0 items remaining
+```
 
 ## Related Commands
 

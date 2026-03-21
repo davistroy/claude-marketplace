@@ -116,6 +116,7 @@ plugins/
       plugin.json           # Plugin metadata
     commands/               # Slash commands
     skills/                 # Proactive skills
+    hooks/                  # Workflow automation hooks
     references/             # Shared patterns and templates
     tools/                  # Bundled Python tools
 

@@ -1,5 +1,6 @@
 ---
 description: Generate detailed image generator prompts from content, with configurable dimensions and style options
+argument-hint: "<content-source> [--style <style>] [--dimensions <WxH>]"
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
@@ -379,6 +380,17 @@ Before finalizing, verify the prompt includes:
 - [ ] Readable at intended viewing distance
 - [ ] Professional presentation quality
 - [ ] Generator-specific parameters for at least 2 generators
+
+## Performance
+
+| Input Type | Expected Duration |
+|------------|-------------------|
+| Short text (< 500 words) | 15-30 seconds |
+| Medium document (500-2000 words) | 30-60 seconds |
+| Long document (2000+ words) | 60-90 seconds |
+| With style research | Add 15-30 seconds |
+
+Duration is primarily driven by prompt complexity and style elaboration. The `--dimensions` flag adds negligible overhead.
 
 ## Related Commands
 

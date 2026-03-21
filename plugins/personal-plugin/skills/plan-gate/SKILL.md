@@ -1,6 +1,7 @@
 ---
 name: plan-gate
 description: Before starting complex multi-step implementation tasks, assess scope and route to the right planning approach — native plan mode for simple changes, /plan-improvements for codebase refactoring, or /create-plan for requirements-driven work
+effort: low
 allowed-tools: Read, Glob, Grep
 ---
 
@@ -10,7 +11,7 @@ Proactively assess task complexity before implementation begins and route to the
 
 **This skill is read-only. It NEVER modifies files, commits, or pushes.**
 
-## When This Skill Should Fire
+## Proactive Triggers
 
 Claude should proactively suggest this skill when ALL of these are true:
 

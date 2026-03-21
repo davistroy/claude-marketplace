@@ -1,5 +1,6 @@
 ---
 description: Interactive Q&A session from questions JSON file
+argument-hint: "<questions-file> [--force]"
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 

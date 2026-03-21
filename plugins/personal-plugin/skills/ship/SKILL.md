@@ -2,6 +2,7 @@
 name: ship
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Read, Edit, Glob, Grep
 description: Create branch, commit, push, open PR, auto-review, fix issues, and merge
+disable-model-invocation: true
 ---
 
 You are automating the complete git workflow to ship code changes. After creating the PR, you will automatically review it, fix any issues, and merge it. The user may provide a branch name and description as arguments: $ARGUMENTS

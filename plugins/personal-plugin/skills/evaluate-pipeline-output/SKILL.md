@@ -1,6 +1,7 @@
 ---
 name: evaluate-pipeline-output
 description: Thoroughly evaluate contact-center-lab pipeline output quality against input, checking sanitization correctness, atom/entity/triple quality, graph structure, and procedure integrity across all stages
+effort: high
 allowed-tools: Read, Glob, Grep, Bash
 ---
 

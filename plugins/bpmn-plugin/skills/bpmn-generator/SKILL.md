@@ -1,6 +1,5 @@
 ---
 name: bpmn-generator
-allowed-tools: Read, Write, Glob, Grep
 description: >
   Generate BPMN 2.0 compliant XML files from natural language process descriptions
   OR from structured markdown business process documents. Use this skill when a user
@@ -8,6 +7,8 @@ description: >
   workflow diagram, or generate process definitions. Triggers on requests like
   "create a BPMN", "generate workflow XML", "model this process", "convert to BPMN 2.0",
   "create process diagram", "build workflow", or "convert this markdown to BPMN".
+argument-hint: "[<markdown-file>] or process description"
+allowed-tools: Read, Write, Glob, Grep
 ---
 
 # BPMN 2.0 XML Generator

@@ -2,6 +2,7 @@
 name: validate-and-ship
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Glob, Grep, Read, Edit, Write
 description: Validate plugins, clean repository, and ship changes in one automated workflow
+disable-model-invocation: true
 ---
 
 # Validate and Ship

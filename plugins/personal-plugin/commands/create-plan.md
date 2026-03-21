@@ -1,5 +1,7 @@
 ---
 description: Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs)
+argument-hint: "[<document-paths>...] [--output <path>] [--phases <n>]"
+effort: max
 allowed-tools: Read, Glob, Grep, Write, Edit, Agent, Bash(git:*)
 ---
 
@@ -625,6 +627,59 @@ How should I proceed?
 ### Conflicting Requirements
 
 See Phase 2.3 for conflict handling.
+
+## Examples
+
+```text
+User: /create-plan
+
+Claude:
+Searching for requirements documents...
+
+Requirements Documents Found
+============================
+Product Requirements:
+  - PRD.md (4,200 words)
+Technical Design:
+  - TDD.md (5,100 words)
+
+Total: 2 documents, ~9,300 words
+
+Surveying existing codebase...
+
+Codebase Reconnaissance Results
+================================
+Tech Stack: TypeScript, React, PostgreSQL
+Structure: 45 source files, 12 test files
+Test Infrastructure: Jest with 38 tests
+
+Feature Overlap Analysis:
+| Requirement       | Status              | Existing Code       |
+|-------------------|---------------------|---------------------|
+| User auth         | Already implemented | src/auth/ (JWT)     |
+| Search API        | Not implemented     | —                   |
+| Dashboard         | Partially done      | src/pages/dash.tsx  |
+
+Plan Scope Summary — Review Before Generation
+...
+Proceed with this scope? (1) Yes (2) Adjust (3) Abort
+
+User: 1
+
+Claude:
+Generating implementation plan...
+
+Output: IMPLEMENTATION_PLAN.md
+  4 phases, 16 work items
+  Estimated: ~2,400 LOC across 22 files
+```
+
+```text
+User: /create-plan docs/requirements/*.md --phases 3
+
+Claude:
+[Uses specified documents and targets 3 phases]
+```
 
 ## Performance
 

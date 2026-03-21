@@ -179,6 +179,8 @@ plugins/
       validation-maturity-scorecard.md  # Plugin maturity scoring rubric for validate-plugin
       patterns/             # Extracted pattern references (logging, naming, output, etc.)
       templates/            # Command/skill pattern templates (conversion, generator, etc.)
+    hooks/
+      hooks.json              # Workflow automation hooks (Stop, SessionStart)
     tools/
       feedback-docx-generator/ # Python tool for feedback assessment .docx generation (run via PYTHONPATH)
       research-orchestrator/  # Python tool for multi-LLM research (run via PYTHONPATH)
@@ -194,7 +196,8 @@ plugins/
         SKILL.md            # Convert BPMN XML to Draw.io format
       help/
         SKILL.md            # Show skills with usage information
-    references/             # BPMN element documentation and guides (includes bpmn-elements.md)
+    references/             # BPMN element documentation and guides
+      archive/              # Historical reference documents
     templates/              # XML/Draw.io skeletons and style mappings
     examples/               # Sample BPMN and Draw.io files
     tools/
@@ -244,6 +247,9 @@ skills/
 ---
 name: ship                    # REQUIRED: Must match directory name
 description: Brief description of what the skill does
+argument-hint: "<branch-name> [draft]"  # Optional: UI hint for arguments
+effort: high                  # Optional: Thinking depth (low/medium/high/max)
+disable-model-invocation: true # Optional: Prevent auto-triggering
 allowed-tools: Bash(git:*)    # Optional: Tool restrictions
 ---
 ```
@@ -253,7 +259,12 @@ allowed-tools: Bash(git:*)    # Optional: Tool restrictions
 - `description` - Brief description shown in skill list and used for proactive suggestions
 
 **Optional fields:**
+- `argument-hint` - UI hint showing expected arguments (e.g., `"<file-path> [--verbose]"`)
+- `effort` - Thinking depth: `low` (routing), `medium` (moderate analysis), `high` (deep analysis), `max` (exhaustive analysis)
+- `disable-model-invocation` - Set `true` to prevent Claude from auto-triggering (use for destructive skills like `ship`)
 - `allowed-tools` - Restrict which tools the skill can use
+- `context` - Set to `fork` to run in isolated subagent context
+- `agent` - Route to specific agent type (`Explore`, `Plan`, `general-purpose`)
 - `version` - Skill version for tracking changes
 - `license` - License information
 
@@ -270,6 +281,8 @@ allowed-tools: Bash(git:*)    # Optional: Tool restrictions
 ```yaml
 ---
 description: Brief description shown in command list
+argument-hint: "<required-arg> [--optional-flag]"  # UI hint for arguments
+effort: high                 # Thinking depth (optional)
 allowed-tools: Bash(git:*)   # Tool restrictions (optional)
 ---
 ```

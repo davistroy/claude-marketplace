@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v6.0.0] - 2026-03-21
+
+### Added
+- `argument-hint` frontmatter field to all 22 commands that accept arguments — improves UI discoverability
+- `effort` frontmatter field to 10 planning commands/skills — controls thinking depth (low/medium/high/max)
+- `disable-model-invocation: true` to destructive skills (ship, validate-and-ship) — prevents accidental auto-triggering
+- Hooks system (`hooks/hooks.json`) with Stop and SessionStart hooks for workflow automation
+- Deep investigation planning philosophy across all 8 planning commands/skills — root cause analysis, interrelationship mapping, architectural coherence
+- Missing Examples sections to 3 commands (analyze-transcript, create-plan, finish-document)
+- Missing Performance sections to 2 commands (develop-image-prompt, review-pr)
+
+### Changed
+- Standardized "Proactive Triggers" section naming across all skills (plan-gate, security-analysis)
+- Updated CLAUDE.md with new frontmatter field documentation (argument-hint, effort, disable-model-invocation, context, agent)
+- Updated README.md structure to include hooks directory
+- plugin.json now registers hooks configuration
+
+## [bpmn-plugin v3.0.0] - 2026-03-21
+
+### Added
+- `argument-hint` frontmatter field to all 3 skills — improves UI discoverability
+- `${CLAUDE_PLUGIN_ROOT}` environment variable support in bpmn-to-drawio tool paths — enables reliable marketplace installation
+- `references/archive/` directory for historical reference documents
+
+### Changed
+- Archived converter-fixes-20260118-123946.md to references/archive/ (historical record, fixes already in codebase)
+
 ## [personal-plugin v5.1.0] - 2026-03-04
 
 ### Added
