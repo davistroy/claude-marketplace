@@ -55,6 +55,8 @@ When invoked with a skill name, display detailed information.
 
 ### Skill Reference
 
+**Note:** The detailed references below are maintained summaries. For the most current and complete information, read the actual SKILL.md file for each skill.
+
 ---
 
 #### /bpmn-generator

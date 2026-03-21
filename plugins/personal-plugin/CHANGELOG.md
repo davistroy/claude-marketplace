@@ -5,6 +5,26 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.0] - 2026-03-21
+
+### Fixed
+- CLAUDE.md: Added missing evaluate-pipeline-output skill to repository structure listing
+- flag-consistency.md: Corrected --focus dimensions for /assess-document and /review-arch to match actual commands
+- api-key-setup.md: Clarified TROY vs BWS_ACCESS_TOKEN env var relationship
+- research-models.md: Fixed invalid OpenAI "xhigh" effort level to "high"
+- templates/planning.md: Aligned effort format with plan-template.md (S/M/L with file count + LOC)
+- analyze-transcript.md: Fixed example filenames to match documented naming convention
+- bump-version.md: Added handling for missing CHANGELOG.md and absent [Unreleased] header
+- remove-ip.md: Added WebSearch to allowed-tools frontmatter (was referenced but missing)
+- plan-gate/SKILL.md: Replaced non-existent EnterPlanMode/AskUserQuestion tool references with natural language
+- research-topic/SKILL.md: Replaced AskUserQuestion references with natural language
+- test-project.md: Clarified Agent vs Task tool usage for parallel test execution
+- clean-repo.md, consolidate-documents.md, review-arch.md: Removed phantom --output flag references from JSON Output sections
+
+### Added
+- effort: high frontmatter to security-analysis, summarize-feedback, visual-explainer skills
+- Performance section to evaluate-pipeline-output skill
+
 ## [6.0.0] - 2026-03-21
 
 ### Added

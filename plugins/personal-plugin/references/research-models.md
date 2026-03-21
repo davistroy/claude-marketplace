@@ -49,7 +49,8 @@ These are the default model identifiers used when environment variable overrides
 |----------------|-------------------------|---------------|-----------------------|
 | Brief          | 4,000                   | medium        | low                   |
 | Standard       | 10,000                  | high          | high                  |
-| Comprehensive  | 32,000                  | xhigh         | high                  |
+| Comprehensive  | 32,000                  | high          | high                  |
+<!-- Note: OpenAI reasoning_effort only supports low/medium/high. "xhigh" was non-standard and has been corrected to "high". -->
 
 ---
 

@@ -168,6 +168,8 @@ plugins/
         SKILL.md            # Load secrets from Bitwarden Secrets Manager into environment using bws CLI
       validate-and-ship/
         SKILL.md            # Validate plugins, clean repository, and ship changes in one automated workflow
+      evaluate-pipeline-output/
+        SKILL.md            # Evaluate contact-center-lab pipeline output quality
       visual-explainer/
         SKILL.md            # Transform text or documents into AI-generated infographic pages using Gemini Pro 3 and Claude Vision
     references/

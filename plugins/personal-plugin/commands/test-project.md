@@ -148,7 +148,7 @@ Coverage Status:
 ## Phase 3: Parallel Test Execution
 
 ### 3.1 Spawn Test Sub-agents
-Use the Task tool to run tests in parallel where possible:
+Use the Agent tool (with `run_in_background: true`) to launch parallel test sub-agents. Use the Task tool for tracking progress across sub-agents. This matches the pattern used in `/implement-plan`.
 
 **Strategy A - By test type:**
 - Sub-agent 1: Unit tests

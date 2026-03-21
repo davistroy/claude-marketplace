@@ -154,7 +154,7 @@ Process questions in this specific order:
 - Single process vs. collaboration (multiple pools)
 - Lanes/roles within pools
 
-#### Phase 3: Activities (Questions 6-11)
+#### Phase 3: Activities (Questions 6-10)
 - Main activities/tasks identification
 - Task types for each activity
 - **Task descriptions/documentation** (CRITICAL for PowerPoint generation)

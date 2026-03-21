@@ -1,6 +1,7 @@
 ---
 name: security-analysis
 description: Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning
+effort: high
 allowed-tools: Read, Write, Glob, Grep, Bash, WebSearch
 ---
 

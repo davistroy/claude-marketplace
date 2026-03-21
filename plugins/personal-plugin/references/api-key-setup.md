@@ -48,5 +48,7 @@ AUTO_UPGRADE_MODELS=false
 |-------|----------|
 | Keys not in environment after `/unlock` | Verify secrets exist in Bitwarden vault: `bws secret list` |
 | `bws` command not found | Install from: https://github.com/bitwarden/sdk-sm/releases |
-| Auth token expired | Check the `TROY` environment variable is set with a valid machine access token |
+| Auth token expired | Check the `TROY` environment variable is set with a valid machine access token (see note below) |
+
+**Note:** `TROY` is the machine-level env var containing the Bitwarden Secrets Manager access token. The `/unlock` skill reads this and exports it as `BWS_ACCESS_TOKEN` for the `bws` CLI.
 | Partial keys (some providers only) | Use `--sources` flag to limit to available providers |

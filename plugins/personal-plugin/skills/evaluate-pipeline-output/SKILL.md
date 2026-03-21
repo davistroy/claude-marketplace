@@ -627,3 +627,16 @@ These are durable heuristics that help the evaluator avoid false findings:
 - **Passthrough is not failure:** Stage 3 passing short segments through without LLM decomposition is by design (configurable via `decomposition_min_length` and `simple_segment_passthrough` in config). High passthrough is only a concern if it cascades to shallow atoms.
 
 - **Embedding model changes:** The pipeline may change embedding models over time. Always read the configured model and its expected dimension from config rather than assuming a specific value. Similarly, all similarity thresholds are model-dependent — read them from config.
+
+---
+
+## Performance
+
+| Pipeline Output Size | Expected Duration |
+|---------------------|-------------------|
+| Small (< 50 atoms/entities) | 2-5 minutes |
+| Medium (50-200 atoms/entities) | 5-15 minutes |
+| Large (200-500 atoms/entities) | 15-25 minutes |
+| Very Large (500+ atoms/entities) | 25-40 minutes |
+
+Duration scales with the number of pipeline stages to evaluate and the volume of atoms, entities, and triples to cross-reference. The `--mode test` flag reduces severity thresholds but does not significantly affect duration.

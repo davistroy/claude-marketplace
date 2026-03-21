@@ -251,7 +251,7 @@ Handle these scenarios explicitly:
 
 ## JSON Output Mode
 
-When `--json` is specified, output ONLY the JSON to stdout. Do not include any surrounding text, headers, or formatting — just the raw JSON object. If `--output` is also specified, write the JSON to that file path instead.
+When `--json` is specified, output ONLY the JSON to stdout. Do not include any surrounding text, headers, or formatting — just the raw JSON object.
 
 Default behavior (no `--json` flag) is unchanged.
 
