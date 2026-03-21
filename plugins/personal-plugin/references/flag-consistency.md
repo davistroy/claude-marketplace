@@ -81,8 +81,8 @@ These commands produce in-conversation reports and never modify files.
 - `--check-updates`: Check remote marketplace for plugin version drift and available updates.
 
 **`--focus` valid dimension values:**
-- `/assess-document`: `completeness`, `accuracy`, `clarity`, `structure`, `actionability`
-- `/review-arch`: `security`, `performance`, `maintainability`, `scalability`, `testing`
+- `/assess-document`: `completeness`, `clarity`, `consistency`, `specificity`, `structure`, `feasibility`
+- `/review-arch`: `code-quality`, `architecture`, `security`, `performance`, `testing`, `dependencies`
 
 **Mutually exclusive flags:**
 - `--recommendations-only` and `--no-plan` are aliases (same behavior)

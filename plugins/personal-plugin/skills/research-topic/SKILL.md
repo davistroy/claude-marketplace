@@ -140,7 +140,7 @@ Extract the profile content (everything under the header until the next same-lev
 
 **REQUIRED:** Unless `--no-clarify` is specified, you MUST run the clarification loop before proceeding to research execution. Even if the request seems clear, ask at least one round of clarifying questions to ensure the research is properly scoped.
 
-Analyze the request for ambiguities and ask clarifying questions using the AskUserQuestion tool.
+Analyze the request for ambiguities and ask clarifying questions by asking the user directly.
 
 **Dimensions to Clarify:**
 | Dimension | Question Type |
@@ -153,7 +153,7 @@ Analyze the request for ambiguities and ask clarifying questions using the AskUs
 | **Sources** | Academic, industry, news, primary/secondary |
 
 **Clarification Rules:**
-- Ask 1-4 questions per round using the AskUserQuestion tool
+- Ask 1-4 questions per round by asking the user directly
 - Stop clarifying when the request is sufficiently defined OR 4 rounds complete
 - Group related questions logically
 - Provide sensible defaults for questions user skips
@@ -485,7 +485,7 @@ Follow these steps in order:
 3. **Model Check** - Check for model version upgrades (optional, skip with --skip-model-check)
 4. **Intake** - Accept research request from user
 5. **Audience Profile** - Detect profile in CLAUDE.md files, confirm or collect (skip with --no-audience)
-6. **Clarification** - Run clarification loop (REQUIRED unless --no-clarify) using AskUserQuestion tool
+6. **Clarification** - Run clarification loop (REQUIRED unless --no-clarify) by asking the user directly
 7. **Pre-Execution Gate** - Check background check results, show PASSED/FAILED, resolve any issues
 8. **Confirmation** - Present research brief (including audience summary) and wait for user approval
 9. **Tool Execution** - Run research-orchestrator tool with audience-tailored prompt (saves individual provider files to reports/)

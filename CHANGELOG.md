@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v6.1.0] - 2026-03-21
+
+### Fixed
+- 21 documentation accuracy and internal consistency issues identified during comprehensive evaluation
+- Corrected stale reference docs (flag-consistency dimensions, research-models effort levels, api-key-setup env vars)
+- Removed phantom --output flag references, fixed example filenames, aligned template formats
+- Replaced non-existent tool references (EnterPlanMode, AskUserQuestion) with natural language
+- Added missing effort frontmatter to 3 skills and Performance section to evaluate-pipeline-output
+
+## [bpmn-plugin v3.1.0] - 2026-03-21
+
+### Fixed
+- bpmn-generator question numbering overlap (Phase 3/4 both claimed Q11)
+- Added maintenance note to help skill Mode 2 hardcoded references
+
 ## [personal-plugin v6.0.0] - 2026-03-21
 
 ### Added

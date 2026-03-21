@@ -177,15 +177,15 @@ Transform recommendations into an actionable, phased implementation plan:
 
 | Phase | Focus Area | Key Deliverables | Est. Effort | Dependencies |
 |-------|------------|------------------|-------------|--------------|
-| 1 | [Area] | [Deliverables] | ~X hours | None |
-| 2 | [Area] | [Deliverables] | ~X hours | Phase 1 |
+| 1 | [Area] | [Deliverables] | S/M/L (~N files, ~N LOC) | None |
+| 2 | [Area] | [Deliverables] | S/M/L (~N files, ~N LOC) | Phase 1 |
 | ... | ... | ... | ... | ... |
 
 ---
 
 ## Phase 1: [Phase Title]
 
-**Estimated Effort:** [X hours/days]
+**Estimated Complexity:** [S/M/L] (~N files, ~N LOC)
 **Dependencies:** [None | List of phases]
 **Parallelizable:** [Yes/No - can work items run concurrently]
 

@@ -88,7 +88,7 @@ a single session. I'll enter plan mode to design the approach before coding.
 Recommended: Native plan mode (interactive, immediate)
 ```
 
-Then enter plan mode using `EnterPlanMode`.
+Then enter plan mode to design the approach before coding.
 
 #### Path C: /plan-improvements
 
@@ -168,12 +168,12 @@ recommend the right planning approach, I need to understand:
 Once clarified, I'll route to the appropriate planning tool.
 ```
 
-Use `AskUserQuestion` to get the answers, then re-assess.
+Ask the user clarifying questions to get the answers, then re-assess.
 
 ### Step 4: Execute or Hand Off
 
 - **Path A**: Start working immediately
-- **Path B**: Call `EnterPlanMode`
+- **Path B**: Enter plan mode
 - **Paths C/D/E**: Ask the user for confirmation, then invoke the appropriate command
 - **Path F**: Ask clarifying questions, then re-route
 

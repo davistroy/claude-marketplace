@@ -305,7 +305,7 @@ Analyzing transcript structure...
   - Detected 12 topic transitions
   - Found 8 action items, 3 decisions
 
-Report generated: report-meeting-notes-20260315-143052.md
+Report generated: reports/meeting-analysis-20260315-143052.md
 
 Report Summary:
   Speakers: Alice (PM), Bob (Eng), Carol (Design), Dave (QA)
@@ -322,7 +322,7 @@ Claude:
 Reading transcript: standup.md (800 words)
 Generating JSON output...
 
-Report generated: report-standup-20260315-091500.json
+Report generated: reports/meeting-analysis-20260315-091500.json
 ```
 
 ## Performance

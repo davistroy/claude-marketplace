@@ -154,6 +154,31 @@ Add a new version section if it doesn't exist. Insert after `## [Unreleased]`:
 
 **Note:** Use today's date in YYYY-MM-DD format. The placeholder categories should be filled in before committing.
 
+**If CHANGELOG.md does not exist:**
+Create it with this structure:
+```markdown
+# Changelog
+
+All notable changes to [plugin-name] will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [NEW_VERSION] - YYYY-MM-DD
+
+### Added
+- [Describe new features]
+
+### Changed
+- [Describe changes to existing features]
+
+### Fixed
+- [Describe bug fixes]
+```
+
+**If `## [Unreleased]` header is not found:**
+Insert the new version section at the top of the file, after the title and any preamble text.
+
 ### Phase 4: Show Diff and Summary
 
 Display the changes made:
