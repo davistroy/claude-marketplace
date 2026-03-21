@@ -1,5 +1,6 @@
 ---
 description: Analyze multiple document variations and synthesize a superior consolidated version
+argument-hint: "<doc1-path> <doc2-path> [doc3-path...] [--format] [--preview]"
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 

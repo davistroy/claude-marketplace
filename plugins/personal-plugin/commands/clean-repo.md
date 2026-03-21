@@ -1,5 +1,6 @@
 ---
 description: Comprehensive repository cleanup, organization, and documentation refresh
+argument-hint: "[--dry-run] [--audit] [--docs-only] [--json]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 

@@ -1,5 +1,7 @@
 ---
 description: Quick architectural audit with technical debt assessment (read-only, no files generated)
+argument-hint: "[--json] [--focus <dimensions>]"
+effort: high
 allowed-tools: Read, Glob, Grep
 ---
 

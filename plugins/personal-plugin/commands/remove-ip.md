@@ -1,5 +1,6 @@
 ---
 description: Sanitize documents by removing company identifiers and non-public intellectual property while preserving meaning and usefulness
+argument-hint: "<document-path> [--company <name>] [--mode standard|strict]"
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 

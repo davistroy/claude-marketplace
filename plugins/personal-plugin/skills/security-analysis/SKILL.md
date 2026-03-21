@@ -23,7 +23,7 @@ Perform a comprehensive security vulnerability scan and analysis of the current 
 /security-analysis --dependencies-only      # Dependencies only
 ```
 
-## Proactive Trigger Conditions
+## Proactive Triggers
 
 Suggest this skill when:
 1. The user mentions security, vulnerabilities, CVEs, or audit

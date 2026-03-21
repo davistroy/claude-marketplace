@@ -1,5 +1,7 @@
 ---
 description: Analyze codebase and generate prioritized improvement recommendations with phased implementation plan
+argument-hint: "[--recommendations-only] [--max-phases <n>]"
+effort: max
 allowed-tools: Read, Glob, Grep, Write, Edit, Agent
 ---
 

@@ -1,5 +1,6 @@
 ---
 description: Analyze repo and recommend the next logical action
+effort: medium
 allowed-tools: Read, Glob, Grep, Bash(git:*), Bash(gh:*)
 ---
 

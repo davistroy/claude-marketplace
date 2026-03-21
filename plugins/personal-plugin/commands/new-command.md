@@ -1,5 +1,6 @@
 ---
 description: Generate a new command file from a template with proper structure and conventions
+argument-hint: "[<command-name>] [<pattern-type>] [--plugin <name>]"
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 

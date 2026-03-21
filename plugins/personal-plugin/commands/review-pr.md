@@ -1,5 +1,6 @@
 ---
 description: Structured PR review with security, performance, and code quality analysis
+argument-hint: "<pr-number-or-url>"
 allowed-tools: Read, Bash(gh:*), Bash(git:*)
 # MCP tools used (no allowed-tools declaration needed): pull_request_read, add_comment_to_pending_review, pull_request_review_write
 ---
@@ -386,6 +387,17 @@ Handle these error conditions gracefully:
 | **Empty PR** | No changed files | Display: "PR #[number] has no changed files. Nothing to review." |
 | **MCP tools unavailable** | `pull_request_read` call fails or is not recognized | Fall back to `gh` CLI mode. Inform user: "MCP GitHub tools not available. Using gh CLI fallback (line-level comments unavailable)." |
 | **Pending review conflict** | `pull_request_review_write` create fails because a pending review already exists | Call `pull_request_review_write` with method `delete_pending` first, then retry creating a new pending review. |
+
+## Performance
+
+| PR Size | Expected Duration |
+|---------|-------------------|
+| Small (< 100 LOC changed) | 30-60 seconds |
+| Medium (100-500 LOC changed) | 1-3 minutes |
+| Large (500-1500 LOC changed) | 3-7 minutes |
+| Very Large (1500+ LOC changed) | 7-15 minutes |
+
+Duration scales with the number of changed files and total diff size. Security analysis (scanning for vulnerabilities) accounts for roughly 30% of total time. Using `gh` CLI to fetch PR data adds 5-10 seconds of network overhead.
 
 ## Related Commands
 

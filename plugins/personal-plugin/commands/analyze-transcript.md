@@ -1,5 +1,6 @@
 ---
 description: Meeting transcript to structured markdown report
+argument-hint: "<transcript-path> [--format md|json] [--preview]"
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
@@ -290,6 +291,39 @@ When `--preview` is specified:
 ## File Naming
 
 Use the timestamp format `YYYYMMDD-HHMMSS`. Use the meeting date if known (with current time), or the current date and time if not specified.
+
+## Examples
+
+```text
+User: /analyze-transcript meeting-notes-2026-03-15.md
+
+Claude:
+Reading transcript: meeting-notes-2026-03-15.md (4,200 words)
+
+Analyzing transcript structure...
+  - Identified 4 speakers
+  - Detected 12 topic transitions
+  - Found 8 action items, 3 decisions
+
+Report generated: report-meeting-notes-20260315-143052.md
+
+Report Summary:
+  Speakers: Alice (PM), Bob (Eng), Carol (Design), Dave (QA)
+  Duration: ~45 minutes (estimated from content)
+  Key Decisions: 3
+  Action Items: 8 (3 assigned to Bob, 2 to Carol, 3 unassigned)
+  Topics Covered: Sprint planning, UI redesign, test automation, release timeline
+```
+
+```text
+User: /analyze-transcript standup.md --format json
+
+Claude:
+Reading transcript: standup.md (800 words)
+Generating JSON output...
+
+Report generated: report-standup-20260315-091500.json
+```
 
 ## Performance
 

@@ -1,5 +1,7 @@
 ---
 description: Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing, documentation, and git workflow
+argument-hint: "[--input <path>] [--auto-merge] [--pause-between-phases]"
+effort: high
 allowed-tools: Agent, Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task
 ---
 

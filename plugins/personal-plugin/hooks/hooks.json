@@ -1,0 +1,19 @@
+{
+  "hooks": [
+    {
+      "event": "Stop",
+      "type": "prompt",
+      "description": "Suggest shipping when implementation work is complete",
+      "prompt": "Review the conversation. If the user just completed a code implementation task (wrote code, fixed a bug, added a feature) and there are uncommitted changes, respond with exactly 'SUGGEST_SHIP'. If the work is incomplete, exploratory, or already committed, respond with 'NO_ACTION'.",
+      "allowedTools": []
+    },
+    {
+      "event": "SessionStart",
+      "type": "prompt",
+      "matcher": "startup",
+      "description": "Check for in-progress implementation plans on session start",
+      "prompt": "Check if IMPLEMENTATION_PLAN.md exists in the repository root. If it exists, check if any items have Status: IN_PROGRESS or if there are PENDING items after COMPLETE items (indicating a partially-executed plan). If a plan is in progress, respond with 'PLAN_IN_PROGRESS'. Otherwise respond with 'NO_ACTION'.",
+      "allowedTools": ["Read", "Glob"]
+    }
+  ]
+}

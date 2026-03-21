@@ -1,6 +1,5 @@
 ---
 name: bpmn-to-drawio
-allowed-tools: Read, Write, Bash, Glob, Grep
 description: >
   Convert BPMN 2.0 XML files into Draw.io native format (.drawio) using the
   bpmn2drawio Python tool. Renders properly in Draw.io Desktop or web applications.
@@ -8,6 +7,8 @@ description: >
   BPMN to editable diagrams, or create Draw.io files from process definitions.
   Triggers on: "convert BPMN to Draw.io", "create drawio from BPMN", "visualize
   BPMN in Draw.io".
+argument-hint: "<bpmn-file-path>"
+allowed-tools: Read, Write, Bash, Glob, Grep
 ---
 
 # BPMN to Draw.io Converter
@@ -28,11 +29,11 @@ Follow these steps in order. The workflow automatically handles dependency insta
 
 ### Step 1: Set Up Tool Path
 
-The tool is bundled at `../tools/bpmn2drawio/` relative to this skill file:
+The tool is bundled in the plugin's `tools/bpmn2drawio/` directory. Use `${CLAUDE_PLUGIN_ROOT}` for the plugin path (auto-set for marketplace-installed plugins):
 
 ```bash
-# Determine the plugin directory (adjust path as needed)
-PLUGIN_DIR="/path/to/plugins/bpmn-plugin"
+# Use CLAUDE_PLUGIN_ROOT (auto-set for marketplace-installed plugins)
+PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-/path/to/plugins/bpmn-plugin}"
 TOOL_SRC="$PLUGIN_DIR/tools/bpmn2drawio/src"
 ```
 

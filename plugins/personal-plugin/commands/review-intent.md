@@ -1,5 +1,7 @@
 ---
 description: Determine original project intent and compare against current implementation, reporting discrepancies
+argument-hint: "[<path>] [--deep] [--save]"
+effort: high
 allowed-tools: Read, Glob, Grep, Write, Bash(git:*)
 ---
 
