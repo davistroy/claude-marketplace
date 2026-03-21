@@ -141,6 +141,16 @@ For each finding, include:
 
 ## Phase 4: Remediation Roadmap
 
+### Cross-Cutting Analysis (Before Constructing the Roadmap)
+
+Before building the remediation list, review ALL findings from Phases 2-3 together and identify interrelationships:
+
+1. **Shared root causes** — Multiple findings may stem from the same underlying issue (e.g., missing validation layer causes both security and code quality findings). Group these so the roadmap addresses the root cause once rather than patching each symptom independently.
+2. **Change interactions** — Fixing finding F3 may conflict with or depend on fixing F7. Map these interactions so the roadmap sequences items correctly and avoids a whack-a-mole cycle where fixing one issue creates another.
+3. **Architectural coherence** — Remediation items should collectively move the codebase toward a cleaner architecture, not just patch individual defects. Prefer integrated solutions that address multiple findings through a single well-designed change over isolated fixes that accumulate technical debt.
+
+### Prioritized Action Plan
+
 Produce a prioritized action plan organized by effort level:
 
 | Size | File Count | Estimated LOC | Typical Duration |

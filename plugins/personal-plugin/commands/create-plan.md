@@ -562,6 +562,19 @@ Next Steps:
 
 ## Execution Guidelines
 
+### Deep Investigation Before Planning
+
+Before constructing the plan, aggressively investigate each identified change, gap, or requirement to ensure you fully understand:
+
+1. **Root causes** — Do not accept surface-level symptoms. For each issue or requirement, trace it to its origin. Why does this gap exist? What created the need?
+2. **Impact and risk** — For each item, assess the blast radius. What else depends on this? What breaks if we get it wrong?
+3. **Interrelationships** — Map the connections between items. Changes to item A may conflict with, enable, or constrain item B. Identify these interactions BEFORE constructing the plan so that work items are sequenced and grouped to resolve related issues together.
+4. **Architectural coherence** — Every work item must fit within the project's overall architecture and intent. Do not propose isolated patches that create technical debt or trigger a whack-a-mole fix cycle. Instead, design integrated, cohesive changes where a single well-designed modification addresses multiple related concerns.
+
+**The goal is a plan that produces elegant, architecturally sound changes — not a patchwork of isolated fixes.**
+
+### General Principles
+
 - **Be thorough:** This plan informs significant work—capture all requirements
 - **Be specific:** Include file paths, function names, concrete approaches
 - **Be realistic:** Estimate effort honestly; overrunning phases causes problems

@@ -31,6 +31,17 @@ For trivial projects or fresh repositories, ask the user if they want a full imp
 
 Thoroughly analyze the codebase with extended thinking enabled.
 
+#### Root Cause and Interrelationship Analysis
+
+**Critical:** Do not just catalog surface-level symptoms. For every issue identified during analysis, aggressively investigate to understand:
+
+1. **Root cause** — Why does this problem exist? Is it a design flaw, an oversight, a dependency issue, or accumulated drift? Understanding the root cause determines whether the fix is a config change or an architectural refactor.
+2. **Impact and risk** — What is the blast radius? Does this issue affect one file or cascade across modules? What happens if we fix it incorrectly?
+3. **Interrelationships** — After cataloging all findings, map the connections between them. Issues that share root causes or affect overlapping code paths must be addressed together. A recommendation that fixes problem A but exacerbates problem B is not a recommendation — it's a liability.
+4. **Architectural fit** — Every recommendation must produce changes that fit within the project's overall architecture and intent. Do not propose isolated patches that create technical debt or trigger a whack-a-mole fix cycle. Design integrated, cohesive solutions where a single well-designed change addresses multiple related concerns.
+
+**The output of this analysis should be a set of recommendations that, when implemented together, produce an architecturally coherent improvement — not a disconnected list of patches.**
+
 #### Context Management (Read This First)
 
 Before reading any source files, apply the following sampling strategy to avoid exhausting the context window. **Reserve at least 40% of context for output generation.** If analysis has consumed over 60% of available context, stop reading files and begin generating output with what you have.
@@ -526,6 +537,7 @@ Plans must stay within bounds that `/implement-plan` can execute reliably. Apply
 - **Consider context**: Factor in the project's maturity, goals, and constraints
 - **Enable parallelism**: Structure phases so multiple streams can work simultaneously when possible
 - **Preserve stability**: Each phase should leave the codebase in a working state
+- **Integrated over isolated**: Group related findings into cohesive fixes that address shared root causes. Never propose changes that fix one issue while creating or worsening another. The plan should eliminate problems systematically, not shuffle them around.
 
 ## Performance
 

@@ -267,7 +267,10 @@ Documentation Accuracy: [percentage]%
 ## Recommendations
 
 ### Realignment Actions (if project should match original intent)
-1. [Highest priority action to close the biggest gap]
+
+Before listing actions, analyze discrepancies for shared root causes and interrelationships. Group related gaps into integrated corrective actions rather than listing isolated fixes. The goal is cohesive realignment — not a patchwork of individual gap closures that may conflict with each other.
+
+1. [Highest priority action — may address multiple related discrepancies]
 2. [Next priority]
 3. [...]
 

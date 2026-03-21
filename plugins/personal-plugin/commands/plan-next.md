@@ -110,11 +110,11 @@ Present results using this exact structure:
 
 **[Clear, actionable title — e.g., "Resume Phase 3, Item 3.2: Fix finish-document.md"]**
 
-[2-4 sentences explaining exactly what to do. Be specific — name files, commands, or work items.]
+[2-4 sentences explaining exactly what to do. Be specific — name files, commands, or work items. When recommending planning commands (/plan-improvements, /create-plan), note that these will deeply investigate root causes and interrelationships between issues to produce integrated, architecturally coherent changes — not isolated patches.]
 
 ### Rationale
 
-[Why this is the highest priority right now. Reference the decision matrix priority level (P0-P9). Explain what would happen if this were deferred.]
+[Why this is the highest priority right now. Reference the decision matrix priority level (P0-P9). Explain what would happen if this were deferred. When multiple issues are present, note any interrelationships — addressing them together through a planning command avoids a whack-a-mole cycle of isolated fixes.]
 
 ### Scope Estimate
 

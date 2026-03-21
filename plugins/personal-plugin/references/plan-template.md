@@ -20,13 +20,13 @@
 
 ## Executive Summary
 
-[2-3 paragraph overview of what will be built/changed, key architectural decisions, and implementation strategy]
+[2-3 paragraph overview of what will be built/changed, key architectural decisions, and implementation strategy. Include a brief note on how interrelated issues have been grouped into integrated solutions rather than isolated patches.]
 
 ---
 
 ## Plan Overview
 
-[Summary of the implementation strategy and phasing rationale. Explain why phases are ordered this way and what the critical path is.]
+[Summary of the implementation strategy and phasing rationale. Explain why phases are ordered this way and what the critical path is. Highlight any cases where multiple findings share a root cause and are addressed by a single cohesive work item rather than separate fixes.]
 
 ### Phase Summary Table
 

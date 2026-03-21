@@ -188,6 +188,10 @@ The main agent acts as a **thin loop controller** — it decides what to do next
 
 **Parallel-first execution:** When the plan marks work items as parallelizable (same phase, no inter-dependencies), launch multiple implementation subagents concurrently using `run_in_background: true`. This dramatically reduces total execution time.
 
+### Implementation Philosophy
+
+Each work item must be implemented as an integrated, architecturally coherent change — not an isolated patch. Before writing code, the implementation subagent should understand how this work item relates to the broader plan and codebase. If implementing a work item would conflict with or undermine another planned change, surface this rather than blindly proceeding. The goal is elegant, cohesive changes that fit within the project's architecture and avoid creating technical debt or triggering a whack-a-mole fix cycle.
+
 ### Workflow Per Work Item
 
 For each incomplete work item in the plan file (`PLAN_FILE`):
