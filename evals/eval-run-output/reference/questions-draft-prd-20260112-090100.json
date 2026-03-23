@@ -1,0 +1,128 @@
+{
+  "questions": [
+    {
+      "id": 1,
+      "topic": "Goals & Success Metrics",
+      "sections": ["1.2 Problem Statement", "1.3 Goals", "6. Success Criteria"],
+      "question": "What specific, measurable targets should be set for reducing meeting overhead, improving response rates, and surfacing blockers?",
+      "context": "Section 1.3 lists three goals but none are measurable: 'reduce meeting overhead (by how much? TBD)', 'improve response rates', 'surface blockers quickly'. Section 6 acknowledges the need for success criteria but provides only ideas, not targets. Without measurable goals, it is impossible to determine whether the product has succeeded.",
+      "priority": "high"
+    },
+    {
+      "id": 2,
+      "topic": "Prompt Timing & Time Zone Handling",
+      "sections": ["3.1 Collection"],
+      "question": "Is the standup prompt sent at a single fixed time per workspace, or at each user's local time? If per-user, how is the time zone determined, and how does this interact with summary timing?",
+      "context": "The PRD says the bot sends a DM 'at some point in the morning' and asks 'What time? Should this be configurable per-user or workspace-wide?' and 'Do we support time zones?' These questions are left open. The answer significantly affects the scheduler architecture — workspace-wide is simpler; per-user requires timezone resolution per roster member.",
+      "priority": "high"
+    },
+    {
+      "id": 3,
+      "topic": "Response Format",
+      "sections": ["3.1 Collection"],
+      "question": "Should users respond to standup prompts with free-form text, a structured Slack Block Kit interface, or both? Is there a character limit per field?",
+      "context": "Section 3.1 asks 'What format? Free-form text? Structured? Both? Is there a character limit?' Free-form text is simpler to implement but harder to parse reliably for the blockers field. Structured input provides better UX but adds implementation complexity.",
+      "priority": "high"
+    },
+    {
+      "id": 4,
+      "topic": "Collection Window",
+      "sections": ["3.1 Collection"],
+      "question": "How long is the collection window between when prompts are sent and when the summary is posted? What happens to late responses?",
+      "context": "The PRD states 'The collection window should close before the summary is posted. How long should the window be?' This is undefined. The window length determines the trade-off between response rate (longer = more responses) and timeliness of the summary.",
+      "priority": "high"
+    },
+    {
+      "id": 5,
+      "topic": "Summary Channel & Format",
+      "sections": ["3.2 Summary"],
+      "question": "Where is the consolidated summary posted? How is the target channel configured? Should the format be Slack Block Kit or plain text?",
+      "context": "Section 3.2 asks 'Where? A designated channel? Which one? How is it configured?' and 'Format: TBD. Should it use Slack Block Kit or plain text?' Both are unresolved. The channel configuration is a required admin setup step and the format affects implementation complexity.",
+      "priority": "high"
+    },
+    {
+      "id": 6,
+      "topic": "Team Lead Identification",
+      "sections": ["3.2 Summary"],
+      "question": "How are team leads identified in the system? Is it a Slack role, a configuration field in /standup config, or something else? Should blockers trigger an @mention or a separate DM?",
+      "context": "Section 3.2 asks 'How are team leads identified in the system? Should they be @mentioned or receive a separate DM?' This must be resolved before the notification system can be designed.",
+      "priority": "medium"
+    },
+    {
+      "id": 7,
+      "topic": "Admin Configuration Interface",
+      "sections": ["2.2 Admins", "3.3 Configuration"],
+      "question": "What is the admin configuration interface — slash commands only, a web-based admin panel, or both? What specific parameters does /standup config support?",
+      "context": "Section 2.2 says 'The exact configuration interface needs to be decided — slash commands? A web UI? Both?' Section 3.3 lists '/standup config — TBD what parameters this supports'. Both are unresolved. A web panel is significantly more work than slash commands alone.",
+      "priority": "medium"
+    },
+    {
+      "id": 8,
+      "topic": "Technical Stack",
+      "sections": ["5.1 Stack"],
+      "question": "What runtime (Node.js or Python), database (PostgreSQL, DynamoDB, or Slack-native), and hosting provider (AWS or GCP) will be used?",
+      "context": "Section 5.1 leaves all three stack decisions open as TBDs. These decisions gate the architecture design, hosting cost analysis spike, and component design in Section 5.2.",
+      "priority": "high"
+    },
+    {
+      "id": 9,
+      "topic": "User Types",
+      "sections": ["2. User Stories"],
+      "question": "Are there user types beyond team members and admins? What are the team lead user stories?",
+      "context": "Section 2 contains a TODO comment: 'Are there other user types we need to consider? What about team leads?' Team leads are referenced in Section 3.2 (notified of blockers) but have no user stories defined.",
+      "priority": "medium"
+    },
+    {
+      "id": 10,
+      "topic": "Non-Functional Requirements",
+      "sections": ["4.1 Performance", "4.2 Reliability", "4.3 Security"],
+      "question": "What are the specific SLA targets for response time, uptime, and what Slack permission scopes are required?",
+      "context": "Section 4.1 says 'Response times should be acceptable. Need to determine specific SLAs.' Section 4.2 says 'TBD: what uptime target is appropriate?' Section 4.3 notes 'What Slack permission scopes does the bot need? Need to audit.' All three are unresolved and needed for architecture and compliance review.",
+      "priority": "medium"
+    },
+    {
+      "id": 11,
+      "topic": "Custom Questions",
+      "sections": ["7. Open Questions"],
+      "question": "Should the bot support custom standup questions, or is it fixed to the standard three (Yesterday/Today/Blockers)?",
+      "context": "Explicitly listed as open question #1 in Section 7. Custom questions add flexibility but require a more complex configuration interface and response parser.",
+      "priority": "medium"
+    },
+    {
+      "id": 12,
+      "topic": "PTO / Absence Handling",
+      "sections": ["7. Open Questions"],
+      "question": "What happens when a user is on PTO? Should they be automatically excluded from prompts and summaries, and if so, how is PTO status determined?",
+      "context": "Explicitly listed as open question #2 in Section 7. Without PTO handling, users on leave will receive prompts and appear as 'No response' in summaries, creating noise.",
+      "priority": "medium"
+    },
+    {
+      "id": 13,
+      "topic": "Data Retention & Business Model",
+      "sections": ["7. Open Questions"],
+      "question": "What data retention policy applies to standup responses, and is there a free tier or is this a paid product from launch?",
+      "context": "Sections 5 and 7 leave open questions #4 (free vs paid) and #5 (data retention). These are related — paid tiers often include longer retention. Both affect product design, compliance, and pricing strategy.",
+      "priority": "medium"
+    }
+  ],
+  "metadata": {
+    "source_document": "draft-prd.md",
+    "total_questions": 13,
+    "generated_date": "2026-01-12T09:01:00Z",
+    "topics_summary": [
+      "Goals & Success Metrics",
+      "Prompt Timing & Time Zone Handling",
+      "Response Format",
+      "Collection Window",
+      "Summary Channel & Format",
+      "Team Lead Identification",
+      "Admin Configuration Interface",
+      "Technical Stack",
+      "User Types",
+      "Non-Functional Requirements",
+      "Custom Questions",
+      "PTO / Absence Handling",
+      "Data Retention & Business Model"
+    ]
+  }
+}

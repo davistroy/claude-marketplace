@@ -1,0 +1,56 @@
+{
+  "questions": [
+    {
+      "id": 1,
+      "topic": "Goals & Success Metrics",
+      "sections": ["1.3 Goals", "6. Success Criteria"],
+      "question": "What specific targets should be set for reducing meeting overhead? The draft mentions 'reduce meeting overhead' but does not specify a percentage or absolute time reduction.",
+      "context": "The PRD states a goal of reducing meeting overhead but provides no measurable target. The final PRD should have a specific, measurable goal such as '80% reduction in standup meeting time per engineer per week'. Without this, it is impossible to define success criteria.",
+      "priority": "high"
+    },
+    {
+      "id": 2,
+      "topic": "Time Zone Handling",
+      "sections": ["3.1 Collection"],
+      "question": "Does the bot send prompts at a fixed time for the entire workspace, or at a per-user local time? If per-user, how is the user's time zone determined?",
+      "context": "The draft says the bot sends a DM 'at some point in the morning' without specifying whether this is a single workspace-wide time or localized per user. This affects the scheduler architecture significantly — a global time is simpler but breaks for users in distant time zones.",
+      "priority": "high"
+    },
+    {
+      "id": 3,
+      "topic": "Response Format",
+      "sections": ["3.1 Collection"],
+      "question": "Should users respond with free-form text, a structured interface (e.g., Slack Block Kit buttons/forms), or both? If both, what is the fallback when a user prefers text?",
+      "context": "The PRD draft does not specify the response format. Free-form text is simpler to implement but harder to parse for blockers. Structured input (Block Kit) provides better UX but requires more development effort and may confuse less technical users.",
+      "priority": "high"
+    },
+    {
+      "id": 4,
+      "topic": "Team Lead Identification",
+      "sections": ["3.2 Summary"],
+      "question": "How are team leads identified in the system? Is a team lead a Slack role, a configuration field, or something else?",
+      "context": "The PRD mentions that team leads should be notified of blockers, but does not describe how the system knows who the team lead is. This must be specified before the configuration and notification features can be designed.",
+      "priority": "medium"
+    },
+    {
+      "id": 5,
+      "topic": "Data Retention",
+      "sections": ["4.3 Security"],
+      "question": "What is the data retention policy for standup responses? How long are responses stored, and is there a user-visible deletion mechanism?",
+      "context": "The draft says 'standard practices apply' for security but does not define the retention period. Given that standup responses may contain sensitive work information, a specific retention period is needed for compliance purposes.",
+      "priority": "medium"
+    }
+  ],
+  "metadata": {
+    "source_document": "draft-prd.md",
+    "total_questions": 5,
+    "generated_date": "2026-01-12T10:00:00Z",
+    "topics_summary": [
+      "Goals & Success Metrics",
+      "Time Zone Handling",
+      "Response Format",
+      "Team Lead Identification",
+      "Data Retention"
+    ]
+  }
+}

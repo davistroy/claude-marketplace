@@ -1,93 +1,77 @@
 ---
 name: help
 description: Show available commands and skills in this plugin with usage information
-allowed-tools: Read, Glob, Grep
 ---
 
 # Help Skill
 
 Display help information for the personal-plugin commands and skills.
 
+**IMPORTANT:** This skill must be updated whenever commands or skills are added, changed, or removed from this plugin.
+
 ## Usage
 
-```text
+```
 /help                          # Show all commands and skills
 /help <command-name>           # Show detailed help for a specific command
 ```
 
-## Proactive Triggers
-
-Suggest this skill when:
-1. User asks what commands are available, says "help", or types "what can you do"
-2. User seems unsure of which command or skill to use for their task
-3. User asks about a specific command name or wants to know how to use a feature
-4. After installing the plugin for the first time
-5. User says "show me the commands" or "what skills do you have"
-
 ## Mode 1: List All (no arguments)
 
-When invoked without arguments, dynamically discover all commands and skills at runtime:
+When invoked without arguments, display this table:
 
-### Step 1: Discover commands
-
-Use Glob to find all `*.md` files in the plugin's `commands/` directory:
 ```
-plugins/personal-plugin/commands/*.md
-```
+personal-plugin Commands and Skills
+===================================
 
-### Step 2: Discover skills
-
-Use Glob to find all skill definition files:
-```
-plugins/personal-plugin/skills/*/SKILL.md
-```
-
-### Step 3: Extract descriptions
-
-For each discovered file, read the first 5 lines to extract the `description` field from the YAML frontmatter. The description appears as: `description: <text>`.
-
-### Step 4: Categorize commands
-
-Assign each command to a category based on keyword matching on its description and filename:
-
-| Category | Keywords (in description OR filename) |
-|----------|--------------------------------------|
-| Planning & Analysis | plan, review, arch, intent, audit, pr, implement, improvement, next |
-| Document Processing | document, transcript, question, assess, consolidate, convert, markdown, finish, ask, define, remove-ip, sanitize |
-| Scaffolding & Generation | scaffold, new-command, new-skill, image-prompt, generate, develop, template |
-| Maintenance & Utilities | bump, version, clean, test, validate |
-
-Commands that do not match any category go into an **Other** category.
-
-Skills are listed in a single **SKILLS** section (no sub-categories).
-
-### Step 5: Display output
-
-Format the output as follows (counts are computed dynamically from discovery results):
-
-```text
-personal-plugin Commands and Skills ({command_count} commands, {skill_count} skills)
-============================================================
-
-COMMANDS — {Category Name}
-------------------------------
-| Command              | Description                                           |
-|----------------------|-------------------------------------------------------|
-| /{command-name}      | {description from frontmatter}                        |
-
-... (repeat for each category with matching commands) ...
+COMMANDS
+--------
+| Command | Description |
+|---------|-------------|
+| /analyze-transcript | Meeting transcript to structured markdown report |
+| /ask-questions | Interactive Q&A session from questions JSON file |
+| /assess-document | Document quality evaluation with scored assessment report |
+| /bump-version | Automate version bumping across plugin files with CHANGELOG placeholder |
+| /clean-repo | Comprehensive repository cleanup, organization, and documentation refresh |
+| /consolidate-documents | Analyze multiple document variations and synthesize a superior consolidated... |
+| /convert-markdown | Convert a markdown file to a nicely formatted Microsoft Word document |
+| /create-plan | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD,... |
+| /define-questions | Extract questions and open items from documents to JSON |
+| /develop-image-prompt | Generate detailed image generator prompts from content, with configurable... |
+| /finish-document | Extract questions from a document, answer them interactively, and update the... |
+| /implement-plan | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic... |
+| /new-command | Generate a new command file from a template with proper structure and... |
+| /new-skill | Generate a new skill file with proper nested directory structure and... |
+| /plan-improvements | Analyze codebase and generate prioritized improvement recommendations with... |
+| /plan-next | Analyze repo and recommend the next logical action |
+| /remove-ip | Sanitize documents by removing company identifiers and non-public... |
+| /review-arch | Quick architectural audit with technical debt assessment (read-only, no... |
+| /review-intent | Determine original project intent and compare against current... |
+| /review-pr | Structured PR review with security, performance, and code quality analysis |
+| /scaffold-plugin | Create a new plugin with proper directory structure, metadata, and starter files |
+| /test-project | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then... |
+| /validate-plugin | Validate plugin structure, frontmatter, and content for consistency and... |
 
 SKILLS
 ------
-| Skill                | Description                                           |
-|----------------------|-------------------------------------------------------|
-| /{skill-name}        | {description from frontmatter}                        |
+| Skill | Description |
+|-------|-------------|
+| /evaluate-pipeline-output | Thoroughly evaluate contact-center-lab pipeline output quality against... |
+| /leak-risk-audit | Audit a dataset for proprietary information leaks before sharing with... |
+| /plan-gate | Before starting complex multi-step implementation tasks, assess scope and... |
+| /prime | Evaluate an existing codebase to produce a detailed report on project... |
+| /research-topic | Orchestrate parallel deep research across multiple LLM providers and... |
+| /security-analysis | Comprehensive security analysis with tech stack detection, vulnerability... |
+| /ship | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
+| /spec-to-prototype | Use when the user has a spec document, design system reference, component... |
+| /summarize-feedback | Synthesize employee feedback from Notion Voice Captures into a professional... |
+| /unlock | Load secrets from Bitwarden Secrets Manager into environment using bws CLI |
+| /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
+| /visual-explainer | Transform text or documents into AI-generated infographic pages that explain... |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
 ```
-
-Sort commands alphabetically within each category. Sort skills alphabetically.
 
 ## Mode 2: Detailed Help (with argument)
 
@@ -106,10 +90,10 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /analyze-transcript
 **Description:** Meeting transcript to structured markdown report
-**Arguments:** `<transcript-path>` [--format [md|json]]
-**Output:** Generated report file
+**Arguments:** <transcript-path> [--format [md|json]]
+**Output:** Generated output file
 **Example:**
-```text
+```
 /analyze-transcript meeting-notes.txt
 /analyze-transcript transcript.md --format json
 ```
@@ -118,10 +102,10 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /ask-questions
 **Description:** Interactive Q&A session from questions JSON file
-**Arguments:** `<questions-file>` [--force]
-**Output:** Updated JSON file with answers
+**Arguments:** <questions-file> [--force]
+**Output:** Generated output file
 **Example:**
-```text
+```
 /ask-questions questions-PRD-20260110.json
 ```
 
@@ -129,10 +113,10 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /assess-document
 **Description:** Document quality evaluation with scored assessment report
-**Arguments:** `<document-path>` [--format [md|json]]
-**Output:** Assessment report in reports/
+**Arguments:** <document-path> [--format [md|json]]
+**Output:** Files in reports/
 **Example:**
-```text
+```
 /assess-document
 /assess-document PRD.md
 ```
@@ -141,74 +125,65 @@ Use this reference to provide detailed help. Read the actual command file to get
 
 #### /bump-version
 **Description:** Automate version bumping across plugin files with CHANGELOG placeholder
-**Arguments:** `<plugin-name>` `<bump-type>` [--dry-run]
-**Output:** Updated plugin.json, marketplace.json, CHANGELOG.md
+**Arguments:** <plugin-name> <bump-type> [--dry-run]
+**Output:** In-conversation output
 **Example:**
-```text
-/bump-version personal-plugin minor    # 1.6.0 -> 1.7.0
-/bump-version bpmn-plugin patch        # 1.5.0 -> 1.5.1
-/bump-version personal-plugin major    # 1.6.0 -> 2.0.0
+```
+/bump-version
 ```
 
 ---
 
 #### /clean-repo
 **Description:** Comprehensive repository cleanup, organization, and documentation refresh
-**Arguments:** [--dry-run] [--audit] [--docs-only]
-**Output:** In-conversation report with cleanup summary
+**Arguments:** [--dry-run] [--audit] [--docs-only] [--json]
+**Output:** In-conversation output
 **Example:**
-```text
-/clean-repo                    # Full cleanup with documentation sync
-/clean-repo --docs-only        # Focus only on documentation updates
-/clean-repo --dry-run          # Preview changes without executing
+```
+/clean-repo
 ```
 
 ---
 
 #### /consolidate-documents
-**Description:** Analyze multiple document variations and synthesize a superior consolidated version
-**Arguments:** `<doc1-path>` `<doc2-path>` [doc3-path...]
+**Description:** Analyze multiple document variations and synthesize a superior consolidated...
+**Arguments:** <doc1-path> <doc2-path> [doc3-path...]
 **Output:** consolidated-[topic]-YYYYMMDD-HHMMSS.md
 **Example:**
-```text
-/consolidate-documents draft-v1.md draft-v2.md
-/consolidate-documents spec-a.md spec-b.md spec-c.md
+```
+/consolidate-documents
 ```
 
 ---
 
 #### /convert-markdown
 **Description:** Convert a markdown file to a nicely formatted Microsoft Word document
-**Arguments:** `<markdown-file>` [`<output-file>`]
-**Output:** .docx file (requires pandoc)
+**Arguments:** <markdown-file> [<output-file>] [--no-toc] [--style <path>] [--dry-run] [--highlight <style>]
+**Output:** Generated output file
 **Example:**
-```text
-/convert-markdown report.md
-/convert-markdown report.md report.docx
+```
+/convert-markdown
 ```
 
 ---
 
 #### /create-plan
-**Description:** Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs)
-**Arguments:** [`<document-paths>`] [--output `<path>`] [--phases `<n>`] [--max-phases `<n>`] [--verbose]
-**Output:** IMPLEMENTATION_PLAN.md in repository root
+**Description:** Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD,...
+**Arguments:** [<document-paths>] [--output <path>] [--phases <n>] [--max-phases <n>] [--verbose]
+**Output:** In-conversation output
 **Example:**
-```text
-/create-plan                              # Auto-discover documents
-/create-plan PRD.md TDD.md               # Use specific documents
-/create-plan --phases 5                   # Target 5 phases
-/create-plan --max-phases 10             # Allow up to 10 phases
+```
+/create-plan
 ```
 
 ---
 
 #### /define-questions
 **Description:** Extract questions and open items from documents to JSON
-**Arguments:** `<document-path>` [--format [json|csv]]
-**Output:** questions-[source]-YYYYMMDD-HHMMSS.json
+**Arguments:** <document-path> [--format [json|csv]]
+**Output:** Generated output file
 **Example:**
-```text
+```
 /define-questions
 /define-questions PRD.md
 ```
@@ -216,77 +191,72 @@ Use this reference to provide detailed help. Read the actual command file to get
 ---
 
 #### /develop-image-prompt
-**Description:** Generate detailed image generator prompts from content, with configurable dimensions and style options
-**Arguments:** `<content-source>` [--style `<style-file>`]
-**Output:** Image prompt file
+**Description:** Generate detailed image generator prompts from content, with configurable...
+**Arguments:** <content-source> [--style <style>] [--dimensions <WxH>] [--no-prompt]
+**Output:** Generated output file
 **Example:**
-```text
+```
 /develop-image-prompt architecture.md
-/develop-image-prompt process-flow.md --style brand-guidelines.md
-/develop-image-prompt "microservices communication patterns"
+/develop-image-prompt "microservices communication patterns" --style infographic
 ```
 
 ---
 
 #### /finish-document
-**Description:** Extract questions from a document, answer them interactively, and update the document
-**Arguments:** `<document-path>` [--auto] [--force]
-**Output:** Updated document with resolved questions
+**Description:** Extract questions from a document, answer them interactively, and update the...
+**Arguments:** <document-path> [--auto] [--force]
+**Output:** Generated output file
 **Example:**
-```text
+```
 /finish-document PRD.md
 /finish-document
+/finish-document PRD.md
 ```
 
 ---
 
 #### /implement-plan
-**Description:** Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing, documentation, and git workflow
-**Arguments:** [--input `<path>`] [--auto-merge] [--pause-between-phases] [--progress]
-**Output:** Updates IMPLEMENTATION_PLAN.md status fields; creates PR (merge only with --auto-merge)
+**Description:** Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic...
+**Arguments:** None required
+**Output:** Generated output file
 **Example:**
-```text
-/implement-plan                                    # Execute default plan file
-/implement-plan --input docs/plan.md               # Use custom plan path
-/implement-plan --auto-merge                       # Merge PR after completion
-/implement-plan --pause-between-phases             # Confirm before each phase
+```
+/implement-plan
+/implement-plan
+/implement-plan
 ```
 
 ---
 
 #### /new-command
-**Description:** Generate a new command file from a template with proper structure and conventions
-**Arguments:** [`<command-name>`] [`<pattern-type>`]
-**Output:** plugins/personal-plugin/commands/[command-name].md
+**Description:** Generate a new command file from a template with proper structure and...
+**Arguments:** [<command-name>] [<pattern-type>] [--plugin <name>]
+**Output:** plugins/[TARGET_PLUGIN]/commands/[command-name].md
 **Example:**
-```text
+```
 /new-command
-/new-command my-new-command generator
 ```
 
 ---
 
 #### /new-skill
-**Description:** Generate a new skill file with proper nested directory structure and required frontmatter
-**Arguments:** [`<skill-name>`]
-**Output:** plugins/personal-plugin/skills/[skill-name]/SKILL.md
+**Description:** Generate a new skill file with proper nested directory structure and...
+**Arguments:** [<skill-name>] [--plugin <plugin-name>]
+**Output:** plugins/[plugin-name]/skills/[skill-name]/SKILL.md
 **Example:**
-```text
-/new-skill                    # Interactive mode
-/new-skill quick-test         # With skill name
+```
+/new-skill
 ```
 
 ---
 
 #### /plan-improvements
-**Description:** Analyze codebase and generate prioritized improvement recommendations with phased implementation plan
-**Arguments:** [--recommendations-only | --no-plan] [--max-phases `<n>`]
-**Output:** RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md (or RECOMMENDATIONS.md only with --recommendations-only)
+**Description:** Analyze codebase and generate prioritized improvement recommendations with...
+**Arguments:** None required
+**Output:** Generated output file
 **Example:**
-```text
-/plan-improvements                        # Full analysis + plan
-/plan-improvements --recommendations-only # Recommendations only, plan later
-/plan-improvements --max-phases 5         # Limit to 5 phases
+```
+/plan-improvements
 ```
 
 ---
@@ -294,206 +264,189 @@ Use this reference to provide detailed help. Read the actual command file to get
 #### /plan-next
 **Description:** Analyze repo and recommend the next logical action
 **Arguments:** None required
-**Output:** In-conversation structured recommendation
+**Output:** Generated output file
 **Example:**
-```text
+```
 /plan-next
 ```
 
 ---
 
 #### /remove-ip
-**Description:** Sanitize documents by removing company identifiers and non-public intellectual property while preserving meaning and usefulness
-**Arguments:** `<document-path>` [--company `<name>`] [--mode [standard|strict]]
-**Output:** Sanitized document copy
+**Description:** Sanitize documents by removing company identifiers and non-public...
+**Arguments:** <document-path> [--company <name>] [--mode [standard|strict]]
+**Output:** Generated output file
 **Example:**
-```text
+```
 /remove-ip internal-process.md
 /remove-ip strategy-doc.md --mode strict
-/remove-ip playbook.md --company "Acme Corp" --industry "Finance"
 ```
 
 ---
 
 #### /review-arch
-**Description:** Quick architectural audit with technical debt assessment (read-only, no files generated)
+**Description:** Quick architectural audit with technical debt assessment (read-only, no...
 **Arguments:** None required
-**Output:** In-conversation architectural analysis
+**Output:** Generated output file
 **Example:**
-```text
-/review-arch
+```
+/review-arch --focus security,testing
 ```
 
 ---
 
 #### /review-intent
-**Description:** Determine original project intent and compare against current implementation, reporting discrepancies
-**Arguments:** [`<path>`] [--deep]
-**Output:** In-conversation intent analysis (intent profile, scorecard, discrepancy report)
+**Description:** Determine original project intent and compare against current...
+**Arguments:** [<path>] [--deep] [--save]
+**Output:**  flag is provided:**
+Save the report to a file using the Write tool:
+- **Location:** 
 **Example:**
-```text
-/review-intent                # Full repo intent analysis
-/review-intent --deep         # Include git history analysis
-/review-intent src/api        # Scoped to specific directory
+```
+/review-intent
 ```
 
 ---
 
 #### /review-pr
 **Description:** Structured PR review with security, performance, and code quality analysis
-**Arguments:** `<pr-number-or-url>`
-**Output:** In-conversation review report
+**Arguments:** <pr-number-or-url>
+**Output:** In-conversation output
 **Example:**
-```text
-/review-pr 123                                    # Review PR #123
-/review-pr https://github.com/owner/repo/pull/42 # Review from URL
+```
+/review-pr
 ```
 
 ---
 
 #### /scaffold-plugin
 **Description:** Create a new plugin with proper directory structure, metadata, and starter files
-**Arguments:** [`<plugin-name>`]
-**Output:** plugins/[plugin-name]/ directory with all required files
+**Arguments:** [<plugin-name>] [--dry-run]
+**Output:** plugins/[plugin-name]/.claude-plugin/plugin.json
 **Example:**
-```text
+```
 /scaffold-plugin
-/scaffold-plugin my-new-plugin
 ```
 
 ---
 
 #### /test-project
-**Description:** Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create PR (merge only with --auto-merge)
-**Arguments:** [--auto-merge]
-**Output:** In-conversation test report with PR
+**Description:** Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then...
+**Arguments:** None (operates on the current project) [--coverage <n>] [--auto-merge]
+**Output:** In-conversation output
 **Example:**
-```text
+```
 /test-project
-/test-project --auto-merge
 ```
 
 ---
 
 #### /validate-plugin
-**Description:** Validate plugin structure, frontmatter, and content for consistency and correctness
-**Arguments:** `<plugin-name>` [--all] [--fix] [--verbose] [--check-updates]
-**Output:** In-conversation validation report
+**Description:** Validate plugin structure, frontmatter, and content for consistency and...
+**Arguments:** <plugin-name> [--all] [--fix] [--verbose] [--strict] [--report] [--scorecard] [--check-updates]
+**Output:** Generated output file
 **Example:**
-```text
-/validate-plugin personal-plugin          # Validate single plugin
-/validate-plugin --all                    # Validate all plugins
-/validate-plugin bpmn-plugin --verbose    # Detailed output
-/validate-plugin --all --check-updates    # Include remote version check
+```
+/validate-plugin
 ```
 
 ---
 
 #### /evaluate-pipeline-output
-**Description:** Thoroughly evaluate contact-center-lab pipeline output quality against input, checking sanitization correctness, atom/entity/triple quality, graph structure, and procedure integrity across all stages
-**Arguments:** `<output-dir>` [--articles `<N>`] [--input `<path>`]
-**Output:** In-conversation evaluation report with severity-rated findings
+**Description:** Thoroughly evaluate contact-center-lab pipeline output quality against...
+**Arguments:** None required
+**Output:** Generated output file
 **Example:**
-```text
-/evaluate-pipeline-output ./output/single-2026-03-05-1803
-/evaluate-pipeline-output ./output/full-run --articles 10357
-/evaluate-pipeline-output ./output/test-5 --input ./pipeline/tests/fixtures/five
+```
+/SKILL
 ```
 
 ---
 
-#### /help
-**Description:** Show available commands and skills in this plugin with usage information
-**Arguments:** [`<command-or-skill-name>`]
-**Output:** In-conversation help listing or detailed help
+#### /leak-risk-audit
+**Description:** Audit a dataset for proprietary information leaks before sharing with...
+**Arguments:** <path> [--output <filename>] [--glossary <path>]
+**Output:** Generated output file
 **Example:**
-```text
-/help                          # Show all commands and skills
-/help create-plan              # Detailed help for a specific command
-/help ship                     # Detailed help for a specific skill
+```
+/SKILL
 ```
 
 ---
 
 #### /plan-gate
-**Description:** Assess task complexity and route to the right planning approach
-**Arguments:** None (fires proactively based on task signals)
-**Output:** In-conversation scope assessment with recommended planning path
-**Paths:**
-- Path A: Just do it (trivial tasks, 1-3 files)
-- Path B: Native plan mode (moderate tasks, 4-8 files)
-- Path C: /plan-improvements (multi-phase codebase refactoring)
-- Path D: /create-plan (requirements docs exist)
-- Path E: /implement-plan (existing plan with incomplete items)
-- Path F: Ask clarifying questions (ambiguous scope)
+**Description:** Before starting complex multi-step implementation tasks, assess scope and...
+**Arguments:** None required
+**Output:** In-conversation output
 **Example:**
-```text
-# Fires automatically when you say something like:
-"Refactor the authentication system"
-"Build the features described in the PRD"
+```
+/SKILL
 ```
 
 ---
 
 #### /prime
-**Description:** Evaluate an existing codebase to produce a detailed report on project purpose, health, status, and recommended next steps
-**Arguments:** [`<focus-area>`] [`<path>`]
-**Output:** In-conversation structured report (Project Prime Report)
+**Description:** Evaluate an existing codebase to produce a detailed report on project...
+**Arguments:** None required
+**Output:** Generated output file
 **Example:**
-```text
-/prime                          # Full project evaluation
-/prime testing                  # Focus on testing infrastructure
-/prime plugins/bpmn-plugin      # Scope to a subdirectory
+```
+/SKILL
 ```
 
 ---
 
 #### /research-topic
-**Description:** Orchestrate parallel deep research across multiple LLM providers and synthesize results
-**Arguments:** `<research-request>` [--sources `<claude,openai,gemini>`] [--depth `<brief|standard|comprehensive>`] [--format `<md|docx|both>`] [--no-clarify] [--no-audience]
-**Output:** reports/research-[topic]-YYYYMMDD-HHMMSS.md (and .docx)
+**Description:** Orchestrate parallel deep research across multiple LLM providers and...
+**Arguments:** Research request (provided by user as $ARGUMENTS or in conversation) [--sources <list>] [--depth <level>] [--format <type>] [--no-clarify] [--no-audience] [--skip-model-check]
+**Output:** In-conversation output
 **Example:**
-```text
-/research-topic What are the best practices for implementing RAG systems?
-/research-topic --sources claude,openai --depth comprehensive "Compare transformer architectures"
+```
+/SKILL
 ```
 
 ---
 
 #### /security-analysis
-**Description:** Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning
-**Arguments:** None required (auto-detects technology stack)
-**Output:** Security Analysis Report (in-conversation or markdown)
+**Description:** Comprehensive security analysis with tech stack detection, vulnerability...
+**Arguments:** [<path>] [--quick] [--dependencies-only]
+**Output:** reports/security-analysis-[YYYYMMDD-HHMMSS].md
 **Example:**
-```text
-/security-analysis
+```
+/SKILL
 ```
 
 ---
 
 #### /ship
 **Description:** Create branch, commit, push, open PR, auto-review, fix issues, and merge
-**Arguments:** [`<branch-name>`] [draft] [--dry-run] [--audit]
-**Platform:** Auto-detects GitHub (gh) or Gitea (tea) from git remote
-**Output:** PR URL on success
+**Arguments:** [<branch-name>] [draft] [--dry-run] [--audit]
+**Output:** Generated output file
 **Example:**
-```text
-/ship
-/ship feat/my-feature
-/ship --dry-run
+```
+/SKILL
+```
+
+---
+
+#### /spec-to-prototype
+**Description:** Use when the user has a spec document, design system reference, component...
+**Arguments:** None required
+**Output:** Generated output file
+**Example:**
+```
+/SKILL
 ```
 
 ---
 
 #### /summarize-feedback
-**Description:** Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
+**Description:** Synthesize employee feedback from Notion Voice Captures into a professional...
 **Arguments:** employee_name="..." [days=N] [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [output_path="..."]
-**Output:** ./output/Feedback_Summary_{Name}_{datetime}.docx
-**Prerequisites:** Notion MCP server, python-docx>=1.0
+**Output:** Generated output file
 **Example:**
-```text
-/summarize-feedback employee_name="Sarah Chen"
-/summarize-feedback employee_name="Sarah Chen" days=180
+```
+/SKILL
 ```
 
 ---
@@ -501,55 +454,45 @@ Use this reference to provide detailed help. Read the actual command file to get
 #### /unlock
 **Description:** Load secrets from Bitwarden Secrets Manager into environment using bws CLI
 **Arguments:** None required
-**Output:** In-conversation confirmation (environment variables set)
+**Output:** In-conversation output
 **Example:**
-```text
-/unlock
+```
+/SKILL
 ```
 
 ---
 
 #### /validate-and-ship
 **Description:** Validate plugins, clean repository, and ship changes in one automated workflow
-**Arguments:** [--skip-validate] [--skip-cleanup] [--dry-run] [`<branch-name>`]
-**Output:** In-conversation output with PR URL on success
-**Workflow:** validate-plugin --all -> clean-repo -> ship
+**Arguments:** [--skip-validate] [--skip-cleanup] [--skip-ship] [--dry-run] [<branch-name>]
+**Output:** Generated output file
 **Example:**
-```text
-/validate-and-ship                      # Full workflow
-/validate-and-ship feat/my-feature      # With custom branch name
-/validate-and-ship --dry-run            # Preview without executing
+```
+/SKILL
 ```
 
 ---
 
 #### /visual-explainer
-**Description:** Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation
-**Arguments:** `<input>` [--style `<name>`] [--output-dir `<path>`] [--max-iterations `<n>`] [--pass-threshold `<0-1>`] [--image-count `<n>`] [--aspect-ratio `<ratio>`] [--resolution `<level>`] [--no-cache] [--dry-run] [--resume `<checkpoint>`] [--setup-keys]
-**Output:** visual-explainer-[topic]-[timestamp]/ directory with images, metadata, and summary
+**Description:** Transform text or documents into AI-generated infographic pages that explain...
+**Arguments:** Input content (one of the following):
+**Output:** In-conversation output
 **Example:**
-```text
-/visual-explainer "How does photosynthesis work?"
-/visual-explainer architecture.md --style professional-sketch --image-count 5
-/visual-explainer --resume checkpoint.json
+```
+/SKILL
 ```
 
 ---
 
-## Performance
-
-Typically completes in under 5 seconds. Discovery uses Glob and frontmatter reads only.
-
 ## Error Handling
 
-If the requested command or skill is not found, re-run the Glob discovery from Mode 1 to list all available commands and skills dynamically:
-
-```text
+If the requested command is not found:
+```
 Command '[name]' not found in personal-plugin.
 
 Available commands:
-  {comma-separated list of all discovered command names from commands/*.md}
+  /analyze-transcript, /ask-questions, /assess-document, /bump-version, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
-  {comma-separated list of all discovered skill names from skills/*/SKILL.md}
+  /evaluate-pipeline-output, /leak-risk-audit, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /spec-to-prototype, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
 ```
