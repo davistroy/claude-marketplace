@@ -300,7 +300,7 @@ Use this reference to provide detailed help. Read the actual command file to get
 **Arguments:** [<path>] [--deep] [--save]
 **Output:**  flag is provided:**
 Save the report to a file using the Write tool:
-- **Location:** 
+- **Location:**
 **Example:**
 ```
 /review-intent
