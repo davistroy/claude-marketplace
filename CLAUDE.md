@@ -172,6 +172,10 @@ plugins/
         SKILL.md            # Evaluate contact-center-lab pipeline output quality
       visual-explainer/
         SKILL.md            # Transform text or documents into AI-generated infographic pages using Gemini Pro 3 and Claude Vision
+      leak-risk-audit/
+        SKILL.md            # Audit datasets for proprietary information leaks before sharing with public/cloud services
+      spec-to-prototype/
+        SKILL.md            # Build visual HTML/CSS prototypes from spec documents or wireframe descriptions
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
       api-key-setup.md      # Bitwarden-based API key setup workflow
