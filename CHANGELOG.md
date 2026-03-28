@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v6.3.0] - 2026-03-27
+
+### Added
+- `accessibility-annotator` skill — analyze technical documents for CS/ML concepts and add explanation annotations for non-CS readers
+- `explain-project` skill — generate comprehensive annotated technical overview document for non-technical stakeholders
+
+### Changed
+- Updated README.md skill count and table (11 → 15 skills)
+- Updated CLAUDE.md directory listing with new skills
+- Added missing CHANGELOG entry for v6.2.0
+
+## [personal-plugin v6.2.0] - 2026-03-25
+
+### Added
+- `leak-risk-audit` skill — audit datasets for proprietary information leaks before sharing with public/cloud services
+- `spec-to-prototype` skill — build visual HTML/CSS prototypes from spec documents or wireframe descriptions
+- Evaluation framework (`evals/`) for automated plugin quality assessment
+
+### Fixed
+- Trailing space in help skill (MD009 lint violation)
+
+### Changed
+- Bumped `marketplace_version` to 1.2.0
+
 ## [personal-plugin v6.1.0] - 2026-03-21
 
 ### Fixed

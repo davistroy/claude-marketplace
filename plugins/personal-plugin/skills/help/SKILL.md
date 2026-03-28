@@ -68,6 +68,8 @@ SKILLS
 | /unlock | Load secrets from Bitwarden Secrets Manager into environment using bws CLI |
 | /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
 | /visual-explainer | Transform text or documents into AI-generated infographic pages that explain... |
+| /accessibility-annotator | Analyze technical documents and add explanation annotations for non-CS... |
+| /explain-project | Generate comprehensive annotated technical overview for non-technical... |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
@@ -484,6 +486,29 @@ Save the report to a file using the Write tool:
 
 ---
 
+#### /accessibility-annotator
+**Description:** Analyze technical documents for CS/ML concepts and add explanation annotations for non-CS readers
+**Arguments:** <document-path>
+**Output:** Updated document with annotations
+**Example:**
+```
+/accessibility-annotator technical-report.docx
+```
+
+---
+
+#### /explain-project
+**Description:** Generate comprehensive annotated technical overview document for non-technical stakeholders
+**Arguments:** [<project-path>]
+**Output:** Generated Word document with annotations, glossary, and sidebars
+**Example:**
+```
+/explain-project
+/explain-project /path/to/repo
+```
+
+---
+
 ## Error Handling
 
 If the requested command is not found:
@@ -494,5 +519,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
-  /evaluate-pipeline-output, /leak-risk-audit, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /spec-to-prototype, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
+  /accessibility-annotator, /evaluate-pipeline-output, /explain-project, /leak-risk-audit, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /spec-to-prototype, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
 ```

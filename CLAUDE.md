@@ -176,6 +176,10 @@ plugins/
         SKILL.md            # Audit datasets for proprietary information leaks before sharing with public/cloud services
       spec-to-prototype/
         SKILL.md            # Build visual HTML/CSS prototypes from spec documents or wireframe descriptions
+      accessibility-annotator/
+        SKILL.md            # Analyze technical documents for CS/ML concepts and add explanation annotations for non-CS readers
+      explain-project/
+        SKILL.md            # Generate comprehensive annotated technical overview document for non-technical stakeholders
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
       api-key-setup.md      # Bitwarden-based API key setup workflow
