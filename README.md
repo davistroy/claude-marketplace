@@ -38,7 +38,7 @@ You can install to different scopes:
 
 ### personal-plugin
 
-23 commands and 11 skills for productivity workflows, code review, document processing, and security analysis.
+23 commands and 15 skills for productivity workflows, code review, document processing, and security analysis.
 
 **23 Commands:**
 | Command | Description |
@@ -67,7 +67,7 @@ You can install to different scopes:
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
 | [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content (supports `--check-updates`) |
 
-**11 Skills:**
+**15 Skills:**
 | Skill | Description |
 |-------|-------------|
 | [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills with usage information |
@@ -81,6 +81,10 @@ You can install to different scopes:
 | [`/validate-and-ship`](plugins/personal-plugin/skills/validate-and-ship/SKILL.md) | Validate plugins, clean repository, and ship changes in one workflow |
 | [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated visual explanations |
 | [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input |
+| [`/leak-risk-audit`](plugins/personal-plugin/skills/leak-risk-audit/SKILL.md) | Audit datasets for proprietary information leaks before sharing with public/cloud services |
+| [`/spec-to-prototype`](plugins/personal-plugin/skills/spec-to-prototype/SKILL.md) | Build visual HTML/CSS prototypes from spec documents or wireframe descriptions |
+| [`/accessibility-annotator`](plugins/personal-plugin/skills/accessibility-annotator/SKILL.md) | Analyze technical documents and add explanation annotations for non-CS readers |
+| [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate comprehensive annotated technical overview document for non-technical stakeholders |
 
 ### bpmn-plugin
 
