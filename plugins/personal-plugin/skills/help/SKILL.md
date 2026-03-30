@@ -70,6 +70,7 @@ SKILLS
 | /visual-explainer | Transform text or documents into AI-generated infographic pages that explain... |
 | /accessibility-annotator | Analyze technical documents and add explanation annotations for non-CS... |
 | /explain-project | Generate comprehensive annotated technical overview for non-technical... |
+| /lab-notebook | Initialize mandatory experiment logging with scientific notebook, ADR, and... |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
@@ -509,6 +510,17 @@ Save the report to a file using the Write tool:
 
 ---
 
+#### /lab-notebook
+**Description:** Initialize mandatory experiment logging for projects involving system changes, benchmarks, debugging, or exploratory work
+**Arguments:** None required
+**Output:** LAB_NOTEBOOK.md and CLAUDE.md injection with logging rules
+**Example:**
+```
+/lab-notebook
+```
+
+---
+
 ## Error Handling
 
 If the requested command is not found:
@@ -519,5 +531,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
-  /accessibility-annotator, /evaluate-pipeline-output, /explain-project, /leak-risk-audit, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /spec-to-prototype, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
+  /accessibility-annotator, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /spec-to-prototype, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
 ```

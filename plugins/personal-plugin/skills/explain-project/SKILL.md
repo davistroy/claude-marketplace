@@ -68,9 +68,24 @@ Optional flags:
 - `--style PATH` -- Path to a markdown style guide for Word formatting (default: `C:\Users\Troy Davis\dev\info\CFA_Word_Style_Guide.md`)
 - `--style-json PATH` -- Path to image style JSON for Nano Banana Pro (default: `C:\Users\Troy Davis\dev\info\clean-style-sanitized.json`)
 - `--generate-images` -- Generate diagrams via Google Gemini and insert them (default: OFF — costs money)
+- `--update` -- Incremental update mode: reads the existing document, diffs the codebase against the last generation (via git log since the commit hash in the document's freshness metadata), generates only changed sections, and preserves the user's manual refinements to unchanged sections
 - `--output PATH` -- Output file path (default: `{project-dir}/docs/{project-name}-overview.docx`, or `~/Downloads/{repo-name}-overview.docx` for GitHub URLs)
 
 Parse from the user's message. If neither a path nor URL is provided, ask.
+
+### Detecting Previous Documents
+
+Before starting a fresh generation, check for existing documents matching `docs/*-overview*.docx` in the project directory. If found:
+1. Read the existing document to understand what it covers
+2. Check git log for changes since the document was last generated (use the freshness metadata commit hash if available, otherwise file modification date)
+3. Offer the user a choice: **update** (incremental, preserves manual edits) vs **regenerate** (full fresh generation)
+
+In `--update` mode:
+- Parse the existing document's section structure
+- Diff the codebase to identify what changed (new files, modified stages, config changes)
+- Generate only the sections affected by codebase changes
+- Preserve the user's manual refinements to unchanged sections
+- Update the Document Freshness metadata block with current values
 
 ### Handling GitHub URLs
 
@@ -120,6 +135,13 @@ Use the Explore agent or direct file reading to build comprehensive understandin
 6. **Testing:** Test suite structure, coverage, evaluation approach
 7. **Infrastructure:** What hardware/services does it depend on? How does it deploy?
 8. **Technical vocabulary:** Catalog every CS/ML/domain term the project uses
+9. **Runtime artifacts:** If the project produces output artifacts (reports, logs, dashboards, metrics files), read them. Look for:
+   - Latest pipeline output in `output/` or similar directories (statistics, counts, timing)
+   - Log files with timing data, cache hit rates, throughput numbers
+   - Metrics or evaluation result files from recent runs
+   - Configuration files with active thresholds, weights, and feature flags
+
+   Ground the document in production reality, not code-reading estimates. Every production number cited in the document should trace back to an actual output artifact, not a guess derived from reading the code.
 
 <!-- ═══════════════════════════════════════════════════════════════════
   PHASE 2: DOCUMENT PLANNING
@@ -137,7 +159,10 @@ Use the Explore agent or direct file reading to build comprehensive understandin
 
 1. **Select Key Concept Sidebars (2-3):** Choose the foundational concepts THIS project relies on most. These will be the first things the reader sees.
 
-2. **Plan the "Why This Approach" section (if warranted):** Identify 2-4 reasonable objections a skeptic would raise. What simpler approaches would people suggest? Why do they fail? Skip for simple projects where the approach is obvious.
+2. **Plan the "Why This Approach" section (if warranted):** Identify 2-4 reasonable objections a skeptic would raise. What simpler approaches would people suggest? Why do they fail? Skip for simple projects where the approach is obvious. Where available, include:
+   - Actual benchmark data from evaluation runs (precision, recall, F1 from test sets)
+   - Specific evaluation results that justify design decisions
+   - A cost/benefit table for the overall system vs. simpler alternatives (time to build, accuracy gained, maintenance burden)
 
 3. **Design the worked example:** Choose a concrete, realistic input that will be traced through every stage. It should exercise the system's most important capabilities.
 
@@ -146,13 +171,22 @@ Use the Explore agent or direct file reading to build comprehensive understandin
    - Why it matters (consequence of skipping)
    - How the worked example changes at this stage
 
-5. **Plan images (3-5):** Identify where diagrams would most help:
-   - System architecture / data flow (almost always needed)
-   - Conceptual visualization of the novel/hardest technique
-   - Product/output visualization (dashboards, reports, etc.)
-   - Worked example transformation diagram
+5. **Plan images (3-5):** Identify where diagrams would most help.
 
-6. **Build the glossary list:** Every CS/ML term that will appear in the document, with draft definitions at the right depth.
+   **Always generate:**
+   - Data flow diagram — stages with their inputs and outputs, showing the transformation pipeline end to end
+   - System architecture — infrastructure topology showing hardware, services, and their connections
+
+   **Generate if applicable:**
+   - Worked example transformation — showing how the running example changes at key stages
+   - Dashboard/UI mockup — conceptual layout of any interactive output the system produces
+   - Conceptual visualization of the novel/hardest technique
+
+   **Never generate:**
+   - Screenshots of code (not useful for the target reader)
+   - Class diagrams or UML (too developer-focused for the ME audience)
+
+6. **Build the glossary list:** Every CS/ML term that will appear in the document, with draft definitions at the right depth. Plan bookmark names for each entry (convention: `_glossary_` + lowercase_underscored_name). The glossary will be the hyperlink target for first-occurrence terms in the body text.
 
 Present this plan to the user before writing. Format as a brief outline showing:
 - Proposed sidebar topics
@@ -182,7 +216,7 @@ Present this plan to the user before writing. Format as a brief outline showing:
 Write each section following the proven patterns:
 
 **Executive Summary:**
-- Key Concept Sidebars (2-3) at the top
+- Key Concept Sidebars (2-3) at the top — these are pedagogical gateways for the most foundational concepts only; all other terms use the glossary hyperlink mechanism
 - What goes in → what comes out (one sentence)
 - Problem context (why the status quo fails)
 - What the system does (high-level, naming major phases)
@@ -193,10 +227,14 @@ Write each section following the proven patterns:
 - 2-4 subsections, each a skeptic's question
 - 3-column comparison tables where applicable
 - Concrete data and failure modes, not abstract arguments
+- Include actual benchmark data when available (e.g., evaluation precision/recall)
+- Include a cost/benefit summary table for the overall system vs. alternatives
 
 **Worked Example:**
 - Show the actual input (raw data, article text, etc.)
 - Explain why this example demonstrates the system's capabilities
+- **Prefer real examples from production output** when available — they are automatically accurate and carry more weight with the reader
+- If a fabricated example is necessary, state explicitly: "This is a representative example constructed to illustrate the process" — never present fabricated data as production output
 
 **Stage-by-Stage / Component Walkthrough:**
 For each stage or component, follow this template:
@@ -227,12 +265,53 @@ For each stage or component, follow this template:
 **How to Evaluate This System** (if appropriate):
 - Decision-maker-oriented questions with pointers to answers
 
+**Known Limitations and Coverage Gaps:**
+This is a standard section for every document — the ME reader treats this as the specification sheet. Every product has specs AND limitations. Include:
+- What the system does not cover (explicit scope boundaries)
+- What data it excludes and why
+- Edge cases it handles poorly or not at all
+- Known accuracy limitations (false positive rates, failure modes)
+- Scale or performance boundaries
+
+**Current Operational State / Config Snapshot** (if the project has a production deployment):
+Auto-populate from actual config files and latest run output:
+- Current deployment topology (what runs where)
+- Latest run metrics (pair counts, timing, cache hit rates — sourced from output artifacts)
+- Active configuration snapshot (key thresholds, weights, enabled features — pulled from config files)
+- Known issues or operational constraints
+
 **What's Next / Roadmap** (if applicable):
 - Planned improvements and known gaps
 
 **Technical Glossary:**
 - Dependency-ordered, not alphabetical
 - Every term annotated inline at first use in the body
+- Every entry bookmarked as a hyperlink target
+- First body-text occurrence of each term hyperlinked to its glossary entry
+- Key Concept sidebar boxes (2-3) for the most foundational concepts remain as pedagogical gateways; the hyperlinked glossary handles all other terms
+
+<!-- ═══════════════════════════════════════════════════════════════════
+  PHASE 3.5: VERIFICATION AGAINST RUNTIME DATA
+
+  Every claim in the document must be verifiable. This phase catches
+  stale thresholds, outdated counts, and features described as active
+  that are actually disabled. Run this BEFORE assembling the final
+  document — it's cheaper to fix claims in draft than in formatted output.
+  ═══════════════════════════════════════════════════════════════════ -->
+
+### Phase 3.5: Verification Against Runtime Data
+
+Before assembling the final document, verify every factual claim against the actual project state:
+
+1. **Config verification:** Read config files (YAML, JSON, .env) and confirm that every threshold, weight, or setting mentioned in the document matches the current config values. Flag any discrepancies.
+
+2. **Production numbers verification:** Cross-reference every number cited in the document (article counts, pair counts, timing, accuracy metrics) against actual pipeline output, logs, or metrics files. Every production number must be sourced from actual output, not estimated from code.
+
+3. **Feature state verification:** For every feature described in the document, check the production config to determine whether it is enabled or disabled. Features that are disabled in config must not be described as part of the standard processing flow (see Writing Guidelines: "Available vs Active Features").
+
+4. **Staleness check:** Run `git log --since` against the date the document was last generated (or the date of the output artifacts used for production numbers). Flag any changes that would invalidate document claims.
+
+5. **Flag for review:** Present any stale, incorrect, or unverifiable claims to the user before proceeding to assembly. Do not silently correct — the user needs to see what changed.
 
 <!-- ═══════════════════════════════════════════════════════════════════
   PHASE 4: DOCUMENT ASSEMBLY
@@ -276,12 +355,21 @@ The CLI tool is at `C:\Users\Troy Davis\dev\tools\doc-builder` and handles:
 - Developer section labeling (italic "Technical Reference" labels)
 - Footnote creation
 
+**Document Freshness Metadata:** Include a metadata block at the end of the document (or as a document property) with:
+- **Generated:** date of document generation (ISO 8601)
+- **Git commit:** the HEAD commit hash at generation time
+- **Pipeline run:** version or run ID used for production numbers (if applicable)
+- **Last verified:** date when claims were last checked against runtime data
+
+This metadata supports the `--update` mode (enables diff detection) and tells readers how current the document is.
+
 ### Phase 5: Review
 
 After generating the document:
 1. Report the document structure (section count, page estimate, glossary entries, images)
-2. Ask if the user wants to review before finalizing
-3. If `--generate-images` was used, note which images were generated
+2. **Glossary hyperlink coverage check:** Verify that every glossary term has at least one body-text hyperlink pointing to it. Report any gaps (terms defined in the glossary but never hyperlinked from the body text). These gaps mean the reader has no navigation path to that definition.
+3. Ask if the user wants to review before finalizing
+4. If `--generate-images` was used, note which images were generated
 
 <!-- ═══════════════════════════════════════════════════════════════════
   WRITING GUIDELINES
@@ -307,12 +395,19 @@ After generating the document:
 
 ### Accessibility Rules (baked in from the start)
 <!-- These are non-negotiable. Every one was learned from review feedback. -->
-1. **Every technical term gets an inline definition at first use** — not just in the glossary
+1. **Every technical term gets an inline definition at first use AND a hyperlink to the glossary** — the inline definition is the primary explanation, the glossary hyperlink is the navigation path for readers who need to revisit the definition later
 2. **Replace developer jargon** — code class names become plain language
 3. **Remove mathematical formulas** — replace with plain descriptions of what they accomplish
 4. **Physical-world analogies** — paint samples for embeddings, ingredient lists for TF-IDF, book indexes for inverted indexes, quality inspection for cross-encoders
 5. **Consequence-based reasoning** — "if you skip this, here's what breaks" earns trust with engineers
 6. **Each document is self-contained** — never assume the reader has read another document
+
+### Available vs Active Features
+<!-- Features described as active must match production config. Misleading feature descriptions erode trust. -->
+- **Check the actual production config** (YAML, JSON, .env) to determine which features are enabled vs disabled
+- **Describe the active production configuration as the primary path** — this is what the system actually does today
+- **Document disabled-but-available features in a clearly labeled "Available Extensions" section**, separate from the standard processing flow. Do not weave disabled features into stage descriptions as though they are part of normal operation.
+- The test: if someone reads the stage walkthrough and cross-checks against the running config, do they match?
 
 ### What NOT to include
 - Code snippets (unless they're configuration examples essential for operators)
@@ -347,3 +442,15 @@ After generating the document:
 8. **Production numbers earn credibility.** "137,000 atoms" and "sub-second retrieval" are more convincing than "a lot of knowledge" and "fast responses."
 
 9. **Scope the document to the project's complexity.** A 200-line bookmark validator doesn't need 25 pages. A 16-stage ML pipeline does. Let the project dictate depth.
+
+10. **Glossary terms must be navigable via hyperlinks.** The glossary is only useful if readers can get to it from the body text. Every glossary term's first body-text occurrence should be an internal hyperlink to the glossary entry. This replaces the "see glossary" parenthetical pattern — hyperlinks are cleaner and less verbose. The doc-builder tool should generate bookmarks on glossary entries and hyperlinks on first occurrences automatically.
+
+11. **TOC is mandatory for documents over 5 pages.** Every document with more than ~5 pages of content needs a Table of Contents. Include H2 and H3 scope (add H4 if the document uses it for meaningful content). The doc-builder should generate a TOC field automatically.
+
+12. **Never embed images inside heading paragraphs.** When docx-js or the doc-builder places an anchored image, it must be in its own paragraph — not sharing a `<w:p>` with a heading. Images in heading paragraphs break outline view, corrupt TOC entries, and cause the heading text to render as part of the image float. Always create a separate body paragraph for the image, placed before or after the heading.
+
+13. **Each numbered list needs an independent numbering ID.** In OOXML, paragraphs sharing the same numId are treated as a single continuous list. If the document has 3 separate numbered lists (e.g., classification steps, workflow steps, scoring criteria), each needs its own numId with a startOverride. Without this, the second list continues from the first (numbering as 5, 6, 7 instead of 1, 2, 3). The doc-builder should assign unique numbering references per list group.
+
+14. **Features described as active must be verified against config.** Documents that describe disabled features as part of the standard processing flow mislead readers and erode trust when cross-checked against the running system. Always read the production config to determine what is actually enabled before writing stage descriptions.
+
+15. **Production numbers fabricated from code analysis are the #1 source of document inaccuracy.** Code tells you what the system *can* do; output artifacts tell you what it *did* do. Always source counts, timing, accuracy metrics, and threshold values from actual pipeline output, logs, or config files — never estimate them by reading the code.
