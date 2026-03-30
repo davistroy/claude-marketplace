@@ -180,6 +180,8 @@ plugins/
         SKILL.md            # Analyze technical documents for CS/ML concepts and add explanation annotations for non-CS readers
       explain-project/
         SKILL.md            # Generate comprehensive annotated technical overview document for non-technical stakeholders
+      lab-notebook/
+        SKILL.md            # Initialize mandatory experiment logging with scientific notebook, ADR, and postmortem patterns
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
       api-key-setup.md      # Bitwarden-based API key setup workflow

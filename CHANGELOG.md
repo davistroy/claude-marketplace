@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v1.3.0] - 2026-03-30
+
+### Changed
+- Bumped `marketplace_version` from 1.2.0 to 1.3.0
+
+## [personal-plugin v6.4.0] - 2026-03-30
+
+### Added
+- `lab-notebook` skill — initialize mandatory experiment logging combining scientific notebook, ADR, and incident postmortem patterns
+- GITHUB_ERRORS.md error check log tracked at repo root
+
+### Changed
+- Enhanced `explain-project` skill with `--update` incremental mode, runtime data verification phase (Phase 3.5), glossary hyperlink navigation, production number sourcing rules, document freshness metadata, and "Known Limitations" / "Operational State" sections
+- Updated README.md skill count and table (15 → 16 skills)
+- Updated CLAUDE.md directory listing with lab-notebook skill
+- Updated help skill with lab-notebook entry
+
 ## [personal-plugin v6.3.0] - 2026-03-27
 
 ### Added
