@@ -365,14 +365,21 @@ When starting a new session on a project with an existing notebook, add a sessio
 
 This traces context switches between sessions and helps explain gaps, changes in approach, or fresh perspectives. Read the Decision Log and Open Action Items before starting work — they are your orientation to current state.
 
+### Rule 11: Log Before You Commit
+
+**BLOCKING PRECONDITION on `git commit`:** Before every commit that touches application code (not just docs), the LAB_NOTEBOOK.md must have a current entry covering what you're about to commit. If the entry doesn't exist yet, create it before staging files. One entry can cover multiple related commits, but the entry must be written BEFORE the first commit in that sequence, not after.
+
+This is the rule that prevents batching. It's easy to skip a "log results" step. It's harder to skip when the log IS the commit workflow.
+
 ### Enforcement
 
 These rules are BLOCKING PRECONDITIONS, not suggestions. The mechanical process is:
 1. Create/update entry with Hypothesis + Rollback Plan
 2. Execute the action
 3. Log the result immediately
-4. Update Decision Log and Action Items if applicable
-5. Repeat
+4. **Before `git commit`: verify the notebook entry exists and covers this change**
+5. Update Decision Log and Action Items if applicable
+6. Repeat
 
 There are NO exceptions for "quick" changes, "obvious" fixes, or "simple" tests. The cost of logging is seconds. The cost of NOT logging is hours of forensic reconstruction when a session crashes.
 ```
@@ -386,7 +393,7 @@ After creating both files:
    - Decision Log table (populated with decisions mined from existing docs)
    - Action Items table (populated with open items from handoff/progress files)
    - At least one entry (Entry 001)
-2. Confirm `CLAUDE.md` has the "Lab Notebook — MANDATORY Logging Protocol" section with all 10 rules, adapted with project-specific examples and tags
+2. Confirm `CLAUDE.md` has the "Lab Notebook — MANDATORY Logging Protocol" section with all 11 rules, adapted with project-specific examples and tags
 3. Report to the user: "Lab notebook initialized. {N} prior work items synthesized. {N} decisions tracked. {N} action items captured. All future actions will be logged."
 
 ### On `entry "title"`:
@@ -432,7 +439,7 @@ The lab notebook doesn't replace other documentation patterns — it complements
 
 **Three layers of enforcement:**
 
-1. **CLAUDE.md rules** (highest priority instruction layer) — survive session crashes, context compression, and new conversations. Written as blocking preconditions, not suggestions. 10 rules covering the full lifecycle from hypothesis to follow-up.
+1. **CLAUDE.md rules** (highest priority instruction layer) — survive session crashes, context compression, and new conversations. Written as blocking preconditions, not suggestions. 11 rules covering the full lifecycle from hypothesis to follow-up, with Rule 11 tying logging to the git commit cycle to prevent batch-logging.
 
 2. **Living sections** (Decision Log + Action Items at top of notebook) — force continuous maintenance, not just append-only logging. Decisions have lifecycle tracking (ACTIVE → SUPERSEDED). Action items have explicit status. Session boundaries mark context switches.
 
