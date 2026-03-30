@@ -3,6 +3,7 @@ name: research-topic
 description: Orchestrate parallel deep research across multiple LLM providers and synthesize results
 effort: high
 allowed-tools: Read, Write, Bash, WebSearch, WebFetch
+disable-model-invocation: true
 ---
 
 # Multi-Source Deep Research
