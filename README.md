@@ -38,7 +38,7 @@ You can install to different scopes:
 
 ### personal-plugin
 
-23 commands and 16 skills for productivity workflows, code review, document processing, and security analysis.
+23 commands and 19 skills for productivity workflows, code review, document processing, and security analysis.
 
 **23 Commands:**
 | Command | Description |
@@ -67,25 +67,28 @@ You can install to different scopes:
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
 | [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content (supports `--check-updates`) |
 
-**16 Skills:**
+**19 Skills:**
 | Skill | Description |
 |-------|-------------|
+| [`/accessibility-annotator`](plugins/personal-plugin/skills/accessibility-annotator/SKILL.md) | Analyze technical documents and add explanation annotations for non-CS readers |
+| [`/brain-entry`](plugins/personal-plugin/skills/brain-entry/SKILL.md) | Send captures to Open Brain — summarize sessions, log decisions, capture ideas |
+| [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input |
+| [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate comprehensive annotated technical overview document for non-technical stakeholders |
 | [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills with usage information |
+| [`/lab-notebook`](plugins/personal-plugin/skills/lab-notebook/SKILL.md) | Initialize mandatory experiment logging with scientific notebook, ADR, and postmortem patterns |
+| [`/leak-risk-audit`](plugins/personal-plugin/skills/leak-risk-audit/SKILL.md) | Audit datasets for proprietary information leaks before sharing with public/cloud services |
 | [`/plan-gate`](plugins/personal-plugin/skills/plan-gate/SKILL.md) | Assess task complexity and route to the right planning approach |
 | [`/prime`](plugins/personal-plugin/skills/prime/SKILL.md) | Evaluate codebase: purpose, health, status, and recommended next steps |
+| [`/release-plugin`](plugins/personal-plugin/skills/release-plugin/SKILL.md) | Validate plugins, clean repository, and ship plugin releases in one automated workflow |
 | [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | [`/security-analysis`](plugins/personal-plugin/skills/security-analysis/SKILL.md) | Comprehensive security vulnerability scanning with technology-specific patterns |
 | [`/ship`](plugins/personal-plugin/skills/ship/SKILL.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
-| [`/summarize-feedback`](plugins/personal-plugin/skills/summarize-feedback/SKILL.md) | Synthesize employee feedback from Notion into a professional .docx assessment |
-| [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment |
-| [`/validate-and-ship`](plugins/personal-plugin/skills/validate-and-ship/SKILL.md) | Validate plugins, clean repository, and ship changes in one workflow |
-| [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated visual explanations |
-| [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input |
-| [`/leak-risk-audit`](plugins/personal-plugin/skills/leak-risk-audit/SKILL.md) | Audit datasets for proprietary information leaks before sharing with public/cloud services |
+| [`/spark-recon`](plugins/personal-plugin/skills/spark-recon/SKILL.md) | Periodic DGX Spark inference performance landscape scan |
 | [`/spec-to-prototype`](plugins/personal-plugin/skills/spec-to-prototype/SKILL.md) | Build visual HTML/CSS prototypes from spec documents or wireframe descriptions |
-| [`/accessibility-annotator`](plugins/personal-plugin/skills/accessibility-annotator/SKILL.md) | Analyze technical documents and add explanation annotations for non-CS readers |
-| [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate comprehensive annotated technical overview document for non-technical stakeholders |
-| [`/lab-notebook`](plugins/personal-plugin/skills/lab-notebook/SKILL.md) | Initialize mandatory experiment logging with scientific notebook, ADR, and postmortem patterns |
+| [`/summarize-feedback`](plugins/personal-plugin/skills/summarize-feedback/SKILL.md) | Synthesize employee feedback from Notion into a professional .docx assessment |
+| [`/ultra-plan`](plugins/personal-plugin/skills/ultra-plan/SKILL.md) | Structured implementation planning for bug lists, feature requests, or change sets |
+| [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment |
+| [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated visual explanations |
 
 ### bpmn-plugin
 
