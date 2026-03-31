@@ -87,7 +87,34 @@ Use this priority matrix to determine the recommended action. Work through it to
 | **P6 — Unplanned Recommendations** | RECOMMENDATIONS.md exists but no IMPLEMENTATION_PLAN.md | Run `/create-plan` to convert recommendations into an actionable implementation plan. |
 | **P7 — Fresh Assessment** | No plan, no recommendations, repo has code | Run `/plan-improvements` to analyze the codebase and generate recommendations. |
 | **P8 — New Project** | No plan, no recommendations, repo is mostly empty | Define the project's purpose. Create a README.md or PRD, then run `/create-plan`. |
-| **P9 — All Complete** | Plan exists and all items are COMPLETE | Celebrate. Run `/plan-improvements` to find the next round of improvements, or archive the completed plan. |
+| **P9 — All Complete** | Plan exists and all items are COMPLETE | Offer to archive the completed plan (see P9 Archive Workflow below). |
+
+### P9 Archive Workflow
+
+When all items in IMPLEMENTATION_PLAN.md are COMPLETE, present this prompt:
+
+```text
+All [N] items in IMPLEMENTATION_PLAN.md are COMPLETE.
+
+Options:
+  (1) Archive — move to docs/archive/ and clear the workspace
+  (2) Keep — leave the plan in place (e.g., for reference during PR review)
+  (3) Archive and plan next — archive, then run /plan-improvements for the next round
+```
+
+**Option (1) Archive:**
+1. Scan `docs/archive/` for existing `IMPLEMENTATION_PLAN-v*.md` files
+2. Extract the highest version number N (default 0 if none exist)
+3. Create `docs/archive/` directory if it doesn't exist
+4. Move the plan file to `docs/archive/IMPLEMENTATION_PLAN-v{N+1}.md`
+5. Report: `Archived completed plan as docs/archive/IMPLEMENTATION_PLAN-v{N+1}.md`
+
+**Option (2) Keep:**
+Do nothing. Mention they can archive later by running `/plan-next` again.
+
+**Option (3) Archive and plan next:**
+Run the archive steps from option (1), then suggest: `"Plan archived. Run /plan-improvements to analyze the codebase for the next round of improvements."`
+Do NOT auto-invoke `/plan-improvements` — it's a heavy command the user should trigger deliberately.
 
 ## Output Format
 

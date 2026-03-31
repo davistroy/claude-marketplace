@@ -430,6 +430,30 @@ For each phase, verify:
 
 - **If the file does NOT exist:** Create it fresh with the full structure below.
 - **If the file DOES exist:**
+
+  **First, check if ALL work items are COMPLETE.** Scan every `**Status:**` field in the file. If every item has `Status: COMPLETE`, the plan is finished. Present this prompt:
+
+  ```text
+  Existing IMPLEMENTATION_PLAN.md found with all [N] items COMPLETE.
+
+  Options:
+    (1) Archive and create fresh — move completed plan to docs/archive/, generate new plan
+    (2) Append — add new phases after the completed ones (preserves history in one file)
+  ```
+
+  **Option (1) Archive and create fresh:**
+  1. Scan `docs/archive/` for existing `IMPLEMENTATION_PLAN-v*.md` files
+  2. Extract the highest version number N (default 0 if none exist)
+  3. Create `docs/archive/` directory if it doesn't exist
+  4. Move the plan file to `docs/archive/IMPLEMENTATION_PLAN-v{N+1}.md`
+  5. Report: `Archived completed plan as docs/archive/IMPLEMENTATION_PLAN-v{N+1}.md`
+  6. Then create a fresh IMPLEMENTATION_PLAN.md using the full structure below.
+
+  **Option (2) Append:** Proceed with the append logic below.
+
+  **If NOT all items are COMPLETE** (some are PENDING or IN_PROGRESS), proceed directly to the append logic below.
+
+  **Append logic:**
   1. Read the existing file
   2. Locate the machine-readable markers to find insertion points:
      - `<!-- BEGIN PHASES -->` / `<!-- END PHASES -->` — bracket all phase sections
