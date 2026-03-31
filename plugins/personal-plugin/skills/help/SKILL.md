@@ -71,6 +71,8 @@ SKILLS
 | /accessibility-annotator | Analyze technical documents and add explanation annotations for non-CS... |
 | /explain-project | Generate comprehensive annotated technical overview for non-technical... |
 | /lab-notebook | Initialize mandatory experiment logging with scientific notebook, ADR, and... |
+| /spark-recon | Periodic DGX Spark performance landscape scan — Arena, vLLM, models, forum |
+| /ultra-plan | Deep investigation, interaction mapping, and integrated solution design for... |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
@@ -521,6 +523,29 @@ Save the report to a file using the Write tool:
 
 ---
 
+#### /spark-recon
+**Description:** Periodic DGX Spark performance landscape scan — Arena leaderboard, vLLM releases, spark-vllm-docker builds, Qwen models, and NVIDIA forum
+**Arguments:** None required
+**Output:** Console report + LAB_NOTEBOOK.md entry + SPARK_BASELINE.md update (with confirmation)
+**Example:**
+```
+/spark-recon
+```
+
+---
+
+#### /ultra-plan
+**Description:** Deep investigation, interaction mapping, and integrated solution design for bug lists, feature requests, or change sets. Produces a formal IMPLEMENTATION_PLAN.md via /create-plan.
+**Arguments:** Provide a bug list, feature request list, change set, or review document
+**Output:** IMPLEMENTATION_PLAN.md (via /create-plan after approval)
+**Example:**
+```
+/ultra-plan
+/ultra-plan Here are 5 bugs found during testing: [list]
+```
+
+---
+
 ## Error Handling
 
 If the requested command is not found:
@@ -531,5 +556,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
-  /accessibility-annotator, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /spec-to-prototype, /summarize-feedback, /unlock, /validate-and-ship, /visual-explainer
+  /accessibility-annotator, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /validate-and-ship, /visual-explainer
 ```
