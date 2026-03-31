@@ -386,8 +386,8 @@ This is a breaking change for users with muscle memory for `/validate-and-ship`.
 
 ---
 
-#### 4.2 Add cross-references to planning commands and pipeline components (Items 9, 10)
-**Status: PENDING**
+#### 4.2 Add cross-references to planning commands and pipeline components (Items 9, 10) ✅
+**Status: COMPLETE [2026-03-31]**
 **Recommendation Ref:** Items 9, 10
 **Files Affected:**
 - `plugins/personal-plugin/commands/create-plan.md` (modify — add "See also" after description)
@@ -400,24 +400,24 @@ This is a breaking change for users with muscle memory for `/validate-and-ship`.
 Add brief cross-references to help users choose the right planning command and discover the combined pipeline workflow.
 
 **Tasks:**
-1. [ ] Add to `create-plan.md` after the Overview section: "**See also:** `/plan-improvements` for codebase-driven improvements. `/ultra-plan` for issue/bug lists requiring deep investigation."
-2. [ ] Add to `plan-improvements.md` after description: "**See also:** `/create-plan` for requirements-driven planning. `/ultra-plan` for issue/bug lists."
-3. [ ] Add to `ultra-plan/SKILL.md` after description: "**See also:** `/create-plan` for requirements-driven planning. `/plan-improvements` for codebase analysis."
-4. [ ] Add to `define-questions.md` after line 9: "**Pipeline component:** This command extracts questions to JSON. For the combined extract→answer→update workflow, use `/finish-document`."
-5. [ ] Add to `ask-questions.md` after line 9: "**Pipeline component:** This command walks through a JSON question file. For the combined extract→answer→update workflow, use `/finish-document`."
+1. [x] Add to `create-plan.md` after the Overview section: "**See also:** `/plan-improvements` for codebase-driven improvements. `/ultra-plan` for issue/bug lists requiring deep investigation."
+2. [x] Add to `plan-improvements.md` after description: "**See also:** `/create-plan` for requirements-driven planning. `/ultra-plan` for issue/bug lists."
+3. [x] Add to `ultra-plan/SKILL.md` after description: "**See also:** `/create-plan` for requirements-driven planning. `/plan-improvements` for codebase analysis."
+4. [x] Add to `define-questions.md` after line 9: "**Pipeline component:** This command extracts questions to JSON. For the combined extract→answer→update workflow, use `/finish-document`."
+5. [x] Add to `ask-questions.md` after line 9: "**Pipeline component:** This command walks through a JSON question file. For the combined extract→answer→update workflow, use `/finish-document`."
 
 **Acceptance Criteria:**
-- [ ] Each planning command references the other two
-- [ ] Pipeline components point to `/finish-document`
-- [ ] No changes to command behavior or frontmatter
+- [x] Each planning command references the other two
+- [x] Pipeline components point to `/finish-document`
+- [x] No changes to command behavior or frontmatter
 
 **Notes:**
 Keep cross-references brief — one or two lines max. These are informational, not behavioral changes.
 
 ---
 
-#### 4.3 Fix help skill and update CLAUDE.md (Items 1, 4, 11)
-**Status: PENDING**
+#### 4.3 Fix help skill and update CLAUDE.md (Items 1, 4, 11) ✅
+**Status: COMPLETE [2026-03-31]**
 **Recommendation Ref:** Items 1, 4, 11
 **Files Affected:**
 - `plugins/personal-plugin/skills/help/SKILL.md` (modify — add spark-recon, rename validate-and-ship → release-plugin, fix examples)

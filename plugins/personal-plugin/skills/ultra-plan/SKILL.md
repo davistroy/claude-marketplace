@@ -9,6 +9,8 @@ ultrathink
 
 Build a detailed, architecturally sound implementation plan for the provided issues, changes, updates, or features. This is a **rigid workflow** -- follow every phase in order. Do not skip phases or combine them. Each phase produces a distinct deliverable that gates the next.
 
+> **See also:** `/create-plan` for requirements-driven planning. `/plan-improvements` for codebase analysis and improvement recommendations.
+
 ## Inputs
 
 The user provides one or more of:

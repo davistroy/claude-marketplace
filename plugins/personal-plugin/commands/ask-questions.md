@@ -8,6 +8,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep
 
 Interactively walk the user through answering questions from a JSON file produced by the `/define-questions` command.
 
+> **Pipeline component:** This command walks through a JSON question file interactively. For the combined extract → answer → update workflow, use `/finish-document`.
+
 ## Input Validation
 
 **Required Arguments:**

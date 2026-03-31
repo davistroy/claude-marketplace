@@ -7,7 +7,7 @@ description: Show available commands and skills in this plugin with usage inform
 
 Display help information for the personal-plugin commands and skills.
 
-**IMPORTANT:** This skill must be updated whenever commands or skills are added, changed, or removed from this plugin.
+**Note:** This skill uses a static table that must be manually updated when commands or skills are added, changed, or removed.
 
 ## Usage
 
@@ -66,12 +66,12 @@ SKILLS
 | /spec-to-prototype | Use when the user has a spec document, design system reference, component... |
 | /summarize-feedback | Synthesize employee feedback from Notion Voice Captures into a professional... |
 | /unlock | Load secrets from Bitwarden Secrets Manager into environment using bws CLI |
-| /validate-and-ship | Validate plugins, clean repository, and ship changes in one automated workflow |
+| /release-plugin | Validate plugins, clean repository, and ship plugin releases in one automated workflow |
 | /visual-explainer | Transform text or documents into AI-generated infographic pages that explain... |
 | /accessibility-annotator | Analyze technical documents and add explanation annotations for non-CS... |
 | /explain-project | Generate comprehensive annotated technical overview for non-technical... |
 | /lab-notebook | Initialize mandatory experiment logging with scientific notebook, ADR, and... |
-| /spark-recon | Periodic DGX Spark performance landscape scan — Arena, vLLM, models, forum |
+| /spark-recon | Use when checking on DGX Spark inference performance landscape |
 | /ultra-plan | Deep investigation, interaction mapping, and integrated solution design for... |
 
 ---
@@ -363,7 +363,7 @@ Save the report to a file using the Write tool:
 **Output:** Generated output file
 **Example:**
 ```
-/SKILL
+/evaluate-pipeline-output ./output/run-2026-03-31
 ```
 
 ---
@@ -374,7 +374,8 @@ Save the report to a file using the Write tool:
 **Output:** Generated output file
 **Example:**
 ```
-/SKILL
+/leak-risk-audit ./data/export-2026-03-31/
+/leak-risk-audit ./dataset.jsonl --glossary terms.json
 ```
 
 ---
@@ -385,7 +386,7 @@ Save the report to a file using the Write tool:
 **Output:** In-conversation output
 **Example:**
 ```
-/SKILL
+/plan-gate
 ```
 
 ---
@@ -396,7 +397,8 @@ Save the report to a file using the Write tool:
 **Output:** Generated output file
 **Example:**
 ```
-/SKILL
+/prime
+/prime /path/to/repo
 ```
 
 ---
@@ -407,7 +409,8 @@ Save the report to a file using the Write tool:
 **Output:** In-conversation output
 **Example:**
 ```
-/SKILL
+/research-topic "comparison of vLLM vs TensorRT-LLM for GB10"
+/research-topic --depth deep --sources anthropic,openai "RAG vs fine-tuning tradeoffs"
 ```
 
 ---
@@ -418,7 +421,8 @@ Save the report to a file using the Write tool:
 **Output:** reports/security-analysis-[YYYYMMDD-HHMMSS].md
 **Example:**
 ```
-/SKILL
+/security-analysis
+/security-analysis --quick --dependencies-only
 ```
 
 ---
@@ -429,7 +433,8 @@ Save the report to a file using the Write tool:
 **Output:** Generated output file
 **Example:**
 ```
-/SKILL
+/ship feat/my-branch
+/ship feat/quick-fix draft
 ```
 
 ---
@@ -440,7 +445,8 @@ Save the report to a file using the Write tool:
 **Output:** Generated output file
 **Example:**
 ```
-/SKILL
+/spec-to-prototype ./docs/wireframe-spec.md
+/spec-to-prototype ./design-system.md
 ```
 
 ---
@@ -451,7 +457,8 @@ Save the report to a file using the Write tool:
 **Output:** Generated output file
 **Example:**
 ```
-/SKILL
+/summarize-feedback employee_name="Jane Doe" days=30
+/summarize-feedback employee_name="John Smith" start_date=2026-03-01 end_date=2026-03-31
 ```
 
 ---
@@ -462,18 +469,19 @@ Save the report to a file using the Write tool:
 **Output:** In-conversation output
 **Example:**
 ```
-/SKILL
+/unlock
 ```
 
 ---
 
-#### /validate-and-ship
-**Description:** Validate plugins, clean repository, and ship changes in one automated workflow
+#### /release-plugin
+**Description:** Validate plugins, clean repository, and ship plugin releases in one automated workflow
 **Arguments:** [--skip-validate] [--skip-cleanup] [--skip-ship] [--dry-run] [<branch-name>]
 **Output:** Generated output file
 **Example:**
 ```
-/SKILL
+/release-plugin --dry-run
+/release-plugin feat/v7-release
 ```
 
 ---
@@ -484,7 +492,8 @@ Save the report to a file using the Write tool:
 **Output:** In-conversation output
 **Example:**
 ```
-/SKILL
+/visual-explainer ./docs/architecture-overview.md
+/visual-explainer "How container orchestration works"
 ```
 
 ---
@@ -556,5 +565,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
-  /accessibility-annotator, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /research-topic, /security-analysis, /ship, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /validate-and-ship, /visual-explainer
+  /accessibility-annotator, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /release-plugin, /research-topic, /security-analysis, /ship, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /visual-explainer
 ```

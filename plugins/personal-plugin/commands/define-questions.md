@@ -8,6 +8,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep
 
 Analyze the document specified by the user and extract all questions, open items, areas needing clarification, and incomplete sections into a comprehensive, downloadable JSON file.
 
+> **Pipeline component:** This command extracts questions to JSON. For the combined extract → answer → update workflow, use `/finish-document`.
+
 ## Input Validation
 
 **Required Arguments:**
