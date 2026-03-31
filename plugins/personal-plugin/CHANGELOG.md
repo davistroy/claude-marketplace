@@ -5,6 +5,26 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.5.0] - 2026-03-31
+
+### Added
+- New `ultra-plan` skill — Structured implementation planning for bug lists, feature requests, or change sets with deep investigation and interaction mapping
+- New `spark-recon` skill — Periodic intelligence scan of DGX Spark inference performance landscape
+- Plan archive-on-completion workflow in `plan-next` (P9) and `create-plan` (auto-detect completed plans)
+- Cross-references between planning commands (`create-plan`, `plan-improvements`, `ultra-plan`)
+- Pipeline component notes in `define-questions` and `ask-questions` pointing to `/finish-document`
+
+### Changed
+- Renamed `validate-and-ship` → `release-plugin` for clarity (plugin-specific release workflow)
+- Updated Anthropic model default from `claude-opus-4-5-20251101` to `claude-opus-4-6-20250725`
+- Updated all provider date annotations to 2026-03-31 (research-topic, visual-explainer, accessibility-annotator)
+- Replaced hardcoded machine paths in `accessibility-annotator` and `explain-project` with environment variable references (`$IMAGE_STYLE_JSON`, `$DOC_STYLE_GUIDE`, `$DOC_BUILDER_PATH`, etc.)
+
+### Fixed
+- Help skill: added missing `spark-recon`, replaced `/SKILL` placeholder examples with real invocations
+- CLAUDE.md: removed false "dynamic Glob-based discovery" claims, added missing skills to structure listing
+- CONTRIBUTING.md: corrected dynamic help references to match static table reality
+
 ## [6.2.0] - 2026-03-23
 
 ### Added
