@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v1.6.0, personal-plugin v6.7.0, bpmn-plugin v3.4.0] - 2026-03-31
+
+### Added
+- Documentation gate in `/ship` skill — enforces LAB_NOTEBOOK.md updates before commit/push
+
+### Fixed
+- personal-plugin hooks.json migrated from deprecated array format to record format
+
+### Changed
+- Updated README.md skills table (16 → 19 skills), replaced stale `validate-and-ship` with `release-plugin`
+- Bumped personal-plugin 6.6.0 → 6.7.0, bpmn-plugin 3.3.0 → 3.4.0, marketplace 1.5.0 → 1.6.0
+- Cleaned 4 stale remote branches, 4 egg-info build artifact directories
+
 ## [marketplace v1.3.0] - 2026-03-30
 
 ### Changed

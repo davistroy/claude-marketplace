@@ -5,6 +5,14 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.7.0] - 2026-03-31
+
+### Added
+- Documentation gate in `/ship` skill (Phase 3.1) — checks for LAB_NOTEBOOK.md and enforces notebook updates before commit/push per CLAUDE.md rules
+
+### Fixed
+- hooks.json migrated from deprecated array format to record-keyed-by-event format (fixes "expected record, received array" plugin load error)
+
 ## [6.6.0] - 2026-03-31
 
 ### Added

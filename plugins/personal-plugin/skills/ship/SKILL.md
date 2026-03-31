@@ -91,8 +91,52 @@ Detect the git hosting platform and select the appropriate CLI:
 git checkout -b <branch-name>
 ```
 
-### Phase 3: Stage and Commit
-- Stage all changes: `git add -A`
+### Phase 3: Documentation Gate, Stage, and Commit
+
+#### 3.1: Documentation Gate
+
+Before staging changes, verify project documentation is current. **LAB_NOTEBOOK.md is a hard gate** — do not proceed to staging until notebook requirements are met.
+
+**LAB_NOTEBOOK.md (Hard Gate):**
+
+1. Check if `LAB_NOTEBOOK.md` exists in the project root
+2. If it does NOT exist — skip this gate entirely
+3. If it exists:
+   a. Read the project's `CLAUDE.md` AND the system-level `~/.claude/CLAUDE.md` for lab notebook rules — the project's CLAUDE.md contains the "Lab Notebook — MANDATORY Logging Protocol" section with the project's logging rules, entry template, and project-specific tags; the system CLAUDE.md may contain additional constraints
+   b. Read the latest entries in `LAB_NOTEBOOK.md` (the Experiment Log section)
+   c. Analyze the current changes (`git diff` and `git diff --cached`) to understand what work was done
+   d. Determine if there's a current entry covering the changes being shipped:
+      - An entry dated today whose objective relates to the changes
+      - An IN PROGRESS entry that covers the current work
+   e. **If no current entry exists** — create one:
+      - Add a new entry following the notebook's template (next sequential Entry number)
+      - Include: Date, Environment (from recent entries or system context), Objective (derived from the changes), Status: COMPLETE
+      - Summarize what was done in Actions & Results
+      - For Hypothesis: reconstruct from the changes — what was the expected outcome?
+      - For Rollback Plan: reference the git SHA before the changes (`git rev-parse HEAD`)
+      - Update the Decision Log and Action Items tables at the top if applicable
+   f. **If a current entry exists but is IN PROGRESS** — close it out:
+      - Update the entry: add final results, set Status to COMPLETE
+      - Fill in Duration if empty
+      - Update What Worked / What Failed based on outcomes
+   g. Notebook updates will be included in the commit at step 3.2
+
+**Other Documentation (Soft Warnings — non-blocking):**
+
+Scan for documentation that may need attention. Report but do NOT halt:
+- `CHANGELOG.md` — warn if it exists and changes include new features or breaking changes
+- `README.md` — warn if changes add new user-facing features, commands, or endpoints
+
+Display results before proceeding:
+```text
+Documentation Gate:
+  LAB_NOTEBOOK.md: [Updated entry E{NNN} | Created entry E{NNN} | Not found (skipped) | Current (no update needed)]
+  Warnings: [list, or "None"]
+```
+
+#### 3.2: Stage and Commit
+
+- Stage all changes (including any notebook updates from 3.1): `git add -A`
 - Analyze the diff to generate a clear, conventional commit message
 - Format: `<type>: <concise description>` (e.g., `feat: add CSV export for user data`)
 - Include a body if changes are complex enough to warrant explanation
@@ -479,7 +523,8 @@ Duration scales with the number of changed files (affects review time) and CI pi
 | Phase 0 | Detect platform (GitHub/Gitea) | CLI selected |
 | Phase 1 | Determine branch name | Branch name confirmed |
 | Phase 2 | Create branch | On new branch |
-| Phase 3 | Stage and commit | Changes committed |
+| Phase 3.1 | Documentation gate | LAB_NOTEBOOK.md updated (if present), doc warnings reported |
+| Phase 3.2 | Stage and commit | Changes committed (including doc updates) |
 | Phase 4 | Push to remote | Branch pushed |
 | Phase 5 | Create PR | PR opened |
 | Phase 6 | Auto-review PR | Issues identified |
