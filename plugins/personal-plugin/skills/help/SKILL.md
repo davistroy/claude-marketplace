@@ -69,6 +69,7 @@ SKILLS
 | /release-plugin | Validate plugins, clean repository, and ship plugin releases in one automated workflow |
 | /visual-explainer | Transform text or documents into AI-generated infographic pages that explain... |
 | /accessibility-annotator | Analyze technical documents and add explanation annotations for non-CS... |
+| /brain-entry | Send a capture to Open Brain — summarize sessions, log decisions, capture ideas |
 | /explain-project | Generate comprehensive annotated technical overview for non-technical... |
 | /lab-notebook | Initialize mandatory experiment logging with scientific notebook, ADR, and... |
 | /spark-recon | Use when checking on DGX Spark inference performance landscape |
