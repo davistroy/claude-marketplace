@@ -284,7 +284,7 @@ For each image location, write a detailed content-specific description and a ful
 
 **If `--generate-images` is ON:**
 1. Load the Google API key from Bitwarden: `bws secret get 74f9abaf-d730-4c4e-b689-b3df01843d65`
-2. Use `google-genai` SDK with model `gemini-3-pro-image-preview`
+2. Use `google-genai` SDK with model `gemini-3-pro-image-preview` (default as of 2026-03-31)
 3. Generate each image with `response_modalities=["IMAGE"]`, aspect ratio 16:9, 300s timeout
 4. Save to `word/media/` in the unpacked document
 5. Add relationship entry to `word/_rels/document.xml.rels`

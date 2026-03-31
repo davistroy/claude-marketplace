@@ -193,8 +193,8 @@ No code changes required. One finding flagged: `nickyu42/spark-vllm-docker` repo
 
 ### Work Items
 
-#### 2.1 Update Anthropic model default in research-topic (Item 2)
-**Status: PENDING**
+#### 2.1 Update Anthropic model default in research-topic (Item 2) ✅
+**Status: COMPLETE [2026-03-31]**
 **Recommendation Ref:** Item 2
 **Files Affected:**
 - `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify line 44)
@@ -207,27 +207,27 @@ No code changes required. One finding flagged: `nickyu42/spark-vllm-docker` repo
 Replace `claude-opus-4-5-20251101` with `claude-opus-4-6-20250725` (the current Opus 4.6 model ID) in all non-test files. Update all "default as of 2026-03-04" annotations to "default as of 2026-03-31". Leave OpenAI and Gemini defaults as-is with "verify with provider" notes since we cannot confirm their current model IDs.
 
 **Tasks:**
-1. [ ] Update `research-topic/SKILL.md` line 44: model default and date
-2. [ ] Update `research-models.md` lines 19, 33-35, 64: model name and Last Verified date
-3. [ ] Update `api-key-setup.md` line 36: example ANTHROPIC_MODEL value
-4. [ ] Update `providers/anthropic.py` line 16: DEFAULT_MODEL constant
-5. [ ] Update `research-orchestrator/README.md` line 92: model reference
-6. [ ] Update date annotations on OpenAI/Gemini entries in research-models.md to 2026-03-31
-7. [ ] Verify: `grep -r "claude-opus-4-5" plugins/` returns only test files and archived docs
+1. [x] Update `research-topic/SKILL.md` line 44: model default and date
+2. [x] Update `research-models.md` lines 19, 33-35, 64: model name and Last Verified date
+3. [x] Update `api-key-setup.md` line 36: example ANTHROPIC_MODEL value
+4. [x] Update `providers/anthropic.py` line 16: DEFAULT_MODEL constant
+5. [x] Update `research-orchestrator/README.md` line 92: model reference
+6. [x] Update date annotations on OpenAI/Gemini entries in research-models.md to 2026-03-31
+7. [x] Verify: `grep -r "claude-opus-4-5" plugins/` returns only test files and archived docs
 
 **Acceptance Criteria:**
-- [ ] No non-test, non-archive file references `claude-opus-4-5-20251101`
-- [ ] All "Last Verified" dates updated to 2026-03-31
-- [ ] Test files unchanged (they test model name parsing)
-- [ ] `research-orchestrator` Python code compiles without errors
+- [x] No non-test, non-archive file references `claude-opus-4-5-20251101`
+- [x] All "Last Verified" dates updated to 2026-03-31
+- [x] Test files unchanged (they test model name parsing)
+- [x] `research-orchestrator` Python code compiles without errors
 
 **Notes:**
 The current model is `claude-opus-4-6`. The exact dated ID is `claude-opus-4-6-20250725` based on system information showing "Opus 4.6" as current. If the Anthropic API doesn't accept this ID, fall back to `claude-opus-4-6` (the family alias).
 
 ---
 
-#### 2.2 Update date annotations in visual-explainer and accessibility-annotator (Item 6)
-**Status: PENDING**
+#### 2.2 Update date annotations in visual-explainer and accessibility-annotator (Item 6) ✅
+**Status: COMPLETE [2026-03-31]**
 **Recommendation Ref:** Item 6
 **Files Affected:**
 - `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify lines 49, 125)
@@ -237,13 +237,13 @@ The current model is `claude-opus-4-6`. The exact dated ID is `claude-opus-4-6-2
 Update "default as of 2026-03-04" date annotations to "default as of 2026-03-31" for the Gemini image model references. Keep `gemini-3-pro-image-preview` as the model name since we cannot verify it without a Google API call — the `$GOOGLE_IMAGE_MODEL` env var override handles model changes at runtime.
 
 **Tasks:**
-1. [ ] Update date annotation in `visual-explainer/SKILL.md` line 49
-2. [ ] Update date annotation in `visual-explainer/SKILL.md` line 125
-3. [ ] Update date annotation in `accessibility-annotator/SKILL.md` line 287
+1. [x] Update date annotation in `visual-explainer/SKILL.md` line 49
+2. [x] Update date annotation in `visual-explainer/SKILL.md` line 125
+3. [x] Update date annotation in `accessibility-annotator/SKILL.md` line 287 (added date annotation — original had none)
 
 **Acceptance Criteria:**
-- [ ] All Gemini model date annotations show 2026-03-31
-- [ ] Model name `gemini-3-pro-image-preview` unchanged (env var handles runtime overrides)
+- [x] All Gemini model date annotations show 2026-03-31
+- [x] Model name `gemini-3-pro-image-preview` unchanged (env var handles runtime overrides)
 
 **Notes:**
 The visual-explainer Python tool also has the model name in `image_generator.py` and `config.py` — those date comments should also be updated if they contain date annotations.

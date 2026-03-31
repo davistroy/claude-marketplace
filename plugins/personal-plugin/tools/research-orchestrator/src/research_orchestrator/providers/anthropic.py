@@ -13,7 +13,7 @@ from research_orchestrator.providers.base import BaseProvider
 class AnthropicProvider(BaseProvider):
     """Anthropic Claude provider using extended thinking."""
 
-    DEFAULT_MODEL = "claude-opus-4-5-20251101"
+    DEFAULT_MODEL = "claude-opus-4-6-20250725"
 
     @classmethod
     def get_model(cls) -> str:
