@@ -178,6 +178,8 @@ plugins/
         SKILL.md            # Build visual HTML/CSS prototypes from spec documents or wireframe descriptions
       accessibility-annotator/
         SKILL.md            # Analyze technical documents for CS/ML concepts and add explanation annotations for non-CS readers
+      brain-entry/
+        SKILL.md            # Send captures to Open Brain — summarize sessions, log decisions, capture ideas
       explain-project/
         SKILL.md            # Generate comprehensive annotated technical overview document for non-technical stakeholders
       lab-notebook/

@@ -510,6 +510,18 @@ Save the report to a file using the Write tool:
 
 ---
 
+#### /brain-entry
+**Description:** Send a capture to Open Brain — summarize sessions, log decisions, capture ideas
+**Arguments:** <instruction> (what to generate and send)
+**Output:** POST to Open Brain captures API
+**Example:**
+```
+/brain-entry summarize everything we did in this session
+/brain-entry log a decision: we chose Cloudflare for email ingestion
+```
+
+---
+
 #### /explain-project
 **Description:** Generate comprehensive annotated technical overview document for non-technical stakeholders
 **Arguments:** [<project-path>]
@@ -566,5 +578,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
-  /accessibility-annotator, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /release-plugin, /research-topic, /security-analysis, /ship, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /visual-explainer
+  /accessibility-annotator, /brain-entry, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /release-plugin, /research-topic, /security-analysis, /ship, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /visual-explainer
 ```
