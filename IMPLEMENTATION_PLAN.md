@@ -279,8 +279,8 @@ The visual-explainer Python tool also has the model name in `image_generator.py`
 
 ### Work Items
 
-#### 3.1 Replace hardcoded paths in accessibility-annotator (Item 3)
-**Status: PENDING**
+#### 3.1 Replace hardcoded paths in accessibility-annotator (Item 3) ✅
+**Status: COMPLETE [2026-03-31]**
 **Recommendation Ref:** Item 3
 **Files Affected:**
 - `plugins/personal-plugin/skills/accessibility-annotator/SKILL.md` (modify lines 57, 287, 294)
@@ -304,8 +304,8 @@ The `--style-json` flag already exists and works. The issue is only the default 
 
 ---
 
-#### 3.2 Replace hardcoded paths in explain-project (Item 3)
-**Status: PENDING**
+#### 3.2 Replace hardcoded paths in explain-project (Item 3) ✅
+**Status: COMPLETE [2026-03-31]**
 **Recommendation Ref:** Item 3
 **Files Affected:**
 - `plugins/personal-plugin/skills/explain-project/SKILL.md` (modify lines 68-69, 158, 349)

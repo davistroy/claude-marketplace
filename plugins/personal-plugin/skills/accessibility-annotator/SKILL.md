@@ -27,6 +27,7 @@ effort: high
   and thresholds. Understands quality gates and structured problem-solving.
 
   COMPANION TOOLS:
+  Paths below are defaults on the author's machine. Override via --style-json flag or environment variables.
   - CFA Style Guide: C:\Users\Troy Davis\dev\info\CFA_Word_Style_Guide.md
   - Image style: C:\Users\Troy Davis\dev\info\clean-style-sanitized.json
   - Image learnings: C:\Users\Troy Davis\dev\info\gemini-image-generation-learnings.md
@@ -54,7 +55,7 @@ Two required arguments (positional or prompted):
 
 Optional flags:
 - `--generate-images` -- Generate diagrams via Google Gemini and insert them directly into the document (default: OFF — costs money). When off, insert teal-bordered placeholder boxes with full generation prompts instead.
-- `--style-json PATH` -- Path to the image style JSON for Nano Banana Pro prompt construction (default: `C:\Users\Troy Davis\dev\info\clean-style-sanitized.json`)
+- `--style-json PATH` -- Path to the image style JSON for Nano Banana Pro prompt construction (default: `$IMAGE_STYLE_JSON` env var if set, otherwise provide via `--style-json` flag. Author's default: `C:\Users\Troy Davis\dev\info\clean-style-sanitized.json`)
 
 Parse from the user's message. If missing, ask for the two required arguments.
 
@@ -280,7 +281,7 @@ Identify 3-5 locations where a generated diagram or illustration would most help
 - Process flow diagrams showing how data moves through stages
 - Dashboard/UI mockups when the document describes interactive tools
 
-For each image location, write a detailed content-specific description and a full generation prompt incorporating the style JSON.
+For each image location, write a detailed content-specific description and a full generation prompt incorporating the style JSON from the `--style-json` flag value (or `$IMAGE_STYLE_JSON` env var).
 
 **If `--generate-images` is ON:**
 1. Load the Google API key from Bitwarden: `bws secret get 74f9abaf-d730-4c4e-b689-b3df01843d65`
@@ -291,7 +292,7 @@ For each image location, write a detailed content-specific description and a ful
 6. Add content type for PNG to `[Content_Types].xml` if not present
 7. Insert image XML using `wp:anchor` with `<wp:wrapSquare wrapText="bothSides"/>` (NOT `wp:inline`)
 8. Rate limit: 2-second delay between API calls; 3 retries with 8-second backoff
-9. See `C:\Users\Troy Davis\dev\info\gemini-image-generation-learnings.md` for full API patterns
+9. For image generation patterns, see the learnings file at `$GEMINI_IMAGE_LEARNINGS` env var or the path provided during setup
 
 **If `--generate-images` is OFF (default):**
 1. Insert teal-bordered (`#3EB1C8`) placeholder callout boxes at each image location
