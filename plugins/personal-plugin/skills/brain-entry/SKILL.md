@@ -46,58 +46,35 @@ Use your judgment based on the content. When in doubt, use `observation` and `pe
 
 ### Step 3: POST to the captures API
 
-Use the Bash tool to POST to the captures API:
+Use the Bash tool with curl and a heredoc to POST to the captures API. **Always use curl, not Python urllib** — Cloudflare blocks Python's default user-agent with 403.
+
+**Use a heredoc for the JSON body** to avoid shell escaping issues with quotes and newlines in the content:
 
 ```bash
 curl -s -X POST "https://brain.troy-davis.com/api/v1/captures" \
   -H "Content-Type: application/json" \
   -H "X-Open-Brain-Caller: claude-code" \
-  -d '{
-    "content": "<generated content>",
-    "capture_type": "<classified type>",
-    "brain_view": "<classified view>",
-    "source": "api",
-    "metadata": {
-      "source_metadata": {
-        "origin": "claude-code-skill",
-        "session_context": "<brief description of what prompted this>"
-      }
+  -d @- <<'ENDJSON'
+{
+  "content": "<generated content with \n for newlines>",
+  "capture_type": "<classified type>",
+  "brain_view": "<classified view>",
+  "source": "api",
+  "metadata": {
+    "source_metadata": {
+      "origin": "claude-code-skill",
+      "session_context": "<brief description of what prompted this>"
     }
-  }'
+  }
+}
+ENDJSON
 ```
 
 **Important:**
-- Escape all special characters in the content for JSON (newlines as `\n`, quotes as `\"`)
+- Use heredoc (`<<'ENDJSON'`) to pass the JSON body — avoids shell escaping entirely
 - Content max length: 50,000 characters
 - The API returns `{ id, pipeline_status, created_at }` on success (201)
-- Use a heredoc or Python for complex content to avoid shell escaping issues
-
-**Preferred approach for complex content (avoids shell escaping):**
-```bash
-python3 -c "
-import json, urllib.request
-payload = json.dumps({
-    'content': '''<content here>''',
-    'capture_type': '<type>',
-    'brain_view': '<view>',
-    'source': 'api',
-    'metadata': {
-        'source_metadata': {
-            'origin': 'claude-code-skill',
-            'session_context': '<context>'
-        }
-    }
-})
-req = urllib.request.Request(
-    'https://brain.troy-davis.com/api/v1/captures',
-    data=payload.encode(),
-    headers={'Content-Type': 'application/json', 'X-Open-Brain-Caller': 'claude-code'},
-    method='POST'
-)
-resp = urllib.request.urlopen(req)
-print(resp.read().decode())
-"
-```
+- Do NOT use Python urllib — Cloudflare returns 403 on Python's default user-agent
 
 ### Step 4: Confirm to the user
 
