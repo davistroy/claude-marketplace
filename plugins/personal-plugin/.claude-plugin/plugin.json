@@ -1,7 +1,7 @@
 {
   "name": "personal-plugin",
   "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
-  "version": "6.7.0",
+  "version": "6.7.1",
   "author": {
     "name": "Troy Davis",
     "email": "troy.e.davis@gmail.com"
@@ -9,6 +9,5 @@
   "homepage": "https://github.com/davistroy/claude-marketplace",
   "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
-  "keywords": ["personal", "automation", "research", "llm-orchestration"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["personal", "automation", "research", "llm-orchestration"]
 }

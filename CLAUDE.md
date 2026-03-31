@@ -34,6 +34,7 @@ After any non-trivial finding during plugin development, validation, or marketpl
 - **Skills MUST have `name` in frontmatter** — without it the skill is not registered.
 - **Commands MUST NOT have `name` in frontmatter** — adding `name` prevents command discovery.
 - **Do NOT add `tools` field to plugin.json** — causes "Unrecognized key: tools" error.
+- **Do NOT add `"hooks"` field to plugin.json** — Claude Code auto-loads `hooks/hooks.json` from the standard location. Declaring it in the manifest causes "Duplicate hooks file detected" error.
 
 ---
 
