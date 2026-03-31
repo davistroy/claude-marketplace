@@ -49,12 +49,7 @@ Alternatively, create the file manually in `plugins/[plugin-name]/commands/[comm
 
 ### Step 2: Update Documentation
 
-The `/help` skill uses dynamic Glob-based discovery, so it updates automatically. Optionally, you can regenerate static help files:
-
-```bash
-# Optional: regenerate help.md files
-python scripts/generate-help.py --all
-```
+The `/help` skill uses a static table. After adding a new command, update `skills/help/SKILL.md` to include it in both the summary table (Mode 1) and detailed reference (Mode 2).
 
 ### Step 3: Update CHANGELOG
 
@@ -250,13 +245,9 @@ description: Brief description of the skill
 
 **IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills.
 
-### Dynamic Help (Automatic)
+### Static Help Table
 
-The `/help` skill uses **Glob-based discovery** to dynamically list all commands and skills at runtime. It scans `commands/*.md` and `skills/*/SKILL.md` and extracts descriptions from frontmatter. This means:
-
-- **No manual help file updates needed** when adding, renaming, or removing commands/skills
-- Help output is always in sync with the actual plugin contents
-- New commands and skills are automatically discovered
+The `/help` skill uses a static table that must be manually updated when commands or skills are added or removed. Update `skills/help/SKILL.md` to include new entries in both the summary table (Mode 1) and detailed reference (Mode 2).
 
 ### Help Skill Location
 

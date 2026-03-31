@@ -29,6 +29,7 @@ effort: high
   with the document structure adapted to the project's complexity.
 
   COMPANION TOOLS:
+  Paths below are defaults on the author's machine. Override via flags or environment variables.
   - CLI tool: C:\Users\Troy Davis\dev\tools\doc-builder
     (python -m doc_builder create --content content.json --output doc.docx)
   - Structure template: C:\Users\Troy Davis\dev\info\technical-document-structure-template.md
@@ -65,8 +66,8 @@ One required argument (either a local path OR a GitHub URL):
 2. **OR GitHub URL** -- a public repo URL (e.g., `https://github.com/owner/repo`). The skill will clone it to a temp directory, analyze it, and output the document to the user's Downloads folder.
 
 Optional flags:
-- `--style PATH` -- Path to a markdown style guide for Word formatting (default: `C:\Users\Troy Davis\dev\info\CFA_Word_Style_Guide.md`)
-- `--style-json PATH` -- Path to image style JSON for Nano Banana Pro (default: `C:\Users\Troy Davis\dev\info\clean-style-sanitized.json`)
+- `--style PATH` -- Path to a markdown style guide for Word formatting (default: `$DOC_STYLE_GUIDE` env var if set; author's default: `C:\Users\Troy Davis\dev\info\CFA_Word_Style_Guide.md`)
+- `--style-json PATH` -- Path to image style JSON for Nano Banana Pro (default: `$IMAGE_STYLE_JSON` env var if set; author's default: `C:\Users\Troy Davis\dev\info\clean-style-sanitized.json`)
 - `--generate-images` -- Generate diagrams via Google Gemini and insert them (default: OFF — costs money)
 - `--update` -- Incremental update mode: reads the existing document, diffs the codebase against the last generation (via git log since the commit hash in the document's freshness metadata), generates only changed sections, and preserves the user's manual refinements to unchanged sections
 - `--output PATH` -- Output file path (default: `{project-dir}/docs/{project-name}-overview.docx`, or `~/Downloads/{repo-name}-overview.docx` for GitHub URLs)
@@ -155,7 +156,7 @@ Use the Explore agent or direct file reading to build comprehensive understandin
 
 ### Phase 2: Document Planning
 
-**IMPORTANT:** Read the structure template at `C:\Users\Troy Davis\dev\info\technical-document-structure-template.md` before planning. It contains a complexity table that maps project size to expected document depth. Not every section applies to every project.
+**IMPORTANT:** Read the structure template at `$DOC_STRUCTURE_TEMPLATE` (author's default: `C:\Users\Troy Davis\dev\info\technical-document-structure-template.md`) before planning. It contains a complexity table that maps project size to expected document depth. Not every section applies to every project.
 
 1. **Select Key Concept Sidebars (2-3):** Choose the foundational concepts THIS project relies on most. These will be the first things the reader sees.
 
@@ -346,7 +347,7 @@ python -m doc_builder create \
   [--style-json "{style_json}"]
 ```
 
-The CLI tool is at `C:\Users\Troy Davis\dev\tools\doc-builder` and handles:
+The CLI tool is at `$DOC_BUILDER_PATH` (or `python -m doc_builder` if on PYTHONPATH; author's default: `C:\Users\Troy Davis\dev\tools\doc-builder`) and handles:
 - Word document creation with proper CFA styling
 - Sidebar callout box formatting (red left border, light grey background)
 - Glossary appendix formatting (dependency-ordered, bold red terms)

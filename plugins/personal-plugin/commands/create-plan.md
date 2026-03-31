@@ -21,6 +21,8 @@ This command:
 6. Generates detailed work items with acceptance criteria
 7. Outputs IMPLEMENTATION_PLAN.md to the repository root
 
+> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultra-plan` for issue/bug lists requiring deep investigation before planning.
+
 ## Input Validation
 
 **Arguments:** None required

@@ -88,8 +88,8 @@ asyncio.run(main())
 
 ## Provider Details
 
-### Anthropic Claude (Opus 4.5)
-- Model: `claude-opus-4-5-20251101`
+### Anthropic Claude (Opus 4.6)
+- Model: `claude-opus-4-6-20250725`
 - Endpoint: `https://api.anthropic.com/v1/messages`
 - Mode: Synchronous with extended thinking
 

@@ -1,11 +1,11 @@
 ---
-name: validate-and-ship
+name: release-plugin
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Glob, Grep, Read, Edit, Write
-description: Validate plugins, clean repository, and ship changes in one automated workflow
+description: Validate plugins, clean repository, and ship plugin releases in one automated workflow
 disable-model-invocation: true
 ---
 
-# Validate and Ship
+# Release Plugin
 
 Automated pre-flight checks and shipping workflow. Executes validation, cleanup, and git workflow in sequence, stopping only when user intervention is required.
 
@@ -182,7 +182,7 @@ Summary:
   Phase 2 (Cleanup):  {CLEANED/SKIPPED}
   Phase 3 (Ship):     SKIPPED
 
-Ready to ship when you are. Run /validate-and-ship or /ship to proceed.
+Ready to ship when you are. Run /release-plugin or /ship to proceed.
 ```
 
 ### 3.1 Pre-flight Check
@@ -297,7 +297,7 @@ Validation Error: [specific error]
 To fix:
   [Specific remediation steps]
 
-After fixing, run /validate-and-ship again.
+After fixing, run /release-plugin again.
 ```
 
 ### Phase 2 Errors
@@ -308,8 +308,8 @@ The cleanup phase encountered an issue:
   [Details]
 
 Options:
-  1. Fix the issue and run /validate-and-ship again
-  2. Run /validate-and-ship --skip-cleanup to bypass
+  1. Fix the issue and run /release-plugin again
+  2. Run /release-plugin --skip-cleanup to bypass
 ```
 
 ### Phase 3 Errors
@@ -331,7 +331,7 @@ Manual steps required:
 
 ### Standard Flow
 ```yaml
-User: /validate-and-ship
+User: /release-plugin
 
 Claude:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -360,14 +360,14 @@ PR URL: https://github.com/user/repo/pull/42
 
 ### With Custom Branch
 ```yaml
-User: /validate-and-ship feat/new-feature
+User: /release-plugin feat/new-feature
 
 Claude: [Runs all phases, uses "feat/new-feature" as branch name]
 ```
 
 ### Dry Run
 ```yaml
-User: /validate-and-ship --dry-run
+User: /release-plugin --dry-run
 
 Claude:
 [DRY-RUN] Phase 1: Validation would check all plugins
@@ -379,14 +379,14 @@ No changes made. Run without --dry-run to execute.
 
 ### Skip Phases
 ```yaml
-User: /validate-and-ship --skip-validate
+User: /release-plugin --skip-validate
 
 Claude: [Skips Phase 1, runs Phases 2 and 3]
 ```
 
 ### Pre-flight Only (No Ship)
 ```yaml
-User: /validate-and-ship --skip-ship
+User: /release-plugin --skip-ship
 
 Claude:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -9,6 +9,8 @@ allowed-tools: Read, Glob, Grep, Write, Edit, Agent
 
 Perform a comprehensive analysis of the current codebase to identify improvement opportunities, then generate detailed recommendations and a phased implementation plan.
 
+> **See also:** `/create-plan` for requirements-driven planning from BRD/PRD/TDD documents. `/ultra-plan` for issue/bug lists requiring deep investigation.
+
 ## Optional Arguments
 
 | Argument | Alias | Description |

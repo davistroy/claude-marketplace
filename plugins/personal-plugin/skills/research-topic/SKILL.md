@@ -41,9 +41,9 @@ API keys must be loaded into the environment before use. Run `/unlock` to load s
 If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files or guide users through creating `.env` files with API keys. For API key configuration details, see `references/api-key-setup.md`.
 
 **Optional Model Configuration (non-sensitive, safe for .env):**
-- `ANTHROPIC_MODEL` - Override Claude model. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `claude-opus-4-5-20251101` (default as of 2026-03-04 — verify with provider if errors occur)
-- `OPENAI_MODEL` - Override OpenAI model. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `o3-deep-research-2025-06-26` (default as of 2026-03-04 — verify with provider if errors occur)
-- `GEMINI_AGENT` - Override Gemini agent. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `deep-research-pro-preview-12-2025` (default as of 2026-03-04 — verify with provider if errors occur)
+- `ANTHROPIC_MODEL` - Override Claude model. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `claude-opus-4-6-20250725` (default as of 2026-03-31 — verify with provider if errors occur)
+- `OPENAI_MODEL` - Override OpenAI model. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `o3-deep-research-2025-06-26` (default as of 2026-03-31 — verify with provider if errors occur)
+- `GEMINI_AGENT` - Override Gemini agent. If not set, the skill's model check feature (`check-models`) will detect the latest available model. Last-resort default: `deep-research-pro-preview-12-2025` (default as of 2026-03-31 — verify with provider if errors occur)
 - `CHECK_MODEL_UPDATES` - Check for newer models on startup (default: true)
 - `AUTO_UPGRADE_MODELS` - Auto-upgrade without prompting (default: false)
 

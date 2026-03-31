@@ -33,7 +33,7 @@ The following settings ARE safe to put in `.env` files (they are not secrets):
 
 ```bash
 # Model overrides (non-sensitive)
-ANTHROPIC_MODEL=claude-opus-4-5-20251101
+ANTHROPIC_MODEL=claude-opus-4-6-20250725
 OPENAI_MODEL=o3-deep-research-2025-06-26
 GEMINI_AGENT=deep-research-pro-preview-12-2025
 

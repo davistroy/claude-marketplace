@@ -151,7 +151,7 @@ plugins/
     deprecated/               # Archived commands (convert-hooks, setup-statusline, check-updates)
     skills/
       help/
-        SKILL.md            # Show available commands and skills with usage information (dynamic, Glob-based discovery)
+        SKILL.md            # Show available commands and skills with usage information (static table, manually maintained)
       plan-gate/
         SKILL.md            # Assess scope and route to the right planning approach (native plan mode, /plan-improvements, or /create-plan)
       prime/
@@ -166,8 +166,8 @@ plugins/
         SKILL.md            # Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
       unlock/
         SKILL.md            # Load secrets from Bitwarden Secrets Manager into environment using bws CLI
-      validate-and-ship/
-        SKILL.md            # Validate plugins, clean repository, and ship changes in one automated workflow
+      release-plugin/
+        SKILL.md            # Validate plugins, clean repository, and ship plugin releases in one automated workflow
       evaluate-pipeline-output/
         SKILL.md            # Evaluate contact-center-lab pipeline output quality
       visual-explainer/
@@ -182,6 +182,10 @@ plugins/
         SKILL.md            # Generate comprehensive annotated technical overview document for non-technical stakeholders
       lab-notebook/
         SKILL.md            # Initialize mandatory experiment logging with scientific notebook, ADR, and postmortem patterns
+      spark-recon/
+        SKILL.md            # Periodic intelligence scan of DGX Spark inference performance landscape
+      ultra-plan/
+        SKILL.md            # Structured implementation planning for bug lists, feature requests, or change sets
     references/
       common-patterns.md    # Shared patterns for timestamps, naming, etc.
       api-key-setup.md      # Bitwarden-based API key setup workflow
@@ -545,7 +549,4 @@ Each plugin maintains its own independent version:
 
 **IMPORTANT:** Each plugin must have a `/help` skill at `skills/help/SKILL.md` (not `skills/help.md`).
 
-Help skills use **dynamic discovery** via Glob-based scanning of `commands/*.md` and `skills/*/SKILL.md` at runtime. This means:
-- Help output is always accurate -- it reads frontmatter descriptions directly from command/skill files
-- **No manual updates to help skills are needed** when adding, changing, or removing commands/skills
-- When creating a new plugin, create a `skills/help/SKILL.md` following the dynamic discovery pattern used in existing plugins
+Help skills use a static table that must be manually updated when commands or skills are added or removed. When creating a new plugin, create a `skills/help/SKILL.md` following the pattern used in existing plugins.

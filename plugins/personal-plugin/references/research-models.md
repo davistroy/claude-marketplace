@@ -16,7 +16,7 @@ Reference tables for the `/research-topic` skill. Loaded on demand to keep the m
 
 | Provider | Default Model | Endpoint | Mode |
 |----------|---------------|----------|------|
-| Anthropic | claude-opus-4-5-20251101 | /v1/messages | Synchronous (extended thinking) |
+| Anthropic | claude-opus-4-6-20250725 | /v1/messages | Synchronous (extended thinking) |
 | OpenAI | o3-deep-research-2025-06-26 | /v1/responses | Async (background + web_search_preview) |
 | Google | deep-research-pro-preview-12-2025 | /v1beta/interactions | Async (deep-research agent) |
 
@@ -30,11 +30,11 @@ These are the default model identifiers used when environment variable overrides
 
 | Provider | Env Var Override | Default Value | Last Verified |
 |----------|-----------------|---------------|---------------|
-| Anthropic | `ANTHROPIC_MODEL` | `claude-opus-4-5-20251101` | 2026-03-04 |
-| OpenAI | `OPENAI_MODEL` | `o3-deep-research-2025-06-26` | 2026-03-04 |
-| Google | `GEMINI_AGENT` | `deep-research-pro-preview-12-2025` | 2026-03-04 |
+| Anthropic | `ANTHROPIC_MODEL` | `claude-opus-4-6-20250725` | 2026-03-31 |
+| OpenAI | `OPENAI_MODEL` | `o3-deep-research-2025-06-26` | 2026-03-31 |
+| Google | `GEMINI_AGENT` | `deep-research-pro-preview-12-2025` | 2026-03-31 |
 
-# Default as of 2026-03-04 -- verify with provider if errors occur
+# Default as of 2026-03-31 -- verify with provider if errors occur
 
 **Resolution Order:**
 1. Check environment variable (e.g., `ANTHROPIC_MODEL`)
@@ -61,7 +61,7 @@ These are the default model identifiers used when environment variable overrides
 Model Version Check
 ===================
 Current models:
-  Anthropic: claude-opus-4-5-20251101
+  Anthropic: claude-opus-4-6-20250725
   OpenAI:    o3-deep-research-2025-06-26
   Gemini:    deep-research-pro-preview-12-2025
 
