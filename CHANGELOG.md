@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v1.6.2, personal-plugin v6.7.2] - 2026-04-02
+
+### Changed
+- Enhanced `/prime` skill to read `LAB_NOTEBOOK.md` when present — extracts Decision Log, Open Action Items, recent experiment entries, and Current Baseline into the prime report
+
 ## [marketplace v1.6.0, personal-plugin v6.7.0, bpmn-plugin v3.4.0] - 2026-03-31
 
 ### Added

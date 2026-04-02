@@ -66,9 +66,17 @@ Assess the project's current state and activity.
 
 3. **Open work detection** -- Check for: `TODO`, `FIXME`, `HACK`, `XXX` comments across source files. Check for `IMPLEMENTATION_PLAN.md`, `PROGRESS.md`, `RECOMMENDATIONS.md`, open GitHub issues/PRs if `gh` is available.
 
-4. **Dependency freshness** -- Check lock files for staleness. Note any pinned versions that might be outdated. Check for security advisory files or `npm audit`/`pip-audit` results if available.
+4. **Lab notebook** -- Check for `LAB_NOTEBOOK.md`. If present, read it thoroughly and extract:
+   - **Decision Log:** Active decisions and their rationale — these reflect architectural and operational choices that shape what happens next
+   - **Open Action Items:** Pending follow-ups with priority and source entry — these are the project's known TODO list beyond code comments
+   - **Recent experiment entries:** Last 3-5 entries with status — reveals what was recently tried, what worked, what failed
+   - **Current Baseline:** System state measurements — more current and specific than README descriptions
+   
+   The lab notebook is often the richest source of project context. Incorporate its findings throughout the report, not just in this section.
 
-**Output for report:** Repository age, activity level (active/maintained/stale/abandoned), contributor count, working tree status, open work items.
+5. **Dependency freshness** -- Check lock files for staleness. Note any pinned versions that might be outdated. Check for security advisory files or `npm audit`/`pip-audit` results if available.
+
+**Output for report:** Repository age, activity level (active/maintained/stale/abandoned), contributor count, working tree status, open work items, lab notebook summary (if present).
 
 ### Phase 3: Code Quality & Architecture
 
@@ -114,6 +122,7 @@ Assess how easy it is to understand and work with this project.
    - README: Does it explain setup, usage, and contribution?
    - API documentation (if applicable)
    - Architecture Decision Records (ADRs)
+   - LAB_NOTEBOOK.md (experiment log with decisions, action items, and baselines)
    - Inline code comments (density and quality)
    - CLAUDE.md or similar AI-context files
 
@@ -218,6 +227,7 @@ Present findings as a structured in-conversation report with this format:
 | Contributors | [count] |
 | Working Tree | [Clean/Modified/Uncommitted changes] |
 | Open Work | [IMPLEMENTATION_PLAN items, TODOs, issues] |
+| Lab Notebook | [Present/Absent — if present: # entries, # active decisions, # open action items] |
 
 ---
 
