@@ -27,7 +27,9 @@ The repository appears to be empty or inaccessible. Ensure you are in the
 root of a git repository with at least some committed content.
 ```
 
-## Analysis Process
+## Instructions
+
+### Analysis Process
 
 Execute the following steps in order. Each step feeds into the decision logic below.
 

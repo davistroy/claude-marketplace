@@ -42,6 +42,10 @@ Before proceeding, verify:
 
 If any of these prerequisites are missing, inform the user what needs to be set up before running this command.
 
+## Instructions
+
+Execute the phases below in sequence. Each phase builds on the previous.
+
 ## Phase 0: Scope Confirmation Gate
 
 Before making any changes, gather and present the following to the user:
