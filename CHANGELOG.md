@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v6.8.0] - 2026-04-11
+
+### Fixed
+- Added missing `## Instructions` section to `plan-next`, `review-arch`, and `test-project` commands for pattern compliance
+
 ## [marketplace v1.6.2, personal-plugin v6.7.2] - 2026-04-02
 
 ### Changed

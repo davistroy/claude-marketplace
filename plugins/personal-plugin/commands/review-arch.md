@@ -48,6 +48,10 @@ Before proceeding, verify:
 
 For single-file projects or simple scripts, provide a brief assessment rather than a full architectural audit.
 
+## Instructions
+
+Follow these phases in sequence. Phase 1 gathers data; Phases 2-3 analyze it; Phase 4 produces the remediation roadmap.
+
 ## Phase 1: Codebase Reconnaissance
 
 Execute these tasks to map the project:
