@@ -71,7 +71,7 @@ Assess the project's current state and activity.
    - **Open Action Items:** Pending follow-ups with priority and source entry — these are the project's known TODO list beyond code comments
    - **Recent experiment entries:** Last 3-5 entries with status — reveals what was recently tried, what worked, what failed
    - **Current Baseline:** System state measurements — more current and specific than README descriptions
-   
+
    The lab notebook is often the richest source of project context. Incorporate its findings throughout the report, not just in this section.
 
 5. **Dependency freshness** -- Check lock files for staleness. Note any pinned versions that might be outdated. Check for security advisory files or `npm audit`/`pip-audit` results if available.

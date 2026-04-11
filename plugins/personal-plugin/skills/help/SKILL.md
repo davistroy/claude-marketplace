@@ -70,10 +70,12 @@ SKILLS
 | /visual-explainer | Transform text or documents into AI-generated infographic pages that explain... |
 | /accessibility-annotator | Analyze technical documents and add explanation annotations for non-CS... |
 | /brain-entry | Send a capture to Open Brain — summarize sessions, log decisions, capture ideas |
+| /create-wiki | Set up a persistent LLM-maintained wiki inside any project with auto-maintenance rules |
 | /explain-project | Generate comprehensive annotated technical overview for non-technical... |
 | /lab-notebook | Initialize mandatory experiment logging with scientific notebook, ADR, and... |
 | /spark-recon | Use when checking on DGX Spark inference performance landscape |
 | /ultra-plan | Deep investigation, interaction mapping, and integrated solution design for... |
+| /wiki | Wiki operations: ingest sources, lint health, query topics, show status |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
@@ -522,6 +524,18 @@ Save the report to a file using the Write tool:
 
 ---
 
+#### /create-wiki
+**Description:** Set up a persistent LLM-maintained wiki inside any project with auto-maintenance rules
+**Arguments:** [init | status] (default: auto-detect)
+**Output:** wiki/ directory with sources/, pages/, schema, index, log, README + CLAUDE.md injection
+**Example:**
+```
+/create-wiki
+/create-wiki init
+```
+
+---
+
 #### /explain-project
 **Description:** Generate comprehensive annotated technical overview document for non-technical stakeholders
 **Arguments:** [<project-path>]
@@ -568,6 +582,25 @@ Save the report to a file using the Write tool:
 
 ---
 
+#### /wiki
+**Description:** Wiki operations: ingest source documents, lint health, query topics, show status
+**Arguments:** <subcommand> [args]
+**Output:** Varies by subcommand
+**Subcommands:**
+  - `ingest <path>` — Process a source document into wiki pages
+  - `lint` — Run health checks on wiki structure and content
+  - `query <topic>` — Search wiki and synthesize an answer
+  - `status` — Show wiki stats, health, and recent activity
+**Example:**
+```
+/wiki ingest docs/architecture-spec.md
+/wiki lint
+/wiki query "authentication flow"
+/wiki status
+```
+
+---
+
 ## Error Handling
 
 If the requested command is not found:
@@ -578,5 +611,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
-  /accessibility-annotator, /brain-entry, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /release-plugin, /research-topic, /security-analysis, /ship, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /visual-explainer
+  /accessibility-annotator, /brain-entry, /create-wiki, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /release-plugin, /research-topic, /security-analysis, /ship, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /visual-explainer, /wiki
 ```
