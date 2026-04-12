@@ -25,21 +25,23 @@ If `SPARK_BASELINE.md` doesn't exist, create it using the template at the bottom
 digraph recon {
   rankdir=TB;
   read [label="Read SPARK_BASELINE.md\n+ LAB_NOTEBOOK.md tail" shape=box];
-  parallel [label="Launch 5 parallel agents" shape=box];
+  triggers [label="Parse Recon Triggers table\nfrom SPARK_BASELINE.md" shape=box];
+  parallel [label="Launch 5 parallel agents\n(pass triggers to each)" shape=box];
   arena [label="Check 1: Arena" shape=box];
   vllm [label="Check 2: vLLM" shape=box];
   svd [label="Check 3: spark-vllm-docker" shape=box];
   qwen [label="Check 4: Qwen" shape=box];
   forum [label="Check 5: Forum" shape=box];
-  cross [label="Cross-correlate findings\nacross all checks" shape=box];
+  cross [label="Cross-correlate findings\nacross all checks\n+ match against triggers" shape=box];
   classify [label="Classify overall status" shape=diamond];
-  report [label="Present console report\nwith recommendations" shape=box];
+  report [label="Present console report\nwith recommendations\n+ triggered alerts" shape=box];
   notebook [label="Append entry to\nLAB_NOTEBOOK.md" shape=box];
   baseline [label="Baseline values changed?" shape=diamond];
   ask [label="Ask user to confirm\nbaseline update" shape=box];
   done [label="Done" shape=doublecircle];
 
-  read -> parallel;
+  read -> triggers;
+  triggers -> parallel;
   parallel -> arena;
   parallel -> vllm;
   parallel -> svd;
@@ -59,6 +61,40 @@ digraph recon {
   ask -> done;
 }
 ```
+
+## Recon Triggers
+
+Before launching the five checks, read the `## Recon Triggers` table from SPARK_BASELINE.md. This table contains user-defined patterns that should be matched against findings from each check.
+
+**Table format:**
+```markdown
+| Source | Pattern | Action | Added |
+|--------|---------|--------|-------|
+| vllm_release | keyword1 AND (keyword2 OR keyword3) | ACTION: what to do | date |
+| arena | condition > threshold | ACTION: what to do | date |
+| huggingface | model name OR model name | ACTION: what to do | date |
+| forum | keyword1 AND keyword2 | INFO: what it means | date |
+```
+
+**Source mapping:**
+- `vllm_release` → match against Check 2 (vLLM releases) release notes and changelog text
+- `arena` → match against Check 1 (Arena leaderboard) entries and tok/s values
+- `huggingface` → match against Check 4 (Qwen model landscape) search results
+- `forum` → match against Check 5 (NVIDIA Forum) post titles and summaries
+- `svd` → match against Check 3 (spark-vllm-docker) commits and releases
+
+**Pattern matching rules:**
+- `AND` means all keywords must be present (case-insensitive substring match)
+- `OR` means any keyword matches
+- `> threshold` for numeric comparisons (Arena tok/s)
+- Parentheses group OR clauses within AND expressions
+
+**How triggers affect classification:**
+- If a trigger with `ACTION:` prefix matches, the overall check classification is elevated to at minimum **ACTION NEEDED**, regardless of the generic thresholds.
+- If a trigger with `INFO:` prefix matches, the finding is flagged as **WORTH WATCHING** at minimum.
+- Triggered matches are reported in a dedicated **Triggered Alerts** section of the console report, before the general recommendations.
+
+**Pass triggers to each agent:** When launching the five parallel agents, include the parsed triggers in each agent's prompt so they can flag matches inline. Each agent should report any trigger matches alongside its normal findings.
 
 ## The Five Checks
 
@@ -101,7 +137,7 @@ digraph recon {
 
 ### Check 3 — spark-vllm-docker Builds
 
-**Data source:** `https://api.github.com/repos/nickyu42/spark-vllm-docker/releases?per_page=5` and `https://api.github.com/repos/nickyu42/spark-vllm-docker/commits?per_page=10`
+**Data source:** `https://api.github.com/repos/eugr/spark-vllm-docker/releases?per_page=5` and `https://api.github.com/repos/eugr/spark-vllm-docker/commits?per_page=10`
 
 **Agent instructions:**
 1. `WebFetch` the releases API and recent commits.
@@ -156,13 +192,24 @@ Fall back to HTML only if JSON returns an error.
 
 ## Cross-Correlation
 
-After all five agents return, look for findings that appear in multiple checks:
+After all five agents return:
+
+### Multi-check correlation
+Look for findings that appear in multiple checks:
 - A model variant appearing in both Arena recipes AND Qwen/HuggingFace check (e.g., pre-quantized FP8)
 - A vLLM version referenced in both releases AND forum posts
 - A new container build in spark-vllm-docker AND improved Arena entries
 - Forum techniques that explain Arena performance jumps
 
 Note cross-correlated findings in the report — these are higher-confidence signals.
+
+### Trigger matching
+Match all findings from all five checks against the Recon Triggers table. For each trigger that matches:
+1. Note which trigger matched, which check produced the match, and the specific finding
+2. Include the trigger's Action text in recommendations
+3. If the trigger is `ACTION:`, elevate the overall classification to at least ACTION NEEDED
+
+If no triggers match, report "No trigger matches" — this is expected when the landscape is stable.
 
 ## Overall Classification
 
@@ -206,8 +253,12 @@ Overall: {ACTION NEEDED / WORTH WATCHING / NO ACTION}
 ### Cross-Correlated Findings
 {items that appeared in multiple checks, or "None"}
 
+### Triggered Alerts
+{triggers from Recon Triggers table that matched findings, or "No trigger matches"}
+{For each match: trigger pattern → finding source → action text}
+
 ### Recommendations
-1. {prioritized actions, or "No action needed"}
+1. {triggered ACTION items first, then general recommendations, or "No action needed"}
 ```
 
 ## LAB_NOTEBOOK Entry
@@ -242,10 +293,13 @@ Append using `Edit` tool. Auto-increment entry number by reading the last `### E
 #### Cross-Correlated Findings
 - {Items appearing in multiple checks, or "None"}
 
+#### Triggered Alerts
+- {Triggers from Recon Triggers table that matched, or "No trigger matches"}
+
 #### Overall: {STATUS}
 
 #### Recommendations
-1. {Actions or "No action needed — current config remains competitive"}
+1. {Triggered ACTION items first, then general recommendations, or "No action needed — current config remains competitive"}
 ```
 
 ## Baseline Update
