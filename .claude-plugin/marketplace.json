@@ -2,7 +2,7 @@
   "name": "troys-plugins",
   "metadata": {
     "description": "Troy Davis Claude Code plugins",
-    "marketplace_version": "1.6.2",
+    "marketplace_version": "1.7.0",
     "schema_version": "1.0"
   },
   "owner": {
@@ -14,7 +14,7 @@
       "name": "personal-plugin",
       "source": "./plugins/personal-plugin",
       "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
-      "version": "6.8.0",
+      "version": "6.9.0",
       "category": "productivity",
       "tags": ["personal", "automation", "research", "llm-orchestration"]
     },
