@@ -76,6 +76,9 @@ SKILLS
 | /spark-recon | Use when checking on DGX Spark inference performance landscape |
 | /ultra-plan | Deep investigation, interaction mapping, and integrated solution design for... |
 | /wiki | Wiki operations: ingest sources, lint health, query topics, show status |
+| /jetson-audit | Audit Jetson Orin Nano running inference config against best practices |
+| /jetson-recon | Periodic Jetson Orin Nano inference performance landscape scan |
+| /spark-audit | Audit DGX Spark running containers against best practices |
 
 ---
 Use '/help <name>' for detailed help on a specific command or skill.
@@ -601,6 +604,39 @@ Save the report to a file using the Write tool:
 
 ---
 
+#### /jetson-audit
+**Description:** Audit Jetson Orin Nano running inference config against best practices and community optimizations
+**Arguments:** None required
+**Output:** Console report with gaps, misconfigurations, and optimization opportunities
+**Example:**
+```
+/jetson-audit
+```
+
+---
+
+#### /jetson-recon
+**Description:** Periodic Jetson Orin Nano inference performance landscape scan — JetPack updates, llama.cpp releases, small models, NVIDIA forum
+**Arguments:** None required
+**Output:** Console report + LAB_NOTEBOOK.md entry
+**Example:**
+```
+/jetson-recon
+```
+
+---
+
+#### /spark-audit
+**Description:** Audit DGX Spark running containers against best practices and community optimizations
+**Arguments:** None required
+**Output:** Console report with gaps, misconfigurations, and optimization opportunities
+**Example:**
+```
+/spark-audit
+```
+
+---
+
 ## Error Handling
 
 If the requested command is not found:
@@ -611,5 +647,5 @@ Available commands:
   /analyze-transcript, /ask-questions, /assess-document, /bump-version, /clean-repo, /consolidate-documents, /convert-markdown, /create-plan, /define-questions, /develop-image-prompt, /finish-document, /implement-plan, /new-command, /new-skill, /plan-improvements, /plan-next, /remove-ip, /review-arch, /review-intent, /review-pr, /scaffold-plugin, /test-project, /validate-plugin
 
 Available skills:
-  /accessibility-annotator, /brain-entry, /create-wiki, /evaluate-pipeline-output, /explain-project, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /release-plugin, /research-topic, /security-analysis, /ship, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /visual-explainer, /wiki
+  /accessibility-annotator, /brain-entry, /create-wiki, /evaluate-pipeline-output, /explain-project, /jetson-audit, /jetson-recon, /lab-notebook, /leak-risk-audit, /plan-gate, /prime, /release-plugin, /research-topic, /security-analysis, /ship, /spark-audit, /spark-recon, /spec-to-prototype, /summarize-feedback, /ultra-plan, /unlock, /visual-explainer, /wiki
 ```

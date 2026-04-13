@@ -26,5 +26,6 @@
   "MD051": false,
   "MD053": false,
   "MD058": false,
-  "MD060": false
+  "MD060": false,
+  "ignore": ["GITHUB_ERRORS.md"]
 }
