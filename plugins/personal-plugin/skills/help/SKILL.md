@@ -29,6 +29,8 @@ COMMANDS
 | Command | Description |
 |---------|-------------|
 | /analyze-transcript | Meeting transcript to structured markdown report |
+| /arch-review-single | Run one domain agent from the 9-agent review team for targeted deep-dives |
+| /arch-synthesize | Re-synthesize executive summary from existing domain findings |
 | /ask-questions | Interactive Q&A session from questions JSON file |
 | /assess-document | Document quality evaluation with scored assessment report |
 | /bump-version | Automate version bumping across plugin files with CHANGELOG placeholder |
@@ -45,7 +47,7 @@ COMMANDS
 | /plan-improvements | Analyze codebase and generate prioritized improvement recommendations with... |
 | /plan-next | Analyze repo and recommend the next logical action |
 | /remove-ip | Sanitize documents by removing company identifiers and non-public... |
-| /review-arch | Quick architectural audit with technical debt assessment (read-only, no... |
+| /review-arch | Quick architectural audit with technical debt assessment (read-only, no files... |
 | /review-intent | Determine original project intent and compare against current... |
 | /review-pr | Structured PR review with security, performance, and code quality analysis |
 | /scaffold-plugin | Create a new plugin with proper directory structure, metadata, and starter files |
@@ -56,6 +58,7 @@ SKILLS
 ------
 | Skill | Description |
 |-------|-------------|
+| /arch-review | Comprehensive 9-agent architecture review — parallel domain specialists produce structured findings and executive report with go/no-go recommendation (~30–60 min) |
 | /evaluate-pipeline-output | Thoroughly evaluate contact-center-lab pipeline output quality against... |
 | /leak-risk-audit | Audit a dataset for proprietary information leaks before sharing with... |
 | /plan-gate | Before starting complex multi-step implementation tasks, assess scope and... |
