@@ -331,6 +331,9 @@ Duration scales with the number of source files and the complexity of the depend
 
 ## Related Commands
 
+- `/arch-review <path>` — **Full 9-agent comprehensive review** with saved artifacts and executive report. Use for pre-release gates, vendor/acquisition evaluations, or any engagement requiring a defensible documented assessment. (~30–60 min)
+- `/arch-review-single <agent> <path>` — Run one domain agent from the full team (security-architect, software-engineer, etc.) for targeted deep-dives.
+- `/arch-synthesize <path>` — Re-synthesize the executive summary from existing domain findings after edits or single-agent re-runs.
 - `/plan-improvements` — Comprehensive analysis that generates RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md
 - `/review-intent` — Compare original intent vs current implementation (complementary review)
 - `/review-pr` — Review a specific pull request for code quality and security
