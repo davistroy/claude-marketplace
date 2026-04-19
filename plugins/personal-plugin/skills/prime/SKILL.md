@@ -34,6 +34,20 @@ If no arguments are provided, evaluate the entire project from the repository ro
 
 Execute ALL phases below. Use the Task tool with `subagent_type=Explore` for broad codebase searches to avoid flooding context. Use Glob, Grep, and Read directly for targeted lookups.
 
+### Phase 0: Lab Notebook (Mandatory First Read)
+
+**Before any other analysis**, check for `LAB_NOTEBOOK.md` at the repository root (and within the scoped path if `$ARGUMENTS` specifies a subdirectory). If it exists, read it in full *before* proceeding to Phase 1.
+
+The lab notebook typically contains the most current and authoritative context for the project — active decisions, open action items, recent experiment results, and current baselines — and often contradicts or supersedes what the README claims. Reading it first prevents Phase 1-5 from producing conclusions that the lab notebook has already invalidated.
+
+Carry forward for use throughout the remaining phases:
+- **Decision Log entries** — inform architecture, risk, and recommendation sections
+- **Open Action Items** — feed into open work detection and recommended next steps
+- **Recent experiment entries (last 3-5)** — reveal what was tried, what worked, what failed
+- **Current Baseline measurements** — use these over README descriptions when they conflict
+
+If no `LAB_NOTEBOOK.md` is present, note "Lab Notebook: Absent" and proceed.
+
 ### Phase 1: Project Identity
 
 Determine what this project IS.
