@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v1.7.1, personal-plugin v7.0.1] - 2026-04-19
+
+### Changed
+- Added mandatory Phase 0 to `/prime` skill to read `LAB_NOTEBOOK.md` before any other analysis when present
+
 ## [personal-plugin v6.8.0] - 2026-04-11
 
 ### Fixed
