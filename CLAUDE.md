@@ -118,18 +118,19 @@ allowed-tools: Bash(git:*)
 plugins/
   personal-plugin/
     .claude-plugin/plugin.json
-    commands/          # analyze-transcript, ask-questions, assess-document, bump-version,
-                       # clean-repo, consolidate-documents, convert-markdown, create-plan,
-                       # define-questions, develop-image-prompt, finish-document, implement-plan,
-                       # new-command, new-skill, plan-improvements, plan-next, remove-ip,
-                       # review-arch, review-intent, scaffold-plugin, test-project,
-                       # validate-plugin
+    commands/          # analyze-transcript, arch-review-single, arch-synthesize, ask-questions,
+                       # assess-document, bump-version, clean-repo, consolidate-documents,
+                       # convert-markdown, create-plan, define-questions, develop-image-prompt,
+                       # finish-document, implement-plan, new-command, new-skill, plan-improvements,
+                       # plan-next, remove-ip, review-arch, review-intent, scaffold-plugin,
+                       # test-project, validate-plugin
     deprecated/        # Archived commands
-    skills/            # plan-gate, prime, research-topic, security-analysis, ship,
-                       # summarize-feedback, unlock, release-plugin, evaluate-pipeline-output,
-                       # visual-explainer, leak-risk-audit, spec-to-prototype,
-                       # accessibility-annotator, brain-entry, explain-project, lab-notebook,
-                       # spark-recon, ultra-plan
+    skills/            # accessibility-annotator, arch-review, brain-entry, create-wiki,
+                       # evaluate-pipeline-output, explain-project, jetson-audit, jetson-recon,
+                       # lab-notebook, leak-risk-audit, plan-gate, prime, release-plugin,
+                       # research-topic, security-analysis, ship, spark-audit, spark-recon,
+                       # spec-to-prototype, summarize-feedback, ultra-plan, unlock,
+                       # visual-explainer, wiki
     references/        # common-patterns.md, api-key-setup.md, flag-consistency.md,
                        # plan-template.md, research-models.md, validation-maturity-scorecard.md
     hooks/hooks.json

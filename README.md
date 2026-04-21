@@ -38,12 +38,14 @@ You can install to different scopes:
 
 ### personal-plugin
 
-23 commands and 19 skills for productivity workflows, code review, document processing, and security analysis.
+24 commands and 24 skills for productivity workflows, code review, document processing, and security analysis.
 
-**23 Commands:**
+**24 Commands:**
 | Command | Description |
 |---------|-------------|
 | [`/analyze-transcript`](plugins/personal-plugin/commands/analyze-transcript.md) | Meeting transcript to structured markdown report |
+| [`/arch-review-single`](plugins/personal-plugin/commands/arch-review-single.md) | Run a single domain agent from the architecture review team against a target codebase |
+| [`/arch-synthesize`](plugins/personal-plugin/commands/arch-synthesize.md) | Re-synthesize the executive summary from existing domain findings — use after editing findings, re-running a single agent, or resolving conflicts |
 | [`/ask-questions`](plugins/personal-plugin/commands/ask-questions.md) | Interactive Q&A session from questions JSON file |
 | [`/assess-document`](plugins/personal-plugin/commands/assess-document.md) | Document quality evaluation with scored assessment report (supports `--focus`) |
 | [`/bump-version`](plugins/personal-plugin/commands/bump-version.md) | Automate version bumping across plugin files with CHANGELOG placeholder |
@@ -66,13 +68,17 @@ You can install to different scopes:
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
 | [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content (supports `--check-updates`) |
 
-**19 Skills:**
+**24 Skills:**
 | Skill | Description |
 |-------|-------------|
 | [`/accessibility-annotator`](plugins/personal-plugin/skills/accessibility-annotator/SKILL.md) | Analyze technical documents and add explanation annotations for non-CS readers |
+| [`/arch-review`](plugins/personal-plugin/skills/arch-review/SKILL.md) | Comprehensive 9-agent architecture review — spawns parallel domain specialists and produces structured findings with executive report and go/no-go recommendation |
 | [`/brain-entry`](plugins/personal-plugin/skills/brain-entry/SKILL.md) | Send captures to Open Brain — summarize sessions, log decisions, capture ideas |
+| [`/create-wiki`](plugins/personal-plugin/skills/create-wiki/SKILL.md) | Set up a persistent, LLM-maintained wiki inside any project with auto-maintenance rules injected into CLAUDE.md |
 | [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input |
 | [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate comprehensive annotated technical overview document for non-technical stakeholders |
+| [`/jetson-audit`](plugins/personal-plugin/skills/jetson-audit/SKILL.md) | SSH into the Jetson Orin Nano and audit running inference config against best practices — complements jetson-recon with internal config validation |
+| [`/jetson-recon`](plugins/personal-plugin/skills/jetson-recon/SKILL.md) | Periodic Jetson Orin Nano inference performance landscape scan — JetPack updates, llama.cpp releases, small model landscape, and live device health |
 | [`/lab-notebook`](plugins/personal-plugin/skills/lab-notebook/SKILL.md) | Initialize mandatory experiment logging with scientific notebook, ADR, and postmortem patterns |
 | [`/leak-risk-audit`](plugins/personal-plugin/skills/leak-risk-audit/SKILL.md) | Audit datasets for proprietary information leaks before sharing with public/cloud services |
 | [`/plan-gate`](plugins/personal-plugin/skills/plan-gate/SKILL.md) | Assess task complexity and route to the right planning approach |
@@ -81,12 +87,14 @@ You can install to different scopes:
 | [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
 | [`/security-analysis`](plugins/personal-plugin/skills/security-analysis/SKILL.md) | Comprehensive security vulnerability scanning with technology-specific patterns |
 | [`/ship`](plugins/personal-plugin/skills/ship/SKILL.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
+| [`/spark-audit`](plugins/personal-plugin/skills/spark-audit/SKILL.md) | SSH into the DGX Spark and audit all running containers against best practices — complements spark-recon with internal config validation |
 | [`/spark-recon`](plugins/personal-plugin/skills/spark-recon/SKILL.md) | Periodic DGX Spark inference performance landscape scan |
 | [`/spec-to-prototype`](plugins/personal-plugin/skills/spec-to-prototype/SKILL.md) | Build visual HTML/CSS prototypes from spec documents or wireframe descriptions |
 | [`/summarize-feedback`](plugins/personal-plugin/skills/summarize-feedback/SKILL.md) | Synthesize employee feedback from Notion into a professional .docx assessment |
 | [`/ultra-plan`](plugins/personal-plugin/skills/ultra-plan/SKILL.md) | Structured implementation planning for bug lists, feature requests, or change sets |
 | [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment |
 | [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated visual explanations |
+| [`/wiki`](plugins/personal-plugin/skills/wiki/SKILL.md) | Wiki operations: ingest sources, lint for health issues, query for answers, and report status. Companion to /create-wiki |
 
 ### bpmn-plugin
 
