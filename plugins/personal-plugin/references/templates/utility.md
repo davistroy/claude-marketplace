@@ -22,6 +22,10 @@
 <!-- SECTION 1: FRONTMATTER -->
 ---
 description: {{DESCRIPTION}}
+argument-hint: "<{{ARG_NAME}}> [--all] [--fix] [--verbose] [--strict]"
+effort: low
+allowed-tools: Read, Glob, Grep
+# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)
 ---
 
 <!-- SECTION 2: TITLE -->

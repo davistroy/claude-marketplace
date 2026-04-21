@@ -228,8 +228,8 @@ This item should execute after 1.1/1.2/1.3 complete to catch all their reference
 
 ### Work Items
 
-#### 2.1 Modernize new-skill command
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 2.1 Modernize new-skill command
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-2 Item 1
 **Files Affected:**
 - `plugins/personal-plugin/commands/new-skill.md` (modify; ~60 LOC added)
@@ -255,33 +255,41 @@ Expand the generated skill's frontmatter to include all modern fields as comment
 
 ---
 
-#### 2.2 Modernize new-command command
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 2.2 Modernize new-command command
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-2 Item 2
 **Files Affected:**
 - `plugins/personal-plugin/commands/new-command.md` (modify; ~50 LOC added)
+- `plugins/personal-plugin/references/templates/read-only.md` (frontmatter modernized)
+- `plugins/personal-plugin/references/templates/workflow.md` (frontmatter modernized)
+- `plugins/personal-plugin/references/templates/generator.md` (frontmatter modernized)
+- `plugins/personal-plugin/references/templates/planning.md` (frontmatter modernized)
+- `plugins/personal-plugin/references/templates/utility.md` (frontmatter modernized)
+- `plugins/personal-plugin/references/templates/interactive.md` (frontmatter modernized)
+- `plugins/personal-plugin/references/templates/synthesis.md` (frontmatter modernized)
+- `plugins/personal-plugin/references/templates/conversion.md` (frontmatter modernized)
 
 **Description:**
 Same expansion as 2.1, adapted for commands (omit `name` per commands rule; commands can still use `context`, `agent`, `model`, `isolation`, `when_to_use`, `allowed-tools`, dynamic injection). Update the existing "9 pattern types" section to call out which patterns benefit from subagent isolation: orchestration pattern → `context: fork` + `isolation: worktree`; parallel-analysis pattern → multiple `context: fork` dispatches.
 
 **Tasks:**
-1. [ ] Read existing new-command.md (lines 183–193, 104–137)
-2. [ ] Expand frontmatter field table with modern fields
-3. [ ] Update pattern-type descriptions with subagent isolation callouts
-4. [ ] Add worked example commands demonstrating modern patterns
+1. [x] Read existing new-command.md (lines 183–193, 104–137)
+2. [x] Expand frontmatter field table with modern fields
+3. [x] Update pattern-type descriptions with subagent isolation callouts
+4. [x] Add worked example commands demonstrating modern patterns
 
 **Acceptance Criteria:**
-- [ ] Pattern types section maps each pattern to appropriate modern feature
-- [ ] Frontmatter field coverage matches 2.1 (minus `name`)
-- [ ] Generated commands benefit from modern dispatch patterns
+- [x] Pattern types section maps each pattern to appropriate modern feature
+- [x] Frontmatter field coverage matches 2.1 (minus `name`)
+- [x] Generated commands benefit from modern dispatch patterns
 
 **Notes:**
 Critical: must not include `name` in command frontmatter — this breaks command discovery per CLAUDE.md.
 
 ---
 
-#### 2.3 Modernize scaffold-plugin command
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 2.3 Modernize scaffold-plugin command
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-2 Item 3
 **Files Affected:**
 - `plugins/personal-plugin/commands/scaffold-plugin.md` (modify; ~40 LOC)
@@ -305,8 +313,8 @@ If user prefers scaffold-plugin to include an optional `--with-help` flag, consi
 
 ---
 
-#### 2.4 Create Advanced Features section in common-patterns.md
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 2.4 Create Advanced Features section in common-patterns.md
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-2 Item 4
 **Files Affected:**
 - `plugins/personal-plugin/references/common-patterns.md` (modify; ~50 LOC added)

@@ -20,6 +20,10 @@
 <!-- SECTION 1: FRONTMATTER -->
 ---
 description: {{DESCRIPTION}}
+argument-hint: "<{{ARG_NAME}}> [--force]"
+effort: medium
+allowed-tools: Read, Write, Glob, Grep
+# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)
 ---
 
 <!-- SECTION 2: TITLE -->

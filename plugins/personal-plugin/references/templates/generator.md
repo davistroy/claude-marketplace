@@ -20,6 +20,11 @@
 <!-- SECTION 1: FRONTMATTER -->
 ---
 description: {{DESCRIPTION}}
+argument-hint: "<{{ARG_NAME}}> [--preview] [--force]"
+effort: medium
+allowed-tools: Read, Write, Glob, Grep
+# context: fork          # Uncomment to dispatch content analysis to isolated subagent
+# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)
 ---
 
 <!-- SECTION 2: TITLE -->

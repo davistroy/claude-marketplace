@@ -23,6 +23,13 @@
 <!-- SECTION 1: FRONTMATTER -->
 ---
 description: {{DESCRIPTION}}
+argument-hint: "[<scope>] [--focus <area>] [--quick]"
+effort: high
+allowed-tools: Read, Glob, Grep, Bash
+# context: fork          # Uncomment to dispatch deep-analysis phases to isolated subagent
+# agent: Explore         # Uncomment to specialize subagent role for read-heavy analysis
+# when_to_use: "when X"  # Uncomment to enable proactive suggestion trigger
+# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)
 ---
 
 <!-- SECTION 2: TITLE -->

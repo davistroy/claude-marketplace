@@ -23,6 +23,11 @@
 <!-- SECTION 1: FRONTMATTER -->
 ---
 description: {{DESCRIPTION}}
+argument-hint: "<sources-dir> [--format <md|docx>]"
+effort: high
+allowed-tools: Read, Write, Glob, Grep, Task
+# context: fork          # Uncomment to dispatch per-source analysis to parallel subagents
+# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)
 ---
 
 <!-- SECTION 2: TITLE -->
