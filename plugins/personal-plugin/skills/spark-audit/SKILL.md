@@ -178,3 +178,13 @@ sysctl vm.swappiness vm.min_free_kbytes
 Use the Audit Entry Template from `audit-recon-system.md §6`. Append to `~/dev/personal/spark/LAB_NOTEBOOK.md` using `Edit` tool. Auto-increment entry number.
 
 Skill name field: `spark-audit skill`
+
+## /schedule Integration
+
+Register a recurring audit run:
+
+```
+/schedule create --name spark-audit-weekly --cron "0 2 * * 2" --skill spark-audit
+```
+
+Recommended: **weekly Tuesday 02:00 UTC.** Pairs with spark-recon (bi-weekly Sunday 23:00 UTC).

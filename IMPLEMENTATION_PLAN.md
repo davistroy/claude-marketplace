@@ -603,8 +603,8 @@ Same shape as 4.2 but with Spark-specific config: SSH target `claude@spark.k4jda
 
 ---
 
-#### 4.4 Refactor jetson-recon and spark-recon skills
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 4.4 Refactor jetson-recon and spark-recon skills
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-4 Item 4
 **Files Affected:**
 - `plugins/personal-plugin/skills/jetson-recon/SKILL.md` (modify; net ~-80 LOC)
@@ -630,8 +630,8 @@ The `/schedule` command is native; this just adds docs and copy-pasteable trigge
 
 ---
 
-#### 4.5 Add Automation Schedule template to baseline docs
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 4.5 Add Automation Schedule template to baseline docs
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-4 Item 5
 **Files Affected:**
 - `plugins/personal-plugin/skills/jetson-audit/SKILL.md` (modify baseline template section)
@@ -654,8 +654,8 @@ Each audit skill's body describes a template for initializing `JETSON_BASELINE.m
 
 ---
 
-#### 4.6 Add paths auto-activation with loop guard to audit skills
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 4.6 Add paths auto-activation with loop guard to audit skills
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-4 Item 6
 **Files Affected:**
 - `plugins/personal-plugin/skills/jetson-audit/SKILL.md` (frontmatter + body; ~15 LOC)

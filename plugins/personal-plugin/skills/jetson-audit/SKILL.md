@@ -219,3 +219,13 @@ Compare against baseline fields: `llamacpp_latest_seen`, `jetpack_latest_orin_na
 ## LAB_NOTEBOOK Entry
 
 Append using `Edit` tool. Auto-increment entry number by reading the last `## Entry NNN` or `### Entry NNN` line. Use the Audit Entry Template from `audit-recon-system.md` Section 6.
+
+## /schedule Integration
+
+Register a recurring audit run:
+
+```
+/schedule create --name jetson-audit-weekly --cron "0 2 * * 2" --skill jetson-audit
+```
+
+Recommended: **weekly Tuesday 02:00 UTC.** Pairs with jetson-recon (bi-weekly Sunday 23:00 UTC).
