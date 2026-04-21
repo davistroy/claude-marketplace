@@ -2,9 +2,23 @@
 name: spark-audit
 description: SSH into the DGX Spark and audit all running containers against known best practices and community optimizations. Reports gaps, misconfigurations, and optimization opportunities. Complements spark-recon (external landscape) with internal config validation.
 allowed-tools: Read, Edit, Glob, Grep, Bash, Agent
+paths:
+  - "SPARK_BASELINE.md"
+  - "*_CONFIG.md"
 ---
 
 # Spark Audit
+
+## Loop Guard — Auto-Activation Safety Check
+
+**Run this check before any other step when the skill is triggered automatically via `paths:`.**
+
+1. Read the last 20 lines of `LAB_NOTEBOOK.md` (if it exists).
+2. If any line contains `spark-audit skill` and a timestamp within the last 5 minutes: **stop immediately** — self-triggered re-entry detected. Output: "Loop guard triggered — spark-audit ran within last 5 minutes. Skipping." and exit.
+3. If `--force` is present in `$ARGUMENTS`: skip this check and proceed regardless.
+4. Otherwise: proceed normally.
+
+---
 
 Live configuration audit of the DGX Spark inference system. SSHes into the device, inspects running containers, compares against documented best practices and community benchmarks in SPARK_BASELINE.md, and reports optimization opportunities.
 
@@ -188,3 +202,20 @@ Register a recurring audit run:
 ```
 
 Recommended: **weekly Tuesday 02:00 UTC.** Pairs with spark-recon (bi-weekly Sunday 23:00 UTC).
+
+```
+/schedule list
+/schedule delete --name spark-audit-weekly
+```
+
+---
+
+## SPARK_BASELINE.md Initialization
+
+If `SPARK_BASELINE.md` doesn't exist, create it using the template in spark-recon/SKILL.md. The template includes:
+
+### Automation Schedule
+
+| Frequency | Recommended Time | Notes |
+|-----------|-----------------|-------|
+| Weekly | Tuesday 02:00 UTC | Pairs with spark-recon (bi-weekly Sunday 23:00 UTC) |

@@ -2,9 +2,23 @@
 name: jetson-audit
 description: SSH into the Jetson Orin Nano and audit the running inference config against known best practices and community optimizations. Reports gaps, misconfigurations, and optimization opportunities. Complements jetson-recon (external landscape) with internal config validation.
 allowed-tools: Read, Edit, Glob, Grep, Bash, Agent
+paths:
+  - "JETSON_BASELINE.md"
+  - "*_CONFIG.md"
 ---
 
 # Jetson Audit
+
+## Loop Guard — Auto-Activation Safety Check
+
+**Run this check before any other step when the skill is triggered automatically via `paths:`.**
+
+1. Read the last 20 lines of `LAB_NOTEBOOK.md` (if it exists).
+2. If any line contains `jetson-audit skill` and a timestamp within the last 5 minutes: **stop immediately** — self-triggered re-entry detected. Output: "Loop guard triggered — jetson-audit ran within last 5 minutes. Skipping." and exit.
+3. If `--force` is present in `$ARGUMENTS`: skip this check and proceed regardless.
+4. Otherwise: proceed normally.
+
+---
 
 Live configuration audit of the Jetson Orin Nano Super inference system. SSHes into the device, inspects the running llama.cpp server and system state, compares against documented best practices in JETSON_BASELINE.md, and reports optimization opportunities.
 
@@ -229,3 +243,20 @@ Register a recurring audit run:
 ```
 
 Recommended: **weekly Tuesday 02:00 UTC.** Pairs with jetson-recon (bi-weekly Sunday 23:00 UTC).
+
+```
+/schedule list
+/schedule delete --name jetson-audit-weekly
+```
+
+---
+
+## JETSON_BASELINE.md Initialization
+
+If `JETSON_BASELINE.md` doesn't exist, create it using the template in jetson-recon/SKILL.md. The template includes:
+
+### Automation Schedule
+
+| Frequency | Recommended Time | Notes |
+|-----------|-----------------|-------|
+| Weekly | Tuesday 02:00 UTC | Pairs with jetson-recon (bi-weekly Sunday 23:00 UTC) |

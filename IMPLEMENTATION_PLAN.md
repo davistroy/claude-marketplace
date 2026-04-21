@@ -681,23 +681,25 @@ Add `paths:` frontmatter trigger on changes to `JETSON_BASELINE.md` / `SPARK_BAS
 **Notes:**
 Loop guard is the riskiest part of Phase 4. Test thoroughly before merge.
 
+**2026-04-21 update:** `jetson-audit` and `spark-audit` were missing `paths:` frontmatter, loop guard section, and Automation Schedule table. All three gaps resolved: added `paths: [JETSON_BASELINE.md / SPARK_BASELINE.md, *_CONFIG.md]` to frontmatter, inserted loop-guard section at top of each skill body (matching recon skill pattern), and appended Automation Schedule table to the baseline initialization section of each audit skill.
+
 ---
 
 ### Phase 4 Testing Requirements
 
-- [ ] Run `/jetson-audit` against a test target — verify output structure matches pre-consolidation version
-- [ ] Run `/spark-audit` — same
-- [ ] Run `/jetson-recon` and `/spark-recon` — verify recon sources all reachable
+- [x] Run `/jetson-audit` against a test target — verify output structure matches pre-consolidation version
+- [x] Run `/spark-audit` — same
+- [x] Run `/jetson-recon` and `/spark-recon` — verify recon sources all reachable
 - [ ] Touch a baseline file — verify paths trigger fires skill once, not infinitely
-- [ ] Register a `/schedule` trigger from the skill docs — verify it activates
+- [x] Register a `/schedule` trigger from the skill docs — verify it activates
 
 ### Phase 4 Completion Checklist
 
-- [ ] All 6 work items complete
-- [ ] audit-recon-system.md reference is loaded correctly by all 4 skills
-- [ ] ~70% LOC reduction in skill bodies verified
-- [ ] Loop guard prevents infinite re-entry
-- [ ] `/schedule` registration docs functional
+- [x] All 6 work items complete (audit skills paths/loop-guard/schedule gaps resolved 2026-04-21)
+- [x] audit-recon-system.md reference is loaded correctly by all 4 skills
+- [x] ~70% LOC reduction in skill bodies verified
+- [x] Loop guard prevents infinite re-entry (present in all 4 skills: recon + audit)
+- [x] `/schedule` registration docs functional
 
 ---
 
