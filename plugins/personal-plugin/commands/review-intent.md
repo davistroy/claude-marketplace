@@ -420,7 +420,7 @@ Begin by examining all available intent artifacts and presenting the Intent Prof
 ## Related Commands
 
 - `/review-arch` — Quick architectural audit (complementary review)
-- `/review-pr` — Review a specific pull request for code quality
+- `/review` — Native PR review (use `/ultrareview` for multi-agent deep review)
 - `/plan-improvements` — Generate improvement recommendations based on codebase analysis
 - `/plan-next` — Get a recommendation for the next action based on current state
 - `/assess-document` — Evaluate document quality (useful for reviewing spec documents)

@@ -32,7 +32,7 @@ If no arguments are provided, evaluate the entire project from the repository ro
 
 ## Instructions
 
-Execute ALL phases below. Use the Task tool with `subagent_type=Explore` for broad codebase searches to avoid flooding context. Use Glob, Grep, and Read directly for targeted lookups.
+Execute ALL phases below using per-phase dispatch: Phases 1, 3, and 5 run via `context: fork` + `agent: Explore` (read-only analysis, isolated context). Phase 0 (lab notebook) and Phase 6 (recommendations) run inline in the main conversation — they require full prior-phase output visibility. Phase 2 pre-loads git state via dynamic context injection before Claude sees the prompt.
 
 ### Phase 0: Lab Notebook (Mandatory First Read)
 
@@ -50,6 +50,8 @@ If no `LAB_NOTEBOOK.md` is present, note "Lab Notebook: Absent" and proceed.
 
 ### Phase 1: Project Identity
 
+> **Dispatch:** This phase runs via `context: fork` + `agent: Explore`. Fork an isolated Explore subagent for all file scanning and manifest reading in this phase. Return findings to parent for report assembly.
+
 Determine what this project IS.
 
 1. **Read project manifests** -- Check for `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle`, `Gemfile`, `*.csproj`, `Makefile`, `docker-compose.yml`, or similar. Extract: project name, version, description, language/runtime, declared dependencies.
@@ -63,20 +65,16 @@ Determine what this project IS.
 
 Assess the project's current state and activity.
 
-1. **Git history analysis:**
-   ```bash
-   git log --oneline -20                           # Recent activity
-   git log --format='%ai' -1                       # Last commit date
-   git log --format='%ai' --reverse | head -1      # First commit date
-   git shortlog -sn --no-merges | head -10          # Top contributors
-   git log --since="30 days ago" --oneline | wc -l  # Activity last 30 days
-   ```
+1. **Git history analysis** (pre-loaded via dynamic context injection — values available before this phase runs):
+   - Recent commits: `!`git log --oneline -20``
+   - Last commit date: `!`git log --format='%ai' -1``
+   - First commit date: `!`git log --format='%ai' --reverse | head -1``
+   - Top contributors: `!`git shortlog -sn --no-merges | head -10``
+   - Activity last 30 days: `!`git log --since="30 days ago" --oneline | wc -l``
 
-2. **Branch status:**
-   ```bash
-   git branch -a --sort=-committerdate | head -10   # Active branches
-   git status -s                                     # Working tree state
-   ```
+2. **Branch status** (pre-loaded via dynamic context injection):
+   - Active branches: `!`git branch -a --sort=-committerdate | head -10``
+   - Working tree state: `!`git status -s``
 
 3. **Open work detection** -- Check for: `TODO`, `FIXME`, `HACK`, `XXX` comments across source files. Check for `IMPLEMENTATION_PLAN.md`, `PROGRESS.md`, `RECOMMENDATIONS.md`, open GitHub issues/PRs if `gh` is available.
 
@@ -93,6 +91,8 @@ Assess the project's current state and activity.
 **Output for report:** Repository age, activity level (active/maintained/stale/abandoned), contributor count, working tree status, open work items, lab notebook summary (if present).
 
 ### Phase 3: Code Quality & Architecture
+
+> **Dispatch:** This phase runs via `context: fork` + `agent: Explore`. Fork an isolated Explore subagent for all codebase structure analysis, metric collection, and CI/CD inspection. Return findings to parent for report assembly.
 
 Evaluate the codebase structure and quality.
 
@@ -153,6 +153,8 @@ Assess how easy it is to understand and work with this project.
 **Output for report:** Documentation grade (A-F), onboarding friction points, missing documentation.
 
 ### Phase 5: Risk Assessment
+
+> **Dispatch:** This phase runs via `context: fork` + `agent: Explore`. Fork an isolated Explore subagent for all security posture checks, dependency scanning, and technical debt analysis. Return categorized risk items to parent for report assembly.
 
 Identify potential problems and blockers.
 

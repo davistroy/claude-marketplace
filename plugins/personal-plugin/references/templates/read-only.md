@@ -22,6 +22,13 @@
 <!-- SECTION 1: FRONTMATTER -->
 ---
 description: {{DESCRIPTION}}
+argument-hint: "<target> [--focus <area>]"
+effort: medium
+allowed-tools: Read, Glob, Grep
+# context: fork          # Uncomment to dispatch analysis phases to isolated subagent
+# agent: Explore         # Uncomment to specialize subagent role (use with context: fork)
+# when_to_use: "when X"  # Uncomment to enable proactive suggestion trigger
+# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)
 ---
 
 <!-- SECTION 2: TITLE -->

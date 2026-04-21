@@ -180,6 +180,6 @@ No changes made. Run without --dry-run to execute.
 | `/ask-questions` | `<questions-file>` | | `--force` |
 | `/finish-document` | `<document-path>` | | `--auto`, `--force` |
 | `/assess-document` | `<document-path>` | | |
-| `/review-pr` | | `<pr-number>` | |
+| `/review` | | `<pr-number>` | (native command) |
 | `/convert-markdown` | `<markdown-file>` | `--output` | |
 | `/validate-plugin` | `<plugin-name>` | | `--all`, `--fix`, `--verbose`, `--strict`, `--report` |

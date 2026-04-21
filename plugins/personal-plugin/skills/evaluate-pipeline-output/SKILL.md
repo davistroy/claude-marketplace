@@ -11,6 +11,9 @@ Perform a comprehensive semantic quality evaluation of a contact-center-lab pipe
 
 **This skill is read-only. It never modifies files, commits, or pushes.**
 
+> [!WARNING]
+> **Scope:** Specialized for the contact-center-lab pipeline. Not generalizable without substantial rewrite. See `LAB_NOTEBOOK.md` in that project for pipeline schema.
+
 ## Proactive Triggers
 
 Suggest this skill when:

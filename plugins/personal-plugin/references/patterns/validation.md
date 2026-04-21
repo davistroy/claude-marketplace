@@ -240,7 +240,7 @@ All assessment and review commands MUST use these standardized severity levels:
 
 Commands using these levels:
 - `/assess-document` - Document quality evaluation
-- `/review-pr` - PR code review
+- `/review` - PR code review (native; use `/ultrareview` for multi-agent)
 - `/ship` - Auto-review during PR workflow
 
 ## Interactive Parameter Prompting

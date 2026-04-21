@@ -2,73 +2,84 @@
 name: jetson-audit
 description: SSH into the Jetson Orin Nano and audit the running inference config against known best practices and community optimizations. Reports gaps, misconfigurations, and optimization opportunities. Complements jetson-recon (external landscape) with internal config validation.
 allowed-tools: Read, Edit, Glob, Grep, Bash, Agent
+paths:
+  - "JETSON_BASELINE.md"
+  - "*_CONFIG.md"
 ---
 
 # Jetson Audit
+
+## Loop Guard — Auto-Activation Safety Check
+
+**Run this check before any other step when the skill is triggered automatically via `paths:`.**
+
+1. Read the last 20 lines of `LAB_NOTEBOOK.md` (if it exists).
+2. If any line contains `jetson-audit skill` and a timestamp within the last 5 minutes: **stop immediately** — self-triggered re-entry detected. Output: "Loop guard triggered — jetson-audit ran within last 5 minutes. Skipping." and exit.
+3. If `--force` is present in `$ARGUMENTS`: skip this check and proceed regardless.
+4. Otherwise: proceed normally.
+
+---
 
 Live configuration audit of the Jetson Orin Nano Super inference system. SSHes into the device, inspects the running llama.cpp server and system state, compares against documented best practices in JETSON_BASELINE.md, and reports optimization opportunities.
 
 **This skill reads the live system. It never modifies it.**
 
+**Framework:** Follow `plugins/personal-plugin/references/patterns/audit-recon-system.md` — Sections 1–6 (Execution Framework, Audit Five-Check Template, Severity Matrices, LAB_NOTEBOOK Entry). Use the Jetson-specific config and commands below as the machine config layer.
+
+---
+
+## Machine Config
+
+```yaml
+machine:
+  name: "Jetson Orin Nano Super"
+  ssh_target: "claude@jetson.k4jda.net"
+  ssh_key: "~/.ssh/id_claude_code"
+  baseline_file: "JETSON_BASELINE.md"
+  config_file: "JETSON_CONFIG.md"
+  project_root: "~/dev/personal/jetson/"
+  notebook_file: "LAB_NOTEBOOK.md"
+
+check1_config:
+  drift_reference: "JETSON_CONFIG.md"
+  service_name: "myscript"
+  launch_script: "~/llm-server/start.sh"
+  mode_file: "~/llm-server/mode.txt"
+
+check2_config:
+  memory_ceiling: "8 GB unified"
+  inference_port: 8080
+
+check3_config:
+  memory_ceiling: "8 GB unified"
+
+check4_config:
+  inference_port: 8080
+  thermals_path: "/sys/devices/virtual/thermal/thermal_zone*/temp"
+
+check5_config:
+  baseline_version_key: "llamacpp_latest_seen"
+  secondary_version_key: "jetpack_latest_orin_nano"
+```
+
+---
+
 ## Required Files
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `JETSON_BASELINE.md` | Jetson project root (`~/dev/personal/jetson/`) | Performance baselines + known-best config to compare against |
-| `JETSON_CONFIG.md` | Jetson project root | Documented system config (ground truth for drift detection) |
-| `LAB_NOTEBOOK.md` | Jetson project root | Append-only audit results log |
+| `JETSON_BASELINE.md` | `~/dev/personal/jetson/` | Performance baselines + known-best config to compare against |
+| `JETSON_CONFIG.md` | `~/dev/personal/jetson/` | Documented system config (ground truth for drift detection) |
+| `LAB_NOTEBOOK.md` | `~/dev/personal/jetson/` | Append-only audit results log |
 
 If any required file is missing, note it in the report and proceed with available data.
 
-## Connection
+---
 
-```bash
-ssh -i ~/.ssh/id_claude_code claude@jetson.k4jda.net
-```
+## Machine-Specific Commands
 
-The `claude` user has passwordless sudo for systemctl and other system commands.
+### Check 1 — Service Config Drift
 
-## Execution Flow
-
-```dot
-digraph audit {
-  rankdir=TB;
-  read [label="Read JETSON_BASELINE.md\n+ JETSON_CONFIG.md" shape=box];
-  parallel [label="Launch 5 parallel checks\nvia SSH" shape=box];
-  service [label="Check 1: Service\nConfig Drift" shape=box];
-  flags [label="Check 2: Missing\nOptimizations" shape=box];
-  memory [label="Check 3: Memory\nBudget" shape=box];
-  health [label="Check 4: System\nHealth" shape=box];
-  versions [label="Check 5: Version\nCurrency" shape=box];
-  analyze [label="Cross-reference findings\nand classify severity" shape=box];
-  report [label="Present audit report\nwith recommendations" shape=box];
-  notebook [label="Append entry to\nLAB_NOTEBOOK.md" shape=box];
-  done [label="Done" shape=doublecircle];
-
-  read -> parallel;
-  parallel -> service;
-  parallel -> flags;
-  parallel -> memory;
-  parallel -> health;
-  parallel -> versions;
-  service -> analyze;
-  flags -> analyze;
-  memory -> analyze;
-  health -> analyze;
-  versions -> analyze;
-  analyze -> report;
-  report -> notebook;
-  notebook -> done;
-}
-```
-
-## The Five Checks
-
-### Check 1 -- Service Config Drift
-
-**Purpose:** Detect differences between documented config (JETSON_CONFIG.md) and actual running config.
-
-**Commands:**
 ```bash
 # Service status
 systemctl status myscript
@@ -88,23 +99,9 @@ pgrep -a llama
 ss -tlnp | grep -E '(8080|8081)'
 ```
 
-**Analysis:**
-1. Extract the actual llama-server command line flags from the running process.
-2. Compare against the documented config in JETSON_CONFIG.md.
-3. Flag any differences as DRIFT items:
-   - **CRITICAL:** Wrong model path, missing GPU offload, wrong port
-   - **WARNING:** Flag differences (context size, thread count, parallel slots)
-   - **INFO:** Cosmetic differences, default values made explicit
+### Check 2 — Missing Optimizations
 
-**Return:** Drift report with severity classification.
-
-### Check 2 -- Missing Optimizations
-
-**Purpose:** Compare running llama-server flags against known best practices for Jetson Orin Nano.
-
-**Analysis:**
-
-Check for the presence/absence of these flags:
+Known-good flags for Jetson Orin Nano 8 GB unified memory:
 
 | Flag | Best Practice | Severity if Missing |
 |------|--------------|-------------------|
@@ -118,7 +115,8 @@ Check for the presence/absence of these flags:
 | `-t 1` or `--threads 1` | Single thread (GPU-bound, more threads waste cycles) | LOW |
 | `--cont-batching` | Continuous batching for concurrent requests | LOW |
 
-Check for anti-patterns:
+Anti-patterns:
+
 | Anti-Pattern | Check | Severity |
 |-------------|-------|----------|
 | `-ngl 0` or missing GPU offload | All inference on CPU = extremely slow | CRITICAL |
@@ -127,13 +125,8 @@ Check for anti-patterns:
 | `--parallel` > 2 on 8 GB | Each slot needs KV cache memory | MEDIUM |
 | No `--mlock` with swap enabled | Model pages to swap under pressure | MEDIUM |
 
-**Return:** List of missing optimizations with severity and expected impact.
+### Check 3 — Memory Budget
 
-### Check 3 -- Memory Budget
-
-**Purpose:** Verify memory allocation is healthy for the 8 GB unified memory constraint.
-
-**Commands:**
 ```bash
 free -h
 swapon --show
@@ -147,29 +140,24 @@ cat /sys/kernel/debug/nvmap/iovmm/clients 2>/dev/null | head -20
 cat /proc/meminfo | grep -E '(MemTotal|MemAvailable|SwapTotal|SwapFree|Buffers|Cached)'
 ```
 
-**Analysis:**
+Memory thresholds for 8 GB unified:
 
 | Metric | Healthy | Warning | Critical |
 |--------|---------|---------|----------|
-| Available RAM | > 500 MB | 200-500 MB | < 200 MB |
-| Swap used | < 50 MB | 50-500 MB | > 500 MB |
-| llama-server RSS | < baseline + 20% | +20-50% above baseline | > +50% or > 6 GB |
-| Total RSS (all processes) | < 7 GB | 7-7.5 GB | > 7.5 GB |
+| Available RAM | > 500 MB | 200–500 MB | < 200 MB |
+| Swap used | < 50 MB | 50–500 MB | > 500 MB |
+| llama-server RSS | < baseline + 20% | +20–50% above baseline | > +50% or > 6 GB |
+| Total RSS (all processes) | < 7 GB | 7–7.5 GB | > 7.5 GB |
 
-**Memory budget calculation:**
-1. Model size in memory (GGUF Q4_K_M ~3 GB for 4B model)
-2. KV cache: context_size x layers x head_dim x 2 (K+V) x quant_factor
-3. Working memory: ~200-400 MB for llama.cpp runtime
-4. OS + other processes: ~1-1.5 GB
-5. Total must fit in 8 GB with >= 500 MB headroom
+Memory budget breakdown (4B Q4_K_M model):
+1. Model GGUF: ~3 GB
+2. KV cache: context_size × layers × head_dim × 2 (K+V) × quant_factor
+3. Runtime: ~200–400 MB
+4. OS + other: ~1–1.5 GB
+5. Required headroom: >= 500 MB
 
-**Return:** Memory budget table, swap status, whether model fits comfortably.
+### Check 4 — System Health
 
-### Check 4 -- System Health
-
-**Purpose:** Check overall system health indicators.
-
-**Commands:**
 ```bash
 uptime
 # Thermals (Jetson-specific)
@@ -196,30 +184,20 @@ curl -s http://localhost:8080/v1/chat/completions \
 curl -s http://localhost:8080/slots 2>/dev/null | python3 -c 'import sys,json; s=json.load(sys.stdin); print(f"Slots: {len(s)}, Busy: {sum(1 for x in s if x.get(\"is_processing\",False))}")' 2>/dev/null
 ```
 
-**Analysis:**
+Jetson-specific health thresholds:
+
 | Check | Healthy | Warning | Critical |
 |-------|---------|---------|----------|
 | Inference responds | Yes, < 5s | Slow (> 10s) | No response / error |
-| GPU temp (idle) | < 50C | 50-65C | > 65C |
-| GPU temp (load) | < 65C | 65-80C | > 80C |
+| GPU temp (idle) | < 50C | 50–65C | > 65C |
+| GPU temp (load) | < 65C | 65–80C | > 80C |
 | Power mode | MAXN (15W) | 10W mode | Unknown / 7W |
-| Disk usage | < 70% | 70-85% | > 85% |
+| Disk usage | < 70% | 70–85% | > 85% |
 | System uptime | Stable (> 1 day) | < 1 day | Service down |
 | Journal errors | None relevant | GPU/CUDA warnings | OOM kills |
 
-**Inference speed check:**
-If possible, measure generation tok/s from the inference test. Compare against `baseline_gen_tok_s` from JETSON_BASELINE.md.
-- Within 15%: OK
-- 15-30% below: WARNING (thermal throttling? memory pressure?)
-- > 30% below: CRITICAL
+### Check 5 — Version Currency
 
-**Return:** Health status per component, thermals, inference speed, anomalies.
-
-### Check 5 -- Version Currency
-
-**Purpose:** Compare running versions against latest known-good versions.
-
-**Commands:**
 ```bash
 # llama.cpp version
 cd ~/llm-server/llama.cpp && git log --oneline -1
@@ -239,90 +217,46 @@ head -1 /etc/nv_tegra_release 2>/dev/null
 ls -la ~/llm-server/models/ 2>/dev/null | grep -i gguf
 ```
 
-**Analysis:**
-Compare against JETSON_BASELINE.md version tracking:
-- llama.cpp: compare against `llamacpp_latest_seen`
-- JetPack: compare against `jetpack_latest_orin_nano`
-- CUDA: note version for compatibility context
-- Model: verify matches `current_model`
+Version gap severity for Jetson:
 
-Flag version gaps:
 | Gap | Severity |
 |-----|----------|
 | llama.cpp > 5 builds behind latest | HIGH |
-| llama.cpp 1-5 builds behind | MEDIUM |
+| llama.cpp 1–5 builds behind | MEDIUM |
 | JetPack behind latest for Orin Nano | INFO (reflash required, high effort) |
 | Model file doesn't match documented model | WARNING |
 
-**Return:** Version comparison table, upgrade recommendations.
+Compare against baseline fields: `llamacpp_latest_seen`, `jetpack_latest_orin_nano`, `current_model`.
 
-## Overall Classification
-
-After all five checks:
-
-| Status | Criteria |
-|--------|----------|
-| **NEEDS ATTENTION** | Any CRITICAL finding, or >= 3 HIGH findings, or service DOWN |
-| **OPTIMIZATION AVAILABLE** | Any HIGH finding (no CRITICAL), missing key optimizations |
-| **HEALTHY** | No HIGH or CRITICAL findings, config matches best practices |
-
-## Console Report Format
-
-```
-## Jetson Audit -- {DATE}
-Overall: {NEEDS ATTENTION / OPTIMIZATION AVAILABLE / HEALTHY}
-
-### Service Config Drift
-{drift items or "No drift detected — running config matches documentation"}
-
-### Missing Optimizations
-{missing flags/settings with severity and expected impact, or "All known optimizations applied"}
-
-### Memory Budget
-| Component | Memory | Status |
-|-----------|--------|--------|
-| Model (GGUF) | {X} GB | {OK} |
-| KV Cache | {X} GB | {OK/TIGHT} |
-| Runtime | {X} MB | {OK} |
-| OS + Other | {X} GB | {OK} |
-| **Total** | {X} GB / 8 GB | {headroom: X MB} |
-Swap: {X} MB ({OK/WARNING/CRITICAL})
-
-### System Health
-- Uptime: {N} days, service {running/stopped}
-- Power mode: {MAXN/10W/7W}
-- Thermals: GPU {X}C, CPU {X}C
-- Inference: {X} tok/s (baseline: {Y})
-- Disk: {X}% used
-- Slots: {X} total, {Y} busy
-
-### Version Currency
-| Component | Running | Latest Known | Gap |
-|-----------|---------|-------------|-----|
-| llama.cpp | {X} | {Y} | {none/behind by N} |
-| JetPack | {X} | {Y} | {current/behind} |
-| CUDA | {X} | {Y} | {current} |
-| Model | {name} | {expected} | {match/mismatch} |
-
-### Recommendations
-1. {Priority-ordered list of actions, or "System is optimally configured"}
-```
+---
 
 ## LAB_NOTEBOOK Entry
 
-Append using `Edit` tool. Auto-increment entry number by reading the last `## Entry NNN` or `### Entry NNN` line.
+Append using `Edit` tool. Auto-increment entry number by reading the last `## Entry NNN` or `### Entry NNN` line. Use the Audit Entry Template from `audit-recon-system.md` Section 6.
 
-```markdown
-### Entry {N} -- Jetson Audit ({YYYY-MM-DD})
-**Date:** {YYYY-MM-DD HH:MM} UTC
-**Operator:** Claude Code (jetson-audit skill)
-**Status:** AUDIT -- no changes made
+## /schedule Integration
 
-#### Config Drift: {drift items or "None"}
-#### Missing Optimizations: {items or "None"}
-#### Memory Budget: {X} / 8 GB, swap {X} MB, headroom {X} MB
-#### System Health: {HEALTHY/DEGRADED/DOWN}, GPU {X}C, {X} tok/s
-#### Version Currency: {current or behind on N components}
-#### Overall: {STATUS}
-#### Recommendations: {list or "No action needed"}
+Register a recurring audit run:
+
+```bash
+/schedule create --name jetson-audit-weekly --cron "0 2 * * 2" --skill jetson-audit
 ```
+
+Recommended: **weekly Tuesday 02:00 UTC.** Pairs with jetson-recon (bi-weekly Sunday 23:00 UTC).
+
+```bash
+/schedule list
+/schedule delete --name jetson-audit-weekly
+```
+
+---
+
+## JETSON_BASELINE.md Initialization
+
+If `JETSON_BASELINE.md` doesn't exist, create it using the template in jetson-recon/SKILL.md. The template includes:
+
+### Automation Schedule
+
+| Frequency | Recommended Time | Notes |
+|-----------|-----------------|-------|
+| Weekly | Tuesday 02:00 UTC | Pairs with jetson-recon (bi-weekly Sunday 23:00 UTC) |

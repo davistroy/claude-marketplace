@@ -90,10 +90,12 @@ The command:
 
 **Best for:** Ensuring code quality before merging PRs.
 
+**Native commands:** Use `/review` for standard PR review or `/ultrareview` for multi-agent deep review.
+
 ### Command Sequence
 
 ```
-/review-pr 123
+/review 123
     |
     v
 Fix identified issues (manually or with Claude)
@@ -106,11 +108,11 @@ Fix identified issues (manually or with Claude)
 
 #### Step 1: Review the PR
 ```
-/review-pr 123
+/review 123
 ```
-or
+or for a multi-agent deep review:
 ```
-/review-pr https://github.com/owner/repo/pull/123
+/ultrareview 123
 ```
 
 **Output:** In-conversation review report with:
@@ -118,7 +120,7 @@ or
 - Performance assessment
 - Code quality evaluation
 - Categorized issues (CRITICAL, HIGH, MEDIUM, LOW, INFO)
-- Line-level review comments via MCP GitHub integration (with `gh` CLI fallback)
+- Line-level review comments via MCP GitHub integration
 
 #### Step 2: Fix Issues
 

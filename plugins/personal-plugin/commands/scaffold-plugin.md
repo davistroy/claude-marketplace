@@ -101,9 +101,8 @@ Would create:
     .claude-plugin/
       plugin.json
     commands/                (empty directory)
-    skills/
-      help/
-        SKILL.md
+    skills/                  (empty directory — add skills with /new-skill)
+    references/              (empty directory — optional)
 
 Would update:
   .claude-plugin/marketplace.json
@@ -121,27 +120,26 @@ Create the following directory structure:
 plugins/[plugin-name]/
   .claude-plugin/
     plugin.json           # Plugin metadata
-  commands/               # User-initiated commands (empty initially)
-  skills/
-    help/                 # CRITICAL: Skills use NESTED directories
-      SKILL.md            # MUST be exactly SKILL.md (uppercase)
+  commands/               # User-initiated commands (flat .md files)
+  skills/                 # Proactive skills (nested dirs — add with /new-skill)
   references/             # Reference documentation (optional)
 ```
 
-**CRITICAL:** Skills require a nested directory structure with `SKILL.md` files (not flat `.md` files). This is different from commands which use flat files.
+**CRITICAL:** Skills require a nested directory structure with `SKILL.md` files (not flat `.md` files). This is different from commands which use flat files. Use `/new-skill` to scaffold individual skills with modern frontmatter.
 
 | Component | Correct Path | Wrong Path |
 |-----------|-------------|------------|
-| Help skill | `skills/help/SKILL.md` | `skills/help.md` |
 | Any skill | `skills/[name]/SKILL.md` | `skills/[name].md` |
 | Commands | `commands/[name].md` | `commands/[name]/command.md` |
+
+**Note:** No help skill is generated. Native `/help` and `/skills` commands fully cover plugin-local help. Use `/new-skill` and `/new-command` to add content to your plugin.
 
 **Steps:**
 
 1. Create main plugin directory: `plugins/[plugin-name]/`
 2. Create `.claude-plugin/` subdirectory
-3. Create `commands/` subdirectory
-4. Create `skills/help/` subdirectory (nested — required for skill discovery)
+3. Create `commands/` subdirectory (empty)
+4. Create `skills/` subdirectory (empty — skills added per-skill via `/new-skill`)
 5. Optionally create `references/` subdirectory
 
 ### Phase 4: Generate Configuration Files
@@ -168,95 +166,28 @@ Generate `plugins/[plugin-name]/.claude-plugin/plugin.json`:
 
 **Note:** The `keywords` field must be a valid JSON array of strings. Each tag from the user's comma-separated input becomes a separate string element.
 
-#### 4.2 Create Starter help Skill
+#### 4.2 No Starter Skill Generated
 
-Generate `plugins/[plugin-name]/skills/help/SKILL.md`:
+No starter help skill is generated. Native `/help` and `/skills` commands fully cover plugin-local help — a custom help skill is an unnecessary maintenance burden.
+
+To add your first skill after scaffolding, run `/new-skill`. It will generate a skill with modern frontmatter fields including `context`, `agent`, `model`, `paths`, `isolation`, `when_to_use`, and `allowed-tools`. See `plugins/personal-plugin/references/common-patterns.md` (Advanced Features section) for field documentation and worked examples.
+
+**Skill frontmatter quick reference:**
+```yaml
+---
+name: my-skill             # REQUIRED — must match directory name
+description: What it does  # REQUIRED
+effort: medium             # low/medium/high/max
+allowed-tools: Read, Glob, Grep, Bash
+# context: fork            # Dispatch to isolated subagent context
+# isolation: worktree      # Give subagent its own git worktree
+# paths: ["**/*.ts"]       # Auto-trigger on file changes (add loop guard in body!)
+# agent: explorer          # Agent type for context:fork dispatch
+# when_to_use: "..."       # Routing hint shown in /skills list
+---
+```
 
 **CRITICAL:** Skills REQUIRE a `name` field in frontmatter. Without it, the skill will NOT be discovered.
-
-<!-- BEGIN EMBEDDED TEMPLATE: help skill -->
-```markdown
----
-name: help
-description: Show available commands and skills in this plugin with usage information
----
-
-# Help Skill
-
-Display help information for the [plugin-name] commands and skills.
-
-**IMPORTANT:** This skill must be updated whenever commands or skills are added, changed, or removed from this plugin.
-
-## Usage
-
-\`\`\`
-/help                          # Show all commands and skills
-/help <command-name>           # Show detailed help for a specific command
-\`\`\`
-
-## Mode 1: List All (no arguments)
-
-When invoked without arguments, display this table:
-
-\`\`\`
-[plugin-name] Commands and Skills
-=================================
-
-COMMANDS
---------
-| Command | Description |
-|---------|-------------|
-| (no commands yet) | Add commands using /new-command |
-
-SKILLS
-------
-| Skill | Description |
-|-------|-------------|
-| /help | Show available commands and skills in this plugin with usage information |
-
----
-Use '/help <name>' for detailed help on a specific command or skill.
-\`\`\`
-
-## Mode 2: Detailed Help (with argument)
-
-When invoked with a command or skill name, read the corresponding file and display:
-
-1. **Description** - From frontmatter
-2. **Arguments** - From "Input Validation" section if present
-3. **Output** - What the command produces
-4. **Example** - Usage example
-
-### Skill Reference
-
----
-
-#### /help
-**Description:** Show available commands and skills in this plugin with usage information
-**Arguments:** None required
-**Output:** In-conversation output
-**Example:**
-\`\`\`
-/help                          # Show all commands and skills
-/help <command-name>           # Show detailed help for a specific command
-\`\`\`
-
----
-
-## Error Handling
-
-If the requested command is not found:
-\`\`\`
-Command '[name]' not found in [plugin-name].
-
-Available commands:
-  (none yet)
-
-Available skills:
-  /help
-\`\`\`
-```
-<!-- END EMBEDDED TEMPLATE: help skill -->
 
 ### Phase 5: Update Marketplace Registry
 
@@ -296,43 +227,42 @@ Created structure:
     .claude-plugin/
       plugin.json           [CREATED]
     commands/               [CREATED] (empty)
-    skills/
-      help/
-        SKILL.md            [CREATED]
+    skills/                 [CREATED] (empty — add skills with /new-skill)
+    references/             [CREATED] (optional, empty)
 
 Updated:
   .claude-plugin/marketplace.json  [UPDATED]
 
 **Next Steps:**
 
-1. Add your first command:
+1. Add your first command (flat .md file):
    /new-command
 
-2. Add skills (proactive suggestions):
+2. Add skills (proactive triggers — nested dirs required):
    /new-skill
 
 3. Or manually create in:
    - Commands: plugins/[plugin-name]/commands/my-command.md
    - Skills: plugins/[plugin-name]/skills/my-skill/SKILL.md
-     (skills MUST use nested directories with SKILL.md)
+     (skills MUST use nested directories with SKILL.md; name field required in frontmatter)
 
-4. After adding commands/skills, update the plugin's `skills/help/SKILL.md` with new entries
+4. Review modern frontmatter options in common-patterns.md (Advanced Features section):
+   plugins/personal-plugin/references/common-patterns.md
 
 5. Validate the plugin:
    /validate-plugin [plugin-name]
 
 **Useful Commands:**
 - /validate-plugin [plugin-name]  - Validate plugin structure
-- /new-command                    - Create new commands
-- /new-skill                      - Create new skills
-- /help                           - View available commands
+- /new-command                    - Create new commands with modern frontmatter
+- /new-skill                      - Create new skills with modern frontmatter
+- /help                           - View available commands (native, no custom help skill needed)
 ```
 
 ## Output
 
 **Files Created:**
 - `plugins/[plugin-name]/.claude-plugin/plugin.json`
-- `plugins/[plugin-name]/skills/help/SKILL.md`
 
 **Files Updated:**
 - `.claude-plugin/marketplace.json`
@@ -342,7 +272,7 @@ Updated:
 - `plugins/[plugin-name]/.claude-plugin/`
 - `plugins/[plugin-name]/commands/`
 - `plugins/[plugin-name]/skills/`
-- `plugins/[plugin-name]/skills/help/`
+- `plugins/[plugin-name]/references/`
 
 ## Examples
 
@@ -388,9 +318,8 @@ Created structure:
     .claude-plugin/
       plugin.json           [CREATED]
     commands/               [CREATED] (empty)
-    skills/
-      help/
-        SKILL.md            [CREATED]
+    skills/                 [CREATED] (empty — add skills with /new-skill)
+    references/             [CREATED] (optional, empty)
 
 Updated:
   .claude-plugin/marketplace.json  [UPDATED]
@@ -411,9 +340,8 @@ Would create:
     .claude-plugin/
       plugin.json
     commands/                (empty directory)
-    skills/
-      help/
-        SKILL.md
+    skills/                  (empty directory — add skills with /new-skill)
+    references/              (empty directory — optional)
 
 Would update:
   .claude-plugin/marketplace.json

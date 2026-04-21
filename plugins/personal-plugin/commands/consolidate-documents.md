@@ -216,7 +216,7 @@ only one document but was valuable enough to include.]
 
 After writing the file, display:
 
-```
+```text
 Consolidation Complete
 ======================
 Output:    [full path to output file]

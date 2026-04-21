@@ -2,7 +2,7 @@
   "name": "troys-plugins",
   "metadata": {
     "description": "Troy Davis Claude Code plugins",
-    "marketplace_version": "1.7.1",
+    "marketplace_version": "2.0.0",
     "schema_version": "1.0"
   },
   "owner": {
@@ -14,7 +14,7 @@
       "name": "personal-plugin",
       "source": "./plugins/personal-plugin",
       "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
-      "version": "7.0.1",
+      "version": "8.0.0",
       "category": "productivity",
       "tags": ["personal", "automation", "research", "llm-orchestration"]
     },
@@ -22,7 +22,7 @@
       "name": "bpmn-plugin",
       "source": "./plugins/bpmn-plugin",
       "description": "BPMN 2.0 workflow tools: XML generation from natural language/markdown, and conversion to Draw.io format. Includes bundled bpmn2drawio Python tool.",
-      "version": "3.4.0",
+      "version": "4.0.0",
       "category": "workflow",
       "tags": ["bpmn","workflow","xml","diagram","process-modeling","drawio"]
     }

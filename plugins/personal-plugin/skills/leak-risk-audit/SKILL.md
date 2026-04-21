@@ -51,33 +51,81 @@ You assess risk across these categories, in order of severity:
 
 1. **Determine the dataset**: If not specified, ask. Accept a file path or directory. Supported formats: CSV, JSON, JSONL, TSV, XLSX.
 
-2. **Read and sample the data**: Read the dataset. For large files (>1000 rows), read a statistically diverse sample (first 50, last 50, and 100 random rows from the middle). For smaller files, read everything.
+2. **Read and sample the data**: Use dynamic context injection to build the file inventory (pre-loaded before Claude reads the prompt):
 
-3. **Systematic scan**: For each risk category above, scan the dataset using:
-   - Exact string matching for known proprietary terms
-   - Regex patterns for variants (underscore-joined, hyphenated, camelCase, email-embedded, Unicode hyphens, typos with doubled/missing letters)
-   - Contextual analysis — terms that are individually generic but collectively fingerprint a company
-   - Cross-reference analysis — combinations of terms that narrow identification even when each is individually safe
-   - Email domain analysis — extract all unique `@domain` patterns and flag any that appear internal or proprietary
-   - URL analysis — extract all unique URL domains and flag any that are not well-known public services
-   - Phone number analysis — check for real (non-555/non-800) numbers that could be traced to specific vendors or locations
-   - Named entity scanning — look for real person names in free text fields (first + last name patterns)
-   - Address component analysis — street names, ZIP codes, city+state combinations that could pinpoint locations
+   ```
+   Dataset directory listing: !`ls -la <dataset-path>`
+   Dataset files: !`find <dataset-path> -type f \( -name '*.csv' -o -name '*.jsonl' -o -name '*.json' -o -name '*.tsv' -o -name '*.xlsx' \) | head -100`
+   ```
 
-4. **Assess replacement quality** (if dataset has been sanitized): Check whether replacements are:
+   Replace `<dataset-path>` with the actual path from arguments. For large files (>1000 rows), read a statistically diverse sample (first 50, last 50, and 100 random rows from the middle). For smaller files, read everything.
+
+3. **Parallel severity-tier scanning** (dispatch 4 `context: fork` subagents, one per severity tier):
+
+   After completing the data sample (Step 2), dispatch all four scanning subagents simultaneously. Each subagent is self-contained and returns its findings as structured JSON. **Do not wait for one to complete before dispatching the next.**
+
+   **Subagent dispatch pattern (repeat for each tier):**
+
+   ```
+   Dispatch a context: fork subagent for [TIER] scanning:
+
+   CONTEXT: You are scanning a dataset for proprietary information leaks. Your
+   tier is [TIER]. The dataset path is: <dataset-path>. The data sample
+   available to you: <paste sampled rows here>.
+
+   YOUR TIER SCOPE:
+   [paste the relevant tier definition from Audit Scope above]
+
+   YOUR SCAN TASKS:
+   - Exact string matching for known proprietary terms in this tier
+   - Regex patterns for variants: underscore-joined, hyphenated, camelCase,
+     email-embedded, Unicode hyphens, typos with doubled/missing letters
+   - Contextual analysis — terms individually generic but collectively fingerprinting
+   - Write and execute Python via Bash to scan programmatically (every row, every field)
+   - For CRITICAL tier: also scan for email domains, PII patterns (phone, address, name)
+   - For HIGH tier: also scan for internal URL patterns, org structure terminology
+   - For MEDIUM tier: also scan for trademark-eligible product/event names
+   - For LOW tier: flag generic but potentially-identifying industry combinations
+
+   OUTPUT FORMAT (return as JSON in your final message):
+   {
+     "tier": "[TIER]",
+     "findings": [
+       {
+         "id": "[TIER][0-9]+",
+         "description": "...",
+         "category": "...",
+         "occurrences": <int>,
+         "confidence": "HIGH|MEDIUM|LOW",
+         "example_context": "...snippet...",
+         "remediation": "specific actionable recommendation"
+       }
+     ],
+     "scan_coverage": "description of what was scanned and how",
+     "replacement_quality_notes": "if dataset appears sanitized, observations about completeness"
+   }
+   ```
+
+   **The four subagent dispatches:**
+   - CRITICAL tier subagent — scans for company identity, PII, executive names, addresses
+   - HIGH tier subagent — scans for proprietary systems, vendor relationships, org structure, internal URLs
+   - MEDIUM tier subagent — scans for franchise terminology, product names, cultural phrases, KB structure
+   - LOW tier subagent — scans for industry terminology combinations and public vendor generic mentions
+
+4. **Assess replacement quality** (if dataset has been sanitized — may run as part of subagent scan or as a brief parent-context pass):
+
+   Check whether replacements are:
    - **Consistent**: Same original always maps to same replacement across every field and row
    - **Complete**: No partial replacements, missed case variants, or overlooked fields
    - **Plausible**: Replacements don't stand out as obviously fake or auto-generated
    - **Non-reversible**: Can't be trivially mapped back to originals via web search or pattern analysis
    - **Variant-complete**: Underscore-joined (`supply_central`), email-embedded (`chickfila@vendor.com`), possessive (`Chick-fil-A's`), typo, and Unicode variants are all caught
 
-5. **Score each finding**:
-   - **Severity**: CRITICAL / HIGH / MEDIUM / LOW
-   - **Confidence**: How certain you are this is a real exposure (HIGH / MEDIUM / LOW)
-   - **Frequency**: How many occurrences in the dataset
-   - **Remediation**: Specific, actionable recommendation
+5. **Collect and aggregate subagent results** (parent skill — after all four subagents return):
 
-6. **Produce the report**: Write `LEAK_RISK.md` (or user-specified filename) in the same directory as the input data.
+   Collect the JSON outputs from all four subagents. Build a unified findings list, renumber IDs sequentially per tier (C-1, C-2 … H-1, H-2 … M-1, M-2 … L-1, L-2), and determine the cross-reference risk from combinations of findings across tiers.
+
+6. **Produce the report** (**parent skill writes this — do not delegate to subagents**): Write `LEAK_RISK.md` (or user-specified filename) in the same directory as the input data.
 
 ## Output Format
 
@@ -131,7 +179,7 @@ You assess risk across these categories, in order of severity:
 
 ## Appendix: Scan Methodology
 
-[Brief description of patterns searched, sampling approach, tools used]
+[Brief description of patterns searched, sampling approach, tools used. Note that scanning was distributed across 4 parallel subagents (one per severity tier) for comprehensive coverage.]
 ```
 
 ## Important Rules
@@ -142,4 +190,6 @@ You assess risk across these categories, in order of severity:
 - **Verify consistency**. If a company name was replaced with a fictional name, verify that EVERY variant was caught — including typos, possessives, Unicode hyphens, and email-embedded forms.
 - **Be specific in recommendations**. "Replace this" is not a recommendation. "Add `(?i)chickfila\w*@` to the denylist regex and re-run sanitization" is a recommendation.
 - **Do not leak in the report itself**. If you identify a real company name, reference it obliquely in the report (e.g., "the original company name" not the actual name). The report may itself be shared.
-- **Use programmatic scanning**. Write and execute Python scripts via Bash to scan large datasets systematically. Do not rely on reading a few rows and guessing. Scan every row, every field.
+- **Use programmatic scanning in subagents**. Each severity-tier subagent writes and executes Python scripts via Bash to scan large datasets systematically. Do not rely on reading a few rows and guessing. Scan every row, every field.
+- **Dispatch pattern**: Steps 3 and 4 use `context: fork` subagents (one per severity tier) for parallel scanning. The parent skill handles all file writes — Step 6 (LEAK_RISK.md) is written exclusively by the parent after aggregating subagent results. Subagents return JSON findings only; they do not write any output files.
+- **Aggregation responsibility**: After all four subagents return, the parent must synthesize cross-tier risk (combinations of MEDIUM + LOW findings can collectively constitute HIGH risk). The cross-reference assessment requires parent-context reasoning across all findings simultaneously.

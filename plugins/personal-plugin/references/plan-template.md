@@ -30,11 +30,11 @@
 
 ### Phase Summary Table
 
-| Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies |
-|-------|------------|------------------|-----------------|--------------|
-| 1 | [Area] | [Deliverables] | M (~N files, ~N LOC) | None |
-| 2 | [Area] | [Deliverables] | M (~N files, ~N LOC) | Phase 1 |
-| ... | ... | ... | ... | ... |
+| Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies | Execution Mode |
+|-------|------------|------------------|-----------------|--------------|----------------|
+| 1 | [Area] | [Deliverables] | M (~N files, ~N LOC) | None | Sequential |
+| 2 | [Area] | [Deliverables] | M (~N files, ~N LOC) | Phase 1 | Parallel |
+| ... | ... | ... | ... | ... | ... |
 
 <!-- BEGIN PHASES -->
 
@@ -45,6 +45,7 @@
 **Estimated Complexity:** [S/M/L] (~N files, ~N LOC)
 **Dependencies:** [None | List of phases]
 **Parallelizable:** [Yes/No - can work items run concurrently]
+**Execution Mode:** [Sequential | Parallel | Worktree-Isolated]  <!-- OPTIONAL: omit if not applicable -->
 
 ### Goals
 
@@ -182,6 +183,8 @@ These rules apply to all plans regardless of source command:
 3. **Table markers:** `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` bracket trailing tables
 4. **Work item fields (in order):** Status, Ref, Files Affected, Description, Tasks, Acceptance Criteria, Notes
 5. **Phase sections (in order):** Goals, Work Items, Testing Requirements, Completion Checklist
+6. **Phase header fields (in order):** Estimated Complexity, Dependencies, Parallelizable, Execution Mode (OPTIONAL)
+7. **Execution Mode values:** `Sequential` (default; items run in order), `Parallel` (items run concurrently in shared tree), `Worktree-Isolated` (each phase or item runs in a dedicated git worktree; use when parallel writes to shared paths risk collision). Field is OPTIONAL — existing plans without it parse and execute correctly.
 
 ## Sizing Constraints
 

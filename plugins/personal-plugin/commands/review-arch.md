@@ -336,5 +336,5 @@ Duration scales with the number of source files and the complexity of the depend
 - `/arch-synthesize <path>` — Re-synthesize the executive summary from existing domain findings after edits or single-agent re-runs.
 - `/plan-improvements` — Comprehensive analysis that generates RECOMMENDATIONS.md and IMPLEMENTATION_PLAN.md
 - `/review-intent` — Compare original intent vs current implementation (complementary review)
-- `/review-pr` — Review a specific pull request for code quality and security
+- `/review` — Native PR review (use `/ultrareview` for multi-agent deep review)
 - `/plan-next` — Get a recommendation for the next action based on current state

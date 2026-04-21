@@ -46,6 +46,8 @@ Thoroughly analyze the codebase with extended thinking enabled.
 
 **The output of this analysis should be a set of recommendations that, when implemented together, produce an architecturally coherent improvement — not a disconnected list of patches.**
 
+> **Parallel implementation note:** If analysis yields 20 or more independent improvement items, consider using `/batch` for parallel implementation rather than sequential `/implement-plan`. `/batch` automatically decomposes into 5–30 units with one background agent per unit in isolated worktrees — significantly faster for large improvement sets. Use `/implement-plan` when items have ordering dependencies or share state; use `/batch` when items are largely orthogonal.
+
 #### Context Management (Read This First)
 
 Before reading any source files, apply the following sampling strategy to avoid exhausting the context window. **Reserve at least 40% of context for output generation.** If analysis has consumed over 60% of available context, stop reading files and begin generating output with what you have.

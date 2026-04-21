@@ -231,3 +231,5 @@ reports/
 # Visual explainer output
 output/
 .implement-plan-state.json
+
+.tmp/

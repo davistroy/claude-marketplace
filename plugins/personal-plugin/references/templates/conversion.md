@@ -23,6 +23,10 @@
 <!-- SECTION 1: FRONTMATTER -->
 ---
 description: {{DESCRIPTION}}
+argument-hint: "<input-file> [--output <path>] [--format <type>]"
+effort: low
+allowed-tools: Read, Write, Glob, Bash
+# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)
 ---
 
 <!-- SECTION 2: TITLE -->

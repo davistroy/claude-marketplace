@@ -23,6 +23,12 @@
 <!-- SECTION 1: FRONTMATTER -->
 ---
 description: {{DESCRIPTION}}
+argument-hint: "[--dry-run] [--audit]"
+effort: medium
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep
+# context: fork          # Uncomment to run heavy analysis phases in isolation
+# when_to_use: "when X"  # Uncomment to enable proactive suggestion trigger
+# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)
 ---
 
 <!-- SECTION 2: TITLE -->

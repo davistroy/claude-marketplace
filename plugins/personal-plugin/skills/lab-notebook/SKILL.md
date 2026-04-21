@@ -435,6 +435,51 @@ The lab notebook doesn't replace other documentation patterns — it complements
 | Git commit messages | Commits record code changes. The notebook records the experiments, benchmarks, and decisions that motivated those changes. |
 | Another project's `LAB_NOTEBOOK.md` | Cross-reference with `(See [path]/LAB_NOTEBOOK.md Entry NNN)`. Common when infrastructure changes (e.g., GPU optimization) affect application projects (e.g., pipeline performance). |
 
+## Pre-Commit Enforcement (Hook)
+
+The `personal-plugin` ships a `PreToolUse` hook that enforces Rule 11 at the git level — blocking `git commit` when `LAB_NOTEBOOK.md` exists but has no entry in the last 24 hours.
+
+### Opt-in behavior
+
+The hook is **opt-in via presence**: it only activates when `LAB_NOTEBOOK.md` exists in the git root. Projects without a notebook are completely unaffected — the hook exits 0 immediately.
+
+### What counts as a "recent entry"
+
+The hook uses a two-stage check (both cheap, <1ms):
+
+1. **File mtime** — if the notebook file itself was modified within 24 hours, the commit is allowed.
+2. **Date stamp scan** — if the file hasn't been touched recently, the hook scans for a `YYYY-MM-DD` pattern matching today or yesterday anywhere in the file. This catches cases where an existing entry was appended earlier today without changing mtime.
+
+Either check passing → commit proceeds. Both failing → commit blocked.
+
+### Bypass
+
+To skip enforcement on a specific commit (e.g., a docs-only change where a new notebook entry is genuinely not warranted):
+
+```bash
+git commit --no-verify
+```
+
+This bypasses all git hooks, including the lab-notebook gate. Use it deliberately, not habitually — the intent is to make skipping a conscious choice, not an obstacle.
+
+### Enforcement message
+
+When blocked, the hook prints:
+
+```text
+LAB_NOTEBOOK.md exists but has no entry in the last 24 hours.
+Update it before committing (Rule 11 from lab-notebook CLAUDE.md section).
+
+To bypass: git commit --no-verify
+```
+
+### Hook implementation
+
+Script: `plugins/personal-plugin/hooks/scripts/lab-notebook-gate.sh`
+Hook entry: `PreToolUse` → `Bash` matcher in `hooks/hooks.json`
+
+---
+
 ## What Makes This Work
 
 **Three layers of enforcement:**

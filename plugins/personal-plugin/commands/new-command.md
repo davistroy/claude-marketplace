@@ -1,6 +1,7 @@
 ---
 description: Generate a new command file from a template with proper structure and conventions
 argument-hint: "[<command-name>] [<pattern-type>] [--plugin <name>]"
+effort: low
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
@@ -107,12 +108,16 @@ Select the command pattern type:
 
 [1] read-only      - Analysis commands that report without modifying
                      Examples: /review-arch, /assess-document
+                     Modern: dispatch analysis phases to context: fork + agent: Explore
+                             for isolation; use dynamic injection for file inventory
 
 [2] interactive    - Q&A commands with single-question flow
                      Examples: /ask-questions, /finish-document
 
 [3] workflow       - Multi-step automation with confirmations
                      Examples: /clean-repo, /ship
+                     Modern: use dynamic injection (!`git status -s`) to pre-load
+                             context before Claude sees the prompt
 
 [4] generator      - Commands that create structured output files
                      Examples: /define-questions, /analyze-transcript
@@ -122,6 +127,8 @@ Select the command pattern type:
 
 [6] synthesis      - Commands that merge multiple sources into one output
                      Examples: /consolidate-documents
+                     Modern: dispatch per-source analysis to parallel context: fork
+                             subagents; parent aggregates and writes final output
 
 [7] conversion     - Commands that transform files between formats
                      Examples: /convert-markdown
@@ -133,9 +140,59 @@ Select the command pattern type:
                      Examples: /implement-plan
                      Features: phase-based execution, state file tracking,
                      resume/rollback, quality gates, checkpoint management
+                     Modern: use context: fork + isolation: worktree per phase
+                             so each phase gets an isolated working tree; merge
+                             to main branch at phase boundary
 
 Enter number (1-9) or pattern name:
 ```
+
+#### 2.4 Modern Features (Optional)
+
+After the user selects a pattern type, prompt for optional modern feature configuration:
+
+```text
+Would you like to enable any modern Claude Code features? (leave empty to skip)
+
+Available features (can combine):
+  [A] Dynamic context injection  - Pre-load file content or command output
+                                   before Claude reads the prompt
+                                   Example: !`git status -s`, !`cat package.json`
+
+  [B] context: fork dispatch     - Run analysis phases in isolated subagent
+                                   contexts (no conversation history bleed)
+                                   Best for: read-only, synthesis, orchestration
+
+  [C] isolation: worktree        - Give each phase/subagent its own git worktree
+                                   Best for: orchestration commands writing files
+
+  [D] paths: auto-activation     - Trigger command automatically when specified
+                                   files change (requires loop guard in body)
+
+  [E] effort: level              - Declare compute budget: low/medium/high/max
+
+  [F] None - generate a standard command
+
+Enter letters (e.g., "A B" or "ACE") or press Enter to skip:
+```
+
+If the user selects features, note them for inclusion in the generated frontmatter and body.
+
+**Modern frontmatter fields reference** (see `references/common-patterns.md` Advanced Features section for full details):
+
+| Field | Command Use | Example Value |
+|-------|------------|---------------|
+| `description` | REQUIRED — shown in /help | `"Analyze and report X"` |
+| `argument-hint` | Shown in /help usage line | `"<file> [--flag]"` |
+| `effort` | Declare compute budget | `low` / `medium` / `high` / `max` |
+| `allowed-tools` | Restrict tool access | `Read, Glob, Grep, Bash(git:*)` |
+| `context` | Subagent context mode | `fork` (isolated, no history) |
+| `agent` | Subagent role specialization | `Explore` / `Edit` / `Research` |
+| `model` | Override model per subagent | `claude-opus-4-5` |
+| `isolation` | Filesystem isolation | `worktree` |
+| `when_to_use` | Proactive trigger phrases | `"when X needs to happen"` |
+
+**Critical:** Do NOT include `name` in command frontmatter — it breaks command discovery. The `name` field is only for skills.
 
 ### Phase 3: Generate Command File
 
@@ -192,6 +249,44 @@ Replace placeholders in the template:
 | `{{OUTPUT_EXT}}` | Output file extension (for generators) |
 | `{{OUTPUT_LOCATION}}` | Output directory (per common-patterns.md) |
 
+**Generate frontmatter** based on pattern and user-selected modern features:
+
+Minimal (no modern features selected):
+```yaml
+---
+description: {{DESCRIPTION}}
+argument-hint: "<required-arg> [--flag]"
+effort: medium
+allowed-tools: Read, Glob, Grep
+---
+```
+
+With modern features (example: read-only + context fork + effort):
+```yaml
+---
+description: {{DESCRIPTION}}
+argument-hint: "<target> [--focus <area>]"
+effort: high
+allowed-tools: Read, Glob, Grep, Bash
+# context: fork          # Uncomment to dispatch analysis to isolated subagent
+# agent: Explore         # Uncomment to specialize subagent role
+# isolation: worktree    # Uncomment for filesystem isolation (orchestration only)
+# when_to_use: "when X"  # Uncomment to enable proactive suggestion
+---
+```
+
+With orchestration pattern (inject worktree isolation guidance):
+```yaml
+---
+description: {{DESCRIPTION}}
+argument-hint: "[--input <plan.md>] [--pause-between-phases] [--auto-merge]"
+effort: max
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task
+---
+```
+
+**CRITICAL:** Never generate a `name` field in command frontmatter — it breaks command discovery in Claude Code. The `name` field is only valid in skill frontmatter (SKILL.md files).
+
 **Generate intro paragraph** based on pattern:
 - read-only: "Perform a [description] analysis. This command provides in-conversation analysis without generating files."
 - interactive: "Interactively walk the user through [description]."
@@ -219,17 +314,19 @@ Save to: `plugins/[TARGET_PLUGIN]/commands/[command-name].md`
 After creating the command file, perform a quick validation:
 
 1. **Verify frontmatter** -- check the generated file has `description` in the YAML frontmatter
-2. **Verify file location** -- confirm the file is in the correct `plugins/[TARGET_PLUGIN]/commands/` directory
-3. **Check for duplicates** -- verify no other command in the same plugin has the same filename
-4. **Validate structure** -- ensure the file has required sections (Input Validation, Instructions, Error Handling, Related Commands)
+2. **Verify no `name` field** -- commands must NOT have `name` in frontmatter (breaks discovery)
+3. **Verify file location** -- confirm the file is in the correct `plugins/[TARGET_PLUGIN]/commands/` directory
+4. **Check for duplicates** -- verify no other command in the same plugin has the same filename
+5. **Validate structure** -- ensure the file has required sections (Input Validation, Instructions, Error Handling, Related Commands)
 
 Report validation results:
 ```text
 Post-generation validation:
-  Frontmatter:   PASS (description present)
+  Frontmatter:   PASS (description present, no name field)
   File location:  PASS (plugins/[TARGET_PLUGIN]/commands/)
   Unique name:    PASS (no duplicates found)
   Structure:      PASS (all required sections present)
+  Modern fields: [PRESENT / COMMENTED / NONE] (effort, allowed-tools, context)
 ```
 
 ### Phase 5: Remind About Documentation Updates
@@ -249,9 +346,9 @@ File created: plugins/[TARGET_PLUGIN]/commands/[command-name].md
    - [ ] Add specific validation logic
    - [ ] Write example usage scenarios
    - [ ] Review and adjust error handling
+   - [ ] Uncomment modern frontmatter fields that apply (effort, context, isolation)
 
 2. Update documentation:
-   - [ ] Update the plugin's `skills/help/SKILL.md` with the new command entry
    - [ ] Add entry to CHANGELOG.md under [Unreleased]
 
 3. Validate:
@@ -259,7 +356,13 @@ File created: plugins/[TARGET_PLUGIN]/commands/[command-name].md
 
 **Pattern Documentation:**
 See plugins/personal-plugin/references/common-patterns.md for conventions.
+See plugins/personal-plugin/references/common-patterns.md#advanced-features for
+    modern fields: context:fork, isolation:worktree, dynamic injection, paths:
 See plugins/personal-plugin/references/templates/ for all available templates.
+
+**Modern Feature Reference:**
+See new-command.md Worked Examples section for read-only, orchestration, and
+synthesis patterns with modern dispatch.
 ```
 
 ## Output
@@ -338,10 +441,7 @@ File created: plugins/personal-plugin/commands/check-dependencies.md
    - [ ] Add specific validation logic
    - [ ] Write example usage
 
-2. Update documentation:
-   - [ ] Update the plugin's `skills/help/SKILL.md` with the new command entry
-
-3. Validate:
+2. Validate:
    - [ ] Run: /validate-plugin personal-plugin
 ```
 
@@ -364,6 +464,125 @@ File created: plugins/bpmn-plugin/commands/export-data.md
 
 ...
 ```
+
+## Worked Examples: Modern Pattern Commands
+
+These examples show what high-quality generated commands look like with modern features applied. Use these as reference when customizing generated output.
+
+### Example A: Read-Only + Dynamic Injection
+
+A read-only analysis command that pre-loads git context before Claude reads the prompt:
+
+```markdown
+---
+description: Analyze commit history and flag unusual change patterns
+argument-hint: "[--since <date>] [--author <name>]"
+effort: medium
+allowed-tools: Read, Glob, Grep, Bash(git:*)
+---
+
+# Commit Pattern Analyzer
+
+Analyze the git commit history for unusual patterns, large diffs, or
+off-hours commits. Reports findings without modifying anything.
+
+<!-- Dynamic injection: these run before Claude reads the prompt -->
+Current branch: !`git branch --show-current`
+Recent commits: !`git log --oneline -20`
+Change stats: !`git diff --stat HEAD~10..HEAD`
+
+## Instructions
+
+### Phase 1: Review Injected Context
+
+Use the pre-loaded git data above. Do not re-run git commands for data
+already provided.
+...
+```
+
+### Example B: Orchestration + context:fork + isolation:worktree
+
+A multi-phase orchestration command that isolates each phase in its own worktree:
+
+```markdown
+---
+description: Execute a phased refactoring plan across multiple modules
+argument-hint: "<plan.md> [--pause-between-phases] [--dry-run]"
+effort: max
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task
+---
+
+# Refactor Executor
+
+Execute a phased refactoring plan. Each phase runs in an isolated worktree
+and merges to the working branch on phase completion.
+
+## Instructions
+
+### Phase 1: Load Plan
+
+Read the plan file specified by the user. Validate it has the expected
+structure (phases → work items).
+
+### Phase 2: Execute Phases
+
+For each phase in the plan, dispatch a Task subagent with:
+- context: fork       (isolated context, no bleed from prior phases)
+- isolation: worktree (dedicated filesystem for this phase's changes)
+- Instruction: "Complete ALL work items in Phase N. Merge to branch on
+  completion. Write a brief summary of changes made."
+
+If `--pause-between-phases` is set, present phase summary and ask for
+confirmation before dispatching the next phase.
+
+### Phase 3: Final Report
+
+After all phases complete, read the per-phase summaries and generate a
+consolidated report: what changed, what was skipped, and next steps.
+```
+
+### Example C: Synthesis + Parallel context:fork Dispatch
+
+A synthesis command that dispatches one subagent per source for parallel analysis:
+
+```markdown
+---
+description: Synthesize findings from multiple audit reports into a unified executive brief
+argument-hint: "<reports-dir> [--format <md|docx>]"
+effort: high
+allowed-tools: Read, Write, Glob, Grep, Task
+---
+
+# Audit Synthesizer
+
+Read all audit report files in the specified directory, dispatch parallel
+analysis subagents (one per report), then synthesize into a single
+executive brief.
+
+## Instructions
+
+### Phase 1: Discover Reports
+
+Use Glob to find all `*.md` files in `<reports-dir>`. Validate at least
+2 reports exist.
+
+### Phase 2: Parallel Analysis
+
+For each report file, dispatch a Task with context: fork:
+- Instruction: "Read [report-path]. Extract: (1) critical findings,
+  (2) top 3 recommendations, (3) severity counts. Return structured
+  JSON summary."
+
+Collect all subagent responses before proceeding. Do NOT write any
+files during this phase — leave writing to Phase 3.
+
+### Phase 3: Synthesize and Write
+
+Merge subagent responses into a unified executive brief. Write to
+`reports/audit-synthesis-YYYYMMDD-HHMMSS.md`.
+```
+
+---
 
 ## Error Handling
 

@@ -45,7 +45,6 @@ These commands produce in-conversation reports and never modify files.
 | `/plan-next` | None |
 | `/review-arch` | `--json`, `--focus <dimensions>` |
 | `/review-intent` | `--deep`, `--save` |
-| `/review-pr` | None (takes PR number/URL as argument) |
 
 ## Planning and Orchestration Commands
 

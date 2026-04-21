@@ -2,6 +2,7 @@
 name: accessibility-annotator
 description: Analyze technical documents for CS/ML concepts a smart non-CS reader wouldn't understand, recommend explanation mechanisms (glossary, inline, footnote, sidebar, appendix), present analysis for approval, then implement annotations in the Word document using the project directory for contextual accuracy. Use when making technical documents accessible to non-CS audiences.
 effort: high
+allowed-tools: Read, Write, Bash, Task
 ---
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -76,6 +77,17 @@ Parse from the user's message. If missing, ask for the two required arguments.
   ═══════════════════════════════════════════════════════════════════ -->
 
 ## Phase 1: Analysis
+
+<!-- ─── DISPATCH: fork to isolated Explore agent ───
+  Dispatch the entire Phase 1 analysis to an isolated subagent:
+    context: fork
+    agent: Explore
+  Pass the document path, project directory path, and all flags as arguments.
+  The Explore agent runs Steps 1–7 in full and returns the completed analysis
+  table plus density summary, dependency map, and mechanism distribution.
+  The parent skill receives the output and presents it to the user for approval
+  (Step 7 ask prompt). Phase 2 begins only after user says "implement".
+─── -->
 
 ### Step 1 -- Read the document
 
@@ -275,6 +287,27 @@ Use the docx skill workflow. Invoke the `document-skills:docx` skill for the act
   This was a bug we caught and fixed during development.
 ─── -->
 
+<!-- ─── DISPATCH: per-image parallel subagents ───
+  When --generate-images is ON, dispatch one subagent per image:
+    context: fork
+  Each subagent receives: image title, content description, full generation
+  prompt, style JSON path, Bitwarden secret ID, unpacked document path, and
+  the target word/media/ filename to write.
+
+  CONCURRENCY LIMIT: dispatch at most 3 subagents simultaneously to avoid
+  Gemini API rate limits (quota is ~3 requests/min on the pro-image model).
+  If there are 4-5 images, dispatch the first 3, wait for all 3 to complete,
+  then dispatch the remaining 1-2. Do NOT dispatch all 5 at once.
+
+  Each subagent handles its own retry logic (3 retries, 8-second backoff).
+  The parent skill owns all document XML updates (relationship entries,
+  content-type registration, and wp:anchor insertion) — do NOT let subagents
+  write to document.xml or _rels files to avoid concurrent write collisions.
+
+  When --generate-images is OFF, placeholder insertion is fast and sequential;
+  no subagent dispatch needed.
+─── -->
+
 Identify 3-5 locations where a generated diagram or illustration would most help the non-CS reader. Prioritize:
 - System architecture / data flow diagrams (especially replacing existing ASCII-art or text-based diagrams)
 - Conceptual visualizations of foundational techniques (how vector search works, how a knowledge graph looks)
@@ -286,13 +319,12 @@ For each image location, write a detailed content-specific description and a ful
 **If `--generate-images` is ON:**
 1. Load the Google API key from Bitwarden: `bws secret get 74f9abaf-d730-4c4e-b689-b3df01843d65`
 2. Use `google-genai` SDK with model `gemini-3-pro-image-preview` (default as of 2026-03-31)
-3. Generate each image with `response_modalities=["IMAGE"]`, aspect ratio 16:9, 300s timeout
-4. Save to `word/media/` in the unpacked document
-5. Add relationship entry to `word/_rels/document.xml.rels`
-6. Add content type for PNG to `[Content_Types].xml` if not present
-7. Insert image XML using `wp:anchor` with `<wp:wrapSquare wrapText="bothSides"/>` (NOT `wp:inline`)
-8. Rate limit: 2-second delay between API calls; 3 retries with 8-second backoff
-9. For image generation patterns, see the learnings file at `$GEMINI_IMAGE_LEARNINGS` env var or the path provided during setup
+3. Dispatch one `context: fork` subagent per image (max 3 concurrent — see concurrency note above)
+4. Each subagent: generate image with `response_modalities=["IMAGE"]`, aspect ratio 16:9, 300s timeout; save PNG to `word/media/<filename>.png`
+5. After all subagents complete, parent skill inserts each image into the document:
+   - Add relationship entry to `word/_rels/document.xml.rels`
+   - Add content type for PNG to `[Content_Types].xml` if not present
+   - Insert image XML using `wp:anchor` with `<wp:wrapSquare wrapText="bothSides"/>` (NOT `wp:inline`)
 
 **If `--generate-images` is OFF (default):**
 1. Insert teal-bordered (`#3EB1C8`) placeholder callout boxes at each image location
