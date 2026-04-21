@@ -172,8 +172,8 @@ Decision: user confirmed keep specialized with banner (not generalize, not move 
 
 ---
 
-#### 1.6 Clean up marketplace.json and CLAUDE.md references
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 1.6 Clean up marketplace.json and CLAUDE.md references
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-1 Item 6
 **Files Affected:**
 - `.claude-plugin/marketplace.json` (modify if references deleted items)

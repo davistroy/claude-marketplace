@@ -337,10 +337,7 @@ File created: plugins/personal-plugin/commands/check-dependencies.md
    - [ ] Add specific validation logic
    - [ ] Write example usage
 
-2. Update documentation:
-   - [ ] Update the plugin's `skills/help/SKILL.md` with the new command entry
-
-3. Validate:
+2. Validate:
    - [ ] Run: /validate-plugin personal-plugin
 ```
 

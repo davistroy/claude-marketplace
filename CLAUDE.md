@@ -125,7 +125,7 @@ plugins/
                        # review-arch, review-intent, scaffold-plugin, test-project,
                        # validate-plugin
     deprecated/        # Archived commands
-    skills/            # help, plan-gate, prime, research-topic, security-analysis, ship,
+    skills/            # plan-gate, prime, research-topic, security-analysis, ship,
                        # summarize-feedback, unlock, release-plugin, evaluate-pipeline-output,
                        # visual-explainer, leak-risk-audit, spec-to-prototype,
                        # accessibility-annotator, brain-entry, explain-project, lab-notebook,
@@ -137,7 +137,7 @@ plugins/
 
   bpmn-plugin/
     .claude-plugin/plugin.json
-    skills/            # bpmn-generator, bpmn-to-drawio, help
+    skills/            # bpmn-generator, bpmn-to-drawio
     references/        # BPMN element docs and guides
     templates/         # XML/Draw.io skeletons
     examples/
