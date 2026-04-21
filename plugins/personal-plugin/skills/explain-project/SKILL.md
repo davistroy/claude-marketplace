@@ -2,6 +2,7 @@
 name: explain-project
 description: Generate a comprehensive, annotated technical overview document for any project/repo, written for a smart non-CS reader. Analyzes the codebase, writes a deep-dive document following a proven structure template, and produces a styled Word document with sidebars, glossary, inline annotations, and optional generated images. Use when a project needs an explanatory document that makes the system understandable to non-technical stakeholders.
 effort: high
+allowed-tools: Read, Glob, Grep, Bash, Task
 ---
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -92,16 +93,17 @@ In `--update` mode:
 
 <!-- ─── GITHUB FLOW ───
   Shallow clone keeps it fast. Only public repos — no auth complexity.
-  Clean up after generation so we don't accumulate cloned repos.
+  isolation: worktree provides automatic cleanup — no manual rm needed.
+  explain-project is read-only, so worktree cleanup is always safe.
 ─── -->
 
 When the input is a GitHub URL (contains `github.com`):
 
-1. **Clone the repo** to a temporary directory:
-   ```bash
-   git clone --depth 1 "{url}" "/tmp/explain-project-{repo-name}"
+1. **Clone the repo** using worktree isolation:
+   ```yaml
+   isolation: worktree
    ```
-   Use `--depth 1` for shallow clone (faster, less disk).
+   Use `git clone --depth 1 "{url}" .` inside the worktree. Worktree auto-cleanup replaces manual `/tmp` directory management — no explicit cleanup step needed.
 
 2. **Set output path** to Downloads:
    ```
@@ -110,9 +112,7 @@ When the input is a GitHub URL (contains `github.com`):
 
 3. **Analyze and generate** using the same Phase 1-5 process as for local projects.
 
-4. **Clean up** the cloned repo after document generation.
-
-Note: Only public repos are supported (no authentication). For private repos, clone manually first and provide the local path.
+Note: Only public repos are supported (no authentication). For private repos, clone manually first and provide the local path. Worktree cleanup is automatic because this skill is read-only and makes no commits.
 
 ## Process
 
@@ -126,7 +126,23 @@ Note: Only public repos are supported (no authentication). For private repos, cl
 
 ### Phase 1: Deep Project Analysis
 
-Use the Explore agent or direct file reading to build comprehensive understanding:
+<!-- ─── DISPATCH TO EXPLORE AGENT ───
+  Phase 1 is pure read-only analysis — no writes, no side effects.
+  Dispatch to an isolated Explore subagent for broad parallel reading.
+  Dynamic context injection pre-loads git stats before the subagent sees the prompt.
+─── -->
+
+**Dispatch this entire phase to an isolated Explore subagent:**
+```yaml
+context: fork
+agent: Explore
+```
+
+Inject project git context before analysis:
+- Recent commits: `!`git log --oneline -20``
+- Top contributors: `!`git shortlog -sn --no-merges | head -10``
+
+The Explore subagent builds comprehensive understanding:
 
 1. **Project identity:** Read README, CLAUDE.md, package.json/pyproject.toml, and top-level docs
 2. **Architecture:** Map the directory structure, identify major components, entry points, and data flow
@@ -143,6 +159,8 @@ Use the Explore agent or direct file reading to build comprehensive understandin
    - Configuration files with active thresholds, weights, and feature flags
 
    Ground the document in production reality, not code-reading estimates. Every production number cited in the document should trace back to an actual output artifact, not a guess derived from reading the code.
+
+Return all findings to the parent skill for Phase 2 document planning.
 
 <!-- ═══════════════════════════════════════════════════════════════════
   PHASE 2: DOCUMENT PLANNING
@@ -301,6 +319,17 @@ Auto-populate from actual config files and latest run output:
   ═══════════════════════════════════════════════════════════════════ -->
 
 ### Phase 3.5: Verification Against Runtime Data
+
+<!-- ─── DISPATCH TO EXPLORE AGENT ───
+  Phase 3.5 is read-only verification — checking claims against actual files/config.
+  Dispatch to an isolated Explore subagent: no writes, no side effects.
+─── -->
+
+**Dispatch this entire phase to an isolated Explore subagent:**
+```yaml
+context: fork
+agent: Explore
+```
 
 Before assembling the final document, verify every factual claim against the actual project state:
 

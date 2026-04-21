@@ -33,15 +33,10 @@ Validate `TARGET_PATH` exists and is readable. If `--focus` contains an unrecogn
 
 ## Step 1 — Output Directory Setup
 
-Create the output structure at `<TARGET_PATH>/arch-review/`:
-```bash
-mkdir -p <TARGET_PATH>/arch-review/findings
-mkdir -p <TARGET_PATH>/arch-review/reports
-```
+Create the output structure by running:
 
-Seed the meta file:
-```bash
-echo '{}' > <TARGET_PATH>/arch-review/findings/.meta.json
+```
+!`mkdir -p <TARGET_PATH>/arch-review/findings && mkdir -p <TARGET_PATH>/arch-review/reports && echo '{}' > <TARGET_PATH>/arch-review/findings/.meta.json && echo "Directories ready"`
 ```
 
 ---
@@ -87,12 +82,14 @@ Write `<TARGET_PATH>/arch-review/intake.md`:
 
 ## Step 3 — Spawn Domain Agents in Parallel
 
-Read the intake file, then immediately spawn all selected agents simultaneously using the Task tool. Do NOT wait for one to finish before spawning the next.
+Inject the intake content, then immediately spawn all selected agents simultaneously using the Task tool. Do NOT wait for one to finish before spawning the next.
 
-For each agent in scope (all 9 unless `--focus` is set), construct the task prompt:
+For each agent in scope (all 9 unless `--focus` is set), construct the task prompt using the intake content injected via `!`cat <TARGET_PATH>/arch-review/intake.md``:
 
 ```
 You are the [ROLE] on an architecture review team.
+subagent_type: [SUBAGENT_TYPE]
+isolation: worktree
 
 [PASTE FULL CONTENTS OF ${CLAUDE_PLUGIN_ROOT}/agents/<agent-name>.md HERE]
 
@@ -102,7 +99,7 @@ You are the [ROLE] on an architecture review team.
 Path: <TARGET_PATH>
 
 ## Intake Summary
-[PASTE FULL CONTENTS OF <TARGET_PATH>/arch-review/intake.md HERE]
+!`cat <TARGET_PATH>/arch-review/intake.md`
 
 ## Output Paths
 - Findings: <TARGET_PATH>/arch-review/findings/<agent-name>.md
@@ -111,27 +108,30 @@ Path: <TARGET_PATH>
 Begin your review now. Be thorough. Flag uncertainty explicitly rather than omitting findings.
 ```
 
-Agent → output file mapping:
-| Agent | Output File |
-|-------|------------|
-| `solutions-architect` | `findings/solutions-architect.md` |
-| `data-architect` | `findings/data-architect.md` |
-| `integration-architect` | `findings/integration-architect.md` |
-| `software-engineer` | `findings/software-engineer.md` |
-| `performance-engineer` | `findings/performance-engineer.md` |
-| `qa-architect` | `findings/qa-architect.md` |
-| `security-architect` | `findings/security-architect.md` |
-| `platform-engineer` | `findings/platform-engineer.md` |
-| `risk-compliance` | `findings/risk-compliance.md` |
+Agent dispatch table — use the exact `subagent_type` for each role:
+
+| Agent | `subagent_type` | Output File |
+|-------|----------------|------------|
+| `solutions-architect` | `solutions-architect` | `findings/solutions-architect.md` |
+| `data-architect` | `data-architect` | `findings/data-architect.md` |
+| `integration-architect` | `integration-architect` | `findings/integration-architect.md` |
+| `software-engineer` | `software-engineer` | `findings/software-engineer.md` |
+| `performance-engineer` | `performance-engineer` | `findings/performance-engineer.md` |
+| `qa-architect` | `qa-architect` | `findings/qa-architect.md` |
+| `security-architect` | `security-architect` | `findings/security-architect.md` |
+| `platform-engineer` | `platform-engineer` | `findings/platform-engineer.md` |
+| `risk-compliance` | `risk-compliance` | `findings/risk-compliance.md` |
+
+Each agent runs in `isolation: worktree` to prevent concurrent `.meta.json` write collisions. Agents must write their meta entry atomically (read–merge–write) rather than blindly overwriting the file.
 
 ---
 
 ## Step 4 — Coverage Assessment and Conflict Detection
 
-After all spawned agents complete:
+After all spawned agents complete, read the meta file:
 
-```bash
-cat <TARGET_PATH>/arch-review/findings/.meta.json
+```
+!`cat <TARGET_PATH>/arch-review/findings/.meta.json`
 ```
 
 1. Note any agent with Low/Medium confidence or significant tool gaps

@@ -718,8 +718,8 @@ Loop guard is the riskiest part of Phase 4. Test thoroughly before merge.
 
 ### Work Items
 
-#### 5.1 Modernize prime skill
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 5.1 Modernize prime skill
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-5 Item 1
 **Files Affected:**
 - `plugins/personal-plugin/skills/prime/SKILL.md` (modify; ~60 LOC)
@@ -745,8 +745,8 @@ Report-synthesis step (Phase 6) must stay inline because it draws on all prior p
 
 ---
 
-#### 5.2 Modernize arch-review skill (explicit dispatch + worktree)
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 5.2 Modernize arch-review skill (explicit dispatch + worktree)
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-5 Item 2
 **Files Affected:**
 - `plugins/personal-plugin/skills/arch-review/SKILL.md` (modify; ~50 LOC)
@@ -773,8 +773,8 @@ This is NOT a bug fix — skill works. Changes strictly improve isolation and di
 
 ---
 
-#### 5.3 Modernize leak-risk-audit skill
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 5.3 Modernize leak-risk-audit skill
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-5 Item 3
 **Files Affected:**
 - `plugins/personal-plugin/skills/leak-risk-audit/SKILL.md` (modify; ~40 LOC)
@@ -800,8 +800,8 @@ Python-via-Bash scanning can stay inside the subagents — each runs its tier's 
 
 ---
 
-#### 5.4 Modernize explain-project skill
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 5.4 Modernize explain-project skill
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-5 Item 4
 **Files Affected:**
 - `plugins/personal-plugin/skills/explain-project/SKILL.md` (modify; ~60 LOC)
@@ -827,8 +827,8 @@ Worktree cleanup is automatic if no changes made — explain-project is read-onl
 
 ---
 
-#### 5.5 Modernize accessibility-annotator skill
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 5.5 Modernize accessibility-annotator skill
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-5 Item 5
 **Files Affected:**
 - `plugins/personal-plugin/skills/accessibility-annotator/SKILL.md` (modify; ~40 LOC)
