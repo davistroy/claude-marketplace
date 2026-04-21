@@ -35,7 +35,7 @@ Validate `TARGET_PATH` exists and is readable. If `--focus` contains an unrecogn
 
 Create the output structure by running:
 
-```
+```bash
 !`mkdir -p <TARGET_PATH>/arch-review/findings && mkdir -p <TARGET_PATH>/arch-review/reports && echo '{}' > <TARGET_PATH>/arch-review/findings/.meta.json && echo "Directories ready"`
 ```
 
@@ -86,7 +86,7 @@ Inject the intake content, then immediately spawn all selected agents simultaneo
 
 For each agent in scope (all 9 unless `--focus` is set), construct the task prompt using the intake content injected via `!`cat <TARGET_PATH>/arch-review/intake.md``:
 
-```
+```text
 You are the [ROLE] on an architecture review team.
 subagent_type: [SUBAGENT_TYPE]
 isolation: worktree
@@ -130,7 +130,7 @@ Each agent runs in `isolation: worktree` to prevent concurrent `.meta.json` writ
 
 After all spawned agents complete, read the meta file:
 
-```
+```bash
 !`cat <TARGET_PATH>/arch-review/findings/.meta.json`
 ```
 
@@ -233,7 +233,7 @@ Write `<TARGET_PATH>/arch-review/reports/executive-summary.md`.
 ## Step 6 — Terminal Summary
 
 Print to terminal when complete:
-```
+```text
 Architecture Review Complete
 =============================
 Target: <path>

@@ -143,13 +143,13 @@ Apply thresholds from `health_thresholds` in Machine Config above. Classify: HEA
 
 Register a recurring recon run:
 
-```
+```bash
 /schedule create --name jetson-recon-biweekly --cron "0 23 * * 0" --skill jetson-recon
 ```
 
 Recommended: **bi-weekly Sunday 23:00 UTC.** Pairs with jetson-audit (Tuesday 02:00 UTC).
 
-```
+```bash
 /schedule list
 /schedule delete --name jetson-recon-biweekly
 ```

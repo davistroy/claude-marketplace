@@ -46,7 +46,7 @@ Supported arguments:
 
 **Before doing anything else**, determine which mode to run:
 
-```
+```text
 IF wiki/ directory exists AND wiki/index.md exists:
     → Run MAINTENANCE MODE (see below)
 ELSE:
@@ -148,7 +148,7 @@ While reading, actively extract:
 
 Create the following structure in the project root:
 
-```
+```text
 wiki/
 ├── index.md              # Content catalog organized by category
 ├── log.md                # Append-only chronological record

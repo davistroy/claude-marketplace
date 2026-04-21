@@ -154,7 +154,7 @@ Fall back to HTML only on JSON error.
 
 ## Console Report Format
 
-```
+```text
 ## Spark Recon — {DATE}
 Overall: {ACTION NEEDED / WORTH WATCHING / NO ACTION}
 
@@ -217,13 +217,13 @@ Tracking fields (show diffs, confirm before updating):
 
 Register a recurring recon run:
 
-```
+```bash
 /schedule create --name spark-recon-biweekly --cron "0 23 * * 0" --skill spark-recon
 ```
 
 Recommended: **bi-weekly Sunday 23:00 UTC.** Pairs with spark-audit (Tuesday 02:00 UTC).
 
-```
+```bash
 /schedule list
 /schedule delete --name spark-recon-biweekly
 ```

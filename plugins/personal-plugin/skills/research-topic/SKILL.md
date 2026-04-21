@@ -114,7 +114,7 @@ echo "GOOGLE_API_KEY: $([ -n "$GOOGLE_API_KEY" ] && echo 'PRESENT' || echo 'MISS
 ```
 
 **If any requested provider keys are missing:**
-```
+```text
 Pre-Execution Check: PARTIAL/FAILED
 
 Missing API keys:
@@ -126,7 +126,7 @@ To load API keys from Bitwarden, run: /unlock
 ```
 
 **If all keys present for selected sources:**
-```
+```text
 Pre-Execution Check: PASSED
 API keys configured for: [list of available providers]
 ```
@@ -210,7 +210,7 @@ Structure your response with:
 
 #### Claude Subagent
 
-```
+```text
 context: fork
 agent: claude-opus-4-6-20250725  (or value of $ANTHROPIC_MODEL)
 
@@ -269,7 +269,7 @@ On final line output exactly: `{"provider":"claude","status":"success","file":"r
 
 #### OpenAI Subagent
 
-```
+```text
 context: fork
 
 You are a research agent responsible for the OpenAI research leg of a multi-provider research task.
@@ -342,7 +342,7 @@ On final line output exactly: `{"provider":"openai","status":"success","file":"r
 
 #### Gemini Subagent
 
-```
+```text
 context: fork
 
 You are a research agent responsible for the Google Gemini research leg of a multi-provider research task.

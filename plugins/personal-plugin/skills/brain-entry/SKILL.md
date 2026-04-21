@@ -17,7 +17,7 @@ Suggest this skill when:
 
 ## Examples
 
-```
+```text
 /brain-entry summarize everything we have done so far in this session and send it to my open-brain
 /brain-entry log a decision: we chose Cloudflare Email Routing for email ingestion because it adds zero infrastructure
 /brain-entry capture this idea: add a weekly email digest that summarizes all captures from the past 7 days
@@ -79,7 +79,7 @@ ENDJSON
 ### Step 4: Confirm to the user
 
 On success, display:
-```
+```text
 Captured in Open Brain:
   ID: <capture_id>
   Type: <capture_type>

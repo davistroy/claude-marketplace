@@ -257,7 +257,7 @@ Write each section following the proven patterns:
 
 **Stage-by-Stage / Component Walkthrough:**
 For each stage or component, follow this template:
-```
+```text
 **What happens:** [concrete transformation]
 **Why it matters:** [consequence of skipping]
 **Our example becomes:** [running example after this stage]

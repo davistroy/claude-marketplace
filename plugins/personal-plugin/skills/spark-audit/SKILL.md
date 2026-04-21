@@ -197,13 +197,13 @@ Skill name field: `spark-audit skill`
 
 Register a recurring audit run:
 
-```
+```bash
 /schedule create --name spark-audit-weekly --cron "0 2 * * 2" --skill spark-audit
 ```
 
 Recommended: **weekly Tuesday 02:00 UTC.** Pairs with spark-recon (bi-weekly Sunday 23:00 UTC).
 
-```
+```bash
 /schedule list
 /schedule delete --name spark-audit-weekly
 ```

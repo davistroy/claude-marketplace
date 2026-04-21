@@ -53,7 +53,7 @@ Spend no more than 30 seconds on this. Do NOT do a deep codebase analysis — th
 
 Quickly check for these files (Glob, not deep reads):
 
-```
+```text
 IMPLEMENTATION_PLAN.md    # Existing plan — may just need /implement-plan
 RECOMMENDATIONS.md        # Previous analysis — plan may already exist
 PROGRESS.md               # Active execution — plan is in flight

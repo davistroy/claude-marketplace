@@ -466,7 +466,7 @@ This bypasses all git hooks, including the lab-notebook gate. Use it deliberatel
 
 When blocked, the hook prints:
 
-```
+```text
 LAB_NOTEBOOK.md exists but has no entry in the last 24 hours.
 Update it before committing (Rule 11 from lab-notebook CLAUDE.md section).
 

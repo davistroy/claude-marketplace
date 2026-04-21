@@ -276,7 +276,7 @@ Three mechanisms inject data before Claude reads the skill prompt:
 | `` !`cmd` `` | Runs `cmd` and splices stdout into prompt | `` !`git status -s` `` → current working tree status |
 
 **Gotcha — `paths:` loop guard:** If your skill writes to a file that matches its own `paths:` pattern, it will re-trigger itself. Always add an entry-point guard:
-```
+```text
 Before running: check LAB_NOTEBOOK.md for an entry from this skill within the last 5 minutes.
 If found → exit immediately (self-triggered re-entry detected).
 ```
@@ -449,7 +449,7 @@ The generated file will contain:
 
 ## Example Usage
 
-```
+```text
 User: /new-skill
 
 Claude: What is the skill name? (kebab-case, e.g., "auto-format")
