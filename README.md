@@ -62,7 +62,6 @@ You can install to different scopes:
 | [`/remove-ip`](plugins/personal-plugin/commands/remove-ip.md) | Sanitize documents by removing company identifiers and non-public intellectual property |
 | [`/review-arch`](plugins/personal-plugin/commands/review-arch.md) | Quick architectural audit with technical debt assessment (supports `--json`, `--focus`) |
 | [`/review-intent`](plugins/personal-plugin/commands/review-intent.md) | Determine original project intent and compare against current implementation |
-| [`/review-pr`](plugins/personal-plugin/commands/review-pr.md) | Structured PR review with MCP GitHub integration and line-level comments |
 | [`/scaffold-plugin`](plugins/personal-plugin/commands/scaffold-plugin.md) | Create a new plugin with proper directory structure, metadata, and starter files |
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
 | [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content (supports `--check-updates`) |
@@ -74,7 +73,6 @@ You can install to different scopes:
 | [`/brain-entry`](plugins/personal-plugin/skills/brain-entry/SKILL.md) | Send captures to Open Brain — summarize sessions, log decisions, capture ideas |
 | [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input |
 | [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate comprehensive annotated technical overview document for non-technical stakeholders |
-| [`/help`](plugins/personal-plugin/skills/help/SKILL.md) | Show available commands and skills with usage information |
 | [`/lab-notebook`](plugins/personal-plugin/skills/lab-notebook/SKILL.md) | Initialize mandatory experiment logging with scientific notebook, ADR, and postmortem patterns |
 | [`/leak-risk-audit`](plugins/personal-plugin/skills/leak-risk-audit/SKILL.md) | Audit datasets for proprietary information leaks before sharing with public/cloud services |
 | [`/plan-gate`](plugins/personal-plugin/skills/plan-gate/SKILL.md) | Assess task complexity and route to the right planning approach |

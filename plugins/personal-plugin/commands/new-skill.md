@@ -188,10 +188,7 @@ Structure verified:
    - [ ] Add specific examples
    - [ ] Define error handling
 
-2. Update help skill:
-   - [ ] Add entry to plugins/[plugin-name]/skills/help/SKILL.md
-
-3. Validate:
+2. Validate:
    - [ ] Run: /validate-plugin [plugin-name]
 
 **Important Reminders:**
@@ -259,10 +256,7 @@ Structure verified:
    - [ ] Add specific examples
    - [ ] Define error handling
 
-2. Update help skill:
-   - [ ] Add entry to plugins/personal-plugin/skills/help/SKILL.md
-
-3. Validate:
+2. Validate:
    - [ ] Run: /validate-plugin personal-plugin
 ```
 

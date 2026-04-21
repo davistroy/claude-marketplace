@@ -122,7 +122,7 @@ plugins/
                        # clean-repo, consolidate-documents, convert-markdown, create-plan,
                        # define-questions, develop-image-prompt, finish-document, implement-plan,
                        # new-command, new-skill, plan-improvements, plan-next, remove-ip,
-                       # review-arch, review-intent, review-pr, scaffold-plugin, test-project,
+                       # review-arch, review-intent, scaffold-plugin, test-project,
                        # validate-plugin
     deprecated/        # Archived commands
     skills/            # help, plan-gate, prime, research-topic, security-analysis, ship,
@@ -148,7 +148,7 @@ plugins/
 
 | Pattern | Commands |
 |---------|---------|
-| Read-only | `review-arch`, `assess-document`, `review-intent`, `review-pr` |
+| Read-only | `review-arch`, `assess-document`, `review-intent` |
 | Interactive | `ask-questions`, `finish-document` |
 | Generator | `define-questions`, `analyze-transcript` |
 | Planning | `create-plan`, `plan-improvements`, `plan-next` |
@@ -206,9 +206,8 @@ python -c "import package_name" 2>/dev/null || echo "package_name: MISSING"
 1. Create `plugins/[name]/`
 2. Add `.claude-plugin/plugin.json`
 3. Add `commands/` (flat .md files) and `skills/` (nested dirs with SKILL.md)
-4. Create `skills/help/SKILL.md` with usage table (manually maintained)
-5. Register in `.claude-plugin/marketplace.json`
-6. Run `/validate-plugin [plugin-name]`
+4. Register in `.claude-plugin/marketplace.json`
+5. Run `/validate-plugin [plugin-name]`
 
 ## Versioning
 
@@ -224,3 +223,7 @@ python -c "import package_name" 2>/dev/null || echo "package_name: MISSING"
 | `/personal-plugin:review-arch` | Required if name collision exists |
 
 `/validate-plugin --all` detects naming collisions.
+
+## Deprecated
+
+- `review-pr` (deprecated 2026-04-21) — use native `/review` for standard PR review or `/ultrareview` for multi-agent deep review

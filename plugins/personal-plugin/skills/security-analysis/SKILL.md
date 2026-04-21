@@ -44,6 +44,19 @@ Suggest this skill when:
 
 Duration scales with codebase size (file count and total LOC). Web searches for CVE verification add latency when network-dependent lookups are required.
 
+## Scope vs `/security-review`
+
+| | `/security-review` (native) | `/security-analysis` (this skill) |
+|---|---|---|
+| **What it covers** | Pending changes — staged diffs and files you're about to commit | Full project: all source files, all dependencies, transitive CVEs |
+| **When it runs** | Pre-commit, ad hoc on in-progress work | On-demand; before releases, after dependency updates, on new repos |
+| **Depth** | Focused review of modified lines | Deep taint analysis, data flow tracing, OWASP Top 10 sweep |
+| **Duration** | Seconds to ~1 minute | 1–15 minutes depending on mode and codebase size |
+
+**Routing guidance:** Use `/security-review` when you want a fast check on what you're about to ship. Use this skill (`/security-analysis`) when you need full-project assurance — dependency CVE audit, static analysis across the entire codebase, and a prioritized remediation roadmap.
+
+---
+
 ## Core Security Analysis Process
 
 ### Phase 1: Discovery and Reconnaissance

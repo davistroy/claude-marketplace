@@ -497,6 +497,6 @@ If PR creation or merge fails:
 ## Related Commands
 
 - `/implement-plan` — Execute an IMPLEMENTATION_PLAN.md (often followed by testing)
-- `/review-pr` — Review the PR created by this command before merging
+- `/review` — Review the PR created by this command before merging (use `/ultrareview` for multi-agent deep review)
 - `/plan-improvements` — Generate improvement recommendations including test coverage gaps
 - `/review-arch` — Architectural audit that identifies testability issues

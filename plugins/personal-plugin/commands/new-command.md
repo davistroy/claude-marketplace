@@ -251,7 +251,6 @@ File created: plugins/[TARGET_PLUGIN]/commands/[command-name].md
    - [ ] Review and adjust error handling
 
 2. Update documentation:
-   - [ ] Update the plugin's `skills/help/SKILL.md` with the new command entry
    - [ ] Add entry to CHANGELOG.md under [Unreleased]
 
 3. Validate:

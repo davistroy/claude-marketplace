@@ -53,9 +53,9 @@ The critical path runs sequentially phase-by-phase. Within each phase, work item
 
 ### Work Items
 
-#### 1.1 Delete personal-plugin help skill
+#### 1.1 Delete personal-plugin help skill ✅ Completed 2026-04-21
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-**Status: PENDING**
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-1 Item 1 (modernization-requirements Phase 1)
 **Files Affected:**
 - `plugins/personal-plugin/skills/help/SKILL.md` (delete)
@@ -79,8 +79,8 @@ Git history preserves the file. No archiving needed.
 
 ---
 
-#### 1.2 Delete bpmn-plugin help skill
-**Status: PENDING**
+#### 1.2 Delete bpmn-plugin help skill ✅ Completed 2026-04-21
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-1 Item 2
 **Files Affected:**
 - `plugins/bpmn-plugin/skills/help/SKILL.md` (delete)
@@ -102,8 +102,8 @@ Same rationale as 1.1 — native `/help` and `/skills` cover this. The bpmn-plug
 
 ---
 
-#### 1.3 Deprecate review-pr command
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 1.3 Deprecate review-pr command
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-1 Item 3
 **Files Affected:**
 - `plugins/personal-plugin/commands/review-pr.md` (delete)
@@ -127,8 +127,8 @@ Decision: user confirmed deprecate (not keep with comparison matrix).
 
 ---
 
-#### 1.4 Add scope note to security-analysis skill
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 1.4 Add scope note to security-analysis skill
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-1 Item 4
 **Files Affected:**
 - `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
@@ -150,8 +150,8 @@ Keep it short — this is disambiguation, not a tutorial.
 
 ---
 
-#### 1.5 Add project-specific banner to evaluate-pipeline-output
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 1.5 Add project-specific banner to evaluate-pipeline-output
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-1 Item 5
 **Files Affected:**
 - `plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md` (modify)
