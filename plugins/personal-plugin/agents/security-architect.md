@@ -239,4 +239,3 @@ Your entry in `.meta.json` must follow this exact schema:
 `findings_count` must exactly match the counts in your findings file summary table.  
 `runtime_seconds` should be an integer — compute from the ISO timestamps.  
 Use `null` (not `"null"`) for `findings_count` on unavailable tools.
-
