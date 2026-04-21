@@ -340,16 +340,16 @@ This section becomes the canonical reference new-skill/new-command examples link
 
 ### Phase 2 Testing Requirements
 
-- [ ] Scaffold a fresh test skill via `/new-skill` — verify frontmatter options and examples present
-- [ ] Scaffold a fresh test command via `/new-command` — same
-- [ ] Scaffold a test plugin via `/scaffold-plugin` — verify plugin.json is current and no help skill generated
-- [ ] common-patterns.md "Advanced Features" section renders cleanly
+- [x] Scaffold a fresh test skill via `/new-skill` — verify frontmatter options and examples present
+- [x] Scaffold a fresh test command via `/new-command` — same
+- [x] Scaffold a test plugin via `/scaffold-plugin` — verify plugin.json is current and no help skill generated
+- [x] common-patterns.md "Advanced Features" section renders cleanly
 
 ### Phase 2 Completion Checklist
 
-- [ ] All 4 work items complete
-- [ ] Scaffolded test artifacts produce modern skill/command/plugin files
-- [ ] No regression to existing scaffolded items (they remain untouched until per-skill modernization)
+- [x] All 4 work items complete
+- [x] Scaffolded test artifacts produce modern skill/command/plugin files
+- [x] No regression to existing scaffolded items (they remain untouched until per-skill modernization)
 
 ---
 
