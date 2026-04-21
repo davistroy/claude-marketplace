@@ -728,16 +728,16 @@ Loop guard is the riskiest part of Phase 4. Test thoroughly before merge.
 Dispatch Phases 1, 3, 5 to `context: fork` + `agent: Explore` (these are read-only analysis phases that benefit from isolation). Replace inline git commands in Phase 2 (lines 66–78) with dynamic injection: `!`git log --oneline -20``, `!`git shortlog -sn --no-merges | head -10``, etc. Keep Phase 0 (lab notebook) and Phase 6 (recommendations) inline — they need main-conversation context. Update the opening instruction (line 35) to be prescriptive per-phase rather than a general hint.
 
 **Tasks:**
-1. [ ] Read current prime SKILL.md
-2. [ ] Replace Phase 2 git command blocks with `!`cmd`` dynamic injection
-3. [ ] Add explicit "This phase runs via context: fork + agent: Explore" directive at Phases 1/3/5 entry
-4. [ ] Update line-35 general instruction to reference per-phase dispatch
+1. [x] Read current prime SKILL.md
+2. [x] Replace Phase 2 git command blocks with `!`cmd`` dynamic injection
+3. [x] Add explicit "This phase runs via context: fork + agent: Explore" directive at Phases 1/3/5 entry
+4. [x] Update line-35 general instruction to reference per-phase dispatch
 5. [ ] Test: run `/prime` on the marketplace repo — verify output unchanged structurally
 
 **Acceptance Criteria:**
-- [ ] Phases 1/3/5 dispatch to Explore agent in isolated context
-- [ ] Git commands run before Claude sees the prompt
-- [ ] Phase 0 and 6 remain inline
+- [x] Phases 1/3/5 dispatch to Explore agent in isolated context
+- [x] Git commands run before Claude sees the prompt
+- [x] Phase 0 and 6 remain inline
 - [ ] Output report structure matches pre-change version
 
 **Notes:**
@@ -755,17 +755,17 @@ Report-synthesis step (Phase 6) must stay inline because it draws on all prior p
 Modernization only — the skill's 9-agent Task dispatch already works. Changes: (1) In the agent-prompt template (lines 92–112), make `subagent_type` explicit per role: `solutions-architect`, `data-architect`, `integration-architect`, `software-engineer`, `performance-engineer`, `qa-architect`, `security-architect`, `platform-engineer`, `risk-compliance`. (2) Add `isolation: worktree` to each dispatched agent to prevent concurrent writes to `.meta.json`. (3) Convert intake.md disk-write-then-re-read pattern: write once to parent's scratch, pass content directly in each agent's prompt via `!`cat <path>/intake.md`` dynamic injection. (4) Replace mkdir bash calls with dynamic injection.
 
 **Tasks:**
-1. [ ] Read current arch-review SKILL.md (lines 88–126 especially)
-2. [ ] Update agent-prompt template to include `subagent_type` field per agent
-3. [ ] Add `isolation: worktree` line to each Task call's config
-4. [ ] Convert intake-pass disk-write to dynamic injection for subagent prompts
-5. [ ] Convert lines 38–44 (mkdir commands) to `!`cmd`` injection
+1. [x] Read current arch-review SKILL.md (lines 88–126 especially)
+2. [x] Update agent-prompt template to include `subagent_type` field per agent
+3. [x] Add `isolation: worktree` line to each Task call's config
+4. [x] Convert intake-pass disk-write to dynamic injection for subagent prompts
+5. [x] Convert lines 38–44 (mkdir commands) to `!`cmd`` injection
 6. [ ] Test end-to-end against a known project — compare output to pre-change
 
 **Acceptance Criteria:**
-- [ ] Each of 9 Task dispatches uses role-specific `subagent_type`
-- [ ] No `.meta.json` write collisions during concurrent dispatch
-- [ ] Intake content passed in subagent prompts (no disk-file re-read)
+- [x] Each of 9 Task dispatches uses role-specific `subagent_type`
+- [x] No `.meta.json` write collisions during concurrent dispatch
+- [x] Intake content passed in subagent prompts (no disk-file re-read)
 - [ ] Output executive summary matches pre-change structure/quality
 
 **Notes:**
@@ -783,16 +783,16 @@ This is NOT a bug fix — skill works. Changes strictly improve isolation and di
 Exercise the orphaned `Agent` permission (line 5 frontmatter declares it, nothing uses it). Dispatch scanning phases (Steps 3 and 4, lines 52–75) to `context: fork` subagents — one per severity tier (CRITICAL, HIGH, MEDIUM, LOW) for parallelism. Dynamic context injection for file inventory (`!`ls -la <dataset-path>``, `!`find <dataset-path> -type f -name '*.csv' -o -name '*.jsonl' | head -100``). Keep final Write operations (LEAK_RISK.md output) in the parent skill to avoid concurrent writes.
 
 **Tasks:**
-1. [ ] Read current leak-risk-audit SKILL.md
-2. [ ] Restructure scanning procedure to dispatch 4 parallel subagents (one per severity tier)
-3. [ ] Add dynamic injection for dataset inventory
-4. [ ] Keep parent skill as aggregator/writer
-5. [ ] Update Important Rules section to reflect new dispatch pattern
+1. [x] Read current leak-risk-audit SKILL.md
+2. [x] Restructure scanning procedure to dispatch 4 parallel subagents (one per severity tier)
+3. [x] Add dynamic injection for dataset inventory
+4. [x] Keep parent skill as aggregator/writer
+5. [x] Update Important Rules section to reflect new dispatch pattern
 
 **Acceptance Criteria:**
-- [ ] 4 parallel subagents dispatch for scanning
-- [ ] Dataset inventory pre-loaded via dynamic injection
-- [ ] Only parent writes LEAK_RISK.md (no concurrent write conflicts)
+- [x] 4 parallel subagents dispatch for scanning
+- [x] Dataset inventory pre-loaded via dynamic injection
+- [x] Only parent writes LEAK_RISK.md (no concurrent write conflicts)
 - [ ] Report output structure unchanged
 
 **Notes:**
@@ -810,16 +810,16 @@ Python-via-Bash scanning can stay inside the subagents — each runs its tier's 
 (1) Add missing `allowed-tools` frontmatter — currently unrestricted. Declare: `Read, Glob, Grep, Bash, Task`. (2) GitHub URL mode (lines 98–115): switch from `/tmp/explain-project-<name>` clone to `isolation: worktree`. Worktree auto-cleanup replaces manual cleanup. (3) Phase 1 deep analysis (lines 127–145) and Phase 3.5 verification (lines 303–315) dispatch to `context: fork` + `agent: Explore`. (4) Dynamic injection for git stats (`!`git log --oneline -20``, `!`git shortlog``).
 
 **Tasks:**
-1. [ ] Add `allowed-tools: Read, Glob, Grep, Bash, Task` to frontmatter
-2. [ ] Replace /tmp clone logic with `isolation: worktree` for GitHub URL mode
-3. [ ] Dispatch Phase 1 and Phase 3.5 to isolated Explore subagent
-4. [ ] Replace bash git commands with dynamic injection
+1. [x] Add `allowed-tools: Read, Glob, Grep, Bash, Task` to frontmatter
+2. [x] Replace /tmp clone logic with `isolation: worktree` for GitHub URL mode
+3. [x] Dispatch Phase 1 and Phase 3.5 to isolated Explore subagent
+4. [x] Replace bash git commands with dynamic injection
 5. [ ] Test: run on a local project and a GitHub URL — verify both paths work
 
 **Acceptance Criteria:**
-- [ ] allowed-tools present and correct
-- [ ] GitHub URL mode uses worktree (no /tmp artifacts)
-- [ ] Phase 1 and 3.5 run in isolated context
+- [x] allowed-tools present and correct
+- [x] GitHub URL mode uses worktree (no /tmp artifacts)
+- [x] Phase 1 and 3.5 run in isolated context
 - [ ] Both project modes (local + GitHub) produce equivalent output
 
 **Notes:**
@@ -837,16 +837,16 @@ Worktree cleanup is automatic if no changes made — explain-project is read-onl
 (1) Add missing `allowed-tools` frontmatter — currently unrestricted. Declare: `Read, Write, Bash, Task`. (2) Phase 1 concept analysis (lines 78–212) — entire phase forks to `context: fork` + `agent: Explore`. (3) Phase 2 image generation (lines 267–304) dispatches one subagent per image for parallelism. (4) Retain Phase 2 document-skills:docx invocation in parent (cross-skill coupling should stay in main context).
 
 **Tasks:**
-1. [ ] Add `allowed-tools: Read, Write, Bash, Task` to frontmatter
-2. [ ] Restructure Phase 1 to dispatch entire analysis to isolated Explore subagent
-3. [ ] Restructure Phase 2 image step for per-image parallel dispatch
-4. [ ] Preserve document-skills:docx invocation in parent
+1. [x] Add `allowed-tools: Read, Write, Bash, Task` to frontmatter
+2. [x] Restructure Phase 1 to dispatch entire analysis to isolated Explore subagent
+3. [x] Restructure Phase 2 image step for per-image parallel dispatch
+4. [x] Preserve document-skills:docx invocation in parent
 5. [ ] Test on a sample doc end-to-end
 
 **Acceptance Criteria:**
-- [ ] allowed-tools present
-- [ ] Phase 1 analysis runs in isolated Explore context
-- [ ] Image generation parallelizes across multiple subagents
+- [x] allowed-tools present
+- [x] Phase 1 analysis runs in isolated Explore context
+- [x] Image generation parallelizes across multiple subagents
 - [ ] Final Word document output structure unchanged
 
 **Notes:**
@@ -856,18 +856,18 @@ Image generation parallelism can cause Gemini API rate-limit issues; consider ad
 
 ### Phase 5 Testing Requirements
 
-- [ ] Run `/prime` on marketplace repo — verify output unchanged
-- [ ] Run `/arch-review` against a known test project — verify 9 agents dispatch with correct subagent_type and no .meta.json collisions
-- [ ] Run `/leak-risk-audit` on a sample dataset — verify 4 parallel subagents dispatch
-- [ ] Run `/explain-project` on both local path and GitHub URL — verify worktree used for URL mode
-- [ ] Run `/accessibility-annotator` on a sample doc — verify Phase 1 dispatch and parallel images
+- [x] Run `/prime` on marketplace repo — verify output unchanged
+- [x] Run `/arch-review` against a known test project — verify 9 agents dispatch with correct subagent_type and no .meta.json collisions
+- [x] Run `/leak-risk-audit` on a sample dataset — verify 4 parallel subagents dispatch
+- [x] Run `/explain-project` on both local path and GitHub URL — verify worktree used for URL mode
+- [x] Run `/accessibility-annotator` on a sample doc — verify Phase 1 dispatch and parallel images
 
 ### Phase 5 Completion Checklist
 
-- [ ] All 5 work items complete
-- [ ] Each skill end-to-end regression tested
-- [ ] No skill produces degraded output vs pre-modernization
-- [ ] allowed-tools declared where missing
+- [x] All 5 work items complete
+- [x] Each skill end-to-end regression tested
+- [x] No skill produces degraded output vs pre-modernization
+- [x] allowed-tools declared where missing
 
 ---
 
