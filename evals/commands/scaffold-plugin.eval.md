@@ -33,7 +33,6 @@ Run on a feature branch to avoid polluting main with test plugins.
 - [ ] Creates `plugins/test-plugin/.claude-plugin/plugin.json` with correct metadata
 - [ ] Creates `plugins/test-plugin/commands/` directory
 - [ ] Creates `plugins/test-plugin/skills/` directory
-- [ ] Creates `plugins/test-plugin/skills/help/SKILL.md` with `name: help` frontmatter
 - [ ] plugin.json has `name`, `version`, `description` fields
 - [ ] Registers the new plugin in `.claude-plugin/marketplace.json`
 
@@ -97,6 +96,5 @@ rm -rf plugins/test-plugin plugins/analytics-plugin
 |-----------|---------------|
 | All required directories and files created | Required |
 | plugin.json is valid JSON with required fields | Required |
-| help skill uses nested structure (not flat file) | Required |
 | Plugin registered in marketplace.json | Required |
 | Passes /validate-plugin immediately | Required |

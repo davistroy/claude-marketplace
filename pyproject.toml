@@ -3,7 +3,6 @@ testpaths = [
     "tests",
     "plugins/bpmn-plugin/tools/bpmn2drawio/tests",
     "plugins/personal-plugin/tools/feedback-docx-generator/tests",
-    "plugins/personal-plugin/tools/research-orchestrator/tests",
     "plugins/personal-plugin/tools/visual-explainer/tests",
 ]
 python_files = ["test_*.py"]
@@ -11,7 +10,6 @@ python_functions = ["test_*"]
 pythonpath = [
     "plugins/bpmn-plugin/tools/bpmn2drawio/src",
     "plugins/personal-plugin/tools/feedback-docx-generator/src",
-    "plugins/personal-plugin/tools/research-orchestrator/src",
     "plugins/personal-plugin/tools/visual-explainer/src",
 ]
 addopts = "--import-mode=importlib"

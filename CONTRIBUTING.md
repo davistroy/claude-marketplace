@@ -18,7 +18,6 @@ See [CLAUDE.md](CLAUDE.md) for required repository structure and compatibility r
 - [Plugin Development Guide](#plugin-development-guide)
 - [Adding a New Command](#adding-a-new-command)
 - [Adding a New Skill](#adding-a-new-skill)
-- [Maintaining the Help Skill](#maintaining-the-help-skill)
 - [Command Template](#command-template)
 - [Version Management](#version-management)
 - [Pull Request Process](#pull-request-process)
@@ -241,66 +240,15 @@ description: Brief description of the skill
 
 ---
 
-## Maintaining the Help Skill
-
-**IMPORTANT:** Each plugin must have a `/help` skill that documents all commands and skills.
-
-### Static Help Table
-
-The `/help` skill uses a static table that must be manually updated when commands or skills are added or removed. Update `skills/help/SKILL.md` to include new entries in both the summary table (Mode 1) and detailed reference (Mode 2).
-
-### Help Skill Location
-
-```
-plugins/[plugin-name]/skills/help/SKILL.md
-```
-
-### Automated Help Generation (Optional)
-
-For plugins that prefer static help content, the `generate-help.py` script can generate help files from command metadata:
-
-```bash
-# Generate help.md for a specific plugin
-python scripts/generate-help.py plugins/personal-plugin
-
-# Generate help.md for all plugins
-python scripts/generate-help.py --all
-
-# Check if help.md needs updating (no changes made)
-python scripts/generate-help.py --all --check
-```
-
-### Pre-commit Hook Enforcement
-
-The pre-commit hook validates plugin files on commit:
-
-**Blocking Behavior:**
-- When you **add a new command/skill**, the hook **blocks** if it's not documented in help.md
-- When you **modify existing files**, the hook shows an informational message but allows the commit
-
-**If your commit is blocked due to missing documentation:**
-
-```bash
-# Option 1: Regenerate help.md files automatically
-python scripts/generate-help.py --all
-
-# Option 2: Use Claude Code (recommended)
-/validate-plugin --fix
-```
-
-Then stage the updated help.md files and commit again:
-```bash
-git add plugins/*/skills/help/SKILL.md
-git commit -m "your message"
-```
-
-### Checklist
+## Checklist
 
 Before submitting a PR that modifies commands or skills:
 
 - [ ] Verified the new command/skill has valid frontmatter with a `description` field
 - [ ] Ran `/validate-plugin` to confirm the plugin structure is correct
 - [ ] Verified examples are accurate and functional
+
+> **Note:** Help skills are no longer maintained per-plugin. Native `/help` in Claude Code covers command/skill discovery.
 
 ---
 
