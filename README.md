@@ -97,7 +97,6 @@ BPMN 2.0 workflow tools for generating and converting process diagrams.
 |-------|-------------|
 | [`/bpmn-generator`](plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md) | Generate BPMN 2.0 compliant XML files from natural language process descriptions OR from structur... |
 | [`/bpmn-to-drawio`](plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md) | Convert BPMN 2.0 XML files into Draw.io native format (.drawio) using the bpmn2drawio Python tool. |
-| [`/help`](plugins/bpmn-plugin/skills/help/SKILL.md) | Show available skills in this plugin with usage information |
 
 **BPMN Generator** operates in two modes:
 - **Interactive Mode**: Structured Q&A to gather requirements from natural language descriptions

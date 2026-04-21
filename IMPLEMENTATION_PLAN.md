@@ -1,8 +1,9 @@
 # Implementation Plan
 
 **Generated:** 2026-04-21 11:28:18
+**Completed:** 2026-04-21
 **Based On:** `.tmp/modernization-requirements-20260421.md` (ultra-plan synthesis from portfolio assessment)
-**Total Phases:** 7
+**Total Phases:** 7 — All phases complete
 **Estimated Total Effort:** ~1,580 LOC across ~52 files
 
 ---
@@ -1173,16 +1174,16 @@ This item is the verification gate before 7.1 can proceed.
 
 ## Success Metrics
 
-- [ ] All 7 phases completed with acceptance criteria met
-- [ ] 2 help skills deleted, 1 command deprecated, 3 disambiguation notes added
-- [ ] Scaffolding generators teach 12+ modern frontmatter fields with worked examples
-- [ ] Planning workflow has 8 routing paths (original 6 + B.5 + D.5); implement-plan uses worktree isolation
-- [ ] Audit/recon skill bodies reduced ~70% via consolidation into shared reference; `/schedule` integration documented
-- [ ] 5 analysis skills use `context: fork` dispatch and dynamic injection; arch-review has explicit `subagent_type` per role
-- [ ] Ship uses dynamic injection (2–3s faster); lab-notebook pre-commit hook opt-in; wiki + security auto-activate on paths
-- [ ] Research-topic works Python-free with 3 parallel subagent dispatch; output quality validated against baseline
-- [ ] Net LOC change: ~+500 (new references/scaffolding) minus ~-1000 (consolidation/deletion) = ~-500 net reduction
-- [ ] All marketplace install/validate tests pass post-change
+- [x] All 7 phases completed with acceptance criteria met
+- [x] 2 help skills deleted, 1 command deprecated, 3 disambiguation notes added
+- [x] Scaffolding generators teach 12+ modern frontmatter fields with worked examples
+- [x] Planning workflow has 8 routing paths (original 6 + B.5 + D.5); implement-plan uses worktree isolation
+- [x] Audit/recon skill bodies reduced ~70% via consolidation into shared reference; `/schedule` integration documented
+- [x] 5 analysis skills use `context: fork` dispatch and dynamic injection; arch-review has explicit `subagent_type` per role
+- [x] Ship uses dynamic injection (2–3s faster); lab-notebook pre-commit hook opt-in; wiki + security auto-activate on paths
+- [x] Research-topic works Python-free with 3 parallel subagent dispatch; output quality validated against baseline
+- [x] Net LOC change: ~+500 (new references/scaffolding) minus ~-1000 (consolidation/deletion) = ~-500 net reduction
+- [x] All marketplace install/validate tests pass post-change
 
 ---
 
