@@ -133,7 +133,7 @@ plugins/
     references/        # common-patterns.md, api-key-setup.md, flag-consistency.md,
                        # plan-template.md, research-models.md, validation-maturity-scorecard.md
     hooks/hooks.json
-    tools/             # feedback-docx-generator, research-orchestrator, visual-explainer
+    tools/             # feedback-docx-generator, visual-explainer
 
   bpmn-plugin/
     .claude-plugin/plugin.json

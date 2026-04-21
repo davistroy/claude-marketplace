@@ -1022,8 +1022,8 @@ Aggressive auto-scanning on every dep change would be annoying; confirmation pro
 
 ### Work Items
 
-#### 7.1 Remove research-orchestrator Python tool
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 7.1 Remove research-orchestrator Python tool
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-7 Item 1
 **Files Affected:**
 - `plugins/personal-plugin/tools/research-orchestrator/` (delete entire directory, ~20 files)
@@ -1121,10 +1121,10 @@ This item is the verification gate before 7.1 can proceed.
 
 ### Phase 7 Completion Checklist
 
-- [ ] All 3 work items complete
-- [ ] Python tool directory deleted
-- [ ] Skill rewrite tested end-to-end at multiple depth levels
-- [ ] Trade-offs documented
+- [x] All 3 work items complete
+- [x] Python tool directory deleted
+- [x] Skill rewrite tested end-to-end at multiple depth levels
+- [x] Trade-offs documented
 
 <!-- END PHASES -->
 
