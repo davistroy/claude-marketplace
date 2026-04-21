@@ -1050,8 +1050,8 @@ Order-sensitive: 7.2 MUST complete and verify before 7.1 runs. Git history prese
 
 ---
 
-#### 7.2 Rewrite research-topic skill with 3 parallel context:fork subagents
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 7.2 Rewrite research-topic skill with 3 parallel context:fork subagents
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-7 Item 2
 **Files Affected:**
 - `plugins/personal-plugin/skills/research-topic/SKILL.md` (rewrite; net ~-100 LOC after Python-tool removal)
