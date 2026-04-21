@@ -992,19 +992,19 @@ Aggressive auto-scanning on every dep change would be annoying; confirmation pro
 
 ### Phase 6 Testing Requirements
 
-- [ ] Run `/ship` on a small branch — verify git calls collapse to pre-flight injection
-- [ ] Run `/ship` with >500-line diff — verify `/ultrareview` suggestion fires
-- [ ] Commit in project with stale LAB_NOTEBOOK.md — verify hook blocks
-- [ ] Commit in project without LAB_NOTEBOOK.md — verify hook no-ops
-- [ ] Touch `wiki/sources/new.md` — verify create-wiki fires in maintenance mode
-- [ ] Edit `package.json` — verify security-analysis prompts for scan
+- [x] Run `/ship` on a small branch — verify git calls collapse to pre-flight injection
+- [x] Run `/ship` with >500-line diff — verify `/ultrareview` suggestion fires
+- [x] Commit in project with stale LAB_NOTEBOOK.md — verify hook blocks
+- [x] Commit in project without LAB_NOTEBOOK.md — verify hook no-ops
+- [x] Touch `wiki/sources/new.md` — verify create-wiki fires in maintenance mode
+- [x] Edit `package.json` — verify security-analysis prompts for scan
 
 ### Phase 6 Completion Checklist
 
-- [ ] All 4 work items complete
-- [ ] Hooks don't break any existing workflow
-- [ ] `paths:` triggers don't create infinite loops
-- [ ] Bypass mechanisms (--no-verify, decline prompt) work
+- [x] All 4 work items complete
+- [x] Hooks don't break any existing workflow
+- [x] `paths:` triggers don't create infinite loops
+- [x] Bypass mechanisms (--no-verify, decline prompt) work
 
 ---
 
