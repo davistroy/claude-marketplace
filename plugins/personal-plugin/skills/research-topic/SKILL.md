@@ -540,6 +540,32 @@ Duration reflects wall-clock time for the slowest subagent (all three run in par
 
 Running all three providers at "comprehensive" depth may cost $2-5+ per query. For detailed cost estimates, read `references/research-models.md`. Use `--sources` to select specific providers.
 
+## Trade-offs vs Previous Implementation
+
+This skill replaced the Python `research-orchestrator` tool (deleted in Phase 7.1). The architectural trade-off was evaluated and approved (Option A).
+
+### Lost
+
+**Real-time streaming progress updates.** The Python tool polled each provider API and streamed per-source progress to the terminal as each provider responded — users saw live status lines (e.g., "Claude: thinking... 4,000 tokens", "OpenAI: poll 12/180: in_progress"). The `context: fork` subagent model does not support streaming back to the parent conversation during execution. Subagents return only on completion. For ~15-minute comprehensive runs, the user sees no progress for the full duration — only the Claude Code agent-in-progress indicator in the UI.
+
+**Workaround:** Use `/batch` to decompose a large research agenda into multiple shorter concurrent queries rather than one long comprehensive run. This distributes wait time and provides natural checkpoints.
+
+### Gained
+
+**Simpler architecture.** No Python dependencies, no virtual environment, no `PYTHONPATH` setup, no `pip install` required. Any machine with Claude Code can run this skill without pre-provisioning.
+
+**Easier debugging.** Subagent prompts are plain text in this skill file. When a provider call fails, the subagent's error output is readable in the Claude Code UI. No Python stack traces, no import errors, no module resolution failures.
+
+**Cross-platform portability.** The Python tool required Python 3.10+, `httpx`, and provider SDKs. This skill runs via `curl` and `python3` (standard on all platforms) for JSON parsing only — no non-standard dependencies.
+
+**Native Claude Code integration.** Uses the standard `context: fork` pattern, consistent with all other modernized skills in this plugin. Same observability, same lifecycle management, same cancellation behavior.
+
+### Trade-off Acknowledged
+
+For ~15-minute research runs at `comprehensive` depth, the absence of streaming means the user sees no progress for the full run duration. This was an intentional design decision — Option A (native subagents, lose streaming) over Option B (keep Python tool, keep streaming). Documented here as the verification gate confirming the trade-off was understood and approved before the Python tool was deleted.
+
+---
+
 ## Examples
 
 **Basic research:**
