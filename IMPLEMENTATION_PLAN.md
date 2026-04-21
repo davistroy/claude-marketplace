@@ -551,8 +551,8 @@ Must be completed before 4.2–4.4.
 
 ---
 
-#### 4.2 Refactor jetson-audit skill
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 4.2 Refactor jetson-audit skill
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-4 Item 2
 **Files Affected:**
 - `plugins/personal-plugin/skills/jetson-audit/SKILL.md` (modify; net ~-100 LOC after consolidation)
@@ -577,8 +577,8 @@ If the skill depends on LAB_NOTEBOOK.md entries from prior audits for baseline c
 
 ---
 
-#### 4.3 Refactor spark-audit skill
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 4.3 Refactor spark-audit skill
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-4 Item 3
 **Files Affected:**
 - `plugins/personal-plugin/skills/spark-audit/SKILL.md` (modify; net ~-100 LOC)
