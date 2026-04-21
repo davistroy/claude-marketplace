@@ -3,11 +3,31 @@ name: security-analysis
 description: Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning
 effort: high
 allowed-tools: Read, Write, Glob, Grep, Bash, WebSearch
+paths:
+  - package.json
+  - pyproject.toml
+  - Cargo.toml
+  - go.mod
+  - requirements.txt
+  - Gemfile
 ---
 
 # Security Analysis Framework
 
 Perform a comprehensive security vulnerability scan and analysis of the current project. Identifies the technology stack, scans for vulnerabilities in source code and dependencies, assesses real-world risk with context-aware analysis, and produces an actionable remediation roadmap.
+
+## Auto-Activation Confirmation
+
+When triggered automatically via `paths:` (i.e., a dependency manifest was modified), ask the user before proceeding:
+
+> A dependency manifest file was changed (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `requirements.txt`, or `Gemfile`). Would you like to run a full security scan now? This will audit your dependencies for known CVEs and may take 1–15 minutes depending on project size. (y/n)
+
+- **If the user confirms (y / yes):** proceed with the full scan using the instructions below. Default scan mode is `--dependencies-only` when auto-triggered (faster; targets the changed manifests). User may override with `--quick` or no flag for full scan.
+- **If the user declines (n / no / anything other than y/yes):** respond with "Security scan skipped. You can run `/security-analysis` manually at any time." and exit immediately — do not perform any scanning.
+
+When invoked directly by the user (not via paths auto-trigger), skip this prompt and proceed immediately.
+
+---
 
 ## Input Validation
 

@@ -7,6 +7,28 @@ disable-model-invocation: true
 
 You are automating the complete git workflow to ship code changes. After creating the PR, you will automatically review it, fix any issues, and merge it. The user may provide a branch name and description as arguments: $ARGUMENTS
 
+## Pre-loaded Context
+
+The following git state is injected before Claude processes this prompt:
+
+**Working tree status:**
+!`git status -s`
+
+**Diff summary:**
+!`git diff --stat`
+
+**Staged diff summary:**
+!`git diff --cached --stat`
+
+**Current branch:**
+!`git branch --show-current`
+
+**Remote:**
+!`git remote -v`
+
+**Diff size (lines changed):**
+!`git diff --stat | tail -1 | awk '{print $NF}'`
+
 ## Proactive Triggers
 
 Suggest this skill when:
@@ -58,15 +80,19 @@ Example log entries:
 ```
 
 ## Pre-flight Checks
-1. Verify this is a git repository
-2. Confirm there are uncommitted changes (staged or unstaged) - if not, abort with a clear message
-3. Confirm the current branch is `main` - if not, ask the user if they want to proceed from the current branch or abort
+
+Use the pre-loaded context injected above — do NOT re-run these git commands:
+
+1. **Verify git repository** — remote output above will be empty if not a git repo; abort if so
+2. **Confirm uncommitted changes** — check the injected `git status -s` and diff summaries; if both are empty, abort with a clear message
+3. **Confirm current branch** — check the injected branch name; if not `main`, ask the user if they want to proceed from the current branch or abort
+4. **Diff size gate** — check the injected "Diff size (lines changed)" value. If > 500, note this for Phase 6 (will suggest `/ultrareview` instead of standard review)
 
 ## Phase 0: Platform Detection
 
 Detect the git hosting platform and select the appropriate CLI:
 
-1. Parse `git remote -v` for the push remote URL
+1. Parse the injected `git remote -v` output (pre-loaded above) for the push remote URL — do NOT re-run the command
 2. **If URL contains `github.com`** → set `PLATFORM=github`
    - Verify `gh auth status` succeeds
    - If `gh` is not installed or not authenticated, abort with install/auth instructions
@@ -104,7 +130,7 @@ Before staging changes, verify project documentation is current. **LAB_NOTEBOOK.
 3. If it exists:
    a. Read the project's `CLAUDE.md` AND the system-level `~/.claude/CLAUDE.md` for lab notebook rules — the project's CLAUDE.md contains the "Lab Notebook — MANDATORY Logging Protocol" section with the project's logging rules, entry template, and project-specific tags; the system CLAUDE.md may contain additional constraints
    b. Read the latest entries in `LAB_NOTEBOOK.md` (the Experiment Log section)
-   c. Analyze the current changes (`git diff` and `git diff --cached`) to understand what work was done
+   c. Analyze the current changes using the pre-loaded diff summaries injected at the top of this prompt (do NOT re-run `git diff` or `git diff --cached` — use the injected output)
    d. Determine if there's a current entry covering the changes being shipped:
       - An entry dated today whose objective relates to the changes
       - An IN PROGRESS entry that covers the current work
@@ -254,6 +280,23 @@ Categorize each issue by severity:
 - **SUGGESTION**: Nice to have - does NOT block merge
 
 ### 6.4 Output
+
+**Large-diff gate:** If the injected "Diff size (lines changed)" value from pre-flight is > 500, display this recommendation before the standard review output and skip the automated fix loop — route to `/ultrareview` instead:
+
+```text
+Phase 6: Large Diff Detected
+==============================
+This PR changes [N] lines (>500). Standard auto-review may miss subtle issues.
+
+Recommendation: Run `/ultrareview` for multi-agent deep review on this PR.
+  - /ultrareview provides more thorough analysis for large changes
+  - Auto-fix loop skipped for large diffs (too many moving parts for reliable auto-fix)
+
+PR URL: [url] (open — awaiting manual review)
+Branch: [branch-name] (preserved)
+```
+
+For diffs ≤ 500 lines, display the standard review output:
 
 ```text
 Phase 6: Auto-Review

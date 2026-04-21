@@ -885,8 +885,8 @@ Image generation parallelism can cause Gemini API rate-limit issues; consider ad
 
 ### Work Items
 
-#### 6.1 Enhance ship skill with dynamic injection
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 6.1 Enhance ship skill with dynamic injection
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-6 Item 1
 **Files Affected:**
 - `plugins/personal-plugin/skills/ship/SKILL.md` (modify; ~30 LOC)
@@ -911,8 +911,8 @@ Small perf win (~2-3s per run) but meaningful UX improvement.
 
 ---
 
-#### 6.2 Add opt-in pre-commit hook for lab-notebook
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 6.2 Add opt-in pre-commit hook for lab-notebook
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-6 Item 2
 **Files Affected:**
 - `plugins/personal-plugin/hooks/hooks.json` (modify; +~15 LOC)
@@ -940,8 +940,8 @@ Hook script must exit quickly (<1s) or it'll annoy users. Use `find` with `-newe
 
 ---
 
-#### 6.3 Add paths auto-activation to create-wiki
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 6.3 Add paths auto-activation to create-wiki
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-6 Item 3
 **Files Affected:**
 - `plugins/personal-plugin/skills/create-wiki/SKILL.md` (modify; ~10 LOC)
@@ -965,8 +965,8 @@ Avoid triggering on every CLAUDE.md edit — may want to narrow to specific sect
 
 ---
 
-#### 6.4 Add paths auto-activation to security-analysis
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 6.4 Add paths auto-activation to security-analysis
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-6 Item 4
 **Files Affected:**
 - `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify; ~10 LOC)

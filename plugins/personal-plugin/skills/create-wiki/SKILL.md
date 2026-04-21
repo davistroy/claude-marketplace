@@ -2,6 +2,10 @@
 name: create-wiki
 description: Set up a persistent, LLM-maintained wiki inside any project. Creates a wiki/ directory with sources, pages, schema, and navigation files, seeds initial pages from project discovery, and injects CLAUDE.md rules that make Claude automatically maintain the wiki during normal work sessions.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)
+paths:
+  - wiki/sources/**/*
+  - CLAUDE.md
+  - LAB_NOTEBOOK.md
 ---
 
 # Create Wiki
@@ -37,6 +41,71 @@ Supported arguments:
 - `init` — Full initialization: discover project context, create wiki structure, seed pages, inject CLAUDE.md rules
 - `status` — Show wiki health (redirects to `/wiki status`)
 - No arguments — Same as `init` if no wiki exists, same as `status` if one does
+
+## Entry-Point: Init vs Maintenance Mode
+
+**Before doing anything else**, determine which mode to run:
+
+```
+IF wiki/ directory exists AND wiki/index.md exists:
+    → Run MAINTENANCE MODE (see below)
+ELSE:
+    → Run INITIALIZATION MODE (On `init` section below)
+```
+
+Check for wiki existence:
+```bash
+test -f wiki/index.md && echo "EXISTS" || echo "NOT_FOUND"
+```
+
+### Maintenance Mode (wiki already exists)
+
+Used when `paths:` auto-activation fires (a source file or CLAUDE.md changed) OR when the user invokes with `status`.
+
+**Maintenance mode is idempotent** — running it twice produces the same result. It updates, never re-initializes.
+
+#### Maintenance Step 1: Identify Changed Sources
+
+Determine what triggered the skill (if auto-activated via `paths:`):
+- If triggered by `wiki/sources/**/*` — a source file was added or modified
+- If triggered by `CLAUDE.md` — project rules changed; wiki pages covering architecture or conventions may be stale
+- If triggered by `LAB_NOTEBOOK.md` — new findings may be wiki-worthy; check for extractable durable knowledge
+- If invoked directly — check recent git changes: `git diff --name-only HEAD~1 HEAD`
+
+#### Maintenance Step 2: Update Relevant Wiki Pages
+
+For each changed source:
+1. Read the changed file
+2. Identify which existing `wiki/pages/*.md` pages reference or relate to it (check frontmatter `sources:` fields and content body links)
+3. For source files in `wiki/sources/`: re-ingest the source, update pages whose content depends on it
+4. For `CLAUDE.md` changes: update pages in the `architecture`, `decisions`, or `operations` categories if rules changed meaningfully
+5. For `LAB_NOTEBOOK.md` changes: read the new entries (look for headings dated after the last `## [YYYY-MM-DD] ingest` entry in `wiki/log.md`); extract wiki-worthy findings; create or update pages
+
+**Idempotency rule:** Before creating a new page, check whether a page for that topic already exists in `wiki/index.md`. If it does, update the existing page rather than creating a duplicate.
+
+#### Maintenance Step 3: Update index.md and log.md
+
+- Update `wiki/index.md` for any created or modified pages
+- Append to `wiki/log.md`:
+  ```
+  ## [YYYY-MM-DD] update | Maintenance triggered by <trigger-description>
+  Changed: <list of pages updated>
+  Source: <what triggered the run>
+  ```
+
+#### Maintenance Step 4: Report
+
+Print a brief summary:
+```text
+Wiki maintenance complete.
+
+  Trigger:  <what file changed>
+  Updated:  <N pages updated or created>
+            - Page Title (category)
+  Skipped:  <N pages checked, no changes needed>
+```
+
+---
 
 ## Instructions
 
