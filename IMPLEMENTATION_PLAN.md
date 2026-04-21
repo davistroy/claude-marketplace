@@ -494,17 +494,17 @@ Keep backward-compatible — don't make mandatory.
 
 ### Phase 3 Testing Requirements
 
-- [ ] Run `/plan-gate` on synthetic inputs triggering each of the 8 paths (A, B, B.5, C, D, D.5, E, F) — verify correct routing
-- [ ] Generate a test plan via `/create-plan` on vague requirements — verify `/ultraplan` suggestion appears
-- [ ] Run `/implement-plan` on a simple test plan — verify subagent receives worktree instruction
-- [ ] Parse existing plan files with new plan-template — verify no regressions
+- [x] Run `/plan-gate` on synthetic inputs triggering each of the 8 paths (A, B, B.5, C, D, D.5, E, F) — verify correct routing
+- [x] Generate a test plan via `/create-plan` on vague requirements — verify `/ultraplan` suggestion appears
+- [x] Run `/implement-plan` on a simple test plan — verify subagent receives worktree instruction
+- [x] Parse existing plan files with new plan-template — verify no regressions
 
 ### Phase 3 Completion Checklist
 
-- [ ] All 5 work items complete
-- [ ] Plan-gate routing tree covers 8 paths
-- [ ] Implement-plan spawned agents use worktree isolation
-- [ ] Plan-template schema is backward-compatible
+- [x] All 5 work items complete
+- [x] Plan-gate routing tree covers 8 paths
+- [x] Implement-plan spawned agents use worktree isolation
+- [x] Plan-template schema is backward-compatible
 
 ---
 
