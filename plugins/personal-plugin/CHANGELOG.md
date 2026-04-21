@@ -5,6 +5,27 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.0.0] - 2026-04-21
+
+### Added
+- `references/patterns/advanced-features.md` — canonical deep-dive for all 9 modern frontmatter fields (`context:fork`, `isolation:worktree`, `paths:`, dynamic injection, etc.)
+- `references/patterns/audit-recon-system.md` — shared 5-check framework, 7-phase execution, YAML config schemas, severity matrices
+- `hooks/scripts/lab-notebook-gate.sh` — opt-in PreToolUse hook enforcing LAB_NOTEBOOK.md recency before commit
+- `paths:` auto-activation on security-analysis (dependency manifests), create-wiki (wiki sources/CLAUDE.md/LAB_NOTEBOOK.md), jetson-audit, spark-audit, jetson-recon, spark-recon
+
+### Changed
+- `prime`, `arch-review`, `leak-risk-audit`, `explain-project`, `accessibility-annotator`, `research-topic`: adopted `context:fork`, `isolation:worktree`, and dynamic `!cmd` context injection
+- `jetson-audit`, `spark-audit`, `jetson-recon`, `spark-recon`: thinned to config-layer-only (~40–50% LOC reduction) delegating shared logic to audit-recon-system reference
+- `new-skill`, `new-command`: updated with 13-field frontmatter reference, worked examples, modern feature docs
+- `scaffold-plugin`: removed auto-generated help skill
+- `ship`: dynamic git injection, `/ultrareview` gate for 500+ line diffs
+- `research-topic`: rewritten as 3 parallel `context:fork` subagents (Claude/OpenAI/Gemini) with parent synthesis — no external tool required
+
+### Removed
+- `skills/help/` — superseded by native `/help`
+- `commands/review-pr.md` — superseded by native `/review`
+- `tools/research-orchestrator/` — 27-file Python tool eliminated; skill now uses native subagent dispatch
+
 ## [6.7.0] - 2026-03-31
 
 ### Added

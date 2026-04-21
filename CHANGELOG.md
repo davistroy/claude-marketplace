@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v2.0.0, personal-plugin v8.0.0, bpmn-plugin v4.0.0] - 2026-04-21
+
+### Changed
+- **personal-plugin v8.0.0**: Marketplace modernization — adopted late-2025 Claude Code features (`context:fork`, `isolation:worktree`, `paths:` auto-activation, dynamic `!cmd` injection) across all major skills; deleted deprecated help skills and review-pr command; consolidated audit/recon skills (~50% LOC reduction via shared reference framework; thinned jetson/spark audit+recon to config-layer only); added lab-notebook PreToolUse hook; rewrote research-topic with parallel multi-provider subagents; removed research-orchestrator Python tool entirely
+- **bpmn-plugin v4.0.0**: Help skill removed (superseded by native `/help`)
+- **marketplace v2.0.0**: Schema version bump reflecting breaking plugin changes (removed skills/commands, restructured scaffolding)
+
 ## [marketplace v1.7.1, personal-plugin v7.0.1] - 2026-04-19
 
 ### Changed
