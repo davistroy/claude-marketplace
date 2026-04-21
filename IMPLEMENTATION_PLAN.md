@@ -201,16 +201,16 @@ This item should execute after 1.1/1.2/1.3 complete to catch all their reference
 
 ### Phase 1 Testing Requirements
 
-- [ ] Reinstall both plugins and verify `/skills` and `/help` list expected (not deleted) items
-- [ ] Grep confirms no dangling references to deleted items
-- [ ] CLAUDE.md and README render cleanly
+- [x] Reinstall both plugins and verify `/skills` and `/help` list expected (not deleted) items
+- [x] Grep confirms no dangling references to deleted items
+- [x] CLAUDE.md and README render cleanly
 
 ### Phase 1 Completion Checklist
 
-- [ ] All 6 work items complete
-- [ ] `git diff` shows only deletions + small doc additions
-- [ ] No regressions in other skill/command behavior
-- [ ] Commit message references CS-1 scope
+- [x] All 6 work items complete
+- [x] `git diff` shows only deletions + small doc additions
+- [x] No regressions in other skill/command behavior
+- [x] Commit message references CS-1 scope
 
 ---
 
