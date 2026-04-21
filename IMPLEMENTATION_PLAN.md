@@ -367,8 +367,8 @@ This section becomes the canonical reference new-skill/new-command examples link
 
 ### Work Items
 
-#### 3.1 Add /ultraplan and /batch routing to plan-gate
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 3.1 Add /ultraplan and /batch routing to plan-gate
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-3 Item 1
 **Files Affected:**
 - `plugins/personal-plugin/skills/plan-gate/SKILL.md` (modify; ~40 LOC added)
@@ -393,8 +393,8 @@ Preserve existing paths; additions are non-breaking.
 
 ---
 
-#### 3.2 Add /ultraplan routing to create-plan
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 3.2 Add /ultraplan routing to create-plan
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-3 Item 2
 **Files Affected:**
 - `plugins/personal-plugin/commands/create-plan.md` (modify; ~20 LOC)
@@ -403,23 +403,23 @@ Preserve existing paths; additions are non-breaking.
 Currently line 24 mentions `/ultra-plan` in "See also" but provides no routing condition. Upgrade to routing: at Phase 1.1 (document discovery, lines 49–71), add conditional — if discovered documents are vague, issue-heavy, or scope is ambiguous, suggest running `/ultraplan` first for pre-planning analysis. At Phase 5 output (lines 550–589), add to "Next Steps" a suggestion to use `/batch /implement-plan` when the generated plan has 6+ phases or 20+ total work items.
 
 **Tasks:**
-1. [ ] Read current Phase 1.1 and Phase 5 sections
-2. [ ] Add routing conditional at Phase 1.1 with explicit trigger criteria
-3. [ ] Update line 24 "See also" from "`/ultra-plan` for issue/bug lists" to describe routing
-4. [ ] Add Next Steps guidance at Phase 5 for `/batch /implement-plan` on large plans
+1. [x] Read current Phase 1.1 and Phase 5 sections
+2. [x] Add routing conditional at Phase 1.1 with explicit trigger criteria
+3. [x] Update line 24 "See also" from "`/ultra-plan` for issue/bug lists" to describe routing
+4. [x] Add Next Steps guidance at Phase 5 for `/batch /implement-plan` on large plans
 
 **Acceptance Criteria:**
-- [ ] `/create-plan` on vague requirements suggests `/ultraplan` first
-- [ ] Generated plans with 6+ phases include `/batch /implement-plan` suggestion in Next Steps
-- [ ] Existing `/create-plan` workflow unchanged for simple cases
+- [x] `/create-plan` on vague requirements suggests `/ultraplan` first
+- [x] Generated plans with 6+ phases include `/batch /implement-plan` suggestion in Next Steps
+- [x] Existing `/create-plan` workflow unchanged for simple cases
 
 **Notes:**
 —
 
 ---
 
-#### 3.3 Add /batch guidance to plan-improvements
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 3.3 Add /batch guidance to plan-improvements
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-3 Item 3
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify; ~15 LOC)
@@ -441,8 +441,8 @@ At Phase 1 intro (lines 34–48), add note: "If analysis yields 20+ independent 
 
 ---
 
-#### 3.4 Inject worktree isolation into implement-plan subagent dispatches
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 3.4 Inject worktree isolation into implement-plan subagent dispatches
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-3 Item 4
 **Files Affected:**
 - `plugins/personal-plugin/commands/implement-plan.md` (modify; ~40 LOC)
@@ -466,8 +466,8 @@ Worktree strategy: per-phase (not per-item). Trade-off: per-phase means intra-ph
 
 ---
 
-#### 3.5 Add Execution Mode field to plan-template
-**Status: PENDING**
+#### ✅ Completed 2026-04-21 3.5 Add Execution Mode field to plan-template
+**Status: COMPLETE 2026-04-21**
 **Requirement Refs:** CS-3 Item 5
 **Files Affected:**
 - `plugins/personal-plugin/references/plan-template.md` (modify; ~20 LOC)

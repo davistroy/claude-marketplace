@@ -90,6 +90,31 @@ Recommended: Native plan mode (interactive, immediate)
 
 Then enter plan mode to design the approach before coding.
 
+#### Path B.5: /batch (Parallel Decomposition)
+
+**When:** Task naturally decomposes into 5–30 independent units that can run concurrently with no ordering constraints between them. Each unit is self-contained — no unit's output feeds another's input. Examples: running the same transformation across many files, migrating multiple independent endpoints, updating 10+ skill frontmatter fields with the same pattern.
+
+Signals: user description contains "each", "all N of", "across all", "for every"; task is essentially the same operation repeated across multiple discrete targets.
+
+```text
+Scope Assessment
+================
+This task decomposes into [N] independent units that can run concurrently.
+Sequential execution is unnecessary — there are no ordering constraints
+between units.
+
+Recommended: /batch
+  - Dispatches one background agent per unit (up to 30)
+  - Each agent runs in its own isolated worktree
+  - Completes in parallel rather than sequentially
+  - Suitable when units are fully independent (no shared state)
+
+Trade-off: /batch loses visibility into per-unit progress in real time.
+If you need step-by-step review, use Path B (native plan mode) instead.
+
+Shall I decompose and dispatch via /batch?
+```
+
 #### Path C: /plan-improvements
 
 **When:** Task involves improving or refactoring existing code, no formal requirements docs, need to analyze current state first.
@@ -136,6 +161,32 @@ Recommended: /create-plan
 Shall I run /create-plan now?
 ```
 
+#### Path D.5: /ultraplan (Deep Pre-Planning)
+
+**When:** Task needs more than 30 minutes of planning OR involves a high-risk architectural decision where getting the design wrong is expensive. Use when the scope is clear enough to know it's large, but the *approach* is uncertain — competing valid architectures, significant unknowns, or the task will shape work for weeks.
+
+Signals: user says "I'm not sure how to approach", "there are a few ways we could do this", "this needs careful design"; task involves replacing a core system, choosing between fundamentally different architectures, or integrating a new platform/protocol.
+
+```text
+Scope Assessment
+================
+This task involves [architectural complexity / scope / unknowns]. Before
+generating an implementation plan, a deep pre-planning pass is warranted
+to evaluate competing approaches and surface hidden constraints.
+
+Recommended: /ultraplan
+  - Multi-agent structured analysis of the problem space
+  - Evaluates trade-offs across competing approaches
+  - Surfaces dependencies and risk factors before committing to a path
+  - Produces a design decision record + recommended implementation strategy
+  - Run /create-plan or /plan-improvements after /ultraplan to generate IMPLEMENTATION_PLAN.md
+
+When to skip: If you already know the approach and just need a plan, go
+directly to /create-plan or /plan-improvements (Path C or D).
+
+Shall I run /ultraplan for pre-planning analysis?
+```
+
 #### Path E: /implement-plan (Resume)
 
 **When:** IMPLEMENTATION_PLAN.md already exists with incomplete work items.
@@ -174,7 +225,9 @@ Ask the user clarifying questions to get the answers, then re-assess.
 
 - **Path A**: Start working immediately
 - **Path B**: Enter plan mode
+- **Path B.5**: Confirm unit decomposition with user, then invoke `/batch`
 - **Paths C/D/E**: Ask the user for confirmation, then invoke the appropriate command
+- **Path D.5**: Ask the user for confirmation, then invoke `/ultraplan`; after completion route to Path C or D for plan generation
 - **Path F**: Ask clarifying questions, then re-route
 
 ## Decision Flowchart
@@ -191,8 +244,16 @@ User requests implementation task
     YES --> Path E: /implement-plan (resume)
     NO  |
         v
+   5-30 fully independent parallel units? (same op repeated, no cross-deps)
+    YES --> Path B.5: /batch
+    NO  |
+        v
    Requirements docs (PRD/BRD/TDD) exist?
     YES --> Path D: /create-plan
+    NO  |
+        v
+   High-risk architectural decision or >30-min planning needed?
+    YES --> Path D.5: /ultraplan
     NO  |
         v
    Multi-phase? (>8 files, phased delivery, architectural changes)
@@ -248,6 +309,28 @@ User: "Let's keep working on the implementation"
 Plan Gate:
   Found: IMPLEMENTATION_PLAN.md (12 items, 8 incomplete)
   Route: Path E (/implement-plan)
+```
+
+### Example 6: Large parallel refactor (Path B.5)
+```text
+User: "Update the paths: frontmatter field in all 23 skills across both plugins to use the new glob syntax"
+Plan Gate:
+  Scope Assessment: 23 files, all receiving the same structural frontmatter
+  change with no ordering constraints between them. Each skill is independent.
+  Route: Path B.5 (/batch)
+  Decomposition: 23 units, one per skill file, dispatched concurrently.
+```
+
+### Example 7: Deep architectural decision (Path D.5)
+```text
+User: "I need to decide whether to keep the Python research orchestrator or replace it with native subagent dispatch — and then build whichever we choose"
+Plan Gate:
+  Scope Assessment: Two competing architectures with significant trade-offs
+  (streaming progress vs. dependency elimination). Getting this wrong is
+  expensive — the Python tool has 20+ files. Approach is unclear.
+  Route: Path D.5 (/ultraplan)
+  Reason: Pre-planning analysis needed before committing to an approach.
+  After /ultraplan, run /create-plan to generate IMPLEMENTATION_PLAN.md.
 ```
 
 ## Error Handling

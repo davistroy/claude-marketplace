@@ -21,7 +21,7 @@ This command:
 6. Generates detailed work items with acceptance criteria
 7. Outputs IMPLEMENTATION_PLAN.md to the repository root
 
-> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultra-plan` for issue/bug lists requiring deep investigation before planning.
+> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultraplan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/batch /implement-plan` after generating a large plan (6+ phases or 20+ work items) to execute phases in parallel isolated worktrees.
 
 ## Input Validation
 
@@ -125,6 +125,45 @@ Total: 7 documents, ~15,640 words
 
 Proceeding with plan generation...
 ```
+
+#### 1.4 Pre-Planning Quality Gate
+
+After inventorying documents, perform a rapid quality scan **before** investing time in full analysis. Evaluate whether the inputs are ready for direct planning or require pre-planning investigation first.
+
+**Trigger `/ultraplan` instead if any of the following are true:**
+
+| Signal | Threshold | What to do |
+|--------|-----------|------------|
+| Vague requirements | >30% of features described with "TBD", "to be determined", "unclear", or missing acceptance criteria | Recommend `/ultraplan` |
+| Issue/bug list input | Documents consist primarily of bug reports, tickets, or issues rather than requirements | Recommend `/ultraplan` |
+| Scope ambiguity | Multiple conflicting scope boundaries or contradictory prioritizations that can't be reconciled by inspection | Recommend `/ultraplan` |
+| No technical design | BRD/PRD only, no TDD, with complex architectural decisions unmade | Recommend `/ultraplan` |
+| Single vague document | One document under 500 words with no feature breakdown | Recommend `/ultraplan` |
+
+**If any trigger fires, present this prompt and stop:**
+
+```text
+⚠️  Pre-Planning Investigation Recommended
+
+Your requirements documents have signals that suggest planning directly
+may produce a low-quality or unexecutable plan:
+
+  [List specific signals detected, e.g.:]
+  - 8 of 12 features marked "TBD" or missing acceptance criteria
+  - No technical design document — architecture decisions unmade
+
+Recommended: Run `/ultraplan` first to resolve ambiguities, then
+return to `/create-plan` with sharper requirements.
+
+Options:
+  1. Run `/ultraplan` first (recommended)
+  2. Continue with `/create-plan` anyway — I'll flag gaps as assumptions
+  3. Abort
+```
+
+**If none of the triggers fire**, proceed silently to Phase 1.5 (Codebase Reconnaissance).
+
+**Important:** This gate must not be a speed bump for well-specified requirements. Only interrupt when genuine signals are present. When in doubt, continue and flag gaps in Phase 2.3 (Conflict Detection) rather than blocking here.
 
 ### Phase 1.5: Codebase Reconnaissance
 
@@ -586,6 +625,25 @@ Next Steps:
   1. Review the generated plan
   2. Adjust phases or work items as needed
   3. Run '/implement-plan' to begin execution
+
+[If plan has 6+ phases OR 20+ total work items, append this block:]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Large Plan Detected — Consider Parallel Execution
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This plan has [N] phases and [M] work items. Sequential execution
+via '/implement-plan' works, but '/batch /implement-plan' can run
+independent phases in parallel isolated worktrees, significantly
+reducing wall-clock time.
+
+  '/batch /implement-plan'           # Parallel execution (faster)
+  '/implement-plan'                  # Sequential execution (simpler)
+
+Use '/batch' when phases are mostly independent (check the
+Parallel Work Opportunities table in the plan). Use sequential
+when phases have tight dependencies or share mutable state.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ## Execution Guidelines

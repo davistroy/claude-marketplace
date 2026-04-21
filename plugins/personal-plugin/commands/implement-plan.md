@@ -194,6 +194,28 @@ The main agent acts as a **thin loop controller** — it decides what to do next
 
 Each work item must be implemented as an integrated, architecturally coherent change — not an isolated patch. Before writing code, the implementation subagent should understand how this work item relates to the broader plan and codebase. If implementing a work item would conflict with or undermine another planned change, surface this rather than blindly proceeding. The goal is elegant, cohesive changes that fit within the project's architecture and avoid creating technical debt or triggering a whack-a-mole fix cycle.
 
+### Worktree Strategy
+
+All file-modifying work in a phase runs inside a shared isolated worktree named `phase-[PHASE_NUMBER]` (e.g., `phase-3`). The merge point is the phase boundary — once all work items in a phase are implemented, tested, and committed, the worktree is merged back to the main branch before the next phase begins.
+
+**Granularity: per-phase, not per-item**
+
+| Granularity | Pros | Cons |
+|-------------|------|------|
+| Per-phase (chosen) | Simple coordination — all items in a phase share context; single merge event per phase | Intra-phase parallel items share a tree (must avoid write conflicts per item — already enforced by 3-subagent cap) |
+| Per-item | Maximum isolation per item | N merge events per phase; coordination overhead for parallel items that read each other's output |
+
+**Lifecycle:**
+
+1. **Phase start** — worktree `phase-[N]` is created (Claude Code creates it automatically when `isolation: worktree phase-[N]` is declared in the first subagent of the phase)
+2. **Work items** — all sequential and parallel implementation subagents in the phase declare `isolation: worktree phase-[N]`; they share the same worktree
+3. **Testing** — the testing subagent runs inside `phase-[N]` so it sees all phase changes
+4. **Phase boundary** — worktree is merged to main branch; the next phase starts fresh
+
+**Loop guard:** The worktree name includes the phase number. If a subagent accidentally re-declares a prior phase's name (e.g., re-using `phase-1` in phase 3), Claude Code detects the existing worktree and reuses it rather than creating a second — no data loss, but the intent is always to use the current phase number.
+
+**Graceful degradation:** If Claude Code does not support `isolation: worktree` (older version), the instruction is treated as a no-op and work runs in the standard working tree. Plan execution is not affected.
+
 ### Workflow Per Work Item
 
 For each incomplete work item in the plan file (`PLAN_FILE`):
@@ -341,6 +363,8 @@ Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
 > **Project Context:** [project_description]. Tech stack: [tech_stack]. Test command: [test_command]. Conventions: [conventions].
 >
+> **Worktree Isolation:** Use `isolation: worktree phase-[PHASE_NUMBER]` for all file-modifying operations in this phase. All work items in this phase share one isolated worktree named `phase-[PHASE_NUMBER]`. Merge to the main branch on phase completion. This prevents partial changes from polluting the working tree if implementation is interrupted.
+>
 > Read [PLAN_FILE]. Implement work item: **[ITEM — phase name, item number, brief description from startup or previous iteration]**.
 > Complete ALL tasks in this work item.
 > When implementation is complete, also update [PLAN_FILE]: change this item's `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`).
@@ -459,6 +483,8 @@ Before launching parallel implementation subagents, mark ALL items in the batch 
 For each independent work item, launch an Agent (subagent_type: "general-purpose") with `run_in_background: true`:
 
 > **Project Context:** [project_description]. Tech stack: [tech_stack]. Test command: [test_command]. Conventions: [conventions].
+>
+> **Worktree Isolation:** Use `isolation: worktree phase-[PHASE_NUMBER]` for all file-modifying operations in this phase. All parallel work items in this phase share one isolated worktree named `phase-[PHASE_NUMBER]`; individual items do NOT get separate worktrees. This shared-per-phase approach enables coordination between parallel items while still isolating phase work from the main branch. Merge to the main branch on phase completion.
 >
 > Read [PLAN_FILE]. Implement work item: **[ITEM N.M — phase name, item number, brief description]**.
 > Complete ALL tasks in this work item.
