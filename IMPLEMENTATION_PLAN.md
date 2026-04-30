@@ -601,8 +601,8 @@ Also fold in the three open action items from Lab Notebook Entry 001:
 
 ### Work Items
 
-#### 6.1 Create Hook Recipe Examples
-**Status: PENDING**
+#### 6.1 Create Hook Recipe Examples ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis N5 — Hook recipes
 **Files Affected:**
 - `plugins/personal-plugin/references/hooks/planning-stop-hook.md` (create)
@@ -626,8 +626,8 @@ Create three optional hook recipe example files that users can adapt for their p
 
 ---
 
-#### 6.2 Create AGENTS.md Companion Template
-**Status: PENDING**
+#### 6.2 Create AGENTS.md Companion Template ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis N1 — AGENTS.md companion output
 **Files Affected:**
 - `plugins/personal-plugin/references/agents-md-template.md` (create)
@@ -638,15 +638,15 @@ Create three optional hook recipe example files that users can adapt for their p
 Create an AGENTS.md template that can be generated alongside plans for cross-tool compatibility (Codex, Cursor, Aider). Add an optional step to create-plan and plan-improvements: if no AGENTS.md exists in the repo, offer to generate one from CLAUDE.md + plan context.
 
 **Tasks:**
-1. [ ] Create `references/agents-md-template.md` with standard AGENTS.md structure: project description, tech stack, conventions, build/test commands, planning workflow guidance
-2. [ ] In create-plan Phase 5 (Save and Report): add optional step — "If no AGENTS.md exists, offer to generate one from CLAUDE.md + codebase reconnaissance results"
-3. [ ] In plan-improvements Phase 4 (Save and Report): same optional step
-4. [ ] Generation logic: read CLAUDE.md, extract project-relevant sections, map to AGENTS.md format. Do NOT duplicate CLAUDE.md verbatim — extract the cross-tool-relevant subset.
+1. [x] Create `references/agents-md-template.md` with standard AGENTS.md structure: project description, tech stack, conventions, build/test commands, planning workflow guidance
+2. [x] In create-plan Phase 5 (Save and Report): add optional step — "If no AGENTS.md exists, offer to generate one from CLAUDE.md + codebase reconnaissance results"
+3. [x] In plan-improvements Phase 4 (Save and Report): same optional step
+4. [x] Generation logic: read CLAUDE.md, extract project-relevant sections, map to AGENTS.md format. Do NOT duplicate CLAUDE.md verbatim — extract the cross-tool-relevant subset.
 
 **Acceptance Criteria:**
-- [ ] WHEN no AGENTS.md exists and a plan is generated THEN the command SHALL offer to create one (not auto-create)
-- [ ] WHEN AGENTS.md already exists THEN the offer SHALL be skipped
-- [ ] Generated AGENTS.md contains project-relevant guidance, not a full CLAUDE.md copy
+- [x] WHEN no AGENTS.md exists and a plan is generated THEN the command SHALL offer to create one (not auto-create)
+- [x] WHEN AGENTS.md already exists THEN the offer SHALL be skipped
+- [x] Generated AGENTS.md contains project-relevant guidance, not a full CLAUDE.md copy
 
 ---
 

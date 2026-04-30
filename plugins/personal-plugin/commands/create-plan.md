@@ -679,6 +679,20 @@ When writing acceptance criteria for work items, use EARS notation for behaviora
 
 Save IMPLEMENTATION_PLAN.md to the repository root (or custom path if specified). If appending to an existing file, the save overwrites the file with the merged content (existing + new phases).
 
+#### AGENTS.md Generation (optional)
+
+Check if `AGENTS.md` exists in the repo root:
+- **If AGENTS.md exists:** Skip this step entirely.
+- **If AGENTS.md does not exist:** Offer to generate one:
+
+> "No AGENTS.md found. This file provides cross-tool compatibility for AI coding tools (Codex, Cursor, Aider). Would you like me to generate one from CLAUDE.md and the codebase reconnaissance results?"
+
+If the user accepts:
+1. Read CLAUDE.md and extract project-relevant sections (Project Overview, tech stack, conventions, build/test commands)
+2. Generate AGENTS.md using the template from `references/agents-md-template.md`
+3. Write to repo root as `AGENTS.md`
+4. Note: Do NOT include Claude Code-specific features (skills, commands, hooks) — AGENTS.md is tool-agnostic
+
 #### 5.2 Summary Report
 
 Display a summary to the user:
