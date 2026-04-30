@@ -338,8 +338,8 @@ Fix the ambiguous references to `/ultraplan` (no hyphen) in plan-gate and create
 
 ### Work Items
 
-#### 3.1 Update Create-Plan to Generate DoD and Execution Hints
-**Status: PENDING**
+#### 3.1 Update Create-Plan to Generate DoD and Execution Hints ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis C3↓, H2↓ — consumer-side of template enhancements
 **Files Affected:**
 - `plugins/personal-plugin/commands/create-plan.md` (modify)
@@ -361,8 +361,8 @@ Update create-plan to populate the new template sections. Phase 1.5 (Codebase Re
 
 ---
 
-#### 3.2 Update Plan-Improvements to Generate DoD and Execution Hints
-**Status: PENDING**
+#### 3.2 Update Plan-Improvements to Generate DoD and Execution Hints ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis C3↓, H2↓ — consumer-side of template enhancements
 **Files Affected:**
 - `plugins/personal-plugin/commands/plan-improvements.md` (modify)
@@ -371,19 +371,19 @@ Update create-plan to populate the new template sections. Phase 1.5 (Codebase Re
 Update plan-improvements to populate the new template sections. Phase 1 (Deep Analysis) already scans test infrastructure — extend it to capture all verification commands. Phase 3 (Generate Plan) emits DoD and execution hints. Phase 1 unknowns go to the Unknowns Register.
 
 **Tasks:**
-1. [ ] Extend Phase 1 Deep Analysis: in the "CI/CD Pipeline" assessment section, add explicit detection of lint, typecheck, and coverage commands alongside the existing test framework detection
-2. [ ] In Phase 3 (Generate Plan): emit `### Definition of Done (Runnable)` per phase and `## Execution Hints` at plan level, following the same pattern as create-plan (3.1)
-3. [ ] In Phase 1 analysis: when analysis identifies unknowns or unresolvable questions, capture them for the Unknowns Register
+1. [x] Extend Phase 1 Deep Analysis: in the "CI/CD Pipeline" assessment section, add explicit detection of lint, typecheck, and coverage commands alongside the existing test framework detection
+2. [x] In Phase 3 (Generate Plan): emit `### Definition of Done (Runnable)` per phase and `## Execution Hints` at plan level, following the same pattern as create-plan (3.1)
+3. [x] In Phase 1 analysis: when analysis identifies unknowns or unresolvable questions, capture them for the Unknowns Register
 
 **Acceptance Criteria:**
-- [ ] WHEN plan-improvements detects verification infrastructure THEN the generated plan SHALL include DoD sections
-- [ ] WHEN plan-improvements generates execution hints THEN model tier suggestions SHALL match phase complexity
-- [ ] Unknowns from analysis appear in Unknowns Register
+- [x] WHEN plan-improvements detects verification infrastructure THEN the generated plan SHALL include DoD sections
+- [x] WHEN plan-improvements generates execution hints THEN model tier suggestions SHALL match phase complexity
+- [x] Unknowns from analysis appear in Unknowns Register
 
 ---
 
-#### 3.3 Update Ultra-Plan Solution Design and Summary Report
-**Status: PENDING**
+#### 3.3 Update Ultra-Plan Solution Design and Summary Report ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis H1↓, C3↓ — ultra-plan consuming new template sections
 **Depends On:** 3.1
 **Files Affected:**
@@ -393,14 +393,14 @@ Update plan-improvements to populate the new template sections. Phase 1 (Deep An
 Update ultra-plan's Solution Design (Phase 4 after renumber) and Summary Report (Phase 5 after renumber) to produce unknowns alongside risks, and to specify verification commands per change set that feed into the DoD section when the plan is generated via create-plan.
 
 **Tasks:**
-1. [ ] In Phase 4 (Solution Design): add "Verification commands" to the per-change-set specification — what commands confirm the change works (not just freeform criteria, but actual runnable commands when applicable)
-2. [ ] In Phase 5 (Summary Report): add "### Unknowns" section alongside the existing "### Risk Assessment" — unknowns that need resolution before or during implementation
-3. [ ] In Phase 5 (Summary Report): add "### Verification Commands" section listing all commands from Phase 4 that should be included in the plan's DoD
-4. [ ] In Phase 6 (Plan Generation): map unknowns → Unknowns Register and verification commands → DoD section when feeding analysis to create-plan
+1. [x] In Phase 4 (Solution Design): add "Verification commands" to the per-change-set specification — what commands confirm the change works (not just freeform criteria, but actual runnable commands when applicable)
+2. [x] In Phase 5 (Summary Report): add "### Unknowns" section alongside the existing "### Risk Assessment" — unknowns that need resolution before or during implementation
+3. [x] In Phase 5 (Summary Report): add "### Verification Commands" section listing all commands from Phase 4 that should be included in the plan's DoD
+4. [x] In Phase 6 (Plan Generation): map unknowns → Unknowns Register and verification commands → DoD section when feeding analysis to create-plan
 
 **Acceptance Criteria:**
-- [ ] WHEN ultra-plan identifies unknowns THEN they SHALL appear in the Summary Report's Unknowns section, separate from risks
-- [ ] WHEN ultra-plan specifies verification commands per change set THEN they SHALL be mapped to the plan's DoD section in Phase 6
+- [x] WHEN ultra-plan identifies unknowns THEN they SHALL appear in the Summary Report's Unknowns section, separate from risks
+- [x] WHEN ultra-plan specifies verification commands per change set THEN they SHALL be mapped to the plan's DoD section in Phase 6
 
 ---
 

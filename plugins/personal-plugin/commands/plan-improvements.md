@@ -126,6 +126,20 @@ Focus on:
 - Evaluate deployment complexity: how many manual steps are required to deploy? Is there a staging environment? Are rollbacks automated?
 - Check for environment parity: do dev, test, and production configurations diverge in ways that cause "works on my machine" failures?
 
+#### Verification Command Detection (feeds Definition of Done)
+
+Detect the project's runnable verification commands for populating the per-phase Definition of Done (DoD) section. Only record commands that are actually configured — never guess or assume.
+
+| Check | Where to Look | Common Commands |
+|-------|---------------|-----------------|
+| **Test runner** | `package.json` scripts, `pyproject.toml [tool.pytest]`, `Cargo.toml`, `Makefile` test target, CI config `run:` steps | `pytest`, `jest`, `vitest`, `cargo test`, `go test`, `npm test` |
+| **Lint** | `.eslintrc.*`, `ruff.toml`, `pyproject.toml [tool.ruff]`, `.flake8`, `.pylintrc`, `biome.json`, `Makefile` lint target | `ruff check`, `eslint`, `flake8`, `pylint`, `biome lint` |
+| **Typecheck** | `tsconfig.json`, `pyproject.toml [tool.mypy]`, `pyrightconfig.json`, `Makefile` typecheck target | `mypy`, `tsc --noEmit`, `pyright` |
+| **Coverage** | `pyproject.toml [tool.coverage]` or `[tool.pytest.ini_options]`, `jest.config.*` coverageThreshold, `.nycrc`, `package.json` scripts | `pytest --cov`, `jest --coverage`, `c8`, `nyc` |
+| **Custom** | CI config files (`.github/workflows/*.yml`, `.gitlab-ci.yml`), `Makefile` targets, `package.json` scripts, `tox.ini` environments | Project-specific: `make check`, `npm run validate`, `tox -e lint` |
+
+**Recording format:** For each detected command, record: (1) the check category, (2) the exact command invocation, and (3) the pass criteria (usually exit code 0, or a threshold like coverage ≥80%). Store these as analysis outputs to be consumed in Phase 3 when generating Definition of Done sections.
+
 ### Priority Rubric
 
 When assigning **Priority** to each recommendation, apply these definitions consistently. Definitions are ported from `/review-arch` Phase 3 (Technical Debt Inventory) for cross-command consistency.
@@ -467,7 +481,7 @@ For each work item, generate all seven fields in this order:
 3. **Files Affected** — list with `(create)` or `(modify)` annotations per file
 4. **Description** — detailed explanation of the change and why it matters
 5. **Tasks** — numbered checkbox list of specific, actionable sub-steps that an implementer can execute sequentially. Each task should be concrete enough to complete without further decomposition. Include testing and documentation tasks.
-6. **Acceptance Criteria** — measurable conditions that verify the work item is done
+6. **Acceptance Criteria** — measurable conditions that verify the work item is done. Use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria remain as simple checkboxes. See `references/plan-template.md` rule 13.
 7. **Notes** — optional context, gotchas, dependencies, or implementation hints. Omit if there is nothing noteworthy to add.
 
 ### Phase Sizing Guidelines
@@ -507,6 +521,57 @@ Plans must stay within bounds that `/implement-plan` can execute reliably. Apply
 **Work item granularity:** Each work item should touch no more than 5-8 files and change ~500 LOC. If a work item exceeds these bounds, split it into sub-items (e.g., 3.1a, 3.1b) or promote sub-tasks to separate work items.
 
 **Why these limits matter:** `/implement-plan` executes each phase via a subagent with finite context. Oversized plans cause subagents to lose context mid-execution, produce incomplete work, or silently skip items. Smaller, focused phases complete reliably.
+
+#### Definition of Done (Runnable) Generation
+
+After each phase's Completion Checklist, emit a `### Definition of Done (Runnable)` section populated from the verification commands detected in Phase 1's "Verification Command Detection" analysis.
+
+**Rules:**
+- Only include commands that were actually detected during Phase 1 — never fabricate or assume commands
+- Omit the entire DoD section for a phase if no verification commands were detected
+- Use the exact command invocations discovered, not generic placeholders
+- Pass criteria: exit code 0 for lint/typecheck/test, threshold for coverage (use the project's configured threshold, or default to ≥80% on changed files)
+- Include the `<!-- BEGIN DOD -->` / `<!-- END DOD -->` markers per the template
+
+**Example output (only if pytest and ruff were detected):**
+```markdown
+### Definition of Done (Runnable)
+<!-- BEGIN DOD -->
+
+| Check | Command | Pass Criteria |
+|-------|---------|---------------|
+| Tests | `pytest tests/ -v` | Exit code 0 |
+| Lint | `ruff check src/` | Exit code 0 |
+
+<!-- END DOD -->
+```
+
+#### Execution Hints Generation
+
+Emit a `### Execution Hints (optional)` section in the Plan Overview area (between the Phase Summary Table and Milestones) with model tier suggestions based on phase complexity:
+
+| Phase Complexity | Model Tier | Rationale |
+|------------------|------------|-----------|
+| S (simple/mechanical changes, config edits) | `haiku` | Low reasoning overhead; fast execution |
+| M (standard features, multi-file changes) | `sonnet` | Default; good balance of capability and speed |
+| L (complex architectural changes, cross-module refactoring) | `opus` | Requires deep reasoning and broader context |
+
+**Rules:**
+- Default all phases to `sonnet` unless complexity clearly warrants `opus` or `haiku`
+- Use `opus` for L-complexity phases and phases involving architectural decisions
+- Use `haiku` for simple mechanical phases (config changes, renaming, single-file edits)
+- Context Budget: `Extended` for `opus` phases, `Minimal` for `haiku` phases, `Standard` otherwise
+- Omit the section entirely if all phases are `sonnet` (the default) — only emit when there is something non-default to communicate
+
+#### Unknowns Register Routing
+
+During Phase 1 analysis, when encountering knowledge gaps, unresolvable questions, or "we don't know yet" situations, capture them for the Unknowns Register — NOT Risk Mitigation.
+
+**Decision criteria:**
+- **Unknowns Register:** "We don't know X yet" — knowledge gaps that need investigation. Examples: unclear API contract, undocumented behavior, missing test for edge case, unconfirmed performance baseline.
+- **Risk Mitigation:** "X might go wrong" — probabilistic events with known likelihood and impact. Examples: dependency may introduce breaking change, migration could cause downtime, refactor may surface hidden bugs.
+
+When generating the plan tables, populate both sections. If analysis identified no unknowns, omit the Unknowns Register section entirely rather than emitting an empty table.
 
 ### Phase 4: Save and Report
 

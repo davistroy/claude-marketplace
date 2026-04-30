@@ -192,10 +192,19 @@ Survey the codebase to understand its shape:
 
 Identify existing quality infrastructure:
 
-1. **Test framework:** Look for test directories (`tests/`, `__tests__/`, `test/`, `spec/`), test config (`jest.config.*`, `pytest.ini`, `vitest.config.*`), and test files (`*.test.*`, `*.spec.*`, `*_test.*`)
-2. **Test coverage:** Note approximate test count and whether coverage tooling is configured
-3. **CI/CD:** Check for `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `.circleci/`, `azure-pipelines.yml`
-4. **Linting/formatting:** Note configured linters and formatters
+1. **Test framework:** Look for test directories (`tests/`, `__tests__/`, `test/`, `spec/`), test config (`jest.config.*`, `pytest.ini`, `vitest.config.*`), and test files (`*.test.*`, `*.spec.*`, `*_test.*`). Record the detected **test command** (e.g., `pytest tests/ -v`, `npm test`, `jest`, `cargo test`).
+2. **Test coverage:** Note approximate test count and whether coverage tooling is configured. Record the detected **coverage command** (e.g., `pytest --cov=src/ --cov-fail-under=80`, `jest --coverage`, `cargo llvm-cov`). Check for coverage config in `pytest.ini`, `pyproject.toml` (`[tool.pytest.ini_options]`, `[tool.coverage]`), `package.json` (jest `--coverage` in scripts), or `.nycrc`.
+3. **CI/CD:** Check for `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `.circleci/`, `azure-pipelines.yml`. Also check `Makefile` for `check`, `lint`, `test`, or `verify` targets — these often wrap the canonical verification commands.
+4. **Linting/formatting:** Note configured linters and formatters. Record the detected **lint command** by checking:
+   - Python: `ruff` (in `pyproject.toml [tool.ruff]` or `ruff.toml`), `flake8` (in `setup.cfg`, `.flake8`), `pylint` (in `.pylintrc`, `pyproject.toml`)
+   - JavaScript/TypeScript: `eslint` (in `.eslintrc.*`, `eslint.config.*`, `package.json` scripts), `biome`
+   - Rust: `cargo clippy`
+   - Go: `golangci-lint`
+5. **Type checking:** Record the detected **typecheck command** by checking:
+   - Python: `mypy` (in `pyproject.toml [tool.mypy]`, `mypy.ini`, `setup.cfg`), `pyright` (in `pyrightconfig.json`, `pyproject.toml`)
+   - TypeScript: `tsc --noEmit` (presence of `tsconfig.json`)
+   - Use the package manager's script if defined (e.g., `npm run typecheck`)
+6. **Custom verification:** Check for project-specific verification scripts: `Makefile` targets (`make check`, `make lint`, `make test`), `package.json` scripts (`verify`, `check`, `validate`), CI workflow steps that run verification commands not covered above
 
 #### 1.5.3 Existing Feature Cross-Reference
 
@@ -216,6 +225,13 @@ Tech Stack: [detected stack]
 Structure: [N] source files, [M] test files, [K] config files
 Test Infrastructure: [framework] with [N] tests
 CI/CD: [detected pipeline or "None detected"]
+
+Verification Commands Detected:
+  Test:      [command or "None detected"]
+  Lint:      [command or "None detected"]
+  Typecheck: [command or "None detected"]
+  Coverage:  [command or "None detected"]
+  Custom:    [command or "None detected"]
 
 Feature Overlap Analysis:
 | Requirement | Status | Existing Code | Recommendation |
@@ -311,6 +327,19 @@ How should I proceed?
   2. Pause for clarification
 ```
 
+#### 2.4 Unknowns vs. Risks Classification
+
+During requirements analysis, distinguish between **risks** (probabilistic events that could go wrong) and **unknowns** (knowledge gaps — things we don't know yet). Route them to the correct plan section:
+
+- **Risks** → Risk Mitigation table. Examples: "third-party API may have rate limits," "migration could cause downtime," "new dependency may have security vulnerabilities."
+- **Unknowns** → Unknowns Register. Examples: "database schema not specified in requirements," "authentication provider not chosen," "unclear whether feature X requires real-time updates or batch processing."
+
+When the requirements analysis identifies ambiguities, missing specifications, unresolved design choices, or questions that cannot be answered from the source documents, capture each as an unknown with severity classification:
+
+- **High:** Blocks progress on a phase — must be resolved before that phase starts
+- **Medium:** Complicates implementation — resolve during the affected phase
+- **Low:** Nice to know — resolve opportunistically
+
 ### Phase 2.5: Scope Confirmation
 
 **Before generating the full plan, pause and present a scope summary for user approval.** This checkpoint prevents wasted generation time if the user disagrees with scope, phasing, or assumptions.
@@ -405,7 +434,7 @@ Convert requirements into discrete work items:
 2. List files likely to be affected
 3. Estimate complexity (XS/S/M/L/XL)
 4. Identify dependencies
-5. Define acceptance criteria
+5. Define acceptance criteria — Use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria remain as simple checkboxes. See `references/plan-template.md` rule 13.
 
 **Complexity estimation:**
 | Size | Files Changed | LOC Changed | Example |
@@ -440,6 +469,28 @@ Each phase should be completable by a single subagent session:
 2. Core features before enhancements
 3. Integration points after dependent components
 4. Polish/optimization last
+
+#### Execution Hints Generation
+
+After constructing phases, emit an `### Execution Hints` section at the plan level (between the Phase Summary Table and Milestones). Populate it as follows:
+
+- **Default model tier:** `sonnet` for all phases
+- **L-complexity phases:** Suggest `opus` — these phases involve complex architectural decisions, large blast radius, or cross-cutting concerns that benefit from stronger reasoning
+- **Simple mechanical phases** (config changes, dependency updates, formatting): Suggest `haiku`
+- **Context budget:** `Standard` for S-M phases, `Extended` for L phases with many files
+
+**Format:**
+```markdown
+### Execution Hints
+
+| Phase | Model Tier | Context Budget | Notes |
+|-------|------------|----------------|-------|
+| All (default) | `sonnet` | Standard | |
+| [Phase N] | `opus` | Extended | [Reason — e.g., "Complex architectural refactoring"] |
+| [Phase M] | `haiku` | Minimal | [Reason — e.g., "Mechanical config updates"] |
+```
+
+If all phases are S-M complexity with no special requirements, omit the Execution Hints section entirely (per template rule 15).
 
 #### 3.2.1 Plan Size Limits
 
@@ -580,6 +631,47 @@ Read the plan template from `references/plan-template.md` (relative to this comm
 - **Success Metrics:** Include business metrics from BRD, performance metrics from TDD, user satisfaction metrics from PRD
 - **Traceability:** Title the appendix "Requirement Traceability" with columns: Requirement, Source, Phase, Work Item
 - **Footer:** `*Source: /create-plan command*`
+
+#### 4.1 Definition of Done Generation
+
+For each phase, emit a `### Definition of Done (Runnable)` section after the Phase Completion Checklist, populated with verification commands detected during Phase 1.5.2 (Codebase Reconnaissance).
+
+**Rules:**
+- Only include commands that were actually detected. If no verification infrastructure was found, omit the DoD section entirely (per template rule 14 — never populate with empty placeholders).
+- Use the same commands for every phase unless a phase has phase-specific verification needs (e.g., a database migration phase might add a migration check command).
+- The DoD section is bracketed by `<!-- BEGIN DOD -->` and `<!-- END DOD -->` markers for machine parsing.
+
+**Format:**
+```markdown
+### Definition of Done (Runnable)
+<!-- BEGIN DOD -->
+| Check | Command | Pass Criteria |
+|-------|---------|---------------|
+| Tests | `[detected test command]` | Exit code 0 |
+| Lint | `[detected lint command]` | Exit code 0 |
+| Types | `[detected typecheck command]` | Exit code 0 |
+| Coverage | `[detected coverage command]` | [detected threshold or "Exit code 0"] |
+| [Custom] | `[detected custom command]` | [criteria] |
+<!-- END DOD -->
+```
+
+**Mapping from Phase 1.5.2 detection to DoD rows:**
+
+| Detected Command | DoD Check Name | Pass Criteria |
+|------------------|----------------|---------------|
+| Test command | Tests | Exit code 0 |
+| Lint command | Lint | Exit code 0 |
+| Typecheck command | Types | Exit code 0 |
+| Coverage command | Coverage | Threshold from config, or ≥80% default |
+| Custom verification | [Descriptive name] | Exit code 0 or project-specific |
+
+#### 4.2 Unknowns Register Population
+
+When generating the plan, populate the Unknowns Register (inside `<!-- BEGIN TABLES -->` / `<!-- END TABLES -->` markers) with all unknowns captured during Phase 2.4 (Unknowns vs. Risks Classification). Each entry needs: ID (U1, U2, ...), the unknown, severity, affected phase/item refs, resolution strategy, and status (Open).
+
+#### 4.3 Acceptance Criteria with EARS Notation
+
+When writing acceptance criteria for work items, use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria (coverage ≥80%, lint clean, no TODOs) remain as simple checkboxes. See `references/plan-template.md` rule 13.
 
 ### Phase 5: Save and Report
 

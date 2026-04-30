@@ -149,6 +149,7 @@ Design integrated changes for each change set from Phase 3.
 2. Why this approach over alternatives (trade-offs considered)
 3. Implementation sequence within the set
 4. Verification criteria -- how to confirm the change works
+5. Verification commands -- specific runnable commands that confirm the change works (e.g., `pytest tests/test_auth.py -v`, `ruff check src/auth/`). These feed into the plan's Definition of Done section.
 
 **Anti-patterns to avoid:**
 - Patching symptoms instead of fixing root causes
@@ -185,6 +186,12 @@ Deliver a structured summary containing all of the following:
 - Rollback approach for each
 - Items with highest uncertainty or risk
 
+### Unknowns
+- Epistemic uncertainties identified during investigation and solution design
+- For each unknown: what we don't know, severity (High/Medium/Low), which phase/item it affects, and a resolution strategy
+- High-severity unknowns should be resolved before the affected phase begins
+- Distinct from risks: unknowns are knowledge gaps, risks are probabilistic events
+
 ### Implementation Sequence
 - Ordered list of change sets with dependencies
 - Prerequisites and coordination requirements
@@ -194,6 +201,11 @@ Deliver a structured summary containing all of the following:
 - What this plan covers
 - What it explicitly does NOT cover (and why)
 - Recommended follow-up work, if any
+
+### Verification Commands
+- All runnable verification commands specified per change set in Phase 4
+- These feed into the plan's Definition of Done (Runnable) section when generated via create-plan
+- Organized by change set: list the Check name and Command for each
 
 ---
 
@@ -233,6 +245,8 @@ The Phase 2-5 analysis is the requirements input for `/personal-plugin:create-pl
 | Implementation sequence (Phase 5) | Phase ordering and dependencies |
 | Risk assessment (Phase 5) | Risk mitigation table |
 | Scope boundaries (Phase 5) | Plan scope and exclusions |
+| Unknowns (Phase 5) | Unknowns Register |
+| Verification commands (Phase 5) | Definition of Done (Runnable) per phase |
 
 The resulting IMPLEMENTATION_PLAN.md inherits the architectural coherence from ultra-plan's analysis -- it is NOT a fresh discovery process, but a structured encoding of decisions already made.
 
