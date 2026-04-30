@@ -37,6 +37,18 @@
 | 2 | [Area] | [Deliverables] | M (~N files, ~N LOC) | Phase 1 | Parallel |
 | ... | ... | ... | ... | ... | ... |
 
+### Execution Hints (optional)
+
+[Directives for `/implement-plan` when executing this plan. Omit if defaults are appropriate.]
+
+| Phase | Model Tier | Context Budget | Notes |
+|-------|------------|----------------|-------|
+| All (default) | `sonnet` | Standard | [Override per-phase below if needed] |
+| [Phase N] | `opus` | Extended | [Why this phase needs a more capable model] |
+
+<!-- Model tier values: sonnet (default), opus (complex/architectural), haiku (simple/mechanical) — maps to Agent tool `model` parameter -->
+<!-- Context budget: Standard (default), Extended (large files or complex reasoning), Minimal (simple edits) -->
+
 ### Milestones (optional)
 
 [Group phases into logical deliverables when the plan has 4+ phases. Omit for small plans.]
@@ -82,9 +94,10 @@
 3. [ ] [Specific task 3 with enough detail to execute]
 
 **Acceptance Criteria:**
-- [ ] [Measurable criterion 1]
-- [ ] [Measurable criterion 2]
-- [ ] [Measurable criterion 3]
+<!-- Use EARS notation for behavioral criteria: WHEN [event/condition] THEN [system/component] SHALL [expected behavior]. Binary/threshold criteria (coverage ≥80%, lint clean, no TODOs) stay as simple checkboxes. -->
+- [ ] WHEN [trigger event or condition] THEN [system/component] SHALL [expected observable behavior]
+- [ ] WHEN [alternate scenario or edge case] THEN [system/component] SHALL [expected fallback behavior]
+- [ ] [Binary/threshold criterion, e.g., "Coverage ≥80% on changed files" or "No lint errors"]
 
 **Notes:**
 [Any additional context, gotchas, or implementation hints]
@@ -110,6 +123,21 @@
 - [ ] Documentation updated
 - [ ] No regressions introduced
 - [ ] Code reviewed (if applicable)
+
+### Definition of Done (Runnable)
+<!-- BEGIN DOD -->
+
+[Populated by plan generators based on detected project infrastructure. Omit section entirely if no verification commands are detected.]
+
+| Check | Command | Pass Criteria |
+|-------|---------|---------------|
+| Tests | `[test command, e.g., pytest tests/ -v]` | Exit code 0 |
+| Lint | `[lint command, e.g., ruff check src/]` | Exit code 0 |
+| Types | `[typecheck command, e.g., mypy src/]` | Exit code 0 |
+| Coverage | `[coverage command, e.g., pytest --cov=src/ --cov-fail-under=80]` | ≥80% on changed files |
+| [Custom] | `[project-specific check]` | [criteria] |
+
+<!-- END DOD -->
 
 ---
 
@@ -141,6 +169,21 @@
 | [Risk 2] | Low/Med/High | Low/Med/High | [Strategy] | Open |
 
 <!-- Status values: Open (default at generation), Mitigated (risk addressed during implementation), Materialized (risk occurred — document impact in Notes) -->
+
+---
+
+## Unknowns Register
+
+[Track epistemic uncertainties — things we don't know yet that could affect implementation. Categorically different from risks: unknowns are knowledge gaps, risks are probabilistic events.]
+
+| ID | Unknown | Severity | Affects | Resolution Strategy | Status |
+|----|---------|----------|---------|---------------------|--------|
+| U1 | [What we don't know] | High/Med/Low | Phase N, Item N.M | [How to resolve: spike, prototype, ask stakeholder, etc.] | Open |
+| U2 | [What we don't know] | High/Med/Low | Phase N, Item N.M | [How to resolve] | Open |
+
+<!-- Severity: High (blocks progress — resolve before affected phase), Medium (complicates implementation — resolve during phase), Low (nice to know — resolve opportunistically) -->
+<!-- Status values: Open (default), Resolved [YYYY-MM-DD] (answered — document the answer), Accepted (decided to proceed without resolving) -->
+<!-- High-severity unknowns SHOULD be resolved before the affected phase begins -->
 
 ---
 
@@ -197,13 +240,17 @@ These rules apply to all plans regardless of source command:
 3. **Phase markers:** `<!-- BEGIN PHASES -->` and `<!-- END PHASES -->` bracket all phase sections
 4. **Table markers:** `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` bracket trailing tables
 5. **Work item fields (in order):** Status, Ref, Depends On (optional), Files Affected, Description, Tasks, Acceptance Criteria, Notes
-6. **Phase sections (in order):** Goals, Work Items, Testing Requirements, Completion Checklist
+6. **Phase sections (in order):** Goals, Work Items, Testing Requirements, Completion Checklist, Definition of Done (optional)
 7. **Phase header fields (in order):** Estimated Complexity, Dependencies, Execution Mode
 8. **Execution Mode values:** `Sequential` (default; items run in order), `Parallel` (items run concurrently in shared tree), `Worktree-Isolated` (each phase or item runs in a dedicated git worktree; use when parallel writes to shared paths risk collision)
 9. **Header fields (in order):** Generated, Completed (optional — set on finalization), Based On, Total Phases, Estimated Total Effort
 10. **Risk Mitigation Status values:** `Open` (default at generation), `Mitigated` (risk addressed), `Materialized` (risk occurred)
 11. **Milestones section:** Optional; include when plan has 4+ phases to group them into logical deliverables. Placed between Phase Summary Table and `<!-- BEGIN PHASES -->`
-12. **Backward compatibility:** Existing plans without `Completed`, `Depends On`, `Execution Mode`, `Milestones`, or Risk `Status` fields parse and execute correctly — all are additive
+12. **Backward compatibility:** Existing plans without `Completed`, `Depends On`, `Execution Mode`, `Milestones`, `Execution Hints`, `Definition of Done`, or Risk `Status` fields parse and execute correctly — all are additive
+13. **EARS notation:** Behavioral acceptance criteria SHOULD use EARS format (`WHEN [condition] THEN [component] SHALL [behavior]`). Binary/threshold criteria (pass/fail, coverage ≥N%) use simple checkbox format. EARS is recommended, not required — existing plans without it parse correctly
+14. **Definition of Done (Runnable):** Optional per-phase section after Completion Checklist, bracketed by `<!-- BEGIN DOD -->` and `<!-- END DOD -->`. Columns: Check, Command, Pass Criteria. Populated by plan generators from detected project infrastructure (test runner, linter, typechecker, coverage tool). Omit entirely when no verification commands are detected — never populate with empty placeholders. `/implement-plan` executes these commands to verify phase completion
+15. **Execution Hints:** Optional section between Phase Summary Table and Milestones. Columns: Phase, Model Tier (`sonnet`/`opus`/`haiku` — maps to Agent tool `model` parameter), Context Budget (Standard/Extended/Minimal), Notes. Hints are advisory; model tier can be mechanically enforced by implement-plan via the Agent tool's `model` parameter
+16. **Unknowns Register:** Optional section between Risk Mitigation and Success Metrics (inside `<!-- BEGIN/END TABLES -->` markers). Columns: ID, Unknown, Severity (High/Medium/Low), Affects (phase/item refs), Resolution Strategy, Status (Open/Resolved [date]/Accepted). High-severity unknowns should be resolved before the affected phase begins. Distinct from Risk Mitigation: unknowns are knowledge gaps, risks are probabilistic events
 
 ## Sizing Constraints
 

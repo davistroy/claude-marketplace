@@ -62,8 +62,8 @@ The critical path is: Phase 1 → Phase 3 (template must land before consumer up
 
 ### Work Items
 
-#### 1.1 Add EARS-Notation Acceptance Criteria Guidance
-**Status: PENDING**
+#### 1.1 Add EARS-Notation Acceptance Criteria Guidance ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis C2, §4.1 — EARS notation from Kiro
 **Files Affected:**
 - `plugins/personal-plugin/references/plan-template.md` (modify)
@@ -87,8 +87,8 @@ The EARS guidance goes in the template example section (around line 86-89). Keep
 
 ---
 
-#### 1.2 Add Runnable Definition of Done Section
-**Status: PENDING**
+#### 1.2 Add Runnable Definition of Done Section ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis C3 — Verification Harness
 **Depends On:** 1.1
 **Files Affected:**
@@ -125,8 +125,8 @@ DoD section format:
 
 ---
 
-#### 1.3 Add Execution Hints Section
-**Status: PENDING**
+#### 1.3 Add Execution Hints Section ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis H2 — Context-budget and model-tier directives
 **Files Affected:**
 - `plugins/personal-plugin/references/plan-template.md` (modify)
@@ -147,8 +147,8 @@ Add an `## Execution Hints` section to the plan-level template (between Phase Su
 
 ---
 
-#### 1.4 Add Unknowns Register
-**Status: PENDING**
+#### 1.4 Add Unknowns Register ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis H1 — Risk & Unknowns Register
 **Files Affected:**
 - `plugins/personal-plugin/references/plan-template.md` (modify)
