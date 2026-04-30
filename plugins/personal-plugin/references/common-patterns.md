@@ -12,6 +12,7 @@ This document serves as an index to the modular pattern files. Each pattern area
 | [workflow.md](patterns/workflow.md) | State management, resume, sessions | Resume detection, session commands, multi-phase workflows |
 | [testing.md](patterns/testing.md) | Argument testing, dry-run | Test categories, dry-run pattern, test checklist |
 | [logging.md](patterns/logging.md) | Audit logging, progress reporting | Audit log format, performance documentation |
+| [anti-patterns.md](anti-patterns.md) | Planning & implementation anti-patterns | Symptom patching, scope creep, placeholder pollution, untestable criteria |
 
 ## Quick Reference
 

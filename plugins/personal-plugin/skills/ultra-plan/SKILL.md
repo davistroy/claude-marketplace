@@ -1,6 +1,7 @@
 ---
 name: ultra-plan
 description: "Structured implementation planning for bug lists, feature requests, or change sets. Enforces deep investigation, interaction mapping, and integrated solution design before any code changes. Use when given a list of issues/features/changes that need a cohesive implementation plan."
+allowed-tools: Read, Glob, Grep, Agent
 ---
 
 # Ultra Plan
@@ -19,11 +20,48 @@ The user provides one or more of:
 - A review document or audit with findings
 - Verbal description of needed changes
 
-If the input is ambiguous or incomplete, ask clarifying questions before starting Phase 1.
+If the input is ambiguous or incomplete, ask clarifying questions before starting Phase 0.
 
-## Phase 1 -- Investigation
+## Phase 0 -- Constitution Check
+
+Before investigating any items, establish the project's non-negotiable constraints. These constraints gate every subsequent phase -- no proposed solution may violate them.
+
+**Skip conditions:** Skip Phase 0 entirely if (a) the user says "skip constitution", (b) the task is clearly L0-L1 scope per plan-gate classification, or (c) the input is a single well-scoped bug fix.
+
+### 0a. Read Existing Constraints
+
+Read CLAUDE.md (and any `constitution.md` if present) for documented project constraints. Look for:
+
+| Category | What to find |
+|----------|-------------|
+| **Test policy** | Required coverage, test frameworks, "never skip tests" rules |
+| **Deployment target** | Cloud provider, container runtime, edge constraints |
+| **Stack lock-in** | Required languages, frameworks, versions, "do not add dependencies" rules |
+| **Security non-negotiables** | Auth requirements, data handling rules, compliance standards |
+| **Observability minimum** | Logging requirements, metric collection, alerting |
+| **Definition of done baseline** | What "done" means for this project (PR required? Review required? CI must pass?) |
+| **Data sovereignty** | Where data can be stored/processed, residency requirements |
+
+### 0b. Fill Gaps (if needed)
+
+If CLAUDE.md is comprehensive on most categories, note the constraints and proceed. If significant gaps exist (≥3 categories with no documented position), ask the user up to 7 targeted questions -- one per missing category. Frame each question with a sensible default:
+
+> "I don't see a documented test policy. Default assumption: tests are encouraged but not gating. Is that correct, or do you have a stricter requirement?"
+
+Record answers. These constraints apply to all subsequent phases.
+
+### 0c. Output
+
+Produce a **Constraints Summary** -- a compact table of all documented and answered constraints. This summary:
+- Feeds into the Summary Report (Phase 5) as "Pre-Plan Gates"
+- Is checked during Solution Design (Phase 4) -- every proposed change must comply
+- Is included in the plan generation output for downstream consumption
+
+## Phase 2 -- Investigation
 
 For **each item** in the input list, investigate and document:
+
+**Scale gate:** If the input contains **>5 items**, spawn Explore sub-agents for parallel investigation (see below). For **≤5 items**, investigate inline using the table below.
 
 | Field | What to capture |
 |-------|----------------|
@@ -41,34 +79,61 @@ For **each item** in the input list, investigate and document:
 - If an item seems simple, that's when you're most likely to miss something. Investigate anyway.
 - Document what you found, including anything surprising.
 
-Present Phase 1 findings as a structured table or list before proceeding.
+Present Phase 2 findings as a structured table or list before proceeding.
 
-## Phase 2 -- Interaction Mapping
+### Sub-Agent Investigation (>5 items)
+
+When the input list has more than 5 items, use the Agent tool with `subagent_type: "Explore"` to parallelize investigation. This preserves main context for the high-value Phases 3-6.
+
+**Dispatch pattern:**
+1. Group related items (items that likely share code paths) into clusters of 2-3
+2. For each cluster, spawn an Explore sub-agent with this prompt template:
+
+> Investigate these items in the codebase at [project root]. For each item, find and document:
+> - **Root cause:** The structural reason this exists (trace the code, don't guess)
+> - **Blast radius:** Every component, state, data flow, and contract this touches
+> - **Current behavior:** What actually happens now (read the actual code)
+> - **Expected behavior:** What should happen after the fix/change
+> - **Preserved assumptions:** Assumptions the fix must not violate
+> - **Risk:** What could go wrong if done poorly
+>
+> Items to investigate:
+> [list items in this cluster]
+>
+> Return findings as a structured table with one row per item.
+
+3. Launch sub-agents in parallel using `run_in_background: true`
+4. Collect results as each completes
+5. Merge all findings into a single Phase 2 deliverable before proceeding to Phase 3
+
+**Graceful degradation:** If the Agent tool is unavailable or sub-agents fail, fall back to inline investigation for all items. Note the fallback in the Phase 2 output.
+
+## Phase 3 -- Interaction Mapping
 
 Before proposing **any** solution, map the interactions:
 
-### 2a. Item-to-Item Interactions
+### 3a. Item-to-Item Interactions
 Build a matrix or dependency graph showing:
 - Which items share code paths, state, data, or constraints
 - Which items MUST be solved together (atomic change sets)
 - Where fixing one item could break, complicate, or conflict with another
 - Items that are actually the same root cause manifesting differently
 
-### 2b. Change-to-System Interactions
+### 3b. Change-to-System Interactions
 For each potential change area:
 - What upstream components feed into it
 - What downstream components depend on it
 - What configuration, environment, or runtime state it reads/writes
 - What contracts (APIs, interfaces, data formats) it participates in
 
-### 2c. Grouping
+### 3c. Grouping
 Group items into **coherent change sets** -- items that should be designed and implemented together because they share root causes, touch the same code, or have ordering dependencies.
 
 Present the interaction map before proceeding. This is the most important phase -- it prevents the whack-a-mole fix loop.
 
-## Phase 3 -- Solution Design
+## Phase 4 -- Solution Design
 
-Design integrated changes for each change set from Phase 2.
+Design integrated changes for each change set from Phase 3.
 
 **Design constraints:**
 - Fit within the existing architecture and design intent
@@ -77,6 +142,7 @@ Design integrated changes for each change set from Phase 2.
 - Solve exactly what's needed -- if a broader refactor is warranted, **flag it separately** with rationale rather than embedding it silently
 - Identify prerequisites and coordination requirements (changes that must ship together)
 - Consider rollback: if something goes wrong, how do we undo it?
+- Comply with all constraints from Phase 0 -- if a proposed solution would violate a documented constraint, flag it explicitly rather than proceeding
 
 **For each change set, specify:**
 1. What changes, where (files, functions, configs)
@@ -87,12 +153,19 @@ Design integrated changes for each change set from Phase 2.
 **Anti-patterns to avoid:**
 - Patching symptoms instead of fixing root causes
 - Changes that solve one item but create new problems for others
-- Scope creep -- gold-plating or architectural rewrites beyond what's needed
+- Scope creep — gold-plating or architectural rewrites beyond what's needed
 - Implicit dependencies between change sets that aren't called out
 
-## Phase 4 -- Summary Report
+See `references/anti-patterns.md` for the full catalog with detection heuristics and mitigation strategies.
+
+## Phase 5 -- Summary Report
 
 Deliver a structured summary containing all of the following:
+
+### Pre-Plan Gates
+- Constraints summary from Phase 0
+- Compliance check: verify every proposed change in Phase 4 respects documented constraints
+- Flag any proposed change that conflicts with a constraint -- present the conflict and ask the user to decide
 
 ### Investigation Findings
 - Key discoveries per item -- what you found, what was surprising
@@ -128,11 +201,11 @@ After presenting the summary report, ask:
 
 > Review the plan above. You can approve as-is, adjust items, ask questions, or redirect. When ready, say **implement** and I'll generate the formal implementation plan.
 
-## Phase 5 -- Plan Generation
+## Phase 6 -- Plan Generation
 
 When the user approves, produce a formal implementation plan using the appropriate command:
 
-### 5a. Check for Existing Plans
+### 6a. Check for Existing Plans
 
 Run `/personal-plugin:plan-next` first to assess the current repo state:
 - Is there an existing IMPLEMENTATION_PLAN.md?
@@ -141,39 +214,39 @@ Run `/personal-plugin:plan-next` first to assess the current repo state:
 
 This determines the routing below.
 
-### 5b. Route to Plan Command
+### 6b. Route to Plan Command
 
 | Situation | Action |
 |-----------|--------|
-| **No existing plan** | Invoke `/personal-plugin:create-plan`, feeding it the Phase 3 solution design as the requirements input. The investigation findings, interaction map, and change sets become the source material for plan generation. |
-| **Existing plan, all items complete** | Invoke `/personal-plugin:create-plan` to append new phases to the existing plan. The new phases correspond to the change sets from Phase 3. |
+| **No existing plan** | Invoke `/personal-plugin:create-plan`, feeding it the Phase 4 solution design as the requirements input. The investigation findings, interaction map, and change sets become the source material for plan generation. |
+| **Existing plan, all items complete** | Invoke `/personal-plugin:create-plan` to append new phases to the existing plan. The new phases correspond to the change sets from Phase 4. |
 | **Existing plan with pending/in-progress items** | Present the conflict to the user. Options: (1) append new phases after existing work, (2) replace the existing plan, (3) defer until current plan completes. Do not silently overwrite in-progress work. |
 
-### 5c. Feed Ultra Plan Analysis into Create-Plan
+### 6c. Feed Ultra Plan Analysis into Create-Plan
 
-The Phase 1-4 analysis is the requirements input for `/personal-plugin:create-plan`. Map ultra-plan outputs to create-plan inputs:
+The Phase 2-5 analysis is the requirements input for `/personal-plugin:create-plan`. Map ultra-plan outputs to create-plan inputs:
 
 | Ultra Plan Output | Create-Plan Input |
 |-------------------|-------------------|
-| Change sets (Phase 2c) | Phase groupings |
-| Solution design per set (Phase 3) | Work items with acceptance criteria |
-| Implementation sequence (Phase 4) | Phase ordering and dependencies |
-| Risk assessment (Phase 4) | Risk mitigation table |
-| Scope boundaries (Phase 4) | Plan scope and exclusions |
+| Change sets (Phase 3c) | Phase groupings |
+| Solution design per set (Phase 4) | Work items with acceptance criteria |
+| Implementation sequence (Phase 5) | Phase ordering and dependencies |
+| Risk assessment (Phase 5) | Risk mitigation table |
+| Scope boundaries (Phase 5) | Plan scope and exclusions |
 
 The resulting IMPLEMENTATION_PLAN.md inherits the architectural coherence from ultra-plan's analysis -- it is NOT a fresh discovery process, but a structured encoding of decisions already made.
 
-### 5d. Verify Plan Quality
+### 6d. Verify Plan Quality
 
 After the plan is generated, verify:
-- Every item from the approved Phase 4 summary appears in the plan
+- Every item from the approved Phase 5 summary appears in the plan
 - Change set groupings are preserved (items that must ship together are in the same phase)
-- The interaction dependencies from Phase 2 are reflected in phase ordering
+- The interaction dependencies from Phase 3 are reflected in phase ordering
 - No items were silently dropped or split in a way that breaks atomic change sets
 
 If anything is missing or misaligned, fix it before presenting the final plan.
 
-### 5e. Present Final Plan
+### 6e. Present Final Plan
 
 Report:
 - Location of IMPLEMENTATION_PLAN.md

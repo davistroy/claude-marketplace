@@ -203,8 +203,8 @@ Add an `## Unknowns Register` section alongside the existing Risk Mitigation tab
 
 ### Work Items
 
-#### 2.1 Create Shared Anti-Patterns Reference
-**Status: PENDING**
+#### 2.1 Create Shared Anti-Patterns Reference ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis N2 — Anti-pattern catalog expansion
 **Files Affected:**
 - `plugins/personal-plugin/references/anti-patterns.md` (create)
@@ -230,8 +230,8 @@ Extract the 4 inline anti-patterns from ultra-plan Phase 3 into a shared `refere
 
 ---
 
-#### 2.2 Add Phase 0: Constitution Check to Ultra-Plan
-**Status: PENDING**
+#### 2.2 Add Phase 0: Constitution Check to Ultra-Plan ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis C1 — Constitution / Project-Rules phase
 **Depends On:** 2.1
 **Files Affected:**
@@ -258,8 +258,8 @@ This is NOT a separate `constitution.md` file — for solo-builder context, proj
 
 ---
 
-#### 2.3 Add Sub-Agent Investigation Guidance
-**Status: PENDING**
+#### 2.3 Add Sub-Agent Investigation Guidance ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis H7 — Formalize parallel research agents
 **Depends On:** 2.2
 **Files Affected:**
@@ -283,8 +283,8 @@ Add guidance to ultra-plan Phase 1 (now Phase 2 after renumber) for using the Ag
 
 ---
 
-#### 2.4 Fix Ultra-Plan Reference Ambiguity
-**Status: PENDING**
+#### 2.4 Fix Ultra-Plan Reference Ambiguity ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis N8 — Rename consideration (reference fix only)
 **Files Affected:**
 - `plugins/personal-plugin/skills/plan-gate/SKILL.md` (modify)
@@ -294,15 +294,15 @@ Add guidance to ultra-plan Phase 1 (now Phase 2 after renumber) for using the Ag
 Fix the ambiguous references to `/ultraplan` (no hyphen) in plan-gate and create-plan. Currently, plan-gate Path D.5 says "Recommended: /ultraplan" and create-plan's pre-planning quality gate says "Run `/ultraplan` first." The personal-plugin skill is named `/ultra-plan` (with hyphen). These references may be misrouted to Anthropic's built-in `/ultraplan` instead. Clarify that the personal-plugin skill is `/ultra-plan` and add a note distinguishing it from Anthropic's built-in.
 
 **Tasks:**
-1. [ ] In plan-gate SKILL.md Path D.5: change `/ultraplan` references to `/ultra-plan`. Add a one-line note: "Note: `/ultra-plan` is the personal-plugin deep pre-planning skill. Anthropic's built-in `/ultraplan` (no hyphen) is a distinct cloud planning feature."
-2. [ ] In create-plan.md pre-planning quality gate: change `/ultraplan` references to `/ultra-plan`. Same disambiguation note.
-3. [ ] In ultra-plan SKILL.md "See also" line: verify it correctly references `/create-plan` and `/plan-improvements` (currently correct)
-4. [ ] Grep for any other `/ultraplan` references in the codebase and fix them
+1. [x] In plan-gate SKILL.md Path D.5: change `/ultraplan` references to `/ultra-plan`. Add a one-line note: "Note: `/ultra-plan` is the personal-plugin deep pre-planning skill. Anthropic's built-in `/ultraplan` (no hyphen) is a distinct cloud planning feature."
+2. [x] In create-plan.md pre-planning quality gate: change `/ultraplan` references to `/ultra-plan`. Same disambiguation note.
+3. [x] In ultra-plan SKILL.md "See also" line: verify it correctly references `/create-plan` and `/plan-improvements` (currently correct)
+4. [x] Grep for any other `/ultraplan` references in the codebase and fix them
 
 **Acceptance Criteria:**
-- [ ] WHEN plan-gate routes to the deep pre-planning skill THEN it SHALL reference `/ultra-plan` (with hyphen)
-- [ ] WHEN create-plan suggests pre-planning THEN it SHALL reference `/ultra-plan` (with hyphen)
-- [ ] No ambiguous `/ultraplan` references remain in personal-plugin files (excluding references to Anthropic's built-in in disambiguation notes)
+- [x] WHEN plan-gate routes to the deep pre-planning skill THEN it SHALL reference `/ultra-plan` (with hyphen)
+- [x] WHEN create-plan suggests pre-planning THEN it SHALL reference `/ultra-plan` (with hyphen)
+- [x] No ambiguous `/ultraplan` references remain in personal-plugin files (excluding references to Anthropic's built-in in disambiguation notes)
 
 ---
 

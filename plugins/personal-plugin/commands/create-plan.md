@@ -21,7 +21,7 @@ This command:
 6. Generates detailed work items with acceptance criteria
 7. Outputs IMPLEMENTATION_PLAN.md to the repository root
 
-> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultraplan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/batch /implement-plan` after generating a large plan (6+ phases or 20+ work items) to execute phases in parallel isolated worktrees.
+> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultra-plan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/batch /implement-plan` after generating a large plan (6+ phases or 20+ work items) to execute phases in parallel isolated worktrees.
 
 ## Input Validation
 
@@ -130,15 +130,17 @@ Proceeding with plan generation...
 
 After inventorying documents, perform a rapid quality scan **before** investing time in full analysis. Evaluate whether the inputs are ready for direct planning or require pre-planning investigation first.
 
-**Trigger `/ultraplan` instead if any of the following are true:**
+**Trigger `/ultra-plan` instead if any of the following are true:**
+
+Note: `/ultra-plan` is the personal-plugin deep pre-planning skill. Anthropic's built-in `/ultraplan` (no hyphen) is a distinct feature.
 
 | Signal | Threshold | What to do |
 |--------|-----------|------------|
-| Vague requirements | >30% of features described with "TBD", "to be determined", "unclear", or missing acceptance criteria | Recommend `/ultraplan` |
-| Issue/bug list input | Documents consist primarily of bug reports, tickets, or issues rather than requirements | Recommend `/ultraplan` |
-| Scope ambiguity | Multiple conflicting scope boundaries or contradictory prioritizations that can't be reconciled by inspection | Recommend `/ultraplan` |
-| No technical design | BRD/PRD only, no TDD, with complex architectural decisions unmade | Recommend `/ultraplan` |
-| Single vague document | One document under 500 words with no feature breakdown | Recommend `/ultraplan` |
+| Vague requirements | >30% of features described with "TBD", "to be determined", "unclear", or missing acceptance criteria | Recommend `/ultra-plan` |
+| Issue/bug list input | Documents consist primarily of bug reports, tickets, or issues rather than requirements | Recommend `/ultra-plan` |
+| Scope ambiguity | Multiple conflicting scope boundaries or contradictory prioritizations that can't be reconciled by inspection | Recommend `/ultra-plan` |
+| No technical design | BRD/PRD only, no TDD, with complex architectural decisions unmade | Recommend `/ultra-plan` |
+| Single vague document | One document under 500 words with no feature breakdown | Recommend `/ultra-plan` |
 
 **If any trigger fires, present this prompt and stop:**
 
@@ -152,11 +154,11 @@ may produce a low-quality or unexecutable plan:
   - 8 of 12 features marked "TBD" or missing acceptance criteria
   - No technical design document — architecture decisions unmade
 
-Recommended: Run `/ultraplan` first to resolve ambiguities, then
+Recommended: Run `/ultra-plan` first to resolve ambiguities, then
 return to `/create-plan` with sharper requirements.
 
 Options:
-  1. Run `/ultraplan` first (recommended)
+  1. Run `/ultra-plan` first (recommended)
   2. Continue with `/create-plan` anyway — I'll flag gaps as assumptions
   3. Abort
 ```
