@@ -38,11 +38,8 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | # | Action | Created | Source Entry | Priority |
 |---|--------|---------|-------------|----------|
 | A1 | Reinstall plugin to sync spark-recon changes to Claude Code environment | 2026-04-30 | E001 | High — loaded skill is stale vs repo |
-| A2 | Update `implement-plan.md` to set `Completed` header field during finalization | 2026-04-30 | E001 | Medium — new template field needs consumer support |
-| A3 | Update `implement-plan.md` to parse `Depends On` for parallelization map | 2026-04-30 | E001 | Medium — enables richer intra-phase scheduling |
-| A4 | Update `implement-plan.md` to update Risk Mitigation `Status` column during execution | 2026-04-30 | E001 | Low — folded into IMPLEMENTATION_PLAN Phase 5, Item 5.1 |
-| A5 | Execute gap-analysis IMPLEMENTATION_PLAN.md (6 phases, 18 work items) | 2026-04-30 | E002 | High — next step after plan review |
-| A6 | Resolve U1: test plan-gate `/ultraplan` routing after reference fix | 2026-04-30 | E002 | High — blocked until Phase 2 Item 2.4 complete |
+| A7 | Reinstall plugin to sync all gap-analysis changes to Claude Code environment | 2026-04-30 | E003 | High — loaded plugin cache is stale vs repo |
+| A8 | Bump personal-plugin version to 9.0.0 (major: new template sections, ultra-plan rewrite) | 2026-04-30 | E003 | Medium — version bump needed before merge |
 
 ### Completed
 
@@ -52,6 +49,11 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C2 | Remove research-orchestrator Python tool (27 files) | 2026-04-21 | 2026-04-21 | Pre-notebook |
 | C3 | Remove stale CI jobs referencing deleted tool and help-sync check | 2026-04-21 | 2026-04-21 | Pre-notebook |
 | C4 | Plan template refinements — 7 improvements to plan-template.md | 2026-04-30 | 2026-04-30 | E001 |
+| C5 | Update implement-plan.md to set Completed header field during finalization (A2) | 2026-04-30 | 2026-04-30 | E003 |
+| C6 | Update implement-plan.md to parse Depends On for parallelization map (A3) | 2026-04-30 | 2026-04-30 | E003 |
+| C7 | Update implement-plan.md to update Risk Mitigation Status during execution (A4) | 2026-04-30 | 2026-04-30 | E003 |
+| C8 | Execute gap-analysis IMPLEMENTATION_PLAN.md — 6 phases, 17 items, all complete (A5) | 2026-04-30 | 2026-04-30 | E003 |
+| C9 | Fix /ultraplan → /ultra-plan reference ambiguity in plan-gate and create-plan (A6) | 2026-04-30 | 2026-04-30 | E003 |
 
 ---
 
@@ -198,6 +200,47 @@ Phase 5 (Plan Generation) — Archived completed v8.0.0 plan as `docs/archive/IM
 - The gap analysis's reconstructed picture overestimated several gaps that the existing pipeline already covers
 
 **Decision:** Folded Lab Notebook A2, A3, A4 into Phase 5 of the new plan (D11: ACTIVE, supersedes individual action items)
+
+---
+
+### Entry 003 — Gap Analysis Plan Execution [skill] [template] [command]
+**Date:** 2026-04-30
+**Environment:** Windows 11, Claude Code CLI, repo at `16a275d` (feature/gap-analysis-implementation branch), personal-plugin v8.0.0
+**Status:** COMPLETE
+**Duration:** ~45 minutes
+
+**Objective:** Execute the 6-phase, 17-work-item IMPLEMENTATION_PLAN.md generated in Entry 002, upgrading the planning pipeline with AI-native best practices from the gap analysis.
+
+**Hypothesis:** All 17 work items are implementable via subagent orchestration with no structural conflicts. Parallel batches within phases should work cleanly since items were designed to touch non-overlapping file sections. The implement-plan workflow should handle the full plan in a single session.
+
+**Rollback Plan:** `git reset --hard 16a275d` to pre-execution state. Each phase also committed independently for granular rollback.
+
+**Actions & Results:**
+
+| Phase | Items | Parallel | Commit | Files Changed |
+|-------|-------|----------|--------|---------------|
+| 1: Plan Template Enhancements | 1.1, 1.2, 1.3, 1.4 | 1.1+1.3+1.4 parallel, 1.2 sequential | `204d6d6` | 2 (+60/-13) |
+| 2: Anti-Patterns + Ultra-Plan Rewrite | 2.1, 2.2, 2.3, 2.4 | 2.1+2.4 parallel, 2.2→2.3 sequential | `b3a0ee7` | 6 (+207/-59) |
+| 3: Consumer Updates | 3.1, 3.2, 3.3 | 3.1+3.2 parallel, 3.3 sequential | `a3c8825` | 4 (+195/-24) |
+| 4: Ultra-Plan Extensions | 4.1, 4.2, 4.3 | All sequential | `146c35b` | 3 (+173/-6) |
+| 5: Implement-Plan Upgrade | 5.1 | Sequential | `c51b456` | 2 (+64/-24) |
+| 6: Hook Recipes + AGENTS.md | 6.1, 6.2 | Parallel | `bbb2889` | 8 (+200/-11) |
+
+All 17 work items completed. All pre-commit hooks passed (plugin validation, frontmatter checks). Zero failures.
+
+**What Worked:**
+- Parallel subagent dispatch within phases dramatically reduced execution time — 3 items in Phase 1 completed concurrently
+- Non-overlapping file assignments prevented merge conflicts in parallel batches
+- The implement-plan workflow handled context shedding well — no context window exhaustion despite 17 items
+- Pre-commit hooks caught frontmatter issues early (all passed on first attempt)
+
+**What Could Be Better:**
+- Phase 2 item 2.2 (constitution + renumber) was the longest single item (~4 min) due to systematic renumbering of all phase references — could benefit from a mechanical rename script
+- Testing subagents ran after each phase but couldn't execute actual CLI commands (/validate-plugin) — relied on structural verification
+
+**Follow-ups:**
+- A7: Reinstall plugin to sync all changes
+- A8: Bump personal-plugin version to 9.0.0
 
 ---
 
