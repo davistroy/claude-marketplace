@@ -21,7 +21,7 @@ This command:
 6. Generates detailed work items with acceptance criteria
 7. Outputs IMPLEMENTATION_PLAN.md to the repository root
 
-> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultraplan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/batch /implement-plan` after generating a large plan (6+ phases or 20+ work items) to execute phases in parallel isolated worktrees.
+> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultra-plan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/batch /implement-plan` after generating a large plan (6+ phases or 20+ work items) to execute phases in parallel isolated worktrees.
 
 ## Input Validation
 
@@ -130,15 +130,17 @@ Proceeding with plan generation...
 
 After inventorying documents, perform a rapid quality scan **before** investing time in full analysis. Evaluate whether the inputs are ready for direct planning or require pre-planning investigation first.
 
-**Trigger `/ultraplan` instead if any of the following are true:**
+**Trigger `/ultra-plan` instead if any of the following are true:**
+
+Note: `/ultra-plan` is the personal-plugin deep pre-planning skill. Anthropic's built-in `/ultraplan` (no hyphen) is a distinct feature.
 
 | Signal | Threshold | What to do |
 |--------|-----------|------------|
-| Vague requirements | >30% of features described with "TBD", "to be determined", "unclear", or missing acceptance criteria | Recommend `/ultraplan` |
-| Issue/bug list input | Documents consist primarily of bug reports, tickets, or issues rather than requirements | Recommend `/ultraplan` |
-| Scope ambiguity | Multiple conflicting scope boundaries or contradictory prioritizations that can't be reconciled by inspection | Recommend `/ultraplan` |
-| No technical design | BRD/PRD only, no TDD, with complex architectural decisions unmade | Recommend `/ultraplan` |
-| Single vague document | One document under 500 words with no feature breakdown | Recommend `/ultraplan` |
+| Vague requirements | >30% of features described with "TBD", "to be determined", "unclear", or missing acceptance criteria | Recommend `/ultra-plan` |
+| Issue/bug list input | Documents consist primarily of bug reports, tickets, or issues rather than requirements | Recommend `/ultra-plan` |
+| Scope ambiguity | Multiple conflicting scope boundaries or contradictory prioritizations that can't be reconciled by inspection | Recommend `/ultra-plan` |
+| No technical design | BRD/PRD only, no TDD, with complex architectural decisions unmade | Recommend `/ultra-plan` |
+| Single vague document | One document under 500 words with no feature breakdown | Recommend `/ultra-plan` |
 
 **If any trigger fires, present this prompt and stop:**
 
@@ -152,11 +154,11 @@ may produce a low-quality or unexecutable plan:
   - 8 of 12 features marked "TBD" or missing acceptance criteria
   - No technical design document — architecture decisions unmade
 
-Recommended: Run `/ultraplan` first to resolve ambiguities, then
+Recommended: Run `/ultra-plan` first to resolve ambiguities, then
 return to `/create-plan` with sharper requirements.
 
 Options:
-  1. Run `/ultraplan` first (recommended)
+  1. Run `/ultra-plan` first (recommended)
   2. Continue with `/create-plan` anyway — I'll flag gaps as assumptions
   3. Abort
 ```
@@ -190,10 +192,19 @@ Survey the codebase to understand its shape:
 
 Identify existing quality infrastructure:
 
-1. **Test framework:** Look for test directories (`tests/`, `__tests__/`, `test/`, `spec/`), test config (`jest.config.*`, `pytest.ini`, `vitest.config.*`), and test files (`*.test.*`, `*.spec.*`, `*_test.*`)
-2. **Test coverage:** Note approximate test count and whether coverage tooling is configured
-3. **CI/CD:** Check for `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `.circleci/`, `azure-pipelines.yml`
-4. **Linting/formatting:** Note configured linters and formatters
+1. **Test framework:** Look for test directories (`tests/`, `__tests__/`, `test/`, `spec/`), test config (`jest.config.*`, `pytest.ini`, `vitest.config.*`), and test files (`*.test.*`, `*.spec.*`, `*_test.*`). Record the detected **test command** (e.g., `pytest tests/ -v`, `npm test`, `jest`, `cargo test`).
+2. **Test coverage:** Note approximate test count and whether coverage tooling is configured. Record the detected **coverage command** (e.g., `pytest --cov=src/ --cov-fail-under=80`, `jest --coverage`, `cargo llvm-cov`). Check for coverage config in `pytest.ini`, `pyproject.toml` (`[tool.pytest.ini_options]`, `[tool.coverage]`), `package.json` (jest `--coverage` in scripts), or `.nycrc`.
+3. **CI/CD:** Check for `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `.circleci/`, `azure-pipelines.yml`. Also check `Makefile` for `check`, `lint`, `test`, or `verify` targets — these often wrap the canonical verification commands.
+4. **Linting/formatting:** Note configured linters and formatters. Record the detected **lint command** by checking:
+   - Python: `ruff` (in `pyproject.toml [tool.ruff]` or `ruff.toml`), `flake8` (in `setup.cfg`, `.flake8`), `pylint` (in `.pylintrc`, `pyproject.toml`)
+   - JavaScript/TypeScript: `eslint` (in `.eslintrc.*`, `eslint.config.*`, `package.json` scripts), `biome`
+   - Rust: `cargo clippy`
+   - Go: `golangci-lint`
+5. **Type checking:** Record the detected **typecheck command** by checking:
+   - Python: `mypy` (in `pyproject.toml [tool.mypy]`, `mypy.ini`, `setup.cfg`), `pyright` (in `pyrightconfig.json`, `pyproject.toml`)
+   - TypeScript: `tsc --noEmit` (presence of `tsconfig.json`)
+   - Use the package manager's script if defined (e.g., `npm run typecheck`)
+6. **Custom verification:** Check for project-specific verification scripts: `Makefile` targets (`make check`, `make lint`, `make test`), `package.json` scripts (`verify`, `check`, `validate`), CI workflow steps that run verification commands not covered above
 
 #### 1.5.3 Existing Feature Cross-Reference
 
@@ -214,6 +225,13 @@ Tech Stack: [detected stack]
 Structure: [N] source files, [M] test files, [K] config files
 Test Infrastructure: [framework] with [N] tests
 CI/CD: [detected pipeline or "None detected"]
+
+Verification Commands Detected:
+  Test:      [command or "None detected"]
+  Lint:      [command or "None detected"]
+  Typecheck: [command or "None detected"]
+  Coverage:  [command or "None detected"]
+  Custom:    [command or "None detected"]
 
 Feature Overlap Analysis:
 | Requirement | Status | Existing Code | Recommendation |
@@ -309,6 +327,19 @@ How should I proceed?
   2. Pause for clarification
 ```
 
+#### 2.4 Unknowns vs. Risks Classification
+
+During requirements analysis, distinguish between **risks** (probabilistic events that could go wrong) and **unknowns** (knowledge gaps — things we don't know yet). Route them to the correct plan section:
+
+- **Risks** → Risk Mitigation table. Examples: "third-party API may have rate limits," "migration could cause downtime," "new dependency may have security vulnerabilities."
+- **Unknowns** → Unknowns Register. Examples: "database schema not specified in requirements," "authentication provider not chosen," "unclear whether feature X requires real-time updates or batch processing."
+
+When the requirements analysis identifies ambiguities, missing specifications, unresolved design choices, or questions that cannot be answered from the source documents, capture each as an unknown with severity classification:
+
+- **High:** Blocks progress on a phase — must be resolved before that phase starts
+- **Medium:** Complicates implementation — resolve during the affected phase
+- **Low:** Nice to know — resolve opportunistically
+
 ### Phase 2.5: Scope Confirmation
 
 **Before generating the full plan, pause and present a scope summary for user approval.** This checkpoint prevents wasted generation time if the user disagrees with scope, phasing, or assumptions.
@@ -403,7 +434,7 @@ Convert requirements into discrete work items:
 2. List files likely to be affected
 3. Estimate complexity (XS/S/M/L/XL)
 4. Identify dependencies
-5. Define acceptance criteria
+5. Define acceptance criteria — Use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria remain as simple checkboxes. See `references/plan-template.md` rule 13.
 
 **Complexity estimation:**
 | Size | Files Changed | LOC Changed | Example |
@@ -438,6 +469,28 @@ Each phase should be completable by a single subagent session:
 2. Core features before enhancements
 3. Integration points after dependent components
 4. Polish/optimization last
+
+#### Execution Hints Generation
+
+After constructing phases, emit an `### Execution Hints` section at the plan level (between the Phase Summary Table and Milestones). Populate it as follows:
+
+- **Default model tier:** `sonnet` for all phases
+- **L-complexity phases:** Suggest `opus` — these phases involve complex architectural decisions, large blast radius, or cross-cutting concerns that benefit from stronger reasoning
+- **Simple mechanical phases** (config changes, dependency updates, formatting): Suggest `haiku`
+- **Context budget:** `Standard` for S-M phases, `Extended` for L phases with many files
+
+**Format:**
+```markdown
+### Execution Hints
+
+| Phase | Model Tier | Context Budget | Notes |
+|-------|------------|----------------|-------|
+| All (default) | `sonnet` | Standard | |
+| [Phase N] | `opus` | Extended | [Reason — e.g., "Complex architectural refactoring"] |
+| [Phase M] | `haiku` | Minimal | [Reason — e.g., "Mechanical config updates"] |
+```
+
+If all phases are S-M complexity with no special requirements, omit the Execution Hints section entirely (per template rule 15).
 
 #### 3.2.1 Plan Size Limits
 
@@ -579,11 +632,66 @@ Read the plan template from `references/plan-template.md` (relative to this comm
 - **Traceability:** Title the appendix "Requirement Traceability" with columns: Requirement, Source, Phase, Work Item
 - **Footer:** `*Source: /create-plan command*`
 
+#### 4.1 Definition of Done Generation
+
+For each phase, emit a `### Definition of Done (Runnable)` section after the Phase Completion Checklist, populated with verification commands detected during Phase 1.5.2 (Codebase Reconnaissance).
+
+**Rules:**
+- Only include commands that were actually detected. If no verification infrastructure was found, omit the DoD section entirely (per template rule 14 — never populate with empty placeholders).
+- Use the same commands for every phase unless a phase has phase-specific verification needs (e.g., a database migration phase might add a migration check command).
+- The DoD section is bracketed by `<!-- BEGIN DOD -->` and `<!-- END DOD -->` markers for machine parsing.
+
+**Format:**
+```markdown
+### Definition of Done (Runnable)
+<!-- BEGIN DOD -->
+| Check | Command | Pass Criteria |
+|-------|---------|---------------|
+| Tests | `[detected test command]` | Exit code 0 |
+| Lint | `[detected lint command]` | Exit code 0 |
+| Types | `[detected typecheck command]` | Exit code 0 |
+| Coverage | `[detected coverage command]` | [detected threshold or "Exit code 0"] |
+| [Custom] | `[detected custom command]` | [criteria] |
+<!-- END DOD -->
+```
+
+**Mapping from Phase 1.5.2 detection to DoD rows:**
+
+| Detected Command | DoD Check Name | Pass Criteria |
+|------------------|----------------|---------------|
+| Test command | Tests | Exit code 0 |
+| Lint command | Lint | Exit code 0 |
+| Typecheck command | Types | Exit code 0 |
+| Coverage command | Coverage | Threshold from config, or ≥80% default |
+| Custom verification | [Descriptive name] | Exit code 0 or project-specific |
+
+#### 4.2 Unknowns Register Population
+
+When generating the plan, populate the Unknowns Register (inside `<!-- BEGIN TABLES -->` / `<!-- END TABLES -->` markers) with all unknowns captured during Phase 2.4 (Unknowns vs. Risks Classification). Each entry needs: ID (U1, U2, ...), the unknown, severity, affected phase/item refs, resolution strategy, and status (Open).
+
+#### 4.3 Acceptance Criteria with EARS Notation
+
+When writing acceptance criteria for work items, use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria (coverage ≥80%, lint clean, no TODOs) remain as simple checkboxes. See `references/plan-template.md` rule 13.
+
 ### Phase 5: Save and Report
 
 #### 5.1 Save the Plan
 
 Save IMPLEMENTATION_PLAN.md to the repository root (or custom path if specified). If appending to an existing file, the save overwrites the file with the merged content (existing + new phases).
+
+#### AGENTS.md Generation (optional)
+
+Check if `AGENTS.md` exists in the repo root:
+- **If AGENTS.md exists:** Skip this step entirely.
+- **If AGENTS.md does not exist:** Offer to generate one:
+
+> "No AGENTS.md found. This file provides cross-tool compatibility for AI coding tools (Codex, Cursor, Aider). Would you like me to generate one from CLAUDE.md and the codebase reconnaissance results?"
+
+If the user accepts:
+1. Read CLAUDE.md and extract project-relevant sections (Project Overview, tech stack, conventions, build/test commands)
+2. Generate AGENTS.md using the template from `references/agents-md-template.md`
+3. Write to repo root as `AGENTS.md`
+4. Note: Do NOT include Claude Code-specific features (skills, commands, hooks) — AGENTS.md is tool-agnostic
 
 #### 5.2 Summary Report
 

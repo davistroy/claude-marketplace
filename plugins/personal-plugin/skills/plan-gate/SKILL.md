@@ -161,7 +161,7 @@ Recommended: /create-plan
 Shall I run /create-plan now?
 ```
 
-#### Path D.5: /ultraplan (Deep Pre-Planning)
+#### Path D.5: /ultra-plan (Deep Pre-Planning)
 
 **When:** Task needs more than 30 minutes of planning OR involves a high-risk architectural decision where getting the design wrong is expensive. Use when the scope is clear enough to know it's large, but the *approach* is uncertain — competing valid architectures, significant unknowns, or the task will shape work for weeks.
 
@@ -174,18 +174,20 @@ This task involves [architectural complexity / scope / unknowns]. Before
 generating an implementation plan, a deep pre-planning pass is warranted
 to evaluate competing approaches and surface hidden constraints.
 
-Recommended: /ultraplan
+Recommended: /ultra-plan
   - Multi-agent structured analysis of the problem space
   - Evaluates trade-offs across competing approaches
   - Surfaces dependencies and risk factors before committing to a path
   - Produces a design decision record + recommended implementation strategy
-  - Run /create-plan or /plan-improvements after /ultraplan to generate IMPLEMENTATION_PLAN.md
+  - Run /create-plan or /plan-improvements after /ultra-plan to generate IMPLEMENTATION_PLAN.md
 
 When to skip: If you already know the approach and just need a plan, go
 directly to /create-plan or /plan-improvements (Path C or D).
 
-Shall I run /ultraplan for pre-planning analysis?
+Shall I run /ultra-plan for pre-planning analysis?
 ```
+
+Note: `/ultra-plan` is the personal-plugin deep pre-planning skill. Anthropic's built-in `/ultraplan` (no hyphen) is a distinct feature.
 
 #### Path E: /implement-plan (Resume)
 
@@ -227,7 +229,7 @@ Ask the user clarifying questions to get the answers, then re-assess.
 - **Path B**: Enter plan mode
 - **Path B.5**: Confirm unit decomposition with user, then invoke `/batch`
 - **Paths C/D/E**: Ask the user for confirmation, then invoke the appropriate command
-- **Path D.5**: Ask the user for confirmation, then invoke `/ultraplan`; after completion route to Path C or D for plan generation
+- **Path D.5**: Ask the user for confirmation, then invoke `/ultra-plan`; after completion route to Path C or D for plan generation
 - **Path F**: Ask clarifying questions, then re-route
 
 ## Decision Flowchart
@@ -253,7 +255,7 @@ User requests implementation task
     NO  |
         v
    High-risk architectural decision or >30-min planning needed?
-    YES --> Path D.5: /ultraplan
+    YES --> Path D.5: /ultra-plan
     NO  |
         v
    Multi-phase? (>8 files, phased delivery, architectural changes)
@@ -328,9 +330,9 @@ Plan Gate:
   Scope Assessment: Two competing architectures with significant trade-offs
   (streaming progress vs. dependency elimination). Getting this wrong is
   expensive — the Python tool has 20+ files. Approach is unclear.
-  Route: Path D.5 (/ultraplan)
+  Route: Path D.5 (/ultra-plan)
   Reason: Pre-planning analysis needed before committing to an approach.
-  After /ultraplan, run /create-plan to generate IMPLEMENTATION_PLAN.md.
+  After /ultra-plan, run /create-plan to generate IMPLEMENTATION_PLAN.md.
 ```
 
 ## Error Handling

@@ -82,8 +82,8 @@ plugins/[plugin-name]/
 Structure Validation
 --------------------
 [PASS] plugin.json exists
-[PASS] commands/ directory exists (15 files)
-[PASS] skills/ directory exists (3 skills)
+[PASS] commands/ directory exists ([N] files)
+[PASS] skills/ directory exists ([N] skills)
 ```
 
 Or on failure:
@@ -451,8 +451,8 @@ For each plugin, build a registry of command and skill names:
 
 ```text
 Plugin: personal-plugin
-  Commands: analyze-transcript, ask-questions, assess-document, ...
-  Skills: help, ship
+  Commands: [dynamically discovered from commands/*.md]
+  Skills: [dynamically discovered from skills/*/SKILL.md]
 
 Plugin: bpmn-plugin
   Commands: (none)
@@ -747,6 +747,191 @@ Or:
        Consider using '--force' for similar behavior
 ```
 
+### Phase 8.5: Plan Template Validation
+
+Validate the plan template structural rules if `references/plan-template.md` exists. This phase ensures the template stays self-consistent and includes all expected structural rules.
+
+#### 8.5.1 Template File Presence
+
+**Check:**
+- `plugins/[plugin-name]/references/plan-template.md` exists
+
+**Report:**
+```text
+Plan Template Validation
+------------------------
+[PASS] references/plan-template.md exists
+```
+
+Or:
+```text
+[SKIP] references/plan-template.md not found — skipping plan template validation
+```
+
+If the file is missing, skip the rest of Phase 8.5.
+
+#### 8.5.2 Structural Rules Enumeration
+
+Read the `## Structural Rules` section from `plan-template.md`. Parse the numbered rules list.
+
+**Check:**
+- At least 16 structural rules are defined (numbered 1-16)
+- No gaps in numbering (1, 2, ... N with no missing numbers)
+
+**Report:**
+```text
+[PASS] [N] structural rules defined (expected ≥16, no numbering gaps)
+```
+
+Or:
+```text
+[FAIL] Only [N] structural rules found (expected ≥16)
+       Missing rule numbers: [list]
+```
+
+#### 8.5.3 Key Rule Content Validation
+
+Verify that the following high-value structural rules are present and contain their required keywords. These rules were added in v9.0.0 and are load-bearing for plan generation and execution.
+
+| Rule | Required Keywords | Purpose |
+|------|-------------------|---------|
+| 13 | `EARS`, `WHEN`, `SHALL` | Behavioral acceptance criteria format |
+| 14 | `Definition of Done`, `BEGIN DOD`, `END DOD` | Runnable verification section |
+| 15 | `Execution Hints`, `Model Tier`, `sonnet` or `opus` or `haiku` | Sub-agent model routing |
+| 16 | `Unknowns Register`, `Severity`, `Open` or `Resolved` or `Accepted` | Epistemic uncertainty tracking |
+
+**Check for each rule:**
+1. The numbered rule exists in the structural rules list
+2. The rule text contains all required keywords (case-insensitive)
+
+**Report:**
+```text
+Structural Rule Content Validation
+-----------------------------------
+[PASS] Rule 13 — EARS notation guidance present
+[PASS] Rule 14 — Definition of Done markers present
+[PASS] Rule 15 — Execution Hints with model tiers present
+[PASS] Rule 16 — Unknowns Register with status values present
+```
+
+Or on failure:
+```text
+[FAIL] Rule 14 — Missing required keywords: BEGIN DOD, END DOD
+       Rule 14 text: "[actual rule text]"
+       Expected keywords: Definition of Done, BEGIN DOD, END DOD
+```
+
+#### 8.5.4 Sizing Constraints Check
+
+Verify that the `## Sizing Constraints` section exists and contains the expected limits.
+
+**Check:**
+- Section `## Sizing Constraints` exists
+- Contains "Maximum phases per plan" with a numeric limit
+- Contains "Maximum work items per phase" with a numeric limit
+
+**Report:**
+```text
+[PASS] Sizing constraints defined (max [N] phases, max [N] items/phase)
+```
+
+Or:
+```text
+[WARN] Sizing constraints section missing or incomplete
+```
+
+### Phase 8.6: Reference File Inventory
+
+Validate that expected reference files are present. The planning pipeline depends on specific reference files; missing files cause silent degradation rather than hard errors.
+
+#### 8.6.1 Core Reference Files
+
+**Check for these files relative to plugin root (`plugins/[plugin-name]/`):**
+
+| File | Purpose | Required Since |
+|------|---------|----------------|
+| `references/plan-template.md` | Plan generation template | v1.0.0 |
+| `references/common-patterns.md` | Pattern library index | v1.0.0 |
+| `references/anti-patterns.md` | Anti-pattern catalog for planning | v9.0.0 |
+| `references/adr-template.md` | Architecture Decision Record template | v9.0.0 |
+| `references/agents-md-template.md` | Cross-tool AGENTS.md generation | v9.0.0 |
+| `references/flag-consistency.md` | Flag naming conventions | v3.0.0 |
+| `references/validation-maturity-scorecard.md` | Scorecard criteria | v5.0.0 |
+
+**Report:**
+```text
+Reference File Inventory
+------------------------
+[PASS] references/plan-template.md
+[PASS] references/common-patterns.md
+[PASS] references/anti-patterns.md
+[PASS] references/adr-template.md
+[PASS] references/agents-md-template.md
+[PASS] references/flag-consistency.md
+[PASS] references/validation-maturity-scorecard.md
+
+All [N] expected reference files present.
+```
+
+Or on failure:
+```text
+[FAIL] references/anti-patterns.md — MISSING (required since v9.0.0)
+       This file is used by /ultra-plan and /create-plan for anti-pattern detection.
+       Create it manually or regenerate via the planning pipeline.
+```
+
+#### 8.6.2 Hook Reference Files
+
+**Check for hook reference directory:**
+
+| Path | Purpose | Required Since |
+|------|---------|----------------|
+| `references/hooks/` | Hook implementation guides | v9.0.0 |
+| `references/hooks/planning-stop-hook.md` | Stop event hook for incomplete plans | v9.0.0 |
+| `references/hooks/verification-post-edit-hook.md` | PostToolUse lint hook | v9.0.0 |
+| `references/hooks/session-start-hook.md` | Session startup plan status | v9.0.0 |
+
+**Report:**
+```text
+Hook References
+---------------
+[PASS] references/hooks/ directory exists ([N] files)
+[PASS] references/hooks/planning-stop-hook.md
+[PASS] references/hooks/verification-post-edit-hook.md
+[PASS] references/hooks/session-start-hook.md
+```
+
+Or:
+```text
+[WARN] references/hooks/ directory missing
+       Hook reference files provide implementation guides for planning pipeline hooks.
+       These are documentation references, not active hooks — their absence does not
+       affect plugin functionality.
+```
+
+#### 8.6.3 Pattern and Template Subdirectories
+
+**Check for subdirectories with at least one file each:**
+
+| Path | Purpose |
+|------|---------|
+| `references/patterns/` | Pattern library files |
+| `references/templates/` | Command/skill template files |
+
+**Report:**
+```text
+Reference Subdirectories
+------------------------
+[PASS] references/patterns/ ([N] files)
+[PASS] references/templates/ ([N] files)
+```
+
+Or:
+```text
+[WARN] references/patterns/ — directory missing or empty
+       Pattern files guide command/skill development.
+```
+
 ### Phase 9: Summary Report
 
 Generate a final validation summary.
@@ -757,15 +942,17 @@ Plugin Validation: [plugin-name]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Structure Validation     [PASS]
-Skill Structure          [PASS] (3 skills in correct format)
+Skill Structure          [PASS] ([N] skills in correct format)
 Marketplace Schema       [PASS]
-Frontmatter Validation   [PASS] (15 files checked)
+Frontmatter Validation   [PASS] ([N] files checked)
 Version Synchronization  [PASS]
 Content Validation       [WARN] (2 warnings)
 Namespace Collisions     [WARN] (1 collision)  # Only with --all
 Dependency Validation    [PASS]
 Hook Windows Compat      [PASS]  # Or [WARN] if bash-only hooks found
 Pattern Compliance       [PASS] (all commands checked)
+Plan Template            [PASS] ([N] rules validated)
+Reference Inventory      [PASS] ([N] expected files present)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -982,6 +1169,8 @@ Frontmatter Validation   [PASS]
 Version Synchronization  [PASS]
 Content Validation       [FAIL] (2 issues - strict mode)
 Pattern Compliance       [PASS]
+Plan Template            [PASS]
+Reference Inventory      [PASS]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1020,6 +1209,8 @@ When `--report` is specified, generate a detailed compliance report file:
 | Version Sync | PASS | 0 |
 | Content | WARN | 2 |
 | Pattern Compliance | PASS | 0 |
+| Plan Template | PASS | 0 |
+| Reference Inventory | PASS | 0 |
 
 **Overall:** PASS (with 2 warnings)
 
@@ -1033,7 +1224,7 @@ When `--report` is specified, generate a detailed compliance report file:
 
 ### Pattern Compliance
 
-All 21 commands follow pattern conventions:
+All [N] commands follow pattern conventions:
 - Required sections: 100% compliant
 - Output naming: 100% compliant
 - Error format: 100% compliant
@@ -1085,15 +1276,15 @@ Validating Plugin: personal-plugin
 Phase 1: Structure Validation
 -----------------------------
 [PASS] plugin.json exists
-[PASS] commands/ directory (15 files)
-[PASS] skills/ directory (3 skills)
+[PASS] commands/ directory ([N] files)
+[PASS] skills/ directory ([N] skills)
 [PASS] Skill structure valid (all use skills/[name]/SKILL.md format)
-[PASS] references/ directory (1 file)
+[PASS] references/ directory ([N] files)
 [PASS] Marketplace schema valid
 
 Phase 2: Frontmatter Validation
 -------------------------------
-Checking 16 markdown files...
+Checking [N] markdown files...
 [PASS] All frontmatter valid
 [PASS] All descriptions present
 [PASS] Commands: No forbidden 'name' fields
@@ -1110,6 +1301,23 @@ Phase 4: Content Validation
 [PASS] All markdown parses correctly
 [WARN] 2 code blocks missing language specifiers
 [PASS] All internal references valid
+
+Phase 8.5: Plan Template Validation
+------------------------------------
+[PASS] references/plan-template.md exists
+[PASS] [N] structural rules defined (expected ≥16, no numbering gaps)
+[PASS] Rule 13 — EARS notation guidance present
+[PASS] Rule 14 — Definition of Done markers present
+[PASS] Rule 15 — Execution Hints with model tiers present
+[PASS] Rule 16 — Unknowns Register with status values present
+[PASS] Sizing constraints defined
+
+Phase 8.6: Reference File Inventory
+-------------------------------------
+[PASS] All [N] expected reference files present
+[PASS] references/hooks/ ([N] files)
+[PASS] references/patterns/ ([N] files)
+[PASS] references/templates/ ([N] files)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Validation Summary
@@ -1148,17 +1356,21 @@ Plugin: personal-plugin
 -----------------------
 [PASS] Structure valid
 [PASS] Marketplace schema valid
-[PASS] Frontmatter valid (16 files)
+[PASS] Frontmatter valid ([N] files)
 [PASS] Versions synchronized
 [WARN] 2 content warnings
+[PASS] Plan template valid ([N] rules)
+[PASS] Reference inventory complete
 
 Plugin: bpmn-plugin
 -------------------
 [PASS] Structure valid
 [PASS] Marketplace schema valid
-[PASS] Frontmatter valid (2 files)
+[PASS] Frontmatter valid ([N] files)
 [PASS] Versions synchronized
 [PASS] Content valid
+[SKIP] No plan template (skipped)
+[SKIP] No references/ directory (skipped)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Overall Summary

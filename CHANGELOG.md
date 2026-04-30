@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v3.0.0, personal-plugin v9.0.0] - 2026-04-30
+
+### Added
+- **Plan template**: EARS acceptance criteria notation, runnable Definition of Done (`<!-- BEGIN/END DOD -->`), execution hints (model tier directives), unknowns register — structural rules 13-16
+- **Ultra-plan Phase 0**: Constitution check reads CLAUDE.md constraints, fills gaps via targeted interview, produces Pre-Plan Gates
+- **Ultra-plan sub-agent investigation**: >5 items triggers parallel Explore sub-agents for investigation
+- **Ultra-plan `--refresh`**: Drift detection mode compares existing plan against current code state
+- **Ultra-plan creative branching**: L4+ tasks get comparison tables across competing architectures
+- **Ultra-plan ADR generation**: L3+ tasks conditionally generate Architecture Decision Records
+- **Anti-patterns catalog**: 11 entries across Planning, Implementation, Verification categories (`references/anti-patterns.md`)
+- **ADR template**: Standard Architecture Decision Record format (`references/adr-template.md`)
+- **Hook recipes**: 3 example hooks — planning-stop warning, post-edit verification, session-start plan primer (`references/hooks/`)
+- **AGENTS.md template**: Cross-tool compatibility template for Codex, Cursor, Aider (`references/agents-md-template.md`)
+- Optional AGENTS.md generation in `/create-plan` and `/plan-improvements`
+- **Validate-plugin**: Phase 8.5 plan template structural rule validation (checks rules 13-16 keywords: EARS, DoD markers, Execution Hints, Unknowns Register)
+- **Validate-plugin**: Phase 8.6 reference file inventory check (core references, hook references, pattern/template subdirectories)
+
+### Changed
+- **Ultra-plan**: Rewritten from 5 phases to 7 phases (0-6) with constitution check, sub-agent support, ADR/drift/branching extensions
+- **Create-plan**: Phase 1.5 detects lint/typecheck/coverage commands; Phase 4 generates DoD sections and execution hints; unknowns routed to register
+- **Plan-improvements**: Phase 1 detects verification commands; Phase 3 generates DoD and execution hints; unknowns routed to register
+- **Implement-plan**: State file schema evolved — `verification_commands` array replaces single `test_command` (backward-compatible); testing subagent runs all DoD commands; `Depends On` parsing for parallelization; execution hints consumed for model tier; Risk Mitigation Status updated on completion; `Completed` header set during finalization
+- **Plan-gate**: `/ultraplan` references fixed to `/ultra-plan` with disambiguation notes
+- **Validate-plugin**: Replaced hardcoded example counts (15 files, 3 skills, 16 files, 21 commands) with `[N]` dynamic placeholders to prevent stale output drift
+
+### Fixed
+- `/ultraplan` vs `/ultra-plan` reference ambiguity in plan-gate and create-plan (9+ references corrected)
+
 ## [marketplace v2.0.0, personal-plugin v8.0.0, bpmn-plugin v4.0.0] - 2026-04-21
 
 ### Changed
