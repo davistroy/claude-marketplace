@@ -194,7 +194,7 @@ Transform recommendations into an actionable, phased implementation plan:
 
 **Estimated Complexity:** [S/M/L] (~N files, ~N LOC)
 **Dependencies:** [None | List of phases]
-**Parallelizable:** [Yes/No - can work items run concurrently]
+**Execution Mode:** [Sequential | Parallel | Worktree-Isolated]
 
 ### Goals
 - [Goal 1]

@@ -12,6 +12,7 @@
 # Implementation Plan
 
 **Generated:** [YYYY-MM-DD HH:MM:SS]
+**Completed:** [YYYY-MM-DD — set by /implement-plan on finalization; omit until then]
 **Based On:** [COMMAND-SPECIFIC: list of analyzed documents OR RECOMMENDATIONS.md]
 **Total Phases:** [N]
 **Estimated Total Effort:** ~[X] LOC across [Y] files
@@ -36,6 +37,15 @@
 | 2 | [Area] | [Deliverables] | M (~N files, ~N LOC) | Phase 1 | Parallel |
 | ... | ... | ... | ... | ... | ... |
 
+### Milestones (optional)
+
+[Group phases into logical deliverables when the plan has 4+ phases. Omit for small plans.]
+
+| Milestone | Phases | Description |
+|-----------|--------|-------------|
+| [MVP / v1 / Foundation] | 1–3 | [What is usable/shippable after these phases] |
+| [GA / Complete] | 1–N | [Full scope delivered] |
+
 <!-- BEGIN PHASES -->
 
 ---
@@ -44,8 +54,7 @@
 
 **Estimated Complexity:** [S/M/L] (~N files, ~N LOC)
 **Dependencies:** [None | List of phases]
-**Parallelizable:** [Yes/No - can work items run concurrently]
-**Execution Mode:** [Sequential | Parallel | Worktree-Isolated]  <!-- OPTIONAL: omit if not applicable -->
+**Execution Mode:** [Sequential | Parallel | Worktree-Isolated]
 
 ### Goals
 
@@ -56,8 +65,10 @@
 
 #### 1.1 [Work Item Title]
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
+<!-- On completion, /implement-plan decorates the heading: #### 1.1 Title ✅ Completed YYYY-MM-DD -->
 **Status: PENDING**
 **[COMMAND-SPECIFIC: "Requirement Refs:" or "Recommendation Ref:"]** [COMMAND-SPECIFIC: PRD §2.1, TDD §4.3 OR U1, A2, etc.]
+**Depends On:** [None | Item refs within this phase, e.g., 1.1, 1.2 — omit if no intra-phase dependencies]
 **Files Affected:**
 - `path/to/file1.ext` (create)
 - `path/to/file2.ext` (modify)
@@ -124,10 +135,12 @@
 
 ## Risk Mitigation
 
-| Risk | Likelihood | Impact | Mitigation Strategy |
-|------|------------|--------|---------------------|
-| [Risk 1] | Low/Med/High | Low/Med/High | [Strategy] |
-| [Risk 2] | Low/Med/High | Low/Med/High | [Strategy] |
+| Risk | Likelihood | Impact | Mitigation Strategy | Status |
+|------|------------|--------|---------------------|--------|
+| [Risk 1] | Low/Med/High | Low/Med/High | [Strategy] | Open |
+| [Risk 2] | Low/Med/High | Low/Med/High | [Strategy] | Open |
+
+<!-- Status values: Open (default at generation), Mitigated (risk addressed during implementation), Materialized (risk occurred — document impact in Notes) -->
 
 ---
 
@@ -165,6 +178,7 @@ Each command fills in `[COMMAND-SPECIFIC]` placeholders as follows:
 
 | Placeholder | `/create-plan` | `/plan-improvements` |
 |-------------|----------------|----------------------|
+| **Completed** | Set by `/implement-plan` on finalization; omit at generation time | Same |
 | **Based On** | List of analyzed documents (e.g., PRD.md, TDD.md) | RECOMMENDATIONS.md |
 | **Ref field name** | `Requirement Refs:` | `Recommendation Ref:` |
 | **Ref values** | Document section refs (PRD §2.1, TDD §4.3) | Recommendation IDs (U1, A2, etc.) |
@@ -179,12 +193,17 @@ Each command fills in `[COMMAND-SPECIFIC]` placeholders as follows:
 These rules apply to all plans regardless of source command:
 
 1. **Status values:** PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD]
-2. **Phase markers:** `<!-- BEGIN PHASES -->` and `<!-- END PHASES -->` bracket all phase sections
-3. **Table markers:** `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` bracket trailing tables
-4. **Work item fields (in order):** Status, Ref, Files Affected, Description, Tasks, Acceptance Criteria, Notes
-5. **Phase sections (in order):** Goals, Work Items, Testing Requirements, Completion Checklist
-6. **Phase header fields (in order):** Estimated Complexity, Dependencies, Parallelizable, Execution Mode (OPTIONAL)
-7. **Execution Mode values:** `Sequential` (default; items run in order), `Parallel` (items run concurrently in shared tree), `Worktree-Isolated` (each phase or item runs in a dedicated git worktree; use when parallel writes to shared paths risk collision). Field is OPTIONAL — existing plans without it parse and execute correctly.
+2. **Heading decoration on completion:** `#### N.M Title ✅ Completed YYYY-MM-DD` — set by `/implement-plan`, not by plan generators
+3. **Phase markers:** `<!-- BEGIN PHASES -->` and `<!-- END PHASES -->` bracket all phase sections
+4. **Table markers:** `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` bracket trailing tables
+5. **Work item fields (in order):** Status, Ref, Depends On (optional), Files Affected, Description, Tasks, Acceptance Criteria, Notes
+6. **Phase sections (in order):** Goals, Work Items, Testing Requirements, Completion Checklist
+7. **Phase header fields (in order):** Estimated Complexity, Dependencies, Execution Mode
+8. **Execution Mode values:** `Sequential` (default; items run in order), `Parallel` (items run concurrently in shared tree), `Worktree-Isolated` (each phase or item runs in a dedicated git worktree; use when parallel writes to shared paths risk collision)
+9. **Header fields (in order):** Generated, Completed (optional — set on finalization), Based On, Total Phases, Estimated Total Effort
+10. **Risk Mitigation Status values:** `Open` (default at generation), `Mitigated` (risk addressed), `Materialized` (risk occurred)
+11. **Milestones section:** Optional; include when plan has 4+ phases to group them into logical deliverables. Placed between Phase Summary Table and `<!-- BEGIN PHASES -->`
+12. **Backward compatibility:** Existing plans without `Completed`, `Depends On`, `Execution Mode`, `Milestones`, or Risk `Status` fields parse and execute correctly — all are additive
 
 ## Sizing Constraints
 
