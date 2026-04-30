@@ -435,8 +435,8 @@ Update ultra-plan's Solution Design (Phase 4 after renumber) and Summary Report 
 
 ### Work Items
 
-#### 4.1 Add ADR Generation for L3+ Tasks
-**Status: PENDING**
+#### 4.1 Add ADR Generation for L3+ Tasks ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis H4 — Architecture Decision Records
 **Files Affected:**
 - `plugins/personal-plugin/skills/ultra-plan/SKILL.md` (modify)
@@ -459,8 +459,8 @@ Add conditional ADR generation to ultra-plan's Solution Design phase. When the t
 
 ---
 
-#### 4.2 Add Drift Detection Mode
-**Status: PENDING**
+#### 4.2 Add Drift Detection Mode ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis H5 — Living spec / drift detection
 **Depends On:** 4.1
 **Files Affected:**
@@ -484,8 +484,8 @@ Add a `--refresh` invocation mode to ultra-plan. When invoked with `--refresh`, 
 
 ---
 
-#### 4.3 Add Creative Branching for L4+ Tasks
-**Status: PENDING**
+#### 4.3 Add Creative Branching for L4+ Tasks ✅ Completed 2026-04-30
+**Status: COMPLETE [2026-04-30]**
 **Requirement Refs:** Gap Analysis N4 — Branching for creative exploration
 **Depends On:** 4.1
 **Files Affected:**

@@ -22,7 +22,67 @@ The user provides one or more of:
 
 If the input is ambiguous or incomplete, ask clarifying questions before starting Phase 0.
 
+## Arguments
+
+| Argument | Description |
+|----------|-------------|
+| (none) | Default mode: run the full rigid workflow (Phases 0-6) |
+| `--refresh` | Drift detection mode: compare existing plan against current code state (see below) |
+
+## Drift Detection Mode (`--refresh`)
+
+When invoked with `--refresh`, ultra-plan skips the normal Phase 0-6 workflow and instead checks whether an existing plan still matches the codebase.
+
+**Prerequisites:**
+- IMPLEMENTATION_PLAN.md (or `--input <path>`) must exist
+- If no plan file exists, report: "No implementation plan found. Run `/ultra-plan` to create one, or specify a path with `--refresh --input <path>`."
+
+**Workflow:**
+
+### Step 1: Read the Plan
+
+Read the plan file. Extract all work items with their:
+- Files Affected (expected file paths)
+- Acceptance Criteria (expected behaviors)
+- Status (PENDING, IN_PROGRESS, COMPLETE)
+
+### Step 2: Check Each Item Against Code
+
+For each work item (focus on COMPLETE items — they're most likely to drift):
+
+1. **File existence:** Do the listed files still exist? Were any renamed or deleted?
+2. **Acceptance criteria:** For COMPLETE items, do the acceptance criteria still hold? (Read the relevant code and check.)
+3. **New code:** Has code been added in the affected areas that the plan doesn't account for?
+
+For large plans (>8 items), use Explore sub-agents to parallelize the checks.
+
+### Step 3: Produce Drift Report
+
+| Work Item | Plan Status | Drift Status | Evidence | Recommended Action |
+|-----------|-------------|--------------|----------|-------------------|
+| [N.M] | COMPLETE | Accurate | [Files unchanged, criteria hold] | None |
+| [N.M] | COMPLETE | Drifted | [File X was refactored; criterion Y no longer holds] | Update plan or re-verify |
+| [N.M] | PENDING | Obsolete | [The problem was fixed by a different approach] | Remove from plan |
+| [N.M] | — | New | [New file X.md was added, not in any plan item] | Add to plan or document as out-of-scope |
+
+**Drift status values:**
+- **Accurate**: Code matches what the plan describes
+- **Drifted**: Code has diverged from the plan's expectations
+- **Obsolete**: Plan item is no longer relevant (problem solved differently, feature removed, etc.)
+- **New**: Code or files exist that the plan doesn't account for
+
+### Step 4: Recommendations
+
+Based on the drift report:
+- If drift is minimal (≤2 items), suggest targeted plan updates
+- If drift is significant (>30% of items), suggest re-running `/ultra-plan` from scratch
+- For PENDING items that are now obsolete, suggest removing them
+
+After the drift report, return to normal mode — do NOT proceed with Phase 0-6.
+
 ## Phase 0 -- Constitution Check
+
+> **Note:** Phase 0-6 below is the default workflow. If invoked with `--refresh`, skip to the Drift Detection Mode section above.
 
 Before investigating any items, establish the project's non-negotiable constraints. These constraints gate every subsequent phase -- no proposed solution may violate them.
 
@@ -159,6 +219,48 @@ Design integrated changes for each change set from Phase 3.
 
 See `references/anti-patterns.md` for the full catalog with detection heuristics and mitigation strategies.
 
+### ADR Generation (L3+ tasks)
+
+For each change set that involves choosing between fundamentally different approaches (not minor implementation variants), generate an Architecture Decision Record:
+
+**Trigger question:** "Does this change set involve an architectural decision that should outlive the plan — a choice between fundamentally different approaches where the reasoning matters for future developers?"
+
+**If yes:**
+1. Create `docs/adr/ADR-NNNN-[slug].md` using the template from `references/adr-template.md`
+2. Populate Context from Phase 2 investigation findings
+3. Populate Decision from the chosen approach in Phase 4
+4. Populate Alternatives from the rejected approaches with specific rejection reasons
+5. Set Status to "Proposed"
+6. List the generated ADR in the Phase 5 Summary Report
+
+**Skip conditions:** Skip ADR generation when the task is L0-L2 (per plan-gate classification) AND the user hasn't explicitly requested it. Simple implementation decisions (naming, file organization, configuration values) don't need ADRs.
+
+### Creative Branching (L4+ tasks)
+
+For L4+ tasks (greenfield architecture, multi-system integration, fundamental redesign) where **2-3 fundamentally different valid approaches** exist, generate a comparison table before committing to one approach.
+
+**Trigger question:** "Are there 2+ fundamentally different architectures that could solve this, where the choice has lasting consequences?" If yes, and the task is L4+ scope, branch.
+
+**Skip conditions:** Skip when (a) the task is L0-L3, (b) there is only one viable approach, or (c) the differences between approaches are minor implementation variants rather than fundamentally different architectures.
+
+**Comparison table format:**
+
+| Dimension | [Approach A] | [Approach B] | [Approach C] |
+|-----------|-------------|-------------|-------------|
+| Architecture | [High-level design] | [High-level design] | [High-level design] |
+| Estimated Effort | [S/M/L] | [S/M/L] | [S/M/L] |
+| Risk Level | [Low/Med/High] | [Low/Med/High] | [Low/Med/High] |
+| Pros | [Key advantages] | [Key advantages] | [Key advantages] |
+| Cons | [Key disadvantages] | [Key disadvantages] | [Key disadvantages] |
+| Best When | [Conditions favoring this approach] | [Conditions] | [Conditions] |
+
+**After presenting the table:**
+
+1. Ask the user to pick an approach (or suggest a hybrid)
+2. Generate the solution design for the chosen approach
+3. Generate an ADR documenting the decision (leverages the ADR Generation section above)
+4. Rejected approaches become "Alternatives Considered" in the ADR
+
 ## Phase 5 -- Summary Report
 
 Deliver a structured summary containing all of the following:
@@ -206,6 +308,11 @@ Deliver a structured summary containing all of the following:
 - All runnable verification commands specified per change set in Phase 4
 - These feed into the plan's Definition of Done (Runnable) section when generated via create-plan
 - Organized by change set: list the Check name and Command for each
+
+### Generated ADRs (if any)
+- List of ADR files generated during Phase 4
+- Each with: ADR number, title, status (Proposed), and the change set it documents
+- Note: ADRs are generated only for L3+ tasks; this section may be empty for smaller scopes
 
 ---
 
