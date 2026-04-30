@@ -150,7 +150,16 @@ The state file is the **ground truth** for execution progress. It persists minim
     "project_description": "React dashboard app with REST API backend",
     "tech_stack": "TypeScript, React, Jest",
     "test_command": "npm test",
+    "verification_commands": [
+      {"name": "tests", "command": "npm test", "pass_criteria": "exit code 0"},
+      {"name": "lint", "command": "eslint src/", "pass_criteria": "exit code 0"},
+      {"name": "typecheck", "command": "tsc --noEmit", "pass_criteria": "exit code 0"}
+    ],
     "conventions": "kebab-case files, ESM imports"
+  },
+  "execution_hints": {
+    "default_model": "sonnet",
+    "phase_overrides": {"Phase 2": "opus"}
   },
   "last_good_sha": "def5678",
   "checkpoints": {
@@ -282,10 +291,12 @@ Launch an Agent (subagent_type: "general-purpose", prompt: "...") to read `PLAN_
 Prompt the Agent to return ONLY:
 - The **first incomplete phase**: phase name, all work items in that phase (item number + brief description each)
 - Parallelization info for that phase: which items are independent (can run in parallel) vs which have dependencies
-- A **full parallelization map** for ALL phases: for each phase, list parallel groups and sequential items (this is compact metadata, not full plan content)
+- A **full parallelization map** for ALL phases: for each phase, list parallel groups and sequential items (this is compact metadata, not full plan content). Parse `**Depends On:**` fields from each work item — items with no intra-phase dependencies can run in parallel; items that declare `Depends On: [other item]` must run after those items complete. Use these dependencies to build a more accurate parallelization map than file-based heuristics alone.
+- **Verification commands**: Parse `### Definition of Done (Runnable)` sections from the plan (between `<!-- BEGIN DOD -->` and `<!-- END DOD -->` markers). Extract each entry as `{name, command, pass_criteria}`. If no DoD sections exist, fall back to detecting the test command from project config files.
+- **Execution hints**: Parse the `### Execution Hints` section (if present) for model tier directives (`sonnet`, `opus`, `haiku`), context budget guidance, and parallelization notes. Return as `{ default_model, phase_overrides: { "Phase N": "model_tier", ... } }`.
 - **Project context** (read from CLAUDE.md, package.json, pyproject.toml, Makefile, or similar config files):
   - `tech_stack`: primary language/framework (e.g., "TypeScript, React, Jest")
-  - `test_command`: how to run tests (e.g., "npm test", "pytest")
+  - `test_command`: how to run tests (e.g., "npm test", "pytest") — still detected as a legacy fallback
   - `conventions`: 3-5 key conventions (e.g., "kebab-case files, ESM imports, SKILL.md uppercase")
   - `project_description`: one-sentence summary of what this project is (e.g., "A Claude Code plugin marketplace repo containing multiple plugins")
 - Current progress summary (1-2 sentences)
@@ -309,7 +320,16 @@ cat > .implement-plan-state.json << 'EOF'
     "project_description": "[from subagent]",
     "tech_stack": "[from subagent]",
     "test_command": "[from subagent]",
+    "verification_commands": [
+      {"name": "tests", "command": "[detected test command]", "pass_criteria": "exit code 0"},
+      {"name": "lint", "command": "[detected lint command, if any]", "pass_criteria": "exit code 0"},
+      {"name": "typecheck", "command": "[detected typecheck command, if any]", "pass_criteria": "exit code 0"}
+    ],
     "conventions": "[from subagent]"
+  },
+  "execution_hints": {
+    "default_model": "sonnet",
+    "phase_overrides": {}
   },
   "last_good_sha": null,
   "checkpoints": {},
@@ -359,6 +379,8 @@ This ensures that if the session is interrupted during implementation, the resum
 
 ##### Step A1: IMPLEMENTATION (Agent)
 
+If `execution_hints.phase_overrides` in the state file specifies a model tier for the current phase, include `model: "[tier]"` in the Agent tool parameters (e.g., `model: "opus"`). Otherwise, use the `execution_hints.default_model` value if set. If no execution hints exist, omit the `model` parameter (default behavior).
+
 Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
 > **Project Context:** [project_description]. Tech stack: [tech_stack]. Test command: [test_command]. Conventions: [conventions].
@@ -368,6 +390,7 @@ Launch an Agent (subagent_type: "general-purpose") with this prompt:
 > Read [PLAN_FILE]. Implement work item: **[ITEM — phase name, item number, brief description from startup or previous iteration]**.
 > Complete ALL tasks in this work item.
 > When implementation is complete, also update [PLAN_FILE]: change this item's `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`).
+> After completing the work item, check if [PLAN_FILE]'s Risk Mitigation table has any risk entries related to this work item. If so, update the risk's `Status` column from `Open` to `Mitigated`.
 > Return ONLY: (1) files created/modified, (2) implementation summary (max 3 sentences), (3) DONE or error description.
 
 (Populate `[project_description]`, `[tech_stack]`, `[test_command]`, and `[conventions]` from the `project_context` object in `.implement-plan-state.json`.)
@@ -376,19 +399,26 @@ Wait for completion. Record only: files changed, success/failure status.
 
 ##### Step A2: TESTING (Agent)
 
+Before launching the testing subagent, read `verification_commands` from `.implement-plan-state.json`'s `project_context`. **Backward compatibility:** If the state file has `test_command` but no `verification_commands`, wrap it as `[{"name": "tests", "command": "[test_command value]", "pass_criteria": "exit code 0"}]`.
+
 Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
-> **Project Context:** [project_description]. Test command: [test_command].
+> **Project Context:** [project_description]. Verification commands: [list all verification_commands from state file — name, command, pass_criteria for each].
 >
-> Run ALL project tests. If failures occur:
-> 1. Diagnose root cause
-> 2. Fix the issue
-> 3. Re-run ALL tests
-> 4. Repeat until ALL tests pass
-> 5. If after 3 fix attempts the same test(s) still fail, STOP and return TESTS_STUCK with: failing test names, error messages, and what you tried.
+> Run ALL of the following verification commands and report pass/fail per command:
+> [For each entry in verification_commands:]
+> - **[name]**: `[command]` — pass criteria: [pass_criteria]
 >
-> When all tests pass, return:
-> - Test summary (pass count, any issues found)
+> For each command:
+> 1. Run the command
+> 2. Check the result against the pass criteria
+> 3. If it fails, diagnose root cause and fix the issue
+> 4. Re-run the failed command
+> 5. Repeat until it passes or 3 fix attempts are exhausted
+> If after 3 fix attempts the same command(s) still fail, STOP and return TESTS_STUCK with: failing command names, error messages, and what you tried.
+>
+> When all verification commands pass, return:
+> - Per-command results (command name, pass/fail, output summary)
 > - For each issue fixed: problem, solution, prevention tip (1 line each)
 > - ALL_TESTS_PASS confirmation
 
@@ -480,6 +510,8 @@ Before launching parallel implementation subagents, mark ALL items in the batch 
 
 ##### Step B1: PARALLEL IMPLEMENTATION (Multiple Agents)
 
+If `execution_hints.phase_overrides` in the state file specifies a model tier for the current phase, include `model: "[tier]"` in each Agent tool invocation (e.g., `model: "opus"`). Otherwise, use the `execution_hints.default_model` value if set. If no execution hints exist, omit the `model` parameter (default behavior).
+
 For each independent work item, launch an Agent (subagent_type: "general-purpose") with `run_in_background: true`:
 
 > **Project Context:** [project_description]. Tech stack: [tech_stack]. Test command: [test_command]. Conventions: [conventions].
@@ -489,6 +521,7 @@ For each independent work item, launch an Agent (subagent_type: "general-purpose
 > Read [PLAN_FILE]. Implement work item: **[ITEM N.M — phase name, item number, brief description]**.
 > Complete ALL tasks in this work item.
 > When implementation is complete, also update [PLAN_FILE]: change this item's `**Status:**` field to `COMPLETE [YYYY-MM-DD]` (today's date), and add the completion date to the heading (e.g., `#### N.M Title ✅ Completed YYYY-MM-DD`).
+> After completing the work item, check if [PLAN_FILE]'s Risk Mitigation table has any risk entries related to this work item. If so, update the risk's `Status` column from `Open` to `Mitigated`.
 > Return ONLY: (1) files created/modified, (2) implementation summary (max 3 sentences), (3) DONE or error description.
 
 (Populate `[project_description]`, `[tech_stack]`, `[test_command]`, and `[conventions]` from the `project_context` object in `.implement-plan-state.json`.)
@@ -511,19 +544,26 @@ If any agent fails, handle its work item sequentially in a follow-up step.
 
 ##### Step B3: TESTING (Single Agent)
 
-After ALL parallel implementations complete, launch a single testing Agent:
+After ALL parallel implementations complete, read `verification_commands` from `.implement-plan-state.json`'s `project_context`. **Backward compatibility:** If the state file has `test_command` but no `verification_commands`, wrap it as `[{"name": "tests", "command": "[test_command value]", "pass_criteria": "exit code 0"}]`.
 
-> **Project Context:** [project_description]. Test command: [test_command].
+Launch a single testing Agent:
+
+> **Project Context:** [project_description]. Verification commands: [list all verification_commands from state file — name, command, pass_criteria for each].
 >
-> Run ALL project tests. If failures occur:
-> 1. Diagnose root cause
-> 2. Fix the issue
-> 3. Re-run ALL tests
-> 4. Repeat until ALL tests pass
-> 5. If after 3 fix attempts the same test(s) still fail, STOP and return TESTS_STUCK with: failing test names, error messages, and what you tried.
+> Run ALL of the following verification commands and report pass/fail per command:
+> [For each entry in verification_commands:]
+> - **[name]**: `[command]` — pass criteria: [pass_criteria]
 >
-> When all tests pass, return:
-> - Test summary (pass count, any issues found)
+> For each command:
+> 1. Run the command
+> 2. Check the result against the pass criteria
+> 3. If it fails, diagnose root cause and fix the issue
+> 4. Re-run the failed command
+> 5. Repeat until it passes or 3 fix attempts are exhausted
+> If after 3 fix attempts the same command(s) still fail, STOP and return TESTS_STUCK with: failing command names, error messages, and what you tried.
+>
+> When all verification commands pass, return:
+> - Per-command results (command name, pass/fail, output summary)
 > - For each issue fixed: problem, solution, prevention tip (1 line each)
 > - ALL_TESTS_PASS confirmation
 
@@ -758,7 +798,7 @@ Launch an Agent to review and update all documentation:
 
 > Review and update all documentation:
 > - README.md: ensure accuracy, update any outdated sections
-> - [PLAN_FILE]: verify all items marked complete
+> - [PLAN_FILE]: verify all items marked complete. Set the `**Completed:**` header field in the plan file to today's date (YYYY-MM-DD). The field is in the plan header area (after `**Generated:**`, before `**Based On:**`). If the `**Completed:**` field does not exist, add it on the line after `**Generated:**`.
 > - PROGRESS.md (if it exists): add completion summary at end
 > - LEARNINGS.md (if it exists): synthesize all entries into a SUMMARY section at the top (max 10 bullet points)
 >
