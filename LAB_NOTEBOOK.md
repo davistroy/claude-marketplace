@@ -54,6 +54,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C7 | Update implement-plan.md to update Risk Mitigation Status during execution (A4) | 2026-04-30 | 2026-04-30 | E003 |
 | C8 | Execute gap-analysis IMPLEMENTATION_PLAN.md — 6 phases, 17 items, all complete (A5) | 2026-04-30 | 2026-04-30 | E003 |
 | C9 | Fix /ultraplan → /ultra-plan reference ambiguity in plan-gate and create-plan (A6) | 2026-04-30 | 2026-04-30 | E003 |
+| C10 | Update validate-plugin: fix stale counts, add plan template + reference inventory validation | 2026-04-30 | 2026-04-30 | E004 |
 
 ---
 
@@ -241,6 +242,49 @@ All 17 work items completed. All pre-commit hooks passed (plugin validation, fro
 **Follow-ups:**
 - A7: Reinstall plugin to sync all changes
 - A8: Bump personal-plugin version to 9.0.0
+
+---
+
+### Entry 004 — Validate-Plugin Full Update [command] [config]
+**Date:** 2026-04-30
+**Environment:** Windows 11, Claude Code CLI, repo at `bbb2889` (feature/gap-analysis-implementation branch), personal-plugin v9.0.0 (uncommitted)
+**Status:** COMPLETE
+**Duration:** ~15 minutes
+
+**Objective:** Update `/validate-plugin` command with three improvements: (1) fix hardcoded stale example counts, (2) add plan template structural rule validation, (3) add reference file inventory check.
+
+**Hypothesis:** The v9.0.0 pipeline changes added 4 structural rules (13-16) to plan-template.md and created 6 new reference files (anti-patterns.md, adr-template.md, agents-md-template.md, 3 hook references). validate-plugin's example outputs hardcode "15 files" and "3 skills" from pre-v8.0.0 when the actual counts are 24 commands and 24 skills. New validation phases will catch future reference file drift early. Success criteria: all hardcoded counts replaced with `[N]` placeholders; Phase 8.5 validates rules 13-16 by keyword; Phase 8.6 inventories 7 core + 3 hook + 2 subdirectory reference paths.
+
+**Rollback Plan:** `git checkout -- plugins/personal-plugin/commands/validate-plugin.md CHANGELOG.md`
+
+**Actions & Results:**
+
+1. Read full validate-plugin.md (1176 lines across 9 phases + modes)
+2. Replaced 9 hardcoded counts with `[N]` dynamic placeholders:
+   - "15 files" → "[N] files" (3 occurrences)
+   - "3 skills" → "[N] skills" (3 occurrences)
+   - "16 markdown files" → "[N] markdown files" (2 occurrences)
+   - "21 commands" → "[N] commands" (1 occurrence)
+   - "1 file" → "[N] files" (1 occurrence in references/ check)
+3. Added Phase 8.5: Plan Template Validation
+   - 8.5.1: Template file presence (graceful skip if absent)
+   - 8.5.2: Rule enumeration (≥16 rules, no numbering gaps)
+   - 8.5.3: Key rule content validation (rules 13-16 keyword checks)
+   - 8.5.4: Sizing constraints section check
+4. Added Phase 8.6: Reference File Inventory
+   - 8.6.1: 7 core reference files with "Required Since" provenance
+   - 8.6.2: 3 hook reference files + directory check
+   - 8.6.3: patterns/ and templates/ subdirectory presence
+5. Updated Phase 9 summary example, --strict example, --report example, --all example, and full usage example to include new phase rows
+6. Hardcoded command list in namespace collision example replaced with dynamic discovery note
+7. Updated CHANGELOG.md v9.0.0 entry with 2 Added + 1 Changed items
+
+**What Worked:**
+- Dynamic `[N]` placeholders prevent stale count drift permanently — no more maintenance burden from adding commands/skills
+- Phase 8.5 keyword-based validation is resilient to rule text rewording while catching structural omissions
+- Phase 8.6 "Required Since" column documents provenance — helps distinguish v1.0.0-era core files from v9.0.0 additions
+
+**Decision:** Used `[N]` placeholder notation rather than computing actual dynamic counts in examples. Examples exist to show FORMAT, not data — dynamic counts would become stale again on the next change. `[N]` makes it clear the value is computed at runtime.
 
 ---
 
