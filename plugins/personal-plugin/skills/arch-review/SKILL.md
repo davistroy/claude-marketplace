@@ -33,11 +33,14 @@ Validate `TARGET_PATH` exists and is readable. If `--focus` contains an unrecogn
 
 ## Step 1 — Output Directory Setup
 
-Create the output structure by running:
+After parsing `TARGET_PATH` above, create the output structure using the **Bash tool** (substitute the actual path — do not pass the literal `${TARGET_PATH}` string):
 
 ```bash
-!`mkdir -p <TARGET_PATH>/arch-review/findings && mkdir -p <TARGET_PATH>/arch-review/reports && echo '{}' > <TARGET_PATH>/arch-review/findings/.meta.json && echo "Directories ready"`
+mkdir -p "${TARGET_PATH}/arch-review/findings" "${TARGET_PATH}/arch-review/reports"
+[ "$WRITE_META" = "true" ] && echo '{}' > "${TARGET_PATH}/arch-review/findings/.meta.json"
 ```
+
+> Do NOT use the `!`...`` slash-command shell-injection syntax here — that runs at command parse time, before `TARGET_PATH` has been parsed from `$ARGUMENTS`, so the placeholder reaches bash unsubstituted and fails with a redirection-syntax error. Always invoke the Bash tool from the model with the resolved path.
 
 ---
 
@@ -84,7 +87,7 @@ Write `<TARGET_PATH>/arch-review/intake.md`:
 
 Inject the intake content, then immediately spawn all selected agents simultaneously using the Task tool. Do NOT wait for one to finish before spawning the next.
 
-For each agent in scope (all 9 unless `--focus` is set), construct the task prompt using the intake content injected via `!`cat <TARGET_PATH>/arch-review/intake.md``:
+For each agent in scope (all 9 unless `--focus` is set), construct the task prompt below. Use the **Read tool** to load `${TARGET_PATH}/arch-review/intake.md` and the agent file, then inline both contents into the prompt before dispatch:
 
 ```text
 You are the [ROLE] on an architecture review team.
@@ -96,14 +99,14 @@ isolation: worktree
 ---
 
 ## Review Target
-Path: <TARGET_PATH>
+Path: [resolved TARGET_PATH]
 
 ## Intake Summary
-!`cat <TARGET_PATH>/arch-review/intake.md`
+[PASTE FULL CONTENTS OF ${TARGET_PATH}/arch-review/intake.md HERE]
 
 ## Output Paths
-- Findings: <TARGET_PATH>/arch-review/findings/<agent-name>.md
-- Meta: <TARGET_PATH>/arch-review/findings/.meta.json
+- Findings: [resolved TARGET_PATH]/arch-review/findings/<agent-name>.md
+- Meta: [resolved TARGET_PATH]/arch-review/findings/.meta.json
 
 Begin your review now. Be thorough. Flag uncertainty explicitly rather than omitting findings.
 ```
@@ -128,11 +131,7 @@ Each agent runs in `isolation: worktree` to prevent concurrent `.meta.json` writ
 
 ## Step 4 — Coverage Assessment and Conflict Detection
 
-After all spawned agents complete, read the meta file:
-
-```bash
-!`cat <TARGET_PATH>/arch-review/findings/.meta.json`
-```
+After all spawned agents complete, use the **Read tool** to load `${TARGET_PATH}/arch-review/findings/.meta.json` (substitute the resolved path).
 
 1. Note any agent with Low/Medium confidence or significant tool gaps
 2. Read all findings files
