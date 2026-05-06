@@ -1,7 +1,7 @@
 {
   "name": "slide-gen",
   "description": "AI-assisted presentation generation pipeline: research, outline, draft, optimize, validate graphics, generate images, and build PowerPoint files",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "Troy Davis",
     "email": "troy.e.davis@gmail.com"
