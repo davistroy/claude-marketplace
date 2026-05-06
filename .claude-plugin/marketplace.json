@@ -25,6 +25,14 @@
       "version": "4.0.0",
       "category": "workflow",
       "tags": ["bpmn","workflow","xml","diagram","process-modeling","drawio"]
+    },
+    {
+      "name": "slide-gen",
+      "source": "./plugins/slide-gen",
+      "description": "AI-assisted presentation generation pipeline: 7-step workflow from topic research to finished PowerPoint using Claude and Gemini",
+      "version": "1.0.0",
+      "category": "productivity",
+      "tags": ["presentation","powerpoint","slides","ai","pipeline","claude","gemini"]
     }
   ]
 }
