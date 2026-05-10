@@ -46,7 +46,7 @@
 | All (default) | `sonnet` | Standard | [Override per-phase below if needed] |
 | [Phase N] | `opus` | Extended | [Why this phase needs a more capable model] |
 
-<!-- Model tier values: sonnet (default), opus (complex/architectural), haiku (simple/mechanical) — maps to Agent tool `model` parameter -->
+<!-- Model tier values: sonnet (default), opus (complex/architectural), haiku (simple/mechanical) — maps to named agents haiku-implementer / sonnet-implementer / opus-implementer in .claude/agents/. Phase-level hints supplement per-item Model Tier fields; per-item takes priority. -->
 <!-- Context budget: Standard (default), Extended (large files or complex reasoning), Minimal (simple edits) -->
 
 ### Milestones (optional)
@@ -79,6 +79,7 @@
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
 <!-- On completion, /implement-plan decorates the heading: #### 1.1 Title ✅ Completed YYYY-MM-DD -->
 **Status: PENDING**
+**Model Tier: sonnet** <!-- haiku | sonnet | opus — set by planner at plan-time; implement-plan dispatches to haiku-implementer / sonnet-implementer / opus-implementer in .claude/agents/ -->
 **[COMMAND-SPECIFIC: "Requirement Refs:" or "Recommendation Ref:"]** [COMMAND-SPECIFIC: PRD §2.1, TDD §4.3 OR U1, A2, etc.]
 **Depends On:** [None | Item refs within this phase, e.g., 1.1, 1.2 — omit if no intra-phase dependencies]
 **Files Affected:**
@@ -239,7 +240,7 @@ These rules apply to all plans regardless of source command:
 2. **Heading decoration on completion:** `#### N.M Title ✅ Completed YYYY-MM-DD` — set by `/implement-plan`, not by plan generators
 3. **Phase markers:** `<!-- BEGIN PHASES -->` and `<!-- END PHASES -->` bracket all phase sections
 4. **Table markers:** `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` bracket trailing tables
-5. **Work item fields (in order):** Status, Ref, Depends On (optional), Files Affected, Description, Tasks, Acceptance Criteria, Notes
+5. **Work item fields (in order):** Status, Model Tier, Ref, Depends On (optional), Files Affected, Description, Tasks, Acceptance Criteria, Notes
 6. **Phase sections (in order):** Goals, Work Items, Testing Requirements, Completion Checklist, Definition of Done (optional)
 7. **Phase header fields (in order):** Estimated Complexity, Dependencies, Execution Mode
 8. **Execution Mode values:** `Sequential` (default; items run in order), `Parallel` (items run concurrently in shared tree), `Worktree-Isolated` (each phase or item runs in a dedicated git worktree; use when parallel writes to shared paths risk collision)
@@ -249,8 +250,9 @@ These rules apply to all plans regardless of source command:
 12. **Backward compatibility:** Existing plans without `Completed`, `Depends On`, `Execution Mode`, `Milestones`, `Execution Hints`, `Definition of Done`, or Risk `Status` fields parse and execute correctly — all are additive
 13. **EARS notation:** Behavioral acceptance criteria SHOULD use EARS format (`WHEN [condition] THEN [component] SHALL [behavior]`). Binary/threshold criteria (pass/fail, coverage ≥N%) use simple checkbox format. EARS is recommended, not required — existing plans without it parse correctly
 14. **Definition of Done (Runnable):** Optional per-phase section after Completion Checklist, bracketed by `<!-- BEGIN DOD -->` and `<!-- END DOD -->`. Columns: Check, Command, Pass Criteria. Populated by plan generators from detected project infrastructure (test runner, linter, typechecker, coverage tool). Omit entirely when no verification commands are detected — never populate with empty placeholders. `/implement-plan` executes these commands to verify phase completion
-15. **Execution Hints:** Optional section between Phase Summary Table and Milestones. Columns: Phase, Model Tier (`sonnet`/`opus`/`haiku` — maps to Agent tool `model` parameter), Context Budget (Standard/Extended/Minimal), Notes. Hints are advisory; model tier can be mechanically enforced by implement-plan via the Agent tool's `model` parameter
+15. **Execution Hints:** Optional section between Phase Summary Table and Milestones. Columns: Phase, Model Tier (`sonnet`/`opus`/`haiku`), Context Budget (Standard/Extended/Minimal), Notes. Phase-level hints are advisory and supplementary — per-item `**Model Tier:**` fields take precedence. `implement-plan` dispatches to named agents (`haiku-implementer` / `sonnet-implementer` / `opus-implementer` in `.claude/agents/`), falling back to `Agent(model: "[tier]")` if the named agents are not installed
 16. **Unknowns Register:** Optional section between Risk Mitigation and Success Metrics (inside `<!-- BEGIN/END TABLES -->` markers). Columns: ID, Unknown, Severity (High/Medium/Low), Affects (phase/item refs), Resolution Strategy, Status (Open/Resolved [date]/Accepted). High-severity unknowns should be resolved before the affected phase begins. Distinct from Risk Mitigation: unknowns are knowledge gaps, risks are probabilistic events
+17. **Model Tier field:** Every work item SHOULD have `**Model Tier: haiku|sonnet|opus**` (default: `sonnet`). Rubric — haiku: deterministic transforms (renames, format conversions, regex edits, boilerplate from a clear spec, classification, lookups, small chunk summarization); sonnet: standard coding (tests, single-file refactors, docs, bug fixes, code review); opus: judgment-heavy (architectural choices, multi-file refactors, ambiguous requirements, cross-cutting debugging, design synthesis). `implement-plan` dispatches to the named agent `haiku-implementer` / `sonnet-implementer` / `opus-implementer` in `.claude/agents/`. For borderline items, choose the lower tier and state an escalation criterion in Notes. Backward-compatible: items without Model Tier default to `sonnet`
 
 ## Sizing Constraints
 
