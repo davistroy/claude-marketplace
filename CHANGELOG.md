@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v3.1.0, personal-plugin v9.1.0, slide-gen v1.0.1] - 2026-05-10
+
+### Added
+- **slide-gen plugin**: 8-skill AI presentation pipeline — research, outline, draft, optimize, validate-graphics, generate-images, build, and full-workflow orchestrator (`/sg-research`, `/sg-outline`, `/sg-draft`, `/sg-optimize`, `/sg-validate-graphics`, `/sg-generate-images`, `/sg-build`, `/sg-full-workflow`)
+- **Model routing in planning pipeline**: Per-task `**Model Tier:**` field (haiku/sonnet/opus) in plan template; `create-plan` and `plan-improvements` assign tiers using rubric at plan-time; `implement-plan` dispatches to named sub-agents (`haiku-implementer` / `sonnet-implementer` / `opus-implementer`) with escalation pattern
+- **Named implementer agents** in `.claude/agents/`: model pinned in frontmatter, plans reference agent name (not model) — swap models globally without touching plans
+- **Plan template Rule 17**: Model Tier field with full haiku/sonnet/opus rubric and backward-compatibility guarantee (items without Model Tier default to `sonnet`)
+
+### Changed
+- **Implement-plan**: Per-item `**Model Tier:**` takes priority over phase-level execution hints; state file adds `item_model_tiers` map; escalations logged to LEARNINGS.md with single re-dispatch at next tier
+- **Create-plan Phase 3.1**: Step 5 assigns model tier with rubric and escalation criterion guidance; Phase 3.2 Execution Hints updated to position per-item tiers as primary, phase hints supplementary
+- **Plan-improvements**: Work item construction now includes Model Tier as field 2 with inline rubric
+- **README**: Added slide-gen plugin section; added `.claude/agents/` to repository structure diagram
+- **CLAUDE.md**: Added slide-gen to install commands and repository structure; added `.claude/agents/` section; updated references list with v9.0.0 additions
+
+### Fixed
+- **arch-review**: Replaced parse-time bash hooks with model-driven Bash/Read calls (removes hook dependency from review workflow)
+
 ## [marketplace v3.0.0, personal-plugin v9.0.0] - 2026-04-30
 
 ### Added

@@ -35,6 +35,7 @@ Claude Code plugin marketplace. Multiple plugins extending Claude Code with spec
 /plugin marketplace add davistroy/claude-marketplace
 /plugin install personal-plugin@troys-plugins
 /plugin install bpmn-plugin@troys-plugins
+/plugin install slide-gen@troys-plugins
 ```
 
 Scopes: `--scope user` (global), `--scope project` (team), `--scope local` (personal/gitignored)
@@ -132,7 +133,8 @@ plugins/
                        # spec-to-prototype, summarize-feedback, ultra-plan, unlock,
                        # visual-explainer, wiki
     references/        # common-patterns.md, api-key-setup.md, flag-consistency.md,
-                       # plan-template.md, research-models.md, validation-maturity-scorecard.md
+                       # plan-template.md, research-models.md, validation-maturity-scorecard.md,
+                       # adr-template.md, agents-md-template.md, anti-patterns.md
     hooks/hooks.json
     tools/             # feedback-docx-generator, visual-explainer
 
@@ -143,6 +145,16 @@ plugins/
     templates/         # XML/Draw.io skeletons
     examples/
     tools/bpmn2drawio/
+
+  slide-gen/
+    .claude-plugin/plugin.json
+    skills/            # sg-research, sg-outline, sg-draft, sg-optimize,
+                       # sg-validate-graphics, sg-generate-images, sg-build, sg-full-workflow
+
+.claude/
+  agents/              # Named implementer agents for implement-plan model routing
+                       # haiku-implementer (claude-haiku), sonnet-implementer (claude-sonnet),
+                       # opus-implementer (claude-opus) — model pinned in frontmatter
 ```
 
 ## Command Patterns
