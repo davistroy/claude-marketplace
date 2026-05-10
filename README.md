@@ -96,6 +96,26 @@ You can install to different scopes:
 | [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated visual explanations |
 | [`/wiki`](plugins/personal-plugin/skills/wiki/SKILL.md) | Wiki operations: ingest sources, lint for health issues, query for answers, and report status. Companion to /create-wiki |
 
+### slide-gen
+
+AI-assisted presentation generation pipeline: 7-step workflow from topic research to finished PowerPoint using Claude and Gemini.
+
+```text
+/plugin install slide-gen@troys-plugins
+```
+
+**8 Skills:**
+| Skill | Description |
+|-------|-------------|
+| [`/sg-full-workflow`](plugins/slide-gen/skills/sg-full-workflow/SKILL.md) | Run the complete 7-step slide generation pipeline from topic to PowerPoint |
+| [`/sg-research`](plugins/slide-gen/skills/sg-research/SKILL.md) | Conduct autonomous web research on a topic, producing structured research.json |
+| [`/sg-outline`](plugins/slide-gen/skills/sg-outline/SKILL.md) | Generate a structured presentation outline from research findings |
+| [`/sg-draft`](plugins/slide-gen/skills/sg-draft/SKILL.md) | Draft full slide content (titles, bullets, speaker notes, graphics descriptions) |
+| [`/sg-optimize`](plugins/slide-gen/skills/sg-optimize/SKILL.md) | Run quality analysis and automated improvement on drafted slide content |
+| [`/sg-validate-graphics`](plugins/slide-gen/skills/sg-validate-graphics/SKILL.md) | Validate that image descriptions are concrete enough for AI image generation |
+| [`/sg-generate-images`](plugins/slide-gen/skills/sg-generate-images/SKILL.md) | Generate slide visuals using Gemini Pro from validated graphics descriptions |
+| [`/sg-build`](plugins/slide-gen/skills/sg-build/SKILL.md) | Assemble final PowerPoint (.pptx) from presentation markdown and generated images |
+
 ### bpmn-plugin
 
 BPMN 2.0 workflow tools for generating and converting process diagrams.
@@ -141,6 +161,16 @@ plugins/
     templates/              # XML templates and lane mappings
     examples/               # Sample BPMN files
     tools/                  # Bundled bpmn2drawio converter
+
+  slide-gen/
+    .claude-plugin/
+      plugin.json           # Plugin metadata
+    skills/                 # sg-research, sg-outline, sg-draft, sg-optimize,
+                            # sg-validate-graphics, sg-generate-images, sg-build, sg-full-workflow
+
+.claude/
+  agents/                   # Named implementer agents (haiku/sonnet/opus-implementer)
+                            # Model pinned in frontmatter; referenced by implement-plan
 ```
 
 ## CI/CD Pipeline

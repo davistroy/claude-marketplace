@@ -434,7 +434,14 @@ Convert requirements into discrete work items:
 2. List files likely to be affected
 3. Estimate complexity (XS/S/M/L/XL)
 4. Identify dependencies
-5. Define acceptance criteria — Use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria remain as simple checkboxes. See `references/plan-template.md` rule 13.
+5. **Assign model tier** — default to the lowest tier that plausibly works:
+   - **haiku:** deterministic transformations — renames, format conversions, regex edits, boilerplate from a clear spec, classification, simple lookups, summarizing small chunks
+   - **sonnet:** standard coding — tests against a spec, single-file refactors, docs, straightforward bug fixes, most code review (use as default when unsure)
+   - **opus:** anything needing judgment — architectural choices, multi-file refactors, ambiguous requirements, cross-cutting debugging, design synthesis
+
+   For borderline items, choose the lower tier and add an explicit **escalation criterion** to the Notes field: a condition under which the sub-agent should return `ESCALATE: [reason]` for re-dispatch at a higher tier. Example: `"Escalate if the change requires touching the auth middleware — that coupling was not visible from the spec."`
+
+6. Define acceptance criteria — Use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria remain as simple checkboxes. See `references/plan-template.md` rule 13.
 
 **Complexity estimation:**
 | Size | Files Changed | LOC Changed | Example |
@@ -472,11 +479,13 @@ Each phase should be completable by a single subagent session:
 
 #### Execution Hints Generation
 
-After constructing phases, emit an `### Execution Hints` section at the plan level (between the Phase Summary Table and Milestones). Populate it as follows:
+**Primary mechanism: per-item Model Tier** (step 3.1.5 above). Each work item already carries a `**Model Tier:**` field that `implement-plan` reads directly. The Execution Hints section provides **phase-level overrides** — use it only when an entire phase warrants a uniform departure from item-level tiers, or to set a context budget hint.
 
-- **Default model tier:** `sonnet` for all phases
-- **L-complexity phases:** Suggest `opus` — these phases involve complex architectural decisions, large blast radius, or cross-cutting concerns that benefit from stronger reasoning
-- **Simple mechanical phases** (config changes, dependency updates, formatting): Suggest `haiku`
+After constructing phases, emit an `### Execution Hints` section at the plan level (between the Phase Summary Table and Milestones) only when phase-level guidance adds value beyond per-item tiers. Populate it as follows:
+
+- **Default model tier:** `sonnet` for all phases (most items will have explicit per-item tiers that take precedence)
+- **L-complexity phases where ALL items need opus:** Override at phase level to avoid redundant item-level markup
+- **Simple mechanical phases** (config changes, dependency updates, formatting): Suggest `haiku` as a phase default
 - **Context budget:** `Standard` for S-M phases, `Extended` for L phases with many files
 
 **Format:**
@@ -485,12 +494,14 @@ After constructing phases, emit an `### Execution Hints` section at the plan lev
 
 | Phase | Model Tier | Context Budget | Notes |
 |-------|------------|----------------|-------|
-| All (default) | `sonnet` | Standard | |
-| [Phase N] | `opus` | Extended | [Reason — e.g., "Complex architectural refactoring"] |
-| [Phase M] | `haiku` | Minimal | [Reason — e.g., "Mechanical config updates"] |
+| All (default) | `sonnet` | Standard | Per-item Model Tier fields take precedence over phase defaults |
+| [Phase N] | `opus` | Extended | [Reason — e.g., "All items in this phase require architectural judgment"] |
+| [Phase M] | `haiku` | Minimal | [Reason — e.g., "Purely mechanical config updates"] |
 ```
 
-If all phases are S-M complexity with no special requirements, omit the Execution Hints section entirely (per template rule 15).
+If all phases are S-M complexity and per-item tiers are already set, omit the Execution Hints section entirely (per template rule 15). The per-item `**Model Tier:**` fields are sufficient on their own.
+
+> **Orchestrator note:** `implement-plan` itself benefits from running on Opus. The orchestrator makes decomposition decisions, resolves escalations, and sets phase routing — a wrong call costs more in re-runs than the orchestrator's tokens. Model selection for the orchestrator is controlled by the user's session, not this command.
 
 #### 3.2.1 Plan Size Limits
 

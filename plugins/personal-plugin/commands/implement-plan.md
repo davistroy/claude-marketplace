@@ -84,12 +84,14 @@ Commit or stash your changes before running this command:
 This command automates the execution of a phased implementation plan by:
 
 1. Reading the plan and tracking progress
-2. Implementing each work item via subagents (with project context for orientation)
+2. Implementing each work item via subagents dispatched by model tier (haiku/sonnet/opus)
 3. Running tests and fixing failures
 4. Optionally updating PROGRESS.md (if it exists) and LEARNINGS.md (only when tests had issues)
 5. Capturing non-trivial learnings to project memory files at phase boundaries
 6. Committing after each work item
 7. Creating a PR when complete (merge only with `--auto-merge`)
+
+> **Orchestrator model:** This command (the orchestrator) benefits from running on Opus. It makes tier-assignment decisions, routes escalations, and dispatches sub-agents — a wrong call costs more in re-runs than the orchestrator's token count. The model is determined by the user's session; for complex or large plans, starting a session on Opus before invoking `/implement-plan` is recommended.
 
 ## Prerequisites
 
@@ -160,6 +162,11 @@ The state file is the **ground truth** for execution progress. It persists minim
   "execution_hints": {
     "default_model": "sonnet",
     "phase_overrides": {"Phase 2": "opus"}
+  },
+  "item_model_tiers": {
+    "1.1": "haiku",
+    "1.2": "sonnet",
+    "2.1": "opus"
   },
   "last_good_sha": "def5678",
   "checkpoints": {
@@ -293,7 +300,8 @@ Prompt the Agent to return ONLY:
 - Parallelization info for that phase: which items are independent (can run in parallel) vs which have dependencies
 - A **full parallelization map** for ALL phases: for each phase, list parallel groups and sequential items (this is compact metadata, not full plan content). Parse `**Depends On:**` fields from each work item — items with no intra-phase dependencies can run in parallel; items that declare `Depends On: [other item]` must run after those items complete. Use these dependencies to build a more accurate parallelization map than file-based heuristics alone.
 - **Verification commands**: Parse `### Definition of Done (Runnable)` sections from the plan (between `<!-- BEGIN DOD -->` and `<!-- END DOD -->` markers). Extract each entry as `{name, command, pass_criteria}`. If no DoD sections exist, fall back to detecting the test command from project config files.
-- **Execution hints**: Parse the `### Execution Hints` section (if present) for model tier directives (`sonnet`, `opus`, `haiku`), context budget guidance, and parallelization notes. Return as `{ default_model, phase_overrides: { "Phase N": "model_tier", ... } }`.
+- **Execution hints**: Parse the `### Execution Hints` section (if present) for phase-level model tier directives (`sonnet`, `opus`, `haiku`), context budget guidance, and parallelization notes. Return as `{ default_model, phase_overrides: { "Phase N": "model_tier", ... } }`.
+- **Item model tiers**: For every work item in the plan, parse the `**Model Tier:**` field (e.g., `**Model Tier: haiku**`). Return as a flat map: `{ "1.1": "haiku", "1.2": "sonnet", "2.1": "opus", ... }`. Items without a Model Tier field default to the execution hints default (typically `sonnet`). Per-item tiers take precedence over phase-level hints during dispatch.
 - **Project context** (read from CLAUDE.md, package.json, pyproject.toml, Makefile, or similar config files):
   - `tech_stack`: primary language/framework (e.g., "TypeScript, React, Jest")
   - `test_command`: how to run tests (e.g., "npm test", "pytest") — still detected as a legacy fallback
@@ -331,6 +339,7 @@ cat > .implement-plan-state.json << 'EOF'
     "default_model": "sonnet",
     "phase_overrides": {}
   },
+  "item_model_tiers": { [from subagent — full item→tier map for all items] },
   "last_good_sha": null,
   "checkpoints": {},
   "parallelization_map": { [from subagent — all phases] }
@@ -379,9 +388,19 @@ This ensures that if the session is interrupted during implementation, the resum
 
 ##### Step A1: IMPLEMENTATION (Agent)
 
-If `execution_hints.phase_overrides` in the state file specifies a model tier for the current phase, include `model: "[tier]"` in the Agent tool parameters (e.g., `model: "opus"`). Otherwise, use the `execution_hints.default_model` value if set. If no execution hints exist, omit the `model` parameter (default behavior).
+**Model tier selection (checked in priority order):**
+1. `item_model_tiers["[ITEM_NUMBER]"]` — per-item tier from the plan (primary; set by the planner)
+2. `execution_hints.phase_overrides["[current phase name]"]` — phase-level override (fallback)
+3. `execution_hints.default_model` — session default, typically `sonnet` (final fallback)
 
-Launch an Agent (subagent_type: "general-purpose") with this prompt:
+**Agent dispatch by tier:**
+- `haiku` → `Agent(subagent_type: "haiku-implementer")` — deterministic transforms, low cost
+- `sonnet` → `Agent(subagent_type: "sonnet-implementer")` — standard coding, default
+- `opus` → `Agent(subagent_type: "opus-implementer")` — judgment-heavy, architectural
+
+If a named implementer agent is not available (no `.claude/agents/[tier]-implementer.md` installed), fall back to `Agent(subagent_type: "general-purpose", model: "[tier]")`.
+
+Launch the implementer agent with this prompt:
 
 > **Project Context:** [project_description]. Tech stack: [tech_stack]. Test command: [test_command]. Conventions: [conventions].
 >
@@ -395,7 +414,17 @@ Launch an Agent (subagent_type: "general-purpose") with this prompt:
 
 (Populate `[project_description]`, `[tech_stack]`, `[test_command]`, and `[conventions]` from the `project_context` object in `.implement-plan-state.json`.)
 
-Wait for completion. Record only: files changed, success/failure status.
+Wait for completion. Record only: files changed, success/failure/escalation status.
+
+##### Step A1b: ESCALATION HANDLING (conditional — only if agent returned ESCALATE)
+
+If the implementation agent returned `ESCALATE: [reason]` instead of `DONE`:
+
+1. **Determine next tier:** haiku → sonnet → opus. If the current tier is already `opus`, do not escalate further — treat as `DONE` and accept the agent's partial output. Proceed to Step A2.
+2. **Log the escalation:** Launch a quick Agent:
+   > Append one line to LEARNINGS.md: "Item [N.M] escalated from [current tier] to [next tier]: [reason]". Return: LOGGED.
+3. **Update state file:** Set `item_model_tiers["[N.M]"]` to the next tier so the escalation is recorded.
+4. **Re-dispatch at higher tier:** Return to Step A1 with the updated tier. Run the higher-tier implementer once — no further escalation allowed. The orchestrator (running on Opus) accepts the result.
 
 ##### Step A2: TESTING (Agent)
 
@@ -510,9 +539,19 @@ Before launching parallel implementation subagents, mark ALL items in the batch 
 
 ##### Step B1: PARALLEL IMPLEMENTATION (Multiple Agents)
 
-If `execution_hints.phase_overrides` in the state file specifies a model tier for the current phase, include `model: "[tier]"` in each Agent tool invocation (e.g., `model: "opus"`). Otherwise, use the `execution_hints.default_model` value if set. If no execution hints exist, omit the `model` parameter (default behavior).
+**Model tier selection per item (same priority order as Step A1):**
+1. `item_model_tiers["[ITEM_NUMBER]"]` — per-item tier from the plan (primary)
+2. `execution_hints.phase_overrides["[current phase name]"]` — phase-level fallback
+3. `execution_hints.default_model` — final fallback
 
-For each independent work item, launch an Agent (subagent_type: "general-purpose") with `run_in_background: true`:
+**Agent dispatch by tier** (same as Step A1 — apply independently per item):
+- `haiku` → `Agent(subagent_type: "haiku-implementer", run_in_background: true)`
+- `sonnet` → `Agent(subagent_type: "sonnet-implementer", run_in_background: true)`
+- `opus` → `Agent(subagent_type: "opus-implementer", run_in_background: true)`
+
+Parallel items in the same phase may dispatch to different tiers — this is expected and correct.
+
+For each independent work item, launch the appropriate implementer agent with `run_in_background: true`:
 
 > **Project Context:** [project_description]. Tech stack: [tech_stack]. Test command: [test_command]. Conventions: [conventions].
 >
@@ -533,14 +572,16 @@ Launch ALL independent items in a **single message with multiple Agent tool call
 - If items touch overlapping files, run them sequentially instead
 - Use TaskOutput to check background agent results; you will be notified when each completes
 
-##### Step B2: COLLECT RESULTS
+##### Step B2: COLLECT RESULTS + ESCALATION HANDLING
 
 As each background Agent completes (you will be notified via TaskOutput), record for each:
 - Work item name
 - Files changed
-- Success/failure
+- Success / failure / escalation status
 
-If any agent fails, handle its work item sequentially in a follow-up step.
+**If any agent returned `ESCALATE: [reason]`:** Handle each escalated item sequentially using Step A1b logic — determine the next tier, log the escalation, and re-dispatch at the higher tier. Do NOT block other completed items while handling escalations; process them after all non-escalated results are collected.
+
+If any agent failed outright (not escalation), handle its work item sequentially in a follow-up step.
 
 ##### Step B3: TESTING (Single Agent)
 

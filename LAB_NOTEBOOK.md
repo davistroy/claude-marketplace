@@ -288,4 +288,53 @@ All 17 work items completed. All pre-commit hooks passed (plugin validation, fro
 
 ---
 
+### Entry 005 — Model Routing: Per-Task Tier Assignment + Named Agent Dispatch [command] [skill] [decision]
+**Date:** 2026-05-10
+**Environment:** Linux, Claude Code CLI, branch `claude/add-model-routing-planning-jT2ml`, personal-plugin v9.0.0
+**Status:** IN PROGRESS
+
+**Objective:** Add model routing to the planning pipeline. Each task in a plan should be tagged with a complexity tier at plan-time (haiku/sonnet/opus); `implement-plan` should dispatch to a named sub-agent whose model is pinned in its definition (`.claude/agents/`). An escalation pattern lets sub-agents return `ESCALATE: [reason]` when work is harder than the brief implied, so the orchestrator can re-dispatch at a higher tier.
+
+**Hypothesis:** Per-task tiers with named agents will reduce cost on mechanical work while keeping architectural tasks on Opus. The escalation loop makes plan-time decisions safe without requiring defensive over-spending upfront. Named agents (`haiku-implementer`, `sonnet-implementer`, `opus-implementer`) decouple model selection from plan content — swapping models is a one-line change in the agent file, not a search-and-replace across plans. Success criteria: (1) `plan-template.md` has a `Model Tier` work item field; (2) `create-plan.md` and `plan-improvements.md` populate it using the rubric; (3) `implement-plan.md` dispatches to named agents with escalation; (4) `.claude/agents/` has all three implementer definitions.
+
+**Rollback Plan:** `git checkout -- plugins/personal-plugin/ .claude/` — all changes are additive markdown edits. No external state affected.
+
+**Files Changing:**
+- `plugins/personal-plugin/references/plan-template.md` — add `Model Tier` field and Rule 17
+- `plugins/personal-plugin/commands/create-plan.md` — add tier rubric to Phase 3.1, update Phase 3.2 hints
+- `plugins/personal-plugin/commands/implement-plan.md` — update state file schema, Steps A1/B1 dispatch, add A1b/B1b escalation
+- `plugins/personal-plugin/commands/plan-improvements.md` — add Model Tier to work item construction
+- `.claude/agents/haiku-implementer.md` (create)
+- `.claude/agents/sonnet-implementer.md` (create)
+- `.claude/agents/opus-implementer.md` (create)
+
+**Decisions:**
+- D14: Name agents `haiku-implementer` / `sonnet-implementer` / `opus-implementer` (not generic `implementer-haiku`). Agent name encodes tier — cleaner than prefix. Model is in frontmatter; plan references agent name only. (Alt: use `model:` param directly in Agent calls — rejected because it couples model selection to plan content; global model swap would require editing every plan.)
+- D15: One escalation per item allowed (lower → next tier); accept at highest tier even if imperfect. (Alt: unlimited escalation loop — rejected because it can cycle; capping at one step keeps orchestrator budget bounded.)
+- D16: Orchestrator advisory note added to `implement-plan.md` — recommend Opus for large plans. Not enforced programmatically (orchestrator model is user-controlled). (Alt: skip the note — rejected because it's a real trap: cheap orchestrator with wrong tier assignment costs more than its token savings.)
+
+**Status:** COMPLETE
+**Duration:** ~30 minutes
+
+**Actions & Results:**
+
+| File | Change | Result |
+|------|--------|--------|
+| `.claude/agents/haiku-implementer.md` | Created — model: claude-haiku-4-5-20251001, deterministic transform profile + escalation instructions | OK |
+| `.claude/agents/sonnet-implementer.md` | Created — model: claude-sonnet-4-6, standard coding profile | OK |
+| `.claude/agents/opus-implementer.md` | Created — model: claude-opus-4-7, judgment-heavy profile, BLOCKED (not ESCALATE) for impossible tasks | OK |
+| `plan-template.md` | Added `**Model Tier: sonnet**` field between Status and Ref; updated Rule 5 to include Model Tier in order; added Rule 17 with full rubric; updated Rules 15 comment to reference named agents | OK |
+| `create-plan.md` | Added step 5 to Phase 3.1 with full haiku/sonnet/opus rubric and escalation criterion guidance; updated Phase 3.2 Execution Hints to note per-item tiers are primary, phase hints supplementary; added orchestrator Opus advisory | OK |
+| `implement-plan.md` | Added orchestrator advisory note in Overview; added `item_model_tiers` to state file schema; updated Step 1 subagent prompt to extract per-item tiers; updated Step 2 JSON to include `item_model_tiers`; replaced model-parameter dispatch in A1/B1 with named agent dispatch; added Step A1b (sequential escalation) and updated B2 (parallel escalation) | OK |
+| `plan-improvements.md` | Updated "Work Item Construction Guidelines" from 7 to 8 fields — added Model Tier as field 2 with full rubric | OK |
+
+Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
+
+**What Worked:**
+- Keeping per-item tier as the primary signal and phase-level hints as fallback is the right hierarchy — preserves backward compat (items without Model Tier fall back to default)
+- Named agents decouple model selection from plan content cleanly — changing haiku to a newer model is a one-line edit in the agent file
+- The "one escalation allowed" cap keeps orchestrator budget bounded without requiring complex loop logic
+
+---
+
 *Entries continue below.*

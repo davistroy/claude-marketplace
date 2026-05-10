@@ -474,15 +474,19 @@ Read the plan template from `references/plan-template.md` (relative to this comm
 
 #### Work Item Construction Guidelines
 
-For each work item, generate all seven fields in this order:
+For each work item, generate all eight fields in this order:
 
 1. **Status** — always `PENDING` when generating the plan. Updated by `/implement-plan` during execution (PENDING → IN_PROGRESS → COMPLETE [YYYY-MM-DD]).
-2. **Recommendation Ref** — the recommendation ID(s) from RECOMMENDATIONS.md (e.g., U1, A2)
-3. **Files Affected** — list with `(create)` or `(modify)` annotations per file
-4. **Description** — detailed explanation of the change and why it matters
-5. **Tasks** — numbered checkbox list of specific, actionable sub-steps that an implementer can execute sequentially. Each task should be concrete enough to complete without further decomposition. Include testing and documentation tasks.
-6. **Acceptance Criteria** — measurable conditions that verify the work item is done. Use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria remain as simple checkboxes. See `references/plan-template.md` rule 13.
-7. **Notes** — optional context, gotchas, dependencies, or implementation hints. Omit if there is nothing noteworthy to add.
+2. **Model Tier** — assign using the rubric below. Default to the lowest tier that plausibly works. For borderline items, choose the lower tier and add an escalation criterion to Notes.
+   - **haiku:** deterministic transformations — renames, format conversions, regex edits, boilerplate from a clear spec, classification, simple lookups, summarizing small chunks
+   - **sonnet:** standard coding — tests against a spec, single-file refactors, docs, straightforward bug fixes, most code review (use as default when unsure)
+   - **opus:** anything needing judgment — architectural choices, multi-file refactors, ambiguous requirements, cross-cutting debugging, design synthesis
+3. **Recommendation Ref** — the recommendation ID(s) from RECOMMENDATIONS.md (e.g., U1, A2)
+4. **Files Affected** — list with `(create)` or `(modify)` annotations per file
+5. **Description** — detailed explanation of the change and why it matters
+6. **Tasks** — numbered checkbox list of specific, actionable sub-steps that an implementer can execute sequentially. Each task should be concrete enough to complete without further decomposition. Include testing and documentation tasks.
+7. **Acceptance Criteria** — measurable conditions that verify the work item is done. Use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria remain as simple checkboxes. See `references/plan-template.md` rule 13.
+8. **Notes** — optional context, gotchas, dependencies, or implementation hints. For borderline-tier items, include the escalation criterion here (e.g., "Escalate if the change requires modifying the auth module — that coupling was not visible from the analysis."). Omit if there is nothing noteworthy to add.
 
 ### Phase Sizing Guidelines
 
