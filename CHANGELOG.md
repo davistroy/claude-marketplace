@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v3.1.0, personal-plugin v9.1.0, bpmn-plugin v4.1.0, slide-gen v1.2.0] - 2026-05-14
+
+### Changed
+- Coordinated minor bump across all three plugins and the marketplace.
+- `slide-gen` marketplace entry resynced with `plugin.json` (description + version) prior to this bump (E005).
+
 ## [marketplace v3.0.0, personal-plugin v9.0.0] - 2026-04-30
 
 ### Added

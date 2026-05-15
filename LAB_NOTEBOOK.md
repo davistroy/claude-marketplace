@@ -288,4 +288,52 @@ All 17 work items completed. All pre-commit hooks passed (plugin validation, fro
 
 ---
 
+### E005 — Sync slide-gen marketplace.json with plugin.json [plugin] [config] [debug]
+
+**Date:** 2026-05-14
+**Environment:** marketplace v3.0.1, slide-gen plugin.json v1.1.0, marketplace.json entry v1.0.1
+**Tags:** [plugin] [config] [debug]
+
+**Objective:** Resolve `/validate-plugin --all` error: slide-gen version mismatch between plugin.json (1.1.0) and marketplace.json (1.0.1), plus drifted descriptions.
+
+**Hypothesis:** plugin.json was bumped to 1.1.0 when the `build-cfa-deck` skill was added but marketplace.json was not updated in lockstep. Editing the marketplace.json entry to match plugin.json (version → 1.1.0, description → text from plugin.json) will resolve the validation FAIL.
+
+**Rollback Plan:** marketplace.json is git-tracked; `git checkout -- .claude-plugin/marketplace.json` reverts. No external systems affected.
+
+**Actions & Results:**
+1. Update `.claude-plugin/marketplace.json` slide-gen entry: version 1.0.1 → 1.1.0
+2. Update `.claude-plugin/marketplace.json` slide-gen entry: description to match plugin.json
+3. Re-run validation logic mentally — version sync should now pass
+
+**Decision:** Source of truth is plugin.json. marketplace.json is the registry that mirrors plugin.json's metadata. Alt: bump plugin.json down to 1.0.1 — rejected, the 1.1.0 bump reflects real work (new build-cfa-deck skill) and undoing it would lose semantic version signal. Alt: leave description drift unfixed — rejected, both fields are validated for consistency in practice and drift causes ongoing confusion.
+
+**System Insight:** The marketplace lacks any automation that propagates plugin.json edits to marketplace.json. `/bump-version` handles version sync but only when invoked. Manual edits to plugin.json (such as adding a skill + bumping version) require manually mirroring fields. Worth considering: a pre-commit hook that fails when plugin.json and marketplace.json metadata diverge.
+
+---
+
+### E006 — Coordinated minor bump across all plugins and marketplace [config] [decision]
+
+**Date:** 2026-05-14
+**Environment:** Pre-bump — bpmn-plugin v4.0.0, personal-plugin v9.0.0, slide-gen v1.1.0, marketplace v3.0.1
+**Tags:** [config] [decision]
+
+**Objective:** Bump minor version on all three plugins and the marketplace as a coordinated release. Targets: bpmn-plugin 4.0.0→4.1.0, personal-plugin 9.0.0→9.1.0, slide-gen 1.1.0→1.2.0, marketplace 3.0.1→3.1.0.
+
+**Hypothesis:** Editing the `version` field in each `plugins/*/.claude-plugin/plugin.json` plus the mirrored `version` fields in `.claude-plugin/marketplace.json` plugin entries plus the `marketplace_version` will yield consistent versions across all files. Adding an `[Unreleased]` → released changelog header for the coordinated bump documents the release boundary.
+
+**Rollback Plan:** All edits are git-tracked; `git checkout -- .claude-plugin/marketplace.json plugins/*/.claude-plugin/plugin.json CHANGELOG.md` reverts. No installed-cache writes.
+
+**Actions & Results:**
+1. Update plugins/bpmn-plugin/.claude-plugin/plugin.json: 4.0.0 → 4.1.0
+2. Update plugins/personal-plugin/.claude-plugin/plugin.json: 9.0.0 → 9.1.0
+3. Update plugins/slide-gen/.claude-plugin/plugin.json: 1.1.0 → 1.2.0
+4. Update .claude-plugin/marketplace.json: marketplace_version 3.0.1 → 3.1.0; per-plugin versions to match step 1-3
+5. Update CHANGELOG.md: add coordinated release header
+
+**Decision:** Treat as a coordinated marketplace release even though the CLAUDE.md guidance says "marketplace_version NOT bumped for individual plugin updates." User explicitly requested bumping the marketplace alongside the plugins, framing this as a release event rather than independent plugin updates. Alt: bump only plugins, leave marketplace at 3.0.1 — rejected per user request. Alt: bump only marketplace as a meta-release — rejected, doesn't match explicit "all plugins and the marketplace" instruction.
+
+**System Insight:** No tool currently does a coordinated multi-plugin bump. `/bump-version` operates on one plugin at a time; running it 3× would also leave marketplace_version untouched. Direct file edits are the right tool for this kind of release-event bump.
+
+---
+
 *Entries continue below.*

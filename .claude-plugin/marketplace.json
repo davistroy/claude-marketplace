@@ -2,7 +2,7 @@
   "name": "troys-plugins",
   "metadata": {
     "description": "Troy Davis Claude Code plugins",
-    "marketplace_version": "3.0.1",
+    "marketplace_version": "3.1.0",
     "schema_version": "1.0"
   },
   "owner": {
@@ -14,7 +14,7 @@
       "name": "personal-plugin",
       "source": "./plugins/personal-plugin",
       "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
-      "version": "9.0.0",
+      "version": "9.1.0",
       "category": "productivity",
       "tags": ["personal", "automation", "research", "llm-orchestration"]
     },
@@ -22,15 +22,15 @@
       "name": "bpmn-plugin",
       "source": "./plugins/bpmn-plugin",
       "description": "BPMN 2.0 workflow tools: XML generation from natural language/markdown, and conversion to Draw.io format. Includes bundled bpmn2drawio Python tool.",
-      "version": "4.0.0",
+      "version": "4.1.0",
       "category": "workflow",
       "tags": ["bpmn","workflow","xml","diagram","process-modeling","drawio"]
     },
     {
       "name": "slide-gen",
       "source": "./plugins/slide-gen",
-      "description": "AI-assisted presentation generation pipeline: 7-step workflow from topic research to finished PowerPoint using Claude and Gemini",
-      "version": "1.0.1",
+      "description": "AI-assisted presentation generation pipeline: research, outline, draft, optimize, validate graphics, generate images, and build PowerPoint files",
+      "version": "1.2.0",
       "category": "productivity",
       "tags": ["presentation","powerpoint","slides","ai","pipeline","claude","gemini"]
     }
