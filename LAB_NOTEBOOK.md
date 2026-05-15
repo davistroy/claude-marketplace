@@ -337,4 +337,37 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 ---
 
+### Entry 006 — Ship build-cfa-deck skill + coordinated v3.2.0 bump [plugin] [config] [decision]
+
+**Date:** 2026-05-14
+**Environment:** Linux VM, Claude Code CLI, main at 8574f0c (personal-plugin v9.1.0, marketplace v3.1.0)
+**Status:** COMPLETE
+
+**Objective:** Get `build-cfa-deck` skill (CFA-branded PPTX generator) onto main with correct version bumps. Prior attempt (PR #93) failed because it was built on stale local main (69949eb, ~4 commits behind origin/main), causing version collisions with the v9.1.0/v3.1.0 release already shipped via PR #92.
+
+**Hypothesis:** Cherry-picking only the new `build-cfa-deck/SKILL.md` onto current main, then applying correct next-minor bumps (marketplace 3.1.0→3.2.0, personal-plugin 9.1.0→9.2.0, bpmn-plugin 4.0.0→4.1.0, slide-gen 1.0.1→1.1.0), will produce a clean PR with no version conflicts. Expected: PR merges cleanly, `/validate-plugin --all` passes.
+
+**Rollback Plan:** `git checkout -- .` on the branch discards all changes. PR can be closed without merging. No external state affected.
+
+**Root Cause of PR #93 failure:** Session started with local main behind origin/main by 4 commits. The git status injected at session start showed HEAD=69949eb, but `git pull` had not been run, so the working tree was stale. All version-bump math and "drift fixes" in the session were based on incorrect baseline versions. Lesson: always `git pull` at session start before inspecting version state or making version decisions.
+
+**Actions & Results:**
+1. Closed PR #93 with explanatory comment
+2. Created `feat/build-cfa-deck` from current main (8574f0c)
+3. Cherry-picked `build-cfa-deck/SKILL.md` from `release/3.1.0` via `git checkout release/3.1.0 -- <path>`
+4. Applied coordinated minor bumps: marketplace 3.1.0→3.2.0, personal-plugin 9.1.0→9.2.0, bpmn-plugin 4.0.0→4.1.0, slide-gen 1.0.1→1.1.0
+5. Added CHANGELOG entry for v3.2.0
+6. Committed, pushed, created PR #94, auto-reviewed, merged
+7. Deleted stale remote branches: `release/3.1.0`, `claude/add-marketplace-integration-skill-wn65y`, `claude/add-model-routing-planning-jT2ml`
+
+**Decision (D17):** The "slide-gen marketplace drift" diagnosed in the earlier session (plugin.json=1.1.0 vs marketplace.json=1.0.1) did not exist on main — the 1.1.0 in local plugin.json was an uncommitted pre-session edit that was never pushed. No fix was needed. Version source of truth is always `origin/main`, not local working tree.
+
+**Decision (D18):** Use `git checkout <branch> -- <path>` to cherry-pick a single file from a stale branch rather than rebasing the whole branch. Rebase would drag in all the conflicting version changes; file-level checkout is surgical.
+
+**What Worked:**
+- Identifying that only 1 file was genuinely new across all "updates everywhere" kept the recovery simple
+- Inventory-first approach (check all branches, PRs, stash, untracked) before acting prevented further thrashing
+
+---
+
 *Entries continue below.*

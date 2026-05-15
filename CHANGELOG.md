@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v3.2.0, personal-plugin v9.2.0, bpmn-plugin v4.1.0, slide-gen v1.1.0] - 2026-05-14
+
+### Added
+- **slide-gen: build-cfa-deck skill** — generate complete, on-brand Chick-fil-A PowerPoint presentations from a topic prompt using the CFA "Support Now" template (64 layouts, 194 SVG icons, embedded Apercu fonts) and brand guidelines
+
+### Changed
+- Coordinated minor bump across all plugins and marketplace (build-cfa-deck was the trigger; bpmn-plugin and personal-plugin bumped for release cadence)
+
 ## [marketplace v3.1.0, personal-plugin v9.1.0, slide-gen v1.0.1] - 2026-05-10
 
 ### Added
