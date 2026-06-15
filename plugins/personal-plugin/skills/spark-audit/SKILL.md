@@ -48,8 +48,9 @@ check2_config:
     - flag: "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":2}'"
       severity: HIGH
       impact: "+40% single-stream throughput"
-    - flag: "--attention-backend FLASHINFER"
-      severity: MEDIUM
+    # Attention backend: production auto-selects FLASH_ATTN on SM121 (verified 2026-06-11, Entry 076).
+    # Do NOT flag FLASH_ATTN as suboptimal or require --attention-backend FLASHINFER for attention.
+    # FlashInfer is used for MoE kernels via VLLM_FLASHINFER_MOE_BACKEND=latency (listed below).
     - flag: "--enable-prefix-caching"
       severity: MEDIUM
     - flag: "--enable-chunked-prefill"
@@ -65,9 +66,9 @@ check2_config:
     - flag: "--no-async-scheduling"
       severity: MEDIUM
       reason: "Async is better in v0.19.0"
-    - model_path_contains: "Qwen3.5-35B-A3B-FP8"
-      severity: CRITICAL
-      reason: "Pre-quantized FP8 path hangs on v0.19.0"
+    # NOTE (2026-06-11, Entry 073/076): The old "pre-quant FP8 hangs" anti-pattern was REMOVED.
+    # Production intentionally runs Qwen/Qwen3.6-35B-A3B-FP8 (pre-quant) since 2026-05-18 — it is the
+    # sanctioned best config on the current cu132 build (the v0.19.0 hang was version-specific), NOT an anti-pattern.
     - volume_contains: "~/.cache"
       severity: CRITICAL
       reason: "Tilde expansion fails in Docker"
