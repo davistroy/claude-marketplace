@@ -5,6 +5,14 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.3.0] - 2026-06-15
+
+### Changed
+- `skills/spark-recon`: refreshed stale Machine Config — `current_model` → `Qwen/Qwen3.6-35B-A3B-FP8`, `quantization` → pre-quantized FP8; broadened Check 2 keyword classifier (Qwen3.6/3.7, DFlash, speculative); Check 1/4 instructions updated to Qwen3.6 context.
+- `skills/spark-recon` Check 1: documented the Firestore `benchmarks`-collection REST access path (App-Check gate on `entries`/`leaderboard`/`recipes`; `benchmarks` is world-readable) — unfreezes Arena tracking.
+- `skills/spark-recon` Check 5 + `skills/spark-audit`: dropped permanently-removed NVIDIA forum category 720 (404; topics merged into 719/721).
+- `skills/spark-audit`: removed the obsolete "pre-quant FP8 hangs" CRITICAL anti-pattern (production intentionally runs pre-quant FP8 since 2026-05-18) and corrected the attention-backend expectation (FLASH_ATTN auto-selected on SM121; FlashInfer is MoE-only).
+
 ## [8.0.0] - 2026-04-21
 
 ### Added

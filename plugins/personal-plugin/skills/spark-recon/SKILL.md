@@ -43,7 +43,7 @@ recon_sources:
   check2_source: "https://api.github.com/repos/vllm-project/vllm/releases?per_page=5"
   check3_source: "https://api.github.com/repos/eugr/spark-vllm-docker/releases?per_page=5 + commits?per_page=10"
   check4_source: "HuggingFace (MCP if available) + web search"
-  check5_source: "Discourse JSON: forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/{719,720,721}.json"
+  check5_source: "Discourse JSON: forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/{719,721}.json (720 removed 2026-06 — 404)"
 
 trigger_sources:
   vllm_release: "Check 2 (vLLM releases) release notes and changelog"
@@ -54,8 +54,8 @@ trigger_sources:
 
 arena_filter: "tg128 test type, concurrency 1, single-node only"
 arena_action_threshold_pct: 10   # 10%+ tok/s jump over baseline = ACTION NEEDED
-current_model: "Qwen/Qwen3.5-35B-A3B"
-quantization: "FP8 on-the-fly"
+current_model: "Qwen/Qwen3.6-35B-A3B-FP8"
+quantization: "FP8 pre-quantized (native; not on-the-fly)"
 community_builders:
   - hellohal2064
   - Artyom
@@ -88,15 +88,17 @@ Use the Generic Recon Check Structure from the shared reference. Machine-specifi
 
 **Data source:** `https://spark-arena.com/leaderboard`
 
-**Agent instructions:**
-1. Open leaderboard via browser tools (`mcp__claude-in-chrome__tabs_create_mcp` → `mcp__claude-in-chrome__navigate` → `mcp__claude-in-chrome__get_page_text`). Fall back to `WebFetch` if browser unavailable.
-2. Filter: **`tg128` type, concurrency 1, single-node only.** We have one DGX Spark — multi-node is informational, not actionable.
-3. Find top FP8-quantized, single-node Qwen3.5 entry: name, tok/s, creator, rank.
-4. Compare tok/s against baseline `arena_top_fp8_qwen35_tok_s`. If 10%+ jump: ACTION NEEDED.
-5. On ACTION: fetch recipe via `https://spark-arena.com/api/recipes/{id}/raw`. Extract config diff vs SPARK_BASELINE.md (env vars, flags, container image, model variant, load-format, batch token settings).
-6. Scan top 5 single-node entries overall. Flag any new non-Qwen3.5 FP8 contender.
+**Access note (2026-06-11):** The leaderboard table is JS-rendered and the `entries`/`leaderboard`/`recipes` Firestore collections are App-Check-gated (HTTP 403 to anonymous reads; `WebFetch` returns an empty shell; the `/api/recipes/{id}/raw` endpoint 404s). **The `benchmarks` Firestore collection is world-readable via the Firestore REST API** — this is the reliable access path. Project id `spark-arena`; the public client API key is embedded in the site's JS bundle. Each `benchmarks` doc embeds its full recipe (122+ approved docs as of 2026-06-11). Browser MCP, if available, also works.
 
-**Return:** top FP8 Qwen3.5 single-node entry (name, tok/s, delta %), top overall, recipe diff if actionable, new contenders.
+**Agent instructions:**
+1. Pull leaderboard data via the Firestore `benchmarks` REST collection (preferred — see Access note). Fall back to browser MCP (`mcp__claude-in-chrome__*`), then `WebFetch`, then `WebSearch` for recent mentions if all direct paths fail.
+2. Filter: **`tg128` type, concurrency 1, single-node only.** We have one DGX Spark — multi-node is informational, not actionable.
+3. Find the top FP8-quantized, single-node Qwen3.6-35B-A3B-family entry: name, tok/s, creator, rank. Report the top entry **on vLLM** separately from any non-vLLM runtime (e.g. Atlas), since only vLLM is directly portable to our stack.
+4. Compare tok/s against baseline `arena_top_fp8_qwen35_tok_s`. If 10%+ jump: ACTION NEEDED.
+5. On ACTION: extract the recipe embedded in the `benchmarks` doc. Extract config diff vs SPARK_BASELINE.md (env vars, flags, container image, model variant, spec-decode method, load-format, batch token settings).
+6. Scan top 5 single-node entries overall. Flag any new non-Qwen3.6 FP8 contender and any new runtime (e.g. Atlas).
+
+**Return:** top FP8 Qwen3.6 single-node entry (name, tok/s, delta %), top overall, recipe diff if actionable, new contenders.
 
 ### Check 2 — vLLM Releases
 
@@ -104,7 +106,7 @@ Use the Generic Recon Check Structure from the shared reference. Machine-specifi
 
 **Agent instructions:**
 1. `WebFetch` releases API. Compare against baseline `vllm_last_checked_version`.
-2. Classify keywords: HIGH = `SM121`, `SM120`, `Blackwell`, `GB10`, `#38126`, `sm_12`, `arch guard`; MEDIUM = `prefix caching`, `Mamba`, `hybrid`, `MoE`, `Marlin`, `Qwen3.5`, `mixed architecture`; LOW = none of the above.
+2. Classify keywords: HIGH = `SM121`, `SM120`, `Blackwell`, `GB10`, `#38126`, `sm_12`, `arch guard`; MEDIUM = `prefix caching`, `Mamba`, `hybrid`, `MoE`, `Marlin`, `Qwen3.5`, `Qwen3.6`, `Qwen3.7`, `DFlash`, `speculative`, `mixed architecture`; LOW = none of the above.
 3. If HIGH: generate concrete test plan (docker run --rm command, startup log checks for SM121 kernel loading + FP8 warning, rollback note with current image tag from baseline).
 
 **Return:** latest version, classification, relevant changelog items, test plan if HIGH.
@@ -123,22 +125,23 @@ Use the Generic Recon Check Structure from the shared reference. Machine-specifi
 
 ### Check 4 — Qwen Model Landscape
 
-**CONTEXT: Already running `Qwen/Qwen3.5-35B-A3B` FP8. This check looks for models NEWER than Qwen3.5. Do NOT report Qwen3.5-35B-A3B as "new."**
+**CONTEXT: Already running `Qwen/Qwen3.6-35B-A3B-FP8` (pre-quantized FP8). This check looks for models NEWER than Qwen3.6. Do NOT report Qwen3.6-35B-A3B or its FP8 variant as "new."**
 
 **Agent instructions:**
-1. If HuggingFace MCP available: search Qwen org, >10B parameters, created after 2026-03-01.
-2. `WebSearch`: `"Qwen4" model 2026`, `Qwen new model release 2026`, `Qwen3.5 successor`.
-3. Look for: new model families (Qwen4, etc.), `Qwen/Qwen3.5-35B-A3B-FP8` (pre-quantized), new fine-tunes, architecture changes.
-4. For each new model: parameter count, architecture (MoE vs dense, hybrid Mamba), available quantizations, benchmarks. Flag existence + key specs — model switching is a separate decision.
+1. If HuggingFace MCP available: search Qwen org, >10B parameters, created after the last check date.
+2. `WebSearch`: `"Qwen4" model 2026`, `Qwen3.7 open weights`, `Qwen new model release 2026`, `Qwen3.6 successor`.
+3. Look for: new model families (Qwen4; Qwen3.7 27B/35B open weights; etc.), new pre-quantized FP8 variants in our class, new fine-tunes, architecture changes. Also scan strong A3B-class (~30-40B MoE / ~3B active) open models from other labs (Poolside Laguna, Nemotron, Cohere, etc.) that fit a single Spark. Beware HF name-squats (non-official `Qwen3.x-*` repos).
+4. For each new model: parameter count, architecture (MoE vs dense, hybrid Mamba/GDN), available quantizations (FP8 pre-quant especially — FP8 is the only sound quant path on SM121), context length, benchmarks. Flag existence + key specs — model switching is a separate decision.
 
-**Return:** new models or "no new models beyond Qwen3.5", key specs, pre-quantized FP8 availability.
+**Return:** new models or "no new models beyond Qwen3.6", key specs, pre-quantized FP8 availability.
 
 ### Check 5 — NVIDIA DGX Spark Forum
 
 **Data sources (Discourse JSON — append `.json`):**
-- `https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/719.json`
-- `https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/dgx-spark-gb10-projects/720.json`
-- `https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/dgx-spark-gb10-user-forum/721.json`
+- `https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/719.json` (parent — aggregates all topics; sufficient on its own)
+- `https://forums.developer.nvidia.com/c/accelerated-computing/dgx-spark-gb10/dgx-spark-gb10-user-forum/721.json` (near-duplicate of 719)
+
+**Note:** Category 720 (gb10-projects) was permanently removed (2026-06; returns HTTP 404). Its topics merged into 719/721. Do NOT query 720.
 
 Fall back to HTML only on JSON error.
 
@@ -243,25 +246,25 @@ Last recon: {DATE}
 ## Current Config
 | Field | Value |
 |-------|-------|
-| image | vllm-custom:sm121-inject |
-| model | Qwen/Qwen3.5-35B-A3B |
-| single_request_tok_s | 48.6 |
-| c16_aggregate_tok_s | 311.7 |
-| vllm_version | v0.17.0rc1 |
+| image | vllm-cu132-test:latest |
+| model | Qwen/Qwen3.6-35B-A3B-FP8 |
+| single_request_tok_s | 66.9 |
+| c16_aggregate_tok_s | 678.7 |
+| vllm_version | v0.19.1rc1.dev219+cu132 |
 
 ## Arena Tracking
 | Field | Value |
 |-------|-------|
-| arena_top_fp8_qwen35_tok_s | 52.32 |
-| arena_top_fp8_qwen35_entry | Huihui-Qwen3.5-35B-A3B-abliterated (Artyom) |
-| arena_top_overall_tok_s | 70.72 |
-| arena_top_overall_entry | Qwen3-Coder-Next-int4-AutoRound |
+| arena_top_fp8_qwen35_tok_s | 80.27 |
+| arena_top_fp8_qwen35_entry | Qwen3.6-35B-A3B-FP8 vLLM/DFlash (Stojanovic, eugr recipe) |
+| arena_top_overall_tok_s | 218.85 |
+| arena_top_overall_entry | Qwen3.6-35B-A3B-NVFP4 (Atlas runtime) |
 
 ## Version Tracking
 | Field | Value |
 |-------|-------|
 | vllm_last_checked_version | v0.17.1 |
-| qwen_current_model | Qwen/Qwen3.5-35B-A3B |
+| qwen_current_model | Qwen/Qwen3.6-35B-A3B-FP8 |
 
 ## spark-vllm-docker Tracking
 | Field | Value |
@@ -283,7 +286,7 @@ Last recon: {DATE}
 ## Watch Items
 - {Carry-forward notes from previous recon runs}
 - {e.g., "#38126 merged to main 2026-03-27, awaiting release"}
-- {e.g., "Test pre-quantized Qwen3.5-35B-A3B-FP8 next config change"}
+- {e.g., "Evaluate DFlash spec-decode vs MTP=2 on next config change"}
 
 ## Automation Schedule
 | Task | Frequency | Recommended Time | Schedule Command |
