@@ -1,6 +1,6 @@
 ---
 name: sg-generate-images
-description: Generate slide visuals using Gemini Pro from validated graphics descriptions
+description: Generate slide visuals using Gemini Pro from validated graphics descriptions. Use when you want to generate slide images, create visuals after validation, or see what the slides will look like.
 argument-hint: "<presentation.md> [--resolution high|medium|small]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -19,14 +19,6 @@ Generate slide visuals using Gemini Pro from the validated graphics descriptions
 
 **Existing images:**
 !`ls -la images/ 2>/dev/null || echo "No images directory yet"`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User wants to generate slide images/visuals
-2. User says "generate images", "create visuals", or "make the graphics"
-3. User completed graphics validation and wants to continue
-4. User wants to see what the slides will look like
 
 ## Prerequisites
 

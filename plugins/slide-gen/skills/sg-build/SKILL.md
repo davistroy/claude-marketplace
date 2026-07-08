@@ -1,6 +1,6 @@
 ---
 name: sg-build
-description: Assemble final PowerPoint (.pptx) from presentation markdown and generated images
+description: Assemble final PowerPoint (.pptx) from presentation markdown and generated images. Use when you want to create the final PowerPoint, build the deck after image generation, or skip to building from presentation.md.
 argument-hint: "<presentation.md> [--template generic] [--style style.json]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -22,14 +22,6 @@ Assemble the final PowerPoint file (.pptx) from the presentation markdown and ge
 
 **Available templates:**
 !`sg list-templates 2>&1 || echo "Cannot list templates"`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User wants to create the final PowerPoint file
-2. User says "build", "create the pptx", "assemble the deck", or "generate PowerPoint"
-3. User completed image generation and wants the final output
-4. User has a presentation.md and wants to skip to building
 
 ## Prerequisites
 

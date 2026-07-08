@@ -1,6 +1,7 @@
 ---
 description: Document quality evaluation with scored assessment report
 argument-hint: "<document-path> [--format md|json] [--focus <dimensions>]"
+effort: high
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 

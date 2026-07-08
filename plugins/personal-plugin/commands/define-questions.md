@@ -1,6 +1,7 @@
 ---
 description: Extract questions and open items from documents to JSON
 argument-hint: "<document-path> [--format json|csv] [--preview]"
+effort: low
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 

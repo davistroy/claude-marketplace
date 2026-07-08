@@ -235,3 +235,42 @@ jobs:
       - name: Lint markdown files
         run: |
           markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'
+
+  plugin-validate:
+    name: Validate Plugins (official CLI)
+    runs-on: ubuntu-latest
+    # Validates plugin.json manifests, marketplace.json, and command/skill frontmatter using
+    # the official `claude plugin validate` subcommand (auth-free — no secrets needed).
+    # Strict mode runs against the three plugin directories so CI fails on unrecognized
+    # fields, missing metadata, or other issues the runtime otherwise tolerates. The
+    # marketplace manifest is validated non-strict: its metadata.marketplace_version and
+    # metadata.schema_version fields are house bookkeeping that Claude Code ignores at load
+    # time (repo-local version tracking, not a loader contract), so --strict would fail on
+    # them for no functional benefit.
+    #
+    # The @anthropic-ai/claude-code version below is pinned deliberately and must only be
+    # bumped as a conscious action (verify locally first) — never let it float to `@latest`.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI (pinned)
+        run: npm install -g @anthropic-ai/claude-code@2.1.204
+
+      - name: Validate personal-plugin (strict)
+        run: claude plugin validate --strict ./plugins/personal-plugin
+
+      - name: Validate bpmn-plugin (strict)
+        run: claude plugin validate --strict ./plugins/bpmn-plugin
+
+      - name: Validate slide-gen (strict)
+        run: claude plugin validate --strict ./plugins/slide-gen
+
+      - name: Validate marketplace manifest (non-strict)
+        # Non-strict: see job-level comment above re: metadata.*_version fields.
+        run: claude plugin validate .

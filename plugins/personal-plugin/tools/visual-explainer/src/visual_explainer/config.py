@@ -312,7 +312,7 @@ class InternalConfig(BaseModel):
         description="Gemini model ID for image generation",
     )
     claude_model: str = Field(
-        default="claude-sonnet-4-20250514",
+        default="claude-sonnet-5",
         description="Claude model ID for concept analysis and evaluation",
     )
     rate_limit_delay_seconds: float = Field(
@@ -333,7 +333,7 @@ class InternalConfig(BaseModel):
             gemini_timeout_seconds=float(os.getenv("VISUAL_EXPLAINER_GEMINI_TIMEOUT", "300.0")),
             claude_timeout_seconds=float(os.getenv("VISUAL_EXPLAINER_CLAUDE_TIMEOUT", "60.0")),
             gemini_model=os.getenv("VISUAL_EXPLAINER_GEMINI_MODEL", "gemini-3-pro-image-preview"),
-            claude_model=os.getenv("VISUAL_EXPLAINER_CLAUDE_MODEL", "claude-sonnet-4-20250514"),
+            claude_model=os.getenv("VISUAL_EXPLAINER_CLAUDE_MODEL", "claude-sonnet-5"),
         )
 
 

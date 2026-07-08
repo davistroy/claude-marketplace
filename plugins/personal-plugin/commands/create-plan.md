@@ -21,7 +21,7 @@ This command:
 6. Generates detailed work items with acceptance criteria
 7. Outputs IMPLEMENTATION_PLAN.md to the repository root
 
-> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultra-plan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/batch /implement-plan` after generating a large plan (6+ phases or 20+ work items) to execute phases in parallel isolated worktrees.
+> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultra-plan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/implement-plan` to execute the generated plan; for large plans (6+ phases or 20+ independent work items), set `Execution Mode: Parallel` or `Worktree-Isolated` in the Phase Summary Table so `/implement-plan` dispatches those phases as concurrent background agents in isolated worktrees.
 
 ## Input Validation
 
@@ -50,25 +50,7 @@ This command:
 
 When no documents are specified, search for requirements documents:
 
-**Search patterns (in order of priority):**
-```markdown
-# Root level
-*.md containing "requirements", "specification", "design"
-PRD*.md, BRD*.md, TDD*.md, SRS*.md, FRD*.md
-requirements.md, spec.md, design.md
-
-# Common directories
-docs/*.md
-documentation/*.md
-specs/*.md
-requirements/*.md
-design/*.md
-
-# Nested patterns
-**/PRD*.md, **/BRD*.md, **/TDD*.md
-**/requirements/*.md
-**/specs/*.md
-```
+**Search patterns (in order of priority):** root-level named docs first (`PRD*.md`, `BRD*.md`, `TDD*.md`, `SRS*.md`, `FRD*.md`, plus `requirements.md`/`spec.md`/`design.md` and any `*.md` containing "requirements"/"specification"/"design"), then common doc directories (`docs/`, `documentation/`, `specs/`, `requirements/`, `design/`), then nested (`**/`) equivalents. See `references/create-plan-examples.md` → "Document Discovery: Search Patterns" for the full glob list.
 
 **Document type detection by content:**
 - **BRD (Business Requirements):** Contains "business requirements", "business objectives", "stakeholder", "ROI"
@@ -84,47 +66,11 @@ When documents are specified as arguments:
 2. Read and classify each document
 3. Report any files not found
 
-**Error if no documents found:**
-```text
-Error: No requirements documents found.
-
-Searched locations:
-  - Root directory (PRD*.md, BRD*.md, etc.)
-  - docs/, documentation/, specs/, requirements/
-
-To create a plan, provide requirements documents:
-  /create-plan path/to/requirements.md
-  /create-plan PRD.md TDD.md
-
-Or create a PRD.md file with your requirements.
-```
+**Error if no documents found:** report that no requirements documents were found, list the searched locations, and show how to provide documents explicitly. See `references/create-plan-examples.md` → "Document Discovery: 'No documents found' error" for the display text.
 
 #### 1.3 Document Inventory Report
 
-Display discovered documents before proceeding:
-
-```text
-Requirements Documents Found
-============================
-
-Business Requirements:
-  - docs/BRD-Q1-Initiative.md (2,450 words)
-
-Product Requirements:
-  - PRD.md (4,200 words)
-  - docs/PRD-Phase2.md (1,800 words)
-
-Technical Design:
-  - TDD.md (5,100 words)
-  - docs/api-design.md (1,200 words)
-
-Other Specifications:
-  - docs/data-model.md (890 words)
-
-Total: 7 documents, ~15,640 words
-
-Proceeding with plan generation...
-```
+Display discovered documents before proceeding, grouped by type (Business/Product/Technical/Other) with per-file word counts and a total, ending with a "Proceeding with plan generation..." line. See `references/create-plan-examples.md` → "Document Inventory Report" for the sample.
 
 #### 1.4 Pre-Planning Quality Gate
 
@@ -142,26 +88,7 @@ Note: `/ultra-plan` is the personal-plugin deep pre-planning skill. Anthropic's 
 | No technical design | BRD/PRD only, no TDD, with complex architectural decisions unmade | Recommend `/ultra-plan` |
 | Single vague document | One document under 500 words with no feature breakdown | Recommend `/ultra-plan` |
 
-**If any trigger fires, present this prompt and stop:**
-
-```text
-⚠️  Pre-Planning Investigation Recommended
-
-Your requirements documents have signals that suggest planning directly
-may produce a low-quality or unexecutable plan:
-
-  [List specific signals detected, e.g.:]
-  - 8 of 12 features marked "TBD" or missing acceptance criteria
-  - No technical design document — architecture decisions unmade
-
-Recommended: Run `/ultra-plan` first to resolve ambiguities, then
-return to `/create-plan` with sharper requirements.
-
-Options:
-  1. Run `/ultra-plan` first (recommended)
-  2. Continue with `/create-plan` anyway — I'll flag gaps as assumptions
-  3. Abort
-```
+**If any trigger fires, present the pre-planning prompt and stop.** The prompt lists the specific signals detected and offers three options: (1) run `/ultra-plan` first (recommended), (2) continue with `/create-plan` anyway — gaps flagged as assumptions, (3) abort. See `references/create-plan-examples.md` → "Pre-Planning Investigation prompt" for the display text.
 
 **If none of the triggers fire**, proceed silently to Phase 1.5 (Codebase Reconnaissance).
 
@@ -215,32 +142,7 @@ This is the critical step. For each major feature or capability described in the
    - **Not implemented** — No matching code exists; plan from scratch
    - **Partially implemented** — Some code exists but incomplete; plan should extend
    - **Already implemented** — Feature exists and appears functional; plan should verify/skip or enhance
-3. **Flag overlaps** clearly in a table:
-
-```text
-Codebase Reconnaissance Results
-================================
-
-Tech Stack: [detected stack]
-Structure: [N] source files, [M] test files, [K] config files
-Test Infrastructure: [framework] with [N] tests
-CI/CD: [detected pipeline or "None detected"]
-
-Verification Commands Detected:
-  Test:      [command or "None detected"]
-  Lint:      [command or "None detected"]
-  Typecheck: [command or "None detected"]
-  Coverage:  [command or "None detected"]
-  Custom:    [command or "None detected"]
-
-Feature Overlap Analysis:
-| Requirement | Status | Existing Code | Recommendation |
-|-------------|--------|---------------|----------------|
-| User auth (PRD §2.1) | Already implemented | src/auth/ (JWT + OAuth) | Skip or enhance |
-| Search API (PRD §3.2) | Partially implemented | src/api/search.ts (basic) | Extend, not rebuild |
-| Dashboard (PRD §4.1) | Not implemented | — | Plan from scratch |
-| Data export (PRD §5.3) | Already implemented | src/export/ | Verify, skip if sufficient |
-```
+3. **Flag overlaps** clearly by emitting a "Codebase Reconnaissance Results" report: tech stack, structure counts, test infrastructure, CI/CD, the detected Verification Commands (Test/Lint/Typecheck/Coverage/Custom), and a Feature Overlap Analysis table (Requirement | Status | Existing Code | Recommendation). See `references/create-plan-examples.md` → "Codebase Reconnaissance Results" for the sample.
 
 4. **Note architectural patterns** the codebase follows (e.g., MVC, layered architecture, module conventions, naming patterns) so work items conform to existing conventions
 
@@ -253,14 +155,7 @@ The reconnaissance output directly affects subsequent phases:
 - **Phase 4 (Generate Plan):** Work item descriptions include "Extend existing `src/auth/` module" rather than "Create authentication system"
 - **Complexity estimates** account for existing code (extending is typically S-M; building from scratch is M-L)
 
-**If no meaningful codebase exists** (empty repo, only config files, or only requirements docs), report:
-
-```text
-Codebase Reconnaissance: Greenfield project detected.
-No existing source code found. Plan will assume fresh implementation.
-```
-
-And proceed directly to Phase 2.
+**If no meaningful codebase exists** (empty repo, only config files, or only requirements docs), report a "Greenfield project detected" notice (see `references/create-plan-examples.md` → "Codebase Reconnaissance Results" → Greenfield notice) and proceed directly to Phase 2.
 
 ### Phase 2: Requirements Analysis
 
@@ -304,28 +199,7 @@ Combine information across documents:
 
 #### 2.3 Conflict Detection
 
-If conflicting requirements are found:
-
-```text
-⚠️  Requirement Conflicts Detected
-
-Conflict 1:
-  PRD.md (line 45): "API response time must be < 100ms"
-  TDD.md (line 123): "Batch processing may take up to 5 seconds"
-
-  Resolution needed: Are these different endpoints?
-
-Conflict 2:
-  BRD.md: "Launch by Q2"
-  PRD.md: "Phase 2 features required for launch"
-  TDD.md: "Phase 2 estimated at 8 weeks"
-
-  Resolution needed: Scope or timeline adjustment?
-
-How should I proceed?
-  1. Continue with conservative assumptions
-  2. Pause for clarification
-```
+If conflicting requirements are found, present a "Requirement Conflicts Detected" report — for each conflict, show both sources (file + line) and the contradiction, state the resolution needed, then ask how to proceed: (1) continue with conservative assumptions, or (2) pause for clarification. See `references/create-plan-examples.md` → "Requirement Conflicts report" for the sample.
 
 #### 2.4 Unknowns vs. Risks Classification
 
@@ -346,47 +220,7 @@ When the requirements analysis identifies ambiguities, missing specifications, u
 
 #### 2.5.1 Build Scope Summary
 
-After completing requirements analysis (Phase 2) and codebase reconnaissance (Phase 1.5), compile a compact summary table:
-
-```text
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Plan Scope Summary — Review Before Generation
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Source Documents: [N] files ([total word count] words)
-
-Extracted Features:
-| # | Feature | Priority | Status | Source |
-|---|---------|----------|--------|--------|
-| 1 | [Feature name] | P0 | Not implemented | PRD §2.1 |
-| 2 | [Feature name] | P0 | Partially implemented | PRD §3.2 |
-| 3 | [Feature name] | P1 | Already implemented | PRD §4.1 |
-| ... | ... | ... | ... | ... |
-
-Proposed Plan Shape:
-  Phases:           [N] phases
-  Total Work Items: ~[N] (estimated)
-  Estimated Effort: ~[X] LOC across ~[Y] files
-  Critical Path:    [Phase sequence summary]
-
-Phase Grouping (draft):
-  Phase 1: [Title] — [brief scope, e.g., "Foundation: auth, config, DB schema"]
-  Phase 2: [Title] — [brief scope]
-  Phase 3: [Title] — [brief scope]
-  ...
-
-Assumptions:
-  - [Assumption 1, e.g., "Using existing auth module in src/auth/"]
-  - [Assumption 2, e.g., "PostgreSQL as primary datastore per TDD §3.1"]
-  - [Assumption 3, e.g., "No mobile targets — web only"]
-  ...
-
-Features Skipped (already implemented):
-  - [Feature name] — [reason, e.g., "Fully implemented in src/export/"]
-  ...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+After completing requirements analysis (Phase 2) and codebase reconnaissance (Phase 1.5), compile a compact summary table containing: source-document count and word total; an Extracted Features table (# | Feature | Priority | Status | Source); the Proposed Plan Shape (phase count, estimated work-item count, estimated LOC/files, critical path); a draft Phase Grouping; an explicit Assumptions list; and a Features Skipped (already implemented) list. See `references/create-plan-examples.md` → "Plan Scope Summary display template" for the full display.
 
 #### 2.5.2 Ask for Approval
 
@@ -405,16 +239,7 @@ Proceed with this scope?
 
 - **"Yes" / "1" / approve:** Proceed to Phase 3 (Phase Planning) with the confirmed scope.
 - **"Adjust" / "2":** Accept the user's modifications. Update the feature list, phase grouping, priorities, or assumptions as directed. Re-display the updated summary and ask for approval again.
-- **"Abort" / "3":** Stop execution. Display:
-  ```text
-  Plan generation aborted. Analysis results:
-    - [N] documents analyzed ([word count] words)
-    - [N] features extracted
-    - [N] already implemented, [N] partially implemented
-    - Codebase reconnaissance completed
-
-  To resume later, run /create-plan with the same documents.
-  ```
+- **"Abort" / "3":** Stop execution. Display an abort notice that summarizes the analysis (documents analyzed, features extracted, already/partially implemented counts, reconnaissance completed) and states how to resume later. See `references/create-plan-examples.md` → "Abort response display".
 
 #### 2.5.4 Design Constraints
 
@@ -434,21 +259,11 @@ Convert requirements into discrete work items:
 2. List files likely to be affected
 3. Estimate complexity (XS/S/M/L/XL)
 4. Identify dependencies
-5. **Assign model tier** — default to the lowest tier that plausibly works:
-   - **haiku:** deterministic transformations — renames, format conversions, regex edits, boilerplate from a clear spec, classification, simple lookups, summarizing small chunks
-   - **sonnet:** standard coding — tests against a spec, single-file refactors, docs, straightforward bug fixes, most code review (use as default when unsure)
-   - **opus:** anything needing judgment — architectural choices, multi-file refactors, ambiguous requirements, cross-cutting debugging, design synthesis
-
-   For borderline items, choose the lower tier and add an explicit **escalation criterion** to the Notes field: a condition under which the sub-agent should return `ESCALATE: [reason]` for re-dispatch at a higher tier. Example: `"Escalate if the change requires touching the auth middleware — that coupling was not visible from the spec."`
+5. **Assign model tier** — default to the lowest tier that plausibly works (`haiku` for deterministic transforms, `sonnet` for standard coding — the default when unsure, `opus` for judgment-heavy work). For borderline items, choose the lower tier and add an explicit escalation criterion to the Notes field. See `references/plan-template.md` rule 17 for the full rubric and escalation guidance.
 
 6. Define acceptance criteria — Use EARS notation for behavioral criteria: `WHEN [condition] THEN [component] SHALL [behavior]`. Binary/threshold criteria remain as simple checkboxes. See `references/plan-template.md` rule 13.
 
-**Complexity estimation:**
-| Size | Files Changed | LOC Changed | Example |
-|------|---------------|-------------|---------|
-| S | 1-3 files | <100 LOC | Config change, small fix, single file edit |
-| M | 3-8 files | 100-500 LOC | Feature with tests, API endpoint, refactoring |
-| L | 8-15 files | 500-1500 LOC | Complex feature, major refactoring, integration |
+**Complexity estimation:** See `references/plan-template.md`'s Sizing Constraints table for file/LOC bounds per size (S/M/L).
 
 If a work item would be XL (15+ files or 1500+ LOC), split it into smaller items.
 
@@ -488,16 +303,7 @@ After constructing phases, emit an `### Execution Hints` section at the plan lev
 - **Simple mechanical phases** (config changes, dependency updates, formatting): Suggest `haiku` as a phase default
 - **Context budget:** `Standard` for S-M phases, `Extended` for L phases with many files
 
-**Format:**
-```markdown
-### Execution Hints
-
-| Phase | Model Tier | Context Budget | Notes |
-|-------|------------|----------------|-------|
-| All (default) | `sonnet` | Standard | Per-item Model Tier fields take precedence over phase defaults |
-| [Phase N] | `opus` | Extended | [Reason — e.g., "All items in this phase require architectural judgment"] |
-| [Phase M] | `haiku` | Minimal | [Reason — e.g., "Purely mechanical config updates"] |
-```
+**Format:** a `### Execution Hints` table with columns Phase | Model Tier | Context Budget | Notes — an "All (default)" row (`sonnet`, Standard, noting per-item tiers take precedence) plus per-phase override rows. See `references/create-plan-examples.md` → "Execution Hints table format".
 
 If all phases are S-M complexity and per-item tiers are already set, omit the Execution Hints section entirely (per template rule 15). The per-item `**Model Tier:**` fields are sufficient on their own.
 
@@ -531,108 +337,11 @@ For each phase, verify:
 
 **Before writing, check if IMPLEMENTATION_PLAN.md already exists.**
 
-- **If the file does NOT exist:** Create it fresh with the full structure below.
-- **If the file DOES exist:**
+- **File missing:** Create it fresh with the full structure below.
+- **File exists, all items `Status: COMPLETE`:** Prompt the user to choose — (1) archive the completed plan to `docs/archive/IMPLEMENTATION_PLAN-v{N+1}.md` and start fresh, or (2) append new phases after the completed ones.
+- **File exists, some items PENDING/IN_PROGRESS:** Append new phases directly — no prompt needed.
 
-  **First, check if ALL work items are COMPLETE.** Scan every `**Status:**` field in the file. If every item has `Status: COMPLETE`, the plan is finished. Present this prompt:
-
-  ```text
-  Existing IMPLEMENTATION_PLAN.md found with all [N] items COMPLETE.
-
-  Options:
-    (1) Archive and create fresh — move completed plan to docs/archive/, generate new plan
-    (2) Append — add new phases after the completed ones (preserves history in one file)
-  ```
-
-  **Option (1) Archive and create fresh:**
-  1. Scan `docs/archive/` for existing `IMPLEMENTATION_PLAN-v*.md` files
-  2. Extract the highest version number N (default 0 if none exist)
-  3. Create `docs/archive/` directory if it doesn't exist
-  4. Move the plan file to `docs/archive/IMPLEMENTATION_PLAN-v{N+1}.md`
-  5. Report: `Archived completed plan as docs/archive/IMPLEMENTATION_PLAN-v{N+1}.md`
-  6. Then create a fresh IMPLEMENTATION_PLAN.md using the full structure below.
-
-  **Option (2) Append:** Proceed with the append logic below.
-
-  **If NOT all items are COMPLETE** (some are PENDING or IN_PROGRESS), proceed directly to the append logic below.
-
-  **Append logic:**
-  1. Read the existing file
-  2. Locate the machine-readable markers to find insertion points:
-     - `<!-- BEGIN PHASES -->` / `<!-- END PHASES -->` — bracket all phase sections
-     - `<!-- BEGIN TABLES -->` / `<!-- END TABLES -->` — bracket the trailing tables (Parallel Work, Risk Mitigation, Success Metrics, Traceability)
-  3. Identify the highest existing phase number (e.g., if Phase 4 is the last, new phases start at Phase 5)
-  4. Renumber all new phases to continue from the highest existing phase
-  5. Renumber all new work items accordingly (e.g., 5.1, 5.2, 6.1...)
-  6. Insert the new phases immediately before `<!-- END PHASES -->`, preceded by a separator comment: `<!-- Appended on [YYYY-MM-DD HH:MM:SS] from /create-plan -->`
-  7. Update the Phase Summary Table to include both old and new phases
-  8. Update the total phase count, estimated total effort, and any metadata in the header
-  9. Append new entries to the tables between `<!-- BEGIN TABLES -->` and `<!-- END TABLES -->` (Parallel Work Opportunities, Risk Mitigation, Success Metrics, Traceability)
-  10. **Partially-executed plans:** If any existing items have `Status: COMPLETE` or `Status: IN_PROGRESS`, preserve them exactly as-is. Warn the user: `"This plan has items in progress. New phases will be appended after existing content."`
-
-**Tell the user what happened:**
-```text
-Existing IMPLEMENTATION_PLAN.md found with [N] phases.
-Appending [M] new phases (Phase [N+1] through Phase [N+M]).
-```
-
-**Append Example — Before & After:**
-
-*Before (existing 3-phase plan):*
-```markdown
-<!-- BEGIN PHASES -->
-
-## Phase 1: Foundation
-...
-## Phase 2: Core Features
-...
-## Phase 3: Integration
-...
-
-<!-- END PHASES -->
-
-<!-- BEGIN TABLES -->
-
-## Parallel Work Opportunities
-| Work Item | Can Run With | Notes |
-|-----------|--------------|-------|
-| 1.1 | 1.2 | Independent modules |
-
-...
-<!-- END TABLES -->
-```
-
-*After (2 new phases appended):*
-```markdown
-<!-- BEGIN PHASES -->
-
-## Phase 1: Foundation
-...
-## Phase 2: Core Features
-...
-## Phase 3: Integration
-...
-
-<!-- Appended on 2026-02-28 14:30:00 from /create-plan -->
-
-## Phase 4: Error Handling
-...
-## Phase 5: Polish
-...
-
-<!-- END PHASES -->
-
-<!-- BEGIN TABLES -->
-
-## Parallel Work Opportunities
-| Work Item | Can Run With | Notes |
-|-----------|--------------|-------|
-| 1.1 | 1.2 | Independent modules |
-| 4.1 | 4.2 | New independent items |
-
-...
-<!-- END TABLES -->
-```
+Follow `references/plan-append-guide.md` for the full procedure (archive versioning, marker-based insertion points, phase/item renumbering, partial-execution handling, user messaging, and a Before/After example), using separator `from /create-plan`.
 
 Read the plan template from `references/plan-template.md` (relative to this command's plugin directory) and use it as the output structure for IMPLEMENTATION_PLAN.md.
 
@@ -652,19 +361,7 @@ For each phase, emit a `### Definition of Done (Runnable)` section after the Pha
 - Use the same commands for every phase unless a phase has phase-specific verification needs (e.g., a database migration phase might add a migration check command).
 - The DoD section is bracketed by `<!-- BEGIN DOD -->` and `<!-- END DOD -->` markers for machine parsing.
 
-**Format:**
-```markdown
-### Definition of Done (Runnable)
-<!-- BEGIN DOD -->
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| Tests | `[detected test command]` | Exit code 0 |
-| Lint | `[detected lint command]` | Exit code 0 |
-| Types | `[detected typecheck command]` | Exit code 0 |
-| Coverage | `[detected coverage command]` | [detected threshold or "Exit code 0"] |
-| [Custom] | `[detected custom command]` | [criteria] |
-<!-- END DOD -->
-```
+**Format:** a `### Definition of Done (Runnable)` section wrapped in `<!-- BEGIN DOD -->` / `<!-- END DOD -->` markers, containing a Check | Command | Pass Criteria table with one row per detected command (Tests/Lint/Types/Coverage/Custom). See `references/create-plan-examples.md` → "Definition of Done table format".
 
 **Mapping from Phase 1.5.2 detection to DoD rows:**
 
@@ -692,78 +389,11 @@ Save IMPLEMENTATION_PLAN.md to the repository root (or custom path if specified)
 
 #### AGENTS.md Generation (optional)
 
-Check if `AGENTS.md` exists in the repo root:
-- **If AGENTS.md exists:** Skip this step entirely.
-- **If AGENTS.md does not exist:** Offer to generate one:
-
-> "No AGENTS.md found. This file provides cross-tool compatibility for AI coding tools (Codex, Cursor, Aider). Would you like me to generate one from CLAUDE.md and the codebase reconnaissance results?"
-
-If the user accepts:
-1. Read CLAUDE.md and extract project-relevant sections (Project Overview, tech stack, conventions, build/test commands)
-2. Generate AGENTS.md using the template from `references/agents-md-template.md`
-3. Write to repo root as `AGENTS.md`
-4. Note: Do NOT include Claude Code-specific features (skills, commands, hooks) — AGENTS.md is tool-agnostic
+If `AGENTS.md` doesn't already exist in the repo root, offer to generate one from CLAUDE.md and the codebase reconnaissance results, using `references/agents-md-template.md` (tool-agnostic — no Claude Code-specific features). See `references/create-plan-examples.md` for the full check/offer/generate procedure.
 
 #### 5.2 Summary Report
 
-Display a summary to the user:
-
-```text
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Implementation Plan Generated
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Source Documents: 5 files analyzed
-  - PRD.md (Product Requirements)
-  - TDD.md (Technical Design)
-  - docs/BRD.md (Business Requirements)
-  - docs/api-spec.md (API Specification)
-  - docs/data-model.md (Data Model)
-
-Plan Summary:
-  Total Phases:     4
-  Total Work Items: 18
-  Estimated Effort: ~2,400 LOC across 22 files
-
-Phase Breakdown:
-  Phase 1: Foundation        (M, ~8 files, ~500 LOC, 5 work items)
-  Phase 2: Core Features     (L, ~10 files, ~800 LOC, 6 work items)
-  Phase 3: Integration       (M, ~6 files, ~600 LOC, 4 work items)
-  Phase 4: Polish & Launch   (S, ~4 files, ~500 LOC, 3 work items)
-
-Critical Path: Phase 1 → Phase 2 → Phase 3 → Phase 4
-Parallelization: 8 work items can run concurrently
-
-Risks Identified: 4 (1 high, 2 medium, 1 low)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Output: IMPLEMENTATION_PLAN.md
-
-Next Steps:
-  1. Review the generated plan
-  2. Adjust phases or work items as needed
-  3. Run '/implement-plan' to begin execution
-
-[If plan has 6+ phases OR 20+ total work items, append this block:]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Large Plan Detected — Consider Parallel Execution
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-This plan has [N] phases and [M] work items. Sequential execution
-via '/implement-plan' works, but '/batch /implement-plan' can run
-independent phases in parallel isolated worktrees, significantly
-reducing wall-clock time.
-
-  '/batch /implement-plan'           # Parallel execution (faster)
-  '/implement-plan'                  # Sequential execution (simpler)
-
-Use '/batch' when phases are mostly independent (check the
-Parallel Work Opportunities table in the plan). Use sequential
-when phases have tight dependencies or share mutable state.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+Display a summary to the user; emit it in the format shown in `references/create-plan-examples.md` (document/phase breakdown, critical path, risks identified, next steps, and — when the plan has 6+ phases or 20+ work items — a "Large Plan Detected" parallel-execution callout).
 
 ## Execution Guidelines
 
@@ -794,38 +424,11 @@ Before constructing the plan, aggressively investigate each identified change, g
 
 ### No Requirements Documents
 
-```text
-Error: No requirements documents found.
-
-Create at least one of:
-  - PRD.md (Product Requirements Document)
-  - BRD.md (Business Requirements Document)
-  - TDD.md (Technical Design Document)
-  - requirements.md
-
-Or specify documents explicitly:
-  /create-plan path/to/your/requirements.md
-```
+Report that no requirements documents were found, then list the documents to create (PRD/BRD/TDD/requirements.md) or how to specify them explicitly. See `references/create-plan-examples.md` → "Error Handling displays" → "No Requirements Documents".
 
 ### Incomplete Requirements
 
-If critical information is missing:
-
-```text
-⚠️  Incomplete Requirements Detected
-
-Missing information:
-  - No database schema defined (needed for data layer)
-  - API authentication method not specified
-  - Error handling strategy not documented
-
-Options:
-  1. Continue with assumptions (I'll document them)
-  2. Pause for you to update requirements
-  3. Generate partial plan for defined areas only
-
-How should I proceed?
-```
+If critical information is missing, present an "Incomplete Requirements Detected" report listing the missing information and offer three options: (1) continue with documented assumptions, (2) pause for the user to update requirements, or (3) generate a partial plan for defined areas only. See `references/create-plan-examples.md` → "Error Handling displays" → "Incomplete Requirements".
 
 ### Conflicting Requirements
 
@@ -834,55 +437,13 @@ See Phase 2.3 for conflict handling.
 ## Examples
 
 ```text
-User: /create-plan
-
-Claude:
-Searching for requirements documents...
-
-Requirements Documents Found
-============================
-Product Requirements:
-  - PRD.md (4,200 words)
-Technical Design:
-  - TDD.md (5,100 words)
-
-Total: 2 documents, ~9,300 words
-
-Surveying existing codebase...
-
-Codebase Reconnaissance Results
-================================
-Tech Stack: TypeScript, React, PostgreSQL
-Structure: 45 source files, 12 test files
-Test Infrastructure: Jest with 38 tests
-
-Feature Overlap Analysis:
-| Requirement       | Status              | Existing Code       |
-|-------------------|---------------------|---------------------|
-| User auth         | Already implemented | src/auth/ (JWT)     |
-| Search API        | Not implemented     | —                   |
-| Dashboard         | Partially done      | src/pages/dash.tsx  |
-
-Plan Scope Summary — Review Before Generation
-...
-Proceed with this scope? (1) Yes (2) Adjust (3) Abort
-
-User: 1
-
-Claude:
-Generating implementation plan...
-
-Output: IMPLEMENTATION_PLAN.md
-  4 phases, 16 work items
-  Estimated: ~2,400 LOC across 22 files
-```
-
-```text
 User: /create-plan docs/requirements/*.md --phases 3
 
 Claude:
 [Uses specified documents and targets 3 phases]
 ```
+
+See `references/create-plan-examples.md` for a full transcript covering document discovery, codebase reconnaissance, and scope confirmation through plan generation.
 
 ## Performance
 

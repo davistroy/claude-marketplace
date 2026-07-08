@@ -34,7 +34,6 @@ Defines target AI model and supported resolutions:
 ```json
 {
   "ModelAndOutputProfiles": {
-    "TargetModelHint": "gemini-2.0-flash-exp",
     "ResolutionProfiles": {
       "Landscape4K": { "Width": 3200, "Height": 1800, "AspectRatio": "16:9", "UseCase": "Presentations" },
       "SquareHQ": { "Width": 1800, "Height": 1800, "AspectRatio": "1:1", "UseCase": "Social media" },

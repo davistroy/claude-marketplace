@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [marketplace v3.3.0, personal-plugin v10.0.0, bpmn-plugin v4.2.0, slide-gen v1.2.0] - 2026-07-08
+
+Coordinated release closing an 8-phase, 35-item modernization pass against current official Anthropic guidance (see `IMPLEMENTATION_PLAN.md`, ADR-0005, ADR-0006).
+
+### Added
+- **Agent frontmatter**: all 9 arch-review agents (solutions-architect, data-architect, integration-architect, software-engineer, performance-engineer, qa-architect, security-architect, platform-engineer, risk-compliance) now register with `name`, `description`, least-privilege `tools`, `model: inherit`, and `effort: high` — dispatch-by-name replaces prompt-inlining
+- **`/new-skill --pattern`**: scaffold a skill from any of the 8 command-pattern templates (conversion, generator, interactive, planning, read-only, synthesis, utility, workflow), adapted to skill form at generation time
+- **CI**: `plugin-validate` job runs the official `claude plugin validate --strict` (pinned CLI version) against all three plugins plus non-strict against the marketplace manifest
+- **Trigger evals**: `evals/skills/description-triggers.eval.md` — should-trigger/should-not-trigger scenarios for the big-5 overlap-prone skills and the four locked-down skills
+- **14 new reference files** from progressive-disclosure extractions, incl. `plan-append-guide.md`, `recommendations-template.md`, `create-plan-examples.md`, `implement-plan-state-schema.md`, `validation-output-examples.md`, `research-provider-protocols.md`, `ship-output-templates.md`, `clean-repo-examples.md`, `claude-md-wiki-section.md`, `wiki-readme-template.md`, `skill-patterns.md`, `bpmn2drawio-reference.md`, and skill-local `evaluate-pipeline-output/references/{report-format,evaluator-guidance}.md`
+- **Per-plugin README + LICENSE**: `plugins/{personal-plugin,bpmn-plugin,slide-gen}/{README.md,LICENSE}`
+- **`.gitattributes`**: explicit LF line-ending rules for text files; binary protection for `.zip`
+- **`LEARNINGS.md`**: repo-root log of implementation escalations and cross-cutting lessons from this release
+
+### Changed
+- **Implementer agents**: `.claude/agents/{haiku,sonnet,opus}-implementer.md` pinned model IDs replaced with tier aliases (`haiku`/`sonnet`/`opus`) per ADR-0005 — swap models globally without touching plans
+- **arch-review**: dispatch simplified to `subagent_type`-by-name (no more agent-file inlining); per-agent `findings/<agent>.meta.json` replaces the shared, collision-prone `.meta.json`; `arch-review-single` and `arch-synthesize` aligned to match
+- **Planning family single-sourced**: `create-plan` (470 lines), `plan-improvements` (490 lines), and `implement-plan` (573 lines) now point to `references/plan-template.md` for the model-tier rubric, sizing tables, and append procedure instead of carrying drifting inline copies; `implement-plan`'s duplicated PATH A/PATH B collapsed into one flow parameterized on batch cardinality
+- **`validate-plugin`**: refactored to 675 lines with a dynamic reference-file inventory (diffs `references/` against a required set instead of a hand-synced table); sample output moved to `validation-output-examples.md`
+- **13 oversized files** brought to/toward the ~500-line progressive-disclosure budget across both plugins (validate-plugin, research-topic, ship, clean-repo, finish-document, bpmn-to-drawio, create-wiki, evaluate-pipeline-output, test-project, plus the three planning commands above)
+- **21 skills'** body "Proactive Triggers" sections folded into frontmatter `description` (or `when_to_use`) per official trigger-info-in-frontmatter guidance
+- **Big-5 descriptions** (bpmn-generator, bpmn-to-drawio, explain-project, spec-to-prototype, accessibility-annotator): added explicit "Do NOT use for" negative scope disambiguating overlapping skills
+- **`scaffold-plugin`**: defaults flipped to skills-first — `skills/` scaffolded by default, `commands/` only via explicit `--with-commands` (ADR-0006)
+- **CLAUDE.md**: refreshed to current spec — skills-first policy, new frontmatter fields, description budgets, hook fields, updated structure/counts
+- **8 skills** (4 pre-existing + 4 new: brain-entry, unlock, lab-notebook, create-wiki) now carry `disable-model-invocation: true`, preventing unwanted auto-invocation of side-effect-primary skills
+
+### Fixed
+- **15 `/batch` + 11 `/ultrareview` dangling references** replaced with real mechanics (`/implement-plan` parallel phases, background Agent dispatch) and the current `/code-review ultra` alias
+- **ultra-plan**: phase-numbering gap (Phase 0 → Phase 2) renumbered to a contiguous 0–5 sequence
+- **validate-plugin**: rule-count check synced from 16 to the template's actual 17 rules
+- **Stale model IDs**: `research-topic` (`claude-opus-4-6` → `claude-opus-4-8`; dead `agent:`-field misuse removed from the fork header); `visual-explainer` (dead `config.claude_model` plumbing wired through both construction sites, `DEFAULT_MODEL` constants updated, dead `TargetModelHint` style key removed from both style JSONs)
+- **Portability**: hardcoded `C:\Users\...` paths rewritten to portable equivalents across 3 skills; CRLF line endings normalized with `.gitattributes` preventing recurrence
+- **`unlock`**: malformed `Bash(powershell*)` permission glob corrected to `Bash(powershell:*)`
+
+### Deprecated
+- **`/new-command`**: moved to `deprecated/`; replaced by `/new-skill --pattern` per the skills-first authoring policy (ADR-0006)
+
+## [personal-plugin v9.3.0] - 2026-06-15
+
+### Changed
+- **spark-recon**: refreshed stale Machine Config — `current_model` → `Qwen/Qwen3.6-35B-A3B-FP8`, quantization → pre-quantized FP8; broadened Check 2 keyword classifier (Qwen3.6/3.7, DFlash, speculative); Check 1/4 instructions updated to Qwen3.6 context; documented the Firestore `benchmarks`-collection REST access path (unfreezes Arena tracking); dropped permanently-removed NVIDIA forum category 720
+- **spark-audit**: dropped permanently-removed NVIDIA forum category 720; removed the obsolete "pre-quant FP8 hangs" CRITICAL anti-pattern (production intentionally runs pre-quant FP8 since 2026-05-18) and corrected the attention-backend expectation (FLASH_ATTN auto-selected on SM121; FlashInfer is MoE-only)
+
 ## [marketplace v3.2.0, personal-plugin v9.2.0, bpmn-plugin v4.1.0, slide-gen v1.1.0] - 2026-05-14
 
 ### Added

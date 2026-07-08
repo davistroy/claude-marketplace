@@ -1,6 +1,6 @@
 ---
 name: sg-optimize
-description: Run quality analysis and automated improvement on drafted slide content
+description: Run quality analysis and automated improvement on drafted slide content. Use when you have drafted slides and want to improve quality, optimize readability, or get quality scoring before finalizing.
 argument-hint: "<presentation.md> [--output path]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -16,14 +16,6 @@ Run quality analysis and automated improvement on drafted slide content. Uses Cl
 
 **Available presentation files:**
 !`ls -la *.md 2>/dev/null | grep -i pres || echo "No presentation files found"`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User has drafted slides and wants to improve quality
-2. User says "optimize", "improve the slides", or "make it better"
-3. User completed the draft step and wants to continue
-4. User wants quality scoring before finalizing
 
 ## Prerequisites
 

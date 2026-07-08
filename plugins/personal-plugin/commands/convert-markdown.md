@@ -1,6 +1,7 @@
 ---
 description: Convert a markdown file to a nicely formatted Microsoft Word document
 argument-hint: "<markdown-file> [output-file] [--no-toc] [--style <path>]"
+effort: low
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 

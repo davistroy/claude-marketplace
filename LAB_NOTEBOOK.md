@@ -26,6 +26,9 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D11 | Fold Lab Notebook A2, A3, A4 into gap-analysis implementation plan Phase 5 | 2026-04-30 | ACTIVE | E002 | Execute separately — rejected, they naturally fit Phase 5's implement-plan updates |
 | D12 | Fix `/ultraplan` vs `/ultra-plan` reference ambiguity (no full rename) | 2026-04-30 | ACTIVE | E002 | Full rename — rejected, breaking change for user muscle memory. Hyphen already distinguishes. |
 | D13 | Constitution constraints live in CLAUDE.md, not separate constitution.md | 2026-04-30 | ACTIVE | E002 | Separate constitution.md (Spec Kit pattern) — rejected, artifact sprawl for solo-builder context |
+| D19 | Plugin cache freshness is governed by the marketplace's `autoUpdate` setting against `origin/main`, not by manual local reinstall | 2026-07-08 | ACTIVE | E007 | Manual reinstall (A1/A7 premise) — superseded; cache already tracks GitHub origin automatically when `autoUpdate: true`. The real risk is the local dev clone lagging origin (second occurrence of D17's root cause) |
+| D20 | Agent `model:` fields use tier aliases (haiku/sonnet/opus/inherit), never pinned IDs (ADR-0005, Accepted) | 2026-07-08 | ACTIVE | E009/E010 | Pinned + periodic review — rejected, drifted twice undetected (9.1.0→9.3.0) |
+| D21 | Skills-first authoring: new functionality ships as skills; commands/ frozen legacy; new-command deprecated, patterns ported to /new-skill --pattern (ADR-0006, Accepted) | 2026-07-08 | ACTIVE | E009/E010 | Mass-migrate 24 commands — rejected (churn, zero functional gain); status quo — rejected (diverges from official direction) |
 
 Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#)
 
@@ -37,9 +40,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry | Priority |
 |---|--------|---------|-------------|----------|
-| A1 | Reinstall plugin to sync spark-recon changes to Claude Code environment | 2026-04-30 | E001 | High — loaded skill is stale vs repo |
-| A7 | Reinstall plugin to sync all gap-analysis changes to Claude Code environment | 2026-04-30 | E003 | High — loaded plugin cache is stale vs repo |
-| A8 | Bump personal-plugin version to 9.0.0 (major: new template sections, ultra-plan rewrite) | 2026-04-30 | E003 | Medium — version bump needed before merge |
+| A10 | Post-merge: verify installed plugin cache picks up 10.0.0 via autoUpdate (per D19), then smoke-test arch-review dispatch with the NEW agent frontmatter live | 2026-07-08 | E010 | Medium — new agent definitions only take effect after cache sync |
 
 ### Completed
 
@@ -55,6 +56,10 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C8 | Execute gap-analysis IMPLEMENTATION_PLAN.md — 6 phases, 17 items, all complete (A5) | 2026-04-30 | 2026-04-30 | E003 |
 | C9 | Fix /ultraplan → /ultra-plan reference ambiguity in plan-gate and create-plan (A6) | 2026-04-30 | 2026-04-30 | E003 |
 | C10 | Update validate-plugin: fix stale counts, add plan template + reference inventory validation | 2026-04-30 | 2026-04-30 | E004 |
+| C11 | Reinstall plugin to sync spark-recon (A1) — superseded, not executed as originally framed: spark-recon was rewritten multiple times since (v9.1–9.3); reinstall model was based on an incomplete picture of cache sync (see D19) | 2026-04-30 | 2026-07-08 | E007 |
+| C12 | Reinstall plugin to sync gap-analysis changes (A7) — superseded: cache auto-syncs from GitHub `origin/main` (`autoUpdate: true`), confirmed cache already at 9.3.0 = origin tip before any manual action; the actual gap was the local dev clone lagging origin by 1 commit, fixed via `git pull --ff-only` | 2026-04-30 | 2026-07-08 | E007 |
+| C13 | Bump personal-plugin version to 9.0.0 (A8) — done via commit `3b9679d`, since surpassed (now 9.3.0) | 2026-04-30 | 2026-04-30 | E003 |
+| C14 | Execute the 13 review recommendations R1–R13 (A9) — full 8-phase/35-item plan executed via /implement-plan; released as 10.0.0/4.2.0/1.2.0/3.3.0 | 2026-07-08 | 2026-07-08 | E008–E010 |
 
 ---
 
@@ -79,9 +84,9 @@ The project has gone through 8 major versions of personal-plugin and 4 of bpmn-p
 
 ### Current State
 
-The marketplace is at **v2.0.0** (marketplace), **personal-plugin v8.0.0**, **bpmn-plugin v4.0.0**. The repo is clean, synced with origin/main. The v8.0.0 modernization plan (7 phases, 28 work items) completed successfully on 2026-04-21 — see `IMPLEMENTATION_PLAN.md` for full details and `docs/archive/` for prior plan versions (v4, v5).
+*(This subsection is a point-in-time snapshot as of the v8.0.0 modernization, 2026-04-21 — for live version numbers, always check the "Current Baseline" section below, not this paragraph.)* As of 2026-04-21 the marketplace was at v2.0.0, personal-plugin v8.0.0, bpmn-plugin v4.0.0. The v8.0.0 modernization plan (7 phases, 28 work items) completed successfully that day — see `IMPLEMENTATION_PLAN.md` for the current (later) plan and `docs/archive/` for prior plan versions (v4, v5, v6).
 
-One known issue: the installed plugin cache (`~/.claude/plugins/cache/troys-plugins/personal-plugin/8.0.0/`) has a stale `spark-recon/SKILL.md` that doesn't match the repo version. The repo version has dynamic state reading from `SPARK_BASELINE.md` and generalized model family matching; the cached version has hardcoded `Qwen/Qwen3.5-35B-A3B` references. `jetson-recon` is in sync. Reinstalling the plugin (`/plugin install personal-plugin@troys-plugins`) would resolve this.
+Historical note: at the time of Entry 001 (2026-04-30) the installed plugin cache had a stale `spark-recon/SKILL.md` that didn't match the repo version. This was resolved by v9.3.0 (Entry 007, 2026-07-08 baseline check confirmed cache and origin/main agree) — see D19 for how cache sync actually works (GitHub `autoUpdate`, not manual reinstall).
 
 ### Planning System
 
@@ -93,14 +98,15 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 
 ## Current Baseline
 
-- **Marketplace version:** 2.0.0
-- **personal-plugin version:** 8.0.0 (25 commands, 22 skills, 9 agents, hooks system)
-- **bpmn-plugin version:** 4.0.0 (2 skills, bpmn2drawio Python tool)
-- **Git:** clean, main branch, synced with origin/main
-- **Last commit:** `c8e9a15` (2026-04-21) — fix: remove research-orchestrator CI jobs
-- **Plugin cache status:** jetson-recon in sync; spark-recon stale (needs reinstall)
-- **CI/CD:** GitHub Actions (markdownlint); research-orchestrator and help-sync jobs removed in latest commits
-- **Platform:** Windows 11, Claude Code CLI
+- **Marketplace version:** 3.2.0
+- **personal-plugin version:** 9.3.0 (24 commands, 24 skills, 9 named agents in `.claude/agents/`, hooks system)
+- **bpmn-plugin version:** 4.1.0 (2 skills, bpmn2drawio Python tool)
+- **slide-gen version:** 1.1.0 (9 skills, 7-step presentation pipeline)
+- **Git:** clean, main branch, verified synced with `origin/main` via `git fetch` + `git pull --ff-only` (2026-07-08)
+- **Last commit:** `d9a7f06` (PR #95) — personal-plugin 9.3.0: refresh spark-recon/spark-audit stale config
+- **Plugin cache status:** in sync — marketplace source is GitHub (`davistroy/claude-marketplace`) with `autoUpdate: true` (see D19); cache tracks `origin/main` automatically, independent of local working tree state
+- **CI/CD:** GitHub Actions — `test.yml` (pytest matrix, per-tool coverage gates, pip-audit, JSON schema validation), `validate.yml` (plugin.json/frontmatter/version-sync checks, ruff, markdownlint)
+- **Platform:** Linux (this session); prior sessions ran Windows 11 — see root CLAUDE.md "Dual environment" section
 
 ---
 
@@ -367,6 +373,240 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 **What Worked:**
 - Identifying that only 1 file was genuinely new across all "updates everywhere" kept the recovery simple
 - Inventory-first approach (check all branches, PRs, stash, untracked) before acting prevented further thrashing
+
+---
+
+### Entry 007 — Prime Assessment + Documentation Drift Remediation [config] [decision]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI, local `main` at `fb13d93` at session start (repo showed personal-plugin v9.2.0; installed plugin cache already at v9.3.0)
+**Status:** COMPLETE
+**Duration:** ~25 minutes
+
+**Objective:** Run `/prime` for a full project health assessment (3 parallel Explore agents: identity, architecture, risk), then remediate every documentation-drift finding it surfaced — most notably this notebook's own stale "Current Baseline" section.
+
+**Hypothesis:** `/prime`'s Phase 0 instructions (and this project's CLAUDE.md) treat this notebook as the most authoritative source for future sessions — if its baseline is wrong, every future session inherits the error. Expect: (1) baseline versions here are behind the actual `.claude-plugin/*.json` state, (2) closing the loop requires checking every doc that states versions, not just this notebook. Success criteria: every version string in tracked docs matches both `.claude-plugin/*.json` and `origin/main`.
+
+**Rollback Plan:** All changes are to git-tracked markdown/config files (this notebook, root CHANGELOG.md, CLAUDE.md, .gitignore). `git diff` is fully reviewable; `git checkout -- <file>` reverts any single file. The `git pull --ff-only` was fast-forward only on a clean, zero-divergent working tree — no destructive risk existed.
+
+**Actions & Results:**
+
+1. Ran `/prime` — 3 parallel Explore agents (identity, architecture, risk) plus direct git/gh checks. Confirmed marketplace v3.2.0, bpmn-plugin v4.1.0, slide-gen v1.1.0; IMPLEMENTATION_PLAN.md fully complete (2026-04-30); no open GitHub PRs/issues.
+2. Cross-checked the *installed* plugin cache (`~/.claude/plugins/cache/troys-plugins/personal-plugin/`) against the local repo — found cache at **9.3.0**, one version ahead of the local repo's 9.2.0. Traced via `~/.claude/plugins/known_marketplaces.json`: source is GitHub `davistroy/claude-marketplace` with `autoUpdate: true`, last synced 2026-07-07T18:24:15Z.
+3. `git fetch origin` revealed local `main` was behind `origin/main` by exactly 1 commit (`d9a7f06`, PR #95, personal-plugin → 9.3.0, spark-recon/spark-audit config refresh) — a direct recurrence of the D17 root cause from Entry 006 ("version source of truth is always `origin/main`, not local working tree"). `git pull --ff-only origin main` — clean fast-forward, zero conflicts.
+4. Corrected root `CHANGELOG.md`: added the missing `[personal-plugin v9.3.0] - 2026-06-15` entry (present in `plugins/personal-plugin/CHANGELOG.md` but never mirrored to root).
+5. Corrected `CLAUDE.md` "Key References": `IMPLEMENTATION_PLAN.md` was described as "(v8.0.0 modernization)" but the live file actually documents the completed gap-analysis/planning-pipeline plan; updated to match.
+6. Added `._*` to `.gitignore` (macOS AppleDouble sidecar files — `.DS_Store` was already covered, `._`-prefixed files were not) and removed the untracked `._.DS_Store` artifact from the working tree.
+7. Updated this notebook's Current Baseline section and closed Action Items A1, A7, A8 (see Decision Log D19 and Completed table C11–C13).
+8. Committed all four files as `c7efd1d` ("docs: sync documentation to actual repo state; ignore AppleDouble files") — working tree clean after commit.
+
+**Pattern Table — "local clone behind origin" (2nd occurrence):**
+
+| Entry | Symptom | Root Cause | Fix |
+|-------|---------|------------|-----|
+| 006 (D17) | Version-bump math built on stale main; PR #93 collided with an already-shipped release | Local main was 4 commits behind origin; `git status` was checked but `git pull` never run before reasoning about versions | Treat `origin/main` as the only source of truth for version state |
+| 007 (D19) | This notebook's Current Baseline (and local repo) reported personal-plugin 9.2.0; actual origin/main tip was 9.3.0 | Same — local dev clone was 1 commit behind origin, never pulled at session start | Same fix, now formalized as D19 and added to CLAUDE.md's Verified Operational Rules |
+
+**What Worked:**
+- Checking the *installed plugin cache* against the repo (not just internal repo consistency) surfaced a real, live drift a repo-only read would have missed entirely.
+- Tracing `known_marketplaces.json` → `autoUpdate: true` → GitHub source explained *why* the cache was ahead instead of behind, which reframed A1/A7 as based on an outdated mental model of how sync actually works.
+
+**Decision:** D19 — plugin cache freshness is governed by the marketplace's `autoUpdate` setting against `origin/main`, not by manual local reinstall. Superseded the A1/A7 "reinstall to sync" framing. **Alternatives Considered:** keep issuing manual-reinstall action items every time a skill changes — rejected, it's the wrong lever; what actually matters is keeping the *local dev clone* current with origin before reasoning about versions.
+
+**Follow-ups:** None open. Given this is the second occurrence of the same failure mode (D17, D19), a `git fetch` + origin-divergence check at session start is now also captured as a Verified Operational Rule in root CLAUDE.md.
+
+---
+
+### Entry 008 — Full Plugin Review vs Official Anthropic Guidance [plugin] [skill] [command] [decision]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI 2.1.204, main at `c7efd1d` (marketplace 3.2.0, personal-plugin 9.3.0, bpmn-plugin 4.1.0, slide-gen 1.1.0)
+**Status:** COMPLETE
+**Duration:** ~30 minutes
+
+**Objective:** Comprehensive review of all 3 plugins (24 commands, 35 skills, 12 agent defs, hooks, manifests) against the CURRENT (July 2026) official Anthropic guidance — code.claude.com/docs, Claude Code changelog, anthropics/skills, anthropics/claude-plugins-official, and the Agent Skills engineering post. Deliverable: prioritized recommendations ranked by benefit.
+
+**Hypothesis:** The repo predates several 2026 platform changes (commands/skills unification, new frontmatter fields, agent model aliases); expect findings concentrated in (a) staleness from hardcoded specifics and (b) oversized files vs the official 500-line budget. Success criteria: every recommendation traceable to a fetched official source or a verified repo finding.
+
+**Rollback Plan:** N/A — read-only review; outputs are a new report file + this entry.
+
+**Method:** 4 parallel subagents — official-docs fetch, official-exemplar extraction, mechanical repo inventory (frontmatter matrix / sizes / model IDs / path portability / stale refs), qualitative deep-read of the 11 largest files. Highest-impact claims spot-verified by hand before reporting.
+
+**Key Findings (full detail in `reports/plugin-review-anthropic-guidance-20260708-114842.md`):**
+1. **All 9 arch-review plugin agents have zero YAML frontmatter** — they register with no description, all tools, no model control. Biggest functional gap found.
+2. **Stale model pins:** sonnet-implementer=`claude-sonnet-4-6`, opus-implementer=`claude-opus-4-7` (current: sonnet-5, opus-4-8); research-topic pins `claude-opus-4-6-20250725` and misuses it as an `agent:` value; visual-explainer hardcodes `claude-sonnet-4-20250514` in 5 modules and `gemini-2.0-flash-exp` in style JSONs. Agent frontmatter now supports aliases (`sonnet`/`opus`/`haiku`/`fable`/`inherit`) — the permanent fix.
+3. **Dangling refs:** `/batch` recommended in 4 files but doesn't exist anywhere; `/ultrareview` (deprecated alias → `/code-review ultra`) in 6 places incl. CLAUDE.md; ultra-plan skips Phase 1; validate-plugin checks 16 template rules while the template has 17.
+4. **Platform spec changed under us:** commands are now the documented legacy format ("Use skills/ for new plugins"); SKILL.md `name` is now OPTIONAL (defaults to dir name) — house rule D2's rationale is outdated (kept as convention); `disable-model-invocation: true` now removes the description from session context; new fields: `when_to_use`, `arguments`, `user-invocable`, `disallowed-tools`, `shell`, scoped `hooks`.
+5. **13 files exceed the official 500-line budget** (top: validate-plugin 1385, implement-plan 1050 with ~90%-duplicate PATH A/B, create-plan 909); model-tier rubric duplicated across 4 files with two *conflicting* framings — same drift class as D17/D19.
+6. **Portability:** `C:\Users\Troy Davis\...` paths break explain-project/accessibility-annotator/evaluate-pipeline-output on Linux; prime/SKILL.md is the repo's only CRLF file; no .gitattributes.
+7. **Safety gaps:** brain-entry (external POST) is the only skill missing `allowed-tools` and lacks `disable-model-invocation`; unlock (secret loading) also model-invocable.
+8. **Clean bills:** manifests spec-clean and richer than official norm; hooks.json format correct; no committed secrets; no forbidden-`name` violations; bpmn-generator and sg-full-workflow are model progressive-disclosure citizens.
+9. **New official tooling to adopt:** `claude plugin validate` CLI (CI candidate) and skill-creator's should-trigger/should-not-trigger description-eval loop.
+
+**Output:** 13 recommendations ranked by benefit (R1 agents-frontmatter → R13 polish) in `reports/plugin-review-anthropic-guidance-20260708-114842.md`. Action item A9 opened.
+
+**What Worked:**
+- Splitting "what does Anthropic say" (2 web agents) from "what does the repo do" (2 repo agents) made every recommendation attributable to a source-vs-finding pair
+- Mechanical awk/grep frontmatter matrixing over ~70 files caught things a read-through would miss (the 0/9 agent frontmatter, the single CRLF file, the single missing allowed-tools)
+
+---
+
+### Entry 009 — Ultra-Plan over R1–R13 [plugin] [skill] [command] [template] [decision]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI 2.1.204, main at `c7efd1d`, executing `/ultra-plan "all items R1 through R13"` from A9
+**Status:** IN PROGRESS
+
+**Objective:** Run the full ultra-plan rigid workflow (Phase 0 constitution → investigation → interaction mapping → solution design → summary report → plan generation) over the 13 review recommendations, producing an approved IMPLEMENTATION_PLAN.md.
+
+**Hypothesis:** The 13 recommendations decompose into ~8 coherent change sets grouped by file-overlap rather than one-per-recommendation, because implement-plan/create-plan/plan-improvements/validate-plugin each appear in multiple recommendations. Expect investigation to surface interaction constraints (same-file edits must not land in parallel batches) and 1-2 latent defects beyond the review's findings. Success criteria: every R-item traceable into a change set; plan passes create-plan's structural rules; no constraint violations.
+
+**Rollback Plan:** Investigation is read-only. Generated artifacts (2 ADRs with status Proposed, IMPLEMENTATION_PLAN.md on approval) are new files: `rm docs/adr/0005-*.md docs/adr/0006-*.md` and archive-restore for the plan. No existing files modified until plan execution.
+
+**Investigation results (5 parallel Explore clusters + local checks):**
+- **Confirmed beyond review:** plan-gate has an entire routing path (Path B.5, 8 references) built on the nonexistent `/batch`; `/batch` total is 15 occurrences, `/ultrareview` 13 (incl. WORKFLOWS.md:93,115 missed earlier); "Claude Opus 4.6" co-author also in test-project.md:323.
+- **arch-review agents are NOT read-only** — all 9 write findings files + merge shared `.meta.json` and run Bash probes → R1 frontmatter needs Read/Glob/Grep/Bash/Write/Edit, and `name:` must exactly match filename stems (used as subagent_type).
+- **Latent arch-review design issue:** prose-level `isolation: worktree` (SKILL.md:95,128) likely orphans findings files in discarded worktrees; the `.meta.json` collision it guards against is better fixed with per-agent meta files.
+- **Official validator confirms R1 independently:** `claude plugin validate --strict ./plugins/personal-plugin` FAILS today on the missing agent frontmatter. bpmn-plugin and slide-gen pass. Marketplace manifest gets 2 warnings: `metadata.marketplace_version`/`schema_version` are unknown fields Claude Code ignores at load time.
+- **visual-explainer model config is effectively dead:** `config.claude_model` is consumed by one module only; cli.py construction sites (940, 1102) never pass `model=`, so hardcoded `DEFAULT_MODEL` constants are the real runtime values. Styles-JSON `TargetModelHint` (`gemini-2.0-flash-exp`) has zero consumers — dead config.
+- **Planning-family duplication precisely mapped:** rubric byte-identical in create-plan:438-440 ≡ plan-improvements:481-483 (canonical = template rule 17); plan-improvements' Execution-Hints framing violates template rule 15's column schema; implement-plan PATH A/B differ ONLY on batch cardinality (state keys, background dispatch, commit template, plural text) — prompts already verbatim-shared.
+- **Portability:** all C:\ paths map to existing Linux equivalents except `~/dev/info/technical-document-structure-template.md` (missing on VM — sync gap); build-cfa-deck's `~/dev/stratfield` works on both machines (synced repo) → no change needed. CRLF affects prime/SKILL.md AND `.markdownlint.json`.
+- **ultra-plan renumber is safe:** plan-gate never references ultra-plan phase numbers.
+- **wiki skill has no `paths:`** and documents that injected CLAUDE.md rules handle auto-maintenance → create-wiki's `paths:` auto-activation is redundant; drop rather than move.
+
+**Decisions (approved with plan):**
+- **D20 (ADR-0005):** Agent `model:` fields use aliases (`haiku`/`sonnet`/`opus`), not pinned IDs. Pins drifted twice undetected. Alt: pinned + periodic review — rejected, proven failure mode.
+- **D21 (ADR-0006):** Skills-first authoring policy — new functionality ships as skills; commands legacy-frozen; new-command deprecated with pattern support ported into new-skill; NO mass migration of the 24 existing commands. Alt: mass-migrate — rejected (churn, muscle-memory breakage, zero functional gain).
+
+**Plan generation (user approved "implement"):**
+1. Archived the completed gap-analysis plan: `git mv IMPLEMENTATION_PLAN.md docs/archive/IMPLEMENTATION_PLAN-v7.md` — OK.
+2. Routed through `/create-plan` per ultra-plan Phase 6b (discovery/recon/scope-confirmation satisfied by ultra-plan analysis per 6c mapping).
+3. Generated fresh `IMPLEMENTATION_PLAN.md`: **8 phases, 35 work items** (~4,100 LOC churn, ~75 files), all items PENDING with per-item Model Tier (3 opus: 4.4 implement-plan PATH collapse, 5.1 validate-plugin refactor; 8 haiku mechanical; rest sonnet). Structure verified: markers ×4, DoD blocks ×8, R1–R13 fully traced, sizing caps respected (wide-shallow items 8.2/8.3 documented).
+4. Approved defaults encoded: personal-plugin → 10.0.0 (major: new-command deprecation per v5.x/v8.0.0 precedent), bpmn-plugin 4.2.0, slide-gen 1.2.0, marketplace 3.3.0; marketplace manifest CI-validated non-strict (runtime-ignored `metadata.*version` house fields retained); lab-notebook + create-wiki locked down, create-wiki drops redundant `paths:`.
+5. Noted: `reports/` is gitignored — plan traceability anchors to tracked E008/E009 + ADRs instead. AGENTS.md absent (generation offered to user as optional follow-up, not blocking).
+
+**Status:** COMPLETE (planning). Execution is A9's next step via `/implement-plan`.
+**Duration:** ~50 minutes (investigation ~25, design/report ~15, plan generation ~10)
+
+---
+
+### Entry 010 — Plan Execution: /implement-plan --auto-merge, full run [plugin] [skill] [command] [ci] [config]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI 2.1.204, branch `feat/guidance-modernization-v10` from `c7efd1d`; checkpoint commit `f6678d0` (plan + ADRs + E008/E009); orchestrator on Fable 5
+**Status:** IN PROGRESS
+
+**Objective:** Execute all 8 phases / 35 work items of IMPLEMENTATION_PLAN.md continuously (no phase pauses), dispatching per-item model tiers to named implementer sub-agents (haiku/sonnet/opus per plan; user-approved). Orchestrator does no work-item content itself. Ends with PR + auto-merge (user-approved; Entry 006 precedent).
+
+**Hypothesis:** All 35 items are completable by tiered sub-agents against the plan's line-precise specs. File-disjoint parallel batches (verified at interaction-mapping time) prevent write conflicts without worktree isolation. The two opus items (4.4 PATH collapse, 5.1 validate-plugin refactor) are the long poles and the likeliest ESCALATE/iteration sources. Success criteria: every phase's Definition of Done green, `claude plugin validate --strict` passes all plugins, PR merged, versions 10.0.0/4.2.0/1.2.0/3.3.0 live on main.
+
+**Rollback Plan:** Per-item/per-batch commits on the feature branch — `git revert <sha>` for any single item; deleting the branch abandons the whole run (main untouched until squash-merge). `.implement-plan-state.json` (gitignored) enables resume after interruption. Auto-merge is squash — one revert on main undoes the entire release if needed post-merge.
+
+**Execution deviations from the loaded implement-plan workflow (logged up front):**
+1. No worktree isolation for sub-agents — the workflow's `isolation: worktree phase-[N]` prose is the exact harness-fighting pattern item 4.4 removes; graceful-degradation clause invoked. File-disjoint batches + ≤3 concurrent cap provide the safety.
+2. Implementation sub-agents do NOT edit IMPLEMENTATION_PLAN.md (avoids concurrent same-file writes across parallel agents); a single haiku bookkeeper agent per batch flips Status/heading/risk-table entries after results collect.
+3. Startup plan-scan subagent skipped — the orchestrator authored the plan this session; state file written directly from source knowledge.
+
+**Phase results (logged as they complete):**
+
+**Phase 1 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 1 DoD suite (pytest, ruff, markdownlint, pre-commit, dangling-ref grep, stale-model-ID grep); fix in-scope failures.
+- *Hypothesis:* Phase 1's 13 markdown edits pass all checks; any failure is either pre-existing Python debt or a missed staleness site. Success = all 6 commands pass or remaining failures proven pre-existing.
+- *Rollback plan:* Both fixes are single-line text edits in git-tracked files — `git checkout -- <file>` reverts. N/A for read-only checks.
+- *Results:*
+  - pytest `tests/`: PASS — 67/67 (via `uv run --no-project --with pytest --with jsonschema --with pyyaml`; system python3 has no pytest — CI installs it, env-only gap; no `python` alias on this VM).
+  - ruff: FAIL, PRE-EXISTING — 41 errors across 25 `.py` files (bpmn2drawio tests, feedback-docx test, scripts/*.py). No Python touched by Phase 1; identical on HEAD.
+  - markdownlint: FAIL, PRE-EXISTING — 3× MD012 in `tests/fixtures/invalid-plugin/commands/*.md` (unchanged since v2.4.0, cb3aec6). All 13 Phase-1 files lint clean.
+  - dangling refs (`/batch|/ultrareview`): PASS — zero hits. Note: the DoD command's `--include='*.md'` appears *after* `--`, so GNU grep treats it as a filename (stderr warning, harmless); also the shell's `grep` is a Claude Code ugrep wrapper — verified with `command grep` and corrected flag order.
+  - stale model IDs: FAIL initially — 2 sites Phase 1 missed: `references/api-key-setup.md:36` (`claude-opus-4-6-20250725`) and `deprecated/setup-statusline.md:354` ("Claude Opus 4.5"). Both are Staleness-Sweep-class fixes (plan line 201 excludes only CHANGELOG/LAB_NOTEBOOK/docs/archive — deprecated/ is in scope for this grep). Fixed: api-key-setup → `claude-opus-4-8` (matches 1.5's convention + claude-api skill current-alias table; alias form, no date suffix); setup-statusline → "Claude Opus" (model-agnostic per 1.2's never-goes-stale principle; any "4.x" re-matches the DoD pattern). Re-run: zero hits — PASS. Both edited files lint clean.
+  - pre-commit: PASS — exit 0 with empty index (by design — validates staged files only); staged-variant run against the 10 Phase 1 command/skill files: 0 errors, 3 pre-existing warnings (no help skill in any plugin), index restored via `git reset`.
+- *Pre-existing debt surfaced (candidate Action Items):* (1) ruff: 41 errors / 32 auto-fixable in 25 untouched `.py` files; (2) markdownlint: 3× MD012 in `tests/fixtures/invalid-plugin/commands/`; (3) this VM has no `python` alias and no pytest for system python3 — DoD's literal `python -m pytest` cannot run here without `uv run` or a venv.
+
+**Phase 2 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 2 DoD suite — repo pytest, visual-explainer pytest+coverage (≥65%), ruff, markdownlint, EOL check, Windows-path grep, lockdown count (=8), frontmatter YAML sanity on the 4 locked-down skills. Fix in-scope failures (≤3 attempts each); pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 2's frontmatter lockdowns, path rewrites, .gitattributes renormalization, and visual-explainer model plumbing pass all 8 checks; ruff shows exactly the 41 pre-existing errors (nothing new in visual-explainer src/tests); markdownlint shows only 3× MD012 fixture debt. Success = all 8 pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked file — `git checkout -- <file>` reverts (staged renormalization in index left untouched). N/A otherwise.
+- *Results:* ALL 8 PASS on first run — zero fixes needed.
+  - repo pytest `tests/`: PASS — 67/67, exit 0 (same uv invocation as Phase 1).
+  - visual-explainer suite (`uv run --extra dev python -m pytest tests/` from tool dir): PASS — 607 passed, 2 skipped, 26s; coverage TOTAL **67%** ≥ 65% gate. Both skips are pre-existing conditional guards in files Phase 2 never touched: `test_image_evaluator.py:489` (resize threshold) and `test_integration.py:111` (needs `ANTHROPIC_API_KEY`). Model-plumbing edits (api_setup, cli, config, image_evaluator, prompt_generator, prompt_refiner + conftest/test updates) fully green.
+  - ruff: FAIL exit-wise, PRE-EXISTING ONLY — exactly 41 errors, per-file distribution verified with `--output-format concise | cut -d: -f1 | sort | uniq -c`: scripts/generate-help.py 9, scripts/update-readme.py 4, bpmn2drawio tests 27, feedback-docx test 1 (Σ=41). **Zero findings in visual-explainer src/tests** → nothing new from Phase 2's Python changes.
+  - markdownlint: FAIL exit-wise, PRE-EXISTING ONLY — exactly the 3 known MD012 in `tests/fixtures/invalid-plugin/commands/` (deliberately invalid fixtures). All Phase 2 markdown (4 lockdown skills, 3 path-rewrite skills, styles/README) lint clean.
+  - EOL (DoD): PASS — `git ls-files --eol | command grep -cE 'i/(crlf|mixed)'` = 0. Renormalization of prime/SKILL.md + .markdownlint.json effective; .gitattributes doing its job.
+  - Windows paths (DoD): PASS — `command grep -rn 'C:\\Users\|C:/Users' plugins/ --include='*.md'` = no matches.
+  - Lockdown count (DoD): PASS — exactly 8 skills with `disable-model-invocation: true` (arch-review, brain-entry, create-wiki, lab-notebook, release-plugin, ship, unlock, visual-explainer) = 4 pre-existing + 4 new.
+  - Frontmatter sanity: PASS — brain-entry, unlock, lab-notebook, create-wiki all start with `---`, no BOM, no CRLF, YAML parses to dicts with name/description/allowed-tools/disable-model-invocation (lab-notebook also `effort`).
+- *Environment:* Linux VM, ruff 0.6.9 (~/.local/bin), Python 3.11.14 via uv, pytest 9.1.1 (tool venv), markdownlint-cli via npx. Staged renormalization left untouched in index; no commits made.
+- *Duration:* ~4 minutes wall (suites run in parallel).
+
+**Phase 3 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 3 DoD suite — repo pytest, `claude plugin validate --strict` on personal-plugin, agent frontmatter loop, name=stem check on all 9 agents, implementer model-alias check, markdownlint, stale `findings/.meta.json` grep. Fix in-scope failures (≤3 attempts); pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 3's agent frontmatter + per-agent meta contract + dispatch-by-name rewrites pass all 7 checks; markdownlint shows only the 3 known MD012 fixture errors. Success = all pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked markdown file — `git checkout -- <file>` reverts. N/A otherwise.
+- *Initial results:* 6/7 PASS. Check 7 FAIL — 2 stale shared-meta refs in `plugins/personal-plugin/skills/arch-review/SKILL.md`: line 40 (Step 1 seeds `findings/.meta.json` with `{}`) and line 242 (terminal summary prints `Coverage meta: arch-review/findings/.meta.json`). Root cause: Phase 3's per-agent meta rewrite updated Step 3 (dispatch prompt), Step 4 (glob `*.meta.json`), and both arch commands, but missed Step 1 setup and Step 6 summary — vestiges of the old shared/merged meta contract. Under per-agent meta, no seeding is needed (each agent writes `findings/<agent-name>.meta.json` itself); removing the seed line orphans `WRITE_META`, so `--no-meta` must be rewired into dispatch-prompt construction to stay functional.
+- *Fix (arch-review/SKILL.md only):* (1) drop the `.meta.json` seed line from Step 1 + note per-agent meta; (2) reword the Step 1 caution (its "redirection-syntax error" specifics described the removed seed line); (3) Step 3 gains a `WRITE_META`-false branch — omit Meta output path, instruct agent to skip meta; (4) Step 6 summary line → `findings/*.meta.json (one per agent)`; (5) `--no-meta` flag doc → "per-agent `.meta.json` files".
+- *Post-fix results:* stale-ref grep clean (exit 1, no matches); `WRITE_META` still consumed (Step 3); edited file markdownlint-clean; `claude plugin validate --strict` still passes; repo pytest unaffected (67/67).
+- *Final:* ALL 7 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11.14/pytest 9.1.1 via uv, markdownlint-cli via npx. No commits made.
+
+**Phase 4 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 4 DoD suite — repo pytest; line budgets (create-plan ≤500, plan-improvements ≤500, implement-plan ≤650); rubric single-source grep (`deterministic transformations` absent from commands/); markdownlint; pointer integrity for the 4 new reference files; implement-plan PATH-collapse spot-audit (6 sub-checks); `claude plugin validate --strict`. Fix in-scope failures (≤3 attempts); pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 4's planning-family consolidation (create-plan 470 / plan-improvements 490 / implement-plan 573 lines; 4 new references) passes all 7 checks; markdownlint shows only the 3 known MD012 fixture errors. Success = all pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked markdown file — `git checkout -- <file>` reverts. N/A otherwise.
+- *Initial results:* 6/7 PASS — pytest 67/67; line budgets 470/490/573; rubric grep clean (full rubric only in `references/plan-template.md` rule 17); markdownlint exactly the 3 known MD012; pointer sweep: all 6 `references/*.md` pointers across the three commands resolve, the 4 new files at 114/163/416/86 lines (all >50); strict validate exit 0. Check 6 (spot-audit) 5/6 sub-checks — FAIL on allowed-tools: `Agent` present and standalone `Task` correctly dropped (present at 8574f0c), but `TaskCreate/TaskUpdate/TaskOutput` never added even though the collapsed body instructs their use (lines 92, 165, 220, 268, 270, 359). Root cause: 4.4 rewrote the body's tool contract (Agent = subagents, Task\* = tracking only) but never touched the frontmatter line. Change-side bug, not a stale check.
+- *Fix (implement-plan.md frontmatter only):* allowed-tools gains `TaskCreate, TaskUpdate, TaskList, TaskOutput` after `Agent` (TaskList included — body line 165 instructs its use). Single-line replacement; line count unchanged at 573.
+- *Post-fix results:* allowed-tools grep shows Agent + all four Task-tracking tools, no standalone `Task` token; `claude plugin validate --strict` still exit 0; file still 573 lines; markdownlint on the edited file clean.
+- *4.2 escalation note:* create-plan consolidation escalated sonnet→opus — the item's ≤500-line target conflicted with its own byte-intact protection clause; opus resolved by relocating illustration blocks only → 470 lines, zero behavior change.
+- *4.4 ledger audit:* confirmed — no PATH A/PATH B tokens; exactly one implementer prompt (L254, "the ONLY implementer prompt") and one testing prompt (L288) with a single "ALL_TESTS_PASS confirmation" instruction (L307); both commit-message forms present (L354: `Complete [WORK_ITEM_NAME]` single, `Complete [PHASE_NAME]:` batch); `in_progress_batch` documented at L48/113/126/176/189; allowed-tools contract correct post-fix.
+- *Final:* ALL 7 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11 via uv, markdownlint-cli via npx. No commits made. LEARNINGS.md created at repo root with the 4.2 escalation and 3.3 grep-scope lessons.
+
+**Phase 5 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 5 DoD suite — repo pytest; line budgets on the 9 progressive-disclosure refactors (validate-plugin 675, research-topic 421, ship 437, clean-repo 449, finish-document 402, bpmn-to-drawio 340, create-wiki 367, evaluate-pipeline-output 495, test-project 468; each ≤ stated +5); pointer integrity for all Phase 5 reference extractions; markdownlint; `claude plugin validate --strict` on personal-plugin AND bpmn-plugin; orphaned-content checks (no `Proactive Triggers` in ship; validate-plugin Phase 8.6 required-set includes plan-append-guide + validation-output-examples); schemas sanity (questions.json/answers.json exist for finish-document's pointers). Fix in-scope failures (≤3 attempts); pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 5's extractions (8 new reference files, 9 slimmed sources) pass all 7 checks; markdownlint shows only the 3 known MD012 fixture errors. Success = all pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked markdown file — `git checkout -- <file>` reverts. N/A otherwise.
+- *Results:* ALL 7 PASS on first run — zero fixes needed.
+  - repo pytest `tests/`: PASS — 67/67, exit 0, 0.21s (same uv invocation as Phases 1-4); no test asserted pre-Phase-5 validate-plugin/command content, so no stale-test adjudication needed.
+  - Line budgets: PASS — all nine land *exactly* at their stated counts (675/421/437/449/402/340/367/495/468; 0 over, +5 tolerance unused). validation-output-examples.md confirmed at 1018 lines.
+  - Pointer integrity: PASS — DoD grep (9 reference names across `plugins/**/*.md`, excluding `references/` lines) surfaces one bare mention, `validate-plugin.md:475` (`validation-output-examples.md` inside the Phase 8.6 required-set list) → file exists. All 8 Phase 5 reference files exist on disk: personal-plugin/references/{validation-output-examples, research-provider-protocols, ship-output-templates, clean-repo-examples, claude-md-wiki-section, wiki-readme-template}.md, bpmn-plugin/references/bpmn2drawio-reference.md, evaluate-pipeline-output/references/{report-format, evaluator-guidance}.md (skill-local). Every in-file pointer inspected resolves.
+  - markdownlint: FAIL exit-wise, PRE-EXISTING ONLY — exactly the 3 known MD012 in `tests/fixtures/invalid-plugin/commands/`; all Phase 5 sources and new reference files lint clean.
+  - `claude plugin validate --strict`: PASS — both personal-plugin and bpmn-plugin, exit 0.
+  - Orphaned content: PASS — `Proactive Triggers` absent from ship/ (grep exit 1); validate-plugin required-set carries both `plan-append-guide` (×1) and `validation-output-examples` (×44 total mentions in file).
+  - Schemas sanity: PASS — `schemas/questions.json` and `schemas/answers.json` both exist for finish-document's schema pointers.
+- *Notable:* 5.1's validate-plugin refactor is a 44-pointer extraction to validation-output-examples.md with a checks-intact audit — all validation logic retained in the command; only output examples moved. 5.2 (research-topic 421) and 5.3 (ship 437) are documented-dense outcomes: above the original aspiration but accepted as dense-and-correct at those counts, and both hold their stated budgets exactly.
+- *Observation (not a failure, not fixed):* bpmn-to-drawio's 4 new pointers use the `../references/bpmn2drawio-reference.md` idiom — literally one level short from the skill dir, but it mirrors the file's 2 pre-existing `../references/BPMN-to-DrawIO-Conversion-Standard.md` pointers (present at HEAD d903277), and the plugin has exactly one references/ dir, so runtime resolution is unambiguous. Consistency with in-file convention preserved; flag for a future sweep if path pedantry ever matters.
+- *Final:* ALL 7 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11 via uv, markdownlint-cli via npx, HEAD d903277 (Phase 5 changes uncommitted in working tree). No commits made.
+
+**Phase 6 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 6 DoD suite — repo pytest; deprecation state (`commands/new-command.md` gone, `deprecated/new-command.md` present); zero active `new-command` refs outside deprecated/CHANGELOG/LAB_NOTEBOOK/IMPLEMENTATION_PLAN; pattern flow coherence (new-skill.md Pattern Adaptation ↔ skill-patterns.md ↔ generator.md spot-check); scaffold-plugin skills-first defaults (`--with-commands` legacy + ADR-0006, no commands/ in default tree); `claude plugin validate --strict`; markdownlint; README coherence (23 commands, no new-command row). Fix in-scope failures (≤3 attempts); stale tests updated (counts 24→23), never resurrect the command; pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 6's new-command deprecation, new-skill `--pattern` support, and scaffold skills-first flip pass all 8 checks; any pytest failure on the deprecation is a stale test to update, not a regression. Success = all pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked file — `git checkout -- <file>` reverts. N/A otherwise.
+- *Results:* ALL 8 PASS on first run — zero fixes needed, zero stale tests.
+  - repo pytest `tests/`: PASS — 67/67, exit 0, 0.19s (same uv invocation as Phases 1-5). No test asserted the old 24-count or `commands/new-command.md` presence — no stale-test adjudication needed.
+  - Deprecation state: PASS — `test ! -f commands/new-command.md && test -f deprecated/new-command.md` exit 0.
+  - Zero active refs: PASS — DoD grep over plugins/ README.md WORKFLOWS.md CLAUDE.md (excluding deprecated/CHANGELOG/LAB_NOTEBOOK/IMPLEMENTATION_PLAN) exit 1, no matches. 15-reference sweep held.
+  - Pattern flow coherence: PASS — generator.md frontmatter has description/argument-hint/effort/allowed-tools and NO `name`, plus the exact `# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)` line that Pattern Adaptation rule 3 quotes verbatim and deletes; rule 1 inverts the template's implied flat `commands/[name].md` placement to `skills/[name]/SKILL.md`; rule 2 inserts `name:` first; rule 6's `{{COMMAND_NAME}}`→`[skill-name]` mapping covers generator.md's `{{COMMAND_NAME}}` uses, and its leave-in-place list matches the template's pattern-specific placeholders (`{{ARG_NAME}}`, `{{OUTPUT_LOCATION}}`, etc.). skill-patterns.md table lists all 8 patterns; all 8 template files exist in references/templates/ (+ default skill.md).
+  - Scaffold defaults: PASS — `--with-commands` documented as legacy with ADR-0006 at 5 sites (argument-hint, flag doc, dry-run preview, Phase 3, conditional block); default tree is `.claude-plugin/ + skills/ + references/` only — commands/ created solely under explicit `--with-commands`.
+  - `claude plugin validate --strict` personal-plugin: PASS — exit 0.
+  - markdownlint: FAIL exit-wise, PRE-EXISTING ONLY — exactly the 3 known MD012 in `tests/fixtures/invalid-plugin/commands/`; all Phase 6 markdown (new-skill.md, skill-patterns.md, scaffold-plugin.md, README) lint clean.
+  - README coherence: PASS — line 41 reads "23 commands and 24 skills"; command table has no new-command row; `commands/*.md` on disk = 23, matching.
+- *Final:* ALL 8 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11.14/pytest 9.1.1 via uv, markdownlint-cli via npx, HEAD 9991c46 on feat/guidance-modernization-v10 (Phase 6 changes in working tree). No commits made.
+
+**Phase 7 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 7 DoD suite — repo pytest; workflow YAML sanity (`plugin-validate` job in `.github/workflows/validate.yml`); markdownlint; CLAUDE.md consistency (stated counts vs disk, ADR-0005/ADR-0006 refs); description-triggers eval structure (14 scenarios, `type: skill` frontmatter). Fix in-scope failures (≤3 attempts); pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 7's plugin-validate CI job (pinned @2.1.204), new eval file, and CLAUDE.md refresh pass all 5 checks; markdownlint shows only the 3 known MD012 fixture errors; a workflow test asserting the old job list is the only stale-test candidate. Success = all pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked file — `git checkout -- <file>` reverts. N/A otherwise.
+- *Results:* ALL 5 PASS on first run — zero fixes needed, zero stale tests.
+  - repo pytest `tests/`: PASS — 67/67, exit 0, 0.20s (same uv invocation as Phases 1-6). No test asserted a stale job list — no adjudication needed.
+  - Workflow YAML: PASS — `yaml.safe_load` parses validate.yml; jobs = [validate, python-lint, lint-markdown, plugin-validate]; `plugin-validate` present.
+  - markdownlint: FAIL exit-wise, PRE-EXISTING ONLY — exactly the 3 known MD012 in `tests/fixtures/invalid-plugin/commands/`; refreshed CLAUDE.md and the new eval file lint clean.
+  - CLAUDE.md consistency: PASS — stated `commands/ (23)` matches disk (23 `commands/*.md`); skills listing enumerates 24 names matching 24 skill dirs on disk; ADR-0005 refs ×2 (lines 24, 164) and ADR-0006 refs ×3 (lines 19, 20, 228) present.
+  - Eval structure: PASS — `evals/skills/description-triggers.eval.md` has exactly 14 `### S` scenarios; frontmatter carries `command: description-triggers`, `type: skill`, `fixtures: []`.
+- *Final:* ALL 5 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11.14/pytest 9.1.1 via uv, markdownlint-cli via npx (Phase 7 changes in working tree). No commits made.
+
+**Phase 8 + run closure (orchestrator, 2026-07-08):**
+- Phase 8 (6 items): 8.1 big-5 negative scope (each clause mapped to a guarding eval scenario); 8.2 fold ×12 personal skills; 8.3 fold ×9 slide-gen + qualitative cost; 8.4 mechanical polish (effort ×8, plan-next argument-hint + stale-schemas fix, hooks statusMessage ×2); 8.5 per-plugin README+LICENSE ×3; 8.6 coordinated release 10.0.0/4.2.0/1.2.0/3.3.0 + both CHANGELOGs. Commit `379bbc5`.
+- **Regression caught in-run:** 8.2's folds wrote unquoted `Suggest when:` into 12 YAML descriptions — plain-scalar colon broke strict parsing; 8.6's final strict-validate sweep caught it, fixed uniformly (`when:` → `when —`). Exactly the failure class the new CI plugin-validate job guards.
+- **Run totals:** 35/35 items COMPLETE across 8 phases; commits f6678d0 (checkpoint), a672970, 220a8fd, 07b8a33, d903277, 9991c46, 807f8fb, 3c041b5, 379bbc5; 1 escalation (4.2 sonnet→opus); 0 failed items; 3 real integration gaps caught by phase testing (3.3 meta-seed, 4.4 allowed-tools tracking tools, 8.2 YAML colon). Every phase's DoD green; official validator strict-passes all three plugins.
+- **What worked:** per-item tier dispatch with named agents; phase-boundary testing agents; the illustration-vs-logic authority clause (added after 4.2's escalation — prevented repeat escalations across all five Phase 5 items); file-disjoint parallel batches (zero write conflicts across 24 parallel dispatches).
+- **Status:** COMPLETE. Duration ~3.5 h wall-clock. PR + auto-merge follow as finalization.
 
 ---
 

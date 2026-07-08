@@ -1,6 +1,6 @@
 ---
 name: plan-gate
-description: Before starting complex multi-step implementation tasks, assess scope and route to the right planning approach — native plan mode for simple changes, /plan-improvements for codebase refactoring, or /create-plan for requirements-driven work
+description: Before starting complex multi-step implementation tasks, assess scope and route to the right planning approach — native plan mode for simple changes, /plan-improvements for codebase refactoring, or /create-plan for requirements-driven work. Suggest when — implementation task with >3 files, architectural decisions, ambiguous scope, or multiple valid approaches exist — and no active IMPLEMENTATION_PLAN.md.
 effort: low
 allowed-tools: Read, Glob, Grep
 ---
@@ -10,26 +10,6 @@ allowed-tools: Read, Glob, Grep
 Proactively assess task complexity before implementation begins and route to the appropriate planning mechanism. This skill acts as a lightweight decision point that prevents both under-planning (jumping straight into code on a multi-phase effort) and over-planning (running a full `/plan-improvements` cycle for a simple bug fix).
 
 **This skill is read-only. It NEVER modifies files, commits, or pushes.**
-
-## Proactive Triggers
-
-Claude should proactively suggest this skill when ALL of these are true:
-
-1. The user has requested an implementation task (not research, not a question)
-2. The task appears non-trivial — any of these signals:
-   - Will likely touch more than 3 files
-   - Involves architectural decisions or trade-offs
-   - Requires phased delivery or has internal dependencies
-   - The user's description is ambiguous about scope
-   - Multiple valid implementation approaches exist
-   - The task mentions "refactor", "redesign", "overhaul", "migrate", "add feature", or similar scope indicators
-3. No planning has been done yet (no active IMPLEMENTATION_PLAN.md for this work)
-
-**Do NOT fire when:**
-- The task is a single-file fix, typo, or small tweak
-- The user has already invoked a planning command
-- The user explicitly says "just do it" or "skip planning"
-- The task is purely research or exploration
 
 ## Instructions
 
@@ -90,7 +70,7 @@ Recommended: Native plan mode (interactive, immediate)
 
 Then enter plan mode to design the approach before coding.
 
-#### Path B.5: /batch (Parallel Decomposition)
+#### Path B.5: Parallel Decomposition (via /implement-plan parallel phases)
 
 **When:** Task naturally decomposes into 5–30 independent units that can run concurrently with no ordering constraints between them. Each unit is self-contained — no unit's output feeds another's input. Examples: running the same transformation across many files, migrating multiple independent endpoints, updating 10+ skill frontmatter fields with the same pattern.
 
@@ -103,16 +83,21 @@ This task decomposes into [N] independent units that can run concurrently.
 Sequential execution is unnecessary — there are no ordering constraints
 between units.
 
-Recommended: /batch
-  - Dispatches one background agent per unit (up to 30)
+Recommended: /implement-plan (Execution Mode: Parallel / Worktree-Isolated)
+  - Each independent unit becomes a work item in a parallel-phase plan
+  - /implement-plan dispatches concurrent background agents, one per unit
   - Each agent runs in its own isolated worktree
   - Completes in parallel rather than sequentially
   - Suitable when units are fully independent (no shared state)
 
-Trade-off: /batch loses visibility into per-unit progress in real time.
-If you need step-by-step review, use Path B (native plan mode) instead.
+Alternative: Background Agent dispatch
+  - Use the Agent tool with run_in_background: true for each unit directly
+  - Appropriate when a formal plan is unnecessary overhead
 
-Shall I decompose and dispatch via /batch?
+Trade-off: Parallel execution loses real-time visibility into per-unit progress.
+If you need step-by-step review between units, use Path B (native plan mode) instead.
+
+Shall I decompose and dispatch via /implement-plan parallel phases?
 ```
 
 #### Path C: /plan-improvements
@@ -227,7 +212,7 @@ Ask the user clarifying questions to get the answers, then re-assess.
 
 - **Path A**: Start working immediately
 - **Path B**: Enter plan mode
-- **Path B.5**: Confirm unit decomposition with user, then invoke `/batch`
+- **Path B.5**: Confirm unit decomposition with user, then invoke `/implement-plan` with Execution Mode: Parallel/Worktree-Isolated (or background Agent dispatch for lightweight cases)
 - **Paths C/D/E**: Ask the user for confirmation, then invoke the appropriate command
 - **Path D.5**: Ask the user for confirmation, then invoke `/ultra-plan`; after completion route to Path C or D for plan generation
 - **Path F**: Ask clarifying questions, then re-route
@@ -247,7 +232,7 @@ User requests implementation task
     NO  |
         v
    5-30 fully independent parallel units? (same op repeated, no cross-deps)
-    YES --> Path B.5: /batch
+    YES --> Path B.5: /implement-plan (parallel phases)
     NO  |
         v
    Requirements docs (PRD/BRD/TDD) exist?
@@ -319,8 +304,9 @@ User: "Update the paths: frontmatter field in all 23 skills across both plugins 
 Plan Gate:
   Scope Assessment: 23 files, all receiving the same structural frontmatter
   change with no ordering constraints between them. Each skill is independent.
-  Route: Path B.5 (/batch)
-  Decomposition: 23 units, one per skill file, dispatched concurrently.
+  Route: Path B.5 (Parallel Decomposition)
+  Decomposition: 23 units, one per skill file, dispatched concurrently via
+  /implement-plan with Execution Mode: Parallel/Worktree-Isolated.
 ```
 
 ### Example 7: Deep architectural decision (Path D.5)

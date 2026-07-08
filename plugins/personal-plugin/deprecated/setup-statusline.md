@@ -351,7 +351,7 @@ Backups:    [restored / left in place / none found]
 ## Status Line Format Reference
 
 The status line displays in this order:
-1. **Model name** (Cyan) — e.g., "Claude Opus 4.5"
+1. **Model name** (Cyan) — e.g., "Claude Opus"
 2. **Progress bar** (Color-coded) — 10-character visual bar
 3. **Percentage** (Same color as progress bar) — Context window usage %
 4. **Tokens** (Magenta) — currentK / maxK format

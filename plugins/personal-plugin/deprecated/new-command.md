@@ -1,3 +1,5 @@
+> **Deprecated 2026-07-08.** Superseded by the skills-first authoring direction (ADR-0006 — `docs/adr/0006-skills-first-authoring-policy.md`). New functionality now ships as skills, not commands. **Replacement:** `/new-skill --pattern <name>`. Retained here for historical reference only; the content below is unmodified from when this command was active.
+
 ---
 description: Generate a new command file from a template with proper structure and conventions
 argument-hint: "[<command-name>] [<pattern-type>] [--plugin <name>]"

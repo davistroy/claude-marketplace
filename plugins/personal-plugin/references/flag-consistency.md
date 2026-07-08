@@ -31,8 +31,7 @@ These commands produce in-conversation output or modify files directly.
 | `/bump-version` | Yes | -- | -- | -- |
 | `/clean-repo` | Yes | -- | Yes | `--docs-only`, `--json` |
 | `/convert-markdown` | Yes | -- | -- | `--no-toc`, `--style <path>`, `--highlight <style>` |
-| `/new-command` | -- | -- | -- | `--plugin <name>` |
-| `/new-skill` | -- | -- | -- | `--plugin <name>` |
+| `/new-skill` | -- | -- | -- | `--plugin <name>`, `--pattern <name>` |
 | `/scaffold-plugin` | Yes | -- | -- | -- |
 | `/validate-plugin` | -- | Yes | -- | `--all`, `--fix`, `--strict`, `--report`, `--scorecard`, `--check-updates` |
 

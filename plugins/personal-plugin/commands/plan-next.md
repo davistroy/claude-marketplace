@@ -1,5 +1,6 @@
 ---
 description: Analyze repo and recommend the next logical action
+argument-hint: "[focus-area]"
 effort: medium
 allowed-tools: Read, Glob, Grep, Bash(git:*), Bash(gh:*)
 ---
@@ -197,7 +198,7 @@ Handle these edge cases explicitly:
 
 **Execute Phase 3, Item 3.1: Fix define-questions.md Phantom Schema References**
 
-Remove all references to non-existent `schemas/questions.json`, add inline
+Remove all references to `schemas/questions.json` (which now exist at repo root, alongside schemas/answers.json), add inline
 validation rules, and standardize field names between JSON and CSV output formats.
 
 ### Rationale

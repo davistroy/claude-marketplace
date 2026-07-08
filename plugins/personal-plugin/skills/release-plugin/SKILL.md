@@ -1,22 +1,13 @@
 ---
 name: release-plugin
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Glob, Grep, Read, Edit, Write
-description: Validate plugins, clean repository, and ship plugin releases in one automated workflow
+description: Validate plugins, clean repository, and ship plugin releases in one automated workflow. Suggest when — plugin changes complete and ready to ship, after validate-plugin succeeds, before releases to ensure quality, "validate and ship" keywords, or batch improvements done.
 disable-model-invocation: true
 ---
 
 # Release Plugin
 
 Automated pre-flight checks and shipping workflow. Executes validation, cleanup, and git workflow in sequence, stopping only when user intervention is required.
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User is done making changes to a plugin and ready to ship
-2. After running `/validate-plugin` successfully and the user wants to proceed to shipping
-3. Before shipping plugin updates to ensure quality gates are met
-4. User says "validate and ship", "check and push", or "ready to release"
-5. After completing a batch of plugin improvements or command/skill edits
 
 ## Input Validation
 

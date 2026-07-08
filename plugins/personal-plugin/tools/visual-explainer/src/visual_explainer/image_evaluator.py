@@ -34,7 +34,7 @@ from .models import CriteriaScores, EvaluationResult, EvaluationVerdict
 logger = logging.getLogger(__name__)
 
 # Default evaluation model - Sonnet is sufficient for vision, 5x cheaper than Opus
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-5"
 
 # Default thresholds for verdict determination
 DEFAULT_PASS_THRESHOLD = 0.85

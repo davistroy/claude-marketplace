@@ -1,6 +1,6 @@
 ---
 name: research-topic
-description: Orchestrate parallel deep research across multiple LLM providers using native context:fork subagents and synthesize results
+description: Orchestrate parallel deep research across multiple LLM providers using native context:fork subagents and synthesize results. Suggest when — in-depth topic research, multi-provider perspective comparison, well-sourced analysis needed, "deep research"/"research report" keywords, or thorough technical/strategic/emerging topic investigation.
 effort: high
 allowed-tools: Read, Write, Bash, WebSearch, WebFetch, Task
 ---
@@ -10,17 +10,6 @@ allowed-tools: Read, Write, Bash, WebSearch, WebFetch, Task
 You are orchestrating parallel deep research across three LLM providers (Anthropic Claude, OpenAI GPT, Google Gemini) using native `context: fork` subagents and synthesizing the results into a unified deliverable.
 
 **Architecture:** Three subagents dispatch in parallel — one per provider. Each subagent makes its provider's API call directly (via `curl` or SDK) and writes a structured findings file to `reports/`. Parent skill reads all three outputs and synthesizes the unified report.
-
-**Trade-offs vs Previous Implementation:** This architecture eliminates the Python research-orchestrator tool and all its dependencies (no pip installs, no virtual env, no PYTHONPATH setup). Trade-off: no real-time streaming progress bars during API polling. For long runs (30+ min), watch the in-progress agent indicators in the Claude Code UI. Architecture gains: simpler debugging, cross-platform portability, single-runtime execution.
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User asks to research a topic in depth or wants a comprehensive analysis
-2. User wants to compare perspectives across multiple AI providers
-3. User needs a well-sourced analysis that benefits from multi-source synthesis
-4. User mentions "deep research", "research report", or "multi-provider analysis"
-5. User asks for a thorough investigation of a technical, strategic, or emerging topic
 
 ## Input Validation
 
@@ -43,7 +32,7 @@ API keys must be loaded into the environment before use. Run `/unlock` to load s
 If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files.
 
 **Optional Model Configuration (non-sensitive, safe for .env):**
-- `ANTHROPIC_MODEL` - Override Claude model. Default: `claude-opus-4-6-20250725`
+- `ANTHROPIC_MODEL` - Override Claude model. Default: `claude-opus-4-8`
 - `OPENAI_MODEL` - Override OpenAI model. Default: `o3-deep-research-2025-06-26`
 - `GEMINI_AGENT` - Override Gemini agent. Default: `deep-research-pro-preview-12-2025`
 
@@ -161,7 +150,7 @@ Wait for user confirmation.
 
 ```bash
 # Resolve model identifiers (env var override or defaults)
-CLAUDE_MODEL="${ANTHROPIC_MODEL:-claude-opus-4-6-20250725}"
+CLAUDE_MODEL="${ANTHROPIC_MODEL:-claude-opus-4-8}"
 OAI_MODEL="${OPENAI_MODEL:-o3-deep-research-2025-06-26}"
 GEMINI_AGENT_ID="${GEMINI_AGENT:-deep-research-pro-preview-12-2025}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -206,208 +195,50 @@ Structure your response with:
 | standard | 10,000 | high | high |
 | comprehensive | 32,000 | high | high |
 
-**Dispatch subagents in parallel** (one Task per available provider — skip providers with missing keys):
+**Dispatch subagents in parallel** (one Task per available provider, `context: fork`, skip providers with missing keys). Instantiate the template below once per provider, substituting its row from the Provider Deltas table. The dispatched subagent Reads `references/research-provider-protocols.md` (relative to this plugin's directory) for its provider's exact request/response shape, polling mechanics, and parse/output steps.
 
-#### Claude Subagent
+#### Subagent Prompt Template
 
 ```text
 context: fork
-agent: claude-opus-4-6-20250725  (or value of $ANTHROPIC_MODEL)
 
-You are a research agent responsible for the Anthropic Claude research leg of a multi-provider research task.
+You are a research agent responsible for the [DISPLAY NAME] research leg of a multi-provider research task.
 
 Your job:
-1. Call the Anthropic Messages API with extended thinking enabled
-2. Write your findings to reports/research-claude-[TIMESTAMP].md
+1. Execute the [DISPLAY NAME] protocol documented in `references/research-provider-protocols.md` under "[DISPLAY NAME] Protocol" (Mode row below: synchronous single call, or submit-then-poll)
+2. Write your findings to reports/research-[SLUG]-[TIMESTAMP].md
 3. Return a JSON status object on your final line
 
-Provider: Anthropic Claude
-Model: [RESOLVED_CLAUDE_MODEL]
-API Key env var: ANTHROPIC_API_KEY
+Provider: [DISPLAY NAME]
+Model/Agent: [RESOLVED MODEL/AGENT VAR]
+API Key env var: [API KEY ENV VAR]
 
 Research prompt to submit:
 [FULL RESEARCH PROMPT FROM PHASE 4]
 
-Extended thinking budget_tokens: [4000|10000|32000 based on depth]
+Depth parameter (`[DEPTH PARAM]`): [value — see Depth Parameter Mapping above, this provider's column, at the selected depth]
 
-API call (use Bash):
-```bash
-curl -s https://api.anthropic.com/v1/messages \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
-  -H "anthropic-version: 2023-06-01" \
-  -H "content-type: application/json" \
-  -d '{
-    "model": "[RESOLVED_CLAUDE_MODEL]",
-    "max_tokens": 16000,
-    "thinking": {
-      "type": "enabled",
-      "budget_tokens": [BUDGET_TOKENS]
-    },
-    "messages": [{
-      "role": "user",
-      "content": "[ESCAPED RESEARCH PROMPT]"
-    }]
-  }' > /tmp/claude-research-response.json
+Read `references/research-provider-protocols.md` → "[DISPLAY NAME] Protocol" for the exact endpoint, auth, request body, polling loop (if any), and parse/output steps. Use the Write tool to save findings in the structure shown there.
+
+On final line output exactly: `{"provider":"[SLUG]","status":"success","file":"reports/research-[SLUG]-[TIMESTAMP].md"}` or `{"provider":"[SLUG]","status":"failed","error":"[message]"}`
 ```
 
-Parse the response: extract the `text` content blocks (skip `thinking` blocks). Write findings to `reports/research-claude-[TIMESTAMP].md` using the Write tool with this structure:
+#### Provider Deltas
 
-```markdown
-# Claude Research: [topic]
-**Provider:** Anthropic Claude
-**Model:** [model]
-**Depth:** [depth]
-**Generated:** [timestamp]
+| | Claude | OpenAI | Gemini |
+|---|---|---|---|
+| Display name | Anthropic Claude | OpenAI | Google Gemini |
+| Slug | `claude` | `openai` | `gemini` |
+| Endpoint | `api.anthropic.com/v1/messages` | `api.openai.com/v1/responses` | `generativelanguage.googleapis.com/v1beta/interactions` |
+| Auth | `x-api-key` + `anthropic-version` headers | `Authorization: Bearer` header | `?key=` query param |
+| API key env var | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY` | `GOOGLE_API_KEY` |
+| Model/Agent field (body) | `model` | `model` | `agent` |
+| Resolved var | `[RESOLVED_CLAUDE_MODEL]` | `[RESOLVED_OAI_MODEL]` | `[RESOLVED_GEMINI_AGENT_ID]` |
+| Mode | Synchronous, single call | Async: submit, poll ≤180× @10s, success = `status=="completed"` | Async: submit, poll ≤180× @10s, success = `state=="SUCCEEDED"` |
+| Depth param | `thinking.budget_tokens` | `reasoning.effort` | `parameters.thinking_level` |
+| Parse target | `text` blocks (skip `thinking`) | `text` output | reply text |
 
-## Research Findings
-
-[Full text content from API response — all text blocks concatenated]
-```
-
-On final line output exactly: `{"provider":"claude","status":"success","file":"reports/research-claude-[TIMESTAMP].md"}` or `{"provider":"claude","status":"failed","error":"[message]"}`
-```
-
-#### OpenAI Subagent
-
-```text
-context: fork
-
-You are a research agent responsible for the OpenAI research leg of a multi-provider research task.
-
-Your job:
-1. Submit a deep research request to the OpenAI Responses API
-2. Poll until completion (background job)
-3. Write your findings to reports/research-openai-[TIMESTAMP].md
-4. Return a JSON status object on your final line
-
-Provider: OpenAI
-Model: [RESOLVED_OAI_MODEL]
-API Key env var: OPENAI_API_KEY
-
-Research prompt to submit:
-[FULL RESEARCH PROMPT FROM PHASE 4]
-
-OpenAI reasoning_effort: [medium|high based on depth]
-
-API call — submit and poll (use Bash):
-```bash
-# Submit the request
-RESPONSE=$(curl -s https://api.openai.com/v1/responses \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "[RESOLVED_OAI_MODEL]",
-    "input": "[ESCAPED RESEARCH PROMPT]",
-    "reasoning": {"effort": "[EFFORT_LEVEL]"},
-    "tools": [{"type": "web_search_preview"}],
-    "background": true
-  }')
-RESPONSE_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
-echo "Submitted OpenAI request: $RESPONSE_ID"
-
-# Poll until complete (max 30 minutes)
-for i in $(seq 1 180); do
-  sleep 10
-  STATUS=$(curl -s "https://api.openai.com/v1/responses/$RESPONSE_ID" \
-    -H "Authorization: Bearer $OPENAI_API_KEY")
-  STATE=$(echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))")
-  echo "OpenAI poll $i: $STATE"
-  if [ "$STATE" = "completed" ]; then
-    echo "$STATUS" > /tmp/openai-research-response.json
-    break
-  fi
-  if [ "$STATE" = "failed" ] || [ "$STATE" = "cancelled" ]; then
-    echo "OpenAI request failed: $STATE"
-    exit 1
-  fi
-done
-```
-
-Parse the response: extract text output from the completed response. Write findings to `reports/research-openai-[TIMESTAMP].md` using the Write tool with this structure:
-
-```markdown
-# OpenAI Research: [topic]
-**Provider:** OpenAI
-**Model:** [model]
-**Depth:** [depth]
-**Generated:** [timestamp]
-
-## Research Findings
-
-[Full text output from completed response]
-```
-
-On final line output exactly: `{"provider":"openai","status":"success","file":"reports/research-openai-[TIMESTAMP].md"}` or `{"provider":"openai","status":"failed","error":"[message]"}`
-```
-
-#### Gemini Subagent
-
-```text
-context: fork
-
-You are a research agent responsible for the Google Gemini research leg of a multi-provider research task.
-
-Your job:
-1. Submit a deep research interaction to the Google Gemini Interactions API
-2. Poll until completion
-3. Write your findings to reports/research-gemini-[TIMESTAMP].md
-4. Return a JSON status object on your final line
-
-Provider: Google Gemini
-Agent: [RESOLVED_GEMINI_AGENT_ID]
-API Key env var: GOOGLE_API_KEY
-
-Research prompt to submit:
-[FULL RESEARCH PROMPT FROM PHASE 4]
-
-Gemini thinking_level: [low|high based on depth]
-
-API call — submit and poll (use Bash):
-```bash
-# Submit the deep research interaction
-RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/interactions?key=$GOOGLE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "[RESOLVED_GEMINI_AGENT_ID]",
-    "message": {"text": "[ESCAPED RESEARCH PROMPT]"},
-    "parameters": {"thinking_level": "[THINKING_LEVEL]"}
-  }')
-INTERACTION_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('name','').split('/')[-1])")
-echo "Submitted Gemini interaction: $INTERACTION_ID"
-
-# Poll until complete (max 30 minutes)
-for i in $(seq 1 180); do
-  sleep 10
-  STATUS=$(curl -s "https://generativelanguage.googleapis.com/v1beta/interactions/$INTERACTION_ID?key=$GOOGLE_API_KEY")
-  STATE=$(echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('state',''))")
-  echo "Gemini poll $i: $STATE"
-  if [ "$STATE" = "SUCCEEDED" ]; then
-    echo "$STATUS" > /tmp/gemini-research-response.json
-    break
-  fi
-  if [ "$STATE" = "FAILED" ] || [ "$STATE" = "CANCELLED" ]; then
-    echo "Gemini request failed: $STATE"
-    exit 1
-  fi
-done
-```
-
-Parse the response: extract the reply text from the completed interaction. Write findings to `reports/research-gemini-[TIMESTAMP].md` using the Write tool with this structure:
-
-```markdown
-# Gemini Research: [topic]
-**Provider:** Google Gemini
-**Agent:** [agent]
-**Depth:** [depth]
-**Generated:** [timestamp]
-
-## Research Findings
-
-[Full reply text from completed interaction]
-```
-
-On final line output exactly: `{"provider":"gemini","status":"success","file":"reports/research-gemini-[TIMESTAMP].md"}` or `{"provider":"gemini","status":"failed","error":"[message]"}`
-```
+Full curl requests, poll loops, and Write-tool output structures for each provider: `references/research-provider-protocols.md`.
 
 **Progress display during dispatch:**
 ```text
@@ -539,32 +370,6 @@ Duration reflects wall-clock time for the slowest subagent (all three run in par
 ## Cost Considerations
 
 Running all three providers at "comprehensive" depth may cost $2-5+ per query. For detailed cost estimates, read `references/research-models.md`. Use `--sources` to select specific providers.
-
-## Trade-offs vs Previous Implementation
-
-This skill replaced the Python `research-orchestrator` tool (deleted in Phase 7.1). The architectural trade-off was evaluated and approved (Option A).
-
-### Lost
-
-**Real-time streaming progress updates.** The Python tool polled each provider API and streamed per-source progress to the terminal as each provider responded — users saw live status lines (e.g., "Claude: thinking... 4,000 tokens", "OpenAI: poll 12/180: in_progress"). The `context: fork` subagent model does not support streaming back to the parent conversation during execution. Subagents return only on completion. For ~15-minute comprehensive runs, the user sees no progress for the full duration — only the Claude Code agent-in-progress indicator in the UI.
-
-**Workaround:** Use `/batch` to decompose a large research agenda into multiple shorter concurrent queries rather than one long comprehensive run. This distributes wait time and provides natural checkpoints.
-
-### Gained
-
-**Simpler architecture.** No Python dependencies, no virtual environment, no `PYTHONPATH` setup, no `pip install` required. Any machine with Claude Code can run this skill without pre-provisioning.
-
-**Easier debugging.** Subagent prompts are plain text in this skill file. When a provider call fails, the subagent's error output is readable in the Claude Code UI. No Python stack traces, no import errors, no module resolution failures.
-
-**Cross-platform portability.** The Python tool required Python 3.10+, `httpx`, and provider SDKs. This skill runs via `curl` and `python3` (standard on all platforms) for JSON parsing only — no non-standard dependencies.
-
-**Native Claude Code integration.** Uses the standard `context: fork` pattern, consistent with all other modernized skills in this plugin. Same observability, same lifecycle management, same cancellation behavior.
-
-### Trade-off Acknowledged
-
-For ~15-minute research runs at `comprehensive` depth, the absence of streaming means the user sees no progress for the full run duration. This was an intentional design decision — Option A (native subagents, lose streaming) over Option B (keep Python tool, keep streaming). Documented here as the verification gate confirming the trade-off was understood and approved before the Python tool was deleted.
-
----
 
 ## Examples
 

@@ -1,20 +1,13 @@
 ---
 name: unlock
-description: Load secrets from Bitwarden Secrets Manager into environment using bws CLI
-allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(powershell*), Bash(python:*)
+description: Load secrets from Bitwarden Secrets Manager into environment using bws CLI. Fully stateless — no vault unlock or session tokens required. Suggest (do not auto-run) when — session start with API keys needed, before skills requiring keys (research-topic, visual-explainer, summarize-feedback), Bitwarden/secrets/API key mentions, or auth errors.
+disable-model-invocation: true
+allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(powershell:*), Bash(python:*)
 ---
 
 # Unlock Skill
 
 Load project secrets from Bitwarden Secrets Manager into the current environment using the `bws` CLI. Fully stateless — no vault unlock or session tokens required.
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User starts a session and environment variables (API keys) are needed
-2. Before running skills that require API keys — `research-topic`, `visual-explainer`, `summarize-feedback`
-3. User mentions Bitwarden, secrets, API keys, or "unlock"
-4. A command fails with an authentication or missing-key error
 
 ## Configuration
 

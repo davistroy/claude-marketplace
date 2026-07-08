@@ -1,6 +1,6 @@
 ---
 name: explain-project
-description: Generate a comprehensive, annotated technical overview document for any project/repo, written for a smart non-CS reader. Analyzes the codebase, writes a deep-dive document following a proven structure template, and produces a styled Word document with sidebars, glossary, inline annotations, and optional generated images. Use when a project needs an explanatory document that makes the system understandable to non-technical stakeholders.
+description: Generate a comprehensive, annotated technical overview document for any project/repo, written for a smart non-CS reader. Analyzes the codebase, writes a deep-dive document following a proven structure template, and produces a styled Word document with sidebars, glossary, inline annotations, and optional generated images. Use when a project needs an explanatory document that makes the system understandable to non-technical stakeholders. Do NOT use for annotating an EXISTING document — use accessibility-annotator for that. Do NOT use for plain markdown-to-Word formatting with no annotations — use /convert-markdown for that.
 effort: high
 allowed-tools: Read, Glob, Grep, Bash, Task
 ---
@@ -21,7 +21,7 @@ allowed-tools: Read, Glob, Grep, Bash, Task
   and thresholds. Understands quality gates and structured problem-solving.
 
   INPUT MODES:
-  1. Local project directory path (e.g., "C:\Users\...\my-project")
+  1. Local project directory path (e.g., "/path/to/my-project")
   2. Public GitHub URL (e.g., "https://github.com/owner/repo")
      - Clones to temp, generates doc to ~/Downloads, cleans up
 
@@ -31,12 +31,12 @@ allowed-tools: Read, Glob, Grep, Bash, Task
 
   COMPANION TOOLS:
   Paths below are defaults on the author's machine. Override via flags or environment variables.
-  - CLI tool: C:\Users\Troy Davis\dev\tools\doc-builder
+  - CLI tool: ~/dev/tools/doc-builder
     (python -m doc_builder create --content content.json --output doc.docx)
-  - Structure template: C:\Users\Troy Davis\dev\info\technical-document-structure-template.md
-  - Style guide: C:\Users\Troy Davis\dev\info\CFA_Word_Style_Guide.md
-  - Image style: C:\Users\Troy Davis\dev\info\clean-style-sanitized.json
-  - Image learnings: C:\Users\Troy Davis\dev\info\gemini-image-generation-learnings.md
+  - Structure template: ~/dev/info/technical-document-structure-template.md
+  - Style guide: ~/.claude/styles/CFA_Word_Style_Guide.md
+  - Image style: ~/dev/brand-assets/clients/cfa/styles/clean-style-sanitized.json
+  - Image learnings: ~/dev/info/gemini-image-generation-learnings.md
 
   HISTORY:
   Built and tested 2026-03-27. Tested on 4 projects:
@@ -67,8 +67,8 @@ One required argument (either a local path OR a GitHub URL):
 2. **OR GitHub URL** -- a public repo URL (e.g., `https://github.com/owner/repo`). The skill will clone it to a temp directory, analyze it, and output the document to the user's Downloads folder.
 
 Optional flags:
-- `--style PATH` -- Path to a markdown style guide for Word formatting (default: `$DOC_STYLE_GUIDE` env var if set; author's default: `C:\Users\Troy Davis\dev\info\CFA_Word_Style_Guide.md`)
-- `--style-json PATH` -- Path to image style JSON for Nano Banana Pro (default: `$IMAGE_STYLE_JSON` env var if set; author's default: `C:\Users\Troy Davis\dev\info\clean-style-sanitized.json`)
+- `--style PATH` -- Path to a markdown style guide for Word formatting (default: `$DOC_STYLE_GUIDE` env var if set; author's default: `~/.claude/styles/CFA_Word_Style_Guide.md`)
+- `--style-json PATH` -- Path to image style JSON for Nano Banana Pro (default: `$IMAGE_STYLE_JSON` env var if set; author's default: `~/dev/brand-assets/clients/cfa/styles/clean-style-sanitized.json`)
 - `--generate-images` -- Generate diagrams via Google Gemini and insert them (default: OFF — costs money)
 - `--update` -- Incremental update mode: reads the existing document, diffs the codebase against the last generation (via git log since the commit hash in the document's freshness metadata), generates only changed sections, and preserves the user's manual refinements to unchanged sections
 - `--output PATH` -- Output file path (default: `{project-dir}/docs/{project-name}-overview.docx`, or `~/Downloads/{repo-name}-overview.docx` for GitHub URLs)
@@ -107,7 +107,7 @@ When the input is a GitHub URL (contains `github.com`):
 
 2. **Set output path** to Downloads:
    ```
-   C:\Users\Troy Davis\Downloads\{repo-name}-overview.docx
+   ~/Downloads/{repo-name}-overview.docx
    ```
 
 3. **Analyze and generate** using the same Phase 1-5 process as for local projects.
@@ -174,7 +174,7 @@ Return all findings to the parent skill for Phase 2 document planning.
 
 ### Phase 2: Document Planning
 
-**IMPORTANT:** Read the structure template at `$DOC_STRUCTURE_TEMPLATE` (author's default: `C:\Users\Troy Davis\dev\info\technical-document-structure-template.md`) before planning. It contains a complexity table that maps project size to expected document depth. Not every section applies to every project.
+**IMPORTANT:** Read the structure template at `$DOC_STRUCTURE_TEMPLATE` (author's default: `~/dev/info/technical-document-structure-template.md`) before planning. If this file is absent, proceed without the structure template and note that in the output. It contains a complexity table that maps project size to expected document depth. Not every section applies to every project.
 
 1. **Select Key Concept Sidebars (2-3):** Choose the foundational concepts THIS project relies on most. These will be the first things the reader sees.
 
@@ -376,7 +376,7 @@ python -m doc_builder create \
   [--style-json "{style_json}"]
 ```
 
-The CLI tool is at `$DOC_BUILDER_PATH` (or `python -m doc_builder` if on PYTHONPATH; author's default: `C:\Users\Troy Davis\dev\tools\doc-builder`) and handles:
+The CLI tool is at `$DOC_BUILDER_PATH` (or `python -m doc_builder` if on PYTHONPATH; author's default: `~/dev/tools/doc-builder`) and handles:
 - Word document creation with proper CFA styling
 - Sidebar callout box formatting (red left border, light grey background)
 - Glossary appendix formatting (dependency-ordered, bold red terms)

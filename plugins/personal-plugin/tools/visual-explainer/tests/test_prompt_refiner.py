@@ -28,9 +28,10 @@ class TestPromptRefinerInit:
     def test_init_with_client(self):
         """Test initialization with a pre-configured client."""
         client = MagicMock()
-        refiner = PromptRefiner(client=client, model="claude-sonnet-4-20250514")
+        model = "test-model-id"
+        refiner = PromptRefiner(client=client, model=model)
         assert refiner.client is client
-        assert refiner.model == "claude-sonnet-4-20250514"
+        assert refiner.model == model
 
     def test_init_uses_default_model(self):
         """Test that default model is set if not specified."""

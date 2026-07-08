@@ -5,6 +5,40 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0] - 2026-07-08
+
+Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Closes an 8-phase modernization pass against current official Anthropic guidance (see repo-root `IMPLEMENTATION_PLAN.md`, ADR-0005, ADR-0006).
+
+### Added
+- `agents/*.md`: all 9 arch-review agents (solutions-architect, data-architect, integration-architect, software-engineer, performance-engineer, qa-architect, security-architect, platform-engineer, risk-compliance) gained spec-conformant frontmatter (`name`, `description`, least-privilege `tools`, `model: inherit`, `effort: high`) — the official validator's only strict failure, now fixed
+- `commands/new-skill.md`: `--pattern` argument scaffolds a skill from any of the 8 command-pattern templates, adapted to skill form at generation time
+- New `references/` files: `plan-append-guide.md`, `recommendations-template.md`, `create-plan-examples.md`, `implement-plan-state-schema.md`, `validation-output-examples.md`, `research-provider-protocols.md`, `ship-output-templates.md`, `clean-repo-examples.md`, `claude-md-wiki-section.md`, `wiki-readme-template.md`, `skill-patterns.md`, plus skill-local `evaluate-pipeline-output/references/{report-format,evaluator-guidance}.md`
+- `README.md`, `LICENSE` at plugin root
+
+### Changed
+- `.claude/agents/{haiku,sonnet,opus}-implementer.md` (repo root): pinned model IDs replaced with tier aliases per ADR-0005 — swap models globally without touching plans
+- `skills/arch-review/SKILL.md`, `commands/arch-review-single.md`, `commands/arch-synthesize.md`: dispatch simplified to `subagent_type`-by-name (no more agent-file inlining); per-agent `findings/<agent>.meta.json` replaces the shared, collision-prone `.meta.json`
+- `commands/create-plan.md` (470 lines), `commands/plan-improvements.md` (490 lines), `commands/implement-plan.md` (573 lines): single-sourced onto `references/plan-template.md` for the model-tier rubric, sizing tables, and append procedure; `implement-plan`'s duplicated PATH A/PATH B collapsed into one flow parameterized on batch cardinality
+- `commands/validate-plugin.md`: refactored to 675 lines with a dynamic reference-file inventory (diffs `references/` against a required set) replacing the hand-synced table; sample output moved to `validation-output-examples.md`
+- Progressive-disclosure pass brought `skills/research-topic/SKILL.md`, `skills/ship/SKILL.md`, `commands/clean-repo.md`, `commands/finish-document.md`, `skills/create-wiki/SKILL.md`, `skills/evaluate-pipeline-output/SKILL.md`, and `commands/test-project.md` to/toward the ~500-line budget
+- `skills/{plan-gate,brain-entry,summarize-feedback,lab-notebook,unlock,create-wiki,release-plugin,visual-explainer,security-analysis,research-topic,prime,evaluate-pipeline-output}/SKILL.md`: body "Proactive Triggers" sections folded into frontmatter `description`/`when_to_use`
+- `skills/explain-project/SKILL.md`, `skills/spec-to-prototype/SKILL.md`, `skills/accessibility-annotator/SKILL.md`: added explicit "Do NOT use for" negative scope disambiguating the explain-project/accessibility-annotator/convert-markdown overlap triangle
+- `commands/scaffold-plugin.md`: defaults flipped to skills-first — `skills/` scaffolded by default, `commands/` only via explicit `--with-commands` (ADR-0006)
+- 8 skills (`arch-review`, `brain-entry`, `create-wiki`, `lab-notebook`, `release-plugin`, `ship`, `unlock`, `visual-explainer` — 4 pre-existing + 4 new) now carry `disable-model-invocation: true`
+
+### Fixed
+- 15 `/batch` + 11 `/ultrareview` dangling references replaced with real mechanics (`/implement-plan` parallel phases, background Agent dispatch) and the current `/code-review ultra` alias
+- `skills/ultra-plan/SKILL.md`: phase-numbering gap (Phase 0 → Phase 2) renumbered to a contiguous 0–5 sequence
+- `commands/validate-plugin.md`: rule-count check synced from 16 to the template's actual 17 rules
+- `skills/research-topic/SKILL.md`: stale `claude-opus-4-6` model ID → `claude-opus-4-8`; dead `agent:`-field misuse removed from the fork header
+- `tools/visual-explainer/`: dead `config.claude_model` plumbing wired through both construction sites; `DEFAULT_MODEL` constants updated; dead `TargetModelHint` style key removed from both style JSONs
+- `skills/explain-project/SKILL.md`, `skills/accessibility-annotator/SKILL.md`, `skills/evaluate-pipeline-output/SKILL.md`: hardcoded `C:\Users\...` paths rewritten to portable equivalents
+- `skills/prime/SKILL.md`: CRLF line endings normalized to LF
+- `skills/unlock/SKILL.md`: malformed `Bash(powershell*)` permission glob corrected to `Bash(powershell:*)`
+
+### Deprecated
+- `commands/new-command.md`: moved to `deprecated/`; replaced by `/new-skill --pattern` per the skills-first authoring policy (ADR-0006)
+
 ## [9.3.0] - 2026-06-15
 
 ### Changed

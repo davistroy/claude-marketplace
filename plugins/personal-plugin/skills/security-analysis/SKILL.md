@@ -1,6 +1,6 @@
 ---
 name: security-analysis
-description: Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning
+description: Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning. Suggest when — security/vulnerabilities/CVEs/audit mentioned, new projects scaffolded, before releases/deployments/production, auth/input-handling code review, dependency updates, or new repos cloned.
 effort: high
 allowed-tools: Read, Write, Glob, Grep, Bash, WebSearch
 paths:
@@ -43,16 +43,6 @@ When invoked directly by the user (not via paths auto-trigger), skip this prompt
 /security-analysis --quick                  # Fast surface-level scan
 /security-analysis --dependencies-only      # Dependencies only
 ```
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. The user mentions security, vulnerabilities, CVEs, or audit
-2. After scaffolding a new project with `/scaffold-plugin` or similar
-3. Before a release, deployment, or merge to production
-4. When reviewing code that handles authentication, authorization, or user input
-5. When the user adds or updates dependencies (package.json, requirements.txt, etc.)
-6. After cloning or pulling a new/unfamiliar repository
 
 ## Performance
 

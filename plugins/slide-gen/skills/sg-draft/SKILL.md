@@ -1,6 +1,6 @@
 ---
 name: sg-draft
-description: Draft full slide content (titles, bullets, speaker notes, graphics descriptions) from an outline
+description: Draft full slide content (titles, bullets, speaker notes, graphics descriptions) from an outline. Use when you have an outline and want to generate full slide content, draft the slides, or move from structure to full presentation content.
 argument-hint: "<outline.json> [--output path]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -16,14 +16,6 @@ Draft full slide content from an outline. Uses structured single-call generation
 
 **Available outline files:**
 !`ls -la outline*.json 2>/dev/null || echo "No outline files found"`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User has an outline and wants to generate full slide content
-2. User says "draft the slides" or "write the content"
-3. User completed the outline step and wants to continue
-4. User wants to go from structure to full presentation content
 
 ## Prerequisites
 

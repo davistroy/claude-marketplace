@@ -1,6 +1,6 @@
 # Advanced Frontmatter Features
 
-Reference for modern Claude Code skill/command frontmatter fields added in late 2025. Each section covers syntax, use case, and gotchas. This is the canonical reference linked from `/new-skill` and `/new-command`.
+Reference for modern Claude Code skill/command frontmatter fields added in late 2025. Each section covers syntax, use case, and gotchas. This is the canonical reference linked from `/new-skill`.
 
 ---
 
@@ -198,5 +198,5 @@ shell: bash    # or: zsh | sh
 
 ---
 
-*Referenced from: `commands/new-skill.md`, `commands/new-command.md`*
+*Referenced from: `commands/new-skill.md`*
 *See also: `references/templates/skill.md` (generated template), `references/templates/*.md` (pattern-specific templates)*
