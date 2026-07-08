@@ -36,7 +36,9 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 ### Open
 
-*(none currently open — see Completed table for A1/A7/A8 closure)*
+| # | Action | Created | Source Entry | Priority |
+|---|--------|---------|-------------|----------|
+| A9 | Review & execute the 13 prioritized recommendations in `reports/plugin-review-anthropic-guidance-20260708-114842.md` (R1 agents-frontmatter, R2 model pins, R3 dangling refs are the quick high-benefit wins) | 2026-07-08 | E008 | High — R1/R2 affect live behavior of arch-review and implement-plan |
 
 ### Completed
 
@@ -393,6 +395,7 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 5. Corrected `CLAUDE.md` "Key References": `IMPLEMENTATION_PLAN.md` was described as "(v8.0.0 modernization)" but the live file actually documents the completed gap-analysis/planning-pipeline plan; updated to match.
 6. Added `._*` to `.gitignore` (macOS AppleDouble sidecar files — `.DS_Store` was already covered, `._`-prefixed files were not) and removed the untracked `._.DS_Store` artifact from the working tree.
 7. Updated this notebook's Current Baseline section and closed Action Items A1, A7, A8 (see Decision Log D19 and Completed table C11–C13).
+8. Committed all four files as `c7efd1d` ("docs: sync documentation to actual repo state; ignore AppleDouble files") — working tree clean after commit.
 
 **Pattern Table — "local clone behind origin" (2nd occurrence):**
 
@@ -408,6 +411,79 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 **Decision:** D19 — plugin cache freshness is governed by the marketplace's `autoUpdate` setting against `origin/main`, not by manual local reinstall. Superseded the A1/A7 "reinstall to sync" framing. **Alternatives Considered:** keep issuing manual-reinstall action items every time a skill changes — rejected, it's the wrong lever; what actually matters is keeping the *local dev clone* current with origin before reasoning about versions.
 
 **Follow-ups:** None open. Given this is the second occurrence of the same failure mode (D17, D19), a `git fetch` + origin-divergence check at session start is now also captured as a Verified Operational Rule in root CLAUDE.md.
+
+---
+
+### Entry 008 — Full Plugin Review vs Official Anthropic Guidance [plugin] [skill] [command] [decision]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI 2.1.204, main at `c7efd1d` (marketplace 3.2.0, personal-plugin 9.3.0, bpmn-plugin 4.1.0, slide-gen 1.1.0)
+**Status:** COMPLETE
+**Duration:** ~30 minutes
+
+**Objective:** Comprehensive review of all 3 plugins (24 commands, 35 skills, 12 agent defs, hooks, manifests) against the CURRENT (July 2026) official Anthropic guidance — code.claude.com/docs, Claude Code changelog, anthropics/skills, anthropics/claude-plugins-official, and the Agent Skills engineering post. Deliverable: prioritized recommendations ranked by benefit.
+
+**Hypothesis:** The repo predates several 2026 platform changes (commands/skills unification, new frontmatter fields, agent model aliases); expect findings concentrated in (a) staleness from hardcoded specifics and (b) oversized files vs the official 500-line budget. Success criteria: every recommendation traceable to a fetched official source or a verified repo finding.
+
+**Rollback Plan:** N/A — read-only review; outputs are a new report file + this entry.
+
+**Method:** 4 parallel subagents — official-docs fetch, official-exemplar extraction, mechanical repo inventory (frontmatter matrix / sizes / model IDs / path portability / stale refs), qualitative deep-read of the 11 largest files. Highest-impact claims spot-verified by hand before reporting.
+
+**Key Findings (full detail in `reports/plugin-review-anthropic-guidance-20260708-114842.md`):**
+1. **All 9 arch-review plugin agents have zero YAML frontmatter** — they register with no description, all tools, no model control. Biggest functional gap found.
+2. **Stale model pins:** sonnet-implementer=`claude-sonnet-4-6`, opus-implementer=`claude-opus-4-7` (current: sonnet-5, opus-4-8); research-topic pins `claude-opus-4-6-20250725` and misuses it as an `agent:` value; visual-explainer hardcodes `claude-sonnet-4-20250514` in 5 modules and `gemini-2.0-flash-exp` in style JSONs. Agent frontmatter now supports aliases (`sonnet`/`opus`/`haiku`/`fable`/`inherit`) — the permanent fix.
+3. **Dangling refs:** `/batch` recommended in 4 files but doesn't exist anywhere; `/ultrareview` (deprecated alias → `/code-review ultra`) in 6 places incl. CLAUDE.md; ultra-plan skips Phase 1; validate-plugin checks 16 template rules while the template has 17.
+4. **Platform spec changed under us:** commands are now the documented legacy format ("Use skills/ for new plugins"); SKILL.md `name` is now OPTIONAL (defaults to dir name) — house rule D2's rationale is outdated (kept as convention); `disable-model-invocation: true` now removes the description from session context; new fields: `when_to_use`, `arguments`, `user-invocable`, `disallowed-tools`, `shell`, scoped `hooks`.
+5. **13 files exceed the official 500-line budget** (top: validate-plugin 1385, implement-plan 1050 with ~90%-duplicate PATH A/B, create-plan 909); model-tier rubric duplicated across 4 files with two *conflicting* framings — same drift class as D17/D19.
+6. **Portability:** `C:\Users\Troy Davis\...` paths break explain-project/accessibility-annotator/evaluate-pipeline-output on Linux; prime/SKILL.md is the repo's only CRLF file; no .gitattributes.
+7. **Safety gaps:** brain-entry (external POST) is the only skill missing `allowed-tools` and lacks `disable-model-invocation`; unlock (secret loading) also model-invocable.
+8. **Clean bills:** manifests spec-clean and richer than official norm; hooks.json format correct; no committed secrets; no forbidden-`name` violations; bpmn-generator and sg-full-workflow are model progressive-disclosure citizens.
+9. **New official tooling to adopt:** `claude plugin validate` CLI (CI candidate) and skill-creator's should-trigger/should-not-trigger description-eval loop.
+
+**Output:** 13 recommendations ranked by benefit (R1 agents-frontmatter → R13 polish) in `reports/plugin-review-anthropic-guidance-20260708-114842.md`. Action item A9 opened.
+
+**What Worked:**
+- Splitting "what does Anthropic say" (2 web agents) from "what does the repo do" (2 repo agents) made every recommendation attributable to a source-vs-finding pair
+- Mechanical awk/grep frontmatter matrixing over ~70 files caught things a read-through would miss (the 0/9 agent frontmatter, the single CRLF file, the single missing allowed-tools)
+
+---
+
+### Entry 009 — Ultra-Plan over R1–R13 [plugin] [skill] [command] [template] [decision]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI 2.1.204, main at `c7efd1d`, executing `/ultra-plan "all items R1 through R13"` from A9
+**Status:** IN PROGRESS
+
+**Objective:** Run the full ultra-plan rigid workflow (Phase 0 constitution → investigation → interaction mapping → solution design → summary report → plan generation) over the 13 review recommendations, producing an approved IMPLEMENTATION_PLAN.md.
+
+**Hypothesis:** The 13 recommendations decompose into ~8 coherent change sets grouped by file-overlap rather than one-per-recommendation, because implement-plan/create-plan/plan-improvements/validate-plugin each appear in multiple recommendations. Expect investigation to surface interaction constraints (same-file edits must not land in parallel batches) and 1-2 latent defects beyond the review's findings. Success criteria: every R-item traceable into a change set; plan passes create-plan's structural rules; no constraint violations.
+
+**Rollback Plan:** Investigation is read-only. Generated artifacts (2 ADRs with status Proposed, IMPLEMENTATION_PLAN.md on approval) are new files: `rm docs/adr/0005-*.md docs/adr/0006-*.md` and archive-restore for the plan. No existing files modified until plan execution.
+
+**Investigation results (5 parallel Explore clusters + local checks):**
+- **Confirmed beyond review:** plan-gate has an entire routing path (Path B.5, 8 references) built on the nonexistent `/batch`; `/batch` total is 15 occurrences, `/ultrareview` 13 (incl. WORKFLOWS.md:93,115 missed earlier); "Claude Opus 4.6" co-author also in test-project.md:323.
+- **arch-review agents are NOT read-only** — all 9 write findings files + merge shared `.meta.json` and run Bash probes → R1 frontmatter needs Read/Glob/Grep/Bash/Write/Edit, and `name:` must exactly match filename stems (used as subagent_type).
+- **Latent arch-review design issue:** prose-level `isolation: worktree` (SKILL.md:95,128) likely orphans findings files in discarded worktrees; the `.meta.json` collision it guards against is better fixed with per-agent meta files.
+- **Official validator confirms R1 independently:** `claude plugin validate --strict ./plugins/personal-plugin` FAILS today on the missing agent frontmatter. bpmn-plugin and slide-gen pass. Marketplace manifest gets 2 warnings: `metadata.marketplace_version`/`schema_version` are unknown fields Claude Code ignores at load time.
+- **visual-explainer model config is effectively dead:** `config.claude_model` is consumed by one module only; cli.py construction sites (940, 1102) never pass `model=`, so hardcoded `DEFAULT_MODEL` constants are the real runtime values. Styles-JSON `TargetModelHint` (`gemini-2.0-flash-exp`) has zero consumers — dead config.
+- **Planning-family duplication precisely mapped:** rubric byte-identical in create-plan:438-440 ≡ plan-improvements:481-483 (canonical = template rule 17); plan-improvements' Execution-Hints framing violates template rule 15's column schema; implement-plan PATH A/B differ ONLY on batch cardinality (state keys, background dispatch, commit template, plural text) — prompts already verbatim-shared.
+- **Portability:** all C:\ paths map to existing Linux equivalents except `~/dev/info/technical-document-structure-template.md` (missing on VM — sync gap); build-cfa-deck's `~/dev/stratfield` works on both machines (synced repo) → no change needed. CRLF affects prime/SKILL.md AND `.markdownlint.json`.
+- **ultra-plan renumber is safe:** plan-gate never references ultra-plan phase numbers.
+- **wiki skill has no `paths:`** and documents that injected CLAUDE.md rules handle auto-maintenance → create-wiki's `paths:` auto-activation is redundant; drop rather than move.
+
+**Decisions (approved with plan):**
+- **D20 (ADR-0005):** Agent `model:` fields use aliases (`haiku`/`sonnet`/`opus`), not pinned IDs. Pins drifted twice undetected. Alt: pinned + periodic review — rejected, proven failure mode.
+- **D21 (ADR-0006):** Skills-first authoring policy — new functionality ships as skills; commands legacy-frozen; new-command deprecated with pattern support ported into new-skill; NO mass migration of the 24 existing commands. Alt: mass-migrate — rejected (churn, muscle-memory breakage, zero functional gain).
+
+**Plan generation (user approved "implement"):**
+1. Archived the completed gap-analysis plan: `git mv IMPLEMENTATION_PLAN.md docs/archive/IMPLEMENTATION_PLAN-v7.md` — OK.
+2. Routed through `/create-plan` per ultra-plan Phase 6b (discovery/recon/scope-confirmation satisfied by ultra-plan analysis per 6c mapping).
+3. Generated fresh `IMPLEMENTATION_PLAN.md`: **8 phases, 35 work items** (~4,100 LOC churn, ~75 files), all items PENDING with per-item Model Tier (3 opus: 4.4 implement-plan PATH collapse, 5.1 validate-plugin refactor; 8 haiku mechanical; rest sonnet). Structure verified: markers ×4, DoD blocks ×8, R1–R13 fully traced, sizing caps respected (wide-shallow items 8.2/8.3 documented).
+4. Approved defaults encoded: personal-plugin → 10.0.0 (major: new-command deprecation per v5.x/v8.0.0 precedent), bpmn-plugin 4.2.0, slide-gen 1.2.0, marketplace 3.3.0; marketplace manifest CI-validated non-strict (runtime-ignored `metadata.*version` house fields retained); lab-notebook + create-wiki locked down, create-wiki drops redundant `paths:`.
+5. Noted: `reports/` is gitignored — plan traceability anchors to tracked E008/E009 + ADRs instead. AGENTS.md absent (generation offered to user as optional follow-up, not blocking).
+
+**Status:** COMPLETE (planning). Execution is A9's next step via `/implement-plan`.
+**Duration:** ~50 minutes (investigation ~25, design/report ~15, plan generation ~10)
 
 ---
 
