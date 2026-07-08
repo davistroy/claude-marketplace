@@ -606,7 +606,8 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 - **Regression caught in-run:** 8.2's folds wrote unquoted `Suggest when:` into 12 YAML descriptions — plain-scalar colon broke strict parsing; 8.6's final strict-validate sweep caught it, fixed uniformly (`when:` → `when —`). Exactly the failure class the new CI plugin-validate job guards.
 - **Run totals:** 35/35 items COMPLETE across 8 phases; commits f6678d0 (checkpoint), a672970, 220a8fd, 07b8a33, d903277, 9991c46, 807f8fb, 3c041b5, 379bbc5; 1 escalation (4.2 sonnet→opus); 0 failed items; 3 real integration gaps caught by phase testing (3.3 meta-seed, 4.4 allowed-tools tracking tools, 8.2 YAML colon). Every phase's DoD green; official validator strict-passes all three plugins.
 - **What worked:** per-item tier dispatch with named agents; phase-boundary testing agents; the illustration-vs-logic authority clause (added after 4.2's escalation — prevented repeat escalations across all five Phase 5 items); file-disjoint parallel batches (zero write conflicts across 24 parallel dispatches).
-- **Status:** COMPLETE. Duration ~3.5 h wall-clock. PR + auto-merge follow as finalization.
+- **Status:** COMPLETE. Duration ~3.5 h wall-clock. PR #96 merged (squash `6c40719`) at 2026-07-08T21:47Z; branch deleted; local main reset to origin (the morning docs-sync commit `c7efd1d` was never pushed standalone — its content rode in the squash; 1-and-1 divergence resolved by reset, no loss).
+- **Post-merge hotfix:** CI's `Ruff format check` step (`ruff format --check plugins/*/tools/*/src/ tests/`) failed on main — item 2.4's cli.py edit wasn't formatter-clean. Root cause: the run's DoD used `ruff check` (lint) but never CI's `ruff format --check`; invocation gap between DoD and CI. Fixed with one `ruff format` pass on cli.py (+6/−2, behavior-neutral), hotfixed to main. Lesson: DoD commands must be lifted verbatim from CI workflow steps, not paraphrased.
 
 ---
 

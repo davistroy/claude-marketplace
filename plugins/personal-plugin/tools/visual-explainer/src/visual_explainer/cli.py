@@ -937,7 +937,9 @@ def _generate_prompts(
         prompt_type = "infographic page" if infographic_mode else "image"
         console.print(f"[dim]Generating {prompt_type} prompts...[/dim]")
 
-    prompt_generator = PromptGenerator(internal_config=internal_config, model=internal_config.claude_model)
+    prompt_generator = PromptGenerator(
+        internal_config=internal_config, model=internal_config.claude_model
+    )
 
     if infographic_mode and analysis.page_recommendation:
         # Use infographic-style prompt generation
@@ -1099,7 +1101,9 @@ async def _execute_generation_loop(
         internal_config=internal_config,
         max_concurrent=config.concurrency,
     )
-    image_evaluator = ImageEvaluator(model=internal_config.claude_model, pass_threshold=config.pass_threshold)
+    image_evaluator = ImageEvaluator(
+        model=internal_config.claude_model, pass_threshold=config.pass_threshold
+    )
 
     image_results: list[ImageResult] = []
 
