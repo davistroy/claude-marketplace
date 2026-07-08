@@ -38,9 +38,9 @@ You can install to different scopes:
 
 ### personal-plugin
 
-24 commands and 24 skills for productivity workflows, code review, document processing, and security analysis.
+23 commands and 24 skills for productivity workflows, code review, document processing, and security analysis.
 
-**24 Commands:**
+**23 Commands:**
 | Command | Description |
 |---------|-------------|
 | [`/analyze-transcript`](plugins/personal-plugin/commands/analyze-transcript.md) | Meeting transcript to structured markdown report |
@@ -57,8 +57,7 @@ You can install to different scopes:
 | [`/develop-image-prompt`](plugins/personal-plugin/commands/develop-image-prompt.md) | Generate detailed image generator prompts from content, optimized for 11x17 landscape prints |
 | [`/finish-document`](plugins/personal-plugin/commands/finish-document.md) | Extract questions from a document, answer them interactively, and update the document |
 | [`/implement-plan`](plugins/personal-plugin/commands/implement-plan.md) | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing and git workflow |
-| [`/new-command`](plugins/personal-plugin/commands/new-command.md) | Generate a new command file from a template with proper structure and conventions |
-| [`/new-skill`](plugins/personal-plugin/commands/new-skill.md) | Generate a new skill file with proper nested directory structure and required frontmatter |
+| [`/new-skill`](plugins/personal-plugin/commands/new-skill.md) | Generate a new skill file with proper nested directory structure, required frontmatter, and optional `--pattern <name>` template support |
 | [`/plan-improvements`](plugins/personal-plugin/commands/plan-improvements.md) | Analyze codebase and generate prioritized improvement recommendations with phased implementation plan |
 | [`/plan-next`](plugins/personal-plugin/commands/plan-next.md) | Analyze repo and recommend the next logical action |
 | [`/remove-ip`](plugins/personal-plugin/commands/remove-ip.md) | Sanitize documents by removing company identifiers and non-public intellectual property |

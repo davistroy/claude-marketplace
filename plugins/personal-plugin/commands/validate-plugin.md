@@ -670,6 +670,5 @@ Full end-to-end transcripts — a single-plugin run and an `--all` run: see `ref
 
 - `/bump-version` — Update version numbers (run validation after bumping)
 - `/scaffold-plugin` — Create a new plugin with proper structure
-- `/new-command` — Add a new command (run validation after adding)
 - `/new-skill` — Add a new skill (run validation after adding)
 - `/clean-repo` — Full repository cleanup and documentation sync

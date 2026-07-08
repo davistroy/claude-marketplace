@@ -18,3 +18,8 @@ This directory contains commands that have been deprecated and removed from the 
 - **Deprecated:** (pending)
 - **Reason:** Update checking functionality is being folded into `/validate-plugin` as a `--check-updates` flag rather than maintained as a standalone command.
 - **Replacement:** Use `/validate-plugin --check-updates` (once implemented).
+
+### new-command
+- **Deprecated:** 2026-07-08
+- **Reason:** Superseded by the official skills-first authoring direction (ADR-0006 — `docs/adr/0006-skills-first-authoring-policy.md`). New functionality now ships as skills, not commands, and `/new-skill` gained `--pattern <name>` support so it covers the same template-driven scaffolding new-command provided.
+- **Replacement:** Use `/new-skill --pattern <name>`.

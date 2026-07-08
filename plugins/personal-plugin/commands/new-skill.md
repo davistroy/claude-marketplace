@@ -1,6 +1,6 @@
 ---
 description: Generate a new skill file with proper nested directory structure and required frontmatter
-argument-hint: "[<skill-name>] [--plugin <plugin-name>]"
+argument-hint: "[<skill-name>] [--plugin <plugin-name>] [--pattern <name>]"
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 
@@ -18,6 +18,7 @@ Generate a new skill for this plugin with the correct directory structure and fr
 **Optional Arguments:**
 - `<skill-name>` - Name for the new skill (kebab-case)
 - `--plugin <plugin-name>` - Target plugin (defaults to auto-detected or prompted)
+- `--pattern <name>` - Base the skill on a command-pattern template instead of the default skill template (see Phase 2.2 "Pattern Adaptation"). One of `conversion`, `generator`, `interactive`, `planning`, `read-only`, `synthesis`, `utility`, `workflow` — see `references/skill-patterns.md` for a one-line description of each. Omit for today's default behavior (generates from `references/templates/skill.md`).
 
 **Plugin Target Resolution:**
 1. If `--plugin` is specified, use that plugin
@@ -39,6 +40,16 @@ Skill name must be:
 - kebab-case format (e.g., `my-new-skill`)
 - Unique (not already exist in the target plugin's `skills/` directory)
 - Descriptive but concise
+
+**Pattern Validation:**
+If `--pattern <name>` is given and `<name>` is not one of the 8 listed above, display:
+```text
+Error: Unknown pattern '[name]'
+
+Valid patterns: conversion, generator, interactive, planning, read-only, synthesis, utility, workflow
+
+Omit --pattern to use the default skill template.
+```
 
 ## Instructions
 
@@ -122,6 +133,8 @@ plugins/[plugin-name]/skills/[skill-name]/
 
 #### 2.2 Load and Customize Template
 
+**If `--pattern <name>` was specified**, follow "Pattern Adaptation" below instead of this default flow. **Otherwise**, continue here unchanged.
+
 Read the skill template from: `plugins/[plugin-name]/references/templates/skill.md`
 
 If the template file does not exist in the target plugin, fall back to `plugins/personal-plugin/references/templates/skill.md`. If neither exists, generate a minimal valid skill file with the required frontmatter fields.
@@ -202,6 +215,23 @@ description: [user-provided description]
 
 **Tip:** After generating, see the "Frontmatter Field Reference" section above and the worked examples for guidance on which modern features apply to your use case.
 
+#### Pattern Adaptation (only when `--pattern <name>` was specified)
+
+Source: `plugins/[plugin-name]/references/templates/[pattern-name].md` (fallback: `plugins/personal-plugin/references/templates/[pattern-name].md`, same fallback rule as above). These are the 8 command-pattern templates listed in Input Validation.
+
+**These files are read-only source material.** Never write changes back into `references/templates/` — adapt a copy in memory and save the result only to `skills/[skill-name]/SKILL.md`.
+
+Apply these transforms to the template content:
+
+1. **Nesting:** Output still goes to `plugins/[plugin-name]/skills/[skill-name]/SKILL.md` (Phase 2.1's directory) — never the template's implied flat `commands/[name].md` placement.
+2. **Add `name`:** Insert `name: [skill-name]` as the FIRST line inside the frontmatter block, matching the directory name exactly. Skills REQUIRE this field; the template was written for commands, which forbid it.
+3. **Invert the no-name guidance:** Delete the template's `# NOTE: Do NOT add a 'name' field — that breaks command discovery (name is skills-only)` comment line — that rule is command-only and is the opposite of the skill requirement. Drop or invert any other command-only aside the same way (e.g. stray flat-file wording); none of the 8 current templates carry any beyond this one line.
+4. **Everything else carries over:** `description`, `argument-hint`, `effort`, `allowed-tools`, any commented modern fields (`context`, `agent`, `when_to_use`), and the full body — Title, Instructions/Phases, Output Format, Examples, Performance, Troubleshooting — transfer unchanged from the template.
+5. **Tool restrictions:** If the user answered Phase 1.3 with a restriction, replace the template's `allowed-tools:` value with it; otherwise keep the template's pattern-appropriate default (do not blank it — unlike the no-restriction case in the default flow).
+6. **Placeholders:** Substitute `{{DESCRIPTION}}`, `{{TITLE}}`, `{{INTRO_PARAGRAPH}}` per the table above; `{{SKILL_NAME}}` and `{{COMMAND_NAME}}` both map to `[skill-name]` (skills invoke identically as `/[skill-name]`, per ADR-0006). Leave any remaining pattern-specific placeholders (e.g. `{{ARG_NAME}}`, `{{OUTPUT_LOCATION}}`) in place as markers — Phase 3 reminds the author to fill them in.
+
+If the template file is not found at either location, report the error and list the 8 valid pattern names (same list as the Pattern Validation error in Input Validation).
+
 #### 2.3 Write Skill File
 
 Save to: `plugins/[plugin-name]/skills/[skill-name]/SKILL.md`
@@ -244,6 +274,8 @@ Structure verified:
 - The 'name' must match the directory name exactly
 - See the Frontmatter Field Reference table and worked examples in this command for modern patterns
 ```
+
+**If generated via `--pattern`**, add one more bullet under "Edit the generated file to complete": `- [ ] Fill in remaining {{PLACEHOLDER}} markers from the [pattern] template`.
 
 ## Frontmatter Field Reference
 
@@ -469,6 +501,7 @@ User:   Bash(npm:*), Bash(pytest:*)
 - **Skill already exists:** Report existing path and suggest alternative name
 - **Invalid name format:** Explain kebab-case requirement with examples
 - **Template not found:** Create minimal valid skill file with required fields
+- **Unknown or missing pattern:** If `--pattern <name>` is invalid or its template file can't be found, report the error and list the 8 valid pattern names (conversion, generator, interactive, planning, read-only, synthesis, utility, workflow)
 - **Write permission denied:** Report error and suggest checking permissions
 - **Directory creation failed:** Report error with path details
 
@@ -492,7 +525,6 @@ User:   Bash(npm:*), Bash(pytest:*)
 
 ## Related Commands
 
-- `/new-command` — Generate a new command file from a template (flat file structure)
 - `/scaffold-plugin` — Create an entire new plugin with proper structure
 - `/validate-plugin` — Validate the plugin after adding a new skill
 - `/bump-version` — Update plugin version after adding new skills

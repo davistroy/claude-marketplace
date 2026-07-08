@@ -851,8 +851,8 @@ create-wiki: the verbatim-emitted CLAUDE.md injection block (349–428) and wiki
 
 ### Work Items
 
-#### 6.1 new-skill pattern support
-**Status: PENDING**
+#### 6.1 new-skill pattern support ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R9, ADR-0006 (E008/E009)
 **Files Affected:**
@@ -872,8 +872,8 @@ Add a pattern argument (e.g., `/new-skill my-skill --pattern generator`) that Re
 
 ---
 
-#### 6.2 Deprecate new-command
-**Status: PENDING**
+#### 6.2 Deprecate new-command ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R9, ADR-0006 (E008/E009)
 **Depends On:** 6.1
@@ -897,8 +897,8 @@ Move new-command.md to `deprecated/` per house convention (convert-hooks/setup-s
 
 ---
 
-#### 6.3 scaffold-plugin skills-first defaults
-**Status: PENDING**
+#### 6.3 scaffold-plugin skills-first defaults ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R9, ADR-0006 (E008/E009)
 **Files Affected:**
@@ -919,15 +919,15 @@ Flip generation defaults: `skills/` scaffolded by default; `commands/` only on e
 
 ### Phase 6 Testing Requirements
 
-- [ ] `/validate-plugin personal-plugin` passes with new-command in deprecated/ (count checks use dynamic `[N]`)
-- [ ] new-skill pattern flow produces a skill passing frontmatter validation
+- [x] `/validate-plugin personal-plugin` passes with new-command in deprecated/ (count checks use dynamic `[N]`)
+- [x] new-skill pattern flow produces a skill passing frontmatter validation
 
 ### Phase 6 Completion Checklist
 
-- [ ] All work items complete
-- [ ] All tests passing
-- [ ] Documentation updated
-- [ ] No regressions introduced
+- [x] All work items complete
+- [x] All tests passing
+- [x] Documentation updated
+- [x] No regressions introduced
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
@@ -1254,7 +1254,7 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 | `claude plugin validate --strict` flags unforeseen issues in CI | Med | Low | Full local dry-run in 7.1 before push; pinned CLI version; only known failure (agents) already fixed by Phase 3 | Open |
 | Description edits shift auto-trigger behavior | Low | Med | 7.2 trigger evals land before Phase 8 description edits; near-miss scenarios encode current intended boundaries | Open |
 | Renormalization churn or binary corruption | Low | Med | Blast radius pre-verified (2 CRLF text files, 1 zip); explicit `*.zip binary` rule; `git status` check in 2.3 | Mitigated |
-| new-skill pattern adapter produces malformed skills | Low | Med | Templates untouched (adapter-only); generated output must pass frontmatter validation per 6.1 acceptance | Open |
+| new-skill pattern adapter produces malformed skills | Low | Med | Templates untouched (adapter-only); generated output must pass frontmatter validation per 6.1 acceptance | Mitigated |
 | validate-plugin refactor silently weakens a check | Low | High | 5.1 rule: checks move verbatim, only illustrations extracted; post-refactor `/validate-plugin --all` compared against pre-refactor output | Mitigated |
 
 ---

@@ -123,7 +123,7 @@ plugins/
     commands/          # analyze-transcript, arch-review-single, arch-synthesize, ask-questions,
                        # assess-document, bump-version, clean-repo, consolidate-documents,
                        # convert-markdown, create-plan, define-questions, develop-image-prompt,
-                       # finish-document, implement-plan, new-command, new-skill, plan-improvements,
+                       # finish-document, implement-plan, new-skill, plan-improvements,
                        # plan-next, remove-ip, review-arch, review-intent, scaffold-plugin,
                        # test-project, validate-plugin
     deprecated/        # Archived commands
@@ -167,7 +167,7 @@ plugins/
 | Generator | `define-questions`, `analyze-transcript` |
 | Planning | `create-plan`, `plan-improvements`, `plan-next` |
 | Orchestration | `implement-plan` — Agent tool subagents, state file resume, rollback/checkpoint, phase gates |
-| Scaffolding | `scaffold-plugin`, `new-command`, `new-skill` |
+| Scaffolding | `scaffold-plugin`, `new-skill` |
 
 **Planning commands:** Both `create-plan` and `plan-improvements` produce unified IMPLEMENTATION_PLAN.md schema (max 8 phases, max 6 items/phase). `create-plan` adds codebase recon + scope confirmation. `plan-improvements` adds sampling strategy, priority rubric, `--recommendations-only` workflow.
 

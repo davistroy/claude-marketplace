@@ -121,7 +121,7 @@ When updating patterns:
 
 ## Advanced Features — Modern Frontmatter Field Catalog
 
-Canonical reference for late-2025 Claude Code features. Skills in `new-skill.md` and `new-command.md` link here for full field documentation.
+Canonical reference for late-2025 Claude Code features. `new-skill.md` links here for full field documentation.
 
 ### `context: fork`
 

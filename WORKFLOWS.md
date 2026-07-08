@@ -10,7 +10,7 @@ This document describes how to chain commands together for common use cases. Eac
 2. [Code Review Workflow](#2-code-review-workflow)
 3. [Architecture Analysis Workflow](#3-architecture-analysis-workflow)
 4. [Repository Maintenance Workflow](#4-repository-maintenance-workflow)
-5. [New Command Development Workflow](#5-new-command-development-workflow)
+5. [New Skill Development Workflow](#5-new-skill-development-workflow)
 6. [BPMN Diagram Workflow](#6-bpmn-diagram-workflow)
 
 ---
@@ -309,19 +309,19 @@ Run before major releases or when repository becomes cluttered.
 
 ---
 
-## 5. New Command Development Workflow
+## 5. New Skill Development Workflow
 
-**Purpose:** Create a new command with proper structure and ship it.
+**Purpose:** Create a new skill with proper structure and ship it.
 
-**Best for:** Adding new functionality to a plugin.
+**Best for:** Adding new functionality to a plugin. Skills are the current recommended format (ADR-0006 — skills-first authoring policy; see `plugins/personal-plugin/deprecated/README.md` for the prior flat-file command generator's deprecation notice).
 
 ### Command Sequence
 
 ```
-/new-command
+/new-skill --pattern <name>
     |
     v
-Test the command
+Test the skill
     |
     v
 /validate-plugin
@@ -332,19 +332,19 @@ Test the command
 
 ### Step-by-Step
 
-#### Step 1: Generate Command Template
+#### Step 1: Generate Skill Template
 ```
-/new-command my-new-command
+/new-skill my-new-skill --pattern <pattern-type>
 ```
 
 This creates:
-- `commands/my-new-command.md` with proper structure
-- Valid frontmatter (description, optional allowed-tools)
-- Standard sections (Input Validation, Process, etc.)
+- `skills/my-new-skill/SKILL.md` with proper nested directory structure
+- Valid frontmatter (required `name`, `description`, optional `allowed-tools`)
+- Standard sections adapted from the chosen pattern template
 
 #### Step 2: Implement and Test
 
-1. Edit the generated command file
+1. Edit the generated skill file
 2. Add your implementation logic
 3. Test with various inputs:
    - Valid arguments
@@ -358,17 +358,17 @@ This creates:
 ```
 
 Verify:
-- Command appears in plugin listing
-- Frontmatter is valid
-- `/help` includes the new command
+- Skill appears in plugin listing
+- Frontmatter is valid (including required `name` field matching the directory name)
+- `/help` includes the new skill
 
-#### Step 4: Ship the Command
+#### Step 4: Ship the Skill
 ```
 /ship
 ```
 
 PR description should include:
-- What the new command does
+- What the new skill does
 - Example usage
 - Any dependencies required
 
