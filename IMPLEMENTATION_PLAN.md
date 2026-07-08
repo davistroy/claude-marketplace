@@ -539,8 +539,8 @@ Dispatch one arch-review agent (smallest: solutions-architect) against a tiny ta
 
 ### Work Items
 
-#### 4.1 Create shared planning references
-**Status: PENDING**
+#### 4.1 Create shared planning references ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R7 (E008/E009)
 **Files Affected:**
@@ -560,8 +560,8 @@ Extract the append-vs-overwrite procedure into `plan-append-guide.md` using crea
 
 ---
 
-#### 4.2 create-plan.md consolidation
-**Status: PENDING**
+#### 4.2 create-plan.md consolidation ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R6, R7 (E008/E009)
 **Depends On:** 4.1
@@ -583,12 +583,12 @@ Replace the inline model-tier rubric (437–440) with a pointer to plan-template
 - [ ] `/validate-plugin personal-plugin` passes
 
 **Notes:**
-Behavior-preserving (constitution C8): pointers must carry enough inline context (one-line summaries) that the command remains executable without pre-reading every reference.
+Behavior-preserving (constitution C8): pointers must carry enough inline context (one-line summaries) that the command remains executable without pre-reading every reference. Executed via one sonnet→opus escalation: the ≤500 target conflicted with the byte-intact clause; opus moved illustration blocks only — final 470 lines, decision logic untouched.
 
 ---
 
-#### 4.3 plan-improvements.md consolidation
-**Status: PENDING**
+#### 4.3 plan-improvements.md consolidation ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R6, R7 (E008/E009)
 **Depends On:** 4.1
@@ -610,8 +610,8 @@ Same treatment: rubric (480–483) and S/M/L table (503–508) become template p
 
 ---
 
-#### 4.4 implement-plan.md: PATH collapse + mechanics cleanup
-**Status: PENDING**
+#### 4.4 implement-plan.md: PATH collapse + mechanics cleanup ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: opus**
 **Requirement Refs:** R6, R11 (E008/E009)
 **Files Affected:**
@@ -641,16 +641,16 @@ Highest-risk item in the plan. The difference ledger (E009 investigation §3) is
 
 ### Phase 4 Testing Requirements
 
-- [ ] `/validate-plugin personal-plugin` passes (template pointers intact, frontmatter clean)
-- [ ] Line budgets met: create-plan ≤500, plan-improvements ≤500, implement-plan ≤650
-- [ ] Manual read-through: each command executable without opening references (pointers carry summaries)
+- [x] `/validate-plugin personal-plugin` passes (template pointers intact, frontmatter clean)
+- [x] Line budgets met: create-plan ≤500, plan-improvements ≤500, implement-plan ≤650
+- [x] Manual read-through: each command executable without opening references (pointers carry summaries)
 
 ### Phase 4 Completion Checklist
 
-- [ ] All work items complete
-- [ ] All tests passing
-- [ ] Documentation updated
-- [ ] No regressions introduced
+- [x] All work items complete
+- [x] All tests passing
+- [x] Documentation updated
+- [x] No regressions introduced
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
@@ -1246,7 +1246,7 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 
 | Risk | Likelihood | Impact | Mitigation Strategy | Status |
 |------|------------|--------|---------------------|--------|
-| implement-plan PATH A/B collapse regresses execution semantics | Med | High | E009 difference ledger is the authoritative spec; side-by-side semantic checklist in 4.4 acceptance; opus tier; per-phase commit enables `git revert` | Open |
+| implement-plan PATH A/B collapse regresses execution semantics | Med | High | E009 difference ledger is the authoritative spec; side-by-side semantic checklist in 4.4 acceptance; opus tier; per-phase commit enables `git revert` | Mitigated |
 | arch-review pipeline breaks under new dispatch/meta design | Med | Med | 3.5 smoke test gates phase completion; per-agent meta is strictly simpler than shared-merge; revert path is one commit | Mitigated |
 | `claude plugin validate --strict` flags unforeseen issues in CI | Med | Low | Full local dry-run in 7.1 before push; pinned CLI version; only known failure (agents) already fixed by Phase 3 | Open |
 | Description edits shift auto-trigger behavior | Low | Med | 7.2 trigger evals land before Phase 8 description edits; near-miss scenarios encode current intended boundaries | Open |
