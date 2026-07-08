@@ -1,7 +1,7 @@
 # ADR-0006: Skills-First Authoring Policy
 
 **Date:** 2026-07-08
-**Status:** Proposed
+**Status:** Accepted
 **Deciders:** Troy Davis (proposed via /ultra-plan session, Lab Notebook E009)
 
 ## Context

@@ -27,6 +27,8 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D12 | Fix `/ultraplan` vs `/ultra-plan` reference ambiguity (no full rename) | 2026-04-30 | ACTIVE | E002 | Full rename — rejected, breaking change for user muscle memory. Hyphen already distinguishes. |
 | D13 | Constitution constraints live in CLAUDE.md, not separate constitution.md | 2026-04-30 | ACTIVE | E002 | Separate constitution.md (Spec Kit pattern) — rejected, artifact sprawl for solo-builder context |
 | D19 | Plugin cache freshness is governed by the marketplace's `autoUpdate` setting against `origin/main`, not by manual local reinstall | 2026-07-08 | ACTIVE | E007 | Manual reinstall (A1/A7 premise) — superseded; cache already tracks GitHub origin automatically when `autoUpdate: true`. The real risk is the local dev clone lagging origin (second occurrence of D17's root cause) |
+| D20 | Agent `model:` fields use tier aliases (haiku/sonnet/opus/inherit), never pinned IDs (ADR-0005, Accepted) | 2026-07-08 | ACTIVE | E009/E010 | Pinned + periodic review — rejected, drifted twice undetected (9.1.0→9.3.0) |
+| D21 | Skills-first authoring: new functionality ships as skills; commands/ frozen legacy; new-command deprecated, patterns ported to /new-skill --pattern (ADR-0006, Accepted) | 2026-07-08 | ACTIVE | E009/E010 | Mass-migrate 24 commands — rejected (churn, zero functional gain); status quo — rejected (diverges from official direction) |
 
 Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#)
 
@@ -38,7 +40,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry | Priority |
 |---|--------|---------|-------------|----------|
-| A9 | Review & execute the 13 prioritized recommendations in `reports/plugin-review-anthropic-guidance-20260708-114842.md` (R1 agents-frontmatter, R2 model pins, R3 dangling refs are the quick high-benefit wins) | 2026-07-08 | E008 | High — R1/R2 affect live behavior of arch-review and implement-plan |
+| A10 | Post-merge: verify installed plugin cache picks up 10.0.0 via autoUpdate (per D19), then smoke-test arch-review dispatch with the NEW agent frontmatter live | 2026-07-08 | E010 | Medium — new agent definitions only take effect after cache sync |
 
 ### Completed
 
@@ -57,6 +59,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C11 | Reinstall plugin to sync spark-recon (A1) — superseded, not executed as originally framed: spark-recon was rewritten multiple times since (v9.1–9.3); reinstall model was based on an incomplete picture of cache sync (see D19) | 2026-04-30 | 2026-07-08 | E007 |
 | C12 | Reinstall plugin to sync gap-analysis changes (A7) — superseded: cache auto-syncs from GitHub `origin/main` (`autoUpdate: true`), confirmed cache already at 9.3.0 = origin tip before any manual action; the actual gap was the local dev clone lagging origin by 1 commit, fixed via `git pull --ff-only` | 2026-04-30 | 2026-07-08 | E007 |
 | C13 | Bump personal-plugin version to 9.0.0 (A8) — done via commit `3b9679d`, since surpassed (now 9.3.0) | 2026-04-30 | 2026-04-30 | E003 |
+| C14 | Execute the 13 review recommendations R1–R13 (A9) — full 8-phase/35-item plan executed via /implement-plan; released as 10.0.0/4.2.0/1.2.0/3.3.0 | 2026-07-08 | 2026-07-08 | E008–E010 |
 
 ---
 
@@ -597,6 +600,13 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
   - CLAUDE.md consistency: PASS — stated `commands/ (23)` matches disk (23 `commands/*.md`); skills listing enumerates 24 names matching 24 skill dirs on disk; ADR-0005 refs ×2 (lines 24, 164) and ADR-0006 refs ×3 (lines 19, 20, 228) present.
   - Eval structure: PASS — `evals/skills/description-triggers.eval.md` has exactly 14 `### S` scenarios; frontmatter carries `command: description-triggers`, `type: skill`, `fixtures: []`.
 - *Final:* ALL 5 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11.14/pytest 9.1.1 via uv, markdownlint-cli via npx (Phase 7 changes in working tree). No commits made.
+
+**Phase 8 + run closure (orchestrator, 2026-07-08):**
+- Phase 8 (6 items): 8.1 big-5 negative scope (each clause mapped to a guarding eval scenario); 8.2 fold ×12 personal skills; 8.3 fold ×9 slide-gen + qualitative cost; 8.4 mechanical polish (effort ×8, plan-next argument-hint + stale-schemas fix, hooks statusMessage ×2); 8.5 per-plugin README+LICENSE ×3; 8.6 coordinated release 10.0.0/4.2.0/1.2.0/3.3.0 + both CHANGELOGs. Commit `379bbc5`.
+- **Regression caught in-run:** 8.2's folds wrote unquoted `Suggest when:` into 12 YAML descriptions — plain-scalar colon broke strict parsing; 8.6's final strict-validate sweep caught it, fixed uniformly (`when:` → `when —`). Exactly the failure class the new CI plugin-validate job guards.
+- **Run totals:** 35/35 items COMPLETE across 8 phases; commits f6678d0 (checkpoint), a672970, 220a8fd, 07b8a33, d903277, 9991c46, 807f8fb, 3c041b5, 379bbc5; 1 escalation (4.2 sonnet→opus); 0 failed items; 3 real integration gaps caught by phase testing (3.3 meta-seed, 4.4 allowed-tools tracking tools, 8.2 YAML colon). Every phase's DoD green; official validator strict-passes all three plugins.
+- **What worked:** per-item tier dispatch with named agents; phase-boundary testing agents; the illustration-vs-logic authority clause (added after 4.2's escalation — prevented repeat escalations across all five Phase 5 items); file-disjoint parallel batches (zero write conflicts across 24 parallel dispatches).
+- **Status:** COMPLETE. Duration ~3.5 h wall-clock. PR + auto-merge follow as finalization.
 
 ---
 
