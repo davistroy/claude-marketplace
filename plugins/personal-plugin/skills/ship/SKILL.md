@@ -86,7 +86,7 @@ Use the pre-loaded context injected above — do NOT re-run these git commands:
 1. **Verify git repository** — remote output above will be empty if not a git repo; abort if so
 2. **Confirm uncommitted changes** — check the injected `git status -s` and diff summaries; if both are empty, abort with a clear message
 3. **Confirm current branch** — check the injected branch name; if not `main`, ask the user if they want to proceed from the current branch or abort
-4. **Diff size gate** — check the injected "Diff size (lines changed)" value. If > 500, note this for Phase 6 (will suggest `/ultrareview` instead of standard review)
+4. **Diff size gate** — check the injected "Diff size (lines changed)" value. If > 500, note this for Phase 6 (will suggest `/code-review ultra` instead of standard review)
 
 ## Phase 0: Platform Detection
 
@@ -281,15 +281,15 @@ Categorize each issue by severity:
 
 ### 6.4 Output
 
-**Large-diff gate:** If the injected "Diff size (lines changed)" value from pre-flight is > 500, display this recommendation before the standard review output and skip the automated fix loop — route to `/ultrareview` instead:
+**Large-diff gate:** If the injected "Diff size (lines changed)" value from pre-flight is > 500, display this recommendation before the standard review output and skip the automated fix loop — route to `/code-review ultra` instead:
 
 ```text
 Phase 6: Large Diff Detected
 ==============================
 This PR changes [N] lines (>500). Standard auto-review may miss subtle issues.
 
-Recommendation: Run `/ultrareview` for multi-agent deep review on this PR.
-  - /ultrareview provides more thorough analysis for large changes
+Recommendation: Run `/code-review ultra` for multi-agent deep review on this PR.
+  - /code-review ultra provides more thorough analysis for large changes
   - Auto-fix loop skipped for large diffs (too many moving parts for reliable auto-fix)
 
 PR URL: [url] (open — awaiting manual review)
@@ -360,7 +360,7 @@ FOR attempt = 1 TO 5:
         - [C1] Issue description
         - [W1] Issue description
 
-        Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+        Co-Authored-By: Claude <noreply@anthropic.com>"
 
     Push:
         git push

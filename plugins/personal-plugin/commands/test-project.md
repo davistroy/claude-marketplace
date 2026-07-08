@@ -320,7 +320,7 @@ test: achieve target coverage and fix all test failures
 Coverage: XX% (target: XX%)
 Tests: XX passed, 0 failed
 
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -497,6 +497,6 @@ If PR creation or merge fails:
 ## Related Commands
 
 - `/implement-plan` — Execute an IMPLEMENTATION_PLAN.md (often followed by testing)
-- `/review` — Review the PR created by this command before merging (use `/ultrareview` for multi-agent deep review)
+- `/review` — Review the PR created by this command before merging (use `/code-review ultra` for multi-agent deep review)
 - `/plan-improvements` — Generate improvement recommendations including test coverage gaps
 - `/review-arch` — Architectural audit that identifies testability issues

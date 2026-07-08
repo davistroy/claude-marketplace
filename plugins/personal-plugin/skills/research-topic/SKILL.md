@@ -11,8 +11,6 @@ You are orchestrating parallel deep research across three LLM providers (Anthrop
 
 **Architecture:** Three subagents dispatch in parallel — one per provider. Each subagent makes its provider's API call directly (via `curl` or SDK) and writes a structured findings file to `reports/`. Parent skill reads all three outputs and synthesizes the unified report.
 
-**Trade-offs vs Previous Implementation:** This architecture eliminates the Python research-orchestrator tool and all its dependencies (no pip installs, no virtual env, no PYTHONPATH setup). Trade-off: no real-time streaming progress bars during API polling. For long runs (30+ min), watch the in-progress agent indicators in the Claude Code UI. Architecture gains: simpler debugging, cross-platform portability, single-runtime execution.
-
 ## Proactive Triggers
 
 Suggest this skill when:
@@ -43,7 +41,7 @@ API keys must be loaded into the environment before use. Run `/unlock` to load s
 If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files.
 
 **Optional Model Configuration (non-sensitive, safe for .env):**
-- `ANTHROPIC_MODEL` - Override Claude model. Default: `claude-opus-4-6-20250725`
+- `ANTHROPIC_MODEL` - Override Claude model. Default: `claude-opus-4-8`
 - `OPENAI_MODEL` - Override OpenAI model. Default: `o3-deep-research-2025-06-26`
 - `GEMINI_AGENT` - Override Gemini agent. Default: `deep-research-pro-preview-12-2025`
 
@@ -161,7 +159,7 @@ Wait for user confirmation.
 
 ```bash
 # Resolve model identifiers (env var override or defaults)
-CLAUDE_MODEL="${ANTHROPIC_MODEL:-claude-opus-4-6-20250725}"
+CLAUDE_MODEL="${ANTHROPIC_MODEL:-claude-opus-4-8}"
 OAI_MODEL="${OPENAI_MODEL:-o3-deep-research-2025-06-26}"
 GEMINI_AGENT_ID="${GEMINI_AGENT:-deep-research-pro-preview-12-2025}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -212,7 +210,6 @@ Structure your response with:
 
 ```text
 context: fork
-agent: claude-opus-4-6-20250725  (or value of $ANTHROPIC_MODEL)
 
 You are a research agent responsible for the Anthropic Claude research leg of a multi-provider research task.
 
@@ -539,32 +536,6 @@ Duration reflects wall-clock time for the slowest subagent (all three run in par
 ## Cost Considerations
 
 Running all three providers at "comprehensive" depth may cost $2-5+ per query. For detailed cost estimates, read `references/research-models.md`. Use `--sources` to select specific providers.
-
-## Trade-offs vs Previous Implementation
-
-This skill replaced the Python `research-orchestrator` tool (deleted in Phase 7.1). The architectural trade-off was evaluated and approved (Option A).
-
-### Lost
-
-**Real-time streaming progress updates.** The Python tool polled each provider API and streamed per-source progress to the terminal as each provider responded — users saw live status lines (e.g., "Claude: thinking... 4,000 tokens", "OpenAI: poll 12/180: in_progress"). The `context: fork` subagent model does not support streaming back to the parent conversation during execution. Subagents return only on completion. For ~15-minute comprehensive runs, the user sees no progress for the full duration — only the Claude Code agent-in-progress indicator in the UI.
-
-**Workaround:** Use `/batch` to decompose a large research agenda into multiple shorter concurrent queries rather than one long comprehensive run. This distributes wait time and provides natural checkpoints.
-
-### Gained
-
-**Simpler architecture.** No Python dependencies, no virtual environment, no `PYTHONPATH` setup, no `pip install` required. Any machine with Claude Code can run this skill without pre-provisioning.
-
-**Easier debugging.** Subagent prompts are plain text in this skill file. When a provider call fails, the subagent's error output is readable in the Claude Code UI. No Python stack traces, no import errors, no module resolution failures.
-
-**Cross-platform portability.** The Python tool required Python 3.10+, `httpx`, and provider SDKs. This skill runs via `curl` and `python3` (standard on all platforms) for JSON parsing only — no non-standard dependencies.
-
-**Native Claude Code integration.** Uses the standard `context: fork` pattern, consistent with all other modernized skills in this plugin. Same observability, same lifecycle management, same cancellation behavior.
-
-### Trade-off Acknowledged
-
-For ~15-minute research runs at `comprehensive` depth, the absence of streaming means the user sees no progress for the full run duration. This was an intentional design decision — Option A (native subagents, lose streaming) over Option B (keep Python tool, keep streaming). Documented here as the verification gate confirming the trade-off was understood and approved before the Python tool was deleted.
-
----
 
 ## Examples
 

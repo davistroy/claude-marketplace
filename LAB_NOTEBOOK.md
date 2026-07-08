@@ -487,4 +487,38 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 ---
 
+### Entry 010 — Plan Execution: /implement-plan --auto-merge, full run [plugin] [skill] [command] [ci] [config]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI 2.1.204, branch `feat/guidance-modernization-v10` from `c7efd1d`; checkpoint commit `f6678d0` (plan + ADRs + E008/E009); orchestrator on Fable 5
+**Status:** IN PROGRESS
+
+**Objective:** Execute all 8 phases / 35 work items of IMPLEMENTATION_PLAN.md continuously (no phase pauses), dispatching per-item model tiers to named implementer sub-agents (haiku/sonnet/opus per plan; user-approved). Orchestrator does no work-item content itself. Ends with PR + auto-merge (user-approved; Entry 006 precedent).
+
+**Hypothesis:** All 35 items are completable by tiered sub-agents against the plan's line-precise specs. File-disjoint parallel batches (verified at interaction-mapping time) prevent write conflicts without worktree isolation. The two opus items (4.4 PATH collapse, 5.1 validate-plugin refactor) are the long poles and the likeliest ESCALATE/iteration sources. Success criteria: every phase's Definition of Done green, `claude plugin validate --strict` passes all plugins, PR merged, versions 10.0.0/4.2.0/1.2.0/3.3.0 live on main.
+
+**Rollback Plan:** Per-item/per-batch commits on the feature branch — `git revert <sha>` for any single item; deleting the branch abandons the whole run (main untouched until squash-merge). `.implement-plan-state.json` (gitignored) enables resume after interruption. Auto-merge is squash — one revert on main undoes the entire release if needed post-merge.
+
+**Execution deviations from the loaded implement-plan workflow (logged up front):**
+1. No worktree isolation for sub-agents — the workflow's `isolation: worktree phase-[N]` prose is the exact harness-fighting pattern item 4.4 removes; graceful-degradation clause invoked. File-disjoint batches + ≤3 concurrent cap provide the safety.
+2. Implementation sub-agents do NOT edit IMPLEMENTATION_PLAN.md (avoids concurrent same-file writes across parallel agents); a single haiku bookkeeper agent per batch flips Status/heading/risk-table entries after results collect.
+3. Startup plan-scan subagent skipped — the orchestrator authored the plan this session; state file written directly from source knowledge.
+
+**Phase results (logged as they complete):**
+
+**Phase 1 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 1 DoD suite (pytest, ruff, markdownlint, pre-commit, dangling-ref grep, stale-model-ID grep); fix in-scope failures.
+- *Hypothesis:* Phase 1's 13 markdown edits pass all checks; any failure is either pre-existing Python debt or a missed staleness site. Success = all 6 commands pass or remaining failures proven pre-existing.
+- *Rollback plan:* Both fixes are single-line text edits in git-tracked files — `git checkout -- <file>` reverts. N/A for read-only checks.
+- *Results:*
+  - pytest `tests/`: PASS — 67/67 (via `uv run --no-project --with pytest --with jsonschema --with pyyaml`; system python3 has no pytest — CI installs it, env-only gap; no `python` alias on this VM).
+  - ruff: FAIL, PRE-EXISTING — 41 errors across 25 `.py` files (bpmn2drawio tests, feedback-docx test, scripts/*.py). No Python touched by Phase 1; identical on HEAD.
+  - markdownlint: FAIL, PRE-EXISTING — 3× MD012 in `tests/fixtures/invalid-plugin/commands/*.md` (unchanged since v2.4.0, cb3aec6). All 13 Phase-1 files lint clean.
+  - dangling refs (`/batch|/ultrareview`): PASS — zero hits. Note: the DoD command's `--include='*.md'` appears *after* `--`, so GNU grep treats it as a filename (stderr warning, harmless); also the shell's `grep` is a Claude Code ugrep wrapper — verified with `command grep` and corrected flag order.
+  - stale model IDs: FAIL initially — 2 sites Phase 1 missed: `references/api-key-setup.md:36` (`claude-opus-4-6-20250725`) and `deprecated/setup-statusline.md:354` ("Claude Opus 4.5"). Both are Staleness-Sweep-class fixes (plan line 201 excludes only CHANGELOG/LAB_NOTEBOOK/docs/archive — deprecated/ is in scope for this grep). Fixed: api-key-setup → `claude-opus-4-8` (matches 1.5's convention + claude-api skill current-alias table; alias form, no date suffix); setup-statusline → "Claude Opus" (model-agnostic per 1.2's never-goes-stale principle; any "4.x" re-matches the DoD pattern). Re-run: zero hits — PASS. Both edited files lint clean.
+  - pre-commit: PASS — exit 0 with empty index (by design — validates staged files only); staged-variant run against the 10 Phase 1 command/skill files: 0 errors, 3 pre-existing warnings (no help skill in any plugin), index restored via `git reset`.
+- *Pre-existing debt surfaced (candidate Action Items):* (1) ruff: 41 errors / 32 auto-fixable in 25 untouched `.py` files; (2) markdownlint: 3× MD012 in `tests/fixtures/invalid-plugin/commands/`; (3) this VM has no `python` alias and no pytest for system python3 — DoD's literal `python -m pytest` cannot run here without `uv run` or a venv.
+
+---
+
 *Entries continue below.*

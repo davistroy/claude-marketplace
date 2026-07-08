@@ -21,7 +21,7 @@ This command:
 6. Generates detailed work items with acceptance criteria
 7. Outputs IMPLEMENTATION_PLAN.md to the repository root
 
-> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultra-plan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/batch /implement-plan` after generating a large plan (6+ phases or 20+ work items) to execute phases in parallel isolated worktrees.
+> **See also:** `/plan-improvements` for codebase-driven improvement analysis. `/ultra-plan` for deep pre-planning when requirements are vague, scope is ambiguous, or the problem needs investigation before a plan can be written. Use `/implement-plan` to execute the generated plan; for large plans (6+ phases or 20+ independent work items), set `Execution Mode: Parallel` or `Worktree-Isolated` in the Phase Summary Table so `/implement-plan` dispatches those phases as concurrent background agents in isolated worktrees.
 
 ## Input Validation
 
@@ -751,17 +751,21 @@ Next Steps:
 Large Plan Detected — Consider Parallel Execution
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-This plan has [N] phases and [M] work items. Sequential execution
-via '/implement-plan' works, but '/batch /implement-plan' can run
-independent phases in parallel isolated worktrees, significantly
-reducing wall-clock time.
+This plan has [N] phases and [M] work items. '/implement-plan'
+handles both sequential and parallel execution. Phases whose
+Execution Mode is 'Parallel' or 'Worktree-Isolated' in the
+Phase Summary Table are dispatched as concurrent background
+agents in isolated worktrees, significantly reducing wall-clock
+time for large independent phase sets.
 
-  '/batch /implement-plan'           # Parallel execution (faster)
-  '/implement-plan'                  # Sequential execution (simpler)
+  '/implement-plan'                  # All phases; parallel phases
+                                     # auto-dispatched by /implement-plan
+                                     # when Execution Mode is set
 
-Use '/batch' when phases are mostly independent (check the
-Parallel Work Opportunities table in the plan). Use sequential
-when phases have tight dependencies or share mutable state.
+Set Execution Mode: Parallel or Worktree-Isolated on phases
+that are mostly independent (check the Parallel Work
+Opportunities table in the plan). Leave sequential for phases
+with tight dependencies or shared mutable state.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 

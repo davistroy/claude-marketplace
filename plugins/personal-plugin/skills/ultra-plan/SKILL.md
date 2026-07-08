@@ -26,12 +26,12 @@ If the input is ambiguous or incomplete, ask clarifying questions before startin
 
 | Argument | Description |
 |----------|-------------|
-| (none) | Default mode: run the full rigid workflow (Phases 0-6) |
+| (none) | Default mode: run the full rigid workflow (Phases 0-5) |
 | `--refresh` | Drift detection mode: compare existing plan against current code state (see below) |
 
 ## Drift Detection Mode (`--refresh`)
 
-When invoked with `--refresh`, ultra-plan skips the normal Phase 0-6 workflow and instead checks whether an existing plan still matches the codebase.
+When invoked with `--refresh`, ultra-plan skips the normal Phase 0-5 workflow and instead checks whether an existing plan still matches the codebase.
 
 **Prerequisites:**
 - IMPLEMENTATION_PLAN.md (or `--input <path>`) must exist
@@ -78,11 +78,11 @@ Based on the drift report:
 - If drift is significant (>30% of items), suggest re-running `/ultra-plan` from scratch
 - For PENDING items that are now obsolete, suggest removing them
 
-After the drift report, return to normal mode — do NOT proceed with Phase 0-6.
+After the drift report, return to normal mode — do NOT proceed with Phase 0-5.
 
 ## Phase 0 -- Constitution Check
 
-> **Note:** Phase 0-6 below is the default workflow. If invoked with `--refresh`, skip to the Drift Detection Mode section above.
+> **Note:** Phase 0-5 below is the default workflow. If invoked with `--refresh`, skip to the Drift Detection Mode section above.
 
 Before investigating any items, establish the project's non-negotiable constraints. These constraints gate every subsequent phase -- no proposed solution may violate them.
 
@@ -117,7 +117,7 @@ Produce a **Constraints Summary** -- a compact table of all documented and answe
 - Is checked during Solution Design (Phase 4) -- every proposed change must comply
 - Is included in the plan generation output for downstream consumption
 
-## Phase 2 -- Investigation
+## Phase 1 -- Investigation
 
 For **each item** in the input list, investigate and document:
 
@@ -143,7 +143,7 @@ Present Phase 2 findings as a structured table or list before proceeding.
 
 ### Sub-Agent Investigation (>5 items)
 
-When the input list has more than 5 items, use the Agent tool with `subagent_type: "Explore"` to parallelize investigation. This preserves main context for the high-value Phases 3-6.
+When the input list has more than 5 items, use the Agent tool with `subagent_type: "Explore"` to parallelize investigation. This preserves main context for the high-value Phases 2-5.
 
 **Dispatch pattern:**
 1. Group related items (items that likely share code paths) into clusters of 2-3
@@ -168,7 +168,7 @@ When the input list has more than 5 items, use the Agent tool with `subagent_typ
 
 **Graceful degradation:** If the Agent tool is unavailable or sub-agents fail, fall back to inline investigation for all items. Note the fallback in the Phase 2 output.
 
-## Phase 3 -- Interaction Mapping
+## Phase 2 -- Interaction Mapping
 
 Before proposing **any** solution, map the interactions:
 
@@ -191,7 +191,7 @@ Group items into **coherent change sets** -- items that should be designed and i
 
 Present the interaction map before proceeding. This is the most important phase -- it prevents the whack-a-mole fix loop.
 
-## Phase 4 -- Solution Design
+## Phase 3 -- Solution Design
 
 Design integrated changes for each change set from Phase 3.
 
@@ -261,7 +261,7 @@ For L4+ tasks (greenfield architecture, multi-system integration, fundamental re
 3. Generate an ADR documenting the decision (leverages the ADR Generation section above)
 4. Rejected approaches become "Alternatives Considered" in the ADR
 
-## Phase 5 -- Summary Report
+## Phase 4 -- Summary Report
 
 Deliver a structured summary containing all of the following:
 
@@ -320,7 +320,7 @@ After presenting the summary report, ask:
 
 > Review the plan above. You can approve as-is, adjust items, ask questions, or redirect. When ready, say **implement** and I'll generate the formal implementation plan.
 
-## Phase 6 -- Plan Generation
+## Phase 5 -- Plan Generation
 
 When the user approves, produce a formal implementation plan using the appropriate command:
 
@@ -343,17 +343,17 @@ This determines the routing below.
 
 ### 6c. Feed Ultra Plan Analysis into Create-Plan
 
-The Phase 2-5 analysis is the requirements input for `/personal-plugin:create-plan`. Map ultra-plan outputs to create-plan inputs:
+The Phase 1-4 analysis is the requirements input for `/personal-plugin:create-plan`. Map ultra-plan outputs to create-plan inputs:
 
 | Ultra Plan Output | Create-Plan Input |
 |-------------------|-------------------|
-| Change sets (Phase 3c) | Phase groupings |
-| Solution design per set (Phase 4) | Work items with acceptance criteria |
-| Implementation sequence (Phase 5) | Phase ordering and dependencies |
-| Risk assessment (Phase 5) | Risk mitigation table |
-| Scope boundaries (Phase 5) | Plan scope and exclusions |
-| Unknowns (Phase 5) | Unknowns Register |
-| Verification commands (Phase 5) | Definition of Done (Runnable) per phase |
+| Change sets (Phase 2c) | Phase groupings |
+| Solution design per set (Phase 3) | Work items with acceptance criteria |
+| Implementation sequence (Phase 4) | Phase ordering and dependencies |
+| Risk assessment (Phase 4) | Risk mitigation table |
+| Scope boundaries (Phase 4) | Plan scope and exclusions |
+| Unknowns (Phase 4) | Unknowns Register |
+| Verification commands (Phase 4) | Definition of Done (Runnable) per phase |
 
 The resulting IMPLEMENTATION_PLAN.md inherits the architectural coherence from ultra-plan's analysis -- it is NOT a fresh discovery process, but a structured encoding of decisions already made.
 

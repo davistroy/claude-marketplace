@@ -46,7 +46,7 @@ Thoroughly analyze the codebase with extended thinking enabled.
 
 **The output of this analysis should be a set of recommendations that, when implemented together, produce an architecturally coherent improvement — not a disconnected list of patches.**
 
-> **Parallel implementation note:** If analysis yields 20 or more independent improvement items, consider using `/batch` for parallel implementation rather than sequential `/implement-plan`. `/batch` automatically decomposes into 5–30 units with one background agent per unit in isolated worktrees — significantly faster for large improvement sets. Use `/implement-plan` when items have ordering dependencies or share state; use `/batch` when items are largely orthogonal.
+> **Parallel implementation note:** If analysis yields 20 or more independent improvement items, structure the generated IMPLEMENTATION_PLAN.md phases with `Execution Mode: Parallel` or `Worktree-Isolated`. `/implement-plan` dispatches those phases as concurrent background agents in isolated worktrees — significantly faster for large independent improvement sets. Use parallel execution when items are largely orthogonal; use sequential execution when items have ordering dependencies or share state.
 
 #### Context Management (Read This First)
 

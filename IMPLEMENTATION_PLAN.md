@@ -70,8 +70,8 @@ Critical path: Phase 1 → Phase 4 → Phase 5 → Phase 8, with Phase 3 → Pha
 
 ### Work Items
 
-#### 1.1 Remove `/batch` references; rewrite plan-gate Path B.5 onto real mechanics
-**Status: PENDING**
+#### 1.1 Remove `/batch` references; rewrite plan-gate Path B.5 onto real mechanics ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R3 (E008/E009)
 **Files Affected:**
@@ -98,8 +98,8 @@ Do not delete the routing path — the decomposition advice is sound; only the d
 
 ---
 
-#### 1.2 Replace `/ultrareview` and stale co-author strings
-**Status: PENDING**
+#### 1.2 Replace `/ultrareview` and stale co-author strings ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: haiku**
 **Requirement Refs:** R3, R2 (E008/E009)
 **Files Affected:**
@@ -127,8 +127,8 @@ Purely mechanical string work; no judgment needed.
 
 ---
 
-#### 1.3 Fix ultra-plan phase numbering gap
-**Status: PENDING**
+#### 1.3 Fix ultra-plan phase numbering gap ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: haiku**
 **Requirement Refs:** R3 (E008/E009)
 **Files Affected:**
@@ -147,8 +147,8 @@ Phase headings jump Phase 0 (line 83) → Phase 2 (line 120) — an orphaned ren
 
 ---
 
-#### 1.4 Sync validate-plugin to the 17-rule template
-**Status: PENDING**
+#### 1.4 Sync validate-plugin to the 17-rule template ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R3 (E008/E009)
 **Files Affected:**
@@ -170,8 +170,8 @@ Minimal sync only — the full progressive-disclosure refactor of this file is i
 
 ---
 
-#### 1.5 research-topic staleness: model IDs, `agent:` misuse, dead prose; refresh research-models.md
-**Status: PENDING**
+#### 1.5 research-topic staleness: model IDs, `agent:` misuse, dead prose; refresh research-models.md ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R2, R3 (E008/E009)
 **Files Affected:**
@@ -198,15 +198,15 @@ Structural dedup of the three provider blocks is item 5.2 — keep this to stale
 
 ### Phase 1 Testing Requirements
 
-- [ ] Zero-hit greps for `/batch`, `/ultrareview`, `claude-opus-4-6`, `Claude Opus 4.` (excluding CHANGELOG/LAB_NOTEBOOK/docs/archive)
-- [ ] `/validate-plugin personal-plugin` Phase 8.5 passes against the live template
+- [x] Zero-hit greps for `/batch`, `/ultrareview`, `claude-opus-4-6`, `Claude Opus 4.` (excluding CHANGELOG/LAB_NOTEBOOK/docs/archive)
+- [x] `/validate-plugin personal-plugin` Phase 8.5 passes against the live template
 
 ### Phase 1 Completion Checklist
 
-- [ ] All work items complete
-- [ ] All tests passing
-- [ ] Documentation updated
-- [ ] No regressions introduced
+- [x] All work items complete
+- [x] All tests passing
+- [x] Documentation updated
+- [x] No regressions introduced
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->

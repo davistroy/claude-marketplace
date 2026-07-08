@@ -90,7 +90,7 @@ Recommended: Native plan mode (interactive, immediate)
 
 Then enter plan mode to design the approach before coding.
 
-#### Path B.5: /batch (Parallel Decomposition)
+#### Path B.5: Parallel Decomposition (via /implement-plan parallel phases)
 
 **When:** Task naturally decomposes into 5–30 independent units that can run concurrently with no ordering constraints between them. Each unit is self-contained — no unit's output feeds another's input. Examples: running the same transformation across many files, migrating multiple independent endpoints, updating 10+ skill frontmatter fields with the same pattern.
 
@@ -103,16 +103,21 @@ This task decomposes into [N] independent units that can run concurrently.
 Sequential execution is unnecessary — there are no ordering constraints
 between units.
 
-Recommended: /batch
-  - Dispatches one background agent per unit (up to 30)
+Recommended: /implement-plan (Execution Mode: Parallel / Worktree-Isolated)
+  - Each independent unit becomes a work item in a parallel-phase plan
+  - /implement-plan dispatches concurrent background agents, one per unit
   - Each agent runs in its own isolated worktree
   - Completes in parallel rather than sequentially
   - Suitable when units are fully independent (no shared state)
 
-Trade-off: /batch loses visibility into per-unit progress in real time.
-If you need step-by-step review, use Path B (native plan mode) instead.
+Alternative: Background Agent dispatch
+  - Use the Agent tool with run_in_background: true for each unit directly
+  - Appropriate when a formal plan is unnecessary overhead
 
-Shall I decompose and dispatch via /batch?
+Trade-off: Parallel execution loses real-time visibility into per-unit progress.
+If you need step-by-step review between units, use Path B (native plan mode) instead.
+
+Shall I decompose and dispatch via /implement-plan parallel phases?
 ```
 
 #### Path C: /plan-improvements
@@ -227,7 +232,7 @@ Ask the user clarifying questions to get the answers, then re-assess.
 
 - **Path A**: Start working immediately
 - **Path B**: Enter plan mode
-- **Path B.5**: Confirm unit decomposition with user, then invoke `/batch`
+- **Path B.5**: Confirm unit decomposition with user, then invoke `/implement-plan` with Execution Mode: Parallel/Worktree-Isolated (or background Agent dispatch for lightweight cases)
 - **Paths C/D/E**: Ask the user for confirmation, then invoke the appropriate command
 - **Path D.5**: Ask the user for confirmation, then invoke `/ultra-plan`; after completion route to Path C or D for plan generation
 - **Path F**: Ask clarifying questions, then re-route
@@ -247,7 +252,7 @@ User requests implementation task
     NO  |
         v
    5-30 fully independent parallel units? (same op repeated, no cross-deps)
-    YES --> Path B.5: /batch
+    YES --> Path B.5: /implement-plan (parallel phases)
     NO  |
         v
    Requirements docs (PRD/BRD/TDD) exist?
@@ -319,8 +324,9 @@ User: "Update the paths: frontmatter field in all 23 skills across both plugins 
 Plan Gate:
   Scope Assessment: 23 files, all receiving the same structural frontmatter
   change with no ordering constraints between them. Each skill is independent.
-  Route: Path B.5 (/batch)
-  Decomposition: 23 units, one per skill file, dispatched concurrently.
+  Route: Path B.5 (Parallel Decomposition)
+  Decomposition: 23 units, one per skill file, dispatched concurrently via
+  /implement-plan with Execution Mode: Parallel/Worktree-Isolated.
 ```
 
 ### Example 7: Deep architectural decision (Path D.5)

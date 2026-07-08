@@ -90,7 +90,7 @@ The command:
 
 **Best for:** Ensuring code quality before merging PRs.
 
-**Native commands:** Use `/review` for standard PR review or `/ultrareview` for multi-agent deep review.
+**Native commands:** Use `/review` for standard PR review or `/code-review ultra` for multi-agent deep review.
 
 ### Command Sequence
 
@@ -112,7 +112,7 @@ Fix identified issues (manually or with Claude)
 ```
 or for a multi-agent deep review:
 ```
-/ultrareview 123
+/code-review ultra 123
 ```
 
 **Output:** In-conversation review report with:

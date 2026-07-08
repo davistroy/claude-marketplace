@@ -775,17 +775,17 @@ If the file is missing, skip the rest of Phase 8.5.
 Read the `## Structural Rules` section from `plan-template.md`. Parse the numbered rules list.
 
 **Check:**
-- At least 16 structural rules are defined (numbered 1-16)
+- At least 17 structural rules are defined (numbered 1-17)
 - No gaps in numbering (1, 2, ... N with no missing numbers)
 
 **Report:**
 ```text
-[PASS] [N] structural rules defined (expected ≥16, no numbering gaps)
+[PASS] [N] structural rules defined (expected ≥17, no numbering gaps)
 ```
 
 Or:
 ```text
-[FAIL] Only [N] structural rules found (expected ≥16)
+[FAIL] Only [N] structural rules found (expected ≥17)
        Missing rule numbers: [list]
 ```
 
@@ -799,6 +799,7 @@ Verify that the following high-value structural rules are present and contain th
 | 14 | `Definition of Done`, `BEGIN DOD`, `END DOD` | Runnable verification section |
 | 15 | `Execution Hints`, `Model Tier`, `sonnet` or `opus` or `haiku` | Sub-agent model routing |
 | 16 | `Unknowns Register`, `Severity`, `Open` or `Resolved` or `Accepted` | Epistemic uncertainty tracking |
+| 17 | `Model Tier`, `haiku` or `sonnet` or `opus` | Per-task model tier assignment |
 
 **Check for each rule:**
 1. The numbered rule exists in the structural rules list
@@ -812,6 +813,7 @@ Structural Rule Content Validation
 [PASS] Rule 14 — Definition of Done markers present
 [PASS] Rule 15 — Execution Hints with model tiers present
 [PASS] Rule 16 — Unknowns Register with status values present
+[PASS] Rule 17 — Model Tier assignment present
 ```
 
 Or on failure:
@@ -1305,11 +1307,12 @@ Phase 4: Content Validation
 Phase 8.5: Plan Template Validation
 ------------------------------------
 [PASS] references/plan-template.md exists
-[PASS] [N] structural rules defined (expected ≥16, no numbering gaps)
+[PASS] [N] structural rules defined (expected ≥17, no numbering gaps)
 [PASS] Rule 13 — EARS notation guidance present
 [PASS] Rule 14 — Definition of Done markers present
 [PASS] Rule 15 — Execution Hints with model tiers present
 [PASS] Rule 16 — Unknowns Register with status values present
+[PASS] Rule 17 — Model Tier assignment present
 [PASS] Sizing constraints defined
 
 Phase 8.6: Reference File Inventory

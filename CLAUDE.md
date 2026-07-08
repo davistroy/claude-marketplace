@@ -246,7 +246,7 @@ python -c "import package_name" 2>/dev/null || echo "package_name: MISSING"
 
 ## Deprecated
 
-- `review-pr` (deprecated 2026-04-21) — use native `/review` for standard PR review or `/ultrareview` for multi-agent deep review
+- `review-pr` (deprecated 2026-04-21) — use native `/review` for standard PR review or `/code-review ultra` for multi-agent deep review
 
 ---
 
