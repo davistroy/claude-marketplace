@@ -1,6 +1,6 @@
 ---
 name: create-wiki
-description: Set up a persistent, LLM-maintained wiki inside any project. Creates a wiki/ directory with sources, pages, schema, and navigation files, seeds initial pages from project discovery, and injects CLAUDE.md rules that make Claude automatically maintain the wiki during normal work sessions.
+description: Set up a persistent, LLM-maintained wiki inside any project. Creates a wiki/ directory with sources, pages, schema, and navigation files, seeds initial pages from project discovery, and injects CLAUDE.md rules that make Claude automatically maintain the wiki during normal work sessions. Suggest (do not auto-run) when — project accumulating complexity, context loss between sessions, multiple contributors, "I keep forgetting", significant domain knowledge, or LAB_NOTEBOOK.md with durable insights.
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)
 ---
@@ -14,21 +14,6 @@ Set up a persistent, LLM-maintained knowledge base inside a project following An
 - **Schema** (`wiki/schema.yaml`) — Configuration defining categories, conventions, and maintenance thresholds. Co-evolves with use.
 
 The key insight: the tedious part of maintaining a knowledge base is not the reading or thinking — it's the bookkeeping. LLMs excel at updating cross-references and maintaining consistency across dozens of pages without fatigue. Humans curate sources and ask questions. Claude handles everything else.
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. A project is accumulating complexity — multiple integrations, services, or domain-specific concepts
-2. Context is being lost between sessions — the same questions keep coming up
-3. Multiple sessions or people are working on the same project
-4. The user mentions "I keep forgetting..." or "what was that decision about..."
-5. A project has significant domain knowledge that isn't captured in code comments or README
-6. LAB_NOTEBOOK.md entries contain durable knowledge that deserves a more structured home
-
-**Do NOT fire when:**
-- A `wiki/` directory already exists with an `index.md` — redirect to `/wiki status` instead
-- The project is trivial (single file, no domain complexity)
-- The user explicitly declines structured knowledge management
 
 ## Input
 

@@ -1,20 +1,11 @@
 ---
 name: summarize-feedback
-description: Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
+description: Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document. Suggest when — user mentions feedback analysis, performance review, assessment generation, Notion captures, or review preparation.
 effort: high
 allowed-tools: Read, Glob, Grep, Write, Bash(python:*), Bash(pip:*)
 ---
 
 You are generating a professional employee feedback assessment document. You will query Notion for feedback entries, synthesize them with Claude, and produce a formatted `.docx` file. The user may provide arguments: $ARGUMENTS
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User mentions feedback analysis, performance review, or assessment report generation
-2. User asks about synthesizing Notion Voice Captures or employee observations
-3. User wants to generate a feedback summary document or .docx assessment
-4. After a user mentions quarterly or annual review preparation
-5. User references Notion feedback entries or employee performance data
 
 ## Input Validation
 

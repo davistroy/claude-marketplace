@@ -6,7 +6,8 @@ description: >
   wants to create a BPMN workflow, convert a business process to BPMN XML, model a
   workflow diagram, or generate process definitions. Triggers on requests like
   "create a BPMN", "generate workflow XML", "model this process", "convert to BPMN 2.0",
-  "create process diagram", "build workflow", or "convert this markdown to BPMN".
+  "create process diagram", "build workflow", or "convert this markdown to BPMN". Do NOT
+  use for converting an existing BPMN XML file to Draw.io — use bpmn-to-drawio for that.
 argument-hint: "[<markdown-file>] or process description"
 allowed-tools: Read, Write, Glob, Grep
 ---

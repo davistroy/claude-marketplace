@@ -1,6 +1,6 @@
 ---
 name: sg-full-workflow
-description: Run the complete 7-step slide generation pipeline from topic to PowerPoint
+description: Run the complete 7-step slide generation pipeline from topic to PowerPoint. Use when you want to create a full presentation from scratch, generate a complete deck end-to-end, or see the entire pipeline in action.
 argument-hint: "<topic> [--template generic] [--skip-images] [--output dir]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -22,14 +22,6 @@ Run the complete 7-step presentation generation pipeline end-to-end. Takes a top
 
 **Available templates:**
 !`sg list-templates 2>&1 || echo "Cannot list templates"`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User wants to create a full presentation from scratch
-2. User says "make a presentation about [topic]", "create slides on [topic]", or "generate a deck"
-3. User provides a topic and expects end-to-end execution
-4. User wants to see the complete pipeline in action
 
 ## Prerequisites
 
@@ -132,13 +124,9 @@ sg status
 | `Circuit breaker open` | Repeated API failures | Wait 60s for circuit breaker reset |
 | `Research timeout` | Topic too broad | Narrow the topic |
 
-## Cost Estimate
+## Cost Considerations
 
-Typical 20-slide presentation:
-- Research: ~$0.20 (Claude)
-- Outline + Draft + Optimize: ~$0.50 (Claude)
-- Image generation: ~$2.00 (Gemini, 20 images at high resolution)
-- **Total: ~$2.70**
+Image generation dominates the cost of a full workflow run. Research, outline, draft, and optimize stages are comparatively cheap compared to generating 20 high-resolution images. To minimize costs, use the `--skip-images` flag to run steps 1-5 and 7 without image generation, eliminating most of the expense. You can always generate images later if needed.
 
 ## Output
 

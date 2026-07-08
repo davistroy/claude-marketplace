@@ -1,6 +1,6 @@
 ---
 name: sg-research
-description: Conduct autonomous web research on a topic using Claude Agent SDK, producing structured research.json
+description: Conduct autonomous web research on a topic using Claude Agent SDK, producing structured research.json. Use when researching a topic for slides, starting the pipeline from scratch, or you have a topic but no research.json yet.
 argument-hint: "<topic> [--output path] [--max-sources N]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -19,14 +19,6 @@ Run the research phase of the slide-generator pipeline. This step uses the Claud
 
 **API key status:**
 !`sg health-check 2>&1 | head -10`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User wants to research a topic for a presentation
-2. User says "research [topic]" or "find information about [topic] for slides"
-3. User wants to start the slide generation pipeline from scratch
-4. User has a topic but no research.json yet
 
 ## Prerequisites
 

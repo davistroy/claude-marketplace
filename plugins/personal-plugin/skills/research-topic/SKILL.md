@@ -1,6 +1,6 @@
 ---
 name: research-topic
-description: Orchestrate parallel deep research across multiple LLM providers using native context:fork subagents and synthesize results
+description: Orchestrate parallel deep research across multiple LLM providers using native context:fork subagents and synthesize results. Suggest when — in-depth topic research, multi-provider perspective comparison, well-sourced analysis needed, "deep research"/"research report" keywords, or thorough technical/strategic/emerging topic investigation.
 effort: high
 allowed-tools: Read, Write, Bash, WebSearch, WebFetch, Task
 ---
@@ -10,15 +10,6 @@ allowed-tools: Read, Write, Bash, WebSearch, WebFetch, Task
 You are orchestrating parallel deep research across three LLM providers (Anthropic Claude, OpenAI GPT, Google Gemini) using native `context: fork` subagents and synthesizing the results into a unified deliverable.
 
 **Architecture:** Three subagents dispatch in parallel — one per provider. Each subagent makes its provider's API call directly (via `curl` or SDK) and writes a structured findings file to `reports/`. Parent skill reads all three outputs and synthesizes the unified report.
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User asks to research a topic in depth or wants a comprehensive analysis
-2. User wants to compare perspectives across multiple AI providers
-3. User needs a well-sourced analysis that benefits from multi-source synthesis
-4. User mentions "deep research", "research report", or "multi-provider analysis"
-5. User asks for a thorough investigation of a technical, strategic, or emerging topic
 
 ## Input Validation
 

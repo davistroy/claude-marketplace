@@ -1,6 +1,6 @@
 ---
 name: explain-project
-description: Generate a comprehensive, annotated technical overview document for any project/repo, written for a smart non-CS reader. Analyzes the codebase, writes a deep-dive document following a proven structure template, and produces a styled Word document with sidebars, glossary, inline annotations, and optional generated images. Use when a project needs an explanatory document that makes the system understandable to non-technical stakeholders.
+description: Generate a comprehensive, annotated technical overview document for any project/repo, written for a smart non-CS reader. Analyzes the codebase, writes a deep-dive document following a proven structure template, and produces a styled Word document with sidebars, glossary, inline annotations, and optional generated images. Use when a project needs an explanatory document that makes the system understandable to non-technical stakeholders. Do NOT use for annotating an EXISTING document — use accessibility-annotator for that. Do NOT use for plain markdown-to-Word formatting with no annotations — use /convert-markdown for that.
 effort: high
 allowed-tools: Read, Glob, Grep, Bash, Task
 ---

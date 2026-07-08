@@ -1,6 +1,6 @@
 ---
 name: visual-explainer
-description: Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation
+description: Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation. Suggest when — user has document/report/concept to visualize, after report generation, infographic/visual explanation keywords, improving visual appeal, or whitepaper/guide transformation.
 effort: high
 allowed-tools: Read, Write, Bash, WebSearch, WebFetch
 disable-model-invocation: true
@@ -9,15 +9,6 @@ disable-model-invocation: true
 # Visual Concept Explainer
 
 You are orchestrating a visual concept explanation workflow that transforms text or documents into AI-generated infographic pages. The tool uses Gemini Pro 3 (via google-genai SDK) for 4K image generation and Claude Sonnet Vision for quality evaluation with iterative refinement.
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User has a document, report, or concept they want visualized as infographic pages
-2. After generating a report or analysis that would benefit from a visual summary
-3. User mentions creating infographics, visual explanations, or concept diagrams
-4. User asks to make a document more visually appealing or presentation-ready
-5. User wants to transform a whitepaper, guide, or technical document into visual content
 
 ## Infographic Mode (Recommended)
 

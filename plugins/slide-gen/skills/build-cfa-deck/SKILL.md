@@ -1,6 +1,6 @@
 ---
 name: build-cfa-deck
-description: Generate a complete, on-brand Chick-fil-A PowerPoint presentation from a topic using CFA brand guidelines, template layouts, and extracted brand assets
+description: Generate a complete, on-brand Chick-fil-A PowerPoint presentation from a topic using CFA brand guidelines, template layouts, and extracted brand assets. Use when you need a Chick-fil-A branded presentation, want to build a CFA deck with brand compliance, or need an on-brand presentation for a CFA audience.
 argument-hint: "\"Topic\" [--slides 20] [--audience \"CFA Leadership\"] [--presenter \"Name\"]"
 allowed-tools: Bash, Read, Write, Agent, Edit
 effort: high
@@ -25,14 +25,6 @@ No API key needed — content generation happens in this Claude Code session usi
 
 **python-pptx:**
 !`python3 -c "import pptx; print('python-pptx: OK')" 2>/dev/null || echo "python-pptx: NOT INSTALLED — run: pip install python-pptx --break-system-packages"`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User wants to create a Chick-fil-A branded presentation
-2. User says "build a CFA deck", "CFA presentation", "Chick-fil-A slides", or "CFA PowerPoint"
-3. User references the CFA brand guidelines or CFA template
-4. User asks for an on-brand presentation for a CFA audience
 
 ## Prerequisites
 

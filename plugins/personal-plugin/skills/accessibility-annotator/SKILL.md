@@ -1,6 +1,6 @@
 ---
 name: accessibility-annotator
-description: Analyze technical documents for CS/ML concepts a smart non-CS reader wouldn't understand, recommend explanation mechanisms (glossary, inline, footnote, sidebar, appendix), present analysis for approval, then implement annotations in the Word document using the project directory for contextual accuracy. Use when making technical documents accessible to non-CS audiences.
+description: Analyze technical documents for CS/ML concepts a smart non-CS reader wouldn't understand, recommend explanation mechanisms (glossary, inline, footnote, sidebar, appendix), present analysis for approval, then implement annotations in the Word document using the project directory for contextual accuracy. Use when making technical documents accessible to non-CS audiences. Do NOT use for writing a new overview document from a codebase — use explain-project for that.
 effort: high
 allowed-tools: Read, Write, Bash, Task
 ---

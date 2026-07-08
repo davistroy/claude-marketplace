@@ -1060,8 +1060,8 @@ Update Verified Operational Rules: correct the skill-`name` rule to note the 202
 
 ### Work Items
 
-#### 8.1 Big-5 negative scope
-**Status: PENDING**
+#### 8.1 Big-5 negative scope ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R10 (E008/E009)
 **Files Affected:**
@@ -1081,8 +1081,8 @@ Add explicit negative scope ("Do NOT use for…") to the five longest, most over
 
 ---
 
-#### 8.2 Fold Proactive Triggers — personal-plugin skills
-**Status: PENDING**
+#### 8.2 Fold Proactive Triggers — personal-plugin skills ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: haiku**
 **Requirement Refs:** R10 (E008/E009)
 **Files Affected:**
@@ -1100,12 +1100,12 @@ Per official guidance, all when-to-use information belongs in the description (o
 - [ ] Every touched skill passes frontmatter validation; no combined-text truncation
 
 **Notes:**
-Wide-shallow: 12 files exceeds the per-item file guideline but each edit is a mechanical 2–6 line move; splitting further would add coordination cost with no risk reduction. ship was handled in 5.3.
+Wide-shallow: 12 files exceeds the per-item file guideline but each edit is a mechanical 2–6 line move; splitting further would add coordination cost with no risk reduction. ship was handled in 5.3. Post-fold fix (caught by 8.6's strict-validate sweep): 12 descriptions used unquoted 'Suggest when:' — the colon broke YAML plain-scalar parsing; normalized to 'Suggest when —' phrasing.
 
 ---
 
-#### 8.3 Fold Proactive Triggers — slide-gen + cost rewrite
-**Status: PENDING**
+#### 8.3 Fold Proactive Triggers — slide-gen + cost rewrite ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: haiku**
 **Requirement Refs:** R10, R13 (E008/E009)
 **Files Affected:**
@@ -1127,8 +1127,8 @@ Wide-shallow justification as 8.2.
 
 ---
 
-#### 8.4 Mechanical polish: effort, argument-hint, hooks
-**Status: PENDING**
+#### 8.4 Mechanical polish: effort, argument-hint, hooks ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: haiku**
 **Requirement Refs:** R13 (E008/E009)
 **Files Affected:**
@@ -1149,8 +1149,8 @@ plan-next gets `argument-hint: "[focus-area]"` (the only command lacking one). A
 
 ---
 
-#### 8.5 Per-plugin README + LICENSE
-**Status: PENDING**
+#### 8.5 Per-plugin README + LICENSE ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: haiku**
 **Requirement Refs:** R13 (E008/E009)
 **Files Affected:**
@@ -1169,8 +1169,8 @@ Official convention: every plugin ships README + LICENSE at plugin root. READMEs
 
 ---
 
-#### 8.6 Coordinated release
-**Status: PENDING**
+#### 8.6 Coordinated release ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R13, all (E008/E009; approved bumps)
 **Depends On:** 8.1, 8.2, 8.3, 8.4, 8.5
@@ -1198,15 +1198,15 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 
 ### Phase 8 Testing Requirements
 
-- [ ] Full DoD suite green
-- [ ] `/validate-plugin --all` passes end-to-end
+- [x] Full DoD suite green
+- [x] `/validate-plugin --all` passes end-to-end
 
 ### Phase 8 Completion Checklist
 
-- [ ] All work items complete
-- [ ] All tests passing
-- [ ] Documentation updated
-- [ ] No regressions introduced
+- [x] All work items complete
+- [x] All tests passing
+- [x] Documentation updated
+- [x] No regressions introduced
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
@@ -1272,15 +1272,15 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 
 ## Success Metrics
 
-- [ ] All phases completed
-- [ ] All acceptance criteria met
-- [ ] `claude plugin validate --strict` passes all three plugins; marketplace manifest validates
-- [ ] Zero references to nonexistent commands anywhere in active plugin content
-- [ ] Zero stale model pins: agent definitions on aliases; Python tools env-overridable at current defaults
-- [ ] All 13 previously-oversized files at/under target or documented-dense; ~10 new reference files carry the extracted bulk
-- [ ] 8 side-effect/user-only skills carry `disable-model-invocation` (4 pre-existing + 4 new)
-- [ ] CI includes official plugin validation; trigger evals guard description behavior
-- [ ] personal-plugin 10.0.0 / bpmn-plugin 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0 released with synced manifests and CHANGELOGs
+- [x] All phases completed
+- [x] All acceptance criteria met
+- [x] `claude plugin validate --strict` passes all three plugins; marketplace manifest validates
+- [x] Zero references to nonexistent commands anywhere in active plugin content
+- [x] Zero stale model pins: agent definitions on aliases; Python tools env-overridable at current defaults
+- [x] All 13 previously-oversized files at/under target or documented-dense; ~10 new reference files carry the extracted bulk
+- [x] 8 side-effect/user-only skills carry `disable-model-invocation` (4 pre-existing + 4 new)
+- [x] CI includes official plugin validation; trigger evals guard description behavior
+- [x] personal-plugin 10.0.0 / bpmn-plugin 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0 released with synced manifests and CHANGELOGs
 
 ---
 

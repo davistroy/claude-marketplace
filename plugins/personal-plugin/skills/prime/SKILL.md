@@ -1,6 +1,6 @@
 ---
 name: prime
-description: Evaluate an existing codebase to produce a detailed report on project purpose, health, status, and recommended next steps
+description: Evaluate an existing codebase to produce a detailed report on project purpose, health, status, and recommended next steps. Suggest when — new session project questions, encountering repo first time, resuming after break, health/quality/documentation inquiries, architectural decisions, or "overview"/"assess" requests.
 effort: high
 allowed-tools: Read, Glob, Grep, Bash(git:*)
 ---
@@ -10,15 +10,6 @@ allowed-tools: Read, Glob, Grep, Bash(git:*)
 Perform a comprehensive evaluation of the current codebase/project and produce a structured report covering what the project is, where it stands, and what should happen next. This is the skill to use when encountering any project for the first time, resuming work after a break, or needing a full situational assessment before making decisions.
 
 **This skill is read-only. It NEVER modifies files, commits, or pushes.**
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User starts a new session and asks about the project, e.g. "what is this project" or "tell me about this codebase"
-2. User is encountering a repository for the first time or resuming work after a break
-3. User asks about project health, code quality, or documentation status
-4. Before making architectural decisions that require understanding the current state
-5. User says "give me an overview" or "assess this project"
 
 ## Input
 

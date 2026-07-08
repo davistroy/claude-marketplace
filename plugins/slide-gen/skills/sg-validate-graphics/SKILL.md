@@ -1,6 +1,6 @@
 ---
 name: sg-validate-graphics
-description: Validate that image descriptions are concrete enough for AI image generation
+description: Validate that image descriptions are concrete enough for AI image generation. Use when you want to check if image descriptions are ready for generation, validate graphics before image generation, or avoid wasted API calls.
 argument-hint: "<presentation.md>"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -16,14 +16,6 @@ Validate that image descriptions in the presentation are concrete and specific e
 
 **Available presentation files:**
 !`ls -la *.md 2>/dev/null | grep -i pres || echo "No presentation files found"`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User wants to check if image descriptions are good enough for generation
-2. User says "validate graphics" or "check image descriptions"
-3. User completed the optimize step and wants to continue
-4. Before running image generation to avoid wasted API calls
 
 ## Prerequisites
 

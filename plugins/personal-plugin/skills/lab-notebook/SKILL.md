@@ -1,6 +1,6 @@
 ---
 name: lab-notebook
-description: Initialize mandatory experiment logging for projects involving system changes, benchmarks, debugging, or exploratory work. Creates LAB_NOTEBOOK.md with living decision/action tracking and injects iron-clad CLAUDE.md rules that make logging a PRECONDITION for every action.
+description: Initialize mandatory experiment logging for projects involving system changes, benchmarks, debugging, or exploratory work. Creates LAB_NOTEBOOK.md with living decision/action tracking and injects iron-clad CLAUDE.md rules that make logging a PRECONDITION for every action. Suggest (do not auto-run) when — infrastructure/experimental/expensive-failure projects, multi-session work, or keywords like optimize/benchmark/debug/configure.
 effort: medium
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)
@@ -14,20 +14,6 @@ The notebook combines three proven documentation patterns:
 - **Scientific lab notebook** — hypothesis-driven entries with environment context and reproducibility
 - **Architecture Decision Records** — decisions with alternatives considered and lifecycle tracking
 - **Incident postmortem** — blameless failure analysis, action items, and "what went well"
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. The project involves **infrastructure or system administration** (servers, containers, GPU configs, networking)
-2. Work is **experimental** — trying configurations, measuring performance, debugging issues
-3. The project has **expensive failures** — changes that are hard to reverse, take time to diagnose, or affect shared systems
-4. **Multiple sessions** will work on the same system (context loss between sessions is likely)
-5. The user mentions "optimize", "benchmark", "debug", "configure", "deploy", or "experiment"
-
-**Do NOT fire when:**
-- The task is straightforward code implementation with git tracking
-- The user explicitly declines structured logging
-- A LAB_NOTEBOOK.md already exists and CLAUDE.md already has the lab notebook section
 
 ## Input
 

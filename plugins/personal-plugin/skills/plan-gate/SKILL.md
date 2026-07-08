@@ -1,6 +1,6 @@
 ---
 name: plan-gate
-description: Before starting complex multi-step implementation tasks, assess scope and route to the right planning approach — native plan mode for simple changes, /plan-improvements for codebase refactoring, or /create-plan for requirements-driven work
+description: Before starting complex multi-step implementation tasks, assess scope and route to the right planning approach — native plan mode for simple changes, /plan-improvements for codebase refactoring, or /create-plan for requirements-driven work. Suggest when — implementation task with >3 files, architectural decisions, ambiguous scope, or multiple valid approaches exist — and no active IMPLEMENTATION_PLAN.md.
 effort: low
 allowed-tools: Read, Glob, Grep
 ---
@@ -10,26 +10,6 @@ allowed-tools: Read, Glob, Grep
 Proactively assess task complexity before implementation begins and route to the appropriate planning mechanism. This skill acts as a lightweight decision point that prevents both under-planning (jumping straight into code on a multi-phase effort) and over-planning (running a full `/plan-improvements` cycle for a simple bug fix).
 
 **This skill is read-only. It NEVER modifies files, commits, or pushes.**
-
-## Proactive Triggers
-
-Claude should proactively suggest this skill when ALL of these are true:
-
-1. The user has requested an implementation task (not research, not a question)
-2. The task appears non-trivial — any of these signals:
-   - Will likely touch more than 3 files
-   - Involves architectural decisions or trade-offs
-   - Requires phased delivery or has internal dependencies
-   - The user's description is ambiguous about scope
-   - Multiple valid implementation approaches exist
-   - The task mentions "refactor", "redesign", "overhaul", "migrate", "add feature", or similar scope indicators
-3. No planning has been done yet (no active IMPLEMENTATION_PLAN.md for this work)
-
-**Do NOT fire when:**
-- The task is a single-file fix, typo, or small tweak
-- The user has already invoked a planning command
-- The user explicitly says "just do it" or "skip planning"
-- The task is purely research or exploration
 
 ## Instructions
 

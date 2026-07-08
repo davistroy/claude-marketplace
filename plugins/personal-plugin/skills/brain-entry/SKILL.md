@@ -1,6 +1,6 @@
 ---
 name: brain-entry
-description: Send a capture to Open Brain. Takes any instruction as an argument — summarize a session, log a decision, capture an idea — processes it, and POSTs to the captures API. Use when the user says "/brain-entry <instruction>".
+description: Send a capture to Open Brain. Takes any instruction as an argument — summarize a session, log a decision, capture an idea — processes it, and POSTs to the captures API. Use when the user says "/brain-entry <instruction>". Suggest (do not auto-run) when — user says "log/capture/remember/brain entry", end of session, decision to record, or explicit invocation.
 disable-model-invocation: true
 allowed-tools: Bash(curl:*)
 ---
@@ -8,14 +8,6 @@ allowed-tools: Bash(curl:*)
 # Brain Entry
 
 Create a capture in Open Brain from any instruction. The argument tells you what content to generate and send.
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User says "log this", "capture this", "remember this", "brain entry", or "send to open brain"
-2. At the end of a significant work session when a summary would be valuable
-3. User makes a decision and says "record this decision"
-4. User explicitly invokes `/brain-entry <instruction>`
 
 ## Examples
 

@@ -1,6 +1,6 @@
 ---
 name: evaluate-pipeline-output
-description: Thoroughly evaluate contact-center-lab pipeline output quality against input, checking sanitization correctness, atom/entity/triple quality, graph structure, and procedure integrity across all stages
+description: Thoroughly evaluate contact-center-lab pipeline output quality against input, checking sanitization correctness, atom/entity/triple quality, graph structure, and procedure integrity across all stages. Suggest when — pipeline run complete and quality evaluation needed, "did this produce good output" questions, before full corpus run, or after pipeline code changes.
 effort: high
 allowed-tools: Read, Glob, Grep, Bash
 ---
@@ -13,14 +13,6 @@ Perform a comprehensive semantic quality evaluation of a contact-center-lab pipe
 
 > [!WARNING]
 > **Scope:** Specialized for the contact-center-lab pipeline. Not generalizable without substantial rewrite. See `LAB_NOTEBOOK.md` in that project for pipeline schema.
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User completes a pipeline run and wants to evaluate quality
-2. User asks "did that run produce good output?" or "evaluate the results"
-3. Before deciding to run the full 10K corpus
-4. After implementing any pipeline code change to verify quality is maintained
 
 ## Input
 

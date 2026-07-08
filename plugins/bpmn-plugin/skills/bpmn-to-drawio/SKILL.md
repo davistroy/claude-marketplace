@@ -6,7 +6,8 @@ description: >
   Use this skill when a user wants to visualize a BPMN process in Draw.io, convert
   BPMN to editable diagrams, or create Draw.io files from process definitions.
   Triggers on: "convert BPMN to Draw.io", "create drawio from BPMN", "visualize
-  BPMN in Draw.io".
+  BPMN in Draw.io". Do NOT use for creating new BPMN from a process description or
+  markdown doc — use bpmn-generator for that.
 argument-hint: "<bpmn-file-path>"
 allowed-tools: Read, Write, Bash, Glob, Grep
 ---
