@@ -1,0 +1,14 @@
+# Default: auto-detect text files and normalize line endings to LF in repo
+* text=auto
+
+# Explicit text files — always LF in repo
+*.md   text eol=lf
+*.py   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sh   text eol=lf
+*.toml text eol=lf
+
+# Binary files — never touch
+*.zip  binary

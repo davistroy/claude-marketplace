@@ -95,7 +95,7 @@ This phase builds the evaluation context that all subsequent phases depend on. D
 
 1. **Find the pipeline root.** The output directory is typically under a project that contains a `pipeline/` directory. Look for `pipeline/config.yaml` relative to the output directory, or in common locations:
    - Same repo as the output directory
-   - `C:\Users\Troy Davis\dev\contact-center-lab\pipeline`
+   - `~/dev/contact-center-lab/pipeline`
    - Ask the user if not found.
 
 2. **Read `pipeline/config.yaml`** in full. Extract and note:

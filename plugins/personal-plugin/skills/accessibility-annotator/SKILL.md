@@ -29,9 +29,9 @@ allowed-tools: Read, Write, Bash, Task
 
   COMPANION TOOLS:
   Paths below are defaults on the author's machine. Override via --style-json flag or environment variables.
-  - CFA Style Guide: C:\Users\Troy Davis\dev\info\CFA_Word_Style_Guide.md
-  - Image style: C:\Users\Troy Davis\dev\info\clean-style-sanitized.json
-  - Image learnings: C:\Users\Troy Davis\dev\info\gemini-image-generation-learnings.md
+  - CFA Style Guide: ~/.claude/styles/CFA_Word_Style_Guide.md
+  - Image style: ~/dev/brand-assets/clients/cfa/styles/clean-style-sanitized.json
+  - Image learnings: ~/dev/info/gemini-image-generation-learnings.md
   - docx skill: document-skills:docx (for Word document manipulation)
 
   HISTORY:
@@ -56,7 +56,7 @@ Two required arguments (positional or prompted):
 
 Optional flags:
 - `--generate-images` -- Generate diagrams via Google Gemini and insert them directly into the document (default: OFF — costs money). When off, insert teal-bordered placeholder boxes with full generation prompts instead.
-- `--style-json PATH` -- Path to the image style JSON for Nano Banana Pro prompt construction (default: `$IMAGE_STYLE_JSON` env var if set, otherwise provide via `--style-json` flag. Author's default: `C:\Users\Troy Davis\dev\info\clean-style-sanitized.json`)
+- `--style-json PATH` -- Path to the image style JSON for Nano Banana Pro prompt construction (default: `$IMAGE_STYLE_JSON` env var if set, otherwise provide via `--style-json` flag. Author's default: `~/dev/brand-assets/clients/cfa/styles/clean-style-sanitized.json`)
 
 Parse from the user's message. If missing, ask for the two required arguments.
 

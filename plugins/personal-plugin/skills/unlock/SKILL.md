@@ -1,7 +1,8 @@
 ---
 name: unlock
 description: Load secrets from Bitwarden Secrets Manager into environment using bws CLI
-allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(powershell*), Bash(python:*)
+disable-model-invocation: true
+allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(powershell:*), Bash(python:*)
 ---
 
 # Unlock Skill

@@ -1,6 +1,8 @@
 ---
 name: brain-entry
 description: Send a capture to Open Brain. Takes any instruction as an argument — summarize a session, log a decision, capture an idea — processes it, and POSTs to the captures API. Use when the user says "/brain-entry <instruction>".
+disable-model-invocation: true
+allowed-tools: Bash(curl:*)
 ---
 
 # Brain Entry

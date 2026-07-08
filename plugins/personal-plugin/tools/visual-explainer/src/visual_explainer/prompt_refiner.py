@@ -33,7 +33,7 @@ from .style_loader import format_prompt_injection
 logger = logging.getLogger(__name__)
 
 # Default model for prompt refinement
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-5"
 
 
 class PromptRefiner:
@@ -48,7 +48,7 @@ class PromptRefiner:
         internal_config: Internal configuration with defaults.
 
     Example:
-        >>> refiner = PromptRefiner(client=anthropic_client, model="claude-sonnet-4-20250514")
+        >>> refiner = PromptRefiner(client=anthropic_client, model="claude-sonnet-5")
         >>> refined = refiner.refine_prompt(original, feedback, attempt=2, style=style)
     """
 

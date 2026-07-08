@@ -1,11 +1,8 @@
 ---
 name: create-wiki
 description: Set up a persistent, LLM-maintained wiki inside any project. Creates a wiki/ directory with sources, pages, schema, and navigation files, seeds initial pages from project discovery, and injects CLAUDE.md rules that make Claude automatically maintain the wiki during normal work sessions.
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)
-paths:
-  - wiki/sources/**/*
-  - CLAUDE.md
-  - LAB_NOTEBOOK.md
 ---
 
 # Create Wiki

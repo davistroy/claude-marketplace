@@ -519,6 +519,22 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
   - pre-commit: PASS — exit 0 with empty index (by design — validates staged files only); staged-variant run against the 10 Phase 1 command/skill files: 0 errors, 3 pre-existing warnings (no help skill in any plugin), index restored via `git reset`.
 - *Pre-existing debt surfaced (candidate Action Items):* (1) ruff: 41 errors / 32 auto-fixable in 25 untouched `.py` files; (2) markdownlint: 3× MD012 in `tests/fixtures/invalid-plugin/commands/`; (3) this VM has no `python` alias and no pytest for system python3 — DoD's literal `python -m pytest` cannot run here without `uv run` or a venv.
 
+**Phase 2 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 2 DoD suite — repo pytest, visual-explainer pytest+coverage (≥65%), ruff, markdownlint, EOL check, Windows-path grep, lockdown count (=8), frontmatter YAML sanity on the 4 locked-down skills. Fix in-scope failures (≤3 attempts each); pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 2's frontmatter lockdowns, path rewrites, .gitattributes renormalization, and visual-explainer model plumbing pass all 8 checks; ruff shows exactly the 41 pre-existing errors (nothing new in visual-explainer src/tests); markdownlint shows only 3× MD012 fixture debt. Success = all 8 pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked file — `git checkout -- <file>` reverts (staged renormalization in index left untouched). N/A otherwise.
+- *Results:* ALL 8 PASS on first run — zero fixes needed.
+  - repo pytest `tests/`: PASS — 67/67, exit 0 (same uv invocation as Phase 1).
+  - visual-explainer suite (`uv run --extra dev python -m pytest tests/` from tool dir): PASS — 607 passed, 2 skipped, 26s; coverage TOTAL **67%** ≥ 65% gate. Both skips are pre-existing conditional guards in files Phase 2 never touched: `test_image_evaluator.py:489` (resize threshold) and `test_integration.py:111` (needs `ANTHROPIC_API_KEY`). Model-plumbing edits (api_setup, cli, config, image_evaluator, prompt_generator, prompt_refiner + conftest/test updates) fully green.
+  - ruff: FAIL exit-wise, PRE-EXISTING ONLY — exactly 41 errors, per-file distribution verified with `--output-format concise | cut -d: -f1 | sort | uniq -c`: scripts/generate-help.py 9, scripts/update-readme.py 4, bpmn2drawio tests 27, feedback-docx test 1 (Σ=41). **Zero findings in visual-explainer src/tests** → nothing new from Phase 2's Python changes.
+  - markdownlint: FAIL exit-wise, PRE-EXISTING ONLY — exactly the 3 known MD012 in `tests/fixtures/invalid-plugin/commands/` (deliberately invalid fixtures). All Phase 2 markdown (4 lockdown skills, 3 path-rewrite skills, styles/README) lint clean.
+  - EOL (DoD): PASS — `git ls-files --eol | command grep -cE 'i/(crlf|mixed)'` = 0. Renormalization of prime/SKILL.md + .markdownlint.json effective; .gitattributes doing its job.
+  - Windows paths (DoD): PASS — `command grep -rn 'C:\\Users\|C:/Users' plugins/ --include='*.md'` = no matches.
+  - Lockdown count (DoD): PASS — exactly 8 skills with `disable-model-invocation: true` (arch-review, brain-entry, create-wiki, lab-notebook, release-plugin, ship, unlock, visual-explainer) = 4 pre-existing + 4 new.
+  - Frontmatter sanity: PASS — brain-entry, unlock, lab-notebook, create-wiki all start with `---`, no BOM, no CRLF, YAML parses to dicts with name/description/allowed-tools/disable-model-invocation (lab-notebook also `effort`).
+- *Environment:* Linux VM, ruff 0.6.9 (~/.local/bin), Python 3.11.14 via uv, pytest 9.1.1 (tool venv), markdownlint-cli via npx. Staged renormalization left untouched in index; no commits made.
+- *Duration:* ~4 minutes wall (suites run in parallel).
+
 ---
 
 *Entries continue below.*

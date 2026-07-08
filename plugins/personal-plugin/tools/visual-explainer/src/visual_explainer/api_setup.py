@@ -225,7 +225,7 @@ def validate_anthropic_key(key: str) -> tuple[bool, str | None]:
         client = anthropic.Anthropic(api_key=key)
         # Minimal API call to verify the key works
         client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-5",
             max_tokens=1,
             messages=[{"role": "user", "content": "hi"}],
         )

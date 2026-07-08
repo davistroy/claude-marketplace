@@ -48,7 +48,7 @@ from .style_loader import format_prompt_injection
 logger = logging.getLogger(__name__)
 
 # Default model for prompt generation
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-5"
 
 
 class PromptGenerationError(Exception):

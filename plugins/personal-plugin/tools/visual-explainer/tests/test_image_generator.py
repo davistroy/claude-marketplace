@@ -40,7 +40,7 @@ def internal_config(temp_cache_dir):
         gemini_timeout_seconds=60.0,
         claude_timeout_seconds=30.0,
         gemini_model="imagen-3.0-generate-002",
-        claude_model="claude-sonnet-4-20250514",
+        claude_model="claude-sonnet-5",
         negative_prompt="no text, no words",
     )
 
