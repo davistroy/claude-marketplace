@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v9.3.0] - 2026-06-15
+
+### Changed
+- **spark-recon**: refreshed stale Machine Config — `current_model` → `Qwen/Qwen3.6-35B-A3B-FP8`, quantization → pre-quantized FP8; broadened Check 2 keyword classifier (Qwen3.6/3.7, DFlash, speculative); Check 1/4 instructions updated to Qwen3.6 context; documented the Firestore `benchmarks`-collection REST access path (unfreezes Arena tracking); dropped permanently-removed NVIDIA forum category 720
+- **spark-audit**: dropped permanently-removed NVIDIA forum category 720; removed the obsolete "pre-quant FP8 hangs" CRITICAL anti-pattern (production intentionally runs pre-quant FP8 since 2026-05-18) and corrected the attention-backend expectation (FLASH_ATTN auto-selected on SM121; FlashInfer is MoE-only)
+
 ## [marketplace v3.2.0, personal-plugin v9.2.0, bpmn-plugin v4.1.0, slide-gen v1.1.0] - 2026-05-14
 
 ### Added

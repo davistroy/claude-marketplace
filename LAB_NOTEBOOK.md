@@ -26,6 +26,7 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D11 | Fold Lab Notebook A2, A3, A4 into gap-analysis implementation plan Phase 5 | 2026-04-30 | ACTIVE | E002 | Execute separately — rejected, they naturally fit Phase 5's implement-plan updates |
 | D12 | Fix `/ultraplan` vs `/ultra-plan` reference ambiguity (no full rename) | 2026-04-30 | ACTIVE | E002 | Full rename — rejected, breaking change for user muscle memory. Hyphen already distinguishes. |
 | D13 | Constitution constraints live in CLAUDE.md, not separate constitution.md | 2026-04-30 | ACTIVE | E002 | Separate constitution.md (Spec Kit pattern) — rejected, artifact sprawl for solo-builder context |
+| D19 | Plugin cache freshness is governed by the marketplace's `autoUpdate` setting against `origin/main`, not by manual local reinstall | 2026-07-08 | ACTIVE | E007 | Manual reinstall (A1/A7 premise) — superseded; cache already tracks GitHub origin automatically when `autoUpdate: true`. The real risk is the local dev clone lagging origin (second occurrence of D17's root cause) |
 
 Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#)
 
@@ -35,11 +36,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 ### Open
 
-| # | Action | Created | Source Entry | Priority |
-|---|--------|---------|-------------|----------|
-| A1 | Reinstall plugin to sync spark-recon changes to Claude Code environment | 2026-04-30 | E001 | High — loaded skill is stale vs repo |
-| A7 | Reinstall plugin to sync all gap-analysis changes to Claude Code environment | 2026-04-30 | E003 | High — loaded plugin cache is stale vs repo |
-| A8 | Bump personal-plugin version to 9.0.0 (major: new template sections, ultra-plan rewrite) | 2026-04-30 | E003 | Medium — version bump needed before merge |
+*(none currently open — see Completed table for A1/A7/A8 closure)*
 
 ### Completed
 
@@ -55,6 +52,9 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C8 | Execute gap-analysis IMPLEMENTATION_PLAN.md — 6 phases, 17 items, all complete (A5) | 2026-04-30 | 2026-04-30 | E003 |
 | C9 | Fix /ultraplan → /ultra-plan reference ambiguity in plan-gate and create-plan (A6) | 2026-04-30 | 2026-04-30 | E003 |
 | C10 | Update validate-plugin: fix stale counts, add plan template + reference inventory validation | 2026-04-30 | 2026-04-30 | E004 |
+| C11 | Reinstall plugin to sync spark-recon (A1) — superseded, not executed as originally framed: spark-recon was rewritten multiple times since (v9.1–9.3); reinstall model was based on an incomplete picture of cache sync (see D19) | 2026-04-30 | 2026-07-08 | E007 |
+| C12 | Reinstall plugin to sync gap-analysis changes (A7) — superseded: cache auto-syncs from GitHub `origin/main` (`autoUpdate: true`), confirmed cache already at 9.3.0 = origin tip before any manual action; the actual gap was the local dev clone lagging origin by 1 commit, fixed via `git pull --ff-only` | 2026-04-30 | 2026-07-08 | E007 |
+| C13 | Bump personal-plugin version to 9.0.0 (A8) — done via commit `3b9679d`, since surpassed (now 9.3.0) | 2026-04-30 | 2026-04-30 | E003 |
 
 ---
 
@@ -79,9 +79,9 @@ The project has gone through 8 major versions of personal-plugin and 4 of bpmn-p
 
 ### Current State
 
-The marketplace is at **v2.0.0** (marketplace), **personal-plugin v8.0.0**, **bpmn-plugin v4.0.0**. The repo is clean, synced with origin/main. The v8.0.0 modernization plan (7 phases, 28 work items) completed successfully on 2026-04-21 — see `IMPLEMENTATION_PLAN.md` for full details and `docs/archive/` for prior plan versions (v4, v5).
+*(This subsection is a point-in-time snapshot as of the v8.0.0 modernization, 2026-04-21 — for live version numbers, always check the "Current Baseline" section below, not this paragraph.)* As of 2026-04-21 the marketplace was at v2.0.0, personal-plugin v8.0.0, bpmn-plugin v4.0.0. The v8.0.0 modernization plan (7 phases, 28 work items) completed successfully that day — see `IMPLEMENTATION_PLAN.md` for the current (later) plan and `docs/archive/` for prior plan versions (v4, v5, v6).
 
-One known issue: the installed plugin cache (`~/.claude/plugins/cache/troys-plugins/personal-plugin/8.0.0/`) has a stale `spark-recon/SKILL.md` that doesn't match the repo version. The repo version has dynamic state reading from `SPARK_BASELINE.md` and generalized model family matching; the cached version has hardcoded `Qwen/Qwen3.5-35B-A3B` references. `jetson-recon` is in sync. Reinstalling the plugin (`/plugin install personal-plugin@troys-plugins`) would resolve this.
+Historical note: at the time of Entry 001 (2026-04-30) the installed plugin cache had a stale `spark-recon/SKILL.md` that didn't match the repo version. This was resolved by v9.3.0 (Entry 007, 2026-07-08 baseline check confirmed cache and origin/main agree) — see D19 for how cache sync actually works (GitHub `autoUpdate`, not manual reinstall).
 
 ### Planning System
 
@@ -93,14 +93,15 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 
 ## Current Baseline
 
-- **Marketplace version:** 2.0.0
-- **personal-plugin version:** 8.0.0 (25 commands, 22 skills, 9 agents, hooks system)
-- **bpmn-plugin version:** 4.0.0 (2 skills, bpmn2drawio Python tool)
-- **Git:** clean, main branch, synced with origin/main
-- **Last commit:** `c8e9a15` (2026-04-21) — fix: remove research-orchestrator CI jobs
-- **Plugin cache status:** jetson-recon in sync; spark-recon stale (needs reinstall)
-- **CI/CD:** GitHub Actions (markdownlint); research-orchestrator and help-sync jobs removed in latest commits
-- **Platform:** Windows 11, Claude Code CLI
+- **Marketplace version:** 3.2.0
+- **personal-plugin version:** 9.3.0 (24 commands, 24 skills, 9 named agents in `.claude/agents/`, hooks system)
+- **bpmn-plugin version:** 4.1.0 (2 skills, bpmn2drawio Python tool)
+- **slide-gen version:** 1.1.0 (9 skills, 7-step presentation pipeline)
+- **Git:** clean, main branch, verified synced with `origin/main` via `git fetch` + `git pull --ff-only` (2026-07-08)
+- **Last commit:** `d9a7f06` (PR #95) — personal-plugin 9.3.0: refresh spark-recon/spark-audit stale config
+- **Plugin cache status:** in sync — marketplace source is GitHub (`davistroy/claude-marketplace`) with `autoUpdate: true` (see D19); cache tracks `origin/main` automatically, independent of local working tree state
+- **CI/CD:** GitHub Actions — `test.yml` (pytest matrix, per-tool coverage gates, pip-audit, JSON schema validation), `validate.yml` (plugin.json/frontmatter/version-sync checks, ruff, markdownlint)
+- **Platform:** Linux (this session); prior sessions ran Windows 11 — see root CLAUDE.md "Dual environment" section
 
 ---
 
@@ -367,6 +368,46 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 **What Worked:**
 - Identifying that only 1 file was genuinely new across all "updates everywhere" kept the recovery simple
 - Inventory-first approach (check all branches, PRs, stash, untracked) before acting prevented further thrashing
+
+---
+
+### Entry 007 — Prime Assessment + Documentation Drift Remediation [config] [decision]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI, local `main` at `fb13d93` at session start (repo showed personal-plugin v9.2.0; installed plugin cache already at v9.3.0)
+**Status:** COMPLETE
+**Duration:** ~25 minutes
+
+**Objective:** Run `/prime` for a full project health assessment (3 parallel Explore agents: identity, architecture, risk), then remediate every documentation-drift finding it surfaced — most notably this notebook's own stale "Current Baseline" section.
+
+**Hypothesis:** `/prime`'s Phase 0 instructions (and this project's CLAUDE.md) treat this notebook as the most authoritative source for future sessions — if its baseline is wrong, every future session inherits the error. Expect: (1) baseline versions here are behind the actual `.claude-plugin/*.json` state, (2) closing the loop requires checking every doc that states versions, not just this notebook. Success criteria: every version string in tracked docs matches both `.claude-plugin/*.json` and `origin/main`.
+
+**Rollback Plan:** All changes are to git-tracked markdown/config files (this notebook, root CHANGELOG.md, CLAUDE.md, .gitignore). `git diff` is fully reviewable; `git checkout -- <file>` reverts any single file. The `git pull --ff-only` was fast-forward only on a clean, zero-divergent working tree — no destructive risk existed.
+
+**Actions & Results:**
+
+1. Ran `/prime` — 3 parallel Explore agents (identity, architecture, risk) plus direct git/gh checks. Confirmed marketplace v3.2.0, bpmn-plugin v4.1.0, slide-gen v1.1.0; IMPLEMENTATION_PLAN.md fully complete (2026-04-30); no open GitHub PRs/issues.
+2. Cross-checked the *installed* plugin cache (`~/.claude/plugins/cache/troys-plugins/personal-plugin/`) against the local repo — found cache at **9.3.0**, one version ahead of the local repo's 9.2.0. Traced via `~/.claude/plugins/known_marketplaces.json`: source is GitHub `davistroy/claude-marketplace` with `autoUpdate: true`, last synced 2026-07-07T18:24:15Z.
+3. `git fetch origin` revealed local `main` was behind `origin/main` by exactly 1 commit (`d9a7f06`, PR #95, personal-plugin → 9.3.0, spark-recon/spark-audit config refresh) — a direct recurrence of the D17 root cause from Entry 006 ("version source of truth is always `origin/main`, not local working tree"). `git pull --ff-only origin main` — clean fast-forward, zero conflicts.
+4. Corrected root `CHANGELOG.md`: added the missing `[personal-plugin v9.3.0] - 2026-06-15` entry (present in `plugins/personal-plugin/CHANGELOG.md` but never mirrored to root).
+5. Corrected `CLAUDE.md` "Key References": `IMPLEMENTATION_PLAN.md` was described as "(v8.0.0 modernization)" but the live file actually documents the completed gap-analysis/planning-pipeline plan; updated to match.
+6. Added `._*` to `.gitignore` (macOS AppleDouble sidecar files — `.DS_Store` was already covered, `._`-prefixed files were not) and removed the untracked `._.DS_Store` artifact from the working tree.
+7. Updated this notebook's Current Baseline section and closed Action Items A1, A7, A8 (see Decision Log D19 and Completed table C11–C13).
+
+**Pattern Table — "local clone behind origin" (2nd occurrence):**
+
+| Entry | Symptom | Root Cause | Fix |
+|-------|---------|------------|-----|
+| 006 (D17) | Version-bump math built on stale main; PR #93 collided with an already-shipped release | Local main was 4 commits behind origin; `git status` was checked but `git pull` never run before reasoning about versions | Treat `origin/main` as the only source of truth for version state |
+| 007 (D19) | This notebook's Current Baseline (and local repo) reported personal-plugin 9.2.0; actual origin/main tip was 9.3.0 | Same — local dev clone was 1 commit behind origin, never pulled at session start | Same fix, now formalized as D19 and added to CLAUDE.md's Verified Operational Rules |
+
+**What Worked:**
+- Checking the *installed plugin cache* against the repo (not just internal repo consistency) surfaced a real, live drift a repo-only read would have missed entirely.
+- Tracing `known_marketplaces.json` → `autoUpdate: true` → GitHub source explained *why* the cache was ahead instead of behind, which reframed A1/A7 as based on an outdated mental model of how sync actually works.
+
+**Decision:** D19 — plugin cache freshness is governed by the marketplace's `autoUpdate` setting against `origin/main`, not by manual local reinstall. Superseded the A1/A7 "reinstall to sync" framing. **Alternatives Considered:** keep issuing manual-reinstall action items every time a skill changes — rejected, it's the wrong lever; what actually matters is keeping the *local dev clone* current with origin before reasoning about versions.
+
+**Follow-ups:** None open. Given this is the second occurrence of the same failure mode (D17, D19), a `git fetch` + origin-divergence check at session start is now also captured as a Verified Operational Rule in root CLAUDE.md.
 
 ---
 

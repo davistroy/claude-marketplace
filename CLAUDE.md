@@ -20,6 +20,7 @@ After any non-trivial finding (plugin discovery failure, frontmatter requirement
 - **Commands MUST NOT have `name` in frontmatter** — adding `name` prevents command discovery.
 - **Do NOT add `tools` field to plugin.json** — causes "Unrecognized key: tools" error.
 - **Do NOT add `"hooks"` field to plugin.json** — Claude Code auto-loads `hooks/hooks.json`. Declaring it causes "Duplicate hooks file detected" error.
+- **Always `git fetch` + check `origin/main` divergence before trusting any version state** — the local working tree can silently lag origin even when `git status` shows clean. Happened twice (LAB_NOTEBOOK.md Entry 006/D17, Entry 007/D19), both times causing wrong version-bump math or a stale baseline. Version source of truth is always `origin/main`, never local HEAD.
 
 ---
 
@@ -240,7 +241,7 @@ python -c "import package_name" 2>/dev/null || echo "package_name: MISSING"
 ## Key References
 
 - `LAB_NOTEBOOK.md` — Experiment log with decision tracking and action items
-- `IMPLEMENTATION_PLAN.md` — Current/completed implementation plan (v8.0.0 modernization)
+- `IMPLEMENTATION_PLAN.md` — Current/completed implementation plan (planning-pipeline gap-analysis upgrade, completed 2026-04-30)
 - `CHANGELOG.md` — Version history across all plugins
 
 ## Deprecated
