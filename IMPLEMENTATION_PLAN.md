@@ -680,8 +680,8 @@ Highest-risk item in the plan. The difference ledger (E009 investigation §3) is
 
 ### Work Items
 
-#### 5.1 validate-plugin refactor
-**Status: PENDING**
+#### 5.1 validate-plugin refactor ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: opus**
 **Requirement Refs:** R6 (E008/E009)
 **Files Affected:**
@@ -707,8 +707,8 @@ This file is the repo's QA tool — regressions here mask other regressions. Che
 
 ---
 
-#### 5.2 research-topic structural dedup
-**Status: PENDING**
+#### 5.2 research-topic structural dedup ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R6 (E008/E009)
 **Files Affected:**
@@ -728,12 +728,12 @@ The three provider prompt blocks (Claude 211–268, OpenAI 270–341, Gemini 343
 - [ ] `wc -l < plugins/personal-plugin/skills/research-topic/SKILL.md` ≤ 400
 
 **Notes:**
-Escalate if the OpenAI/Gemini polling flows prove too divergent for one template — then keep two templates (sync/async) rather than forcing one.
+Escalate if the OpenAI/Gemini polling flows prove too divergent for one template — then keep two templates (sync/async) rather than forcing one. Final: 421 lines (documented-dense: residual overage is protected behavioral content; one template sufficed — sync/async collapsed into the deltas table).
 
 ---
 
-#### 5.3 ship refactor
-**Status: PENDING**
+#### 5.3 ship refactor ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R6, R10 (E008/E009)
 **Files Affected:**
@@ -753,10 +753,13 @@ Move the Phase 8 success/failure/exhaustion output templates (444–546) and the
 - [ ] Frontmatter description alone captures all former Proactive-Trigger conditions
 - [ ] `wc -l < plugins/personal-plugin/skills/ship/SKILL.md` ≤ 420
 
+**Notes:**
+Final: 437 lines (documented-dense: both specified extractions complete; remainder is phase logic/gates).
+
 ---
 
-#### 5.4 Batch A: clean-repo, finish-document, bpmn-to-drawio
-**Status: PENDING**
+#### 5.4 Batch A: clean-repo, finish-document, bpmn-to-drawio ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R6 (E008/E009)
 **Files Affected:**
@@ -780,8 +783,8 @@ clean-repo: move the three example transcripts (462–544) and JSON-output schem
 
 ---
 
-#### 5.5 Batch B: create-wiki, evaluate-pipeline-output, test-project
-**Status: PENDING**
+#### 5.5 Batch B: create-wiki, evaluate-pipeline-output, test-project ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R6 (E008/E009)
 **Files Affected:**
@@ -809,16 +812,16 @@ create-wiki: the verbatim-emitted CLAUDE.md injection block (349–428) and wiki
 
 ### Phase 5 Testing Requirements
 
-- [ ] `/validate-plugin --all` passes (reference inventory picks up 7 new files dynamically per 5.1)
-- [ ] All line budgets met or documented-dense
-- [ ] Spot execution check: one conversion via bpmn-to-drawio instructions reads coherently
+- [x] `/validate-plugin --all` passes (reference inventory picks up 7 new files dynamically per 5.1)
+- [x] All line budgets met or documented-dense
+- [x] Spot execution check: one conversion via bpmn-to-drawio instructions reads coherently
 
 ### Phase 5 Completion Checklist
 
-- [ ] All work items complete
-- [ ] All tests passing
-- [ ] Documentation updated
-- [ ] No regressions introduced
+- [x] All work items complete
+- [x] All tests passing
+- [x] Documentation updated
+- [x] No regressions introduced
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
@@ -1252,7 +1255,7 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 | Description edits shift auto-trigger behavior | Low | Med | 7.2 trigger evals land before Phase 8 description edits; near-miss scenarios encode current intended boundaries | Open |
 | Renormalization churn or binary corruption | Low | Med | Blast radius pre-verified (2 CRLF text files, 1 zip); explicit `*.zip binary` rule; `git status` check in 2.3 | Mitigated |
 | new-skill pattern adapter produces malformed skills | Low | Med | Templates untouched (adapter-only); generated output must pass frontmatter validation per 6.1 acceptance | Open |
-| validate-plugin refactor silently weakens a check | Low | High | 5.1 rule: checks move verbatim, only illustrations extracted; post-refactor `/validate-plugin --all` compared against pre-refactor output | Open |
+| validate-plugin refactor silently weakens a check | Low | High | 5.1 rule: checks move verbatim, only illustrations extracted; post-refactor `/validate-plugin --all` compared against pre-refactor output | Mitigated |
 
 ---
 

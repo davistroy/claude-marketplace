@@ -77,19 +77,7 @@ plugins/[plugin-name]/
       SKILL.md               # REQUIRED: Must be exactly SKILL.md (uppercase)
 ```
 
-**Report:**
-```text
-Structure Validation
---------------------
-[PASS] plugin.json exists
-[PASS] commands/ directory exists ([N] files)
-[PASS] skills/ directory exists ([N] skills)
-```
-
-Or on failure:
-```text
-[FAIL] plugin.json missing at plugins/[name]/.claude-plugin/plugin.json
-```
+Output samples: see `references/validation-output-examples.md` §1.1
 
 #### 1.2 Skill Directory Structure Validation
 
@@ -99,62 +87,11 @@ Or on failure:
 1. Item is a directory (not a file)
 2. Directory contains `SKILL.md` (exact name, uppercase)
 
-**Valid structure:**
-```text
-skills/
-  ship/
-    SKILL.md              # ✓ Correct
-  help/
-    SKILL.md              # ✓ Correct
-```
-
-**Invalid structures:**
-```text
-skills/
-  ship.md                 # ✗ Flat file - NOT discovered by Claude Code
-  help.md                 # ✗ Flat file - NOT discovered by Claude Code
-  broken-skill/
-    skill.md              # ✗ Wrong filename - must be SKILL.md (uppercase)
-```
-
-**Report:**
-```text
-Skill Structure Validation
---------------------------
-[PASS] skills/ship/SKILL.md - Valid skill structure
-[PASS] skills/help/SKILL.md - Valid skill structure
-[PASS] skills/research-topic/SKILL.md - Valid skill structure
-```
-
-Or on failure:
-```text
-[FAIL] Invalid skill structure detected
-
-      The following skills will NOT be discovered by Claude Code:
-
-      skills/ship.md
-        Problem: Flat file in skills/ directory
-        Fix: Move to skills/ship/SKILL.md
-
-      skills/broken-skill/skill.md
-        Problem: Wrong filename (must be SKILL.md, uppercase)
-        Fix: Rename to skills/broken-skill/SKILL.md
-
-      Skills require a nested directory structure:
-        skills/[skill-name]/SKILL.md
-
-      Run with --fix to automatically restructure skills.
-```
+Output samples: see `references/validation-output-examples.md` §1.2
 
 **Auto-fix with --fix:**
 When `--fix` is specified, automatically restructure invalid skills:
-```text
-Auto-Fix Applied:
-  skills/ship.md -> skills/ship/SKILL.md (created directory, moved file)
-  skills/help.md -> skills/help/SKILL.md (created directory, moved file)
-
-2 skills restructured. Skills should now be discoverable.
-```
+Sample confirmation: see `references/validation-output-examples.md` §1.2
 
 #### 1.3 plugin.json Validation
 
@@ -163,16 +100,7 @@ Auto-Fix Applied:
 - Required fields present: `name`, `description`, `version`
 - `version` follows semver format (X.Y.Z)
 
-**Report:**
-```text
-plugin.json Validation
-----------------------
-[PASS] Valid JSON syntax
-[PASS] Required field 'name' present
-[PASS] Required field 'description' present
-[PASS] Required field 'version' present (1.6.0)
-[PASS] Version follows semver format
-```
+Output samples: see `references/validation-output-examples.md` §1.3
 
 #### 1.4 Marketplace Schema Validation
 
@@ -194,36 +122,11 @@ Validate that marketplace.json plugin entries only contain fields recognized by 
 2. For each plugin entry, check for unrecognized fields
 3. Flag any fields not in the valid fields list
 
-**Report:**
-```text
-Marketplace Schema Validation
------------------------------
-[PASS] All plugin entries use valid schema fields
-```
-
-Or on failure:
-```text
-[FAIL] marketplace.json contains invalid schema fields
-
-      Plugin 'personal-plugin' has unrecognized fields:
-        - last_updated (line 18)
-
-      Claude Code's schema does not recognize these fields.
-      This will cause "schema validation failed" errors when
-      other repositories try to install plugins from this marketplace.
-
-      Remove these fields from marketplace.json to fix.
-```
+Output samples: see `references/validation-output-examples.md` §1.4
 
 **Auto-fix with --fix:**
 When `--fix` is specified, automatically remove unrecognized fields:
-```text
-Auto-Fix Applied:
-  marketplace.json: Removed 'last_updated' from plugin 'personal-plugin'
-  marketplace.json: Removed 'last_updated' from plugin 'bpmn-plugin'
-
-2 invalid fields removed. Marketplace schema now valid.
-```
+Sample confirmation: see `references/validation-output-examples.md` §1.4
 
 ### Phase 2: Frontmatter Validation
 
@@ -236,35 +139,14 @@ For each markdown file:
 2. Parse YAML between delimiters
 3. Report any syntax errors
 
-**Report:**
-```text
-Frontmatter Validation: commands/assess-document.md
---------------------------------------------------
-[PASS] Frontmatter delimiters present
-[PASS] Valid YAML syntax
-```
-
-Or on failure:
-```text
-[FAIL] commands/broken-command.md
-      Line 3: Invalid YAML - unexpected character ':'
-```
+Output samples: see `references/validation-output-examples.md` §2.1
 
 #### 2.2 Required Fields
 
 **Check:**
 - `description` field present and non-empty
 
-**Report:**
-```text
-[PASS] Required field 'description' present
-```
-
-Or:
-```text
-[FAIL] commands/my-command.md
-      Missing required field: description
-```
+Output samples: see `references/validation-output-examples.md` §2.2
 
 #### 2.3 Name Field Validation (Commands vs Skills)
 
@@ -279,46 +161,13 @@ Or:
 
 Check that no `name` field is present.
 
-**Report:**
-```text
-[PASS] commands/my-command.md - No forbidden 'name' field
-```
-
-Or:
-```text
-[FAIL] commands/my-command.md
-      Forbidden field 'name' found - filename determines command name
-      Remove: name: my-command
-```
+Output samples: see `references/validation-output-examples.md` §2.3
 
 **For Skills (files in `skills/*/SKILL.md`):**
 
 Check that `name` field IS present and matches the directory name.
 
-**Report:**
-```text
-[PASS] skills/ship/SKILL.md - Required 'name' field present and matches directory
-```
-
-Or:
-```text
-[FAIL] skills/ship/SKILL.md
-      Missing required 'name' field in skill frontmatter
-      Add: name: ship
-
-      Skills REQUIRE the 'name' field for Claude Code to discover them.
-      The name must match the skill's directory name.
-```
-
-Or if name doesn't match directory:
-```text
-[FAIL] skills/ship/SKILL.md
-      'name' field doesn't match directory name
-      Frontmatter: name: shipper
-      Directory: ship
-
-      Fix: Change 'name' to match directory: name: ship
-```
+Output samples: see `references/validation-output-examples.md` §2.3
 
 #### 2.4 Optional Field Validation
 
@@ -326,17 +175,7 @@ If `allowed-tools` is present:
 - Check it's a valid string format
 - Warn if format appears incorrect (e.g., missing parentheses)
 
-**Report:**
-```text
-[PASS] allowed-tools format valid: Bash(git:*)
-```
-
-Or:
-```text
-[WARN] commands/my-command.md
-      allowed-tools format may be invalid: 'git:*'
-      Expected format: ToolName(pattern) or ToolName
-```
+Output samples: see `references/validation-output-examples.md` §2.4
 
 ### Phase 3: Version Synchronization
 
@@ -348,23 +187,7 @@ Verify versions match across all configuration files.
 - `plugins/[plugin-name]/.claude-plugin/plugin.json` -> `version` field
 - `.claude-plugin/marketplace.json` -> plugin entry's `version` field
 
-**Report:**
-```text
-Version Synchronization
------------------------
-plugin.json version:      1.6.0
-marketplace.json version: 1.6.0
-[PASS] Versions are synchronized
-```
-
-Or:
-```text
-[FAIL] Version mismatch
-      plugin.json:      1.6.0
-      marketplace.json: 1.5.0
-
-      Run '/bump-version [plugin] patch' to synchronize.
-```
+Output samples: see `references/validation-output-examples.md` §3.1
 
 ### Phase 4: Content Validation
 
@@ -377,48 +200,13 @@ Verify markdown parses without errors:
 - Check for malformed links
 - Check for unbalanced formatting
 
-**Report:**
-```text
-Content Validation: commands/assess-document.md
-----------------------------------------------
-[PASS] Markdown parses correctly
-```
-
-Or:
-```text
-[FAIL] commands/broken.md
-      Line 45: Unclosed code block (opened with ```)
-```
+Output samples: see `references/validation-output-examples.md` §4.1
 
 #### 4.2 Code Block Language Specifiers
 
 Check that fenced code blocks have language specifiers:
 
-````markdown
-# Good
-```json
-{"key": "value"}
-```
-
-# Bad - missing language
-```
-{"key": "value"}
-```
-````
-
-**Report:**
-```text
-[PASS] All code blocks have language specifiers
-```
-
-Or:
-```text
-[WARN] commands/my-command.md
-      Line 23: Code block missing language specifier
-      Line 67: Code block missing language specifier
-
-      Add language (e.g., ```json, ```bash, ```markdown)
-```
+Good/bad code-fence examples and Report/warning samples: see `references/validation-output-examples.md` §4.2
 
 #### 4.3 Internal Link Validation
 
@@ -429,17 +217,7 @@ Check that internal file references exist:
 - `[link](../references/file.md)`
 - References to other commands
 
-**Report:**
-```text
-[PASS] All internal references valid
-```
-
-Or:
-```text
-[WARN] commands/my-command.md
-      Line 15: Reference 'common-patterns.md' not found
-      Expected at: plugins/personal-plugin/references/common-patterns.md
-```
+Output samples: see `references/validation-output-examples.md` §4.3
 
 ### Phase 5: Namespace Collision Detection
 
@@ -463,29 +241,12 @@ Plugin: bpmn-plugin
 
 Compare names across plugins:
 
-```text
-Namespace Collision Detection
------------------------------
-[WARN] Collision detected: /help
-       - personal-plugin/skills/help/SKILL.md
-       - bpmn-plugin/skills/help/SKILL.md
-
-       Users must use explicit namespace:
-         /personal-plugin:help
-         /bpmn-plugin:help
-```
-
-If no collisions:
-```text
-[PASS] No namespace collisions detected
-```
+Output samples: see `references/validation-output-examples.md` §5.2
 
 #### 5.3 Single Plugin Mode
 
 When validating a single plugin (not `--all`), skip collision detection and display:
-```text
-Note: Run with --all to check for naming collisions across plugins.
-```
+Output samples: see `references/validation-output-examples.md` §5.3
 
 ### Phase 6: Dependency Validation
 
@@ -494,13 +255,7 @@ Check if plugin.json declares dependencies and validate them.
 #### 6.1 Parse Dependencies
 
 If `dependencies` field exists in plugin.json:
-```json
-{
-  "dependencies": {
-    "personal-plugin": ">=2.0.0"
-  }
-}
-```
+Example `dependencies` block and validation samples: see `references/validation-output-examples.md` §6.1
 
 #### 6.2 Validate Dependencies
 
@@ -509,19 +264,7 @@ For each declared dependency:
 2. Parse the version requirement (semver syntax)
 3. Compare against the installed plugin version
 
-**Report:**
-```text
-Dependency Validation
----------------------
-[PASS] personal-plugin: >=2.0.0 (installed: 2.0.0)
-[FAIL] missing-plugin: ^1.0.0 (not found)
-[FAIL] outdated-plugin: >=3.0.0 (installed: 2.5.0)
-```
-
-Or if no dependencies declared:
-```text
-[PASS] No dependencies declared
-```
+Output samples: see `references/validation-output-examples.md` §6.2
 
 #### 6.3 Semver Validation
 
@@ -531,13 +274,7 @@ Check that version strings follow semver patterns:
 - `~X.Y.Z` (tilde range - approximately)
 - `X.Y.Z` (exact version)
 
-**Report invalid version syntax:**
-```text
-[FAIL] Invalid version syntax in dependencies
-       bpmn-plugin: "latest" (not valid semver)
-
-       Valid formats: >=1.0.0, ^1.0.0, ~1.0.0, 1.0.0
-```
+Output samples: see `references/validation-output-examples.md` §6.3
 
 ### Phase 7: Hook Windows Compatibility
 
@@ -549,18 +286,7 @@ Check if the plugin has hooks that may not work on Windows due to bash script de
 - `plugins/[plugin-name]/hooks/hooks.json` (in marketplace)
 - `%USERPROFILE%\.claude\plugins\cache\*/[plugin-name]/*/hooks/hooks.json` (installed)
 
-**Report:**
-```text
-Hook Detection
---------------
-[PASS] No hooks.json found (plugin has no hooks)
-```
-
-Or if hooks exist:
-```text
-[INFO] hooks.json found at plugins/[plugin-name]/hooks/hooks.json
-       Checking Windows compatibility...
-```
+Output samples: see `references/validation-output-examples.md` §7.1
 
 #### 7.2 Analyze Hook Commands
 
@@ -572,12 +298,7 @@ Parse hooks.json and identify hook commands that reference bash scripts:
 - Command references `.sh` file extension
 - Command uses `${CLAUDE_PLUGIN_ROOT}/hooks/*.sh`
 
-**Report for each hook event:**
-```text
-Hook: Stop
-  Command: bash "${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.sh"
-  [WARN] Uses bash script - may fail on Windows
-```
+Output samples: see `references/validation-output-examples.md` §7.2
 
 #### 7.3 Check for PowerShell Equivalents
 
@@ -587,39 +308,16 @@ For each bash script found, check if a PowerShell equivalent exists:
 - If `hooks/stop-hook.sh` exists, check for `hooks/stop-hook.ps1`
 - Verify hooks.json has Windows-compatible alternative configured
 
-**Report:**
-```text
-PowerShell Equivalents
-----------------------
-[PASS] stop-hook.sh has PowerShell equivalent: stop-hook.ps1
-[FAIL] pre-tool-hook.sh missing PowerShell equivalent
-```
+Output samples: see `references/validation-output-examples.md` §7.3
 
 #### 7.4 Windows Compatibility Summary
 
-**If bash-only hooks detected:**
-```text
-Hook Windows Compatibility
---------------------------
-[WARN] Plugin has hooks that may not work on Windows
+Emit one of three summaries depending on detection:
+- **If bash-only hooks detected:** warn, listing the bash scripts without PowerShell equivalents and how to fix them.
+- **If all hooks are Windows-compatible:** report PASS.
+- **If no hooks exist:** report PASS (no hooks configured).
 
-       Bash Scripts Without PowerShell Equivalents:
-         - hooks/stop-hook.sh
-         - hooks/pre-tool-hook.sh
-
-       To fix, manually convert bash scripts to PowerShell equivalents
-       and update hooks.json to use PowerShell on Windows.
-```
-
-**If all hooks are Windows-compatible:**
-```text
-[PASS] All hooks have Windows-compatible configurations
-```
-
-**If no hooks exist:**
-```text
-[PASS] Plugin has no hooks configured
-```
+Output samples: see `references/validation-output-examples.md` §7.4
 
 #### 7.5 Hook Script Syntax Validation
 
@@ -630,14 +328,7 @@ For any bash scripts found, perform basic syntax validation:
 - No Windows-incompatible paths (hardcoded `/home/`, `/usr/`, etc.)
 - No missing closing brackets/braces
 
-**Report:**
-```text
-Hook Script Validation
-----------------------
-[PASS] stop-hook.sh - Valid bash syntax
-[WARN] pre-tool-hook.sh - Missing shebang line
-[WARN] post-tool-hook.sh - Contains hardcoded Unix path: /usr/local/bin
-```
+Output samples: see `references/validation-output-examples.md` §7.5
 
 ### Phase 8: Pattern Compliance Checks
 
@@ -653,14 +344,7 @@ For each command markdown file, validate frontmatter against these rules:
 - No forbidden `name` field present
 - `allowed-tools` format valid if present
 
-**Report:**
-```text
-Command Schema Validation
--------------------------
-[PASS] commands/assess-document.md - Schema valid
-[PASS] commands/define-questions.md - Schema valid
-[WARN] commands/my-command.md - description too short (8 chars, minimum 10)
-```
+Output samples: see `references/validation-output-examples.md` §8.1
 
 #### 8.2 Required Sections Check
 
@@ -670,14 +354,7 @@ Verify each command contains required sections:
 1. `## Input Validation` - Must document arguments
 2. `## Instructions` - Must have step-by-step guidance
 
-**Report:**
-```text
-Required Sections Validation
-----------------------------
-[PASS] commands/assess-document.md - All required sections present
-[FAIL] commands/my-command.md - Missing section: Input Validation
-[WARN] commands/other.md - Missing section: Instructions
-```
+Output samples: see `references/validation-output-examples.md` §8.2
 
 #### 8.3 Output Naming Convention Compliance
 
@@ -688,14 +365,7 @@ Check that commands generating output follow the naming pattern:
 - Output file naming in documentation
 - Examples showing correct naming
 
-**Report:**
-```text
-Output Naming Compliance
-------------------------
-[PASS] commands/define-questions.md - Follows naming convention
-[WARN] commands/my-command.md - Non-standard output naming: 'output.json'
-       Expected: [type]-[source]-YYYYMMDD-HHMMSS.[ext]
-```
+Output samples: see `references/validation-output-examples.md` §8.3
 
 #### 8.4 Error Message Format Adherence
 
@@ -711,13 +381,7 @@ Received: [What was provided]
 Suggestion: [How to fix]
 ```
 
-**Report:**
-```text
-Error Format Compliance
------------------------
-[PASS] commands/define-questions.md - Error format compliant
-[WARN] commands/my-command.md - Non-standard error format at line 45
-```
+Output samples: see `references/validation-output-examples.md` §8.4
 
 #### 8.5 Flag Usage Consistency
 
@@ -734,18 +398,7 @@ Check that flags follow naming conventions:
 | `--strict` | Fail on any violation |
 | `--report` | Generate report file |
 
-**Report:**
-```text
-Flag Consistency Check
-----------------------
-[PASS] All flags follow standard conventions
-```
-
-Or:
-```text
-[WARN] commands/my-command.md - Non-standard flag '--skip-validation'
-       Consider using '--force' for similar behavior
-```
+Output samples: see `references/validation-output-examples.md` §8.5
 
 ### Phase 8.5: Plan Template Validation
 
@@ -756,17 +409,7 @@ Validate the plan template structural rules if `references/plan-template.md` exi
 **Check:**
 - `plugins/[plugin-name]/references/plan-template.md` exists
 
-**Report:**
-```text
-Plan Template Validation
-------------------------
-[PASS] references/plan-template.md exists
-```
-
-Or:
-```text
-[SKIP] references/plan-template.md not found — skipping plan template validation
-```
+Output samples: see `references/validation-output-examples.md` §8.5.1
 
 If the file is missing, skip the rest of Phase 8.5.
 
@@ -778,16 +421,7 @@ Read the `## Structural Rules` section from `plan-template.md`. Parse the number
 - At least 17 structural rules are defined (numbered 1-17)
 - No gaps in numbering (1, 2, ... N with no missing numbers)
 
-**Report:**
-```text
-[PASS] [N] structural rules defined (expected ≥17, no numbering gaps)
-```
-
-Or:
-```text
-[FAIL] Only [N] structural rules found (expected ≥17)
-       Missing rule numbers: [list]
-```
+Output samples: see `references/validation-output-examples.md` §8.5.2
 
 #### 8.5.3 Key Rule Content Validation
 
@@ -805,23 +439,7 @@ Verify that the following high-value structural rules are present and contain th
 1. The numbered rule exists in the structural rules list
 2. The rule text contains all required keywords (case-insensitive)
 
-**Report:**
-```text
-Structural Rule Content Validation
------------------------------------
-[PASS] Rule 13 — EARS notation guidance present
-[PASS] Rule 14 — Definition of Done markers present
-[PASS] Rule 15 — Execution Hints with model tiers present
-[PASS] Rule 16 — Unknowns Register with status values present
-[PASS] Rule 17 — Model Tier assignment present
-```
-
-Or on failure:
-```text
-[FAIL] Rule 14 — Missing required keywords: BEGIN DOD, END DOD
-       Rule 14 text: "[actual rule text]"
-       Expected keywords: Definition of Done, BEGIN DOD, END DOD
-```
+Output samples: see `references/validation-output-examples.md` §8.5.3
 
 #### 8.5.4 Sizing Constraints Check
 
@@ -832,147 +450,57 @@ Verify that the `## Sizing Constraints` section exists and contains the expected
 - Contains "Maximum phases per plan" with a numeric limit
 - Contains "Maximum work items per phase" with a numeric limit
 
-**Report:**
-```text
-[PASS] Sizing constraints defined (max [N] phases, max [N] items/phase)
-```
-
-Or:
-```text
-[WARN] Sizing constraints section missing or incomplete
-```
+Output samples: see `references/validation-output-examples.md` §8.5.4
 
 ### Phase 8.6: Reference File Inventory
 
-Validate that expected reference files are present. The planning pipeline depends on specific reference files; missing files cause silent degradation rather than hard errors.
+Validate that expected reference files are present. The planning pipeline depends on specific reference files; missing files cause silent degradation rather than hard errors. This check is dynamic: it lists the actual contents of `references/` and diffs them against a required set, so adding, renaming, or removing a reference file is reported here without editing this command.
 
-#### 8.6.1 Core Reference Files
+#### 8.6.1 Required Reference Set
 
-**Check for these files relative to plugin root (`plugins/[plugin-name]/`):**
+The required set, relative to the plugin root (`plugins/[plugin-name]/`), is data — maintain this list here, not a per-file prose table:
 
-| File | Purpose | Required Since |
-|------|---------|----------------|
-| `references/plan-template.md` | Plan generation template | v1.0.0 |
-| `references/common-patterns.md` | Pattern library index | v1.0.0 |
-| `references/anti-patterns.md` | Anti-pattern catalog for planning | v9.0.0 |
-| `references/adr-template.md` | Architecture Decision Record template | v9.0.0 |
-| `references/agents-md-template.md` | Cross-tool AGENTS.md generation | v9.0.0 |
-| `references/flag-consistency.md` | Flag naming conventions | v3.0.0 |
-| `references/validation-maturity-scorecard.md` | Scorecard criteria | v5.0.0 |
+**Top-level files (`references/`):**
+- `plan-template.md`
+- `common-patterns.md`
+- `anti-patterns.md`
+- `adr-template.md`
+- `agents-md-template.md`
+- `flag-consistency.md`
+- `validation-maturity-scorecard.md`
+- `plan-append-guide.md`
+- `recommendations-template.md`
+- `create-plan-examples.md`
+- `implement-plan-state-schema.md`
+- `validation-output-examples.md`
 
-**Report:**
-```text
-Reference File Inventory
-------------------------
-[PASS] references/plan-template.md
-[PASS] references/common-patterns.md
-[PASS] references/anti-patterns.md
-[PASS] references/adr-template.md
-[PASS] references/agents-md-template.md
-[PASS] references/flag-consistency.md
-[PASS] references/validation-maturity-scorecard.md
+**Hook reference files (`references/hooks/`):**
+- `planning-stop-hook.md`
+- `verification-post-edit-hook.md`
+- `session-start-hook.md`
 
-All [N] expected reference files present.
-```
+**Required non-empty subdirectories:**
+- `references/patterns/` (at least one file)
+- `references/templates/` (at least one file)
 
-Or on failure:
-```text
-[FAIL] references/anti-patterns.md — MISSING (required since v9.0.0)
-       This file is used by /ultra-plan and /create-plan for anti-pattern detection.
-       Create it manually or regenerate via the planning pipeline.
-```
+#### 8.6.2 Dynamic Inventory Check
 
-#### 8.6.2 Hook Reference Files
+1. Use Glob to list `references/**` recursively (files and directories).
+2. Diff the discovered set against the required set above and classify each entry:
+   - **Present** — a required file or directory that exists: PASS.
+   - **Missing** — a required entry that is absent: FAIL for top-level files and for the `patterns/`/`templates/` directories; WARN for individual `hooks/` files (they are documentation references and their absence does not affect plugin functionality).
+   - **Extra** — a file present under `references/` but not in the required set: reported for awareness (INFO), never an error.
+3. For `references/patterns/` and `references/templates/`, confirm each contains at least one file.
 
-**Check for hook reference directory:**
+Only top-level required files and the two required subdirectories are treated as errors when missing; hook reference files are warnings.
 
-| Path | Purpose | Required Since |
-|------|---------|----------------|
-| `references/hooks/` | Hook implementation guides | v9.0.0 |
-| `references/hooks/planning-stop-hook.md` | Stop event hook for incomplete plans | v9.0.0 |
-| `references/hooks/verification-post-edit-hook.md` | PostToolUse lint hook | v9.0.0 |
-| `references/hooks/session-start-hook.md` | Session startup plan status | v9.0.0 |
-
-**Report:**
-```text
-Hook References
----------------
-[PASS] references/hooks/ directory exists ([N] files)
-[PASS] references/hooks/planning-stop-hook.md
-[PASS] references/hooks/verification-post-edit-hook.md
-[PASS] references/hooks/session-start-hook.md
-```
-
-Or:
-```text
-[WARN] references/hooks/ directory missing
-       Hook reference files provide implementation guides for planning pipeline hooks.
-       These are documentation references, not active hooks — their absence does not
-       affect plugin functionality.
-```
-
-#### 8.6.3 Pattern and Template Subdirectories
-
-**Check for subdirectories with at least one file each:**
-
-| Path | Purpose |
-|------|---------|
-| `references/patterns/` | Pattern library files |
-| `references/templates/` | Command/skill template files |
-
-**Report:**
-```text
-Reference Subdirectories
-------------------------
-[PASS] references/patterns/ ([N] files)
-[PASS] references/templates/ ([N] files)
-```
-
-Or:
-```text
-[WARN] references/patterns/ — directory missing or empty
-       Pattern files guide command/skill development.
-```
+Output samples (present/missing/extra): see `references/validation-output-examples.md` → Phase 8.6
 
 ### Phase 9: Summary Report
 
 Generate a final validation summary.
 
-```text
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Plugin Validation: [plugin-name]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Structure Validation     [PASS]
-Skill Structure          [PASS] ([N] skills in correct format)
-Marketplace Schema       [PASS]
-Frontmatter Validation   [PASS] ([N] files checked)
-Version Synchronization  [PASS]
-Content Validation       [WARN] (2 warnings)
-Namespace Collisions     [WARN] (1 collision)  # Only with --all
-Dependency Validation    [PASS]
-Hook Windows Compat      [PASS]  # Or [WARN] if bash-only hooks found
-Pattern Compliance       [PASS] (all commands checked)
-Plan Template            [PASS] ([N] rules validated)
-Reference Inventory      [PASS] ([N] expected files present)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Issues Found:
-  Errors:   0
-  Warnings: 3
-
-Warnings:
-  1. commands/my-command.md:23 - Code block missing language specifier
-  2. commands/my-command.md:67 - Code block missing language specifier
-  3. Namespace collision: /help (use /personal-plugin:help)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Result: PASS (with warnings)
-
-Warnings don't block commits but should be addressed.
-```
+Output samples: see `references/validation-output-examples.md` §Phase 9
 
 ### Phase 9.5: Version Update Check (--check-updates only)
 
@@ -996,7 +524,9 @@ Error: No plugins found in the plugins/ directory.
 Fetch the latest marketplace.json from GitHub:
 
 ```bash
-gh api repos/davistroy/claude-marketplace/contents/.claude-plugin/marketplace.json \
+# Derive owner/repo from the origin remote (supports https and ssh URLs)
+REPO=$(git remote get-url origin | sed -E 's#(^git@[^:]+:|^https?://[^/]+/)##; s#\.git$##')
+gh api "repos/$REPO/contents/.claude-plugin/marketplace.json" \
   --jq '.content' | base64 -d
 ```
 
@@ -1035,78 +565,26 @@ Compare using semantic versioning (MAJOR.MINOR.PATCH):
 
 #### 9.5.4 Generate Version Report
 
-**With remote data available:**
+**With remote data available:** print a per-plugin table (Plugin / Local / Remote / Status), the count of available updates, and the `git pull origin main` instruction.
 
-```text
-Version Update Check
---------------------
+**Without remote data (local-only fallback):** print a per-plugin table (Plugin / plugin.json / marketplace.json / Consistent), the count of inconsistencies, and the `/bump-version` instruction.
 
-| Plugin           | Local   | Remote  | Status           |
-|------------------|---------|---------|------------------|
-| personal-plugin  | 2.0.0   | 2.1.0   | Update available [MINOR] |
-| bpmn-plugin      | 1.6.0   | 1.6.0   | Up to date       |
-
-Updates available: 1
-
-To update, pull the latest changes from the repository:
-  git pull origin main
-```
-
-**Without remote data (local-only fallback):**
-
-```text
-Version Update Check (Local Only)
-----------------------------------
-
-Note: Remote check unavailable. Showing local version consistency only.
-
-| Plugin           | plugin.json | marketplace.json | Consistent |
-|------------------|-------------|------------------|------------|
-| personal-plugin  | 2.0.0       | 2.0.0            | Yes        |
-| bpmn-plugin      | 1.6.0       | 1.5.0            | No         |
-
-Inconsistencies: 1
-
-To sync versions, run: /bump-version [plugin-name] [major|minor|patch]
-```
+Output samples: see `references/validation-output-examples.md` §9.5.4
 
 #### 9.5.5 Verbose Output (--verbose)
 
 When `--verbose` is also specified alongside `--check-updates`, include per-plugin file path detail:
 
-```text
-Version Update Check (Verbose)
--------------------------------
-
-personal-plugin
-  Local version:  2.0.0  (plugins/personal-plugin/.claude-plugin/plugin.json)
-  Remote version: 2.1.0  (davistroy/claude-marketplace@main)
-  Update type:    MINOR
-  Status:         Update available
-
-bpmn-plugin
-  Local version:  1.6.0  (plugins/bpmn-plugin/.claude-plugin/plugin.json)
-  Remote version: 1.6.0  (davistroy/claude-marketplace@main)
-  Status:         Up to date
-```
+Output samples: see `references/validation-output-examples.md` §9.5.5
 
 #### 9.5.6 Edge Cases
 
-**Plugin not in local marketplace.json:**
-```text
-Warning: [plugin-name] exists in plugins/ but is not registered in marketplace.json.
-  Run /validate-plugin [plugin-name] to check plugin structure.
-```
+Handle these edge cases, each with a user-facing message:
+- **Plugin not in local marketplace.json** — warn that it exists under `plugins/` but is unregistered, and suggest running structure validation.
+- **Remote plugin not installed locally** — note that it is available remotely but not installed.
+- **Version parsing errors** — warn, echoing the unparseable local/remote values.
 
-**Remote plugin not installed locally:**
-```text
-Available remotely: [plugin-name] v1.0.0 (not installed locally)
-```
-
-**Version parsing errors:**
-```text
-Warning: Could not parse version for [plugin-name] (local: "[value]", remote: "[value]")
-```
+Output samples: see `references/validation-output-examples.md` §9.5.6
 
 ### Exit Codes (for CI/Script Use)
 
@@ -1140,15 +618,7 @@ When `--fix` is specified, attempt to fix simple issues:
 | Flat skill file (`skills/name.md`) | Create directory, move to `skills/name/SKILL.md` |
 | Wrong skill filename (`skill.md` lowercase) | Rename to `SKILL.md` |
 
-**Report fixes:**
-```text
-Auto-Fix Applied:
-  commands/my-command.md: Removed forbidden 'name' field
-  commands/other.md: Added 'text' language to code block at line 23
-  skills/my-skill/SKILL.md: Added required 'name: my-skill' field
-
-3 issues fixed. Re-run validation to confirm.
-```
+Report-fixes sample: see `references/validation-output-examples.md` → Auto-Fix Mode (--fix)
 
 ## Strict Mode (--strict)
 
@@ -1159,28 +629,7 @@ When `--strict` is specified, treat warnings as errors:
 - Exit code is 1 if ANY issues found (warnings OR errors)
 - Recommended for CI/CD pipelines
 
-**Report with --strict:**
-```text
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Plugin Validation: personal-plugin (STRICT MODE)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Structure Validation     [PASS]
-Marketplace Schema       [PASS]
-Frontmatter Validation   [PASS]
-Version Synchronization  [PASS]
-Content Validation       [FAIL] (2 issues - strict mode)
-Pattern Compliance       [PASS]
-Plan Template            [PASS]
-Reference Inventory      [PASS]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Result: FAIL (strict mode treats warnings as errors)
-Exit code: 1
-
-Fix all issues or run without --strict to allow warnings.
-```
+Strict-mode report sample: see `references/validation-output-examples.md` → Strict Mode (--strict)
 
 ## Report Mode (--report)
 
@@ -1194,59 +643,7 @@ When `--report` is specified, generate a detailed compliance report file:
 - Pattern adherence statistics
 - Recommendations for improvement
 
-**Example Report Structure:**
-```markdown
-# Plugin Validation Report
-
-**Generated:** 2026-01-15T10:30:00Z
-**Plugin:** personal-plugin
-**Version:** 2.3.0
-
-## Executive Summary
-
-| Phase | Status | Issues |
-|-------|--------|--------|
-| Structure | PASS | 0 |
-| Frontmatter | PASS | 0 |
-| Version Sync | PASS | 0 |
-| Content | WARN | 2 |
-| Pattern Compliance | PASS | 0 |
-| Plan Template | PASS | 0 |
-| Reference Inventory | PASS | 0 |
-
-**Overall:** PASS (with 2 warnings)
-
-## Detailed Findings
-
-### Content Validation
-
-#### Warnings
-1. **commands/clean-repo.md:45** - Code block missing language specifier
-2. **commands/clean-repo.md:89** - Code block missing language specifier
-
-### Pattern Compliance
-
-All [N] commands follow pattern conventions:
-- Required sections: 100% compliant
-- Output naming: 100% compliant
-- Error format: 100% compliant
-- Flag consistency: 100% compliant
-
-## Recommendations
-
-1. Add language specifiers to code blocks in clean-repo.md
-2. Consider adding Performance section to long-running commands
-
----
-*Generated by /validate-plugin --report*
-```
-
-**Console Output with --report:**
-```text
-Validation complete. Exit code: 0
-
-Report saved to: reports/validation-20260115-103000.md
-```
+Example report structure and console output: see `references/validation-output-examples.md` → Report Mode (--report)
 
 ## Maturity Scorecard Mode (--scorecard)
 
@@ -1267,77 +664,7 @@ Evaluate each plugin against the criteria defined in the reference file and gene
 
 ## Example Usage
 
-```yaml
-User: /validate-plugin personal-plugin
-
-Claude:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Validating Plugin: personal-plugin
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Phase 1: Structure Validation
------------------------------
-[PASS] plugin.json exists
-[PASS] commands/ directory ([N] files)
-[PASS] skills/ directory ([N] skills)
-[PASS] Skill structure valid (all use skills/[name]/SKILL.md format)
-[PASS] references/ directory ([N] files)
-[PASS] Marketplace schema valid
-
-Phase 2: Frontmatter Validation
--------------------------------
-Checking [N] markdown files...
-[PASS] All frontmatter valid
-[PASS] All descriptions present
-[PASS] Commands: No forbidden 'name' fields
-[PASS] Skills: All have required 'name' field matching directory
-
-Phase 3: Version Synchronization
---------------------------------
-[PASS] plugin.json: 1.6.0
-[PASS] marketplace.json: 1.6.0
-[PASS] Versions synchronized
-
-Phase 4: Content Validation
----------------------------
-[PASS] All markdown parses correctly
-[WARN] 2 code blocks missing language specifiers
-[PASS] All internal references valid
-
-Phase 8.5: Plan Template Validation
-------------------------------------
-[PASS] references/plan-template.md exists
-[PASS] [N] structural rules defined (expected ≥17, no numbering gaps)
-[PASS] Rule 13 — EARS notation guidance present
-[PASS] Rule 14 — Definition of Done markers present
-[PASS] Rule 15 — Execution Hints with model tiers present
-[PASS] Rule 16 — Unknowns Register with status values present
-[PASS] Rule 17 — Model Tier assignment present
-[PASS] Sizing constraints defined
-
-Phase 8.6: Reference File Inventory
--------------------------------------
-[PASS] All [N] expected reference files present
-[PASS] references/hooks/ ([N] files)
-[PASS] references/patterns/ ([N] files)
-[PASS] references/templates/ ([N] files)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Validation Summary
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Errors:   0
-Warnings: 2
-
-Warnings:
-  1. commands/clean-repo.md:45 - Code block missing language specifier
-  2. commands/clean-repo.md:89 - Code block missing language specifier
-
-Result: PASS (with warnings)
-Exit code: 0
-
-Tip: Run with --fix to auto-add language specifiers.
-```
+Full end-to-end transcripts — a single-plugin run and an `--all` run: see `references/validation-output-examples.md` → Example Usage.
 
 ## Related Commands
 
@@ -1346,43 +673,3 @@ Tip: Run with --fix to auto-add language specifiers.
 - `/new-command` — Add a new command (run validation after adding)
 - `/new-skill` — Add a new skill (run validation after adding)
 - `/clean-repo` — Full repository cleanup and documentation sync
-
-```yaml
-User: /validate-plugin --all
-
-Claude:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Validating All Plugins
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Plugin: personal-plugin
------------------------
-[PASS] Structure valid
-[PASS] Marketplace schema valid
-[PASS] Frontmatter valid ([N] files)
-[PASS] Versions synchronized
-[WARN] 2 content warnings
-[PASS] Plan template valid ([N] rules)
-[PASS] Reference inventory complete
-
-Plugin: bpmn-plugin
--------------------
-[PASS] Structure valid
-[PASS] Marketplace schema valid
-[PASS] Frontmatter valid ([N] files)
-[PASS] Versions synchronized
-[PASS] Content valid
-[SKIP] No plan template (skipped)
-[SKIP] No references/ directory (skipped)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Overall Summary
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Plugins validated: 2
-Total errors:      0
-Total warnings:    2
-
-Result: PASS (with warnings)
-Exit code: 0
-```

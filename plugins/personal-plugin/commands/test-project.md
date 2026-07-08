@@ -448,41 +448,7 @@ If PR creation or merge fails:
 
 ## Performance
 
-**Typical Duration:**
-
-| Project Size | Expected Time |
-|--------------|---------------|
-| Small (< 50 tests) | 2-5 minutes |
-| Medium (50-200 tests) | 5-15 minutes |
-| Large (200-500 tests) | 15-30 minutes |
-| Very Large (500+ tests) | 30-60 minutes |
-
-**Factors Affecting Performance:**
-- **Test count**: More tests = longer execution
-- **Fix iterations**: Each round of fixes adds 2-5 minutes
-- **Coverage gap**: Writing new tests adds significant time
-- **Test type**: E2E tests are slower than unit tests
-- **CI complexity**: Integration with CI adds overhead
-
-**Iteration Estimates:**
-- First pass (run tests): 1-5 minutes depending on test count
-- Fix cycle (per round): 2-5 minutes
-- Coverage improvement: 5-15 minutes per 10% coverage increase
-- Documentation updates: 2-5 minutes
-- PR creation and merge: 2-5 minutes
-
-**Signs of Abnormal Behavior:**
-- Fix loop exceeding 10 iterations
-- Same test failing repeatedly with different fixes
-- Coverage not improving despite adding tests
-- Tests timing out or hanging
-
-**If the command seems stuck:**
-1. Check for fix loop iteration count
-2. Look for test timeout messages
-3. Consider interrupting and running tests manually
-4. Check for flaky tests that pass/fail randomly
-5. Review CI logs if using CI integration
+Duration scales with project size and test count — small (<50 tests) runs in 2-5 min, medium (50-200) in 5-15 min, large (200-500) in 15-30 min, very large (500+) in 30-60 min — plus roughly 2-5 min per fix-loop round and 5-15 min per 10% coverage-gap increase; CI integration and E2E-heavy suites add overhead. If the command seems stuck: check the fix-loop iteration count (caps at 10, Phase 4.3), look for test timeouts, or check for flaky tests — a test failing differently on each attempt, or coverage not improving despite new tests, signals an abnormal run worth interrupting.
 
 ---
 

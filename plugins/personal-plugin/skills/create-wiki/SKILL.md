@@ -281,61 +281,7 @@ Categories populated: architecture, decisions, ...
 
 #### Step 7: Generate wiki/README.md
 
-Create `wiki/README.md` — a human-readable guide:
-
-```markdown
-# Project Wiki
-
-This is a persistent, LLM-maintained knowledge base for this project. It follows a three-layer architecture where humans own the source material and Claude maintains the knowledge pages.
-
-## How It Works
-
-**You (human) do:**
-- Drop source documents into `wiki/sources/` (specs, transcripts, research, design docs)
-- Ask Claude to ingest them: `/wiki ingest sources/new-doc.md`
-- Ask questions: `/wiki query "how does authentication work?"`
-- Edit `wiki/schema.yaml` to customize categories or conventions
-
-**Claude does:**
-- Reads sources, extracts knowledge, creates/updates wiki pages
-- Maintains cross-references between pages
-- Keeps the index current
-- Flags stale or contradictory content via lint checks
-- Auto-updates pages when discovering wiki-worthy knowledge during normal work
-
-## Directory Structure
-
-| Path | Owner | Purpose |
-|------|-------|---------|
-| `sources/` | Human | Raw documents. Immutable — Claude reads, never modifies. |
-| `pages/` | Claude | Generated wiki pages. Claude creates, updates, deletes. |
-| `schema.yaml` | Shared | Categories, conventions, thresholds. Edit to customize. |
-| `index.md` | Claude | Content catalog by category. Auto-updated. |
-| `log.md` | Claude | Chronological activity record. Append-only. |
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `/wiki ingest <path>` | Process a source document into wiki pages |
-| `/wiki lint` | Run health checks on wiki structure and content |
-| `/wiki query <topic>` | Search wiki and synthesize an answer |
-| `/wiki status` | Show wiki stats, health, and recent activity |
-
-## Customization
-
-Edit `wiki/schema.yaml` to:
-- Add or remove categories
-- Change the staleness threshold (default: 30 days)
-- Change the lint interval (default: 7 days)
-- Adjust naming conventions
-
-## Important
-
-- **Do not hand-edit files in `pages/`** — let Claude maintain consistency. If you spot an error, tell Claude and it will fix the page plus any cross-references.
-- **Sources are immutable** — once a file is in `sources/`, don't modify or delete it. Claude's pages may reference specific content.
-- **The wiki is git-tracked** — review wiki changes in PRs, revert bad updates, track knowledge evolution over time.
-```
+Read `references/wiki-readme-template.md` (relative to this plugin's directory) and emit its template content verbatim as `wiki/README.md`.
 
 #### Step 8: Inject CLAUDE.md Section
 
@@ -343,86 +289,7 @@ Append the following section to the project's CLAUDE.md. If no CLAUDE.md exists,
 
 **Before injecting:** Check that no existing `## Project Wiki` section is already present. If found, skip injection and report to the user.
 
-**The section to inject:**
-
-```markdown
-## Project Wiki — Persistent Knowledge Base
-
-This project maintains an LLM-generated wiki at `wiki/`. The wiki compounds
-understanding across sessions — you own the wiki layer and maintain it as
-part of normal work. Use `/wiki` commands for explicit operations.
-
-### Wiki Structure
-- `wiki/sources/` — Human-curated raw documents. **Read only. Never modify.**
-- `wiki/pages/` — LLM-generated pages. You create, update, and delete these.
-- `wiki/index.md` — Content catalog by category. Update on every page change.
-- `wiki/log.md` — Append-only activity log. Append on every wiki operation.
-- `wiki/schema.yaml` — Categories, conventions, maintenance config.
-
-### Rule 1: Check the Wiki First
-Before researching any topic related to this project, check `wiki/index.md`.
-If a relevant page exists, read it before doing fresh research. The wiki may
-already contain what you need — and if it's incomplete, you'll know what to
-add rather than duplicating effort.
-
-### Rule 2: Update When Wiki-Worthy
-During normal work, update the wiki when you encounter or produce **durable
-knowledge** — information useful in future sessions, not just this one:
-
-- Architecture decisions with rationale and alternatives considered
-- New integrations — API surface, configuration, gotchas, failure modes
-- Non-obvious system behavior discovered during debugging
-- Dependency changes — new libraries, version upgrades, deprecations
-- Domain concepts, business rules, or terminology learned from context
-- Significant code changes — new modules, refactored interfaces, changed contracts
-
-**Judgment standard:** Would a future Claude session benefit from this being
-written down? If yes, it's wiki-worthy. Session-specific task progress,
-ephemeral debugging state, or information already in git history is NOT
-wiki-worthy.
-
-### Rule 3: Page Format
-Every page in `wiki/pages/` requires YAML frontmatter:
-
-```yaml
----
-title: Page Title
-category: {from schema.yaml categories}
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
-sources: []       # source file paths if applicable
-related: []       # paths to related wiki pages
-tags: []          # searchable tags
----
-```
-
-Content: clear headings, concrete examples, cross-links to related pages.
-Aim for completeness over brevity — this is a reference, not a summary.
-
-### Rule 4: Cross-Reference Maintenance
-When creating or updating a page:
-1. Link to related pages in the content body
-2. Update `related` frontmatter on THIS page
-3. Update `related` frontmatter on LINKED pages (bidirectional)
-4. Check if existing pages should now reference this one
-
-### Rule 5: Index and Log Maintenance
-- **index.md**: Update on every page create/update/delete. Format:
-  `- [Title](pages/filename.md) — one-line summary`
-- **log.md**: Append on every wiki operation. Format:
-  `## [YYYY-MM-DD] verb | description` — verbs: create, update, delete,
-  ingest, lint, query
-
-### Rule 6: Lint on Session Start
-If the last lint entry in `wiki/log.md` is older than the configured
-`lint_interval_days` in `schema.yaml` (default: 7 days), run a quick
-lint check at session start. Report issues but don't block work.
-
-### Rule 7: Sources Are Immutable
-Files in `wiki/sources/` are human-curated input. Never modify, rename,
-or delete them. Only read. If a source contains errors, note the
-correction in the relevant wiki page with attribution.
-```
+**The section to inject:** Read `references/claude-md-wiki-section.md` (relative to this plugin's directory) and emit its template content verbatim.
 
 #### Step 9: LAB_NOTEBOOK.md Integration
 

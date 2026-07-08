@@ -204,207 +204,50 @@ Structure your response with:
 | standard | 10,000 | high | high |
 | comprehensive | 32,000 | high | high |
 
-**Dispatch subagents in parallel** (one Task per available provider — skip providers with missing keys):
+**Dispatch subagents in parallel** (one Task per available provider, `context: fork`, skip providers with missing keys). Instantiate the template below once per provider, substituting its row from the Provider Deltas table. The dispatched subagent Reads `references/research-provider-protocols.md` (relative to this plugin's directory) for its provider's exact request/response shape, polling mechanics, and parse/output steps.
 
-#### Claude Subagent
+#### Subagent Prompt Template
 
 ```text
 context: fork
 
-You are a research agent responsible for the Anthropic Claude research leg of a multi-provider research task.
+You are a research agent responsible for the [DISPLAY NAME] research leg of a multi-provider research task.
 
 Your job:
-1. Call the Anthropic Messages API with extended thinking enabled
-2. Write your findings to reports/research-claude-[TIMESTAMP].md
+1. Execute the [DISPLAY NAME] protocol documented in `references/research-provider-protocols.md` under "[DISPLAY NAME] Protocol" (Mode row below: synchronous single call, or submit-then-poll)
+2. Write your findings to reports/research-[SLUG]-[TIMESTAMP].md
 3. Return a JSON status object on your final line
 
-Provider: Anthropic Claude
-Model: [RESOLVED_CLAUDE_MODEL]
-API Key env var: ANTHROPIC_API_KEY
+Provider: [DISPLAY NAME]
+Model/Agent: [RESOLVED MODEL/AGENT VAR]
+API Key env var: [API KEY ENV VAR]
 
 Research prompt to submit:
 [FULL RESEARCH PROMPT FROM PHASE 4]
 
-Extended thinking budget_tokens: [4000|10000|32000 based on depth]
+Depth parameter (`[DEPTH PARAM]`): [value — see Depth Parameter Mapping above, this provider's column, at the selected depth]
 
-API call (use Bash):
-```bash
-curl -s https://api.anthropic.com/v1/messages \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
-  -H "anthropic-version: 2023-06-01" \
-  -H "content-type: application/json" \
-  -d '{
-    "model": "[RESOLVED_CLAUDE_MODEL]",
-    "max_tokens": 16000,
-    "thinking": {
-      "type": "enabled",
-      "budget_tokens": [BUDGET_TOKENS]
-    },
-    "messages": [{
-      "role": "user",
-      "content": "[ESCAPED RESEARCH PROMPT]"
-    }]
-  }' > /tmp/claude-research-response.json
+Read `references/research-provider-protocols.md` → "[DISPLAY NAME] Protocol" for the exact endpoint, auth, request body, polling loop (if any), and parse/output steps. Use the Write tool to save findings in the structure shown there.
+
+On final line output exactly: `{"provider":"[SLUG]","status":"success","file":"reports/research-[SLUG]-[TIMESTAMP].md"}` or `{"provider":"[SLUG]","status":"failed","error":"[message]"}`
 ```
 
-Parse the response: extract the `text` content blocks (skip `thinking` blocks). Write findings to `reports/research-claude-[TIMESTAMP].md` using the Write tool with this structure:
+#### Provider Deltas
 
-```markdown
-# Claude Research: [topic]
-**Provider:** Anthropic Claude
-**Model:** [model]
-**Depth:** [depth]
-**Generated:** [timestamp]
+| | Claude | OpenAI | Gemini |
+|---|---|---|---|
+| Display name | Anthropic Claude | OpenAI | Google Gemini |
+| Slug | `claude` | `openai` | `gemini` |
+| Endpoint | `api.anthropic.com/v1/messages` | `api.openai.com/v1/responses` | `generativelanguage.googleapis.com/v1beta/interactions` |
+| Auth | `x-api-key` + `anthropic-version` headers | `Authorization: Bearer` header | `?key=` query param |
+| API key env var | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY` | `GOOGLE_API_KEY` |
+| Model/Agent field (body) | `model` | `model` | `agent` |
+| Resolved var | `[RESOLVED_CLAUDE_MODEL]` | `[RESOLVED_OAI_MODEL]` | `[RESOLVED_GEMINI_AGENT_ID]` |
+| Mode | Synchronous, single call | Async: submit, poll ≤180× @10s, success = `status=="completed"` | Async: submit, poll ≤180× @10s, success = `state=="SUCCEEDED"` |
+| Depth param | `thinking.budget_tokens` | `reasoning.effort` | `parameters.thinking_level` |
+| Parse target | `text` blocks (skip `thinking`) | `text` output | reply text |
 
-## Research Findings
-
-[Full text content from API response — all text blocks concatenated]
-```
-
-On final line output exactly: `{"provider":"claude","status":"success","file":"reports/research-claude-[TIMESTAMP].md"}` or `{"provider":"claude","status":"failed","error":"[message]"}`
-```
-
-#### OpenAI Subagent
-
-```text
-context: fork
-
-You are a research agent responsible for the OpenAI research leg of a multi-provider research task.
-
-Your job:
-1. Submit a deep research request to the OpenAI Responses API
-2. Poll until completion (background job)
-3. Write your findings to reports/research-openai-[TIMESTAMP].md
-4. Return a JSON status object on your final line
-
-Provider: OpenAI
-Model: [RESOLVED_OAI_MODEL]
-API Key env var: OPENAI_API_KEY
-
-Research prompt to submit:
-[FULL RESEARCH PROMPT FROM PHASE 4]
-
-OpenAI reasoning_effort: [medium|high based on depth]
-
-API call — submit and poll (use Bash):
-```bash
-# Submit the request
-RESPONSE=$(curl -s https://api.openai.com/v1/responses \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "[RESOLVED_OAI_MODEL]",
-    "input": "[ESCAPED RESEARCH PROMPT]",
-    "reasoning": {"effort": "[EFFORT_LEVEL]"},
-    "tools": [{"type": "web_search_preview"}],
-    "background": true
-  }')
-RESPONSE_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
-echo "Submitted OpenAI request: $RESPONSE_ID"
-
-# Poll until complete (max 30 minutes)
-for i in $(seq 1 180); do
-  sleep 10
-  STATUS=$(curl -s "https://api.openai.com/v1/responses/$RESPONSE_ID" \
-    -H "Authorization: Bearer $OPENAI_API_KEY")
-  STATE=$(echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))")
-  echo "OpenAI poll $i: $STATE"
-  if [ "$STATE" = "completed" ]; then
-    echo "$STATUS" > /tmp/openai-research-response.json
-    break
-  fi
-  if [ "$STATE" = "failed" ] || [ "$STATE" = "cancelled" ]; then
-    echo "OpenAI request failed: $STATE"
-    exit 1
-  fi
-done
-```
-
-Parse the response: extract text output from the completed response. Write findings to `reports/research-openai-[TIMESTAMP].md` using the Write tool with this structure:
-
-```markdown
-# OpenAI Research: [topic]
-**Provider:** OpenAI
-**Model:** [model]
-**Depth:** [depth]
-**Generated:** [timestamp]
-
-## Research Findings
-
-[Full text output from completed response]
-```
-
-On final line output exactly: `{"provider":"openai","status":"success","file":"reports/research-openai-[TIMESTAMP].md"}` or `{"provider":"openai","status":"failed","error":"[message]"}`
-```
-
-#### Gemini Subagent
-
-```text
-context: fork
-
-You are a research agent responsible for the Google Gemini research leg of a multi-provider research task.
-
-Your job:
-1. Submit a deep research interaction to the Google Gemini Interactions API
-2. Poll until completion
-3. Write your findings to reports/research-gemini-[TIMESTAMP].md
-4. Return a JSON status object on your final line
-
-Provider: Google Gemini
-Agent: [RESOLVED_GEMINI_AGENT_ID]
-API Key env var: GOOGLE_API_KEY
-
-Research prompt to submit:
-[FULL RESEARCH PROMPT FROM PHASE 4]
-
-Gemini thinking_level: [low|high based on depth]
-
-API call — submit and poll (use Bash):
-```bash
-# Submit the deep research interaction
-RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/interactions?key=$GOOGLE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "[RESOLVED_GEMINI_AGENT_ID]",
-    "message": {"text": "[ESCAPED RESEARCH PROMPT]"},
-    "parameters": {"thinking_level": "[THINKING_LEVEL]"}
-  }')
-INTERACTION_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('name','').split('/')[-1])")
-echo "Submitted Gemini interaction: $INTERACTION_ID"
-
-# Poll until complete (max 30 minutes)
-for i in $(seq 1 180); do
-  sleep 10
-  STATUS=$(curl -s "https://generativelanguage.googleapis.com/v1beta/interactions/$INTERACTION_ID?key=$GOOGLE_API_KEY")
-  STATE=$(echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('state',''))")
-  echo "Gemini poll $i: $STATE"
-  if [ "$STATE" = "SUCCEEDED" ]; then
-    echo "$STATUS" > /tmp/gemini-research-response.json
-    break
-  fi
-  if [ "$STATE" = "FAILED" ] || [ "$STATE" = "CANCELLED" ]; then
-    echo "Gemini request failed: $STATE"
-    exit 1
-  fi
-done
-```
-
-Parse the response: extract the reply text from the completed interaction. Write findings to `reports/research-gemini-[TIMESTAMP].md` using the Write tool with this structure:
-
-```markdown
-# Gemini Research: [topic]
-**Provider:** Google Gemini
-**Agent:** [agent]
-**Depth:** [depth]
-**Generated:** [timestamp]
-
-## Research Findings
-
-[Full reply text from completed interaction]
-```
-
-On final line output exactly: `{"provider":"gemini","status":"success","file":"reports/research-gemini-[TIMESTAMP].md"}` or `{"provider":"gemini","status":"failed","error":"[message]"}`
-```
+Full curl requests, poll loops, and Write-tool output structures for each provider: `references/research-provider-protocols.md`.
 
 **Progress display during dispatch:**
 ```text

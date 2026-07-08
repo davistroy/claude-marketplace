@@ -1,7 +1,7 @@
 ---
 name: ship
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Read, Edit, Glob, Grep
-description: Create branch, commit, push, open PR, auto-review, fix issues, and merge
+description: Create branch, commit, push, open PR, auto-review, fix issues, and merge — the full ship workflow. Suggest when the user signals completion (done, ready to ship, push this, let's ship it, or similar), after a work item from an implementation plan finishes, after all tests pass and changes are ready, when the user asks to create a PR or push changes, or after a code review cycle completes and changes are approved.
 disable-model-invocation: true
 ---
 
@@ -28,15 +28,6 @@ The following git state is injected before Claude processes this prompt:
 
 **Diff size (lines changed):**
 !`git diff --stat | tail -1 | awk '{print $NF}'`
-
-## Proactive Triggers
-
-Suggest this skill when:
-1. User says "done", "ready to ship", "push this", "let's ship it", or similar completion phrases
-2. After completing a work item from an implementation plan
-3. After all tests pass and changes are ready
-4. User asks to create a PR or push changes
-5. After a code review cycle is complete and changes are approved
 
 ## Destructive Action Warning
 
@@ -332,48 +323,13 @@ If there are CRITICAL or WARNING issues, attempt to fix them automatically.
 
 ### 7.2 Fix Loop Logic
 
-```yaml
-FOR attempt = 1 TO 5:
-    IF no blocking issues: EXIT LOOP → go to Phase 8 (merge)
+- Attempt a fix for every blocking issue; mark unfixable ones per 7.4
+- Any unfixable issue → exit immediately to the Phase 8 failure report (no commit that attempt)
+- Otherwise commit the fixes, push, and re-analyze the PR
+- All blocking issues resolved → exit to the Phase 8 success path; else continue to the next attempt
+- 5 attempts exhausted with blockers still remaining → exit to the Phase 8 exhaustion report
 
-    Display: "Fix Attempt [attempt] of 5"
-    Display: "[N] critical, [N] warnings remaining"
-
-    FOR each blocking issue:
-        Display: "Fixing [ID]: [title]..."
-
-        IF issue is fixable:
-            Read the affected file
-            Apply the appropriate fix
-            Mark as fixed
-        ELSE:
-            Mark as unfixable with reason
-
-    IF has unfixable issues:
-        EXIT LOOP → go to Phase 8 (failure report)
-
-    Commit fixes:
-        git add -A
-        git commit -m "fix: address PR review issues (attempt [N]/5)
-
-        Resolved:
-        - [C1] Issue description
-        - [W1] Issue description
-
-        Co-Authored-By: Claude <noreply@anthropic.com>"
-
-    Push:
-        git push
-
-    Re-analyze PR
-
-    IF all blocking issues resolved:
-        Display: "✓ All issues resolved!"
-        EXIT LOOP → go to Phase 8 (merge)
-
-IF attempt > 5 AND blocking issues remain:
-    EXIT LOOP → go to Phase 8 (exhaustion report)
-```
+Full pseudocode walkthrough: see the Fix Loop Pseudocode template in `references/ship-output-templates.md`.
 
 ### 7.3 Fix Strategies by Issue Type
 
@@ -441,109 +397,15 @@ git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -d 2>/d
 
 **Note:** Only fully merged branches are deleted (`-d` not `-D`). Unmerged branches with deleted remotes are preserved and reported as warnings.
 
-Display:
-```text
-Phase 8: Completion
-===================
-✓ PR #[number] successfully merged!
-
-Summary:
-  Branch: [branch-name]
-  Fix Attempts: [N]
-  Issues Resolved: [N] critical, [N] warnings
-  Merge Strategy: Squash
-
-Branches Cleaned:
-  ✓ origin/[branch-name] (deleted)
-  ✓ local/[branch-name] (deleted)
-
-Stale Branches Pruned:
-  ✓ [stale-branch-1] (remote gone, merged)
-  ✓ [stale-branch-2] (remote gone, merged)
-  [If no stale branches: "None found"]
-  [If unmerged branches with gone remotes exist:]
-  ⚠ [unmerged-branch] (remote gone, NOT deleted - has unmerged changes)
-
-PR URL: [url]
-```
+Emit the completion summary using the Phase 8.1 Success template in `references/ship-output-templates.md`.
 
 ### 8.2 Failure Path (Unfixable Issues Exist)
 
-Do NOT merge. Report to user:
-```text
-Phase 8: Completion (Manual Review Required)
-============================================
-✗ PR #[number] NOT merged - unfixable issues detected.
-
-Fix Attempts Made: [N]
-Issues Resolved: [N]
-Issues Remaining: [N]
-
-Unfixable Issues:
------------------
-
-[C1] [Issue title]
-File: [path/to/file] (lines [X-Y])
-Reason: [Why it cannot be auto-fixed]
-Suggestion: [Manual steps to resolve]
-
-[W2] [Issue title]
-File: [path/to/file] (lines [X-Y])
-Reason: [Why it cannot be auto-fixed]
-Suggestion: [Manual steps to resolve]
-
-Next Steps:
------------
-1. Review the unfixable issues above
-2. Make manual fixes in your editor
-3. Push additional commits to the PR
-4. Run /ship again to retry analysis and merge
-
-PR URL: [url] (still open)
-Branch: [branch-name] (preserved for manual work)
-```
+Do NOT merge. Report to the user using the Phase 8.2 Failure template in `references/ship-output-templates.md`.
 
 ### 8.3 Exhaustion Path (Max Attempts Reached)
 
-Do NOT merge. Report with diagnostics:
-```text
-Phase 8: Completion (Fix Loop Exhausted)
-========================================
-✗ PR #[number] NOT merged - max fix attempts (5) reached.
-
-Attempts Made: 5
-Issues Found: [N]
-Issues Resolved: [N]
-Issues Still Blocking: [N]
-
-Remaining Issues:
------------------
-
-[C1] [Issue title]
-File: [path/to/file]
-Status: [e.g., "Fixed 3 times but keeps returning"]
-
-Diagnostic Information:
------------------------
-Attempt 1: Fixed [issues], then [what happened]
-Attempt 2: Fixed [issues], then [what happened]
-...
-
-This typically indicates:
-- Generated/compiled code being modified
-- Conflicting linting rules
-- Circular dependency between fixes
-
-Recommendation:
----------------
-1. Review the diagnostic information above
-2. Manually inspect the recurring issues
-3. Consider excluding generated files
-4. Push manual fix and run /ship again
-
-PR URL: [url] (still open)
-Branch: [branch-name] (preserved for manual work)
-```
+Do NOT merge. Report diagnostics to the user using the Phase 8.3 Exhaustion template in `references/ship-output-templates.md`.
 
 ---
 

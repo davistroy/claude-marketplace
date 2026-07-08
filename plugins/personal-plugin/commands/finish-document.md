@@ -70,33 +70,9 @@ Execute the logic from `/define-questions`:
   - Dependencies or prerequisites that are undefined
   - Edge cases or scenarios not addressed
 
-- Create JSON conforming to the questions schema:
-```json
-{
-  "questions": [
-    {
-      "id": 1,
-      "topic": "Topic area",
-      "sections": ["Section name"],
-      "question": "The question or open item",
-      "context": "Relevant background",
-      "location": {
-        "line_start": 45,
-        "line_end": 45,
-        "original_text": "The original text containing the TBD/question"
-      }
-    }
-  ],
-  "metadata": {
-    "source_document": "document.md",
-    "total_questions": 0,
-    "generated_date": "ISO date",
-    "topics_summary": ["List of topics"]
-  }
-}
-```
+- Create JSON conforming to the questions schema: `questions[]` (each with `id`, `topic`, `sections`, `question`, `context`, `location.line_start`/`line_end`/`original_text`) plus `metadata` (`source_document`, `total_questions`, `generated_date`, `topics_summary`)
 
-**Schema:** Output must conform to the questions schema (see inline validation rules in `/define-questions`)
+**Schema:** `schemas/questions.json` (repo root) is the canonical JSON Schema definition; field-level extraction rules are also documented in `/define-questions`.
 
 **Important:** Capture `location` data for each question — this enables precise document updates later.
 
@@ -173,39 +149,7 @@ See `references/patterns/workflow.md` for full state management specification.
 
 ### 2.1 Question Flow
 
-For each question, present:
-
-```text
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Question 3 of 15 | Topic: [Topic Name]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**Question:** [The question text]
-
-**Location:** Line [X] in section "[Section Name]"
-**Original text:** "[The TBD or question as it appears in the document]"
-
-**Context:** [Background from the JSON]
-
-**What You're Solving:** [Inferred goal]
-
----
-
-**[A] Recommended:** [Best answer]
-    Why: [Rationale]
-
-**[B] Alternative:** [Other option]
-    Trade-off: [What changes]
-
-**[C] Alternative:** [Another option if applicable]
-    Trade-off: [What changes]
-
-**[D] Custom:** Provide your own answer
-
-**[S] Skip:** Skip for now
-
-Your choice (A/B/C/D/S):
-```
+The interactive session behaves exactly as `/ask-questions` documents: progress header, question presentation (question, location, context, what you're solving), and lettered `[A] Recommended` / `[B]`/`[C] Alternative` / `[D] Custom` / `[S] Skip` options. See `/ask-questions` for the full display format and example interaction.
 
 ### 2.2 Auto Mode Behavior
 If `--auto` flag was provided:
@@ -215,40 +159,12 @@ If `--auto` flag was provided:
 
 ### 2.3 Session Commands
 
-Support these standard session commands during Q&A (see `references/patterns/workflow.md` for full specification):
+Session commands, the `help` display, and case-insensitive command handling match `/ask-questions` (see `references/patterns/workflow.md` for full specification), plus two finish-document-specific additions for `--auto` mode:
 
-| Command | Aliases | Action |
-|---------|---------|--------|
-| `help` | `?`, `commands` | Show available session commands |
-| `status` | `progress` | Show answered/skipped/remaining summary |
-| `back` | `previous`, `prev` | Return to previous question |
-| `skip` | `next`, `pass` | Skip current question |
-| `quit` | `exit`, `stop` | Save progress and exit |
-| `go to [N]` | | Jump to question N |
-| `save` | | Save current progress without exiting |
-| `pause` | | (Auto mode) Switch to interactive |
-| `auto` | | (Interactive mode) Switch to auto for remaining |
-
-**When user types `help`:**
-```text
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Session Commands
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  help      Show this help message
-  status    Show current progress (X of Y completed)
-  back      Return to previous question
-  skip      Skip current question (can return later)
-  quit      Exit session (progress will be saved)
-
-Additional commands:
-  go to N   Jump to question number N
-  save      Save progress without exiting
-  pause     Switch from auto to interactive mode
-  auto      Switch to auto mode for remaining questions
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+| Command | Action |
+|---------|--------|
+| `pause` | (Auto mode) Switch to interactive |
+| `auto` | (Interactive mode) Switch to auto for remaining |
 
 **Navigation Bounds Checking:**
 - `go to [N]`: Validate that N is within the range 1 to total questions. If out of bounds, display:
@@ -257,11 +173,6 @@ Additional commands:
   Current position: Question [current] of [total].
   ```
 - `back`: If already at question 1, display: `Already at the first question.`
-
-**Implementation notes:**
-- Commands are case-insensitive
-- Check for session commands before processing input as an answer choice
-- Unknown input that is not A/B/C/D/S should trigger the help message
 
 ### 2.4 Save Answers
 After all questions are answered (or skipped), save to:
@@ -298,32 +209,7 @@ Answers saved to reference/answers-PRD-20260114-150030.json
 Proceeding with document update. Some answers may not apply correctly.
 ```
 
-Structure:
-```json
-{
-  "answers": [
-    {
-      "id": 1,
-      "question": "Original question",
-      "location": {
-        "line_start": 45,
-        "line_end": 45,
-        "original_text": "TBD: Define the authentication method"
-      },
-      "selected_answer": "Use OAuth 2.0 with JWT tokens",
-      "answer_type": "recommended | alternative | custom | skipped"
-    }
-  ],
-  "metadata": {
-    "source_document": "PRD.md",
-    "questions_file": "reference/questions-PRD-20260111-143052.json",
-    "total_questions": 15,
-    "answered": 14,
-    "skipped": 1,
-    "completed_at": "ISO date"
-  }
-}
-```
+**Structure:** `schemas/answers.json` (repo root) is the canonical JSON Schema definition. Each answer includes `id`, `question`, `location`, `selected_answer`, `answer_type`; `metadata` includes `source_document`, `questions_file`, `total_questions`, `answered`, `skipped`, `completed_at`.
 
 ### Phase 3: Document Update
 
