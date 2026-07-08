@@ -234,3 +234,4 @@ output/
 .implement-plan-state.json
 
 .tmp/
+uv.lock

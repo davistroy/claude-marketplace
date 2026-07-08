@@ -384,8 +384,8 @@ Escalate if wiring config through cli.py reveals additional consumers with incom
 
 ### Work Items
 
-#### 3.1 Frontmatter + per-agent meta for the 9 arch-review agents
-**Status: PENDING**
+#### 3.1 Frontmatter + per-agent meta for the 9 arch-review agents ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R1 (E008/E009)
 **Files Affected:**
@@ -406,8 +406,8 @@ Add YAML frontmatter to each: `name:` exactly equal to the filename stem (dispat
 
 ---
 
-#### 3.2 Implementer agents: pins → aliases
-**Status: PENDING**
+#### 3.2 Implementer agents: pins → aliases ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: haiku**
 **Requirement Refs:** R2, ADR-0005 (E008/E009)
 **Files Affected:**
@@ -427,8 +427,8 @@ Replace `model: claude-haiku-4-5-20251001` → `model: haiku`; `model: claude-so
 
 ---
 
-#### 3.3 arch-review dispatch simplification
-**Status: PENDING**
+#### 3.3 arch-review dispatch simplification ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R1, R11 (E008/E009)
 **Depends On:** 3.1
@@ -454,8 +454,8 @@ Escalate if the intake/prompt contract turns out to carry per-agent variation th
 
 ---
 
-#### 3.4 arch-review-single + arch-synthesize alignment
-**Status: PENDING**
+#### 3.4 arch-review-single + arch-synthesize alignment ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R1, R11 (E008/E009)
 **Depends On:** 3.1
@@ -476,8 +476,8 @@ Mirror 3.3 in the single-agent command: dispatch by subagent_type instead of "Sp
 
 ---
 
-#### 3.5 Smoke verification (resolves U1, U2)
-**Status: PENDING**
+#### 3.5 Smoke verification (resolves U1, U2) ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R1 (E009 Unknowns U1, U2)
 **Depends On:** 3.1, 3.3, 3.4
@@ -500,15 +500,15 @@ Dispatch one arch-review agent (smallest: solutions-architect) against a tiny ta
 
 ### Phase 3 Testing Requirements
 
-- [ ] `claude plugin validate --strict ./plugins/personal-plugin` passes (agents were the only strict failure)
-- [ ] Smoke dispatch (3.5) succeeds end-to-end
+- [x] `claude plugin validate --strict ./plugins/personal-plugin` passes (agents were the only strict failure)
+- [x] Smoke dispatch (3.5) succeeds end-to-end
 
 ### Phase 3 Completion Checklist
 
-- [ ] All work items complete
-- [ ] All tests passing
-- [ ] Documentation updated
-- [ ] No regressions introduced
+- [x] All work items complete
+- [x] All tests passing
+- [x] Documentation updated
+- [x] No regressions introduced
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
@@ -1247,7 +1247,7 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 | Risk | Likelihood | Impact | Mitigation Strategy | Status |
 |------|------------|--------|---------------------|--------|
 | implement-plan PATH A/B collapse regresses execution semantics | Med | High | E009 difference ledger is the authoritative spec; side-by-side semantic checklist in 4.4 acceptance; opus tier; per-phase commit enables `git revert` | Open |
-| arch-review pipeline breaks under new dispatch/meta design | Med | Med | 3.5 smoke test gates phase completion; per-agent meta is strictly simpler than shared-merge; revert path is one commit | Open |
+| arch-review pipeline breaks under new dispatch/meta design | Med | Med | 3.5 smoke test gates phase completion; per-agent meta is strictly simpler than shared-merge; revert path is one commit | Mitigated |
 | `claude plugin validate --strict` flags unforeseen issues in CI | Med | Low | Full local dry-run in 7.1 before push; pinned CLI version; only known failure (agents) already fixed by Phase 3 | Open |
 | Description edits shift auto-trigger behavior | Low | Med | 7.2 trigger evals land before Phase 8 description edits; near-miss scenarios encode current intended boundaries | Open |
 | Renormalization churn or binary corruption | Low | Med | Blast radius pre-verified (2 CRLF text files, 1 zip); explicit `*.zip binary` rule; `git status` check in 2.3 | Mitigated |
@@ -1260,8 +1260,8 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 
 | ID | Unknown | Severity | Affects | Resolution Strategy | Status |
 |----|---------|----------|---------|---------------------|--------|
-| U1 | Whether worktree-isolated subagents return written files to the main tree (motivated dropping worktree isolation) | Med | Phase 3, Item 3.5 | Smoke dispatch verifies findings land in main tree under the new no-worktree design | Open |
-| U2 | Whether dispatch requires namespaced (`personal-plugin:x`) or bare (`x`) subagent_type | Low | Phase 3, Items 3.3–3.5 | 3.5 tests both forms; dispatch table updated to whichever resolves | Open |
+| U1 | Whether worktree-isolated subagents return written files to the main tree (motivated dropping worktree isolation) | Med | Phase 3, Item 3.5 | Smoke dispatch verifies findings land in main tree under the new no-worktree design — RESOLVED: no-worktree design confirmed; dispatched agent file-writes land in the main tree | Resolved [2026-07-08] |
+| U2 | Whether dispatch requires namespaced (`personal-plugin:x`) or bare (`x`) subagent_type | Low | Phase 3, Items 3.3–3.5 | 3.5 tests both forms; dispatch table updated to whichever resolves — RESOLVED: namespaced `personal-plugin:<agent>` form resolves correctly (smoke-tested) | Resolved [2026-07-08] |
 | U3 | Current OpenAI/Google deep-research model IDs (unverifiable offline) | Low | Phase 1, Item 1.5 | Keep the skill's runtime model-check step authoritative; stamp verified-date on Anthropic ID only | Open |
 | U4 | `~/dev/info/technical-document-structure-template.md` missing on the Linux VM (sync gap) | Low | Phase 2, Item 2.2 | Fallback instruction added in 2.2; user syncs the file from Windows or accepts the fallback | Open |
 

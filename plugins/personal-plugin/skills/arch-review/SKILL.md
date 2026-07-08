@@ -3,7 +3,7 @@ name: arch-review
 description: Comprehensive 9-agent architecture review — spawns parallel domain specialists (architecture, code, data, integration, performance, QA, security, platform, risk) and produces structured findings with executive report and go/no-go recommendation
 argument-hint: "<path-to-target> [--focus <agents>] [--no-meta]"
 effort: high
-allowed-tools: Read, Glob, Grep, Bash, Task
+allowed-tools: Read, Glob, Grep, Bash, Agent
 disable-model-invocation: true
 ---
 
@@ -15,7 +15,7 @@ You are the **Review Lead** orchestrating a world-class architecture review. You
 
 Valid `--focus` agents: `solutions-architect`, `data-architect`, `integration-architect`, `software-engineer`, `performance-engineer`, `qa-architect`, `security-architect`, `platform-engineer`, `risk-compliance`
 
-`--no-meta`: Skip writing `.meta.json` (faster, useful for quick spot-checks)
+`--no-meta`: Skip writing per-agent `.meta.json` files (faster, useful for quick spot-checks)
 
 ---
 
@@ -37,10 +37,11 @@ After parsing `TARGET_PATH` above, create the output structure using the **Bash 
 
 ```bash
 mkdir -p "${TARGET_PATH}/arch-review/findings" "${TARGET_PATH}/arch-review/reports"
-[ "$WRITE_META" = "true" ] && echo '{}' > "${TARGET_PATH}/arch-review/findings/.meta.json"
 ```
 
-> Do NOT use the `!`...`` slash-command shell-injection syntax here — that runs at command parse time, before `TARGET_PATH` has been parsed from `$ARGUMENTS`, so the placeholder reaches bash unsubstituted and fails with a redirection-syntax error. Always invoke the Bash tool from the model with the resolved path.
+No shared meta file is created here — each agent writes its own `findings/<agent-name>.meta.json` as part of its run (skipped when `--no-meta` is set; see Step 3).
+
+> Do NOT use the `!`...`` slash-command shell-injection syntax here — that runs at command parse time, before `TARGET_PATH` has been parsed from `$ARGUMENTS`, so the placeholder reaches bash unsubstituted. Always invoke the Bash tool from the model with the resolved path.
 
 ---
 
@@ -85,53 +86,45 @@ Write `<TARGET_PATH>/arch-review/intake.md`:
 
 ## Step 3 — Spawn Domain Agents in Parallel
 
-Inject the intake content, then immediately spawn all selected agents simultaneously using the Task tool. Do NOT wait for one to finish before spawning the next.
+Inject the intake content, then immediately spawn all selected agents simultaneously using the Agent tool. Do NOT wait for one to finish before spawning the next.
 
-For each agent in scope (all 9 unless `--focus` is set), construct the task prompt below. Use the **Read tool** to load `${TARGET_PATH}/arch-review/intake.md` and the agent file, then inline both contents into the prompt before dispatch:
+For each agent in scope (all 9 unless `--focus` is set), construct the task prompt below. Use the **Read tool** to load `${TARGET_PATH}/arch-review/intake.md` and inline its content into the prompt before dispatch. Dispatch each agent via the **Agent tool** with `subagent_type: "personal-plugin:<agent-name>"` (see table below) — the registered agent definition supplies its own role and behavioral instructions as its system prompt, so nothing needs to be pasted into the dispatch prompt itself. If the namespaced `personal-plugin:<agent-name>` form fails to resolve, fall back to the bare `<agent-name>` form (see item 3.5 for smoke-test verification of which form resolves):
 
 ```text
-You are the [ROLE] on an architecture review team.
-subagent_type: [SUBAGENT_TYPE]
-isolation: worktree
-
-[PASTE FULL CONTENTS OF ${CLAUDE_PLUGIN_ROOT}/agents/<agent-name>.md HERE]
-
----
-
 ## Review Target
 Path: [resolved TARGET_PATH]
 
 ## Intake Summary
-[PASTE FULL CONTENTS OF ${TARGET_PATH}/arch-review/intake.md HERE]
+[INLINE FULL CONTENTS OF ${TARGET_PATH}/arch-review/intake.md HERE]
 
 ## Output Paths
 - Findings: [resolved TARGET_PATH]/arch-review/findings/<agent-name>.md
-- Meta: [resolved TARGET_PATH]/arch-review/findings/.meta.json
+- Meta: [resolved TARGET_PATH]/arch-review/findings/<agent-name>.meta.json
 
 Begin your review now. Be thorough. Flag uncertainty explicitly rather than omitting findings.
 ```
+
+If `WRITE_META` is false (`--no-meta`), omit the Meta line from Output Paths and append to the prompt: `Do not write a .meta.json file for this run.`
 
 Agent dispatch table — use the exact `subagent_type` for each role:
 
 | Agent | `subagent_type` | Output File |
 |-------|----------------|------------|
-| `solutions-architect` | `solutions-architect` | `findings/solutions-architect.md` |
-| `data-architect` | `data-architect` | `findings/data-architect.md` |
-| `integration-architect` | `integration-architect` | `findings/integration-architect.md` |
-| `software-engineer` | `software-engineer` | `findings/software-engineer.md` |
-| `performance-engineer` | `performance-engineer` | `findings/performance-engineer.md` |
-| `qa-architect` | `qa-architect` | `findings/qa-architect.md` |
-| `security-architect` | `security-architect` | `findings/security-architect.md` |
-| `platform-engineer` | `platform-engineer` | `findings/platform-engineer.md` |
-| `risk-compliance` | `risk-compliance` | `findings/risk-compliance.md` |
-
-Each agent runs in `isolation: worktree` to prevent concurrent `.meta.json` write collisions. Agents must write their meta entry atomically (read–merge–write) rather than blindly overwriting the file.
+| `solutions-architect` | `personal-plugin:solutions-architect` | `findings/solutions-architect.md` |
+| `data-architect` | `personal-plugin:data-architect` | `findings/data-architect.md` |
+| `integration-architect` | `personal-plugin:integration-architect` | `findings/integration-architect.md` |
+| `software-engineer` | `personal-plugin:software-engineer` | `findings/software-engineer.md` |
+| `performance-engineer` | `personal-plugin:performance-engineer` | `findings/performance-engineer.md` |
+| `qa-architect` | `personal-plugin:qa-architect` | `findings/qa-architect.md` |
+| `security-architect` | `personal-plugin:security-architect` | `findings/security-architect.md` |
+| `platform-engineer` | `personal-plugin:platform-engineer` | `findings/platform-engineer.md` |
+| `risk-compliance` | `personal-plugin:risk-compliance` | `findings/risk-compliance.md` |
 
 ---
 
 ## Step 4 — Coverage Assessment and Conflict Detection
 
-After all spawned agents complete, use the **Read tool** to load `${TARGET_PATH}/arch-review/findings/.meta.json` (substitute the resolved path).
+After all spawned agents complete, use the **Glob tool** to find the nine per-agent meta files at `${TARGET_PATH}/arch-review/findings/*.meta.json`, then use the **Read tool** to load and merge each one (substitute the resolved path).
 
 1. Note any agent with Low/Medium confidence or significant tool gaps
 2. Read all findings files
@@ -249,7 +242,7 @@ Recommendation: GO / CONDITIONAL GO / NO-GO
 Reports written to: <TARGET_PATH>/arch-review/
   Executive summary: arch-review/reports/executive-summary.md
   Domain findings:   arch-review/findings/*.md
-  Coverage meta:     arch-review/findings/.meta.json
+  Coverage meta:     arch-review/findings/*.meta.json (one per agent)
 ```
 
 ---

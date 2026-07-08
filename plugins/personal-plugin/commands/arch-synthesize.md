@@ -17,10 +17,11 @@ Parse target path from: **$ARGUMENTS**
 
 1. Validate `<target-path>/arch-review/findings/` exists — if not, stop and suggest running `/arch-review` first
 
-2. Read coverage meta:
+2. Discover and merge per-agent coverage meta:
 ```bash
-cat <target-path>/arch-review/findings/.meta.json 2>/dev/null || echo "No .meta.json — agent meta unavailable"
+ls <target-path>/arch-review/findings/*.meta.json 2>/dev/null || echo "No *.meta.json files found — agent meta unavailable"
 ```
+   Read each `<agent-name>.meta.json` file found and merge their entries into a single coverage map keyed by agent name. Only a subset of the standard 9 agents may have run — an agent missing its `.meta.json` file is not an error; treat it the same as a missing findings file (flag as "Domain not reviewed" per step 4).
 
 3. List all findings files present:
 ```bash
@@ -37,7 +38,7 @@ ls <target-path>/arch-review/findings/*.md 2>/dev/null
    - Document any unresolved conflicts in the executive summary
 
 7. Produce fresh `<target-path>/arch-review/reports/executive-summary.md` — overwrite existing
-   - Begin with the **Review Coverage** table rendered from `.meta.json`
+   - Begin with the **Review Coverage** table rendered from the merged per-agent meta (step 2)
    - Follow the full report structure from `/arch-review`
 
 8. Print terminal summary:

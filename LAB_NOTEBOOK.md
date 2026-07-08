@@ -535,6 +535,15 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 - *Environment:* Linux VM, ruff 0.6.9 (~/.local/bin), Python 3.11.14 via uv, pytest 9.1.1 (tool venv), markdownlint-cli via npx. Staged renormalization left untouched in index; no commits made.
 - *Duration:* ~4 minutes wall (suites run in parallel).
 
+**Phase 3 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 3 DoD suite — repo pytest, `claude plugin validate --strict` on personal-plugin, agent frontmatter loop, name=stem check on all 9 agents, implementer model-alias check, markdownlint, stale `findings/.meta.json` grep. Fix in-scope failures (≤3 attempts); pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 3's agent frontmatter + per-agent meta contract + dispatch-by-name rewrites pass all 7 checks; markdownlint shows only the 3 known MD012 fixture errors. Success = all pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked markdown file — `git checkout -- <file>` reverts. N/A otherwise.
+- *Initial results:* 6/7 PASS. Check 7 FAIL — 2 stale shared-meta refs in `plugins/personal-plugin/skills/arch-review/SKILL.md`: line 40 (Step 1 seeds `findings/.meta.json` with `{}`) and line 242 (terminal summary prints `Coverage meta: arch-review/findings/.meta.json`). Root cause: Phase 3's per-agent meta rewrite updated Step 3 (dispatch prompt), Step 4 (glob `*.meta.json`), and both arch commands, but missed Step 1 setup and Step 6 summary — vestiges of the old shared/merged meta contract. Under per-agent meta, no seeding is needed (each agent writes `findings/<agent-name>.meta.json` itself); removing the seed line orphans `WRITE_META`, so `--no-meta` must be rewired into dispatch-prompt construction to stay functional.
+- *Fix (arch-review/SKILL.md only):* (1) drop the `.meta.json` seed line from Step 1 + note per-agent meta; (2) reword the Step 1 caution (its "redirection-syntax error" specifics described the removed seed line); (3) Step 3 gains a `WRITE_META`-false branch — omit Meta output path, instruct agent to skip meta; (4) Step 6 summary line → `findings/*.meta.json (one per agent)`; (5) `--no-meta` flag doc → "per-agent `.meta.json` files".
+- *Post-fix results:* stale-ref grep clean (exit 1, no matches); `WRITE_META` still consumed (Step 3); edited file markdownlint-clean; `claude plugin validate --strict` still passes; repo pytest unaffected (67/67).
+- *Final:* ALL 7 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11.14/pytest 9.1.1 via uv, markdownlint-cli via npx. No commits made.
+
 ---
 
 *Entries continue below.*

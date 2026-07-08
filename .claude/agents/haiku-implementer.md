@@ -1,6 +1,6 @@
 ---
 name: haiku-implementer
-model: claude-haiku-4-5-20251001
+model: haiku
 description: Executes deterministic, low-ambiguity implementation tasks. Best for renames, format conversions, regex edits, boilerplate from a clear spec, classification, simple lookups, and summarizing small chunks. Return ESCALATE:[reason] if the task requires architectural judgment or spans multiple files with non-obvious coupling.
 ---
 

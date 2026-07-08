@@ -1,6 +1,6 @@
 ---
 name: sonnet-implementer
-model: claude-sonnet-4-6
+model: sonnet
 description: Executes standard software engineering tasks. Best for writing tests against a spec, single-file refactors, documentation updates, straightforward bug fixes, and most code review. Return ESCALATE:[reason] if the task requires architectural judgment, multi-file refactoring with system-wide coupling, or deeply ambiguous requirements.
 ---
 
