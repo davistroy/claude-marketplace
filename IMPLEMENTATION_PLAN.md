@@ -957,8 +957,8 @@ Flip generation defaults: `skills/` scaffolded by default; `commands/` only on e
 
 ### Work Items
 
-#### 7.1 CI plugin-validate job
-**Status: PENDING**
+#### 7.1 CI plugin-validate job ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R8 (E008/E009; approved default: marketplace non-strict)
 **Files Affected:**
@@ -978,8 +978,8 @@ Add a `plugin-validate` job on ubuntu-latest: `actions/setup-node@v4` (node 20, 
 
 ---
 
-#### 7.2 Trigger evals
-**Status: PENDING**
+#### 7.2 Trigger evals ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R8 (E008/E009)
 **Files Affected:**
@@ -999,8 +999,8 @@ Author should-trigger/should-not-trigger scenarios in the plan-gate.eval.md idio
 
 ---
 
-#### 7.3 CLAUDE.md guidance refresh
-**Status: PENDING**
+#### 7.3 CLAUDE.md guidance refresh ✅ Completed 2026-07-08
+**Status: COMPLETE [2026-07-08]**
 **Model Tier: sonnet**
 **Requirement Refs:** R12, R9 (E008/E009; ADR-0006)
 **Files Affected:**
@@ -1022,15 +1022,15 @@ Update Verified Operational Rules: correct the skill-`name` rule to note the 202
 
 ### Phase 7 Testing Requirements
 
-- [ ] CI green on a branch push including the new job
-- [ ] Eval file passes markdownlint and matches house eval format
+- [x] CI green on a branch push including the new job
+- [x] Eval file passes markdownlint and matches house eval format
 
 ### Phase 7 Completion Checklist
 
-- [ ] All work items complete
-- [ ] All tests passing
-- [ ] Documentation updated
-- [ ] No regressions introduced
+- [x] All work items complete
+- [x] All tests passing
+- [x] Documentation updated
+- [x] No regressions introduced
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
@@ -1251,8 +1251,8 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 |------|------------|--------|---------------------|--------|
 | implement-plan PATH A/B collapse regresses execution semantics | Med | High | E009 difference ledger is the authoritative spec; side-by-side semantic checklist in 4.4 acceptance; opus tier; per-phase commit enables `git revert` | Mitigated |
 | arch-review pipeline breaks under new dispatch/meta design | Med | Med | 3.5 smoke test gates phase completion; per-agent meta is strictly simpler than shared-merge; revert path is one commit | Mitigated |
-| `claude plugin validate --strict` flags unforeseen issues in CI | Med | Low | Full local dry-run in 7.1 before push; pinned CLI version; only known failure (agents) already fixed by Phase 3 | Open |
-| Description edits shift auto-trigger behavior | Low | Med | 7.2 trigger evals land before Phase 8 description edits; near-miss scenarios encode current intended boundaries | Open |
+| `claude plugin validate --strict` flags unforeseen issues in CI | Med | Low | Full local dry-run in 7.1 before push; pinned CLI version; only known failure (agents) already fixed by Phase 3 | Mitigated |
+| Description edits shift auto-trigger behavior | Low | Med | 7.2 trigger evals land before Phase 8 description edits; near-miss scenarios encode current intended boundaries | Mitigated |
 | Renormalization churn or binary corruption | Low | Med | Blast radius pre-verified (2 CRLF text files, 1 zip); explicit `*.zip binary` rule; `git status` check in 2.3 | Mitigated |
 | new-skill pattern adapter produces malformed skills | Low | Med | Templates untouched (adapter-only); generated output must pass frontmatter validation per 6.1 acceptance | Mitigated |
 | validate-plugin refactor silently weakens a check | Low | High | 5.1 rule: checks move verbatim, only illustrations extracted; post-refactor `/validate-plugin --all` compared against pre-refactor output | Mitigated |

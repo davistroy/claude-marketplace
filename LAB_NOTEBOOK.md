@@ -586,6 +586,18 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
   - README coherence: PASS — line 41 reads "23 commands and 24 skills"; command table has no new-command row; `commands/*.md` on disk = 23, matching.
 - *Final:* ALL 8 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11.14/pytest 9.1.1 via uv, markdownlint-cli via npx, HEAD 9991c46 on feat/guidance-modernization-v10 (Phase 6 changes in working tree). No commits made.
 
+**Phase 7 verification (testing agent, 2026-07-08):**
+- *Objective:* Run Phase 7 DoD suite — repo pytest; workflow YAML sanity (`plugin-validate` job in `.github/workflows/validate.yml`); markdownlint; CLAUDE.md consistency (stated counts vs disk, ADR-0005/ADR-0006 refs); description-triggers eval structure (14 scenarios, `type: skill` frontmatter). Fix in-scope failures (≤3 attempts); pre-existing debt reported, not fixed.
+- *Hypothesis:* Phase 7's plugin-validate CI job (pinned @2.1.204), new eval file, and CLAUDE.md refresh pass all 5 checks; markdownlint shows only the 3 known MD012 fixture errors; a workflow test asserting the old job list is the only stale-test candidate. Success = all pass or residual failures proven pre-existing.
+- *Rollback plan:* Checks are read-only. Any fix is an edit to a git-tracked file — `git checkout -- <file>` reverts. N/A otherwise.
+- *Results:* ALL 5 PASS on first run — zero fixes needed, zero stale tests.
+  - repo pytest `tests/`: PASS — 67/67, exit 0, 0.20s (same uv invocation as Phases 1-6). No test asserted a stale job list — no adjudication needed.
+  - Workflow YAML: PASS — `yaml.safe_load` parses validate.yml; jobs = [validate, python-lint, lint-markdown, plugin-validate]; `plugin-validate` present.
+  - markdownlint: FAIL exit-wise, PRE-EXISTING ONLY — exactly the 3 known MD012 in `tests/fixtures/invalid-plugin/commands/`; refreshed CLAUDE.md and the new eval file lint clean.
+  - CLAUDE.md consistency: PASS — stated `commands/ (23)` matches disk (23 `commands/*.md`); skills listing enumerates 24 names matching 24 skill dirs on disk; ADR-0005 refs ×2 (lines 24, 164) and ADR-0006 refs ×3 (lines 19, 20, 228) present.
+  - Eval structure: PASS — `evals/skills/description-triggers.eval.md` has exactly 14 `### S` scenarios; frontmatter carries `command: description-triggers`, `type: skill`, `fixtures: []`.
+- *Final:* ALL 5 PASS (markdownlint pass-with-preexisting: exactly the 3 known MD012). Environment: Linux VM, Claude Code CLI 2.1.204, Python 3.11.14/pytest 9.1.1 via uv, markdownlint-cli via npx (Phase 7 changes in working tree). No commits made.
+
 ---
 
 *Entries continue below.*

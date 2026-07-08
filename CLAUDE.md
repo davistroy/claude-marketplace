@@ -16,10 +16,13 @@ After any non-trivial finding (plugin discovery failure, frontmatter requirement
 ### Verified Operational Rules
 
 - **Skills MUST use nested directory structure** — `skills/name/SKILL.md` not `skills/name.md`. Flat files not discovered.
-- **Skills MUST have `name` in frontmatter** — without it the skill is not registered.
+- **Skills MUST have `name` in frontmatter (house convention)** — the 2026 platform spec makes `name` optional (defaults to the dir name); this repo requires it explicitly for dispatch clarity and directory-name consistency (ADR-0006).
+- **New functionality ships as skills; `commands/` is frozen legacy** — maintained, not extended. Scaffold new work with `/new-skill` (ADR-0006).
 - **Commands MUST NOT have `name` in frontmatter** — adding `name` prevents command discovery.
 - **Do NOT add `tools` field to plugin.json** — causes "Unrecognized key: tools" error.
 - **Do NOT add `"hooks"` field to plugin.json** — Claude Code auto-loads `hooks/hooks.json`. Declaring it causes "Duplicate hooks file detected" error.
+- **Agent `model:` frontmatter uses tier aliases, never pinned IDs** — `haiku`/`sonnet`/`opus`/`fable`/`inherit` resolve at dispatch time so pins can't silently go stale (ADR-0005).
+- **Keep descriptions and skill bodies compact** — `description` ≤1024 chars (1536 combined with `when_to_use`), with all trigger/proactive-use info there, never a body "Proactive Triggers" section; SKILL.md body <500 lines, bulk moved to `references/`.
 - **Always `git fetch` + check `origin/main` divergence before trusting any version state** — the local working tree can silently lag origin even when `git status` shows clean. Happened twice (LAB_NOTEBOOK.md Entry 006/D17, Entry 007/D19), both times causing wrong version-bump math or a stale baseline. Version source of truth is always `origin/main`, never local HEAD.
 
 ---
@@ -99,7 +102,9 @@ allowed-tools: Bash(git:*)
 - `name` — REQUIRED, must match directory name
 - `description` — REQUIRED
 
-Optional: `argument-hint`, `effort`, `disable-model-invocation`, `allowed-tools`, `context`, `agent`, `version`, `license`
+Optional: `argument-hint`, `effort`, `disable-model-invocation`, `allowed-tools`, `context`, `agent`, `version`, `license`, `when_to_use`, `arguments`, `user-invocable`, `disallowed-tools`, `shell`
+
+`disable-model-invocation: true` also removes the description from session context — use for side-effect-only skills that should never be proactively suggested.
 
 ## Command Frontmatter
 
@@ -120,7 +125,7 @@ allowed-tools: Bash(git:*)
 plugins/
   personal-plugin/
     .claude-plugin/plugin.json
-    commands/          # analyze-transcript, arch-review-single, arch-synthesize, ask-questions,
+    commands/ (23)     # analyze-transcript, arch-review-single, arch-synthesize, ask-questions,
                        # assess-document, bump-version, clean-repo, consolidate-documents,
                        # convert-markdown, create-plan, define-questions, develop-image-prompt,
                        # finish-document, implement-plan, new-skill, plan-improvements,
@@ -135,7 +140,8 @@ plugins/
                        # visual-explainer, wiki
     references/        # common-patterns.md, api-key-setup.md, flag-consistency.md,
                        # plan-template.md, research-models.md, validation-maturity-scorecard.md,
-                       # adr-template.md, agents-md-template.md, anti-patterns.md
+                       # adr-template.md, agents-md-template.md, anti-patterns.md,
+                       # …plus extraction references (validation-output-examples, ship-output-templates, etc.) and hooks/patterns/templates/ subdirs
     hooks/hooks.json
     tools/             # feedback-docx-generator, visual-explainer
 
@@ -154,8 +160,8 @@ plugins/
 
 .claude/
   agents/              # Named implementer agents for implement-plan model routing
-                       # haiku-implementer (claude-haiku), sonnet-implementer (claude-sonnet),
-                       # opus-implementer (claude-opus) — model pinned in frontmatter
+                       # haiku-implementer, sonnet-implementer, opus-implementer —
+                       # model: tier alias in frontmatter, never pinned IDs (ADR-0005)
 ```
 
 ## Command Patterns
@@ -219,7 +225,7 @@ python -c "import package_name" 2>/dev/null || echo "package_name: MISSING"
 
 1. Create `plugins/[name]/`
 2. Add `.claude-plugin/plugin.json`
-3. Add `commands/` (flat .md files) and `skills/` (nested dirs with SKILL.md)
+3. Add `skills/` (nested dirs with SKILL.md) — default; `commands/` (flat .md files) only for the frozen-legacy format (ADR-0006)
 4. Register in `.claude-plugin/marketplace.json`
 5. Run `/validate-plugin [plugin-name]`
 
