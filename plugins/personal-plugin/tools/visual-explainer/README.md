@@ -68,7 +68,7 @@ pip install -e ".[all]"
 
 **Optional:**
 - python-docx (DOCX reading)
-- PyPDF2 (PDF reading)
+- pypdf (PDF reading)
 - beautifulsoup4 (URL content extraction)
 
 ---

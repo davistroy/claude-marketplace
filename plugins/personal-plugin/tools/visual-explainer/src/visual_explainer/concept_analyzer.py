@@ -50,7 +50,7 @@ except ImportError:
     DOCX_AVAILABLE = False
 
 try:
-    from PyPDF2 import PdfReader
+    from pypdf import PdfReader
 
     PDF_AVAILABLE = True
 except ImportError:
@@ -378,12 +378,12 @@ def read_pdf_file(path: Path) -> str:
         Extracted text content.
 
     Raises:
-        ImportError: If PyPDF2 is not installed.
+        ImportError: If pypdf is not installed.
         FileNotFoundError: If file doesn't exist.
         ValueError: If file can't be read.
     """
     if not PDF_AVAILABLE:
-        raise ImportError("PDF support requires PyPDF2. Install with: pip install PyPDF2")
+        raise ImportError("PDF support requires pypdf. Install with: pip install pypdf")
 
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
