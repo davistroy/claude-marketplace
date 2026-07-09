@@ -22,6 +22,7 @@ Then install the plugins you want:
 ```text
 /plugin install personal-plugin@troys-plugins
 /plugin install bpmn-plugin@troys-plugins
+/plugin install xquik-x-data@troys-plugins
 ```
 
 ### Installation Scopes
@@ -136,6 +137,20 @@ BPMN 2.0 workflow tools for generating and converting process diagrams.
 - Color coding by lane function
 - Editable diagrams for Draw.io Desktop and web
 
+### xquik-x-data
+
+Xquik REST API and remote MCP workflows for X data, exports, monitoring, and webhooks.
+
+**Skills:**
+| Skill | Description |
+|-------|-------------|
+| [`/xquik-x-data`](plugins/xquik-x-data/skills/xquik-x-data/SKILL.md) | Route X data tasks to current Xquik docs, OpenAPI, REST API, and remote MCP setup. |
+
+**xquik-x-data** helps with:
+- REST API setup using `x-api-key`
+- Remote MCP setup with `Authorization: Bearer ${XQUIK_API_KEY}`
+- Export, monitoring, webhook, and write planning with explicit approval
+
 ## Repository Structure
 
 ```text
@@ -166,6 +181,12 @@ plugins/
       plugin.json           # Plugin metadata
     skills/                 # sg-research, sg-outline, sg-draft, sg-optimize,
                             # sg-validate-graphics, sg-generate-images, sg-build, sg-full-workflow
+
+  xquik-x-data/
+    .claude-plugin/
+      plugin.json           # Plugin metadata
+    .mcp.json               # Optional remote MCP config
+    skills/                 # Xquik data workflow skill
 
 .claude/
   agents/                   # Named implementer agents (haiku/sonnet/opus-implementer)

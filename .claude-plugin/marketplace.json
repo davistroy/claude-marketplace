@@ -33,6 +33,14 @@
       "version": "1.2.0",
       "category": "productivity",
       "tags": ["presentation","powerpoint","slides","ai","pipeline","claude","gemini"]
+    },
+    {
+      "name": "xquik-x-data",
+      "source": "./plugins/xquik-x-data",
+      "description": "Xquik REST API and remote MCP workflows for X data, exports, monitoring, and webhooks",
+      "version": "1.0.0",
+      "category": "development",
+      "tags": ["xquik","x-data","mcp","api","webhooks","monitoring"]
     }
   ]
 }

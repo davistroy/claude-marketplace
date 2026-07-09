@@ -1,0 +1,13 @@
+{
+  "name": "xquik-x-data",
+  "description": "Xquik REST API and remote MCP workflows for X data, exports, monitoring, and webhooks",
+  "version": "1.0.0",
+  "author": {
+    "name": "Xquik"
+  },
+  "homepage": "https://docs.xquik.com",
+  "repository": "https://github.com/Xquik-dev/x-twitter-scraper",
+  "license": "MIT",
+  "keywords": ["xquik", "x-data", "mcp", "api", "webhooks", "monitoring"],
+  "mcpServers": "./.mcp.json"
+}
