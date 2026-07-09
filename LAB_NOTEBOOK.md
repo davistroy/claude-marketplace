@@ -38,9 +38,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 ### Open
 
-| # | Action | Created | Source Entry | Priority |
-|---|--------|---------|-------------|----------|
-| A10 | Post-merge: verify installed plugin cache picks up 10.0.0 via autoUpdate (per D19), then smoke-test arch-review dispatch with the NEW agent frontmatter live | 2026-07-08 | E010 | Medium — new agent definitions only take effect after cache sync |
+*(none currently open)*
 
 ### Completed
 
@@ -60,6 +58,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C12 | Reinstall plugin to sync gap-analysis changes (A7) — superseded: cache auto-syncs from GitHub `origin/main` (`autoUpdate: true`), confirmed cache already at 9.3.0 = origin tip before any manual action; the actual gap was the local dev clone lagging origin by 1 commit, fixed via `git pull --ff-only` | 2026-04-30 | 2026-07-08 | E007 |
 | C13 | Bump personal-plugin version to 9.0.0 (A8) — done via commit `3b9679d`, since surpassed (now 9.3.0) | 2026-04-30 | 2026-04-30 | E003 |
 | C14 | Execute the 13 review recommendations R1–R13 (A9) — full 8-phase/35-item plan executed via /implement-plan; released as 10.0.0/4.2.0/1.2.0/3.3.0 | 2026-07-08 | 2026-07-08 | E008–E010 |
+| C15 | Force plugin cache to release versions + arch-review smoke test (A10) — cache at 10.0.0/4.2.0/1.2.0 verified on disk; dispatch mechanics green; new definitions restart-gated (load next session) | 2026-07-08 | 2026-07-08 | E011 |
 
 ---
 
@@ -609,6 +608,35 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 - **Status:** COMPLETE. Duration ~3.5 h wall-clock. PR #96 merged (squash `6c40719`) at 2026-07-08T21:47Z; branch deleted; local main reset to origin (the morning docs-sync commit `c7efd1d` was never pushed standalone — its content rode in the squash; 1-and-1 divergence resolved by reset, no loss).
 - **Post-merge hotfix 1:** CI's `Ruff format check` step (`ruff format --check plugins/*/tools/*/src/ tests/`) failed on main — item 2.4's cli.py edit wasn't formatter-clean. Root cause: the run's DoD used `ruff check` (lint) but never CI's `ruff format --check`; invocation gap between DoD and CI. Fixed with one `ruff format` pass on cli.py (+6/−2, behavior-neutral), hotfixed to main as `db80808`. Lesson: DoD commands must be lifted verbatim from CI workflow steps, not paraphrased.
 - **Post-merge hotfix 2 (unrelated to release):** pip-audit CI job failed on a freshly published CVE — pypdf2 3.0.1 / PYSEC-2026-1835. Advisory "fix 3.9.0" refers to the SUCCESSOR package: PyPDF2 ended at 3.0.1 (verified via PyPI; project continued as `pypdf`). Migrated visual-explainer to `pypdf>=3.9.0` (resolves 6.14.2, verbatim drop-in for the PdfReader/pages/extract_text surface used): pyproject ×2 groups, concept_analyzer.py import, README dep list. Verified: 607 tests pass, local pip-audit "No known vulnerabilities", ruff format/check clean. Would have failed on ANY push today — upstream disclosure, not a release regression.
+
+---
+
+### Entry 011 — Force plugin cache update to 10.0.0 + arch-review smoke test (A10) [plugin] [config]
+
+**Date:** 2026-07-08
+**Environment:** Linux VM, Claude Code CLI 2.1.204, main at `4194ca6` (post-release + 2 hotfixes), installed cache at personal-plugin 9.3.0 pre-test
+**Status:** IN PROGRESS
+
+**Objective:** Force the installed plugin cache to pick up personal-plugin 10.0.0 (plus bpmn 4.2.0 / slide-gen 1.2.0) from origin/main, then smoke-test arch-review dispatch against the NEW agent definitions (frontmatter tools/model/description + per-agent meta contract).
+
+**Hypothesis:** Official CLI plugin-update commands refresh the marketplace clone and cache without manual file surgery. Expected wrinkle: THIS session's agent registry snapshotted at session start — a dispatched `personal-plugin:solutions-architect` may still run the OLD (frontmatter-less) definition even after the cache updates. Discriminator: old body says "merge shared findings/.meta.json"; new body says "write findings/<agent-name>.meta.json"; old registration = all tools, new = Read/Glob/Grep/Bash/Write/Edit only. Success criteria: cache dir shows 10.0.0 with frontmattered agents on disk; smoke dispatch either exercises the new contract (ideal) or proves the session-snapshot behavior (documented, verified in next session).
+
+**Rollback Plan:** Cache is rebuildable API-managed state — worst case `rm -rf ~/.claude/plugins/cache/troys-plugins` + `/plugin install` regenerates from GitHub (D19). Marketplace clone: `git -C ~/.claude/plugins/marketplaces/troys-plugins` is a plain clone of origin/main — re-cloneable. No repo files affected.
+
+**Actions & Results:**
+
+1. `claude plugin marketplace update troys-plugins` — marketplace clone refreshed from GitHub. OK.
+2. `claude plugin update <name>` failed with "not found" for bare names — plugins are registered as `name@marketplace`; `claude plugin update personal-plugin@troys-plugins` (and bpmn, slide-gen) succeeded: **9.3.0→10.0.0, 4.1.0→4.2.0, 1.1.0→1.2.0**, each with "Restart to apply changes."
+3. Cache verification on disk: `cache/troys-plugins/personal-plugin/10.0.0/` exists; `agents/solutions-architect.md` carries the full new frontmatter (name/description/tools/model: inherit/effort: high); per-agent meta contract present; brain-entry lockdown (`disable-model-invocation` + `allowed-tools: Bash(curl:*)`) live in cache.
+4. **Smoke test (discriminator design):** dispatched `personal-plugin:solutions-architect` asking it to quote its meta-output instruction verbatim and write findings+meta using its prescribed FILENAMES. Result: SMOKE_OK mechanically (3-finding mini-review, sane meta counts), but the agent quoted the OLD instruction ("write `arch-review/findings/.meta.json` … merge your entry in") and wrote a shared `.meta.json` — **this session's agent registry is the 9.3.0 snapshot; new definitions apply on next session start**, exactly matching the CLI's restart notice and the E011 hypothesis.
+
+**Findings:**
+- `claude plugin update` requires the `plugin@marketplace` qualified form for marketplace-installed plugins (bare name → "not found at user scope").
+- Agent definitions are snapshotted into the session registry at startup; cache updates mid-session change disk only. In-session dispatch remains fully functional on the old snapshot.
+- The 10.0.0 definitions in cache are byte-correct (frontmatter, per-agent meta, lockdowns) — next session's registry loads them with nothing further to do.
+
+**Status:** COMPLETE. A10 closed (C15): cache forced to release versions and verified on disk; smoke mechanics green; live-registry pickup is restart-gated platform behavior, now demonstrated. First arch-review run in a fresh session exercises the new contract end-to-end.
+**Duration:** ~10 minutes
 
 ---
 
