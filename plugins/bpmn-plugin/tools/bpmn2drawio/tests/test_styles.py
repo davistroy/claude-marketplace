@@ -336,3 +336,83 @@ class TestThemeStyleIntegration:
         task_style = theme.style_for("task")
         assert sub_style != task_style
         assert "container=1" in sub_style
+
+
+class TestLabelAlignment:
+    """Tests for label placement on small shapes (events and gateways).
+
+    Event circles and gateway diamonds are small, so their labels must render
+    below the shape instead of centred inside it (where long names overflow).
+    """
+
+    EVENT_TYPES = [
+        "startEvent",
+        "endEvent",
+        "intermediateCatchEvent",
+        "intermediateThrowEvent",
+        "boundaryEvent",
+    ]
+    GATEWAY_TYPES = [
+        "exclusiveGateway",
+        "parallelGateway",
+        "inclusiveGateway",
+        "eventBasedGateway",
+        "complexGateway",
+    ]
+    TASK_TYPES = [
+        "task",
+        "userTask",
+        "serviceTask",
+        "scriptTask",
+        "businessRuleTask",
+        "manualTask",
+    ]
+
+    def test_events_place_label_below_in_style_map(self):
+        """Every event style positions its label below the shape."""
+        for event_type in self.EVENT_TYPES:
+            style = STYLE_MAP[event_type]
+            assert "verticalLabelPosition=bottom" in style, event_type
+            assert "verticalAlign=top" in style, event_type
+
+    def test_gateways_place_label_below_in_style_map(self):
+        """Every gateway style positions its label below the shape."""
+        for gw_type in self.GATEWAY_TYPES:
+            style = STYLE_MAP[gw_type]
+            assert "verticalLabelPosition=bottom" in style, gw_type
+            assert "verticalAlign=top" in style, gw_type
+
+    def test_tasks_keep_centered_label_in_style_map(self):
+        """Tasks are large enough to keep their label centred inside."""
+        for task_type in self.TASK_TYPES:
+            style = STYLE_MAP[task_type]
+            assert "verticalLabelPosition=bottom" not in style, task_type
+
+    def test_events_place_label_below_in_theme(self):
+        """Theme-generated event styles also place labels below."""
+        theme = BPMNTheme()
+        for event_type in self.EVENT_TYPES:
+            style = theme.style_for(event_type)
+            assert "verticalLabelPosition=bottom" in style, event_type
+            assert "verticalAlign=top" in style, event_type
+
+    def test_gateways_place_label_below_in_theme(self):
+        """Theme-generated gateway styles also place labels below."""
+        theme = BPMNTheme()
+        for gw_type in self.GATEWAY_TYPES:
+            style = theme.style_for(gw_type)
+            assert "verticalLabelPosition=bottom" in style, gw_type
+            assert "verticalAlign=top" in style, gw_type
+
+    def test_tasks_keep_centered_label_in_theme(self):
+        """Theme-generated task styles keep the label centred."""
+        theme = BPMNTheme()
+        for task_type in self.TASK_TYPES:
+            style = theme.style_for(task_type)
+            assert "verticalLabelPosition=bottom" not in style, task_type
+
+    def test_theme_and_style_map_agree_for_events(self):
+        """Default theme and STYLE_MAP stay consistent for event label styling."""
+        theme = BPMNTheme()
+        for event_type in self.EVENT_TYPES:
+            assert theme.style_for(event_type) == STYLE_MAP[event_type], event_type

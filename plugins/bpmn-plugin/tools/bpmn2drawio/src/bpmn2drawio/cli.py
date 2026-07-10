@@ -52,9 +52,10 @@ Examples:
 
     parser.add_argument(
         "--layout",
-        choices=["graphviz", "preserve"],
-        default="graphviz",
-        help="Layout algorithm (default: graphviz)",
+        choices=["auto", "graphviz", "preserve"],
+        default="auto",
+        help="Layout algorithm: auto preserves BPMN DI coordinates when "
+        "present, else graphviz (default: auto)",
     )
 
     parser.add_argument(
