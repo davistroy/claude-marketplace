@@ -399,3 +399,48 @@ class TestGeometricParentAssignmentUnit:
         BPMNParser()._assign_geometric_parents(model)
 
         assert element.parent_id == "L1"
+
+
+class TestDataReferenceLabels:
+    """Tests for resolving labels of data store / data object references.
+
+    A ``dataStoreReference`` or ``dataObjectReference`` usually has no name of
+    its own and inherits the label from the referenced definition.
+    """
+
+    XML = """<?xml version="1.0" encoding="UTF-8"?>
+    <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
+      <bpmn:dataStore id="DS_1" name="Semaphore Table (ERP)"/>
+      <bpmn:process id="Process_1">
+        <bpmn:dataObject id="DO_1" name="Object Definition"/>
+        <bpmn:dataStoreReference id="DSR_1" dataStoreRef="DS_1"/>
+        <bpmn:dataObjectReference id="DOR_unnamed" dataObjectRef="DO_1"/>
+        <bpmn:dataObjectReference id="DOR_named" dataObjectRef="DO_1" name="Explicit"/>
+      </bpmn:process>
+    </bpmn:definitions>
+    """
+
+    def test_data_store_reference_inherits_definition_name(self):
+        """A nameless dataStoreReference takes the referenced dataStore's name."""
+        model = parse_bpmn(self.XML)
+
+        ref = model.get_element_by_id("DSR_1")
+        assert ref is not None
+        assert ref.type == "dataStoreReference"
+        assert ref.name == "Semaphore Table (ERP)"
+
+    def test_data_object_reference_inherits_definition_name(self):
+        """A nameless dataObjectReference takes the referenced dataObject's name."""
+        model = parse_bpmn(self.XML)
+
+        ref = model.get_element_by_id("DOR_unnamed")
+        assert ref is not None
+        assert ref.name == "Object Definition"
+
+    def test_explicit_reference_name_is_not_overridden(self):
+        """A reference that has its own name keeps it."""
+        model = parse_bpmn(self.XML)
+
+        ref = model.get_element_by_id("DOR_named")
+        assert ref is not None
+        assert ref.name == "Explicit"
