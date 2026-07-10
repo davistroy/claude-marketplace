@@ -276,3 +276,63 @@ class TestDICoordinates:
         geometry = task_vertex.find("mxGeometry")
         assert geometry.get("x") == "200.0"
         assert geometry.get("y") == "78.0"
+
+
+class TestPhantomPoolSkipping:
+    """Tests that empty phantom pools (no lanes, no elements) are not rendered."""
+
+    def _swimlane_values(self, xml):
+        root = ET.fromstring(xml.encode())
+        return [
+            c.get("value")
+            for c in root.findall(".//mxCell[@vertex='1']")
+            if "swimlane" in (c.get("style") or "")
+        ]
+
+    def test_empty_pool_is_skipped(self):
+        """A pool with neither lanes nor elements is omitted from the output."""
+        model = parse_bpmn(FIXTURES_DIR / "geometric_lanes.bpmn")
+        from bpmn2drawio.position_resolver import resolve_positions
+
+        model = resolve_positions(model, use_layout="preserve")
+        xml = DrawioGenerator().generate_string(model)
+
+        values = self._swimlane_values(xml)
+        assert "Phantom" not in values
+
+    def test_populated_pool_and_lanes_are_kept(self):
+        """The real pool and its lanes are still rendered."""
+        model = parse_bpmn(FIXTURES_DIR / "geometric_lanes.bpmn")
+        from bpmn2drawio.position_resolver import resolve_positions
+
+        model = resolve_positions(model, use_layout="preserve")
+        xml = DrawioGenerator().generate_string(model)
+
+        values = self._swimlane_values(xml)
+        assert "Work" in values
+        assert "Top" in values
+        assert "Bottom" in values
+
+    def test_laneless_pool_with_elements_is_kept(self):
+        """A laneless pool that owns elements must NOT be skipped."""
+        model = BPMNModel()
+        from bpmn2drawio.models import Pool
+
+        pool = Pool(id="P1", name="Black Box", x=0, y=0, width=400, height=200)
+        model.pools.append(pool)
+        model.elements.append(
+            BPMNElement(
+                id="T1",
+                type="task",
+                name="Inside",
+                x=20,
+                y=20,
+                width=100,
+                height=60,
+                parent_id="P1",
+            )
+        )
+
+        xml = DrawioGenerator().generate_string(model)
+        values = self._swimlane_values(xml)
+        assert "Black Box" in values

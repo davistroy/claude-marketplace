@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_1"
+                  targetNamespace="http://example.org/bpmn">
+  <!--
+    Mimics a Bizagi export: lanes carry DI bounds but declare NO flowNodeRef,
+    so lane membership must be inferred geometrically. Also includes an empty
+    "phantom" pool (no lanes, no elements) that overlaps the real content.
+  -->
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Pool_Phantom" name="Phantom" processRef="Process_Empty"/>
+    <bpmn:participant id="Pool_Work" name="Work" processRef="Process_Work"/>
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Empty" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Empty"/>
+  </bpmn:process>
+  <bpmn:process id="Process_Work" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Work">
+      <bpmn:lane id="Lane_Top" name="Top"/>
+      <bpmn:lane id="Lane_Bottom" name="Bottom"/>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:task id="Task_1" name="Do Work"/>
+    <bpmn:endEvent id="End_1" name="End"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Pool_Phantom_di" bpmnElement="Pool_Phantom" isHorizontal="true">
+        <dc:Bounds x="30" y="30" width="400" height="100"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Pool_Work_di" bpmnElement="Pool_Work" isHorizontal="true">
+        <dc:Bounds x="30" y="150" width="600" height="240"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Top_di" bpmnElement="Lane_Top" isHorizontal="true">
+        <dc:Bounds x="50" y="150" width="580" height="120"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Bottom_di" bpmnElement="Lane_Bottom" isHorizontal="true">
+        <dc:Bounds x="50" y="270" width="580" height="120"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="100" y="190" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="200" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+        <dc:Bounds x="400" y="310" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="136" y="208"/>
+        <di:waypoint x="200" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="300" y="220"/>
+        <di:waypoint x="400" y="328"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

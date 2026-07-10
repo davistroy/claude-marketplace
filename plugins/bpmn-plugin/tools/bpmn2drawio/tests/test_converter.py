@@ -120,3 +120,85 @@ class TestEndToEnd:
         assert (
             result.element_count == 6
         )  # start, gateway, yes task, no task, merge gateway, end
+
+
+class TestAutoLayoutMode:
+    """Tests for the 'auto' layout mode (the default)."""
+
+    def test_default_layout_is_auto(self):
+        """A freshly constructed converter defaults to 'auto' layout."""
+        assert Converter().layout == "auto"
+
+    def test_effective_layout_prefers_preserve_with_di(self):
+        """'auto' resolves to 'preserve' when the model carries DI coordinates."""
+        from bpmn2drawio.parser import parse_bpmn
+
+        converter = Converter()  # layout="auto"
+        model = parse_bpmn(FIXTURES_DIR / "with_di.bpmn")
+
+        assert model.has_di_coordinates
+        assert converter._effective_layout(model) == "preserve"
+
+    def test_effective_layout_falls_back_to_graphviz_without_di(self):
+        """'auto' resolves to 'graphviz' when the model has no DI coordinates."""
+        from bpmn2drawio.parser import parse_bpmn
+
+        converter = Converter()  # layout="auto"
+        model = parse_bpmn(FIXTURES_DIR / "minimal.bpmn")
+
+        assert not model.has_di_coordinates
+        assert converter._effective_layout(model) == "graphviz"
+
+    def test_explicit_layout_is_not_overridden(self):
+        """An explicit layout choice is used verbatim regardless of DI."""
+        from bpmn2drawio.parser import parse_bpmn
+
+        converter = Converter(layout="graphviz")
+        di_model = parse_bpmn(FIXTURES_DIR / "with_di.bpmn")
+        no_di_model = parse_bpmn(FIXTURES_DIR / "minimal.bpmn")
+
+        assert converter._effective_layout(di_model) == "graphviz"
+        assert converter._effective_layout(no_di_model) == "graphviz"
+
+    def test_auto_with_di_emits_no_warning(self, tmp_path):
+        """Auto mode on a DI file does not warn about missing coordinates."""
+        converter = Converter()  # auto
+        output_file = tmp_path / "out.drawio"
+
+        result = converter.convert(FIXTURES_DIR / "with_di.bpmn", output_file)
+
+        assert result.success
+        assert result.warnings == []
+
+    def test_auto_without_di_emits_no_warning(self, tmp_path):
+        """Auto mode on a non-DI file uses graphviz and does not warn."""
+        converter = Converter()  # auto
+        output_file = tmp_path / "out.drawio"
+
+        result = converter.convert(FIXTURES_DIR / "minimal.bpmn", output_file)
+
+        assert result.success
+        # The (0,0) preserve warning must not appear in auto mode.
+        assert not any("(0,0)" in w for w in result.warnings)
+
+    def test_auto_preserves_di_coordinates(self, tmp_path):
+        """Auto mode keeps the original DI layout for a swimlane file."""
+        from xml.etree import ElementTree as ET
+
+        converter = Converter()  # auto -> preserve
+        output_file = tmp_path / "geo.drawio"
+
+        result = converter.convert(FIXTURES_DIR / "geometric_lanes.bpmn", output_file)
+        assert result.success
+
+        root = ET.fromstring(output_file.read_text(encoding="utf-8").encode())
+        shapes = [c for c in root.findall(".//mxCell[@vertex='1']") if c.get("value")]
+
+        # Sibling shapes inside lanes must not collapse onto the same point.
+        def geom(cell):
+            g = cell.find("mxGeometry")
+            return (float(g.get("x")), float(g.get("y")))
+
+        work = [geom(c) for c in shapes if c.get("value") in {"Start", "Do Work", "End"}]
+        assert len(work) == 3
+        assert len(set(work)) == 3  # distinct positions preserved

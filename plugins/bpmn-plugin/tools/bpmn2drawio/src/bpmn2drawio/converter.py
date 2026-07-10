@@ -29,7 +29,7 @@ class Converter:
 
     def __init__(
         self,
-        layout: str = "graphviz",
+        layout: str = "auto",
         theme: Optional[str] = None,
         config: Optional[str] = None,
         direction: str = "LR",
@@ -37,7 +37,9 @@ class Converter:
         """Initialize converter.
 
         Args:
-            layout: Layout algorithm ("graphviz" or "preserve")
+            layout: Layout algorithm ("auto", "graphviz" or "preserve").
+                "auto" preserves BPMN DI coordinates when the file provides
+                them and falls back to graphviz layout otherwise.
             theme: Color theme name
             config: Path to brand configuration file
             direction: Flow direction (LR, TB, RL, BT)
@@ -53,6 +55,22 @@ class Converter:
             bpmn_theme = load_brand_config(config)
 
         self.generator = DrawioGenerator(theme=bpmn_theme)
+
+    def _effective_layout(self, model: BPMNModel) -> str:
+        """Resolve the concrete layout mode for a parsed model.
+
+        "auto" becomes "preserve" when the model carries DI coordinates,
+        otherwise "graphviz".
+
+        Args:
+            model: Parsed BPMN model
+
+        Returns:
+            Either "preserve" or "graphviz"
+        """
+        if self.layout == "auto":
+            return "preserve" if model.has_di_coordinates else "graphviz"
+        return self.layout
 
     def convert(
         self,
@@ -74,8 +92,11 @@ class Converter:
             # Parse BPMN
             model = parse_bpmn(input_path)
 
+            # Resolve the concrete layout mode (handles "auto")
+            effective_layout = self._effective_layout(model)
+
             # Check for DI coordinates
-            if not model.has_di_coordinates and self.layout == "preserve":
+            if not model.has_di_coordinates and effective_layout == "preserve":
                 warnings.append(
                     "No DI coordinates found, but layout='preserve' was specified. "
                     "Elements will be positioned at (0,0)."
@@ -85,7 +106,7 @@ class Converter:
             model = resolve_positions(
                 model,
                 direction=self.direction,
-                use_layout=self.layout,
+                use_layout=effective_layout,
             )
 
             # Generate Draw.io XML
@@ -121,7 +142,7 @@ class Converter:
         model = resolve_positions(
             model,
             direction=self.direction,
-            use_layout=self.layout,
+            use_layout=self._effective_layout(model),
         )
         return self.generator.generate_string(model)
 
