@@ -416,3 +416,53 @@ class TestLabelAlignment:
         theme = BPMNTheme()
         for event_type in self.EVENT_TYPES:
             assert theme.style_for(event_type) == STYLE_MAP[event_type], event_type
+
+
+class TestDataElementStyles:
+    """Tests that data elements render as their proper BPMN shapes.
+
+    Data stores must be cylinders and data objects must be documents, in both
+    the STYLE_MAP and the theme paths (the theme path previously fell back to
+    the task rectangle).
+    """
+
+    def test_data_stores_use_cylinder_in_style_map(self):
+        for data_type in ("dataStore", "dataStoreReference"):
+            assert "cylinder" in STYLE_MAP[data_type], data_type
+
+    def test_data_objects_use_document_in_style_map(self):
+        for data_type in ("dataObject", "dataObjectReference"):
+            assert "shape=document" in STYLE_MAP[data_type], data_type
+
+    def test_data_stores_use_cylinder_in_theme(self):
+        theme = BPMNTheme()
+        for data_type in ("dataStore", "dataStoreReference"):
+            assert "cylinder" in theme.style_for(data_type), data_type
+
+    def test_data_objects_use_document_in_theme(self):
+        theme = BPMNTheme()
+        for data_type in ("dataObject", "dataObjectReference"):
+            assert "shape=document" in theme.style_for(data_type), data_type
+
+    def test_theme_data_style_is_not_task_fallback(self):
+        """Data styles must be distinct from the task rectangle fallback."""
+        theme = BPMNTheme()
+        task_style = theme.style_for("task")
+        for data_type in (
+            "dataStore",
+            "dataStoreReference",
+            "dataObject",
+            "dataObjectReference",
+        ):
+            assert theme.style_for(data_type) != task_style, data_type
+
+    def test_theme_and_style_map_agree_for_data_types(self):
+        """Default theme and STYLE_MAP produce identical data-element styles."""
+        theme = BPMNTheme()
+        for data_type in (
+            "dataStore",
+            "dataStoreReference",
+            "dataObject",
+            "dataObjectReference",
+        ):
+            assert theme.style_for(data_type) == STYLE_MAP[data_type], data_type

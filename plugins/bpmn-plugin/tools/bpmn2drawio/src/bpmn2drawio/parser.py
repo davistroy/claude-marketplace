@@ -35,6 +35,7 @@ class BPMNParser:
         self.namespaces = BPMN_NAMESPACES
         self._di_shapes: Dict[str, Dict] = {}
         self._di_edges: Dict[str, List[Tuple[float, float]]] = {}
+        self._data_definitions: Dict[str, str] = {}
 
     def _find_element(self, parent, ns_xpath: str, wildcard_xpath: str):
         """Find element with namespace fallback."""
@@ -83,6 +84,10 @@ class BPMNParser:
 
         # Parse DI information first
         self._parse_di(root)
+
+        # Collect data store / data object definitions so that references
+        # without their own name can inherit the label of the definition.
+        self._parse_data_definitions(root)
 
         # Parse model
         model = BPMNModel()
@@ -171,6 +176,27 @@ class BPMNParser:
                     waypoints.append((x, y))
                 if waypoints:
                     self._di_edges[bpmn_element] = waypoints
+
+    def _parse_data_definitions(self, root: etree._Element) -> None:
+        """Collect id -> name for dataStore / dataObject definitions.
+
+        In BPMN a ``dataStoreReference`` (or ``dataObjectReference``) frequently
+        carries no name of its own and instead points, via ``dataStoreRef`` /
+        ``dataObjectRef``, to a definition that holds the label (this is how
+        Bizagi exports them). This map lets references inherit that label.
+
+        Args:
+            root: Root definitions element
+        """
+        self._data_definitions = {}
+        for node in root.iter():
+            if not isinstance(node.tag, str):
+                continue
+            if self._local_name(node.tag) in ("dataStore", "dataObject"):
+                node_id = node.get("id")
+                name = node.get("name")
+                if node_id and name:
+                    self._data_definitions[node_id] = name
 
     def _parse_process(self, root: etree._Element, model: BPMNModel) -> None:
         """Parse process elements and flows."""
@@ -318,6 +344,13 @@ class BPMNParser:
         """Parse a BPMN element."""
         elem_id = elem.get("id", "")
         elem_name = elem.get("name")
+
+        # Data references often have no name of their own; inherit it from the
+        # referenced dataStore / dataObject definition.
+        if not elem_name and elem_type in ("dataStoreReference", "dataObjectReference"):
+            ref = elem.get("dataStoreRef") or elem.get("dataObjectRef")
+            if ref:
+                elem_name = self._data_definitions.get(ref)
 
         # Get DI coordinates if available
         di_info = self._di_shapes.get(elem_id, {})
