@@ -30,10 +30,10 @@ STYLE_MAP: Dict[str, str] = {
     "eventBasedGateway": "rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor=#fff2cc;strokeColor=#d6b656;perimeter=rhombusPerimeter;",
     "complexGateway": "rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor=#fff2cc;strokeColor=#d6b656;perimeter=rhombusPerimeter;",
     # Data Objects
-    "dataObject": "shape=document;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
-    "dataObjectReference": "shape=document;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
-    "dataStore": "shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
-    "dataStoreReference": "shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;",
+    "dataObject": "shape=document;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor=#f5f5f5;strokeColor=#666666;",
+    "dataObjectReference": "shape=document;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor=#f5f5f5;strokeColor=#666666;",
+    "dataStore": "shape=cylinder3;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor=#f5f5f5;strokeColor=#666666;",
+    "dataStoreReference": "shape=cylinder3;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor=#f5f5f5;strokeColor=#666666;",
     # Artifacts
     "textAnnotation": "shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;",
     "group": "rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;strokeWidth=2;dashed=1;",

@@ -77,10 +77,10 @@ class BPMNTheme:
             "inclusiveGateway": f"rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
             "eventBasedGateway": f"rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
             "complexGateway": f"rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
-            "dataObject": f"shape=document;whiteSpace=wrap;html=1;fillColor={self.data_fill};strokeColor={self.data_stroke};",
-            "dataObjectReference": f"shape=document;whiteSpace=wrap;html=1;fillColor={self.data_fill};strokeColor={self.data_stroke};",
-            "dataStore": f"shape=cylinder3;whiteSpace=wrap;html=1;fillColor={self.data_fill};strokeColor={self.data_stroke};",
-            "dataStoreReference": f"shape=cylinder3;whiteSpace=wrap;html=1;fillColor={self.data_fill};strokeColor={self.data_stroke};",
+            "dataObject": f"shape=document;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.data_fill};strokeColor={self.data_stroke};",
+            "dataObjectReference": f"shape=document;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.data_fill};strokeColor={self.data_stroke};",
+            "dataStore": f"shape=cylinder3;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.data_fill};strokeColor={self.data_stroke};",
+            "dataStoreReference": f"shape=cylinder3;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.data_fill};strokeColor={self.data_stroke};",
         }
         return styles.get(element_type, styles["task"])
 

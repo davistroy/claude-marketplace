@@ -466,3 +466,15 @@ class TestDataElementStyles:
             "dataObjectReference",
         ):
             assert theme.style_for(data_type) == STYLE_MAP[data_type], data_type
+
+    def test_data_elements_place_label_below(self):
+        """Data stores/objects render their label below the shape, not inside."""
+        theme = BPMNTheme()
+        for data_type in (
+            "dataStore",
+            "dataStoreReference",
+            "dataObject",
+            "dataObjectReference",
+        ):
+            assert "verticalLabelPosition=bottom" in STYLE_MAP[data_type], data_type
+            assert "verticalLabelPosition=bottom" in theme.style_for(data_type), data_type
