@@ -108,7 +108,11 @@ class DrawioGenerator:
 
             cell_id = str(self._cell_counter)
             self._cell_counter += 1
-            pool_cell = create_pool_cell(pool, cell_id)
+            # Align the pool title strip with the inset where its lanes begin,
+            # so the lanes do not overlap (and squash) the pool label.
+            lane_insets = [lane.x for lane in pool_lanes if lane.x is not None and lane.x > 0]
+            header_width = min(lane_insets) if lane_insets else None
+            pool_cell = create_pool_cell(pool, cell_id, start_size=header_width)
             root.append(pool_cell)
             pool_cell_ids[pool.id] = cell_id
 
