@@ -1,0 +1,78 @@
+# .github/dependabot.yml — GitHub remediation plan Phase 4, item 4.3
+# The repo had zero update automation, which is how the 38 pip CVE alerts
+# (cleared in item 4.2) accumulated with no PRs ever opened. This config
+# covers pip in each of the 3 bundled tool directories plus the repo's
+# SHA-pinned GitHub Actions. Weekly cadence avoids noise while keeping CVE
+# exposure short; minor/patch bumps are grouped per ecosystem so routine
+# updates land as one PR instead of one-PR-per-package (majors are never
+# grouped, so they still surface individually for review).
+
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /plugins/bpmn-plugin/tools/bpmn2drawio
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    groups:
+      bpmn2drawio-minor-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "deps(bpmn2drawio)"
+    labels:
+      - dependencies
+
+  - package-ecosystem: pip
+    directory: /plugins/personal-plugin/tools/visual-explainer
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    groups:
+      visual-explainer-minor-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "deps(visual-explainer)"
+    labels:
+      - dependencies
+
+  - package-ecosystem: pip
+    directory: /plugins/personal-plugin/tools/feedback-docx-generator
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    groups:
+      feedback-docx-generator-minor-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "deps(feedback-docx-generator)"
+    labels:
+      - dependencies
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    groups:
+      github-actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "ci"
+    labels:
+      - dependencies

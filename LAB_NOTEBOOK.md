@@ -679,4 +679,31 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 **Status:** COMPLETE. All Phase 4.2 acceptance criteria met: pip-audit clean ×3 tools (individually and combined), coverage floors held (92.32%/67.03%/96.95% vs 90/65/95 floors), root pytest 67/67, ruff 0.14.10 check+format clean. Committed on `fix/dependency-cves-2026-07`; PR opening + dependabot.yml + cross-OS CI verification deferred to plan item 4.3 (not in this item's scope).
 **Duration:** ~35 minutes
 
+---
+
+### Entry 013 — Add dependabot.yml, open PR, verify CI both OSes (Plan item 4.3) [plugin] [config] [ci]
+
+**Date:** 2026-07-12
+**Environment:** Linux VM, branch `fix/dependency-cves-2026-07` at `5b6d0e3` (item 4.2 complete: 5 lockfiles regenerated), Claude Code CLI, gh CLI authenticated as davistroy
+
+**Objective:** Close out GitHub remediation plan item 4.3 — create `.github/dependabot.yml` (the repo has never had one, which is why the 38 pip alerts closed in 4.2 accumulated with zero automated PRs), push it to the same `fix/dependency-cves-2026-07` branch, open the PR bundling both 4.2 and 4.3, and verify `validate.yml` + `test.yml` pass on both ubuntu and windows before merging.
+
+**Hypothesis:** Four `updates` entries — `pip` at each of the 3 tool directories (`plugins/bpmn-plugin/tools/bpmn2drawio`, `plugins/personal-plugin/tools/visual-explainer`, `plugins/personal-plugin/tools/feedback-docx-generator`) plus `github-actions` at `/` — with weekly schedules and a `groups:` block per entry grouping minor/patch bumps, will parse cleanly and require no CI changes since dependabot.yml is config-only (not exercised by any workflow step). Modeled on the existing `retire` repo's `.github/dependabot.yml` (schedule day/time/timezone, commit-message prefix, labels) with grouping added, since 4.3 explicitly requires grouping (unlike retire's item 1.2, which didn't). Success = all `validate.yml` + `test.yml` jobs green on both OSes, PR mergeable, and after merge `gh api 'repos/davistroy/claude-marketplace/dependabot/alerts?state=open&severity=high' --paginate --jq length` returns 0.
+
+**Rollback Plan:** Single new file (`.github/dependabot.yml`) on a feature branch never touched on `main`. `git checkout main -- .github/dependabot.yml` (i.e., delete it) or `git branch -D fix/dependency-cves-2026-07` fully reverts pre-merge. Post-merge, `git revert <merge-sha>` removes it cleanly since it has zero other file dependents.
+
+**Actions & Results:**
+
+1. Verified branch state: `fix/dependency-cves-2026-07` up to date with origin at `5b6d0e3`, working tree clean, no dependabot.yml present (`cat .github/dependabot.yml` empty), confirming the plan's premise.
+2. Confirmed the 3 tool directories via `pyproject.toml` presence and cross-checked against `test.yml`'s per-tool job `working-directory` values — all 3 match exactly.
+3. Wrote `.github/dependabot.yml`: pip ×3 tool dirs + github-actions at `/`, weekly (Monday 06:00 America/New_York, matching `retire`'s convention), each with a `groups: <name>-minor-patch: update-types: [minor, patch]` block, `commit-message.prefix` per ecosystem, `labels: [dependencies]`.
+4. Validated: `python3 -c "import yaml; yaml.safe_load(open('.github/dependabot.yml'))"` — parses clean, 4 `updates` entries confirmed with correct ecosystem/directory/group-name values.
+5. [pending: commit, push, PR, CI wait, merge — logged below as they complete]
+
+**Findings:**
+- Dependabot config is pure GitHub-platform metadata — no workflow step reads or is affected by it, so CI risk from this change is effectively zero; the only real verification available pre-merge is YAML validity + directory-path correctness.
+- `retire`'s `.github/dependabot.yml` (item 1.2/1.3, same author/plan) established the schedule/commit-message/labels convention this entry reuses; the only addition here is `groups:`, required because 4.3 (unlike 1.2) explicitly calls grouping out as necessary to avoid PR pileup against strict required checks (per the parallel open-brain item 6.6 rationale).
+
+**Status:** IN PROGRESS — commit/push/PR/CI/merge to follow in this entry.
+
 
