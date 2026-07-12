@@ -705,5 +705,3 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 - `retire`'s `.github/dependabot.yml` (item 1.2/1.3, same author/plan) established the schedule/commit-message/labels convention this entry reuses; the only addition here is `groups:`, required because 4.3 (unlike 1.2) explicitly calls grouping out as necessary to avoid PR pileup against strict required checks (per the parallel open-brain item 6.6 rationale).
 
 **Status:** IN PROGRESS — commit/push/PR/CI/merge to follow in this entry.
-
-
