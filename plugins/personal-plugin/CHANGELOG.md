@@ -5,6 +5,25 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.2.0] - 2026-07-12
+
+### Added
+- `skills/fleet-health/SKILL.md`: read-only, one-shot health snapshot across the 5-machine personal fleet (DGX Spark, Jetson Orin Nano, homeserver, bond, obvm) — uptime/load/disk/memory plus per-host inference/service endpoint checks over SSH and curl, rendered as a single status table with a pass/fail verdict
+- `skills/new-project/SKILL.md`: end-to-end new-project scaffolder — git init, remote (GitHub by default, Gitea with `--gitea`), `CLAUDE.md` seeded from `references/templates/project-claude-md.md`, type-appropriate `.gitignore`, placeholder-only `.env`, mandatory `LAB_NOTEBOOK.md`, kill-criteria `BRIEF.md` seeded from `references/templates/brief.md`, and initial commit/push
+- `skills/archive-project/SKILL.md`: retires a project repo — writes a status header into README.md, tags and commits, pushes and optionally archives the remote (GitHub only), moves the directory into `~/dev/archive/`, and logs one line to `~/dev/PORTFOLIO.md`
+- `agents/sre-operator.md`: new named agent for the 5-machine homelab fleet — SSH-based diagnosis and scoped, explicitly-authorized remediation with mandatory LAB_NOTEBOOK logging; `model: inherit` per ADR-0005
+- `references/templates/project-claude-md.md`, `references/templates/brief.md`: new scaffolding templates consumed by `new-project`
+
+### Fixed
+- `hooks/hooks.json`: lab-notebook `PreToolUse` gate rewritten to parse `tool_input.command` from stdin JSON via `jq` (falling back to raw stdin if `jq` is unavailable) instead of grepping the `$CLAUDE_TOOL_INPUT` env-var name against the payload, and to propagate the gate script's actual exit code instead of unconditionally returning 0 — the prior form could never block a commit
+
+## [10.1.0] - 2026-07-12
+
+### Added
+- `skills/wiki/SKILL.md`: layout detection gained a new **OKF bundle mode** — drives kb/-rooted wikis from their repo's own `AGENTS.md` contract (per-directory indexes, contract frontmatter, delegated `tools/lint.py`, repo-native log format). Legacy `wiki/` + `schema.yaml` behavior unchanged.
+- `skills/wiki/SKILL.md`: new `propagate <fact>` subcommand — sweeps all pages for stale variants of a newly resolved fact, applies edits, closes markers, logs once.
+- `commands/analyze-transcript.md`: new `--format interview-record` — dated markdown record with YAML frontmatter for knowledge-repo immutable sources directories.
+
 ## [10.0.0] - 2026-07-08
 
 Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Closes an 8-phase modernization pass against current official Anthropic guidance (see repo-root `IMPLEMENTATION_PLAN.md`, ADR-0005, ADR-0006).

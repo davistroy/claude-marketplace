@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v10.2.0] - 2026-07-12
+
+### Added
+- **`fleet-health` skill**: read-only, one-shot health snapshot across the 5-machine personal fleet (DGX Spark, Jetson Orin Nano, homeserver, bond, obvm) — uptime/load/disk/memory plus per-host inference/service endpoint checks over SSH and curl, rendered as a single status table with a pass/fail verdict
+- **`new-project` skill**: end-to-end new-project scaffolder — git init, remote (GitHub by default, Gitea with `--gitea`), `CLAUDE.md`, type-appropriate `.gitignore`, placeholder-only `.env`, mandatory `LAB_NOTEBOOK.md`, kill-criteria `BRIEF.md`, and initial commit/push
+- **`archive-project` skill**: retires a project repo — status header in README, tag/commit, optional remote archive (GitHub only), relocation to `~/dev/archive/`, and a logged line in `~/dev/PORTFOLIO.md`
+- **`sre-operator` agent**: new named agent for the 5-machine homelab fleet — SSH-based diagnosis and scoped, explicitly-authorized remediation with mandatory LAB_NOTEBOOK logging
+- **`project-claude-md.md`, `brief.md` templates**: new scaffolding templates consumed by `new-project`
+
+### Fixed
+- **Lab-notebook gate hook**: `PreToolUse` hook now parses `tool_input.command` from stdin JSON (via `jq`, falling back to raw stdin) and propagates the gate script's actual exit code — the prior form matched the wrong field and always returned 0, so it could never actually block a commit
+
 ## [10.1.0] - 2026-07-12
 
 ### Added

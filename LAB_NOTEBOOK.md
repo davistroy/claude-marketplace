@@ -710,3 +710,18 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** COMPLETE. PR #99 squash-merged as `c538e14` at 2026-07-12T18:43:06Z (repo convention, Entry 010/PR #96 precedent; branch deleted, local main fast-forwarded e9ce9f1→c538e14). Phase 4 DoD: open high-severity alerts 17→0 by 18:45:52Z (~3 min rescan lag), and in fact ALL 38 open alerts (17H/16M/5L) closed — better than the plan's "5 low may lag" expectation. Dependabot proven live within minutes of merge: opened PRs #100–#102 (github-actions bumps) and #103 (pip, correctly using the `visual-explainer-minor-patch` group). Feature PRs #97 (xquik plugin) and #98 (bpmn2drawio DI layout) remain open and untouched — out of scope per plan item 4.3 notes.
 **Duration:** ~45 minutes (including two CI rounds and the MD012 fix)
+
+---
+
+### Entry 014 — Ship personal-plugin 10.2.0: fleet-health, new-project, archive-project skills + sre-operator agent + gate stdin fix [plugin] [skill] [config] [ci]
+
+**Date:** 2026-07-12
+**Environment:** Linux VM, Claude Code CLI 2.1.207, main at `c12c0ab` (Entry 013/PR #99 merged), personal-plugin v10.1.0 pre-release
+
+**Objective:** Ship personal-plugin 10.2.0 — new `fleet-health`, `new-project`, `archive-project` skills; new `sre-operator` agent for the 5-machine homelab fleet; a fix to the lab-notebook `PreToolUse` hook (stdin parsing + exit-code propagation, since the prior invocation matched `$CLAUDE_TOOL_INPUT` as a raw env var against the whole JSON payload rather than parsing `tool_input.command` from stdin); two new reference templates (`project-claude-md.md`, `brief.md`) consumed by `new-project`; and a CHANGELOG backfill for the 10.1.0 entries that shipped in Entry 013's predecessor work but were never given full changelog treatment.
+
+**Hypothesis:** All payload files are additive (3 new skill dirs, 1 new agent, 2 new reference templates) except the hooks.json fix, which changes hook *behavior* (parses `tool_input.command` via `jq` when available, falls back to raw stdin, and propagates the gate script's exit code instead of always returning 0) — this is a genuine bug fix, not a cosmetic change, since the old form could never actually block a commit (it grepped the hook's own env-var name against JSON that doesn't contain it in the expected shape, and even on a match, `|| exit 0` swallowed the gate's exit code). Expect: `claude plugin validate --strict` and `pytest tests/` both pass unmodified (no test currently exercises hooks.json semantics); CI's `validate.yml` + `test.yml` pass on both OSes; squash-merge; plugin cache updates to 10.2.0 via `claude plugin update personal-plugin@troys-plugins`; installed cache inventory shows exactly 3 new skill dirs + `agents/sre-operator.md`.
+
+**Rollback Plan:** All work happens on branch `release/personal-plugin-10.2.0`, never on `main`. Every file is git-tracked; `git checkout main -- <path>` or `git branch -D release/personal-plugin-10.2.0` fully reverts pre-merge with zero data loss. The installed plugin cache is rebuildable API-managed state (D19) — worst case `claude plugin update personal-plugin@troys-plugins` re-syncs from `origin/main`, or `rm -rf ~/.claude/plugins/cache/troys-plugins/personal-plugin` + reinstall regenerates it.
+
+**Actions & Results:** (filled in at close — see below)
