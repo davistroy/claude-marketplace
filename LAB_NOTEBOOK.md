@@ -40,7 +40,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| A11 | Plan item 4.3: add `.github/dependabot.yml` (pip ×3 tool dirs + github-actions), open PR from `fix/dependency-cves-2026-07`, verify all CI jobs green on ubuntu + windows, merge | 2026-07-12 | E012 |
+| — | (none) | | |
 
 ### Completed
 
@@ -62,6 +62,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C14 | Execute the 13 review recommendations R1–R13 (A9) — full 8-phase/35-item plan executed via /implement-plan; released as 10.0.0/4.2.0/1.2.0/3.3.0 | 2026-07-08 | 2026-07-08 | E008–E010 |
 | C15 | Force plugin cache to release versions + arch-review smoke test (A10) — cache at 10.0.0/4.2.0/1.2.0 verified on disk; dispatch mechanics green; new definitions restart-gated (load next session) | 2026-07-08 | 2026-07-08 | E011 |
 | C16 | Regenerate 5 tool lockfiles for patched CVE versions (plan item 4.2) — 0 pyproject.toml floor changes needed; pip-audit clean ×3 tools; coverage floors held (92.32%/67.03%/96.95%); neither flagged risk (lxml 6.1, pillow 12.2) regressed | 2026-07-12 | 2026-07-12 | E012 |
+| C17 | Plan item 4.3 (A11): `.github/dependabot.yml` created (pip ×3 tool dirs + github-actions, grouped weekly); PR #99 opened from `fix/dependency-cves-2026-07`; all 15 CI checks green on ubuntu + windows; squash-merged | 2026-07-12 | 2026-07-12 | E013 |
 
 ---
 
@@ -698,10 +699,13 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 2. Confirmed the 3 tool directories via `pyproject.toml` presence and cross-checked against `test.yml`'s per-tool job `working-directory` values — all 3 match exactly.
 3. Wrote `.github/dependabot.yml`: pip ×3 tool dirs + github-actions at `/`, weekly (Monday 06:00 America/New_York, matching `retire`'s convention), each with a `groups: <name>-minor-patch: update-types: [minor, patch]` block, `commit-message.prefix` per ecosystem, `labels: [dependencies]`.
 4. Validated: `python3 -c "import yaml; yaml.safe_load(open('.github/dependabot.yml'))"` — parses clean, 4 `updates` entries confirmed with correct ecosystem/directory/group-name values.
-5. [pending: commit, push, PR, CI wait, merge — logged below as they complete]
+5. Committed as `2cb2e81` (dependabot.yml + this entry's initial text, explicit-path staging), pushed, opened **PR #99** ("fix(security): regenerate 5 lockfiles for patched CVEs + add dependabot.yml") bundling 4.2's `5b6d0e3` + this item.
+6. First CI run: 14 of 15 checks passed — including GitHub's own `.github/dependabot.yml` config check (pass, 1s: config parses server-side) and `Dependency Security Audit` (pip-audit) — but **Lint Markdown failed**: MD012 at LAB_NOTEBOOK.md:709/710. Root cause: this entry's insertion left a double-blank EOF trailer, and markdownlint counts the implicit line after the final newline as part of the blank-line run, so `content\n\n\n` reads as 2-then-3 consecutive blanks. Local repro confirmed (`npx markdownlint-cli LAB_NOTEBOOK.md` → same 2 errors); fixed by trimming to a single trailing newline; verified with CI's exact invocation (`markdownlint '**/*.md' --ignore node_modules --ignore .git --ignore output --ignore 'tests/fixtures/**'` → exit 0). Committed as `ebf22ad`, pushed.
+7. Second CI run (head `ebf22ad`): **ALL 15 checks pass, both OSes** — Run Tests (ubuntu 9s / windows 38s), BPMN2DrawIO (25s / 58s), Visual Explainer (59s / 1m49s), Feedback DOCX Generator (18s / 57s), Dependency Security Audit 35s, Lint Markdown 14s, Python Lint & Format, Validate Plugins ×2, Schema Validation, GitGuardian, dependabot.yml config check. Runs: 29204197207 (validate.yml) + 29204197213 (test.yml).
 
 **Findings:**
-- Dependabot config is pure GitHub-platform metadata — no workflow step reads or is affected by it, so CI risk from this change is effectively zero; the only real verification available pre-merge is YAML validity + directory-path correctness.
+- Dependabot config is pure GitHub-platform metadata — no workflow step reads or is affected by it, so CI risk from this change is effectively zero; the only real verification available pre-merge is YAML validity + directory-path correctness. GitHub additionally surfaces a per-PR `.github/dependabot.yml` status check that validates the config server-side — it passed on the first push, satisfying 4.3's "config parses, no error banner" criterion ahead of merge.
 - `retire`'s `.github/dependabot.yml` (item 1.2/1.3, same author/plan) established the schedule/commit-message/labels convention this entry reuses; the only addition here is `groups:`, required because 4.3 (unlike 1.2) explicitly calls grouping out as necessary to avoid PR pileup against strict required checks (per the parallel open-brain item 6.6 rationale).
+- markdownlint MD012 gotcha: a file ending in one explicit blank line (`\n\n`) is flagged as 2 consecutive blanks because the linter counts the virtual line after EOF. Always end notebook appends with exactly `content\n`.
 
-**Status:** IN PROGRESS — commit/push/PR/CI/merge to follow in this entry.
+**Status:** COMPLETE pending merge — PR #99 green on both OSes; next: squash-merge (repo convention, Entry 010/PR #96 precedent), verify main, then Phase 4 DoD alert check (`severity=high` open count → 0; rescan may lag minutes). Feature PRs #97 (xquik plugin) and #98 (bpmn2drawio DI layout) remain open and untouched — out of scope per plan item 4.3 notes. Merge SHA + alert count recorded in the plan run report.
