@@ -1,12 +1,12 @@
 ---
 name: wiki
-description: "Wiki operations: ingest source documents into wiki pages, lint for health issues, query the wiki for answers, and report status. Companion to /create-wiki which handles initial setup."
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)
+description: "Wiki operations: ingest source documents into wiki pages, lint for health issues, query the wiki for answers, propagate resolved facts, and report status. Supports both /create-wiki layouts (wiki/ + schema.yaml) and OKF-bundle layouts (kb/ + AGENTS.md contract)."
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(python3:*)
 ---
 
 # Wiki Operations
 
-Explicit operations for maintaining and querying a project's LLM-maintained wiki. For automatic maintenance, the CLAUDE.md rules injected by `/create-wiki` handle it. This skill is for when you want to explicitly process a source document, run a health check, search the wiki, or check its status.
+Explicit operations for maintaining and querying a project's LLM-maintained wiki. For automatic maintenance, the CLAUDE.md rules injected by `/create-wiki` handle it. This skill is for when you want to explicitly process a source document, run a health check, search the wiki, propagate a resolved fact, or check its status.
 
 ## Input
 
@@ -16,20 +16,27 @@ Supported subcommands:
 - `ingest <path>` — Process a source document into wiki pages
 - `lint` — Run health checks on wiki structure and content
 - `query <topic>` — Search wiki and synthesize an answer
+- `propagate <fact>` — Sweep all pages for stale variants of a newly resolved fact (OKF mode; see OKF Bundle Mode)
 - `status` — Show wiki stats, health, and recent activity
 - No arguments — Show help
 
-## Pre-flight Check
+## Pre-flight Check: Layout Detection
 
-Before executing any subcommand:
+Before executing any subcommand, detect which wiki layout this project uses. Check in this order:
 
-1. **Verify wiki exists:** Check that `wiki/` directory exists with `wiki/index.md`. If missing:
+1. **Legacy layout** — `wiki/schema.yaml` exists:
+   - Contract source: `wiki/schema.yaml` (categories, `lint_interval_days`, `staleness_threshold_days`, `page_frontmatter.required`)
+   - Pages: `wiki/pages/` · Sources: `wiki/sources/` · Index: single `wiki/index.md` · Log: `wiki/log.md`
+   - Execute the subcommand sections below exactly as written.
+2. **OKF bundle layout** — an `AGENTS.md` exists at the repo root AND a `kb/index.md` declares `okf_version` in its frontmatter:
+   - Contract source: **`AGENTS.md`** — read it in full before any operation; it defines the type vocabulary, required frontmatter, sensitivity tiers, ingest procedure, and lint rules. The contract file governs; this skill adapts to it.
+   - Pages: `kb/**` (one concept per file; path = identity) · Sources: `sources/` (immutable, dated; outside the bundle) · Indexes: **per-directory `index.md`** · Log: `kb/log.md`
+   - Execute the subcommand sections below **with the deltas defined in "OKF Bundle Mode"**.
+3. **Neither found:**
    ```text
    No wiki found in this project.
-   Run /create-wiki to set up the wiki first.
+   Run /create-wiki to set up one, or add an AGENTS.md contract + kb/ OKF bundle.
    ```
-2. **Read schema:** Read `wiki/schema.yaml` to get current configuration — categories, `lint_interval_days`, `staleness_threshold_days`, naming conventions.
-3. **Read index:** Read `wiki/index.md` to get current page inventory.
 
 ## Instructions
 
@@ -295,3 +302,54 @@ Health:
 - **No log entries:** Show "No activity recorded yet."
 - **Missing schema.yaml:** Warn: "schema.yaml not found. Using defaults. Run /create-wiki to regenerate."
 - **CLAUDE.md missing wiki section:** Warn loudly: "CLAUDE.md is missing the wiki maintenance rules. Auto-maintenance is not active. Run /create-wiki to reinject the rules."
+
+## OKF Bundle Mode
+
+When layout detection found an OKF bundle (`kb/` + AGENTS.md contract), apply these deltas to the subcommands above. The AGENTS.md contract always wins over this section where they disagree.
+
+### Mode-wide substitutions
+
+| Legacy concept | OKF equivalent |
+|---|---|
+| `wiki/pages/*.md` | `kb/**/*.md` (one concept per file, stable kebab-case slugs) |
+| `wiki/sources/` | `sources/` subdirectories per the contract (dated, immutable — never edited, only added) |
+| Single `wiki/index.md` | Per-directory `index.md`; `kb/index.md` is the bundle root |
+| `wiki/log.md` `## [date] verb` entries | `kb/log.md` — follow the target repo's own entry convention (read the top entries and match them; do NOT impose the legacy format) |
+| `schema.yaml` frontmatter rules | Contract-defined frontmatter (`type` from the contract's vocabulary, plus its required extensions such as `owner`, `last_verified`, `sensitivity`) |
+| Skill-native lint checks | **Delegate:** if `tools/lint.py` exists, run `python3 tools/lint.py` (and its documented flags) instead of reimplementing checks; report its output verbatim |
+
+### `ingest <path>` in OKF mode
+
+Follow the contract's ingest pipeline exactly. Baseline (confirm against the contract):
+
+1. Raw material lands in the appropriate `sources/` subdirectory, dated, immutable.
+2. **Synthesize, never mirror:** reconcile the new source against existing pages; a page reflects ALL sources, not the latest one.
+3. Mark uncertainty with the contract's marker vocabulary (e.g., `[INFERRED]`, `[CONFLICT]`, `[UNDOCUMENTED]`, `[OPEN]`, `[DATED: …]`). Never present unverified claims as fact.
+4. Update every touched section's `index.md`; update `owner`/`last_verified` on touched pages; append to `kb/log.md` in the repo's own format.
+5. Run the lint gate; commit per the repo's commit conventions.
+
+**Ingest lessons checklist** (apply every time; each is a documented failure mode):
+- [ ] Distinguish **current-state from designed-vision** content — vision documents try hard to read as current state.
+- [ ] Flag artifacts older than ~12 months `[DATED: …]` and treat their claims as historical.
+- [ ] **Negative results are retrieval-bounded:** a source not finding something is evidence of absence-of-retrieval, not absence.
+- [ ] **Scope-inference trap:** converging sources can still be wrong when they share a scope blind spot — mark such conclusions `[LIKELY]`, not fact.
+- [ ] Normalize name variants against the most authoritative source; note the variant.
+- [ ] After resolving any conflict or marker, run the `propagate` sweep (below) — partial propagation is the dominant contradiction source.
+- [ ] Respect sensitivity tiers: content on restricted pages never migrates to ordinary pages.
+
+### `propagate <fact>` (OKF mode)
+
+Input: one newly confirmed fact (e.g., "X = Y", "A leads both B and C", a corrected spelling).
+
+1. Grep ALL pages (including indexes and the glossary) for every stale variant, alias, and contradicting statement.
+2. Present the full edit list (file, line, current text → proposed text) before changing anything.
+3. Apply edits; close or annotate the related markers/conflict-ledger entries; update `last_verified` on touched pages.
+4. Append one consolidated `kb/log.md` entry naming the fact, its source, and every page touched; run lint.
+
+### `query <topic>` in OKF mode
+
+Navigate index-first (`kb/index.md` → section index → page), then grep. Cite pages by relative path. Respect sensitivity: do not surface restricted-page content unless the user explicitly authorizes. Where the wiki records an open marker on the answer, say so — the marker IS part of the answer.
+
+### `status` in OKF mode
+
+If `tools/lint.py --status` exists, run it and present its output (pages, marker census, asks, conflicts) plus the top of `kb/log.md` for recent activity. Otherwise, derive equivalents from the bundle: page count, marker counts, index table states.

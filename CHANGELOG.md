@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.0] - 2026-07-12
+
+### Added
+- `wiki` skill: layout detection with a new **OKF bundle mode** — drives kb/-rooted wikis from their repo's own `AGENTS.md` contract (per-directory indexes, contract frontmatter, delegated `tools/lint.py`, repo-native log format). Legacy `wiki/` + `schema.yaml` behavior unchanged.
+- `wiki` skill: new `propagate <fact>` subcommand — sweeps all pages for stale variants of a newly resolved fact, applies edits, closes markers, logs once.
+- `analyze-transcript`: new `--format interview-record` — dated markdown record with YAML frontmatter for knowledge-repo immutable sources directories.
+
 ## [marketplace v3.3.0, personal-plugin v10.0.0, bpmn-plugin v4.2.0, slide-gen v1.2.0] - 2026-07-08
 
 Coordinated release closing an 8-phase, 35-item modernization pass against current official Anthropic guidance (see `IMPLEMENTATION_PLAN.md`, ADR-0005, ADR-0006).

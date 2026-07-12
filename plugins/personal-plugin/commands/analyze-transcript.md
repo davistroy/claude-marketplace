@@ -1,6 +1,6 @@
 ---
 description: Meeting transcript to structured markdown report
-argument-hint: "<transcript-path> [--format md|json] [--preview]"
+argument-hint: "<transcript-path> [--format md|json|interview-record] [--preview]"
 effort: high
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
@@ -15,9 +15,10 @@ Analyze a meeting transcript and produce a comprehensive markdown report with ke
 - `<transcript-path>` - Path to the transcript file
 
 **Optional Arguments:**
-- `--format [md|json]` - Output format (default: md)
+- `--format [md|json|interview-record]` - Output format (default: md)
   - `md`: Markdown report with sections and tables (default)
   - `json`: Structured data with sections, action_items, decisions arrays
+  - `interview-record`: Dated markdown record with YAML frontmatter, suited to a knowledge repo's immutable sources directory (see Interview-Record Format)
 - `--preview` - Show summary and ask for confirmation before saving (see common-patterns.md)
 - `--no-prompt` - Skip confirmation prompts. Use defaults for all options.
 
@@ -28,7 +29,7 @@ If no transcript is provided:
 ```text
 Error: Missing required argument
 
-Usage: /analyze-transcript <transcript-path> [--format md|json] [--preview] [--no-prompt]
+Usage: /analyze-transcript <transcript-path> [--format md|json|interview-record] [--preview] [--no-prompt]
 Example: /analyze-transcript meeting-notes.txt
 Example: /analyze-transcript transcript.md --format json
 ```
@@ -200,6 +201,40 @@ Generate the analysis as a clean markdown document that:
 - Highlights critical or time-sensitive items
 
 Save as: `reports/meeting-analysis-YYYYMMDD-HHMMSS.md`
+
+### Interview-Record Format (`--format interview-record`)
+
+For transcripts destined for a knowledge repository's immutable sources
+directory (e.g., an SME interview feeding a wiki). Generates a single
+dated markdown record with YAML frontmatter:
+
+```yaml
+---
+type: Interview
+title: <Interviewee role/topic — one line>
+description: <One-sentence summary of what the interview covered>
+participants: [<interviewer>, <interviewee(s)>]
+timestamp: <interview date as YYYY-MM-DDT00:00:00Z>
+sources: ["<original transcript filename or 'live conversation'>"]
+---
+```
+
+Body sections, in order:
+1. **Q&A summary** — each substantive question with the answer,
+   preserving decision-relevant phrasing as blockquoted verbatim quotes
+   (`> ...`) so downstream synthesis can cite exact words.
+2. **Decisions & confirmations** — facts the interviewee settled,
+   each on one line, phrased as standalone claims.
+3. **Open items** — questions raised but not answered, and anything
+   the interviewee deferred to someone else (name who).
+
+Rules: never invent or smooth answers — an unclear answer is recorded
+as unclear; keep interviewee hedges ("I think", "probably") intact;
+this record is immutable once ingested, so completeness beats polish.
+
+Save as: `reports/interview-record-YYYYMMDD-<topic-slug>.md` (use the
+interview date, not the run date). The user then moves/copies it into
+the target repository's sources directory.
 
 ### JSON Format
 
