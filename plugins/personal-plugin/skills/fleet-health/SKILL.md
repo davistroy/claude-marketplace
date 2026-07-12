@@ -161,4 +161,3 @@ Rules:
 - Include the **ANOMALIES** section only when at least one row has a non-`—` anomaly. Omit it entirely on a clean run — don't print an empty section.
 - The **final line of output is always** either `VERDICT: ALL HEALTHY` or `VERDICT: ACTION NEEDED — <short reason>`. This must be the literal last line, unindented, so a headless cron job can `grep '^VERDICT:'` reliably.
 - Keep the table to the 5 required columns — don't add columns per-machine; put machine-specific detail (model IDs, GPU temps, container counts) inside the `key service` and `anomaly` cells.
-
