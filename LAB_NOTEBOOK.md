@@ -38,7 +38,9 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 ### Open
 
-*(none currently open)*
+| # | Action | Created | Source Entry |
+|---|--------|---------|-------------|
+| — | (none) | | |
 
 ### Completed
 
@@ -59,6 +61,8 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C13 | Bump personal-plugin version to 9.0.0 (A8) — done via commit `3b9679d`, since surpassed (now 9.3.0) | 2026-04-30 | 2026-04-30 | E003 |
 | C14 | Execute the 13 review recommendations R1–R13 (A9) — full 8-phase/35-item plan executed via /implement-plan; released as 10.0.0/4.2.0/1.2.0/3.3.0 | 2026-07-08 | 2026-07-08 | E008–E010 |
 | C15 | Force plugin cache to release versions + arch-review smoke test (A10) — cache at 10.0.0/4.2.0/1.2.0 verified on disk; dispatch mechanics green; new definitions restart-gated (load next session) | 2026-07-08 | 2026-07-08 | E011 |
+| C16 | Regenerate 5 tool lockfiles for patched CVE versions (plan item 4.2) — 0 pyproject.toml floor changes needed; pip-audit clean ×3 tools; coverage floors held (92.32%/67.03%/96.95%); neither flagged risk (lxml 6.1, pillow 12.2) regressed | 2026-07-12 | 2026-07-12 | E012 |
+| C17 | Plan item 4.3 (A11): `.github/dependabot.yml` created (pip ×3 tool dirs + github-actions, grouped weekly); PR #99 opened from `fix/dependency-cves-2026-07`; all 15 CI checks green on ubuntu + windows; squash-merged | 2026-07-12 | 2026-07-12 | E013 |
 
 ---
 
@@ -640,4 +644,68 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 ---
 
-*Entries continue below.*
+### Entry 012 — Regenerate 5 tool lockfiles for patched CVE versions (Plan item 4.2) [plugin] [config] [ci] [decision]
+
+**Date:** 2026-07-12
+**Environment:** Linux VM, main at `e9ce9f1` (10.1.0 pushed, item 4.1 complete), Python 3.12.3 system / 3.11.14 + 3.14.0 via uv, uv 0.9.6
+
+**Objective:** Regenerate the 5 pip lockfiles (`visual-explainer` requirements-lock.txt + requirements-dev-lock.txt, `feedback-docx-generator` requirements-lock.txt, `bpmn2drawio` requirements-lock.txt + requirements-dev-lock.txt) to pull in patched versions (pillow 12.2.0, cryptography ≥48.0.1, urllib3 2.7.0, lxml 6.1.0, pyasn1 0.6.3, black 26.3.1, idna 3.15, python-dotenv 1.2.2, requests 2.33.0, pytest 9.0.3, Pygments 2.20.0) that clear the 38 open Dependabot pip alerts on this repo. This closes out GitHub remediation plan item 4.2 (IMPLEMENTATION_PLAN.md Phase 4).
+
+**Hypothesis:** A fresh `pip-compile`/`uv pip compile` run per tool (no pyproject.toml floor changes needed except where a target version fails to resolve under an existing floor) will naturally pick up the patched versions since PyPI's current latest already exceeds all listed targets. Expect zero-to-minimal pyproject.toml edits. Success = pip-audit clean in each tool's locked venv, coverage floors hold (90/65/95), root `pytest tests/` exit 0, ruff==0.14.10 check+format clean. Risk flagged by the plan: lxml 6.1 (bpmn2drawio DI layout) and pillow 12.2 (visual-explainer) are the most likely to break a coverage-gated suite — escalate to opus if either breaks non-trivially.
+
+**Rollback Plan:** All work happens on a new branch `fix/dependency-cves-2026-07`, never on `main`. Every file touched (lockfiles, pyproject.toml where floors rise) is git-tracked; `git checkout main -- <file>` or `git branch -D fix/dependency-cves-2026-07` fully reverts with zero data loss. Throwaway venvs live under each tool's `.venv-lock`/`.venv-test` (gitignored via existing `.venv` pattern), deleted after verification — no persistent state.
+
+**Actions & Results:**
+
+1. Branch `fix/dependency-cves-2026-07` created off `main` at `e9ce9f1`.
+2. Built a throwaway `pip-tools` compiler venv (Python 3.14, matching the existing lockfile header convention) via `uv venv --python 3.14` + `uv pip install pip-tools`. Ran `pip-compile --upgrade` per tool/extra against each unmodified `pyproject.toml`:
+   - `visual-explainer`: `requirements-lock.txt` + `requirements-dev-lock.txt` (`--extra=dev`)
+   - `feedback-docx-generator`: `requirements-lock.txt` only (no dev-lock — matches the pre-existing convention noted in `docs/archive/LEARNINGS-v5.md`)
+   - `bpmn2drawio`: `requirements-lock.txt` + `requirements-dev-lock.txt` (`--extra=dev`)
+3. **Result: zero `pyproject.toml` floor changes needed.** A clean `--upgrade` compile against the existing (already-permissive `>=`) floors naturally resolved every target above its plan-specified patched version: pillow 12.3.0 (≥12.2.0), cryptography 49.0.0 (≥48.0.1), urllib3 2.7.0 (=2.7.0), lxml 6.1.1 (≥6.1.0, both feedback-docx-generator and bpmn2drawio), pyasn1 0.6.4 (≥0.6.3), black 26.5.1 (≥26.3.1), idna 3.18 (≥3.15), python-dotenv 1.2.2 (=1.2.2), requests 2.34.2 (≥2.33.0), pytest 9.1.1 (≥9.0.3), Pygments 2.20.0 (=2.20.0). `git diff --stat` confirms only the 5 lockfiles changed (100 insertions / 93 deletions across them); `pyproject.toml` ×3 untouched. Side effect noted, not a problem: both dev-locks now pin `mypy` explicitly (2.2.0) where the prior lock was missing it despite `pyproject.toml` declaring `mypy>=1.8.0` in `dev` extras — a pre-existing lock incompleteness, now corrected by the clean recompile.
+4. Verification, per tool, in a Python 3.11.14 venv (matches CI's `python-version: '3.11'` matrix) — two venvs per tool: a CI-mirror venv (`pip install -e ".[dev]"` / `".[dev,all]"`, exact test.yml install commands) for pytest+coverage, and a locked venv (`pip install -r requirements-*-lock.txt` + `-e .`) for pip-audit against the actual pinned/Dependabot-visible versions:
+   - **bpmn2drawio** (lxml 6.1.1, the plan's flagged DI-layout risk): 585 passed, coverage 92.32% (floor 90%) — **no regression from the lxml bump**. pip-audit: `No known vulnerabilities found` (only the expected `bpmn2drawio` local-package skip).
+   - **visual-explainer** (pillow 12.3.0, the plan's other flagged risk): 607 passed, 2 skipped, coverage 67.03% (floor 65%). pip-audit: `No known vulnerabilities found` (local-package skip only).
+   - **feedback-docx-generator**: 69 passed, coverage 96.95% (floor 95%). pip-audit: `No known vulnerabilities found` (local-package skip only).
+   - Combined pip-audit (all 3 tools installed together in one venv, mirroring CI's `dependency-audit` job exactly): `No known vulnerabilities found`, same 3 expected local-package skips, no cross-tool conflicts.
+5. Root `pytest tests/` in a fresh venv with `pytest jsonschema pyyaml` (test.yml's root job deps): 67/67 passed, exit 0 — matches the historical baseline unchanged.
+6. `ruff==0.14.10 check plugins/*/tools/*/src/ tests/ --output-format=github` → exit 0, 0 violations. `ruff==0.14.10 format --check` → exit 0, "49 files already formatted."
+7. Neither `plugin.json`/`marketplace.json` versions, the root `ruff==0.14.10` pin (`validate.yml:209`), nor the `@anthropic-ai/claude-code@2.1.204` pin (`validate.yml:263`) were touched — confirmed via `git status --porcelain`: only the 5 lockfiles + this notebook entry are modified.
+
+**Findings:**
+- The plan's two flagged regression risks (lxml 6.1 DI layout in bpmn2drawio, pillow 12.2 in visual-explainer) did **not** manifest — both coverage-gated suites pass clean with margin above their floors. No escalation needed.
+- `pip-compile`'s dependency resolution against unmodified `>=` floors was sufficient for all 11 target packages; none required a floor bump. This confirms the floors were already loose enough — the 38 alerts were purely a "lockfile never regenerated" staleness problem, not a floor-too-low problem.
+- CI (`test.yml`) never actually installs from these lockfiles (it always runs `pip install -e ".[dev]"` style, unpinned) — the lockfiles exist purely so GitHub's Dependabot dependency-graph scan (which parses pinned `==` requirement files) has an accurate, patched manifest to alert against. This explains why regenerating them is the correct/sufficient fix for the 38 alerts without touching `test.yml`.
+
+**Status:** COMPLETE. All Phase 4.2 acceptance criteria met: pip-audit clean ×3 tools (individually and combined), coverage floors held (92.32%/67.03%/96.95% vs 90/65/95 floors), root pytest 67/67, ruff 0.14.10 check+format clean. Committed on `fix/dependency-cves-2026-07`; PR opening + dependabot.yml + cross-OS CI verification deferred to plan item 4.3 (not in this item's scope).
+**Duration:** ~35 minutes
+
+---
+
+### Entry 013 — Add dependabot.yml, open PR, verify CI both OSes (Plan item 4.3) [plugin] [config] [ci]
+
+**Date:** 2026-07-12
+**Environment:** Linux VM, branch `fix/dependency-cves-2026-07` at `5b6d0e3` (item 4.2 complete: 5 lockfiles regenerated), Claude Code CLI, gh CLI authenticated as davistroy
+
+**Objective:** Close out GitHub remediation plan item 4.3 — create `.github/dependabot.yml` (the repo has never had one, which is why the 38 pip alerts closed in 4.2 accumulated with zero automated PRs), push it to the same `fix/dependency-cves-2026-07` branch, open the PR bundling both 4.2 and 4.3, and verify `validate.yml` + `test.yml` pass on both ubuntu and windows before merging.
+
+**Hypothesis:** Four `updates` entries — `pip` at each of the 3 tool directories (`plugins/bpmn-plugin/tools/bpmn2drawio`, `plugins/personal-plugin/tools/visual-explainer`, `plugins/personal-plugin/tools/feedback-docx-generator`) plus `github-actions` at `/` — with weekly schedules and a `groups:` block per entry grouping minor/patch bumps, will parse cleanly and require no CI changes since dependabot.yml is config-only (not exercised by any workflow step). Modeled on the existing `retire` repo's `.github/dependabot.yml` (schedule day/time/timezone, commit-message prefix, labels) with grouping added, since 4.3 explicitly requires grouping (unlike retire's item 1.2, which didn't). Success = all `validate.yml` + `test.yml` jobs green on both OSes, PR mergeable, and after merge `gh api 'repos/davistroy/claude-marketplace/dependabot/alerts?state=open&severity=high' --paginate --jq length` returns 0.
+
+**Rollback Plan:** Single new file (`.github/dependabot.yml`) on a feature branch never touched on `main`. `git checkout main -- .github/dependabot.yml` (i.e., delete it) or `git branch -D fix/dependency-cves-2026-07` fully reverts pre-merge. Post-merge, `git revert <merge-sha>` removes it cleanly since it has zero other file dependents.
+
+**Actions & Results:**
+
+1. Verified branch state: `fix/dependency-cves-2026-07` up to date with origin at `5b6d0e3`, working tree clean, no dependabot.yml present (`cat .github/dependabot.yml` empty), confirming the plan's premise.
+2. Confirmed the 3 tool directories via `pyproject.toml` presence and cross-checked against `test.yml`'s per-tool job `working-directory` values — all 3 match exactly.
+3. Wrote `.github/dependabot.yml`: pip ×3 tool dirs + github-actions at `/`, weekly (Monday 06:00 America/New_York, matching `retire`'s convention), each with a `groups: <name>-minor-patch: update-types: [minor, patch]` block, `commit-message.prefix` per ecosystem, `labels: [dependencies]`.
+4. Validated: `python3 -c "import yaml; yaml.safe_load(open('.github/dependabot.yml'))"` — parses clean, 4 `updates` entries confirmed with correct ecosystem/directory/group-name values.
+5. Committed as `2cb2e81` (dependabot.yml + this entry's initial text, explicit-path staging), pushed, opened **PR #99** ("fix(security): regenerate 5 lockfiles for patched CVEs + add dependabot.yml") bundling 4.2's `5b6d0e3` + this item.
+6. First CI run: 14 of 15 checks passed — including GitHub's own `.github/dependabot.yml` config check (pass, 1s: config parses server-side) and `Dependency Security Audit` (pip-audit) — but **Lint Markdown failed**: MD012 at LAB_NOTEBOOK.md:709/710. Root cause: this entry's insertion left a double-blank EOF trailer, and markdownlint counts the implicit line after the final newline as part of the blank-line run, so `content\n\n\n` reads as 2-then-3 consecutive blanks. Local repro confirmed (`npx markdownlint-cli LAB_NOTEBOOK.md` → same 2 errors); fixed by trimming to a single trailing newline; verified with CI's exact invocation (`markdownlint '**/*.md' --ignore node_modules --ignore .git --ignore output --ignore 'tests/fixtures/**'` → exit 0). Committed as `ebf22ad`, pushed.
+7. Second CI run (head `ebf22ad`): **ALL 15 checks pass, both OSes** — Run Tests (ubuntu 9s / windows 38s), BPMN2DrawIO (25s / 58s), Visual Explainer (59s / 1m49s), Feedback DOCX Generator (18s / 57s), Dependency Security Audit 35s, Lint Markdown 14s, Python Lint & Format, Validate Plugins ×2, Schema Validation, GitGuardian, dependabot.yml config check. Runs: 29204197207 (validate.yml) + 29204197213 (test.yml).
+
+**Findings:**
+- Dependabot config is pure GitHub-platform metadata — no workflow step reads or is affected by it, so CI risk from this change is effectively zero; the only real verification available pre-merge is YAML validity + directory-path correctness. GitHub additionally surfaces a per-PR `.github/dependabot.yml` status check that validates the config server-side — it passed on the first push, satisfying 4.3's "config parses, no error banner" criterion ahead of merge.
+- `retire`'s `.github/dependabot.yml` (item 1.2/1.3, same author/plan) established the schedule/commit-message/labels convention this entry reuses; the only addition here is `groups:`, required because 4.3 (unlike 1.2) explicitly calls grouping out as necessary to avoid PR pileup against strict required checks (per the parallel open-brain item 6.6 rationale).
+- markdownlint MD012 gotcha: a file ending in one explicit blank line (`\n\n`) is flagged as 2 consecutive blanks because the linter counts the virtual line after EOF. Always end notebook appends with exactly `content\n`.
+
+**Status:** COMPLETE pending merge — PR #99 green on both OSes; next: squash-merge (repo convention, Entry 010/PR #96 precedent), verify main, then Phase 4 DoD alert check (`severity=high` open count → 0; rescan may lag minutes). Feature PRs #97 (xquik plugin) and #98 (bpmn2drawio DI layout) remain open and untouched — out of scope per plan item 4.3 notes. Merge SHA + alert count recorded in the plan run report.
