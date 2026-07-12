@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'echo \"$CLAUDE_TOOL_INPUT\" | grep -qE \"git commit\" && bash \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/lab-notebook-gate.sh\" || exit 0'",
+            "command": "bash -c 'INPUT=$(cat); if command -v jq >/dev/null 2>&1; then CMD=$(echo \"$INPUT\" | jq -r \".tool_input.command // empty\" 2>/dev/null); else CMD=\"$INPUT\"; fi; if echo \"$CMD\" | grep -qE \"git commit\"; then bash \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/lab-notebook-gate.sh\"; exit $?; else exit 0; fi'",
             "timeout": 5,
             "statusMessage": "Lab-notebook gate: verifying entry before commit…"
           }
