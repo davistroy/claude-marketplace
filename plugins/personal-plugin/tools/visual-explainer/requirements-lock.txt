@@ -10,7 +10,7 @@ annotated-types==0.7.0
     # via pydantic
 anthropic==0.116.0
     # via visual-explainer (pyproject.toml)
-anyio==4.14.1
+anyio==4.14.2
     # via
     #   anthropic
     #   google-genai
@@ -69,7 +69,7 @@ pydantic==2.13.4
     #   anthropic
     #   google-genai
     #   visual-explainer (pyproject.toml)
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pygments==2.20.0
     # via rich
