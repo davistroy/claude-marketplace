@@ -10,7 +10,7 @@ black==26.5.1
     # via bpmn2drawio (pyproject.toml)
 click==8.4.2
     # via black
-coverage[toml]==7.15.0
+coverage[toml]==7.15.1
     # via pytest-cov
 iniconfig==2.3.0
     # via pytest
