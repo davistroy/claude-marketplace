@@ -283,22 +283,26 @@ If you discover a security vulnerability:
 - Potential impact assessment
 - Any suggested fixes (optional)
 
-### Response Timeline
+### Response Timeline (Best-Effort)
 
-| Stage | Expected Timeframe |
-|-------|-------------------|
-| Acknowledgment | 48 hours |
-| Initial assessment | 1 week |
-| Fix development | 2-4 weeks (depending on severity) |
+**This is a solo-maintained project.** The timeframes below are best-effort targets, not guaranteed SLAs -- there is no team to cover for the maintainer during travel, illness, or other unavailability. If you need a guaranteed response time, this project's support model does not provide one.
+
+| Stage | Best-Effort Target |
+|-------|--------------------|
+| Acknowledgment | ~48 hours |
+| Initial assessment | ~1 week |
+| Fix development | ~2-4 weeks (depending on severity) |
 | Public disclosure | After fix is released |
 
 ### Severity Classification
 
+Severity guides prioritization of the maintainer's available time, not a committed response deadline.
+
 | Severity | Description | Response Priority |
 |----------|-------------|-------------------|
-| Critical | Remote code execution, data exfiltration | Immediate |
-| High | Privilege escalation, sensitive data exposure | 1 week |
-| Medium | Information disclosure, denial of service | 2 weeks |
+| Critical | Remote code execution, data exfiltration | Highest priority |
+| High | Privilege escalation, sensitive data exposure | High priority (~1 week target) |
+| Medium | Information disclosure, denial of service | Medium priority (~2 week target) |
 | Low | Minor issues, hardening opportunities | Next release |
 
 ### Safe Harbor
@@ -334,4 +338,4 @@ For security-related questions that don't involve vulnerabilities:
 - Open a GitHub Discussion (non-sensitive questions only)
 - Contact the maintainers through the security email above
 
-For general support, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+For general support, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md). For the maintainer's incident response and rollback procedure, see [docs/RUNBOOK.md](docs/RUNBOOK.md).

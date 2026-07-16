@@ -974,6 +974,8 @@ If your issue is not covered here:
 2. Check the [WORKFLOWS.md](WORKFLOWS.md) for workflow guidance
 3. Open an issue at https://github.com/davistroy/claude-marketplace/issues
 
+**Maintainers:** if a bad change reached `main` (CI red, or a report of a command/skill that vanished for everyone), see [docs/RUNBOOK.md](docs/RUNBOOK.md) for the detect/revert/re-verify/propagation procedure.
+
 When reporting issues, include:
 - Command that failed
 - Full error message

@@ -72,8 +72,8 @@ Findings sharing a root cause are single work items: XXE (DA-01=SE-02=SEC-02) �
 
 ### Work Items
 
-#### 1.1 Enable branch protection on `main` (checks-only)
-**Status: PENDING**
+#### 1.1 Enable branch protection on `main` (checks-only) ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** PLAT-001, QA-01, INT-06, RISK-02, INT-11
 **Files Affected:**
@@ -97,8 +97,8 @@ Enable GitHub branch protection on `main` requiring the existing CI status check
 **Notes:**
 Branch-protection settings are API-managed state, fully reversible via `gh api -X DELETE .../protection` (rollback). Do NOT set required reviewers. Confirm the check *names* exactly match what Actions reports (case/spacing sensitive) or the gate silently never satisfies.
 
-#### 1.2 Maintainer incident & rollback runbook
-**Status: PENDING**
+#### 1.2 Maintainer incident & rollback runbook ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** PLAT-002
 **Files Affected:**
@@ -118,8 +118,8 @@ Document the maintainer-side P1 procedure absent today: detect a bad `main` → 
 
 **Notes:** Pairs with 1.1 — protection reduces bad merges; this handles the ones that slip through.
 
-#### 1.3 CODEOWNERS + soften committed SLAs
-**Status: PENDING**
+#### 1.3 CODEOWNERS + soften committed SLAs ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: haiku**
 **Recommendation Ref:** PLAT-015, RISK-07
 **Files Affected:**
@@ -139,8 +139,8 @@ Add a CODEOWNERS file (partial bus-factor mitigation / ownership clarity) and so
 
 **Notes:** Do NOT add CODEOWNERS as a *required-review* rule in 1.1 (would deadlock solo merges).
 
-#### 1.4 Correct the D19 autoUpdate documentation
-**Status: PENDING**
+#### 1.4 Correct the D19 autoUpdate documentation ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: haiku**
 **Recommendation Ref:** Review correction (intake fact #1)
 **Files Affected:**
@@ -1052,7 +1052,7 @@ Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; W
 
 | Risk | Likelihood | Impact | Mitigation Strategy | Status |
 |------|------------|--------|---------------------|--------|
-| Required review deadlocks solo maintainer | Med | High | Require checks only, not review; enforce_admins=false | Open |
+| Required review deadlocks solo maintainer | Med | High | Require checks only, not review; enforce_admins=false | Mitigated |
 | Extending ruff glob (4.1) before fixing reddens CI | High | Low | Fix 28 errors + format first, extend glob last, same PR | Open |
 | mypy-blocking (4.2) surfaces many errors | Med | Med | Resolve U4 first; ratchet with baseline if large | Open |
 | Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Open |
