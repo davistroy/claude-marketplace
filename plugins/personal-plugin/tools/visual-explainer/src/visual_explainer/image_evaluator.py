@@ -18,7 +18,7 @@ import io
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, Literal
 
 import anthropic
 
@@ -257,7 +257,13 @@ class ImageEvaluator:
             )
 
             # Extract response text
-            response_text = response.content[0].text
+            # response.content is typed as a union of all Claude content block
+            # types (tool use, thinking, etc.); this call never enables tools
+            # or extended thinking, so the first block is always a TextBlock.
+            # Tests stub this with a duck-typed MagicMock(text=...), so an
+            # isinstance narrowing here would break them without changing
+            # actual runtime behavior — type: ignore is the accurate fix.
+            response_text = response.content[0].text  # type: ignore[union-attr]
 
             # Parse the JSON response
             evaluation_data = self._parse_evaluation_response(response_text)
@@ -365,7 +371,9 @@ Respond with ONLY the JSON object, no additional text."""
 
         return prompt
 
-    def _detect_media_type(self, image_bytes: bytes) -> str:
+    def _detect_media_type(
+        self, image_bytes: bytes
+    ) -> Literal["image/jpeg", "image/png", "image/gif", "image/webp"]:
         """Detect the media type from image bytes.
 
         Args:
@@ -413,7 +421,8 @@ Respond with ONLY the JSON object, no additional text."""
             else:
                 json_str = response_text.strip()
 
-        return json.loads(json_str)
+        parsed: dict[str, Any] = json.loads(json_str)
+        return parsed
 
     def _build_evaluation_result(
         self,

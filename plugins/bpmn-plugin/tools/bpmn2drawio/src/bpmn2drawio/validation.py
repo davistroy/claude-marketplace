@@ -94,7 +94,7 @@ class ModelValidator:
 
     def _check_connected_graph(self, model: BPMNModel) -> List[ValidationWarning]:
         """Check all elements reachable from start."""
-        warnings = []
+        warnings: List[ValidationWarning] = []
 
         if not model.elements:
             return warnings
@@ -164,6 +164,13 @@ class ModelValidator:
 
     def _elements_overlap(self, e1: BPMNElement, e2: BPMNElement) -> bool:
         """Check if two elements overlap."""
+        # Callers (_check_overlapping_elements) only pass elements that have
+        # already been filtered to have non-None x/y/width/height.
+        assert e1.x is not None and e1.y is not None
+        assert e1.width is not None and e1.height is not None
+        assert e2.x is not None and e2.y is not None
+        assert e2.width is not None and e2.height is not None
+
         # Use bounding box intersection
         e1_right = e1.x + e1.width
         e1_bottom = e1.y + e1.height

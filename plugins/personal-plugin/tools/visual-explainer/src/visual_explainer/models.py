@@ -481,13 +481,17 @@ class ImagePrompt(BaseModel):
 
     model_config = {"populate_by_name": True}
 
-    @computed_field
+    # mypy does not support decorators stacked on top of @property without the
+    # dedicated pydantic mypy plugin (not enabled in this project's mypy
+    # config); @computed_field on @property is pydantic's documented pattern
+    # and works correctly at runtime.
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def is_first(self) -> bool:
         """Check if this is the first image in the sequence."""
         return self.flow_connection.previous is None
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def is_last(self) -> bool:
         """Check if this is the last image in the sequence."""

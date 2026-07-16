@@ -766,7 +766,12 @@ class CheckpointState:
         self.current_image: int = 1
         self.current_attempt: int = 0
         self.completed_images: list[int] = []
-        self.image_results: dict[int, dict[str, Any]] = {}
+        # Keys are int while live-tracking (mark_image_complete uses the int
+        # image_number), but from_dict() restores this straight from JSON
+        # (via json.load), where object keys are always str — so after a
+        # checkpoint round-trip the real keys are str. int | str reflects
+        # both cases without changing either code path's behavior.
+        self.image_results: dict[int | str, dict[str, Any]] = {}
         self.status: Literal["in_progress", "completed", "failed"] = "in_progress"
 
     def update_progress(

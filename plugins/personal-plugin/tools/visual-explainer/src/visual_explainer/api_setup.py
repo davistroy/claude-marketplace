@@ -9,9 +9,10 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import httpx
 
@@ -488,14 +489,18 @@ def display_env_file_created(path: Path, google_key: str | None, anthropic_key: 
 
 def prompt_for_key(
     key_name: str,
-    validator: callable,
+    validator: Callable[[str], Any],
     is_async: bool = False,
 ) -> tuple[str | None, bool]:
     """Prompt user for an API key with validation.
 
     Args:
         key_name: Display name for the key (e.g., "Google API").
-        validator: Function to validate the key.
+        validator: Function to validate the key. Sync validators return
+            tuple[bool, str | None] directly; async validators return an
+            awaitable of the same (selected at runtime via ``is_async``,
+            which a single static signature can't discriminate — hence
+            the ``Any`` return type here).
         is_async: Whether the validator is async.
 
     Returns:

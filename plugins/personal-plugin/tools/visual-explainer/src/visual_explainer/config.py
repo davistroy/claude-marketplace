@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -146,7 +146,9 @@ class GenerationConfig(BaseModel):
         """Convert string to Path and validate."""
         if isinstance(v, str):
             return Path(v)
-        return v
+        # Already the target type (or an invalid type pydantic will reject
+        # downstream); cast documents the expected shape at this point.
+        return cast(Path, v)
 
     @field_validator("resolution", mode="before")
     @classmethod
@@ -154,7 +156,9 @@ class GenerationConfig(BaseModel):
         """Convert string to Resolution enum."""
         if isinstance(v, str):
             return Resolution(v.lower())
-        return v
+        # Already the target type (or an invalid type pydantic will reject
+        # downstream); cast documents the expected shape at this point.
+        return cast(Resolution, v)
 
     @field_validator("aspect_ratio", mode="before")
     @classmethod
@@ -162,7 +166,9 @@ class GenerationConfig(BaseModel):
         """Convert string to AspectRatio enum."""
         if isinstance(v, str):
             return AspectRatio(v)
-        return v
+        # Already the target type (or an invalid type pydantic will reject
+        # downstream); cast documents the expected shape at this point.
+        return cast(AspectRatio, v)
 
     @field_validator("resume", mode="before")
     @classmethod
@@ -172,7 +178,9 @@ class GenerationConfig(BaseModel):
             return None
         if isinstance(v, str):
             return Path(v)
-        return v
+        # Already the target type (or an invalid type pydantic will reject
+        # downstream); cast documents the expected shape at this point.
+        return cast("Path | None", v)
 
     @classmethod
     def from_cli_and_env(
@@ -226,20 +234,37 @@ class GenerationConfig(BaseModel):
         def env_str(key: str, default: str) -> str:
             return os.getenv(key, default)
 
+        # Pre-convert to the fields' declared types (Path/Resolution/AspectRatio)
+        # rather than relying on the "before" validators above to coerce raw
+        # strings — mypy's synthesized pydantic __init__ checks argument types
+        # against the field annotations directly. The conversions mirror the
+        # validators exactly (isinstance(v, str) is the only str-taking branch
+        # in each), so this is a no-op change at runtime.
+        resolved_output_dir = Path(
+            output_dir or env_str("VISUAL_EXPLAINER_OUTPUT_DIR", str(Path.cwd()))
+        )
+        resolved_resolution = Resolution(
+            (resolution or env_str("VISUAL_EXPLAINER_RESOLUTION", "high")).lower()
+        )
+        resolved_aspect_ratio = AspectRatio(
+            aspect_ratio or env_str("VISUAL_EXPLAINER_ASPECT_RATIO", "16:9")
+        )
+        resolved_resume = Path(resume) if resume else None
+
         return cls(
             input_source=input_source,
             style=style or env_str("VISUAL_EXPLAINER_STYLE", "professional-clean"),
-            output_dir=output_dir or env_str("VISUAL_EXPLAINER_OUTPUT_DIR", str(Path.cwd())),
+            output_dir=resolved_output_dir,
             max_iterations=max_iterations or env_int("VISUAL_EXPLAINER_MAX_ITERATIONS", 5),
             pass_threshold=pass_threshold or env_float("VISUAL_EXPLAINER_PASS_THRESHOLD", 0.85),
-            resolution=resolution or env_str("VISUAL_EXPLAINER_RESOLUTION", "high"),
-            aspect_ratio=aspect_ratio or env_str("VISUAL_EXPLAINER_ASPECT_RATIO", "16:9"),
+            resolution=resolved_resolution,
+            aspect_ratio=resolved_aspect_ratio,
             image_count=image_count
             if image_count is not None
             else env_int("VISUAL_EXPLAINER_IMAGE_COUNT", 0),
             concurrency=concurrency,
             no_cache=no_cache,
-            resume=resume,
+            resume=resolved_resume,
             dry_run=dry_run,
             setup_keys=setup_keys,
         )

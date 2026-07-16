@@ -87,7 +87,10 @@ class DrawioGenerator:
         graph_model = self._create_graph_model()
         diagram.append(graph_model)
 
+        # _create_graph_model() always creates exactly one "root" child, so
+        # find() is guaranteed to succeed here.
         root = graph_model.find("root")
+        assert root is not None
 
         # Generate pools and lanes first (they are parents of elements)
         pool_cell_ids = {}
@@ -124,9 +127,11 @@ class DrawioGenerator:
             if element.properties.get("_is_subprocess"):
                 vertex = self._create_subprocess_container(element)
                 root.append(vertex)
-                cell_id = vertex.get("id")
-                self._element_cell_ids[element.id] = cell_id
-                self._subprocess_cell_ids[element.id] = cell_id
+                # _create_subprocess_container() always sets an "id" attribute.
+                element_cell_id = vertex.get("id")
+                assert element_cell_id is not None
+                self._element_cell_ids[element.id] = element_cell_id
+                self._subprocess_cell_ids[element.id] = element_cell_id
 
         # Generate vertices for elements and their markers/icons
         # (skip subprocesses already created as containers)
@@ -135,26 +140,28 @@ class DrawioGenerator:
                 continue  # Already created as container
             vertex = self._create_vertex(element)
             root.append(vertex)
-            cell_id = vertex.get("id")
-            self._element_cell_ids[element.id] = cell_id
+            # _create_vertex() always sets an "id" attribute.
+            element_cell_id = vertex.get("id")
+            assert element_cell_id is not None
+            self._element_cell_ids[element.id] = element_cell_id
 
             # Add gateway markers
             if element.type in GATEWAY_TYPES:
-                marker_result = create_gateway_marker(element, cell_id, self._cell_counter)
+                marker_result = create_gateway_marker(element, element_cell_id, self._cell_counter)
                 if marker_result:
                     marker_cell, self._cell_counter = marker_result
                     root.append(marker_cell)
 
             # Add task icons
             if element.type in TASK_TYPES:
-                icon_result = create_task_icon(element, cell_id, self._cell_counter)
+                icon_result = create_task_icon(element, element_cell_id, self._cell_counter)
                 if icon_result:
                     icon_cell, self._cell_counter = icon_result
                     root.append(icon_cell)
 
             # Add event icons
             if element.type in EVENT_TYPES:
-                icon_result = create_event_icon(element, cell_id, self._cell_counter)
+                icon_result = create_event_icon(element, element_cell_id, self._cell_counter)
                 if icon_result:
                     icon_cell, self._cell_counter = icon_result
                     root.append(icon_cell)

@@ -144,7 +144,9 @@ class PositionResolver:
             return
 
         if pools_with_pos:
-            min_x = min(p.x for p in pools_with_pos)
+            # pools_with_pos is already filtered to p.x is not None above;
+            # repeat the check here so mypy can narrow the generator's type.
+            min_x = min(p.x for p in pools_with_pos if p.x is not None)
             max_y = max((p.y or 0) + (p.height or 200) for p in pools_with_pos)
             typical_width = max(p.width or 600 for p in pools_with_pos)
 
@@ -264,7 +266,7 @@ class PositionResolver:
             return
 
         di_elements = {e.id: e for e in elements_with_di}
-        positioned = set()
+        positioned: Set[str] = set()
         unpositioned = list(elements)
 
         max_iterations = len(elements) * 2

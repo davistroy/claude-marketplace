@@ -125,7 +125,13 @@ class PromptRefiner:
             )
 
             # Parse response
-            response_text = response.content[0].text
+            # response.content is typed as a union of all Claude content block
+            # types (tool use, thinking, etc.); this call never enables tools
+            # or extended thinking, so the first block is always a TextBlock.
+            # Tests stub this with a duck-typed MagicMock(text=...), so an
+            # isinstance narrowing here would break them without changing
+            # actual runtime behavior — type: ignore is the accurate fix.
+            response_text = response.content[0].text  # type: ignore[union-attr]
             refined_data = self._parse_refinement_response(response_text)
 
             # Build refined ImagePrompt
@@ -170,7 +176,10 @@ class PromptRefiner:
         """
         # Find weakest criterion
         scores = feedback.criteria_scores.to_dict()
-        weakest_criterion = min(scores, key=scores.get)
+        # min() over the dict's own keys, so scores[k] is always defined here;
+        # using scores[k] instead of scores.get avoids the Optional return
+        # from dict.get's overload (equivalent for every key iterated).
+        weakest_criterion = min(scores, key=lambda k: scores[k])
         weakest_score = scores[weakest_criterion]
 
         if attempt == 2:
@@ -367,7 +376,8 @@ Respond with ONLY the JSON object, no additional text."""
             else:
                 json_str = response_text.strip()
 
-        return json.loads(json_str)
+        parsed: dict[str, Any] = json.loads(json_str)
+        return parsed
 
     def _build_refined_prompt(
         self,

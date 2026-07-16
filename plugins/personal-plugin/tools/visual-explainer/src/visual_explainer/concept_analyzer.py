@@ -435,9 +435,16 @@ def _check_host_is_safe(hostname: str) -> None:
         raise SSRFError(f"Could not resolve host: {hostname}")
 
     for _family, _type, _proto, _canonname, sockaddr in addr_infos:
-        raw_addr = sockaddr[0]
+        # sockaddr[0] is typed as str | int because typeshed's _RetAddress
+        # union also covers raw AF_PACKET-style addresses; getaddrinfo(host,
+        # None) for a hostname lookup only ever returns (host, port, ...)
+        # tuples, so this is always a str in practice. Guard rather than
+        # assert, consistent with this function's SSRF-hardening posture.
+        host_addr = sockaddr[0]
+        if not isinstance(host_addr, str):
+            raise SSRFError(f"Could not parse resolved address for {hostname}: {host_addr!r}")
         # Strip IPv6 zone id (e.g. "fe80::1%eth0") before parsing.
-        raw_addr = raw_addr.split("%", 1)[0]
+        raw_addr = host_addr.split("%", 1)[0]
 
         try:
             ip = ipaddress.ip_address(raw_addr)
@@ -589,10 +596,16 @@ async def read_input(input_source: str) -> tuple[str, str, str | None]:
         return input_source, "text", None
 
     if input_type == "url":
+        # detect_input_type only pairs input_type == "url" with a non-None
+        # path_or_url (see its "url" return statement); None is paired
+        # exclusively with input_type == "text".
+        assert path_or_url is not None
         content = await fetch_url_content(path_or_url)
         return content, "url", path_or_url
 
-    # File type
+    # File type — detect_input_type only pairs input_type == "file" with a
+    # non-None path_or_url (see its "file" return statements).
+    assert path_or_url is not None
     path = Path(path_or_url)
     suffix = path.suffix.lower()
 
@@ -730,7 +743,7 @@ def _parse_analysis_json(data: dict[str, Any]) -> ConceptAnalysis:
         ValueError: If data is invalid.
     """
     # Parse concepts
-    concepts = []
+    concepts: list[Concept] = []
     for c in data.get("concepts", []):
         concept_id = c.get("id", len(concepts) + 1)
         # Ensure concept ID is at least 1 (model constraint)
@@ -773,8 +786,11 @@ def _parse_analysis_json(data: dict[str, Any]) -> ConceptAnalysis:
             to_id = 1
         logical_flow.append(
             LogicalFlowStep(
-                from_concept=from_id,
-                to_concept=to_id,
+                # LogicalFlowStep.from_concept/to_concept use aliases "from"/"to";
+                # mypy's synthesized pydantic __init__ only recognizes the alias
+                # names as constructor keywords, so pass them via the alias (both
+                # are equivalent at runtime since model_config populate_by_name=True).
+                **{"from": from_id, "to": to_id},
                 relationship=_parse_relationship_type(f.get("relationship", "leads_to")),
             )
         )
@@ -830,7 +846,8 @@ def _extract_json_from_response(text: str) -> dict[str, Any]:
     """
     # Try direct parse first
     try:
-        return json.loads(text)
+        result: dict[str, Any] = json.loads(text)
+        return result
     except json.JSONDecodeError:
         pass
 
@@ -838,7 +855,8 @@ def _extract_json_from_response(text: str) -> dict[str, Any]:
     json_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
     if json_match:
         try:
-            return json.loads(json_match.group(1))
+            result = json.loads(json_match.group(1))
+            return result
         except json.JSONDecodeError:
             pass
 
@@ -846,7 +864,8 @@ def _extract_json_from_response(text: str) -> dict[str, Any]:
     brace_match = re.search(r"\{.*\}", text, re.DOTALL)
     if brace_match:
         try:
-            return json.loads(brace_match.group(0))
+            result = json.loads(brace_match.group(0))
+            return result
         except json.JSONDecodeError:
             pass
 
@@ -893,7 +912,13 @@ async def call_claude_for_analysis(
         messages=[{"role": "user", "content": prompt}],
     )
 
-    response_text = response.content[0].text
+    # response.content is typed as a union of all Claude content block types
+    # (tool use, thinking, etc.); this call never enables tools or extended
+    # thinking, so the first block is always a TextBlock. Tests stub this with
+    # a duck-typed MagicMock(text=...), so an isinstance narrowing here would
+    # break them without changing actual runtime behavior; a narrow ignore
+    # comment is the accurate fix.
+    response_text = response.content[0].text  # type: ignore[union-attr]
     return _extract_json_from_response(response_text)
 
 

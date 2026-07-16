@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class RecoveryStrategy:
     """Handle errors gracefully with fallbacks."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.recovered_count = 0
 
     def recover_missing_coordinates(self, element: BPMNElement, index: int = 0) -> None:
@@ -104,7 +104,7 @@ class RecoveryStrategy:
         logger.warning("Graphviz layout failed, falling back to grid layout")
         self.recovered_count += 1
 
-        positions = {}
+        positions: Dict[str, Tuple[float, float]] = {}
         elements_per_row = 5
         x_spacing = 150
         y_spacing = 100

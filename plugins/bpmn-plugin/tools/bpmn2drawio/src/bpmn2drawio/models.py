@@ -31,7 +31,12 @@ class BPMNElement:
 
     def center(self) -> Optional[Tuple[float, float]]:
         """Get center point of element if coordinates and dimensions are available."""
-        if self.has_coordinates() and self.has_dimensions():
+        if (
+            self.x is not None
+            and self.y is not None
+            and self.width is not None
+            and self.height is not None
+        ):
             return (self.x + self.width / 2, self.y + self.height / 2)
         return None
 

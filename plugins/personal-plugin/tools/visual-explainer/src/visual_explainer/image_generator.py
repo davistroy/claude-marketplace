@@ -192,7 +192,11 @@ class GeminiImageGenerator:
             Delay in seconds before next retry.
         """
         # Exponential backoff: base * 2^(attempt-1)
-        delay = self.base_delay_seconds * (2 ** (attempt - 1))
+        # Use a float base (2.0, not 2) for the power: typeshed types
+        # int ** int as returning Any (since a negative int exponent would
+        # produce a float at runtime), which otherwise taints `delay` as Any.
+        # float ** int has no such ambiguity and is numerically identical.
+        delay = self.base_delay_seconds * (2.0 ** (attempt - 1))
 
         # Add jitter (10-30% random variation)
         jitter = delay * random.uniform(0.1, 0.3)
