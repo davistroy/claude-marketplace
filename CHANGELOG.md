@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v10.3.0] - 2026-07-16
+
+### Added
+- **`clear-prep` skill**: prepares a project to survive a context `/clear` or compaction with zero state loss — flushes the current session's work into all durable documents (LAB_NOTEBOOK living sections + in-flight entry, memory, CLAUDE.md, CHANGELOG), then emits a single copy-paste "resume prompt" the user runs in the fresh session so a zero-context Claude continues seamlessly. Writes only git-recoverable docs; never commits or clears context. Supports a `--no-write` dry-run that only generates the resume prompt.
+
 ## [personal-plugin v10.2.0] - 2026-07-12
 
 ### Added
