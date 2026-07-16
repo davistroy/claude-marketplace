@@ -350,3 +350,11 @@ The wiki doesn't replace other documentation patterns — it complements them:
 - **Git-tracked.** The entire wiki is version-controlled. Review wiki changes in PRs, revert bad updates, track knowledge evolution.
 - **LLM-owned pages.** Humans should not hand-edit `wiki/pages/`. Let Claude maintain consistency. Report errors to Claude and it will fix pages plus cross-references.
 - **Human-owned sources.** Files in `wiki/sources/` are immutable input. Claude reads but never modifies.
+
+## Error Handling
+
+- **`init` invoked but `wiki/index.md` already exists:** do not recreate — report to the user and redirect to `/wiki status` (see Step 1).
+- **`## Project Wiki` section already present in CLAUDE.md:** skip injection and report to the user rather than duplicating the section (see Step 8).
+- **Project has too little discoverable content to seed a meaningful page** (can't write 3-4 substantive paragraphs on the topic): skip that page rather than creating a placeholder (see Step 4 quality bar).
+- **No `LAB_NOTEBOOK.md` in the project:** skip the Lab Notebook pipeline injection (Step 9) and report "No LAB_NOTEBOOK.md found" in the final summary — this is expected, not an error.
+- **Maintenance mode triggered but no wiki pages relate to the changed source:** report "no changes needed" for that source instead of forcing an update.

@@ -161,3 +161,11 @@ Rules:
 - Include the **ANOMALIES** section only when at least one row has a non-`—` anomaly. Omit it entirely on a clean run — don't print an empty section.
 - The **final line of output is always** either `VERDICT: ALL HEALTHY` or `VERDICT: ACTION NEEDED — <short reason>`. This must be the literal last line, unindented, so a headless cron job can `grep '^VERDICT:'` reliably.
 - Keep the table to the 5 required columns — don't add columns per-machine; put machine-specific detail (model IDs, GPU temps, container counts) inside the `key service` and `anomaly` cells.
+
+## Error Handling
+
+- **Any host's SSH or curl probe exceeds its timeout** (`ConnectTimeout=5`, `curl -m 5`): mark that host/service unreachable and count it as an anomaly (see Anomaly Thresholds) — except Jetson `:8081`, which is expected-down per Known State U2.
+- **A host is fully unreachable** (SSH fails entirely): still render its row with `up: unreachable` and roll it into `VERDICT: ACTION NEEDED` rather than omitting the row.
+- **`nvidia-smi` invoked against the Jetson:** never do this — use `tegrastats` only (see Jetson-specific checks); treat an accidental `nvidia-smi` failure there as a script bug, not a host anomaly.
+- **Homeserver `sudo cat`/`sudo ls` invoked:** these fail because sudo is command-scoped to `docker`/`nvidia-smi`/`systemctl` — use plain `cat`/`ls` or docker's own output instead (see Homeserver-specific checks).
+- **Prometheus check fails when called directly from outside the homeserver:** expected — it's loopback-bound; only reach it via SSH + `wget` from on-box (see Homeserver-specific checks), not a fault to report.

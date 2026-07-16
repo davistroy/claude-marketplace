@@ -484,3 +484,12 @@ After generating the document:
 14. **Features described as active must be verified against config.** Documents that describe disabled features as part of the standard processing flow mislead readers and erode trust when cross-checked against the running system. Always read the production config to determine what is actually enabled before writing stage descriptions.
 
 15. **Production numbers fabricated from code analysis are the #1 source of document inaccuracy.** Code tells you what the system *can* do; output artifacts tell you what it *did* do. Always source counts, timing, accuracy metrics, and threshold values from actual pipeline output, logs, or config files — never estimate them by reading the code.
+
+## Error Handling
+
+- **No local path or GitHub URL provided:** ask the user (see Inputs) rather than assuming a target.
+- **GitHub URL clone fails** (private repo, network error, invalid URL): report the failure and ask the user to clone manually and provide a local path instead (see "Handling GitHub URLs" — only public repos are supported).
+- **`$DOC_STRUCTURE_TEMPLATE` file is absent:** proceed without it and note the omission in the output (see Phase 2) rather than blocking generation.
+- **Phase 3.5 verification finds stale, incorrect, or unverifiable claims** against runtime data: flag them for user review before assembly — never silently correct or silently proceed (see Phase 3.5 step 5).
+- **`doc_builder` CLI is missing or the assembly command fails:** report the error with the exact command attempted; do not fall back to a plain-markdown substitute, since the accessibility formatting (sidebars, glossary hyperlinks) would be lost.
+- **`--generate-images` is ON but Gemini generation fails for an image:** fall back to a placeholder for that image (consistent with the default OFF behavior) and note it in the Phase 5 report.

@@ -32,7 +32,6 @@ select = ["E", "F", "W", "I"]
 known-first-party = [
     "bpmn2drawio",
     "feedback_docx_generator",
-    "research_orchestrator",
     "visual_explainer",
 ]
 

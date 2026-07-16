@@ -794,8 +794,8 @@ Add per-plugin CHANGELOGs to slide-gen and bpmn-plugin (only personal-plugin has
 
 ### Work Items
 
-#### 7.1 Data-egress / confidentiality policy
-**Status: PENDING**
+#### 7.1 Data-egress / confidentiality policy ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** RISK-04, DA-04, SEC-09
 **Files Affected:**
@@ -813,8 +813,8 @@ Add an explicit egress/confidentiality policy: data-classification guidance, a "
 
 **Notes:** Pairs with the trust-boundary doc from 3.3.
 
-#### 7.2 Document the supply-chain control set
-**Status: PENDING**
+#### 7.2 Document the supply-chain control set ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: haiku**
 **Recommendation Ref:** RISK-03
 **Files Affected:**
@@ -831,8 +831,8 @@ SECURITY.md mentions none of the real controls (Dependabot, pip-audit, CodeQL, G
 
 **Notes:** Cross-reference the branch-protection gate from Phase 1.
 
-#### 7.3 Resolve the ADR-0004 help-skill drift
-**Status: PENDING**
+#### 7.3 Resolve the ADR-0004 help-skill drift ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SA-003
 **Files Affected:**
@@ -852,8 +852,8 @@ ADR-0004 (Accepted, non-superseded) mandates a `help` skill per plugin; none exi
 
 **Notes:** Amending is the lower-effort, skills-first-consistent path.
 
-#### 7.4 Repo hygiene sweep
-**Status: PENDING**
+#### 7.4 Repo hygiene sweep ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16] (SE-11 oversized-command extraction deferred — see LAB_NOTEBOOK E023)**
 **Model Tier: haiku**
 **Recommendation Ref:** PLAT-010, RISK-05, SE-08, SA-007, PLAT-009
 **Files Affected:**
@@ -873,8 +873,8 @@ ADR-0004 (Accepted, non-superseded) mandates a `help` skill per plugin; none exi
 
 **Notes:** Trivial; batch into one commit.
 
-#### 7.5 Add Python 3.10/3.12 to CI matrix; failure sections for 8 skills
-**Status: PENDING**
+#### 7.5 Add Python 3.10/3.12 to CI matrix; failure sections for 8 skills ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16] (PLAT-012 CI Python-matrix deferred — would rename required checks; see E023)**
 **Model Tier: sonnet**
 **Recommendation Ref:** PLAT-012, SE-10
 **Files Affected:**

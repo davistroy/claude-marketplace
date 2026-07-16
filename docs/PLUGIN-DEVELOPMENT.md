@@ -372,9 +372,6 @@ Use this checklist to verify your command works correctly:
 ```bash
 # Validate the entire plugin
 /validate-plugin personal-plugin
-
-# Or use the Python script
-python scripts/generate-help.py plugins/personal-plugin --check
 ```
 
 ---
@@ -452,11 +449,6 @@ Before creating a pull request, complete these steps:
 
 #### Documentation Updates
 
-- [ ] Updated help.md with new command entry
-  ```bash
-  python scripts/generate-help.py plugins/personal-plugin
-  ```
-
 - [ ] Updated README.md tables (if applicable)
   ```bash
   python scripts/update-readme.py
@@ -512,7 +504,6 @@ When creating your PR, use this template:
 - [ ] Verified `/help` shows all commands after installation
 
 ## Documentation
-- [ ] help.md updated
 - [ ] CHANGELOG.md updated
 - [ ] README.md updated (if command table changed)
 
@@ -559,20 +550,7 @@ description: Scan a document for broken links
 
 ---
 
-### Mistake 2: Forgetting to Update help.md
-
-**Problem:** New command exists but is not shown in `/help`.
-
-**Fix:**
-```bash
-python scripts/generate-help.py plugins/personal-plugin
-```
-
-**Validation:** Pre-commit hook will block commits with missing help entries.
-
----
-
-### Mistake 3: Using Wrong Output Directory
+### Mistake 2: Using Wrong Output Directory
 
 **Problem:** Output files are saved to unexpected locations.
 
@@ -592,7 +570,7 @@ Save to: reports/assessment-PRD-20260115-143052.md
 
 ---
 
-### Mistake 4: Missing Input Validation Section
+### Mistake 3: Missing Input Validation Section
 
 **Problem:** Command fails confusingly when given invalid input.
 
@@ -617,7 +595,7 @@ Example: /check-links README.md
 
 ---
 
-### Mistake 5: Inconsistent Flag Naming
+### Mistake 4: Inconsistent Flag Naming
 
 **Problem:** Flags don't follow conventions, confusing users.
 

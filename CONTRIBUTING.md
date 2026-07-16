@@ -100,9 +100,6 @@ Use `/new-command` to add commands to your new plugin.
 ```bash
 # Validate the plugin structure
 /validate-plugin [plugin-name]
-
-# Optional: regenerate static help files
-python scripts/generate-help.py plugins/[plugin-name]
 ```
 
 ### Step 4: Update CHANGELOG and Commit

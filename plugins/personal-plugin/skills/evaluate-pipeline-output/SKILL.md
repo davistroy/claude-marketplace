@@ -485,3 +485,12 @@ Produce the report using the template in `references/report-format.md` (in this 
 ## Evaluator Reference
 
 Severity thresholds by `--mode`, durable heuristics that prevent false findings, and expected run duration by output size are documented in `references/evaluator-guidance.md` (in this skill's own directory).
+
+## Error Handling
+
+- **Pipeline root or `pipeline/config.yaml` not found** in any expected location: ask the user for the path rather than guessing schemas (see Phase 0A).
+- **Expected output files missing or empty in `final/`:** flag as a CRITICAL finding (see Phase 10) rather than skipping silently.
+- **`hdbscan_failed: true` in a stage's `_meta`:** treat as CRITICAL and note that all downstream entity/dedup metrics from that stage are meaningless (see Phase 1 and Phase 9).
+- **`--baseline` path missing or its `statistics.json` malformed:** report that regression analysis (Phase 12) was skipped and evaluate the current run standalone rather than failing the whole evaluation.
+- **Field names assumed from `models.py` don't match the actual output data:** fall back to the schema discovered from the data itself (see "Core Principle: Derive, Don't Hardcode") and note the mismatch as a finding — it may itself indicate a pipeline bug.
+- **LLM failure rate >5% for a stage:** mark CRITICAL and note downstream counts are depressed by an invisible factor (see Phase 1) rather than treating the low counts elsewhere as a content-quality issue.

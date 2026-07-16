@@ -374,3 +374,12 @@ Report:
 - Phase count and work item count
 - Whether the plan was created fresh or appended to existing
 - Next step: run `/personal-plugin:plan-next` or `/implement-plan` to begin execution
+
+## Error Handling
+
+- **Input is ambiguous or incomplete:** ask clarifying questions before starting Phase 0 rather than guessing scope (see Inputs).
+- **`--refresh` invoked but no IMPLEMENTATION_PLAN.md (or `--input` path) exists:** report that no plan was found and direct the user to run `/ultra-plan` fresh (see Drift Detection Mode Prerequisites).
+- **Agent tool is unavailable or a dispatched Explore sub-agent fails** during Phase 1 investigation (>5 items): fall back to inline investigation for all items and note the fallback in the Phase 2 output (see "Graceful degradation").
+- **A proposed solution in Phase 3 would violate a documented Phase 0 constraint:** flag the conflict explicitly and ask the user to decide rather than proceeding silently (see Phase 4 Pre-Plan Gates).
+- **Routing to Phase 5 finds an existing plan with pending/in-progress items:** present the conflict and let the user choose append/replace/defer — never silently overwrite in-progress work (see 6b routing table).
+- **After plan generation, an approved item from the Phase 4 summary is missing or an atomic change-set grouping was split:** fix it before presenting the final plan (see 6d Verify Plan Quality).

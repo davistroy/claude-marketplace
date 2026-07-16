@@ -19,7 +19,7 @@ Each plugin is fully self-contained within its directory under `plugins/<plugin-
 - **References and templates** are duplicated per plugin if both need them, rather than shared from a common location
 - **Python tools** live within the plugin that uses them at `tools/<tool-name>/`
 - **Versioning** is independent: each plugin has its own version in `plugin.json` and `marketplace.json`, bumped with `/bump-version <plugin-name> <level>`
-- **A `help` skill** is required in every plugin, documenting only that plugin's own commands and skills
+- ~~A `help` skill is required in every plugin, documenting only that plugin's own commands and skills~~ -- superseded, see Amendment 2026-07-16 below
 
 The marketplace-level `marketplace.json` serves as a registry that points to each plugin's location but does not define shared behavior.
 
@@ -43,3 +43,15 @@ The marketplace-level `marketplace.json` serves as a registry that points to eac
 - Plugin dependencies can be declared in `plugin.json` (e.g., `"personal-plugin": ">=2.0.0"`), but these are informational only -- Claude Code does not enforce or auto-install them
 - The two-tier versioning strategy (marketplace version vs. plugin versions) is a direct consequence of this encapsulation: the marketplace version tracks infrastructure changes, while plugin versions track their own content independently
 - If a future need arises for genuinely shared libraries, this decision could be revisited by introducing a `shared/` directory at the marketplace root, though this would require changes to how `CLAUDE_PLUGIN_ROOT` is resolved
+
+## Amendment 2026-07-16
+
+The original decision required "a `help` skill" in every plugin, documenting that plugin's own commands and skills. That requirement is removed. Status remains **Accepted** for the rest of this ADR; only the help-skill clause is superseded.
+
+**Rationale:**
+- ADR-0006 established skills-first authoring (new functionality ships as skills; `commands/` is frozen legacy) after this ADR was written, and never carried forward a per-plugin help-skill obligation.
+- Claude Code's native `/help` already surfaces every installed plugin's commands and skills without any plugin-authored documentation skill -- a per-plugin `help` skill would duplicate functionality the CLI provides for free.
+- No plugin (`personal-plugin`, `bpmn-plugin`, `slide-gen`) ever implemented this requirement; no `help` skill or `help.md` exists in any of the three. Removing the clause aligns the ADR with what the marketplace has actually done since inception, rather than restoring a skill that was never built and is no longer needed.
+- The companion tooling this requirement implied, `scripts/generate-help.py`, targeted a `help.md` artifact that was never produced; it has been removed as dead code (see repository history around 2026-07-16).
+
+Everything else in this ADR -- per-plugin encapsulation, duplication-over-sharing, independent versioning -- remains in force and is unaffected by this amendment.

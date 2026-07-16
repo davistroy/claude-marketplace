@@ -402,3 +402,12 @@ The test: after reading your explanation, could the ME follow the document's arg
 9. **Dashboard/UI descriptions need mockup images.** When a document spends multiple pages describing an interactive dashboard, include at least 1-2 mockup images so the reader can visualize what's being described.
 
 10. **The "Why it matters" / "Why Not Just..." pattern is the strongest rhetorical device for this audience.** These sections earn trust by explaining trade-offs through consequences. Support and extend them, don't compete with them.
+
+## Error Handling
+
+- **Missing document path or project directory:** ask for both required arguments before starting Phase 1 (see Inputs) rather than assuming defaults.
+- **`pandoc` extraction fails or the Word doc is corrupt/unreadable:** report the error and stop before Phase 1 analysis — do not fabricate document content.
+- **`--generate-images` is ON but the Bitwarden secret fetch or the Gemini call fails** (bad key, rate limit, timeout): fall back to a teal-bordered placeholder box for that image, and note the fallback in the Step 5 report.
+- **A per-image subagent still fails after its 3 retries (8-second backoff):** insert the placeholder for that image instead of leaving a gap, and list which images fell back in the report.
+- **Project directory doesn't have enough context to write an accurate explanation for a flagged concept:** use a more general but still accurate explanation, and note the gap explicitly in the Step 5 report.
+- **User rejects or requests changes to the Phase 1 analysis table:** revise and re-present it — do not proceed to Phase 2 implementation without approval.

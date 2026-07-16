@@ -145,3 +145,11 @@ Filename should reflect what it prototypes (e.g., `agent-workspace-prototype.htm
 | Heavy JS for interactivity | CSS-only states; JS only for view switching |
 | Forgetting `display:none` for hidden views | Both active and inactive states need explicit CSS |
 | Generic design when recreating existing system | Match the target platform's visual language |
+
+## Error Handling
+
+- **No spec/reference document provided:** ask the user for one before proceeding (see When to Use).
+- **No sample data file available for a data-heavy prototype:** derive realistic data from the spec instead of using placeholder text (see Step 3, Q3), and never fall back to "Lorem ipsum" or "Test 123" (see Common Mistakes).
+- **Browser automation tools are unavailable for Step 6:** skip in-browser testing, note the skip to the user, and rely on a careful manual review against the Step 7 common bugs instead of skipping verification entirely.
+- **Clarifying-question answers still leave visual fidelity or view scope ambiguous after 5 questions:** pick the safer default (option B fidelity, single self-contained file) and state the assumption rather than asking indefinitely.
+- **Icons render as raw text during the Step 6 test:** the Google Fonts / Material Symbols link isn't loading — fix per the Step 7 "Icon font loading" entry before delivering.
