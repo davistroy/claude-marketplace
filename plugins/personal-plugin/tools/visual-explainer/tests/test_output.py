@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -450,6 +450,56 @@ class TestCheckpointSaveLoad:
         mgr = OutputManager(tmp_path, "Test Topic")
         await mgr.initialize()
         await mgr.delete_checkpoint()  # Should not raise
+
+    async def test_interrupted_write_does_not_corrupt_prior_checkpoint(self, tmp_path):
+        """An interrupted checkpoint write must not truncate/corrupt the
+        previously-saved good checkpoint (atomic write via temp + os.replace).
+        """
+        mgr = OutputManager(tmp_path, "Test Topic")
+        good_state = CheckpointState("good-id", "2026-01-18", 3, {}, "hash")
+        good_state.mark_image_complete(1, {"score": 0.9})
+        await mgr.save_checkpoint(good_state)
+
+        good_content = mgr.checkpoint_path.read_text(encoding="utf-8")
+
+        # Simulate an interruption partway through the next save: the
+        # temp file write completes but the atomic replace fails before
+        # the destination is touched.
+        bad_state = CheckpointState("bad-id", "2026-01-18", 3, {}, "hash")
+        with (
+            patch(
+                "visual_explainer.output.aiofiles.os.replace",
+                side_effect=OSError("simulated interruption"),
+            ),
+            pytest.raises(OSError, match="simulated interruption"),
+        ):
+            await mgr.save_checkpoint(bad_state)
+
+        # The prior good checkpoint must be intact, byte-for-byte.
+        assert mgr.checkpoint_path.read_text(encoding="utf-8") == good_content
+        loaded = await mgr.load_checkpoint()
+        assert loaded is not None
+        assert loaded.generation_id == "good-id"
+
+        # No leftover temp file should remain in the session directory.
+        leftovers = [p for p in mgr.session_dir.iterdir() if p.name.endswith(".tmp")]
+        assert leftovers == []
+
+    async def test_checkpoint_schema_version_defaults_when_absent(self, tmp_path):
+        """Older checkpoints saved without schema_version must still load."""
+        mgr = OutputManager(tmp_path, "Test Topic")
+        state = CheckpointState("test-id", "2026-01-18", 3, {}, "hash")
+        await mgr.save_checkpoint(state)
+
+        # Simulate an old checkpoint file predating schema_version.
+        data = json.loads(mgr.checkpoint_path.read_text(encoding="utf-8"))
+        assert data["schema_version"] == "1"
+        del data["schema_version"]
+        mgr.checkpoint_path.write_text(json.dumps(data), encoding="utf-8")
+
+        loaded = await mgr.load_checkpoint()
+        assert loaded is not None
+        assert loaded.schema_version == "1"
 
 
 # ---------------------------------------------------------------------------

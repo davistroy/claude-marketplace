@@ -198,8 +198,8 @@ Decision D19 and related docs assert `autoUpdate: true` in marketplace.json. Ver
 
 ### Work Items
 
-#### 2.1 Harden the BPMN XML parser + cap the lxml floor
-**Status: PENDING**
+#### 2.1 Harden the BPMN XML parser + cap the lxml floor ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** DA-01, SE-02, SEC-02
 **Files Affected:**
@@ -221,8 +221,8 @@ Decision D19 and related docs assert `autoUpdate: true` in marketplace.json. Ver
 
 **Notes:** BPMN rarely uses DTDs, so disabling DTD loading is low-risk; the 585-test suite guards regressions.
 
-#### 2.2 Harden the `.env` secrets write + amend ADR-0003
-**Status: PENDING**
+#### 2.2 Harden the `.env` secrets write + amend ADR-0003 ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SEC-03, DA-06
 **Files Affected:**
@@ -243,8 +243,8 @@ Per decision D3: keep the local `.env` convenience path but `os.chmod(path, 0o60
 
 **Notes:** Read path (`os.getenv`) is unchanged; only the write path hardens.
 
-#### 2.3 SSRF guard on arbitrary-URL fetch
-**Status: PENDING**
+#### 2.3 SSRF guard on arbitrary-URL fetch ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SEC-04, SE-07, DA-09
 **Files Affected:**
@@ -265,8 +265,8 @@ Per decision D3: keep the local `.env` convenience path but `os.chmod(path, 0o60
 
 **Notes:** Optional allowlist can be added later; block-list of internal ranges is the minimum.
 
-#### 2.4 Typed exception classification for Gemini backoff
-**Status: PENDING**
+#### 2.4 Typed exception classification for Gemini backoff ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SE-05, INT-10
 **Files Affected:**
@@ -285,8 +285,8 @@ Per decision D3: keep the local `.env` convenience path but `os.chmod(path, 0o60
 
 **Notes:** Low-risk; keep the string fallback for SDK versions lacking typed errors.
 
-#### 2.5 Atomic durable writes + full-length cache key
-**Status: PENDING**
+#### 2.5 Atomic durable writes + full-length cache key ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** DA-02, DA-05
 **Files Affected:**
@@ -1055,7 +1055,7 @@ Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; W
 | Required review deadlocks solo maintainer | Med | High | Require checks only, not review; enforce_admins=false | Mitigated |
 | Extending ruff glob (4.1) before fixing reddens CI | High | Low | Fix 28 errors + format first, extend glob last, same PR | Open |
 | mypy-blocking (4.2) surfaces many errors | Med | Med | Resolve U4 first; ratchet with baseline if large | Open |
-| Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Open |
+| Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Mitigated |
 | Scoping Bash (3.1) breaks legitimate skill actions | Med | Med | Test each rescoped skill (U2); revert per-skill | Open |
 | Parallelising images (8.1) breaches memory ceiling | Med | Med | Cap concurrency by memory budget (PERF-05); else remove knob | Open |
 | slide-generator repo private → slide-gen owner-only | Med | Med | Resolve U1 first; ADR-0008 states the constraint honestly | Open |

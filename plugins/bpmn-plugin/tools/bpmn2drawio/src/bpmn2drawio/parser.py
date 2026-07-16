@@ -14,6 +14,18 @@ from .constants import (
 from .exceptions import BPMNParseError
 from .models import BPMNElement, BPMNFlow, BPMNModel, Lane, Pool
 
+# Hardened XML parser: disables entity resolution and DTD/network loading to
+# prevent XXE (XML External Entity) attacks and billion-laughs style expansion
+# via untrusted BPMN input. Built once at module load and reused for both
+# etree.parse() and etree.fromstring() call sites.
+_SECURE_XML_PARSER = etree.XMLParser(
+    resolve_entities=False,
+    no_network=True,
+    load_dtd=False,
+    dtd_validation=False,
+    huge_tree=False,
+)
+
 
 class BPMNParser:
     """Parser for BPMN 2.0 XML files."""
@@ -51,11 +63,14 @@ class BPMNParser:
                 isinstance(source, str) and not source.strip().startswith("<")
             ):
                 # It's a file path
-                tree = etree.parse(str(source))
+                tree = etree.parse(str(source), parser=_SECURE_XML_PARSER)
                 root = tree.getroot()
             else:
                 # It's an XML string
-                root = etree.fromstring(source.encode() if isinstance(source, str) else source)
+                root = etree.fromstring(
+                    source.encode() if isinstance(source, str) else source,
+                    parser=_SECURE_XML_PARSER,
+                )
         except etree.XMLSyntaxError as e:
             raise BPMNParseError(f"Invalid XML: {e}") from e
         except FileNotFoundError as e:

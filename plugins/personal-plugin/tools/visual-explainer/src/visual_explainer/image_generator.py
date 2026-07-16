@@ -274,19 +274,72 @@ class GeminiImageGenerator:
             error_msg = str(e)
             logger.error(f"Gemini API error: {error_msg}")
 
-            # Check for rate limiting
-            if "429" in error_msg or "rate" in error_msg.lower():
-                return GenerationStatus.RATE_LIMITED, None, f"Rate limited: {error_msg}"
+            status, message = self._classify_exception(e)
+            return status, None, message
 
-            # Check for timeout
-            if "timeout" in error_msg.lower():
-                return GenerationStatus.TIMEOUT, None, f"Timeout: {error_msg}"
+    def _classify_exception(self, error: Exception) -> tuple[GenerationStatus, str]:
+        """Classify an exception raised during a generation attempt.
 
-            # Check for safety block in error
-            if "safety" in error_msg.lower() or "blocked" in error_msg.lower():
-                return GenerationStatus.SAFETY_BLOCKED, None, f"Blocked: {error_msg}"
+        Prefers typed google-genai SDK exceptions (``ClientError``/``ServerError``
+        with an HTTP ``.code``) and typed HTTP-transport timeout exceptions over
+        substring matching, since brittle string matching on ``str(exception)``
+        is fragile across SDK/locale/message changes. Falls back to substring
+        matching when typed classification is unavailable (older SDK versions)
+        or inconclusive (non-genai exceptions, unrecognized codes), so behavior
+        is unchanged for callers/tests that only raise plain ``Exception``.
 
-            return GenerationStatus.ERROR, None, error_msg
+        Args:
+            error: The exception raised during the API call.
+
+        Returns:
+            Tuple of (status, error_message).
+        """
+        error_msg = str(error)
+
+        # Prefer typed google-genai errors, classified by HTTP status code.
+        try:
+            from google.genai import errors as genai_errors
+
+            if isinstance(error, genai_errors.APIError):
+                code = getattr(error, "code", None)
+                if code == 429:
+                    return GenerationStatus.RATE_LIMITED, f"Rate limited: {error_msg}"
+                if isinstance(code, int) and 500 <= code < 600:
+                    # Server-side errors are transient/retryable, same as the
+                    # generic ERROR status (see _should_retry).
+                    return GenerationStatus.ERROR, f"Server error ({code}): {error_msg}"
+        except ImportError:
+            pass
+
+        # Prefer typed transport-level timeout exceptions.
+        try:
+            import httpx
+
+            if isinstance(error, httpx.TimeoutException):
+                return GenerationStatus.TIMEOUT, f"Timeout: {error_msg}"
+        except ImportError:
+            pass
+
+        try:
+            import requests
+
+            if isinstance(error, requests.exceptions.Timeout):
+                return GenerationStatus.TIMEOUT, f"Timeout: {error_msg}"
+        except ImportError:
+            pass
+
+        # Last-resort fallback: substring matching on the message. Kept for
+        # SDK versions/exception types that don't expose typed codes.
+        if "429" in error_msg or "rate" in error_msg.lower():
+            return GenerationStatus.RATE_LIMITED, f"Rate limited: {error_msg}"
+
+        if "timeout" in error_msg.lower():
+            return GenerationStatus.TIMEOUT, f"Timeout: {error_msg}"
+
+        if "safety" in error_msg.lower() or "blocked" in error_msg.lower():
+            return GenerationStatus.SAFETY_BLOCKED, f"Blocked: {error_msg}"
+
+        return GenerationStatus.ERROR, error_msg
 
     async def generate_image(
         self,

@@ -271,6 +271,66 @@ class TestGenerateSync:
         assert status == GenerationStatus.ERROR
         assert "Unknown error" in error
 
+    def test_typed_client_error_rate_limited(self, generator):
+        """Test typed google-genai ClientError with code=429 classifies as rate limited."""
+        from google.genai import errors as genai_errors
+
+        typed_error = genai_errors.ClientError(
+            429, {"message": "Resource exhausted", "status": "RESOURCE_EXHAUSTED"}
+        )
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = typed_error
+        generator._client = mock_client
+
+        status, data, error = generator._generate_sync("test prompt", "16:9", None)
+
+        assert status == GenerationStatus.RATE_LIMITED
+        assert data is None
+        assert "Rate limited" in error
+
+    def test_typed_server_error_is_retryable(self, generator):
+        """Test typed google-genai ServerError with a 5xx code classifies as retryable ERROR."""
+        from google.genai import errors as genai_errors
+
+        typed_error = genai_errors.ServerError(
+            503, {"message": "Service unavailable", "status": "UNAVAILABLE"}
+        )
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = typed_error
+        generator._client = mock_client
+
+        status, data, error = generator._generate_sync("test prompt", "16:9", None)
+
+        assert status == GenerationStatus.ERROR
+        assert data is None
+        assert "503" in error
+        assert generator._should_retry(
+            GenerationResult(status=status, error_message=error), attempt=1
+        )
+
+    def test_typed_httpx_timeout_error(self, generator):
+        """Test typed httpx.TimeoutException classifies as timeout without message substring."""
+        import httpx
+
+        typed_error = httpx.TimeoutException("deadline exceeded")
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = typed_error
+        generator._client = mock_client
+
+        status, data, error = generator._generate_sync("test prompt", "16:9", None)
+
+        assert status == GenerationStatus.TIMEOUT
+        assert data is None
+
+    def test_classify_exception_falls_back_for_plain_exception(self, generator):
+        """Test the fallback string-matching path still works for non-typed exceptions."""
+        status, message = generator._classify_exception(Exception("429 quota exceeded"))
+        assert status == GenerationStatus.RATE_LIMITED
+        assert "429" in message
+
 
 # ---------------------------------------------------------------------------
 # Async Generate Image Tests

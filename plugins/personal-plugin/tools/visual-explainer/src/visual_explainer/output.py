@@ -34,12 +34,47 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 import aiofiles
 import aiofiles.os
+
+# Schema version embedded in checkpoint.json so future format changes can be
+# detected on load. Older checkpoints written before this field existed are
+# still loadable — see CheckpointState.from_dict, which defaults it.
+CHECKPOINT_SCHEMA_VERSION = "1"
+
+
+async def _atomic_write_text(filepath: Path, content: str, encoding: str = "utf-8") -> None:
+    """Write text to a file atomically.
+
+    Writes to a temporary file in the same directory first, then atomically
+    replaces the destination with `os.replace` (atomic on both POSIX and
+    Windows). This prevents a truncated or partially-written durable file
+    (e.g. checkpoint.json, metadata.json) if the process is interrupted
+    mid-write, which would otherwise lose track of already-completed
+    (and already-paid-for) generation work.
+
+    Args:
+        filepath: Destination path for the file.
+        content: Text content to write.
+        encoding: Text encoding to use.
+    """
+    tmp_path = filepath.with_name(f".{filepath.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        async with aiofiles.open(tmp_path, "w", encoding=encoding) as f:
+            await f.write(content)
+        await aiofiles.os.replace(tmp_path, filepath)
+    except BaseException:
+        try:
+            await aiofiles.os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
+
 
 if TYPE_CHECKING:
     from .models import (
@@ -339,8 +374,7 @@ class OutputManager:
         # Serialize evaluation to JSON
         eval_dict = evaluation.model_dump(mode="json")
 
-        async with aiofiles.open(filepath, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(eval_dict, indent=2))
+        await _atomic_write_text(filepath, json.dumps(eval_dict, indent=2), encoding="utf-8")
 
         return filepath
 
@@ -408,8 +442,7 @@ class OutputManager:
         # Use model's JSON serialization
         metadata_dict = metadata.to_json_dict()
 
-        async with aiofiles.open(filepath, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(metadata_dict, indent=2))
+        await _atomic_write_text(filepath, json.dumps(metadata_dict, indent=2), encoding="utf-8")
 
         return filepath
 
@@ -428,8 +461,7 @@ class OutputManager:
         # Serialize to JSON
         analysis_dict = analysis.model_dump(mode="json")
 
-        async with aiofiles.open(filepath, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(analysis_dict, indent=2))
+        await _atomic_write_text(filepath, json.dumps(analysis_dict, indent=2), encoding="utf-8")
 
         return filepath
 
@@ -597,8 +629,7 @@ class OutputManager:
         checkpoint_dict["session_name"] = self.session_name
         checkpoint_dict["saved_at"] = format_timestamp()
 
-        async with aiofiles.open(filepath, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(checkpoint_dict, indent=2))
+        await _atomic_write_text(filepath, json.dumps(checkpoint_dict, indent=2), encoding="utf-8")
 
         return filepath
 
@@ -710,6 +741,7 @@ class CheckpointState:
         total_images: int,
         config: dict[str, Any],
         analysis_hash: str,
+        schema_version: str = CHECKPOINT_SCHEMA_VERSION,
     ) -> None:
         """Initialize checkpoint state.
 
@@ -719,12 +751,16 @@ class CheckpointState:
             total_images: Total number of images to generate.
             config: Generation configuration dict.
             analysis_hash: SHA-256 hash of concept analysis.
+            schema_version: Checkpoint format version. Defaults to the
+                current version; older checkpoints without this field
+                load fine via `from_dict`, which defaults it.
         """
         self.generation_id = generation_id
         self.started_at = started_at
         self.total_images = total_images
         self.config = config
         self.analysis_hash = analysis_hash
+        self.schema_version = schema_version
 
         # Mutable state
         self.current_image: int = 1
@@ -791,6 +827,7 @@ class CheckpointState:
             Dictionary representation of the state.
         """
         return {
+            "schema_version": self.schema_version,
             "generation_id": self.generation_id,
             "started_at": self.started_at,
             "total_images": self.total_images,
@@ -819,6 +856,9 @@ class CheckpointState:
             total_images=data["total_images"],
             config=data.get("config", {}),
             analysis_hash=data.get("analysis_hash", ""),
+            # Absent on checkpoints written before schema_version existed —
+            # default rather than KeyError so older checkpoints still load.
+            schema_version=data.get("schema_version", CHECKPOINT_SCHEMA_VERSION),
         )
         state.current_image = data.get("current_image", 1)
         state.current_attempt = data.get("current_attempt", 0)

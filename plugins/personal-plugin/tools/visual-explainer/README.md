@@ -104,6 +104,12 @@ GOOGLE_API_KEY=AIzaSy...your-google-api-key
 ANTHROPIC_API_KEY=sk-ant-api03-...your-anthropic-key
 ```
 
+### Security Note: `.env` Storage
+
+Keys written by the setup wizard (or placed manually) are stored **unencrypted** in `.env`. The wizard hardens this file to mode `0600` (owner read/write only) immediately after writing it, and ensures `.env` is gitignored so it is never committed. On platforms where `chmod` is unsupported or a no-op (e.g. some Windows filesystems), the permission step is best-effort and does not block setup.
+
+This local `.env` is a sanctioned, narrow convenience specifically for this standalone tool (see [ADR-0003](../../../../docs/adr/0003-bitwarden-secrets.md)) -- it exists so a first-time user can generate an image without first installing and configuring a separate secrets manager. **Bitwarden remains the preferred credential store** for all other marketplace plugins and skills. If you already manage secrets via Bitwarden, you can export `GOOGLE_API_KEY` and `ANTHROPIC_API_KEY` into your shell environment instead of creating a `.env` file -- the tool reads from the environment first and only prompts for setup if both keys are absent.
+
 ### Getting API Keys
 
 #### Google Gemini API Key
