@@ -73,6 +73,7 @@ jobs:
           pytest tests/ -v --cov=bpmn2drawio --cov-branch --cov-report=term-missing --cov-fail-under=90
 
       - name: Type check (count-ratchet against baseline)
+        shell: bash
         run: |
           # The codebase has pre-existing mypy debt (54 errors here as of 2026-07-16).
           # Zeroing it out is out of scope for now, so instead of ignoring mypy
@@ -124,6 +125,7 @@ jobs:
           pytest tests/ -v --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=65
 
       - name: Type check (count-ratchet against baseline)
+        shell: bash
         run: |
           # The codebase has pre-existing mypy debt (98 errors here as of 2026-07-16).
           # Zeroing it out is out of scope for now, so instead of ignoring mypy
