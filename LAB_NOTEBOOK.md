@@ -26,7 +26,7 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D11 | Fold Lab Notebook A2, A3, A4 into gap-analysis implementation plan Phase 5 | 2026-04-30 | ACTIVE | E002 | Execute separately — rejected, they naturally fit Phase 5's implement-plan updates |
 | D12 | Fix `/ultraplan` vs `/ultra-plan` reference ambiguity (no full rename) | 2026-04-30 | ACTIVE | E002 | Full rename — rejected, breaking change for user muscle memory. Hyphen already distinguishes. |
 | D13 | Constitution constraints live in CLAUDE.md, not separate constitution.md | 2026-04-30 | ACTIVE | E002 | Separate constitution.md (Spec Kit pattern) — rejected, artifact sprawl for solo-builder context |
-| D19 | Plugin cache freshness is governed by the marketplace's `autoUpdate` setting against `origin/main`, not by manual local reinstall | 2026-07-08 | ACTIVE | E007 | Manual reinstall (A1/A7 premise) — superseded; cache already tracks GitHub origin automatically when `autoUpdate: true`. The real risk is the local dev clone lagging origin (second occurrence of D17's root cause) |
+| D19 | Plugin cache freshness is governed by install-side origin/main tracking, not by manual local reinstall | 2026-07-08 | ACTIVE (corrected E017) | E007 | Manual reinstall (A1/A7 premise) — superseded; cache already tracks GitHub origin automatically. The real risk is the local dev clone lagging origin (second occurrence of D17's root cause). **Correction (E017, item 1.4):** the original wording cited an `autoUpdate: true` setting *in marketplace.json* — verified inaccurate; `.metadata` holds only description/marketplace_version/schema_version. Auto-propagation is Claude Code's install-side default for GitHub-sourced marketplaces, NOT a repo-declared flag. |
 | D20 | Agent `model:` fields use tier aliases (haiku/sonnet/opus/inherit), never pinned IDs (ADR-0005, Accepted) | 2026-07-08 | ACTIVE | E009/E010 | Pinned + periodic review — rejected, drifted twice undetected (9.1.0→9.3.0) |
 | D21 | Skills-first authoring: new functionality ships as skills; commands/ frozen legacy; new-command deprecated, patterns ported to /new-skill --pattern (ADR-0006, Accepted) | 2026-07-08 | ACTIVE | E009/E010 | Mass-migrate 24 commands — rejected (churn, zero functional gain); status quo — rejected (diverges from official direction) |
 
@@ -806,3 +806,27 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** COMPLETE. personal-plugin 10.3.0 live on main (`df33eef`), plugin.json == marketplace.json == 10.3.0, `clear-prep` skill shipped and in the installed cache. CI hardened against stale-build-tool CVEs. Current Baseline refreshed below.
 **Duration:** ~35 minutes (including the setuptools CVE detour + one CI re-run)
+
+---
+
+--- New session: 2026-07-16 — /arch-review (9-agent) → /ultra-plan → /implement-plan: executing the 8-phase arch-review remediation, one branch+PR+merge per phase, Sonnet implementer subagents ---
+
+### Entry 017 — Implement-Plan Phase 1: Distribution Governance [ci] [decision] [build]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, Claude Code CLI, main at `29096cc` (plan v9 committed), branch `impl/phase-1-governance`, orchestrator=Opus, implementer subagents=Sonnet
+
+**Objective:** Execute IMPLEMENTATION_PLAN.md Phase 1 (the single Critical finding) — enable branch protection on `main` (checks-only, no required review, `enforce_admins=false`) so the CI suite becomes enforced rather than advisory; add a maintainer rollback runbook; add CODEOWNERS + soften SECURITY.md hard SLAs; correct the inaccurate D19 `autoUpdate` documentation (item 1.4). Ship as one PR, merge on green CI.
+
+**Hypothesis:** Enabling branch protection via `gh api PUT` takes effect immediately at the repo level, so this PR (and all subsequent phase PRs) will require the authored-workflow status checks to pass before merge. Required set = the stable authored-workflow job checks (Run Tests ×2 OS, the 3 per-tool test jobs ×2 OS, Validate Plugins ×2, Schema Validation, Lint Markdown, Python Lint & Format, Dependency Security Audit). CodeQL/GitGuardian left advisory-not-required to avoid deadlock on app-managed check contexts (documented in ADR-0007); `enforce_admins=false` is the safety valve. Expect: ADR-0007 (Accepted), `docs/RUNBOOK.md`, `.github/CODEOWNERS`, SECURITY.md SLA softening, D19 correction; all CI green; squash-merge.
+
+**Rollback Plan:** All file work on branch `impl/phase-1-governance` (never main); `git branch -D` reverts pre-merge. Branch protection is API-managed, reversible via `gh api -X DELETE repos/davistroy/claude-marketplace/branches/main/protection`. Every file git-tracked. Post-merge, `git revert <sha>` undoes the docs; protection removed via the DELETE call.
+
+**Actions & Results:**
+
+1. **Item 1.1 (branch protection):** orchestrator ran `gh api PUT .../branches/main/protection` → enabled with 14 required status checks (Run Tests + 3 per-tool test jobs ×2 OS, Validate Plugins ×2, Schema Validation, Lint Markdown, Python Lint & Format, Dependency Security Audit), `required_pull_request_reviews.required_approving_review_count=0` (PR required, no approval — bus factor 1), `enforce_admins=false` (safety valve). CodeQL/GitGuardian left advisory-not-required (app/default-setup contexts). PLAT-001 closed at the infra level. ADR-0007 written by a Sonnet subagent (Accepted).
+2. **Item 1.2:** `docs/RUNBOOK.md` (maintainer detect→revert→verify→propagate→user-escape-hatch, ~30 min RTO) + TROUBLESHOOTING.md cross-link (Sonnet subagent).
+3. **Item 1.3:** `.github/CODEOWNERS` (`* @davistroy`, ownership-clarity not a review gate) + SECURITY.md SLAs softened to best-effort + RUNBOOK cross-ref (Sonnet subagent).
+4. **Item 1.4 (D19 correction):** done by orchestrator — see the D19 row correction note in the Decision Log above.
+
+**Status:** IN PROGRESS — all 4 items implemented; PR pending (CI must go green under the just-enabled branch protection). Entry closed with the squash-merge SHA at the start of the Phase 2 branch.

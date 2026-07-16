@@ -1,0 +1,12 @@
+# CODEOWNERS
+#
+# This file exists for ownership clarity and partial bus-factor
+# mitigation only. It records who is responsible for reviewing and
+# maintaining this codebase in the event of unavailability or
+# handoff.
+#
+# It is NOT a required-review gate: branch protection does not
+# require CODEOWNERS approval, because this repository is
+# solo-maintained and enforcing self-review would block all merges.
+
+* @davistroy
