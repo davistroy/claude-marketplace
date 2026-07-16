@@ -690,8 +690,8 @@ Move the Gemini research key from `?key=$GOOGLE_API_KEY` (leaks to `ps`/history/
 
 ### Work Items
 
-#### 6.1 Declare slide-gen an external-dependency plugin + `sg` preflight
-**Status: PENDING**
+#### 6.1 Declare slide-gen an external-dependency plugin + `sg` preflight ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SA-001
 **Depends On:** None
@@ -714,8 +714,8 @@ Per decision D2: formally declare slide-gen an external-dependency plugin (do NO
 
 **Notes:** U1 outcome shapes the README wording (public install vs owner-only).
 
-#### 6.2 Fix homepage + document the external dependency in READMEs
-**Status: PENDING**
+#### 6.2 Fix homepage + document the external dependency in READMEs ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: haiku**
 **Recommendation Ref:** SA-002, INT-05, RISK-01, PLAT-013
 **Depends On:** 6.1
@@ -736,8 +736,8 @@ Fix `plugin.json` homepage from `github.com/davistroy/slide-generator` to the ma
 
 **Notes:** Also extend the manifest-sync CI check to cover `homepage` (ties to INT-05).
 
-#### 6.3 Add CHANGELOGs; document/consolidate the dual Gemini path
-**Status: PENDING**
+#### 6.3 Add CHANGELOGs; document/consolidate the dual Gemini path ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SA-005, SA-004
 **Depends On:** None
@@ -1058,13 +1058,13 @@ Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; W
 | Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Mitigated |
 | Scoping Bash (3.1) breaks legitimate skill actions | Med | Med | Test each rescoped skill (U2); revert per-skill | Mitigated |
 | Parallelising images (8.1) breaches memory ceiling | Med | Med | Cap concurrency by memory budget (PERF-05); else remove knob | Open |
-| slide-generator repo private → slide-gen owner-only | Med | Med | Resolve U1 first; ADR-0008 states the constraint honestly | Open |
+| slide-generator repo private → slide-gen owner-only | Med | Med | Resolve U1 first; ADR-0008 states the constraint honestly | Materialized |
 
 ## Unknowns Register
 
 | ID | Unknown | Severity | Affects | Resolution Strategy | Status |
 |----|---------|----------|---------|---------------------|--------|
-| U1 | Is the `slide-generator` repo public/installable? | High | Phase 6 (6.1) | `gh repo view davistroy/slide-generator` before Phase 6 | Open |
+| U1 | Is the `slide-generator` repo public/installable? | High | Phase 6 (6.1) | `gh repo view davistroy/slide-generator` before Phase 6 | Resolved [2026-07-16] (PRIVATE — slide-gen is owner-only; documented in ADR-0008) |
 | U2 | Does scoping `Bash` break any skill's real operations? | High | Phase 3 (3.1) | Test each rescoped skill on a representative task | Accepted (conservative union-scoping + 3 documented broad carve-outs + `claude plugin validate --strict` green; residual runtime risk accepted as skills aren't CI-runtime-testable) |
 | U3 | Do recon/audit skills SSH with sudo (RI-03)? | Medium | Phase 3 (3.3) | Read spark-audit/jetson-audit bodies | Resolved [2026-07-16] (yes — spark-audit/jetson-audit SSH with passwordless sudo; jetson-recon combines untrusted fetch + SSH) |
 | U4 | How many errors does mypy-blocking surface? | Medium | Phase 4 (4.2) | Run `mypy src/` per tool before removing continue-on-error | Resolved [2026-07-16] (54 bpmn + 98 visual-explainer = 152; count-ratchet baselines 57/101 instead of a full cleanup) |

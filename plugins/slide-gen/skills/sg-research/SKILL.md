@@ -22,6 +22,7 @@ Run the research phase of the slide-generator pipeline. This step uses the Claud
 
 ## Prerequisites
 
+- **Preflight:** `sg --version` must succeed before proceeding — if `sg` is missing, stop and tell the user this requires the private `davistroy/slide-generator` engine (owner-only; see ADR-0008)
 - `slide-generator` package installed (`pip install -e ".[all]"` from the slide-generator repo)
 - `ANTHROPIC_API_KEY` set in environment
 - Working directory where output should be saved

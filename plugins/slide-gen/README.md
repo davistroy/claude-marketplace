@@ -2,6 +2,17 @@
 
 AI-assisted presentation generation pipeline: research, outline, draft, optimize, validate graphics, generate images, and build PowerPoint files.
 
+## External Dependency (REQUIRED)
+
+**This plugin ships pipeline skills only — it does not include the generation engine.** Every skill in `slide-gen` is a thin wrapper around an `sg` CLI that must be installed separately, from a repo that is **not this one**.
+
+- The `sg` engine lives in [`davistroy/slide-generator`](https://github.com/davistroy/slide-generator), a **PRIVATE** GitHub repository.
+- As of this writing, that repo has no public release and no published package. There is no install path for anyone without direct access to it.
+- **This plugin is functional only for the repo owner** (someone with access to the private `slide-generator` repo, with `sg` installed and on `PATH`, plus `ANTHROPIC_API_KEY` and `GOOGLE_API_KEY` set). If that isn't you, installing `slide-gen@troys-plugins` gets you skill prompts that will fail their preflight check on first use.
+- If `slide-generator` is later made public or published, this section and ADR-0008 (`docs/adr/0008-slide-gen-dependency-model.md`) will be updated to reflect a real install path.
+
+See [ADR-0008](../../docs/adr/0008-slide-gen-dependency-model.md) for the full rationale on why the engine is declared external rather than vendored into this plugin.
+
 ## Installation
 
 ```text

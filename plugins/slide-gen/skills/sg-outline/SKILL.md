@@ -19,6 +19,7 @@ Generate a structured presentation outline from research findings. Uses Claude w
 
 ## Prerequisites
 
+- **Preflight:** `sg --version` must succeed before proceeding — if `sg` is missing, stop and tell the user this requires the private `davistroy/slide-generator` engine (owner-only; see ADR-0008)
 - `slide-generator` package installed
 - `ANTHROPIC_API_KEY` set in environment
 - A `research.json` file from the research step (or equivalent structured JSON)

@@ -19,6 +19,7 @@ Draft full slide content from an outline. Uses structured single-call generation
 
 ## Prerequisites
 
+- **Preflight:** `sg --version` must succeed before proceeding — if `sg` is missing, stop and tell the user this requires the private `davistroy/slide-generator` engine (owner-only; see ADR-0008)
 - `slide-generator` package installed
 - `ANTHROPIC_API_KEY` set in environment
 - An `outline.json` file from the outline step

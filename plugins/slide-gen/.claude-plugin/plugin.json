@@ -6,7 +6,7 @@
     "name": "Troy Davis",
     "email": "troy.e.davis@gmail.com"
   },
-  "homepage": "https://github.com/davistroy/slide-generator",
+  "homepage": "https://github.com/davistroy/claude-marketplace",
   "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
   "keywords": ["presentation", "powerpoint", "slides", "ai", "claude", "gemini", "pipeline"]
