@@ -24,49 +24,15 @@ Execute an IMPLEMENTATION_PLAN.md file by orchestrating subagents in a loop. Eac
 
 **Prerequisites Validation:** verify that `PLAN_FILE` exists at the resolved path; the current branch is NOT main or master; the working directory is clean (no uncommitted changes); and GitHub CLI (`gh`) is authenticated.
 
-**If the plan file is missing:**
-```text
-Error: [PLAN_FILE] not found.
+**If the plan file is missing:** output an error stating `[PLAN_FILE]` was not found, and suggest `/plan-improvements` (generate from codebase analysis), `/create-plan` (generate from requirements documents), or a custom path via `/implement-plan --input <path-to-plan>`; then stop.
 
-Run one of these commands to generate an implementation plan:
-- /plan-improvements — Generate from codebase analysis
-- /create-plan — Generate from requirements documents
+**If on main/master:** output an error that the command cannot run on main/master, and instruct the user to create a feature branch first (`git checkout -b feature/implementation`); then stop.
 
-Or specify a custom path: /implement-plan --input <path-to-plan>
-```
+**If working directory is dirty:** check if `.implement-plan-state.json` exists and contains an `"in_progress"` or `"in_progress_batch"` field.
+- **If so** (dirty state likely from an interrupted implementation session): present three options — (1) commit these changes and resume (as `"[X.Y] interrupted work"`), (2) stash these changes and resume, (3) abort to inspect manually first. Wait for the user's choice and execute accordingly before proceeding.
+- **If not** (no state file or no IN_PROGRESS item): output the standard error that uncommitted changes must be committed or stashed before running the command; then stop.
 
-**If on main/master:**
-```text
-Error: Cannot run on main/master branch.
-
-Create a feature branch first:
-  git checkout -b feature/implementation
-```
-
-**If working directory is dirty:**
-
-Check if `.implement-plan-state.json` exists and contains an `"in_progress"` or `"in_progress_batch"` field. If so, the dirty state is likely from an interrupted implementation session:
-
-```text
-Uncommitted changes detected. State file shows work item [X.Y] was in progress.
-This may be leftover from an interrupted session.
-
-Options:
-  (1) Commit these changes and resume (git add + commit as "[X.Y] interrupted work")
-  (2) Stash these changes and resume (git stash)
-  (3) Abort — inspect manually first
-```
-
-Wait for the user's choice and execute accordingly before proceeding.
-
-If there is NO state file or no IN_PROGRESS item, use the standard error:
-```text
-Error: Uncommitted changes detected.
-
-Commit or stash your changes before running this command:
-  git status
-  git add <files> && git commit -m "Message"
-```
+See `references/implement-plan-examples.md` for the exact wording of each of these error and prompt messages.
 
 ## Overview
 
@@ -173,17 +139,7 @@ Check if `.implement-plan-state.json` exists in the repository root. Read it dir
 - **If the state file does not exist or is corrupted:** Continue with Step 1 below.
 - **If the state file exists and is valid:** Resume execution. Skip the STARTUP subagent. Read `current_phase`, `current_item`, `completed`, `failed`, and `parallelization_map` from it.
 
-  **Check for interrupted work items (IN_PROGRESS detection):** Check for an `"in_progress"` field (single-item batch) or `"in_progress_batch"` field (parallel batch). These are set in Step 0 of the MAIN LOOP (before implementation) and cleared in Step 5 (after commit). If either is present, an item was interrupted mid-implementation:
-
-  ```text
-  Resuming from interrupted session. [N] items already completed.
-  Work item [X.Y] ("[description]") was in progress when the previous session ended.
-
-  Options:
-    (1) Retry — re-implement this work item from scratch
-    (2) Skip — mark as skipped and move to the next item
-    (3) Mark complete — the work was finished but not recorded; mark it done and continue
-  ```
+  **Check for interrupted work items (IN_PROGRESS detection):** Check for an `"in_progress"` field (single-item batch) or `"in_progress_batch"` field (parallel batch). These are set in Step 0 of the MAIN LOOP (before implementation) and cleared in Step 5 (after commit). If either is present, an item was interrupted mid-implementation — present a resume prompt with three options: retry, skip, or mark complete. See `references/implement-plan-examples.md` for the exact prompt text.
 
   Wait for the user's choice:
   - **(1) Retry:** Remove the `in_progress` (or `in_progress_batch`) entry. Set `current_item` to this item (or the first item in the batch). Proceed to the MAIN LOOP — the item(s) will be implemented fresh.
@@ -308,17 +264,7 @@ Launch an Agent (subagent_type: "general-purpose") with this prompt (the ONLY te
 
 **If ALL_TESTS_PASS:** Proceed to Step 3. Note any issues briefly for the LEARNINGS.md update.
 
-**If TESTS_STUCK:** The testing subagent could not fix the failures. Offer the user a rollback choice (scope is the whole batch — "this item" for a single item, "this batch" for parallel):
-
-```text
-Tests cannot be fixed for [work item [N.M] | parallel batch [N.M, N.N, ...]] after 3 attempts.
-Failing: [test names from subagent]
-
-Options:
-  (1) Rollback — revert to last checkpoint [last_good_sha] and skip this [item | batch]
-  (2) Skip — keep the changes but mark [the item | all items in the batch] as failed, continue
-  (3) Pause — stop execution for manual intervention
-```
+**If TESTS_STUCK:** The testing subagent could not fix the failures. Offer the user a rollback choice (scope is the whole batch — "this item" for a single item, "this batch" for parallel): (1) rollback to `last_good_sha` and skip, (2) skip but keep changes and mark failed, (3) pause for manual intervention. See `references/implement-plan-examples.md` for the exact prompt text.
 
 Wait for the user's choice:
 - **(1) Rollback:** `git checkout -- .` (the failed work is uncommitted, so this restores the tree to `last_good_sha`); add the item(s) to `failed` with `"error": "Tests stuck — rolled back by user", "attempts": 3`; set `current_item` to the next item after the [item | batch]; record in LEARNINGS.md via a quick Agent; continue to the NEXT ITERATION.
@@ -401,17 +347,7 @@ Validation: [PHASE_VALID | PHASE_ISSUES]
 Next up: Phase [new phase] ([N] work items).
 ```
 
-**Step T3: Handle Validation Issues.** If the validation subagent returned `PHASE_ISSUES`, present the unchecked items and ask for guidance:
-
-```text
-Phase [completed phase] has unchecked completion items:
-[list of issues]
-
-Options:
-  (1) Continue anyway — proceed to the next phase despite incomplete items
-  (2) Pause — stop execution to address the issues manually, then resume with /implement-plan
-  (3) Abort — proceed to FINALIZATION with whatever is complete so far
-```
+**Step T3: Handle Validation Issues.** If the validation subagent returned `PHASE_ISSUES`, present the unchecked items and ask for guidance: (1) continue anyway, (2) pause to address the issues manually, or (3) abort to FINALIZATION with whatever is complete so far. See `references/implement-plan-examples.md` for the exact prompt text.
 
 Wait for the response: **(1) Continue anyway** — log the issues to LEARNINGS.md via a quick Agent, then proceed; **(2) Pause** — stop execution (the user fixes issues and re-runs `/implement-plan` to resume from the state file); **(3) Abort** — proceed to FINALIZATION.
 
@@ -429,39 +365,7 @@ Wait for the response: **yes** — proceed to the next phase (the next batch ent
 
 ### COMPLETION REPORT (output on EVERY exit path)
 
-Before stopping execution — whether from normal completion, early termination, user abort, or error — read `.implement-plan-state.json` and output the following report. This is the **last thing the command outputs** regardless of how it exits.
-
-```text
-═══════════════════════════════════════════════════════
- IMPLEMENTATION PROGRESS REPORT
-═══════════════════════════════════════════════════════
-
- Status: [COMPLETE | PARTIAL — reason]
- Session started: [started_at from state file]
- Current phase: [current_phase from state file]
-
- ✓ Completed ([N] items):
-   [For each item in completed array:]
-   - [item] [description] (SHA: [first 7 chars of sha])
-
- ✗ Failed/Skipped ([N] items):
-   [For each item in failed array:]
-   - [item] [description] — [error]
-
- ◌ Remaining ([N] items):
-   [For each item not in completed or failed:]
-   - [item] [description]
-
- [If in_progress or in_progress_batch exists:]
- ⚠ In Progress (interrupted):
-   - [item] [description] — started [started_at]
-
- Last checkpoint: [last_good_sha from state file] ([item number])
-
- To resume: /implement-plan [include --input flag if non-default path]
- The state file (.implement-plan-state.json) will resume from where this session stopped.
-═══════════════════════════════════════════════════════
-```
+Before stopping execution — whether from normal completion, early termination, user abort, or error — read `.implement-plan-state.json` and output a report with these sections, in order: a banner, the status line, session start time, current phase, a completed-items list (with SHAs), a failed/skipped-items list (with errors), a remaining-items list, an in-progress warning (only if `in_progress`/`in_progress_batch` exists), the last checkpoint, and resume instructions. This is the **last thing the command outputs** regardless of how it exits. See `references/implement-plan-examples.md` for the exact template and formatting.
 
 **Report generation rules:**
 
@@ -546,22 +450,7 @@ Duration scales with work item complexity, test suite size and duration, the num
 
 ## Examples
 
-```yaml
-# Default: PR-only (no merge) — creates a PR and stops for manual review
-/implement-plan
-
-# Creates the PR, then merges it and cleans up the branch
-/implement-plan --auto-merge
-
-# Use a plan file at a custom path
-/implement-plan --input docs/migration-plan.md
-
-# Pause for confirmation before each new phase (interactive)
-/implement-plan --pause-between-phases
-
-# Combined flags
-/implement-plan --input plans/refactor.md --pause-between-phases --auto-merge
-```
+See `references/implement-plan-examples.md` for usage examples of each flag and flag combination (default PR-only mode, `--auto-merge`, `--input`, `--pause-between-phases`, and combined flags).
 
 On each run the orchestrator scans the plan (or resumes from `.implement-plan-state.json`), then loops one batch at a time: mark in-progress → implement (parallel where the plan allows) → test → optional docs → commit → update state, advancing phase by phase through the quality gate until all items are done. Default mode ends by creating a PR and printing its URL; `--auto-merge` merges the PR and returns to `main`.
 
