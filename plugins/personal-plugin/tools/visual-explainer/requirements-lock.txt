@@ -34,7 +34,7 @@ docstring-parser==0.18.0
     # via anthropic
 google-auth[requests]==2.55.2
     # via google-genai
-google-genai==1.75.0
+google-genai==2.11.0
     # via visual-explainer (pyproject.toml)
 h11==0.16.0
     # via httpcore
