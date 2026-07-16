@@ -42,10 +42,11 @@ Use your judgment based on the content. When in doubt, use `observation` and `pe
 
 Use the Bash tool with curl and a heredoc to POST to the captures API. **Always use curl, not Python urllib** — Cloudflare blocks Python's default user-agent with 403.
 
-**Use a heredoc for the JSON body** to avoid shell escaping issues with quotes and newlines in the content:
+**Use a heredoc for the JSON body** to avoid shell escaping issues with quotes and newlines in the content. Bound the call with `--max-time`/`--connect-timeout` so a hung connection cannot block indefinitely, and capture the HTTP status alongside the body so success is verified before confirming anything to the user:
 
 ```bash
-curl -s -X POST "https://brain.troy-davis.com/api/v1/captures" \
+RAW=$(curl -s -w '\n%{http_code}' --max-time 60 --connect-timeout 10 \
+  -X POST "https://brain.troy-davis.com/api/v1/captures" \
   -H "Content-Type: application/json" \
   -H "X-Open-Brain-Caller: claude-code" \
   -d @- <<'ENDJSON'
@@ -62,17 +63,29 @@ curl -s -X POST "https://brain.troy-davis.com/api/v1/captures" \
   }
 }
 ENDJSON
+)
+CURL_EXIT=$?
+HTTP_CODE=$(echo "$RAW" | tail -n1)
+BODY=$(echo "$RAW" | sed '$d')
+
+if [ "$CURL_EXIT" -ne 0 ] || [ "$HTTP_CODE" -ge 400 ] || [ -z "$BODY" ]; then
+  echo "Capture failed: curl_exit=$CURL_EXIT http=$HTTP_CODE"
+  echo "$BODY"
+  exit 1
+fi
+echo "$BODY"
 ```
 
 **Important:**
 - Use heredoc (`<<'ENDJSON'`) to pass the JSON body — avoids shell escaping entirely
 - Content max length: 50,000 characters
-- The API returns `{ id, pipeline_status, created_at }` on success (201)
+- The API returns `{ id, pipeline_status, created_at }` on success (201) — do not declare success until `CURL_EXIT` is `0` and `HTTP_CODE` is below `400`
 - Do NOT use Python urllib — Cloudflare returns 403 on Python's default user-agent
 
 ### Step 4: Confirm to the user
 
-On success, display:
+Only after the Step 3 checks pass, parse `id`, `pipeline_status`, and `created_at` from `$BODY` (e.g. `echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['id'], d['pipeline_status'], d['created_at'])"`) and display:
+
 ```text
 Captured in Open Brain:
   ID: <capture_id>
@@ -81,7 +94,7 @@ Captured in Open Brain:
   Pipeline: <status>
 ```
 
-On failure, show the error and suggest the user check that the homeserver is running.
+On failure (non-zero `CURL_EXIT`, `HTTP_CODE >= 400`, or an empty body), show the error and suggest the user check that the homeserver is running.
 
 ## Error Handling
 
