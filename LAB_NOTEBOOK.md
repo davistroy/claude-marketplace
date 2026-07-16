@@ -907,4 +907,27 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 7. **PR #112 first CI round:** 16/18 green; **BPMN2DrawIO + Visual Explainer Tests (windows-latest)** failed. Root cause: GitHub Actions defaults `run:` steps to **PowerShell** on Windows runners, and the new multi-line mypy-ratchet **bash** script (`set +e`, `[ "$ERRORS" -gt "$BASELINE" ]`, `if…then`) is not valid PowerShell (`ParserError: Missing '(' after 'if'`). The pre-existing single-command `run:` steps (pip/pytest) work under pwsh, which is why only the two NEW ratchet steps broke. Fix: added `shell: bash` to both ratchet steps (Git bash on Windows runners supports the `grep -oP` extraction). ubuntu legs were unaffected (bash default). This is the OS-fidelity value of the windows matrix again (cf. E018 XXE fix).
 
-**Status:** IN PROGRESS — all 5 items implemented; local gates green; Windows pwsh-vs-bash ratchet fix pushed; PR #112 re-running. Entry closed with the squash-merge SHA at the start of the Phase 5 branch.
+**Status:** COMPLETE. PR #112 squash-merged as `7fe821d` (second CI round all 18 green after the pwsh→`shell: bash` ratchet fix). CI gates now correct & complete: per-tool tests linted, mypy ratchet gating net-new type debt, schema *data* validated, actions SHA-pinned, pip-audit scoped. All job names preserved. Local main 7fe821d.
+**Duration:** ~65 minutes (sequential 5-item phase + one Windows CI fix round)
+
+---
+
+### Entry 021 — Implement-Plan Phase 5: External-Call Robustness [skill] [ci]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `7fe821d` (branch-protected), branch `impl/phase-5-external`, orchestrator=Opus, implementer=Sonnet
+
+**Objective:** Execute IMPLEMENTATION_PLAN.md Phase 5 — make the raw-curl research/brain-entry integrations fail fast and cleanly: (5.1) add `--max-time`/`--connect-timeout` to every curl; (5.2) check HTTP status / non-empty job ID after submit, fast-fail, honor 429/Retry-After; (5.3) move the Gemini research key from URL query to `x-goog-api-key` header + include a run TIMESTAMP in `/tmp` response filenames. Ship as one PR, merge on green CI.
+
+**Hypothesis:** All 3 items edit the SAME file (`plugins/personal-plugin/references/research-provider-protocols.md`, plus brain-entry for 5.1), so ONE subagent does all three sequentially to avoid a self-collision (not 3 parallel). These are markdown instruction-file edits (curl invocations inside the protocol reference) — no Python, no tests exercise them, so CI risk is limited to markdownlint + plugin validation. Expect all 18 checks green.
+
+**Rollback Plan:** All work on branch `impl/phase-5-external`; `git branch -D` reverts pre-merge; instruction-file edits are git-tracked. Post-merge `git revert <sha>`.
+
+**Actions & Results:**
+
+1. **5.1 (timeouts):** `--connect-timeout 10` on every curl; `--max-time` tuned per call (600s Anthropic sync extended-thinking, 60s submits/POSTs, 30s poll GETs); poll GETs get `--retry 2` (idempotent), submits don't (avoid duplicate jobs).
+2. **5.2 (status/error):** every submit captures curl exit code + HTTP status via `-w '%{http_code}'` and fast-fails on curl error / HTTP ≥400 / empty ID BEFORE any poll loop (kills the ~30-min-poll-a-nonexistent-job failure mode); Anthropic response checked for `error` before parse; poll loops treat missing `status`/`state` as error and honor HTTP 429 `Retry-After` (via `-D` header dump, 30s fallback).
+3. **5.3 (key + temp files):** Gemini `?key=` moved to `x-goog-api-key` header (submit + poll); all `/tmp` response + header-dump filenames now include `[TIMESTAMP]` (reused the doc's existing placeholder, no new var).
+4. **Gate:** `claude plugin validate --strict` exit 0; markdownlint 0 errors on both files; all 6 embedded bash blocks pass `bash -n`.
+
+**Status:** IN PROGRESS — all 3 items implemented; validate + markdownlint + bash -n green; PR pending. Entry closed with the squash-merge SHA at the start of the Phase 6 branch.

@@ -595,8 +595,8 @@ Scope `pip-audit` to the tools' locked deps (`--requirement <lock>`) instead of 
 
 ### Work Items
 
-#### 5.1 Add timeouts to every raw-curl external call
-**Status: PENDING**
+#### 5.1 Add timeouts to every raw-curl external call ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: haiku**
 **Recommendation Ref:** INT-01
 **Files Affected:**
@@ -615,8 +615,8 @@ Every `curl` (Anthropic/OpenAI/Gemini research legs + brain-entry POST) lacks `-
 
 **Notes:** Pure instruction-file edits.
 
-#### 5.2 Check HTTP status / job ID after submit; honor 429
-**Status: PENDING**
+#### 5.2 Check HTTP status / job ID after submit; honor 429 ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** INT-02, INT-07
 **Depends On:** 5.1
@@ -635,8 +635,8 @@ Submits never check HTTP status; a failed submit yields an empty job ID and the 
 
 **Notes:** Biggest real-world win — turns a 30-min hang into an immediate error.
 
-#### 5.3 Gemini research key → header; unique temp filenames
-**Status: PENDING**
+#### 5.3 Gemini research key → header; unique temp filenames ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: haiku**
 **Recommendation Ref:** INT-03, INT-09
 **Depends On:** None
