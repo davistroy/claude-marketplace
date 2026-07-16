@@ -140,13 +140,20 @@ class TestSupportsUnicodeWindows:
             assert supports_unicode() is True
 
     def test_fallthrough_to_legacy_returns_false(self, monkeypatch):
-        """No modern-terminal env vars set: falls through to the ctypes
-        probe, which raises AttributeError on non-Windows (``ctypes.windll``
-        doesn't exist), is caught, and yields the ASCII-legacy default."""
+        """No modern-terminal env vars set and a non-UTF8 console code page:
+        the ctypes probe reports a legacy code page (not 65001), so the
+        function falls through to the ASCII-legacy default (False). ``ctypes.windll``
+        is mocked (create=True) so the result is deterministic on any host OS —
+        without this a real Windows runner reports code page 65001 and returns True."""
         monkeypatch.delenv("WT_SESSION", raising=False)
         monkeypatch.delenv("ConEmuANSI", raising=False)
         monkeypatch.delenv("TERM_PROGRAM", raising=False)
-        with patch("sys.platform", "win32"):
+        fake_windll = MagicMock()
+        fake_windll.kernel32.GetConsoleOutputCP.return_value = 437  # legacy US OEM, not UTF-8
+        with (
+            patch("sys.platform", "win32"),
+            patch("ctypes.windll", fake_windll, create=True),
+        ):
             assert supports_unicode() is False
 
 

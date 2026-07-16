@@ -497,16 +497,21 @@ class TestSupportsUnicodeExtra:
 
         assert supports_unicode() is True
 
-    def test_ctypes_fallback_returns_false_on_non_windows_ctypes(self, monkeypatch):
-        """Test the ctypes.windll fallback path (AttributeError caught) returns False."""
+    def test_ctypes_legacy_codepage_returns_false(self, monkeypatch):
+        """win32 + no modern-terminal env vars + a legacy (non-UTF8) console
+        code page → the ctypes probe returns a code page other than 65001, so
+        the function falls through to the ASCII-legacy default (False).
+        ``ctypes.windll`` is mocked (create=True) so this is deterministic on
+        any host OS — a real Windows runner would otherwise report 65001 → True."""
         monkeypatch.setattr("sys.platform", "win32")
         monkeypatch.delenv("WT_SESSION", raising=False)
         monkeypatch.delenv("ConEmuANSI", raising=False)
         monkeypatch.delenv("TERM_PROGRAM", raising=False)
 
-        # ctypes.windll does not exist on this (non-Windows) interpreter, so the
-        # function's internal try/except AttributeError path is exercised.
-        assert supports_unicode() is False
+        fake_windll = MagicMock()
+        fake_windll.kernel32.GetConsoleOutputCP.return_value = 437  # legacy US OEM, not UTF-8
+        with patch("ctypes.windll", fake_windll, create=True):
+            assert supports_unicode() is False
 
     def test_windows_codepage_65001_detected(self, monkeypatch):
         """Test a fake win32 ctypes.windll reporting code page 65001 is Unicode-capable."""
