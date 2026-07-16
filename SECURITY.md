@@ -264,6 +264,24 @@ Some commands rely on external tools:
 
 These tools have their own security considerations. Keep them updated.
 
+### Fleet recon/audit trust boundary
+
+Four skills interact with the personal fleet (DGX Spark, Jetson Orin Nano): `spark-audit`, `jetson-audit`, `spark-recon`, `jetson-recon`. This is the arch-review SEC-01 boundary made explicit -- documented here, not closed.
+
+**What SSHes where, with what privilege:**
+- `spark-audit` SSHes to `claude@spark.k4jda.net`; `jetson-audit` SSHes to `claude@jetson.k4jda.net`. Both hold unscoped `Bash` and issue `sudo`-prefixed commands directly (`spark-audit`: `sudo dmesg`; `jetson-audit`: `sudo tegrastats`, `sudo nvpmodel`, `sudo jetson_clocks`).
+- The `claude` SSH user has passwordless sudo on fleet hosts for `docker`, `systemctl`, `modprobe`, `reboot`, `dpkg`, `apt`, `depmod`, `dkms`, `cp`, `mv`, `rm`, `ln`, `mkdir`, `chmod`, `chown`, `mount`, `umount`, `nvidia-smi`, `sysctl`. Several of these (`rm`, `chmod`, `chown`, `mount`, `apt`, `reboot`) are root-equivalent for that host, not read-only conveniences -- reaching a shell on that account is effectively reaching fleet root.
+- `jetson-recon` combines both halves of the injection trifecta in one skill: Checks 1-4 ingest untrusted third-party content (NVIDIA/JetPack notes, llama.cpp GitHub, HuggingFace, the NVIDIA developer forum) via `WebFetch`/`WebSearch`, then Check 5 SSHes into `claude@jetson.k4jda.net` for a live health read, all under the same unscoped `Bash` grant.
+- `spark-recon` ingests the same class of untrusted content but declares no SSH target in its machine config and states it "never touches the Spark system" -- its `Bash` grant is for local file/notebook operations only.
+
+**Blast radius if injected:** content smuggled into `jetson-recon`'s fetched forum/GitHub/HuggingFace results, or into anything `spark-audit`/`jetson-audit` reads back from the live host (container logs, baseline files, command output), rides an unscoped shell that can reach a passwordless-sudo account -- i.e., fleet root, not just the invoking user's local privileges.
+
+**Mitigations in place:**
+- **3.1 (Bash scoping):** unscoped `Bash` on content-ingesting skills is replaced with `Bash(<cmd>:*)` scopes matching each skill's actual needs, shrinking what an injected instruction can execute even if it rides along.
+- **3.2 (fetch/act separation):** the untrusted-fetch step in recon skills is separated from the local/remote-action step so no shell/SSH tool is active while third-party content is being read; the highest-blast-radius recon skills are evaluated for `disable-model-invocation` so injected content cannot auto-trigger them.
+
+**Residual risk:** audit skills still hold legitimate, scoped SSH+sudo grants for their designed function (`docker`/`nvidia-smi`/`systemctl`/`tegrastats`/`nvpmodel`/`jetson_clocks`). Scoping reduces the blast radius of an injected command but does not eliminate the underlying fact -- the shell these skills reach is a passwordless-sudo shell. Users who consider this unacceptable should run audit/recon skills only under explicit human review, or narrow the `claude` SSH user's sudo grant below the current fleet-wide policy.
+
 ---
 
 ## 6. Vulnerability Reporting

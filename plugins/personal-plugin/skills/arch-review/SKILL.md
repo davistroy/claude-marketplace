@@ -3,7 +3,7 @@ name: arch-review
 description: Comprehensive 9-agent architecture review — spawns parallel domain specialists (architecture, code, data, integration, performance, QA, security, platform, risk) and produces structured findings with executive report and go/no-go recommendation
 argument-hint: "<path-to-target> [--focus <agents>] [--no-meta]"
 effort: high
-allowed-tools: Read, Glob, Grep, Bash, Agent
+allowed-tools: Read, Glob, Grep, Bash, Agent  # Bash unscoped: runs open-ended analysis commands (semgrep/bandit/pip-audit/cloc/trivy/eslint/etc.) selected dynamically by domain subagents; injection mitigated by read-only fetch separation (3.2)
 disable-model-invocation: true
 ---
 

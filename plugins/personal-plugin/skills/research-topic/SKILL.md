@@ -2,7 +2,7 @@
 name: research-topic
 description: Orchestrate parallel deep research across multiple LLM providers using native context:fork subagents and synthesize results. Suggest when — in-depth topic research, multi-provider perspective comparison, well-sourced analysis needed, "deep research"/"research report" keywords, or thorough technical/strategic/emerging topic investigation.
 effort: high
-allowed-tools: Read, Write, Bash, WebSearch, WebFetch, Task
+allowed-tools: Read, Write, Bash(echo:*), Bash(date:*), Bash(command:*), Bash(pandoc:*), Bash(curl:*), WebSearch, WebFetch, Task
 ---
 
 # Multi-Source Deep Research

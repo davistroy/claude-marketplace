@@ -856,4 +856,28 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 7. **PR #110 first CI round:** 24/25 green, but **BPMN2DrawIO Tests (windows-latest)** failed at collection — `test_xxe.py` read `Path("/etc/hostname").read_text()` at **module level**, which raises `FileNotFoundError` on Windows (`\etc\hostname` absent), aborting the whole suite. Root cause: a POSIX-only hardcoded path used as the XXE exfil target. Fix: rewrote the test to create a `tmp_path` sentinel file and point the SYSTEM entity at `Path.as_uri()` (valid `file://` on both OSes), removing all module-level filesystem reads; ruff dropped the now-unused `pytest` import. Re-verified on Linux: 3 XXE tests pass, full suite 588 pass / 92%. This is the OS-fidelity value of the windows-latest matrix leg — a Linux-only subagent test check missed it.
 
-**Status:** IN PROGRESS — all 5 items implemented + tool suites green above floors (bpmn 92% ≥90, visual-explainer 68% ≥65); Windows XXE-test portability fixed; PR #110 re-running. Entry closed with the squash-merge SHA at the start of the Phase 3 branch. (Pyright surfaced a pre-existing `int.split` note at concept_analyzer.py:440 + env import-resolution false positives — not introduced here; mypy advisory for visual-explainer until Phase 4.2.)
+**Status:** COMPLETE. PR #110 squash-merged as `039c2cc` (second CI round all 18 checks green after the Windows XXE-test portability fix). All 5 exploitable-in-code paths closed (XXE, plaintext-key, SSRF, brittle backoff, corruptible checkpoints); coverage floors held (bpmn 92%, visual-explainer 68%). Local main fast-forwarded 8a2988a→039c2cc.
+**Duration:** ~50 minutes (including the Windows test-portability fix + one CI re-run)
+
+---
+
+### Entry 019 — Implement-Plan Phase 3: Injection-Surface Reduction [skill] [decision] [cleanup]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `039c2cc` (branch-protected), branch `impl/phase-3-injection`, orchestrator=Opus, implementers=Sonnet
+
+**Objective:** Execute IMPLEMENTATION_PLAN.md Phase 3 — reduce the prompt-injection "lethal trifecta" surface: (3.1) scope `Bash` narrowly in the skills/commands that currently grant unscoped `Bash` (inventory found **24** files: 14 skills + 10 commands — more than the ~15 estimate); (3.2) separate untrusted-fetch from local-action in the recon/audit skills; (3.3) resolve RI-03 (do spark-audit/jetson-audit SSH into fleet hosts with sudo?) and document the trust boundary in SECURITY.md. Ship as one PR, merge on green CI.
+
+**Hypothesis:** The regression risk here is real and **cannot be runtime-tested** (skills are LLM-interpreted; U2). Mitigation: scope CONSERVATIVELY — for each file, `allowed-tools: Bash(<cmd>:*)` covering the UNION of shell commands its body actually invokes; where a skill genuinely needs unbounded analysis bash (e.g. arch-review), LEAVE `Bash` with a one-line justification and rely on 3.2's fetch/act separation instead of breaking it. Gate = `claude plugin validate --strict` green on all touched plugins + markdownlint. Expect no new CI test failures (frontmatter-only + SECURITY.md doc). Parallel: [3.1-skills, 3.1-commands, 3.3] disjoint file sets; 3.2 sequenced after 3.1 (both touch recon skill files).
+
+**Rollback Plan:** All work on branch `impl/phase-3-injection`; `git branch -D` reverts pre-merge; every file git-tracked; revert per-skill if a scope proves insufficient. Post-merge `git revert <sha>`.
+
+**Actions & Results:**
+
+1. **3.1 (Bash scoping):** 16 skills — 13 scoped to the exact command union (e.g. fleet-health→`Bash(ssh:*),Bash(curl:*)`; new-project→10 scopes; research-topic→5), 3 kept broad with an inline YAML justification because they run genuinely-dynamic scanners (security-analysis ≈9 native audit tools by stack; leak-risk-audit writes+runs ad-hoc Python scans; arch-review's 9 domain subagents run semgrep/bandit/lizard/trivy/etc.). 7 commands scoped (scaffold-plugin→mkdir, validate-plugin→git/sed/gh/base64, clean-repo→git/grep, convert-markdown→pandoc, bump-version→git, arch-synthesize→ls/echo, arch-review-single→mkdir); new-skill had no Bash. All enumerable — zero command carve-outs needed. `claude plugin validate --strict` exit 0.
+2. **3.3 (RI-03 resolved):** spark-audit/jetson-audit DO SSH with passwordless sudo (`sudo dmesg`/`sudo tegrastats`/`sudo nvpmodel`/`sudo jetson_clocks`); the fleet `claude` user's sudo set includes root-equivalent `rm/chmod/chown/mount/apt/reboot`. Sharpest finding: **jetson-recon combines untrusted WebFetch/WebSearch (Checks 1-4) + a live SSH read (Check 5) in one skill** — the full trifecta. spark-recon does NOT SSH. SECURITY.md gained a "Fleet recon/audit trust boundary" section making SEC-01 explicit.
+3. **3.2 (fetch/act separation):** all 4 fleet skills (spark-recon, jetson-recon, spark-audit, jetson-audit) gained `disable-model-invocation: true` (user-invoke-only — injected content can no longer auto-trigger an SSH/sudo skill) + a "Trust Boundary" section: fetched content is data-only, never determines which commands run; jetson-recon's ordering fixed (untrusted fetch first as data → then a fixed 10-command SSH allowlist). `claude plugin validate --strict` exit 0.
+
+**Findings:** U3 resolved (yes, SSH+sudo). U2 (does scoping break skills?) mitigated by conservative union-scoping + the 3 documented broad carve-outs + `claude plugin validate --strict` green; residual runtime-regression risk accepted (skills are LLM-interpreted, not runtime-testable in CI) — the `disable-model-invocation` change is the highest-value net reduction (4 SSH-capable skills can no longer be injection-triggered at all).
+
+**Status:** IN PROGRESS — all 3 items implemented, `claude plugin validate --strict` green; PR pending. Entry closed with the squash-merge SHA at the start of the Phase 4 branch.

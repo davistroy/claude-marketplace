@@ -2,7 +2,7 @@
 name: archive-project
 description: Archive, retire, or sunset a project repo — writes a status header into README.md, tags and commits the change, pushes and optionally archives the remote (GitHub only), moves the directory into ~/dev/archive/, and logs one line to ~/dev/PORTFOLIO.md. Suggest when the user says archive project, retire project, sunset repo, mothball this repo, shelve this project, or asks to wind down/decommission a repo that is no longer active.
 argument-hint: "<repo-path>"
-allowed-tools: Bash, Read, Write, Edit, Glob
+allowed-tools: Bash(cd:*), Bash(git:*), Bash(sed:*), Bash(gh:*), Bash(mkdir:*), Bash(mv:*), Bash(test:*), Bash(echo:*), Read, Write, Edit, Glob
 disable-model-invocation: true
 ---
 
