@@ -5,6 +5,31 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.0] - 2026-07-16
+
+Architecture-review hardening release (8-phase remediation; LAB_NOTEBOOK Entries 017–024). MAJOR due to interface/capability changes.
+
+### Changed (breaking)
+- `tools/visual-explainer`: removed the inert `--concurrency` CLI flag + `GenerationConfig.concurrency` field (dead concurrent path; generation was always serial). *(PERF-01)*
+- `allowed-tools` narrowed from unscoped `Bash` to specific `Bash(<cmd>:*)` scopes across ~16 skills + 7 commands (security-analysis, leak-risk-audit, arch-review kept broad with justification — dynamic scanners). *(SEC-05)*
+- `skills/{spark-recon,jetson-recon,spark-audit,jetson-audit}`: `disable-model-invocation: true` + trust-boundary sections — fleet SSH/sudo skills are now user-invoke-only. *(SEC-01)*
+
+### Security
+- `tools/bpmn2drawio/parser.py`: hardened lxml parser (XXE); `lxml>=5.0,<7`. *(DA-01/SE-02/SEC-02)*
+- `tools/visual-explainer`: SSRF guard in `concept_analyzer` (blocks private/link-local/metadata IPs, re-validates redirects); `.env` writes `chmod 0600` + warning (ADR-0003 amended); atomic durable writes + `schema_version` + full-length cache key. *(SEC-03/SEC-04/DA-02/DA-05)*
+- `references/research-provider-protocols.md` + `skills/brain-entry`: curl timeouts, submit status-checks/fast-fail, 429/Retry-After, Gemini key → `x-goog-api-key` header, timestamped temp files. *(INT-01/02/03/07/09)*
+- `SECURITY.md`: data-egress/confidentiality policy + supply-chain controls sections. *(RISK-03/RISK-04)*
+
+### Added
+- `## Error Handling` sections added to 14 skills. *(SE-10)*
+- `tools/visual-explainer/image_generator.py`: typed google-genai/httpx exception classification for backoff. *(SE-05)*
+
+### Fixed
+- Un-gated the mocked full-pipeline test from `ANTHROPIC_API_KEY`; deterministic resize test. *(QA-07/QA-08)*
+
+### Removed
+- `scripts/generate-help.py` (dead — targeted a never-produced `help.md`; ADR-0004 amended); tracked cruft (`GITHUB_ERRORS.md` ×2, `gap-analysis-2026-04-30.md`, placeholder `uv.lock`).
+
 ## [10.3.0] - 2026-07-16
 
 ### Added
