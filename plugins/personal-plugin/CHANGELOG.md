@@ -5,6 +5,11 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.3.0] - 2026-07-16
+
+### Added
+- `skills/clear-prep/SKILL.md`: prepares a project to survive a context `/clear` or compaction with zero state loss — Phase 1 reconstructs session state from the git delta + conversation; Phase 2 flushes it into durable docs (LAB_NOTEBOOK in-flight-entry flush + Decision Log / Action Items / Current Baseline living sections, memory files, CLAUDE.md rules, CHANGELOG) without committing; Phase 3 emits a single copy-paste "resume prompt" that orients a zero-context session after `/clear`. `allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)`; model-invocation enabled (suggestable on "clear context / compact / wrap up"); `--no-write` dry-run generates only the resume prompt
+
 ## [10.2.0] - 2026-07-12
 
 ### Added

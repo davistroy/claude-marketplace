@@ -163,6 +163,10 @@ jobs:
       - name: Install pip-audit and all tool dependencies
         run: |
           python -m pip install --upgrade pip
+          # Upgrade setuptools too: the runner ships a version that trails the
+          # advisory DB (e.g. 79.0.1 / PYSEC-2026-3447), and pip-audit scans the
+          # whole env, so a stale build tool fails the gate on unrelated PRs.
+          python -m pip install --upgrade setuptools
           pip install pip-audit
           pip install "plugins/bpmn-plugin/tools/bpmn2drawio[dev]"
           pip install "plugins/personal-plugin/tools/visual-explainer[dev,all]"

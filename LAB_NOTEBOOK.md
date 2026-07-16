@@ -63,6 +63,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C15 | Force plugin cache to release versions + arch-review smoke test (A10) — cache at 10.0.0/4.2.0/1.2.0 verified on disk; dispatch mechanics green; new definitions restart-gated (load next session) | 2026-07-08 | 2026-07-08 | E011 |
 | C16 | Regenerate 5 tool lockfiles for patched CVE versions (plan item 4.2) — 0 pyproject.toml floor changes needed; pip-audit clean ×3 tools; coverage floors held (92.32%/67.03%/96.95%); neither flagged risk (lxml 6.1, pillow 12.2) regressed | 2026-07-12 | 2026-07-12 | E012 |
 | C17 | Plan item 4.3 (A11): `.github/dependabot.yml` created (pip ×3 tool dirs + github-actions, grouped weekly); PR #99 opened from `fix/dependency-cves-2026-07`; all 15 CI checks green on ubuntu + windows; squash-merged | 2026-07-12 | 2026-07-12 | E013 |
+| C18 | Author `clear-prep` skill (context-clear handoff) + refresh 4-version-stale Current Baseline (prime finding); `claude plugin validate --strict` passed, not yet shipped | 2026-07-16 | 2026-07-16 | E015 |
 
 ---
 
@@ -101,12 +102,12 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 
 ## Current Baseline
 
-- **Marketplace version:** 3.2.0
-- **personal-plugin version:** 9.3.0 (24 commands, 24 skills, 9 named agents in `.claude/agents/`, hooks system)
-- **bpmn-plugin version:** 4.1.0 (2 skills, bpmn2drawio Python tool)
-- **slide-gen version:** 1.1.0 (9 skills, 7-step presentation pipeline)
-- **Git:** clean, main branch, verified synced with `origin/main` via `git fetch` + `git pull --ff-only` (2026-07-08)
-- **Last commit:** `d9a7f06` (PR #95) — personal-plugin 9.3.0: refresh spark-recon/spark-audit stale config
+- **Marketplace version:** 3.3.0
+- **personal-plugin version:** 10.2.0 (23 commands, 27→28 skills [clear-prep added E015], 10 named agents in `.claude/agents/`, hooks system)
+- **bpmn-plugin version:** 4.2.0 (2 skills, bpmn2drawio Python tool)
+- **slide-gen version:** 1.2.0 (9 skills, 7-step presentation pipeline)
+- **Git:** clean, main branch, verified synced with `origin/main` via `git fetch` (2026-07-16, 0/0 divergence)
+- **Last commit:** `c9d3dd4` — docs: close LAB_NOTEBOOK Entry 014 (PR #105 merged 9c12188, personal-plugin 10.2.0)
 - **Plugin cache status:** in sync — marketplace source is GitHub (`davistroy/claude-marketplace`) with `autoUpdate: true` (see D19); cache tracks `origin/main` automatically, independent of local working tree state
 - **CI/CD:** GitHub Actions — `test.yml` (pytest matrix, per-tool coverage gates, pip-audit, JSON schema validation), `validate.yml` (plugin.json/frontmatter/version-sync checks, ruff, markdownlint)
 - **Platform:** Linux (this session); prior sessions ran Windows 11 — see root CLAUDE.md "Dual environment" section
@@ -741,3 +742,63 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** COMPLETE. PR #105 squash-merged as `9c12188`; personal-plugin 10.2.0 live on main with plugin.json == marketplace.json == 10.2.0; installed cache updated 10.1.0→10.2.0 and inventory verified (3 new skill dirs + agents/sre-operator.md present in `~/.claude/plugins/cache/troys-plugins/personal-plugin/10.2.0/`). New skill/agent definitions are restart-gated (Entry 011 behavior) — first fresh session loads them; fresh-session skill-list check noted as the trailing verification.
 **Duration:** ~40 minutes (including one CI fix round)
+
+---
+
+--- New session: 2026-07-16 — /prime health assessment, then author a new `clear-prep` skill for context-clear handoffs ---
+
+### Entry 015 — Add `clear-prep` skill (context-clear handoff) + refresh stale Current Baseline [plugin] [skill] [decision]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, Claude Code CLI, main at `c9d3dd4` (clean, synced with origin/main 0/0), personal-plugin v10.2.0, marketplace 3.3.0
+
+**Objective:** (1) Run `/prime` for a full situational assessment. (2) Author a new skill `clear-prep` in personal-plugin that, on request, flushes the current session's state into all durable documents (LAB_NOTEBOOK living sections + in-flight entry, memory, CLAUDE.md, CHANGELOG) and then emits a single copy-paste "resume prompt" the user runs in a fresh session after `/clear`, so a zero-context Claude continues seamlessly. (3) Remediate the highest prime finding: this notebook's "Current Baseline" living section was 4 versions stale (read 3.2.0/9.3.0/4.1.0/1.1.0; actual 3.3.0/10.2.0/4.2.0/1.2.0) — Entry 014 shipped 10.2.0 but never refreshed the baseline, violating Rule 7.
+
+**Hypothesis:** `clear-prep` is additive — a single new `skills/clear-prep/SKILL.md` under the required nested structure, no plugin.json/marketplace.json edits needed (skills are auto-discovered from `skills/`, unlike plugins which need marketplace registration). Frontmatter follows house convention: `name` present and == dir name (D2), `effort`, `allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)`, `description` carrying the proactive-trigger text (≤1024 chars, no body "Proactive Triggers" section). Design choice: model-invocation ENABLED (suggestable when the user says "clear context / compact / wrap up") rather than `disable-model-invocation: true` — the skill only writes git-recoverable docs and its whole purpose is triggered by that exact intent; alternatives (disable-model-invocation) rejected because it would hide the skill from the very context where it's most useful, and the skill is designed to report-then-let-user-commit, so no risky auto-action. Success = `claude plugin validate --strict ./plugins/personal-plugin` exit 0, `pytest tests/` unchanged, SKILL.md body <500 lines, no hardcoded secrets. NOT shipping (no version bump / PR / commit) this turn — user asked to "create the skill and put it into personal-plugin," not to release; shipping is a separate `/release-plugin` step, flagged to the user.
+
+**Rollback Plan:** Purely additive, all git-tracked. `git checkout -- LAB_NOTEBOOK.md` reverts the baseline refresh + this entry; `rm -rf plugins/personal-plugin/skills/clear-prep` removes the new skill. Zero data loss; nothing outside the working tree is touched (no commit, no cache update, no external state).
+
+**Actions & Results:**
+
+1. `/prime` run: Phase 0 read this notebook in full; git health (`git fetch`, 0/0 divergence, clean, 9 commits/30d) + current versions pulled inline; identity/quality/risk gathered via one Explore agent (`context: fork`). Report delivered in-conversation. Top finding: this notebook's Current Baseline was 4 versions stale (Rule 7 violation from Entry 014). Secondary low-risk findings: dead `research_orchestrator` entry in `ruff.toml` isort first-party list (tool removed per D5); slide-gen `plugin.json` homepage points at wrong repo (`slide-generator`); tracked root cruft (`.DS_Store`, `gap-analysis-2026-04-30.md`, `GITHUB_ERRORS.md`); 52-byte placeholder `uv.lock`.
+2. Current Baseline refreshed to 3.3.0 / 10.2.0 / 4.2.0 / 1.2.0, last commit `c9d3dd4`, git verified synced 2026-07-16 (the primary remediation).
+3. Created `plugins/personal-plugin/skills/clear-prep/SKILL.md` (136 lines, nested-dir structure per D1). Frontmatter: `name: clear-prep` (== dir, D2), `effort: medium`, `allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)`, `description` 499 chars (≤1024 budget) carrying proactive triggers — no body "Proactive Triggers" section. Body: Phase 1 assess session state (git delta + conversation) → Phase 2 update durable docs (LAB_NOTEBOOK in-flight-entry flush + living sections, memory, CLAUDE.md, CHANGELOG; never commits) → Phase 3 emit copy-paste resume prompt for the post-`/clear` session. Model-invocation left ENABLED (design rationale in Hypothesis).
+4. Validation: `claude plugin validate --strict ./plugins/personal-plugin` → **✔ Validation passed**. `markdownlint-cli` on the new file → clean (MD012 EOF gotcha from E013/E014 pre-empted: file ends in exactly one `\n`). `pytest` not installed in this VM's Python/uv env — noted, not blocking: the root suite exercises tool logic (bump_version/qa_workflow/validate_plugin), not skill-markdown discovery, so an additive skill file cannot regress it; the authoritative structural gate (`claude plugin validate --strict`) passed.
+
+**Findings:**
+- Skills need no marketplace.json/plugin.json registration — auto-discovered from `skills/`. Confirmed: `claude plugin validate --strict` passed with zero manifest edits. (Contrast: adding a *plugin* requires marketplace.json registration.)
+- The restart-gating behavior (Entry 011): the new `clear-prep` definition won't appear in the live session's skill list until the next fresh session loads it — expected, not a defect.
+
+**What Worked:** Following the mandatory-logging discipline in order (Hypothesis+Rollback → act → log) made the additive change trivially safe; the drafted-to-scratchpad-then-copy approach let the SKILL.md be authored while the Explore agent ran in parallel, with zero repo mutation until the notebook entry existed.
+
+**Status:** COMPLETE. `clear-prep` skill live in the working tree, structurally valid; Current Baseline corrected. NOT shipped in E015 — release handled in E016 (user followed up with "ship it (bump + PR)").
+**Duration:** ~10 minutes
+
+---
+
+### Entry 016 — Ship personal-plugin 10.3.0: clear-prep skill [plugin] [skill] [ci] [build]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, Claude Code CLI, main at `c9d3dd4`, personal-plugin v10.2.0 pre-release, gh authenticated as davistroy
+
+**Objective:** Release the `clear-prep` skill authored in E015 as personal-plugin **10.3.0** — version bump (plugin.json + marketplace.json lockstep for the CI version-sync gate), CHANGELOG entries in both root and plugin changelogs, PR bundling the skill + E015/E016 notebook work, CI green on both OSes, squash-merge per repo convention, then update the installed cache.
+
+**Hypothesis:** Minor bump (new backward-compatible skill, no breaking change): `10.2.0→10.3.0` in `plugins/personal-plugin/.claude-plugin/plugin.json` and the personal-plugin entry in `.claude-plugin/marketplace.json`. `marketplace_version` stays 3.3.0 (CLAUDE.md: bumped only for schema/shared-tooling/repo-wide changes, not single-plugin updates). CHANGELOG: `## [personal-plugin v10.3.0] - 2026-07-16` under root `[Unreleased]`, `## [10.3.0] - 2026-07-16` in plugin changelog, each with one Added line for clear-prep. Expect `claude plugin validate --strict` exit 0 and all `validate.yml` + `test.yml` checks green on ubuntu + windows. Primary predicted risk: markdownlint MD012 on the notebook append (bit E013 and E014) — pre-empted by ending every appended file in exactly one `\n` and running `markdownlint-cli` locally before push.
+
+**Rollback Plan:** All work on branch `release/personal-plugin-10.3.0`, never on `main`. Every file git-tracked; `git checkout main -- <path>` or `git branch -D release/personal-plugin-10.3.0` fully reverts pre-merge. Post-merge, `git revert <merge-sha>` cleanly undoes the release (additive skill + version/changelog edits, no external dependents). Installed cache is rebuildable API-managed state (D19): `claude plugin update personal-plugin@troys-plugins` re-syncs from origin.
+
+**Actions & Results:**
+
+1. Branch `release/personal-plugin-10.3.0` created off `main` at `c9d3dd4` (carries the uncommitted E015 skill + notebook edits).
+2. Version bump: `10.2.0→10.3.0` in `plugins/personal-plugin/.claude-plugin/plugin.json` and the personal-plugin entry in `.claude-plugin/marketplace.json`; `marketplace_version` left at 3.3.0. Sync verified (both read 10.3.0; bpmn 4.2.0 / slide-gen 1.2.0 untouched).
+3. CHANGELOG: `## [personal-plugin v10.3.0] - 2026-07-16` added under root `[Unreleased]`; `## [10.3.0] - 2026-07-16` added atop `plugins/personal-plugin/CHANGELOG.md`; one Added line each for `clear-prep`.
+4. Pre-flight gates (pre-push): `claude plugin validate --strict ./plugins/personal-plugin` → **✔ Validation passed**. `markdownlint-cli` on all 4 changed `.md` files caught **MD049** (this entry's placeholder used `_underscore_` emphasis; house style is asterisk) — fixed by replacing the placeholder with these logged actions. No MD012 (files end in a single `\n`).
+5. Commit `04c4ddc` (6 files, explicit-path staged), pushed, opened **PR #108**.
+6. First CI run: **24 of 25 checks pass on both OSes** — all Validate/Schema/Lint/CodeQL/test-matrix green. **One failure: `Dependency Security Audit` (pip-audit).** Root cause is NOT this PR: the audit runs bare `pip-audit` over the whole CI env, which includes `setuptools 79.0.1` (whatever `actions/setup-python@v5` ships for 3.11 — the step upgrades `pip` but not `setuptools`), and a newly-disclosed advisory **PYSEC-2026-3447** (fix: setuptools 83.0.0) now flags it. This is a pre-existing condition on `main` (nothing here touches setuptools) that surfaced because pip-audit queries the live advisory DB — the same env was green in E013/E014. Fix surface: one CI line (`pip install --upgrade setuptools`) in the audit job's install step.
+
+**Finding:** the `Dependency Security Audit` job audits the *runner environment* (implicit build tools like setuptools included), not just declared tool deps — so it can fail on an unrelated feature PR the moment a new setuptools/pip/wheel CVE lands. Contrast E013's lockfile audit, which only saw declared deps. Mitigation options weighed with the user (scope-isolate per E013 precedent vs fold the one-line CI hygiene fix into this release).
+
+7. **Decision (user):** fold the one-line CI hygiene fix into #108 (over scope-isolation into a separate PR, and over admin-merging past the red gate). Rationale: single workflow-file line, unblocks immediately, keeps `main`'s audit green, and hardens the gate against future stale-build-tool CVEs for every subsequent PR — the isolation concern (E013) applies to *tool dependency* churn, not a one-line runner-hygiene patch. Added `python -m pip install --upgrade setuptools` to the audit job's install step in `.github/workflows/test.yml` (with an explanatory comment). CHANGELOG deliberately untouched — CI-infra hygiene is not a plugin-facing change.
+8. Re-push + re-run CI + squash-merge: recorded in Status below.
+
+**Status:** IN PROGRESS — CI fix pushed to #108, re-running. Entry closed with the squash-merge SHA in a follow-up `docs:` commit on main (Entry 014 / `c9d3dd4` pattern).
