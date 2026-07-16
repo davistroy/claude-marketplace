@@ -2,7 +2,7 @@
 name: evaluate-pipeline-output
 description: Thoroughly evaluate contact-center-lab pipeline output quality against input, checking sanitization correctness, atom/entity/triple quality, graph structure, and procedure integrity across all stages. Suggest when — pipeline run complete and quality evaluation needed, "did this produce good output" questions, before full corpus run, or after pipeline code changes.
 effort: high
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Glob, Grep, Bash(python3:*)
 ---
 
 # Pipeline Output Evaluator

@@ -2,7 +2,7 @@
 description: Re-synthesize the executive summary from existing domain findings — use after editing findings, re-running a single agent, or resolving conflicts
 argument-hint: <path-to-target>
 effort: low
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Glob, Grep, Bash(ls:*), Bash(echo:*)
 ---
 
 # Architecture Review — Synthesize

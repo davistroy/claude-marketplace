@@ -2,7 +2,7 @@
 name: spec-to-prototype
 description: Use when the user has a spec document, design system reference, component library doc, wireframe description, or similar specification and wants a visual HTML/CSS dummy prototype built from it. Triggers on "build a prototype", "create a mockup from this spec", "prototype this design", "make a visual demo". Also use when converting technical documentation into stakeholder-ready visual demos. Do NOT use for production frontend implementation — this produces visual HTML/CSS dummies only, not shippable code.
 effort: high
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Skill
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(python:*), Agent, Skill
 ---
 
 # Spec-to-Prototype Builder

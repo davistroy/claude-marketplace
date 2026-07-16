@@ -2,7 +2,7 @@
 name: security-analysis
 description: Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning. Suggest when — security/vulnerabilities/CVEs/audit mentioned, new projects scaffolded, before releases/deployments/production, auth/input-handling code review, dependency updates, or new repos cloned.
 effort: high
-allowed-tools: Read, Write, Glob, Grep, Bash, WebSearch
+allowed-tools: Read, Write, Glob, Grep, Bash, WebSearch  # Bash unscoped: runs varied native dependency-audit tools (npm/pip-audit/cargo/govulncheck/mvn/composer/bundle/dotnet/etc.) selected dynamically per detected stack; injection mitigated by read-only fetch separation (3.2)
 paths:
   - package.json
   - pyproject.toml

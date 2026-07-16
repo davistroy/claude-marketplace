@@ -2,7 +2,7 @@
 description: Run a single domain agent from the architecture review team against a target codebase
 argument-hint: <agent-name> <path-to-target>
 effort: medium
-allowed-tools: Read, Glob, Grep, Bash, Agent
+allowed-tools: Read, Glob, Grep, Bash(mkdir:*), Agent
 ---
 
 # Architecture Review — Single Domain Agent

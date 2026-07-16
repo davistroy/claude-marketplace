@@ -2,7 +2,7 @@
 description: Validate plugin structure, frontmatter, and content for consistency and correctness
 argument-hint: "<plugin-name> [--all] [--fix] [--verbose] [--strict]"
 effort: high
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(sed:*), Bash(gh:*), Bash(base64:*)
 ---
 
 # Validate Plugin Command

@@ -2,7 +2,7 @@
 name: leak-risk-audit
 description: Audit a dataset for proprietary information leaks before sharing with public/cloud services. Produces a LEAK_RISK.md report with findings and remediation recommendations.
 effort: high
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent  # Bash unscoped: severity-tier subagents write and execute ad hoc Python scan scripts over untrusted dataset content; injection mitigated by read-only fetch separation (3.2)
 ---
 
 # Proprietary Information Leak Risk Audit

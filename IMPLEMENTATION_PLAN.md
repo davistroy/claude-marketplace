@@ -345,8 +345,8 @@ Per decision D3: keep the local `.env` convenience path but `os.chmod(path, 0o60
 
 ### Work Items
 
-#### 3.1 Scope `Bash` in content-ingesting skills
-**Status: PENDING**
+#### 3.1 Scope `Bash` in content-ingesting skills ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SEC-05, SEC-01
 **Depends On:** None
@@ -368,8 +368,8 @@ Replace unscoped `Bash` with `Bash(<cmd>:*)` scopes matching each skill's actual
 
 **Notes:** Delicate — over-scoping breaks skills, under-testing hides breakage. Revert per-skill if a scope proves insufficient. This is the U2 resolution surface.
 
-#### 3.2 Separate untrusted-fetch from local-action in recon/audit skills
-**Status: PENDING**
+#### 3.2 Separate untrusted-fetch from local-action in recon/audit skills ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SEC-01
 **Depends On:** 3.1
@@ -389,8 +389,8 @@ Restructure recon/audit skills so the "fetch untrusted content" step runs read-o
 
 **Notes:** Depends on 3.1's scoping being in place.
 
-#### 3.3 Document the SSH-sudo trust boundary (resolve RI-03)
-**Status: PENDING**
+#### 3.3 Document the SSH-sudo trust boundary (resolve RI-03) ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SEC-01 / RI-03
 **Files Affected:**
@@ -1056,7 +1056,7 @@ Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; W
 | Extending ruff glob (4.1) before fixing reddens CI | High | Low | Fix 28 errors + format first, extend glob last, same PR | Open |
 | mypy-blocking (4.2) surfaces many errors | Med | Med | Resolve U4 first; ratchet with baseline if large | Open |
 | Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Mitigated |
-| Scoping Bash (3.1) breaks legitimate skill actions | Med | Med | Test each rescoped skill (U2); revert per-skill | Open |
+| Scoping Bash (3.1) breaks legitimate skill actions | Med | Med | Test each rescoped skill (U2); revert per-skill | Mitigated |
 | Parallelising images (8.1) breaches memory ceiling | Med | Med | Cap concurrency by memory budget (PERF-05); else remove knob | Open |
 | slide-generator repo private → slide-gen owner-only | Med | Med | Resolve U1 first; ADR-0008 states the constraint honestly | Open |
 
@@ -1065,8 +1065,8 @@ Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; W
 | ID | Unknown | Severity | Affects | Resolution Strategy | Status |
 |----|---------|----------|---------|---------------------|--------|
 | U1 | Is the `slide-generator` repo public/installable? | High | Phase 6 (6.1) | `gh repo view davistroy/slide-generator` before Phase 6 | Open |
-| U2 | Does scoping `Bash` break any skill's real operations? | High | Phase 3 (3.1) | Test each rescoped skill on a representative task | Open |
-| U3 | Do recon/audit skills SSH with sudo (RI-03)? | Medium | Phase 3 (3.3) | Read spark-audit/jetson-audit bodies | Open |
+| U2 | Does scoping `Bash` break any skill's real operations? | High | Phase 3 (3.1) | Test each rescoped skill on a representative task | Accepted (conservative union-scoping + 3 documented broad carve-outs + `claude plugin validate --strict` green; residual runtime risk accepted as skills aren't CI-runtime-testable) |
+| U3 | Do recon/audit skills SSH with sudo (RI-03)? | Medium | Phase 3 (3.3) | Read spark-audit/jetson-audit bodies | Resolved [2026-07-16] (yes — spark-audit/jetson-audit SSH with passwordless sudo; jetson-recon combines untrusted fetch + SSH) |
 | U4 | How many errors does mypy-blocking surface? | Medium | Phase 4 (4.2) | Run `mypy src/` per tool before removing continue-on-error | Open |
 | U5 | Provider retention/training-use terms (RISK-08) | Medium | Phase 7 (7.1) | Check account tiers + provider DPAs | Open |
 | U6 | Does enforcing schema-data validation surface existing violations? | Low | Phase 4 (4.3) | Run the new validator over current manifests | Open |

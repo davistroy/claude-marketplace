@@ -1,7 +1,7 @@
 ---
 description: Create a new plugin with proper directory structure, metadata, and starter files
 argument-hint: "[<plugin-name>] [--dry-run] [--with-commands]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(mkdir:*)
 ---
 
 # Scaffold Plugin
