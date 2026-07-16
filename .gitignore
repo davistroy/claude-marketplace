@@ -229,6 +229,9 @@ bugs/
 # Generated research output
 reports/
 
+# Architecture-review analysis scratch (session artifacts, not distributed)
+arch-review/
+
 # Visual explainer output
 output/
 .implement-plan-state.json

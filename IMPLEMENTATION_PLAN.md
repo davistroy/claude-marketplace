@@ -1,1225 +1,1034 @@
 # Implementation Plan
 
-**Generated:** 2026-07-08 14:59:15
-**Completed:** 2026-07-08
-**Based On:** Ultra-plan analysis of review recommendations R1–R13 (LAB_NOTEBOOK.md Entries 008–009; local report `reports/plugin-review-anthropic-guidance-20260708-114842.md`; ADR-0005, ADR-0006)
+**Generated:** 2026-07-16 11:22:06
+**Based On:** Architecture Review 2026-07-16 (`arch-review/reports/executive-summary.md`, `arch-review/reports/ultra-plan-analysis.md`, and the 9 domain findings under `arch-review/findings/`) — 1 Critical, 14 High, 37 Medium, 35 Low
 **Total Phases:** 8
-**Estimated Total Effort:** ~4,100 LOC churn across ~75 files
+**Estimated Total Effort:** ~2,600 LOC across ~70 files (incl. docs, CI config, tool code, skill frontmatter)
 
 ---
 
 ## Executive Summary
 
-This plan modernizes all three plugins against current official Anthropic guidance (July 2026): it restores the arch-review agent subsystem to full function (frontmatter, least-privilege tools, dispatch-by-name — the official `claude plugin validate --strict` fails on this today), eliminates every stale model pin by switching agent definitions to tier aliases (ADR-0005), removes all references to commands that don't exist (`/batch` ×15, `/ultrareview` ×11), and brings the 13 over-budget skill/command files toward the official 500-line progressive-disclosure budget by extracting examples, templates, and duplicated content into `references/`.
+This plan remediates the 9-agent architecture review of the claude-marketplace repo. The findings de-duplicate into eight coherent change sets rather than 97 isolated patches: the XXE finding surfaced from three domains resolves in one parser fix; the ungated-distribution finding surfaced from four domains resolves in one branch-protection change. The single Critical (unprotected `main` while installs track it, making every CI gate advisory) leads, because until distribution is gated, every later fix can be bypassed by a direct push and any regression auto-ships to all installs.
 
-Interrelated findings are grouped into integrated change sets rather than isolated patches: the planning family (create-plan, plan-improvements, implement-plan) is consolidated onto `references/plan-template.md` as the single source for the model-tier rubric, sizing tables, and append procedure — the drift class that produced two conflicting Execution-Hints framings and a validator that lags its own template. The implement-plan PATH A/B duplication (~90% identical) collapses into one flow parameterized on batch cardinality, per the verified difference ledger.
+Three architecture decisions were made before planning (recorded as ADRs during implementation): (1) **branch-protection-only** distribution safety — require CI status checks and block direct pushes, but not an approving review, because a solo maintainer (bus factor 1) would deadlock on required review (ADR-0007); (2) slide-gen is **formally declared an external-dependency plugin** with an `sg` preflight health-check rather than vendoring the engine in-tree (ADR-0008); (3) the `.env` secrets path is **hardened (chmod 600 + warning) and ADR-0003 is amended** to sanction a local-runtime convenience path, rather than forcing Bitwarden into a distributable tool.
 
-The plan closes with platform-direction adoption: a skills-first authoring policy (ADR-0006 — new-command deprecated, pattern support ported into new-skill, scaffold-plugin defaults flipped), official `claude plugin validate` in CI, trigger evals in the existing evals/ idiom, description tuning per the official formula, and a coordinated release (personal-plugin 10.0.0, bpmn-plugin 4.2.0, slide-gen 1.2.0, marketplace 3.3.0).
+Phases sequence by risk-reduction leverage: governance (1) → exploitable-in-code security (2) → injection-surface reduction (3) → CI gate correctness (4) → external-call robustness (5) → slide-gen integrity (6) → docs/policy/hygiene (7) → test/eval safety net (8). Two large items are explicitly scoped OUT to their own future plan: decomposing the 1,796-line `cli.py` god module and raising visual-explainer's coverage floor to 85%+, and building a comprehensive eval corpus for all 39 skills. Phase 8 does only the highest-leverage test subset.
 
 ---
 
 ## Plan Overview
 
-Phase 1 kills every actively-misleading reference in one commit and syncs the validator to the template it guards — cheap, high-trust wins that also stabilize files later phases refactor. Phases 2–3 are independent hardening tracks (safety/portability; the agent subsystem + model pins). Phase 4 consolidates the planning family before Phase 5 refactors the remaining giants, so validate-plugin's refactor starts from a rule-synced baseline. Phase 6 lands the skills-first scaffolding before Phase 7 documents the policy and turns on official CI validation (which requires Phase 3's agent fixes to pass strict). Phase 8 is wide-shallow polish plus the coordinated release.
+The critical path is Phase 1 → (2, 3, 4) → 8. Phase 1 must land first: it converts the existing (genuinely strong) CI suite from advisory to enforced, so every subsequent phase's PR is actually gated. Phases 2 and 3 are the security spine (exploitable code, then capability-grant scoping) and carry the most risk reduction after Phase 1. Phase 4 makes the now-enforced gates correct and complete (a lint blind spot hiding 28 errors, a schema job that never validates data, mutable action tags, a whole-runner-env pip-audit). Phases 5–7 are independent hardening/hygiene tracks. Phase 8 (test/eval) trails because it is the largest and lowest-urgency, and one of its items (raising coverage) depends on the tool code stabilising in Phases 2/8.
 
-Critical path: Phase 1 → Phase 4 → Phase 5 → Phase 8, with Phase 3 → Phase 7 → Phase 8 as the second spine. Phases 1, 2, 3, and 6 have no incoming dependencies and can start immediately; items within every phase are file-disjoint (verified during interaction mapping) so intra-phase parallel dispatch is safe.
+Findings sharing a root cause are single work items: XXE (DA-01=SE-02=SEC-02) → item 2.1; ungated distribution (PLAT-001=QA-01=INT-06=RISK-02) → item 1.1; `.env` secrets (SEC-03=DA-06) → item 2.2; SSRF (SEC-04=SE-07=DA-09) → item 2.3; slide-gen facets (SA-001/002/004/005, INT-05, RISK-01, PLAT-013) → Phase 6; mypy inconsistency (SE-04=QA-05=PLAT-006) → item 4.2; stale ruff.toml (SA-007=SE-06=PLAT-009) → item 7.4.
 
 ### Phase Summary Table
 
 | Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies | Execution Mode |
 |-------|------------|------------------|-----------------|--------------|----------------|
-| 1 | Reference integrity & staleness | Zero dangling refs; plan-gate Path B.5 on real mechanics; validator rule-17 sync; research-topic staleness fixed | M (~13 files, ~250 LOC) | None | Parallel |
-| 2 | Safety, portability & tool staleness | 4 side-effect skills locked; C:\ paths portable; .gitattributes; visual-explainer model plumbing | M (~18 files, ~270 LOC — wide-shallow) | None | Parallel |
-| 3 | Agent subsystem restoration | 9 agents with frontmatter; alias model pins; dispatch-by-name; per-agent meta; smoke-verified | L (~14 files, ~450 LOC) | None | Parallel |
-| 4 | Planning-family consolidation | Single-sourced rubric/tables/append-guide; PATH A/B collapsed; ≤500-line planning commands | L (~9 files, ~1,000 LOC churn) | Phase 1 | Parallel |
-| 5 | Progressive disclosure — remaining giants | validate-plugin/research-topic/ship + 6 more files at or near budget; new references | L (~15 files, ~1,300 LOC churn) | Phase 1 | Parallel |
-| 6 | Skills-first scaffolding | new-skill pattern support; new-command deprecated; scaffold-plugin skills-first (ADR-0006) | M (~5 files, ~250 LOC) | None | Parallel |
-| 7 | Guidance, CI & evals | `claude plugin validate` CI job; trigger evals; CLAUDE.md policy + spec refresh | M (~3 files, ~200 LOC) | Phases 3, 6 | Parallel |
-| 8 | Descriptions, polish & release | Official-formula descriptions; mechanical polish; plugin READMEs/LICENSE; coordinated version bump | M (~30 files, ~400 LOC — wide-shallow) | Phases 1–7 | Parallel |
+| 1 | Distribution governance | Branch protection (checks-only), rollback runbook, CODEOWNERS, D19 doc fix, ADR-0007 | S (~6 files, ~200 LOC) | None | Sequential |
+| 2 | Tool security hardening (code) | Hardened lxml parser + capped floor, `.env` chmod+warn + ADR-0003 amend, SSRF guard, typed backoff, atomic writes | M (~10 files, ~350 LOC) | Phase 1 | Parallel |
+| 3 | Injection-surface reduction | Scoped `Bash` across ~15 skills, fetch/act separation in recon, SSH-sudo boundary documented | M (~18 files, ~250 LOC) | Phase 1 | Parallel |
+| 4 | CI gate integrity | Lint per-tool tests (fix 28 errors), mypy blocking, schema-data validation, SHA-pinned actions, scoped pip-audit, de-dup runs | M (~12 files, ~300 LOC) | Phase 1 | Sequential |
+| 5 | External-call robustness | curl timeouts + status checks, key→header, unique temp files | S (~4 files, ~150 LOC) | Phase 1 | Parallel |
+| 6 | slide-gen integrity | External-dependency declaration + `sg` preflight, homepage/README fix, CHANGELOGs, ADR-0008 | M (~9 files, ~300 LOC) | Phase 1; U1 | Parallel |
+| 7 | Docs, egress policy & hygiene | Egress/confidentiality policy, supply-chain docs, help-skill drift, cruft removal | M (~14 files, ~350 LOC) | Phase 1 | Parallel |
+| 8 | Test/eval safety net (scoped) | generate_batch decision, fix contradictory skips, eval-mapping CI check, `-n auto`, targeted evals | L (~15 files, ~700 LOC) | Phases 2, 4 | Parallel |
 
 ### Execution Hints
 
 | Phase | Model Tier | Context Budget | Notes |
 |-------|------------|----------------|-------|
-| All (default) | `sonnet` | Standard | Per-item Model Tier fields take precedence over phase defaults |
-| 4 | `sonnet` | Extended | Large source files (750–1,050 lines) must be read in full before restructuring; 4.4 is per-item `opus` |
-| 5 | `sonnet` | Extended | Same — 5.1 reads a 1,385-line file; 5.1 is per-item `opus` |
+| All (default) | `sonnet` | Standard | Override per-phase below |
+| 1 | `sonnet` | Standard | 1.1 branch protection is a `gh api` call + judgment on required-check names |
+| 2 | `sonnet` | Extended | Security-sensitive code; 2.1/2.3 warrant care but are single-file |
+| 3 | `sonnet` | Extended | Delicate — each rescoped skill must be regression-tested (U2) |
+| 8 | `opus` | Extended | 8.1 (generate_batch wiring + memory cap) is judgment-heavy async work |
 
 ### Milestones
 
 | Milestone | Phases | Description |
 |-----------|--------|-------------|
-| M1: Correctness & Trust | 1–3 | No misleading references anywhere; official validator passes personal-plugin strict; agents routed, least-privileged, alias-pinned; side-effect skills locked |
-| M2: Budget & Consolidation | 4–5 | Planning family single-sourced; all 13 oversized files at/near the official 500-line budget or documented-dense |
-| M3: Modernization & Release | 6–8 | Skills-first policy live in scaffolding, docs, and CI; descriptions on the official formula; v10.0.0/4.2.0/1.2.0/3.3.0 shipped |
+| Critical + Security (ship first) | 1–3 | Distribution gated; exploitable code paths closed; capability grants scoped. Marketplace is safe to keep auto-distributing. |
+| Hardening & Correctness | 4–7 | CI gates correct; external calls resilient; slide-gen honest; docs/policy complete. |
+| Full remediation | 1–8 | All in-scope High/Medium findings closed; behavioral safety net seeded. |
 
 <!-- BEGIN PHASES -->
 
 ---
 
-## Phase 1: Reference Integrity & Staleness Sweep
+## Phase 1: Distribution Governance
 
-**Estimated Complexity:** M (~13 files, ~250 LOC)
+**Estimated Complexity:** S (~6 files, ~200 LOC)
 **Dependencies:** None
-**Execution Mode:** Parallel
+**Execution Mode:** Sequential
 
 ### Goals
 
-- Remove every reference to commands that do not exist (`/batch`, `/ultrareview`) and replace with real mechanics
-- Sync validate-plugin to the 17-rule template it validates
-- Fix all stale model IDs and dead-tool prose in research-topic and its model registry
+- Convert the entire existing CI suite from advisory to enforced (close the single Critical finding).
+- Give the solo maintainer a time-bounded recovery path for a bad `main`.
+- Correct the inaccurate `autoUpdate` documentation.
 
 ### Work Items
 
-#### 1.1 Remove `/batch` references; rewrite plan-gate Path B.5 onto real mechanics ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 1.1 Enable branch protection on `main` (checks-only)
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R3 (E008/E009)
+**Recommendation Ref:** PLAT-001, QA-01, INT-06, RISK-02, INT-11
 **Files Affected:**
-- `plugins/personal-plugin/skills/plan-gate/SKILL.md` (modify — lines 93–115, 230, 250, 322)
-- `plugins/personal-plugin/commands/create-plan.md` (modify — lines 24, 750–765)
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify — line 49)
+- `docs/adr/0007-distribution-safety-model.md` (create)
+- (GitHub repo settings — via `gh api`, not a repo file)
 
 **Description:**
-`/batch` does not exist in this repo or the native harness (15 occurrences repo-wide; research-topic's is handled in 1.5). The evident intent everywhere is "parallel execution of independent units in isolated worktrees." Rewrite plan-gate's Path B.5 (its fullest expression, lines 93–115) to route to real mechanics: `/implement-plan` parallel phases (Execution Mode: Parallel / Worktree-Isolated) and background Agent-tool dispatch. Update the mermaid diagram (250), routing table (230), and example (322) to match the renamed path. In create-plan and plan-improvements, replace the `/batch /implement-plan` suggestions with `/implement-plan` parallel-phase guidance.
+Enable GitHub branch protection on `main` requiring the existing CI status checks to pass before merge and blocking direct pushes. Per decision D1, require **status checks only — NOT an approving review** (author == reviewer at bus factor 1 would deadlock), and leave `enforce_admins` false so the maintainer retains an escape hatch. Generate ADR-0007 documenting the branch-protection-only model with alternatives (stable/tagged release channel; status quo) and their rejection reasons.
 
 **Tasks:**
-1. [ ] Rewrite plan-gate Path B.5 as "Parallel Decomposition (via /implement-plan parallel phases)" preserving the routing intent and trade-off notes
-2. [ ] Update plan-gate lines 106, 112, 115, 230, 250, 322 to the renamed path with no `/batch` token remaining
-3. [ ] Replace create-plan.md `/batch` guidance at lines 24 and 750–765 with `/implement-plan` parallel-execution wording
-4. [ ] Replace plan-improvements.md line 49 equivalently
+1. [ ] Enumerate the exact required check names from a recent green run (`Run Tests (ubuntu-latest)`, `Run Tests (windows-latest)`, the 3 per-tool test jobs, `Validate Plugins`, `Validate Plugins (official CLI)`, `Schema Validation`, `Lint Markdown`, `Dependency Security Audit`, `CodeQL`).
+2. [ ] `gh api -X PUT repos/davistroy/claude-marketplace/branches/main/protection` with `required_status_checks.strict=true`, the check contexts, `required_pull_request_reviews=null`, `enforce_admins=false`, `allow_force_pushes=false`, `restrictions=null`.
+3. [ ] Write `docs/adr/0007-distribution-safety-model.md` (Status: Accepted) from `references/adr-template.md`.
 
 **Acceptance Criteria:**
-- [ ] WHEN a user follows plan-gate routing for a large independent-unit task THEN the skill SHALL route to `/implement-plan` parallel phases or background Agent dispatch — never to `/batch`
-- [ ] `grep -rn -- '/batch' plugins/ --include='*.md' | grep -v deprecated` returns only research-topic (fixed in 1.5) or nothing
-- [ ] Path B.5's decomposition guidance (unit count, worktree isolation trade-offs) is preserved, not deleted
+- [ ] WHEN `gh api repos/davistroy/claude-marketplace/branches/main/protection` is called THEN it SHALL return HTTP 200 with the required check contexts listed.
+- [ ] WHEN a PR has any required check red THEN GitHub SHALL block its merge button.
+- [ ] WHEN a direct `git push origin main` is attempted THEN it SHALL be rejected.
+- [ ] ADR-0007 exists with Status Accepted and documents the two rejected alternatives.
 
 **Notes:**
-Do not delete the routing path — the decomposition advice is sound; only the dispatch target is fictional.
+Branch-protection settings are API-managed state, fully reversible via `gh api -X DELETE .../protection` (rollback). Do NOT set required reviewers. Confirm the check *names* exactly match what Actions reports (case/spacing sensitive) or the gate silently never satisfies.
 
----
+#### 1.2 Maintainer incident & rollback runbook
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** PLAT-002
+**Files Affected:**
+- `docs/RUNBOOK.md` (create) or `TROUBLESHOOTING.md` (modify — add "Maintainer: Bad Release Recovery")
 
-#### 1.2 Replace `/ultrareview` and stale co-author strings ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+**Description:**
+Document the maintainer-side P1 procedure absent today: detect a bad `main` → `git revert <merge-sha>` → re-verify → propagation timing (restart-gating + `claude plugin update`) → the user-side version-pin escape hatch (how a consumer freezes on a known-good commit while a fix lands).
+
+**Tasks:**
+1. [ ] Write the detect → revert → verify → propagate sequence with exact commands.
+2. [ ] Document the user version-pin/freeze escape hatch.
+3. [ ] Cross-link from SECURITY.md and TROUBLESHOOTING.md.
+
+**Acceptance Criteria:**
+- [ ] WHEN a bad change reaches `main` THEN a non-author following the runbook SHALL be able to revert and confirm propagation without prior context.
+- [ ] The runbook states a target RTO and the propagation mechanism.
+
+**Notes:** Pairs with 1.1 — protection reduces bad merges; this handles the ones that slip through.
+
+#### 1.3 CODEOWNERS + soften committed SLAs
+**Status: PENDING**
 **Model Tier: haiku**
-**Requirement Refs:** R3, R2 (E008/E009)
+**Recommendation Ref:** PLAT-015, RISK-07
 **Files Affected:**
-- `CLAUDE.md` (modify — line 249)
-- `WORKFLOWS.md` (modify — lines 93, 115)
-- `plugins/personal-plugin/commands/review-arch.md` (modify — line 339)
-- `plugins/personal-plugin/commands/review-intent.md` (modify — line 423)
-- `plugins/personal-plugin/commands/test-project.md` (modify — lines 323, 500)
-- `plugins/personal-plugin/references/patterns/validation.md` (modify — line 243)
-- `plugins/personal-plugin/skills/ship/SKILL.md` (modify — lines 89, 284, 291, 292, 363)
+- `.github/CODEOWNERS` (create)
+- `SECURITY.md` (modify)
 
 **Description:**
-`/ultrareview` is a deprecated alias; the current native form is `/code-review ultra`. Replace at all 10 active sites (leave CHANGELOG and LAB_NOTEBOOK historical mentions). Also replace the hardcoded co-author `Claude Opus 4.6 <noreply@anthropic.com>` (ship:363, test-project:323) with model-agnostic `Claude <noreply@anthropic.com>` so it can never go stale.
+Add a CODEOWNERS file (partial bus-factor mitigation / ownership clarity) and soften SECURITY.md's hard vulnerability-response SLAs (48h ack, 2–4wk fix) to best-effort, since a single responder cannot guarantee them during absence.
 
 **Tasks:**
-1. [ ] Replace `/ultrareview` → `/code-review ultra` at the 10 listed sites, adjusting surrounding sentence grammar where needed
-2. [ ] Replace both co-author strings with `Claude <noreply@anthropic.com>`
+1. [ ] Create `.github/CODEOWNERS` assigning `* @davistroy`.
+2. [ ] Reword SECURITY.md §6 timelines to "best-effort target".
 
 **Acceptance Criteria:**
-- [ ] `grep -rn 'ultrareview' plugins/ CLAUDE.md WORKFLOWS.md --include='*.md' | grep -v CHANGELOG` returns nothing
-- [ ] `grep -rn 'Claude Opus 4\.' plugins/ --include='*.md' | grep -v CHANGELOG` returns nothing
+- [ ] CODEOWNERS present and valid.
+- [ ] SECURITY.md no longer commits hard timelines a bus-factor-1 maintainer cannot guarantee.
 
-**Notes:**
-Purely mechanical string work; no judgment needed.
+**Notes:** Do NOT add CODEOWNERS as a *required-review* rule in 1.1 (would deadlock solo merges).
 
----
-
-#### 1.3 Fix ultra-plan phase numbering gap ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 1.4 Correct the D19 autoUpdate documentation
+**Status: PENDING**
 **Model Tier: haiku**
-**Requirement Refs:** R3 (E008/E009)
+**Recommendation Ref:** Review correction (intake fact #1)
 **Files Affected:**
-- `plugins/personal-plugin/skills/ultra-plan/SKILL.md` (modify)
+- `LAB_NOTEBOOK.md` (modify — Decision D19 + Current Baseline)
+- `CLAUDE.md` (modify if it repeats the claim)
 
 **Description:**
-Phase headings jump Phase 0 (line 83) → Phase 2 (line 120) — an orphaned renumber. Renumber Phases 2–6 to 1–5 and update the three body mentions of "Phase 0-6" to "Phase 0-5" (lines 34, 85, 89). Verified safe: plan-gate never references ultra-plan phase numbers.
+Decision D19 and related docs assert `autoUpdate: true` in marketplace.json. Verified false — `.metadata` holds only description/marketplace_version/schema_version; auto-propagation is Claude Code's install-side default for GitHub-sourced marketplaces. Correct the wording to describe the actual mechanism.
 
 **Tasks:**
-1. [ ] Renumber `## Phase 2` → `## Phase 1` through `## Phase 6` → `## Phase 5`, including all intra-file cross-references (e.g., "Phases 3-6", "Phase 5 summary")
-2. [ ] Update "Phase 0-6" → "Phase 0-5" at lines 34, 85, 89
+1. [ ] Amend D19 to describe install-side origin/main tracking (not a repo flag), preserving the decision's intent per LAB_NOTEBOOK Rule 4 (mark superseded-by-correction, do not delete).
+2. [ ] Grep CLAUDE.md / docs for other `autoUpdate: true` claims and correct.
 
 **Acceptance Criteria:**
-- [ ] Phase headings run 0,1,2,3,4,5 with no gaps
-- [ ] `grep -n 'Phase [0-9]' plugins/personal-plugin/skills/ultra-plan/SKILL.md` shows no reference to a Phase 6 or to the old numbering
+- [ ] WHEN a reader consults D19 THEN it SHALL accurately describe install-side tracking, not a marketplace.json flag.
+- [ ] No remaining doc asserts `autoUpdate: true` as a repo-declared field.
 
----
-
-#### 1.4 Sync validate-plugin to the 17-rule template ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: sonnet**
-**Requirement Refs:** R3 (E008/E009)
-**Files Affected:**
-- `plugins/personal-plugin/commands/validate-plugin.md` (modify — lines 768–790, 796–801, 1308–1312)
-
-**Description:**
-validate-plugin checks "at least 16 structural rules (numbered 1-16)" while plan-template.md has 17 (rule 17 = Model Tier, added v9.1.0). Update the count check to ≥17 / "numbered 1-17" (lines 778, 783, 788 and the summary duplicate at 1308–1312), and add a rule-17 row to the key-rule content table (796–801) validating by keywords (`Model Tier`, `haiku`, `sonnet`, `opus`).
-
-**Tasks:**
-1. [ ] Update rule-count text and thresholds at 768–790 and the summary at 1308–1312
-2. [ ] Add rule-17 keyword-validation row to the key-rule table at 796–801
-
-**Acceptance Criteria:**
-- [ ] WHEN `/validate-plugin` runs Phase 8.5 against the current plan-template.md THEN it SHALL PASS with 17 rules detected and rule 17 content-validated
-- [ ] No remaining hardcode of "16" as the rule count anywhere in the file
-
-**Notes:**
-Minimal sync only — the full progressive-disclosure refactor of this file is item 5.1. Keep this diff small so 5.1 starts from a correct baseline.
-
----
-
-#### 1.5 research-topic staleness: model IDs, `agent:` misuse, dead prose; refresh research-models.md ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: sonnet**
-**Requirement Refs:** R2, R3 (E008/E009)
-**Files Affected:**
-- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify — lines 14, 46, 164, 213–217, 543–565, 551)
-- `plugins/personal-plugin/references/research-models.md` (modify — lines 19, 33, 64, 69)
-
-**Description:**
-Replace the pinned `claude-opus-4-6-20250725` default with `claude-opus-4-8` at :46 and :164 (env-overridable pattern stays). Fix the `agent:` misuse at :215 — it currently puts a model ID where a subagent type belongs; the fork header should omit `agent:` (matching the OpenAI/Gemini blocks) and carry the model in the API payload only. Delete the research-orchestrator history prose (:14 clause, :543–565 "Trade-offs vs Previous Implementation") and the `/batch` suggestion (:551). In research-models.md: update the Anthropic ID to `claude-opus-4-8` with Last Verified 2026-07-08, delete the contradictory :69 "Upgrades Available" line, and leave OpenAI/Google IDs with a note that the skill's runtime model-check step is authoritative for them (unverifiable offline — see U3).
-
-**Tasks:**
-1. [ ] Update both SKILL.md model defaults and the :215 fork header
-2. [ ] Delete :14 orchestrator clause, :543–565 section, :551 `/batch` line
-3. [ ] Refresh research-models.md per description
-
-**Acceptance Criteria:**
-- [ ] WHEN the Claude research leg is dispatched THEN its fork header SHALL NOT contain an `agent:` field with a model ID
-- [ ] `grep -rn 'claude-opus-4-6\|research-orchestrator' plugins/personal-plugin/skills/research-topic/ plugins/personal-plugin/references/research-models.md` returns nothing
-- [ ] research-models.md carries no self-contradictory upgrade guidance
-
-**Notes:**
-Structural dedup of the three provider blocks is item 5.2 — keep this to staleness fixes so the two diffs stay reviewable.
-
----
+**Notes:** Doc-accuracy only; the distribution *risk* is unchanged and handled by 1.1.
 
 ### Phase 1 Testing Requirements
 
-- [x] Zero-hit greps for `/batch`, `/ultrareview`, `claude-opus-4-6`, `Claude Opus 4.` (excluding CHANGELOG/LAB_NOTEBOOK/docs/archive)
-- [x] `/validate-plugin personal-plugin` Phase 8.5 passes against the live template
+- [ ] `gh api .../branches/main/protection` returns 200 with required checks after 1.1.
+- [ ] A throwaway test PR with a deliberately-red check cannot be merged.
+- [ ] markdownlint clean on all modified `.md`.
 
 ### Phase 1 Completion Checklist
 
-- [x] All work items complete
-- [x] All tests passing
-- [x] Documentation updated
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] Branch protection verified active
+- [ ] ADR-0007 accepted
+- [ ] No regressions introduced
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `python -m pytest tests/ -v` | Exit code 0 |
-| Lint | `ruff check .` | Exit code 0 |
-| Markdown | `npx markdownlint-cli "**/*.md" --ignore node_modules` | Exit code 0 |
-| Pre-commit | `bash scripts/pre-commit` | Exit code 0 |
-| Dangling refs | `! grep -rn -- '/batch\|/ultrareview' plugins/ CLAUDE.md WORKFLOWS.md --include='*.md' \| grep -v 'CHANGELOG\|deprecated'` | No matches |
+| Protection active | `gh api repos/davistroy/claude-marketplace/branches/main/protection` | HTTP 200, required_status_checks populated |
+| Markdown lint | `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore .git --ignore output --ignore 'tests/fixtures/**'` | Exit code 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 2: Safety, Portability & Tool Staleness
+## Phase 2: Tool Security Hardening (Code)
 
-**Estimated Complexity:** M (~18 files, ~270 LOC — file count is wide-shallow: most edits are 1–5 line frontmatter/path/config changes)
-**Dependencies:** None
+**Estimated Complexity:** M (~10 files, ~350 LOC)
+**Dependencies:** Phase 1
 **Execution Mode:** Parallel
 
 ### Goals
 
-- Lock down the four side-effect-primary skills per official `disable-model-invocation` semantics
-- Make every hardcoded Windows path portable across the dual Windows/Linux environment
-- Prevent line-ending drift permanently; fix visual-explainer's dead model plumbing
+- Close the exploitable-in-code paths: XXE, plaintext-key write, SSRF-to-metadata.
+- Make external-API failure handling robust and durable state uncorruptible.
 
 ### Work Items
 
-#### 2.1 Side-effect skill lockdown ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: haiku**
-**Requirement Refs:** R5 (E008/E009; approved defaults in E009)
-**Files Affected:**
-- `plugins/personal-plugin/skills/brain-entry/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/lab-notebook/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/create-wiki/SKILL.md` (modify)
-
-**Description:**
-brain-entry: add `disable-model-invocation: true` and `allowed-tools: Bash(curl:*)` (its body uses only curl; Cloudflare requires curl UA). unlock: add `disable-model-invocation: true` and fix the malformed permission glob `Bash(powershell*)` → `Bash(powershell:*)`. lab-notebook: add `disable-model-invocation: true` (it injects an 11-rule CLAUDE.md block). create-wiki: add `disable-model-invocation: true` and REMOVE its `paths:` auto-activation lines (redundant — the wiki skill's own docs state the injected CLAUDE.md rules handle automatic maintenance; verified wiki/SKILL.md has no paths and needs none).
-
-**Tasks:**
-1. [ ] brain-entry frontmatter additions
-2. [ ] unlock frontmatter addition + glob fix
-3. [ ] lab-notebook frontmatter addition
-4. [ ] create-wiki frontmatter addition + `paths:` removal
-
-**Acceptance Criteria:**
-- [ ] WHEN a conversation merely resembles a capture/secret/setup scenario THEN none of these four skills SHALL auto-invoke (model can still suggest them verbally)
-- [ ] All four pass `/validate-plugin` frontmatter checks
-- [ ] `grep -c 'disable-model-invocation: true' plugins/personal-plugin/skills/*/SKILL.md` increases from 4 to 8
-
----
-
-#### 2.2 Windows-path portability in three skills ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 2.1 Harden the BPMN XML parser + cap the lxml floor
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R4 (E008/E009)
+**Recommendation Ref:** DA-01, SE-02, SEC-02
 **Files Affected:**
-- `plugins/personal-plugin/skills/explain-project/SKILL.md` (modify — lines 34, 36, 37, 38, 39, 70, 71, 110, 177, 379)
-- `plugins/personal-plugin/skills/accessibility-annotator/SKILL.md` (modify — lines 32, 33, 34, 59)
-- `plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md` (modify — line 98)
+- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/parser.py` (modify)
+- `plugins/bpmn-plugin/tools/bpmn2drawio/pyproject.toml` (modify)
+- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/` (add XXE regression test)
 
 **Description:**
-Rewrite `C:\Users\Troy Davis\...` literals to portable equivalents per the verified mapping: doc-builder → `~/dev/tools/doc-builder`; style guides → `~/.claude/styles/CFA_Word_Style_Guide.md`; style JSONs → `~/dev/brand-assets/clients/cfa/styles/clean-style-sanitized.json`; learnings doc → `~/dev/info/gemini-image-generation-learnings.md`; pipeline dir → `~/dev/contact-center-lab/pipeline`; output → `~/Downloads/...`. Keep the existing env-var override pattern (`$DOC_BUILDER_PATH` etc.) — only the author-default literals change. Line 24's illustrative placeholder stays. `~/dev/info/technical-document-structure-template.md` (lines 36/177) is missing on the Linux VM (U4): rewrite the path AND add a one-line existence-check fallback instruction ("if absent, proceed without the structure template and note it in output").
+`parser.py:54,58` use lxml's default parser on attacker-authored BPMN. Build a hardened `etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, dtd_validation=False, huge_tree=False)` once and pass it to `etree.parse` and `etree.fromstring`. Raise the `pyproject.toml` floor from `lxml>=4.9.0` to `lxml>=5.0,<7` (safe-by-default versions).
 
 **Tasks:**
-1. [ ] Rewrite all 15 path literals per mapping
-2. [ ] Add the missing-file fallback note for the structure template
-3. [ ] Spot-verify each rewritten path exists on this machine (except the known-missing one)
+1. [ ] Add a module-level hardened parser factory; thread it into both parse paths.
+2. [ ] Add a regression test: a BPMN with `<!ENTITY xxe SYSTEM "file:///etc/hostname">` must NOT read the file (raises/ignores, no host content in output).
+3. [ ] Bump lxml floor and re-lock (`requirements-lock.txt`).
 
 **Acceptance Criteria:**
-- [ ] `grep -rn 'C:\\\\Users\|C:/Users' plugins/ --include='*.md'` returns nothing
-- [ ] WHEN explain-project runs on Linux THEN every referenced input path SHALL resolve or be handled by an explicit documented fallback
+- [ ] WHEN a BPMN file containing an external SYSTEM entity is parsed THEN the parser SHALL NOT resolve it and SHALL NOT emit local-file content into the `.drawio` output.
+- [ ] WHEN the existing 585 bpmn2drawio tests run THEN all SHALL pass (branch coverage ≥90%).
 
----
+**Notes:** BPMN rarely uses DTDs, so disabling DTD loading is low-risk; the 585-test suite guards regressions.
 
-#### 2.3 Line-ending normalization + .gitattributes ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 2.2 Harden the `.env` secrets write + amend ADR-0003
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R4 (E008/E009)
+**Recommendation Ref:** SEC-03, DA-06
 **Files Affected:**
-- `.gitattributes` (create)
-- `plugins/personal-plugin/skills/prime/SKILL.md` (renormalize to LF)
-- `.markdownlint.json` (renormalize to LF)
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/api_setup.py` (modify)
+- `docs/adr/0003-bitwarden-secrets.md` (modify — add sanctioned local-runtime exception)
 
 **Description:**
-Create `.gitattributes` with explicit rules: `* text=auto`, `*.md text eol=lf`, `*.py text eol=lf`, `*.json text eol=lf`, `*.yml text eol=lf`, `*.sh text eol=lf`, `*.zip binary`. Then `git add --renormalize .` — verified blast radius is exactly two CRLF files (prime/SKILL.md, .markdownlint.json) and one binary (.zip, protected by the binary rule). Confirm prime's `name:` frontmatter parses cleanly post-normalization.
+Per decision D3: keep the local `.env` convenience path but `os.chmod(path, 0o600)` after writing and print an explicit warning that keys are stored locally unencrypted and Bitwarden is preferred. Amend ADR-0003 to sanction a narrowly-scoped standalone-tool-runtime `.env` exception (currently the tool violates the Bitwarden-only rule outright).
 
 **Tasks:**
-1. [ ] Write .gitattributes
-2. [ ] Renormalize; confirm `git status` shows only the two expected files
-3. [ ] Verify `git ls-files --eol` reports no `i/crlf` or `i/mixed`
+1. [ ] In `_create_env_file`, set mode 0600 and emit the warning.
+2. [ ] Amend ADR-0003 with the sanctioned exception + rationale.
+3. [ ] Update visual-explainer README to reflect the policy.
 
 **Acceptance Criteria:**
-- [ ] `git ls-files --eol | grep -cE 'i/(crlf|mixed)'` returns 0
-- [ ] The .zip file is untouched (binary attribute)
-- [ ] WHEN a future file is committed from the Windows environment THEN git SHALL normalize it to LF in-repo
+- [ ] WHEN `--setup-keys` writes `.env` THEN the file SHALL be mode 0600 and a plaintext-storage warning SHALL be shown.
+- [ ] ADR-0003 documents the sanctioned local-runtime exception; the tool no longer silently contradicts policy.
 
----
+**Notes:** Read path (`os.getenv`) is unchanged; only the write path hardens.
 
-#### 2.4 visual-explainer model plumbing ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 2.3 SSRF guard on arbitrary-URL fetch
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R2 (E008/E009)
+**Recommendation Ref:** SEC-04, SE-07, DA-09
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/cli.py` (modify — construction sites ~940, ~1102)
-- `.../src/visual_explainer/image_evaluator.py`, `prompt_generator.py`, `prompt_refiner.py` (modify — DEFAULT_MODEL)
-- `.../src/visual_explainer/api_setup.py` (modify — line 228)
-- `.../src/visual_explainer/config.py` (modify — default at :315)
-- `.../styles/professional-clean.json`, `professional-sketch.json`, `styles/README.md` (modify — remove dead TargetModelHint)
-- `.../tests/conftest.py`, `test_prompt_refiner.py` (modify)
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/concept_analyzer.py` (modify)
+- tests (add SSRF-block test)
 
 **Description:**
-`config.claude_model` (env-overridable) is consumed by only one module; the real pipeline always uses hardcoded `DEFAULT_MODEL = "claude-sonnet-4-20250514"` because cli.py never passes `model=`. Fix the root cause: wire `internal_config.claude_model` through the cli.py construction sites (PromptGenerator ~940, ImageEvaluator ~1102 — thread config where it isn't already). Update `DEFAULT_MODEL` constants and config default to `claude-sonnet-5`; api_setup:228's validation ping likewise. Delete the dead `TargetModelHint` key from both style JSONs and its README:37 mention (zero consumers — verified). Fix the brittle exact-string assertion in test_prompt_refiner.py:31-33 to assert pass-through of the constructor arg rather than a hardcoded ID; align conftest fixture model values.
+`fetch_url`/`fetch_url_content` follow redirects with no destination filtering — a URL can redirect to `169.254.169.254` or an internal service, and the content egresses to Gemini. Resolve the host and block RFC-1918 / link-local / loopback / metadata ranges; disable or bound redirects (re-validate each hop).
 
 **Tasks:**
-1. [ ] Wire config.claude_model through both cli.py construction sites
-2. [ ] Update DEFAULT_MODEL ×3, api_setup ping, config.py default to `claude-sonnet-5`
-3. [ ] Remove TargetModelHint from 2 JSONs + README
-4. [ ] Fix test assertions; run the tool's full pytest suite
+1. [ ] Add a host-safety check (resolve → reject private/link-local/loopback).
+2. [ ] Bound redirects and re-check each hop's target.
+3. [ ] Test: a URL resolving/redirecting to a metadata IP is rejected before fetch.
 
 **Acceptance Criteria:**
-- [ ] WHEN `VISUAL_EXPLAINER_CLAUDE_MODEL` is set THEN the prompt-generation, refinement, and evaluation stages SHALL all use it (not module constants)
-- [ ] `grep -rn 'claude-sonnet-4-20250514\|gemini-2.0-flash-exp' plugins/personal-plugin/tools/visual-explainer/` returns nothing
-- [ ] visual-explainer pytest suite passes; coverage gate (65%) still met
+- [ ] WHEN a fetch target resolves or redirects to a private/link-local/metadata address THEN the fetch SHALL be refused before any request body is retrieved.
+- [ ] WHEN a normal public URL is fetched THEN behavior SHALL be unchanged.
 
-**Notes:**
-Escalate if wiring config through cli.py reveals additional consumers with incompatible constructor signatures — that coupling wasn't fully visible from the investigation.
+**Notes:** Optional allowlist can be added later; block-list of internal ranges is the minimum.
 
----
+#### 2.4 Typed exception classification for Gemini backoff
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** SE-05, INT-10
+**Files Affected:**
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/image_generator.py` (modify)
+
+**Description:**
+`image_generator.py:278–287` classifies failures by substring-matching `str(e)` (`"429"`, `"rate"`, `"timeout"`, `"safety"`). Switch to typed `google.genai` exceptions / HTTP `.code` so an SDK message reword can't silently degrade a 429 into a generic ERROR and defeat the backoff path.
+
+**Tasks:**
+1. [ ] Catch typed google-genai error classes / inspect `.code`; keep the string-match as a last-resort fallback.
+2. [ ] Update/extend the rate-limit and timeout classification tests.
+
+**Acceptance Criteria:**
+- [ ] WHEN the SDK raises a typed rate-limit/timeout error THEN classification SHALL use the type/`.code`, not message text.
+- [ ] Existing image_generator tests pass.
+
+**Notes:** Low-risk; keep the string fallback for SDK versions lacking typed errors.
+
+#### 2.5 Atomic durable writes + full-length cache key
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** DA-02, DA-05
+**Files Affected:**
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/` (checkpoint + JSON writers, concept cache)
+
+**Description:**
+`save_checkpoint` and the metadata/eval/analysis writers write directly to the final path — an interrupted write truncates `checkpoint.json` and breaks resume (costly: paid Gemini generations). Write to a temp file in the same dir and `os.replace()` (atomic); add a `schema_version` key. Use the full-length SHA-256 as the `.cache/` key (currently truncated to 64 bits — a silent wrong-result vector).
+
+**Tasks:**
+1. [ ] Wrap durable writes in temp-file + `os.replace`.
+2. [ ] Add `schema_version` to checkpoint; handle its absence on load.
+3. [ ] Use full hash for cache keys.
+
+**Acceptance Criteria:**
+- [ ] WHEN a checkpoint write is interrupted THEN the previous checkpoint SHALL remain intact and loadable.
+- [ ] WHEN a checkpoint lacks `schema_version` THEN load SHALL degrade gracefully (no `KeyError`).
+
+**Notes:** `os.replace` is atomic on same-filesystem POSIX + Windows — matches the ubuntu+windows CI matrix.
 
 ### Phase 2 Testing Requirements
 
-- [x] visual-explainer full pytest suite green at its coverage gate
-- [x] Frontmatter validation passes for the four locked skills
-- [x] eol audit clean
+- [ ] New XXE and SSRF regression tests pass.
+- [ ] bpmn2drawio ≥90%, visual-explainer ≥65% branch coverage held.
+- [ ] `ruff check` + `ruff format --check` clean on changed tool code.
 
 ### Phase 2 Completion Checklist
 
-- [x] All work items complete
-- [x] All tests passing
-- [x] Documentation updated
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] All tests passing (both OSes)
+- [ ] ADR-0003 amended
+- [ ] No coverage regression
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `python -m pytest tests/ -v` | Exit code 0 |
-| Tool tests | `python -m pytest plugins/personal-plugin/tools/visual-explainer/tests/ -v` | Exit code 0 |
-| Lint | `ruff check .` | Exit code 0 |
-| Markdown | `npx markdownlint-cli "**/*.md" --ignore node_modules` | Exit code 0 |
-| EOL | `git ls-files --eol \| grep -cE 'i/(crlf\|mixed)' \| grep -qx 0` | Exit code 0 |
-| Paths | `! grep -rn 'C:\\\\Users' plugins/ --include='*.md'` | No matches |
+| bpmn tests | `python -m pytest plugins/bpmn-plugin/tools/bpmn2drawio -q --cov=bpmn2drawio --cov-branch --cov-fail-under=90` | Exit 0, ≥90% |
+| visual-explainer tests | `python -m pytest plugins/personal-plugin/tools/visual-explainer -q --cov=visual_explainer --cov-branch --cov-fail-under=65` | Exit 0, ≥65% |
+| Lint | `ruff check plugins/*/tools/*/src/` | Exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 3: Agent Subsystem Restoration
+## Phase 3: Injection-Surface Reduction
 
-**Estimated Complexity:** L (~14 files, ~450 LOC)
-**Dependencies:** None
+**Estimated Complexity:** M (~18 files, ~250 LOC)
+**Dependencies:** Phase 1
 **Execution Mode:** Parallel
 
 ### Goals
 
-- Give all 9 arch-review agents spec-conformant frontmatter (the official validator fails on this today)
-- Switch implementer model pins to tier aliases (ADR-0005)
-- Simplify dispatch to subagent-by-name; replace the shared `.meta.json` with per-agent meta files; standardize Agent-tool naming
+- Remove the "lethal trifecta" (untrusted content + unscoped `Bash` + egress/SSH) from content-ingesting skills.
+- Document the SSH-sudo blast-radius boundary for recon/audit skills.
 
 ### Work Items
 
-#### 3.1 Frontmatter + per-agent meta for the 9 arch-review agents ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 3.1 Scope `Bash` in content-ingesting skills
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R1 (E008/E009)
+**Recommendation Ref:** SEC-05, SEC-01
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/agents/solutions-architect.md`, `data-architect.md`, `integration-architect.md`, `software-engineer.md`, `performance-engineer.md`, `qa-architect.md`, `security-architect.md`, `platform-engineer.md`, `risk-compliance.md` (modify — all 9)
+- `plugins/personal-plugin/skills/{spark-recon,jetson-recon,research-topic,arch-review,analyze-transcript,summarize-feedback,assess-document,visual-explainer,...}` (frontmatter `allowed-tools`)
 
 **Description:**
-Add YAML frontmatter to each: `name:` exactly equal to the filename stem (dispatch uses it as subagent_type — any mismatch breaks routing), `description:` from the extracted one-sentence charters (E009 investigation §5), `tools: Read, Glob, Grep, Bash, Write, Edit` (agents write findings files and run Bash probes — a read-only set would break the pipeline), `model: inherit` (deep reviews run at the session's tier — ADR-0005), `effort: high`. Additionally change each agent's meta-output instruction from "merge into shared `arch-review/findings/.meta.json`" to "write your own `arch-review/findings/<agent-name>.meta.json`" — eliminating the concurrent-write collision that motivated worktree isolation.
+Replace unscoped `Bash` with `Bash(<cmd>:*)` scopes matching each skill's actual needs, prioritising skills that ingest untrusted web/document/PR content. A content-reading skill should not also hold unrestricted shell (an injected instruction executes with that grant).
 
 **Tasks:**
-1. [ ] Add frontmatter block to all 9 files (name = stem, verified descriptions, tools/model/effort as specified)
-2. [ ] Update each agent's `.meta.json` instruction to the per-agent filename
-3. [ ] Confirm `claude plugin validate --strict ./plugins/personal-plugin` no longer warns on agents
+1. [ ] Inventory every skill/command with unscoped `Bash` (~15).
+2. [ ] For each, derive the minimal command scopes from its body and rewrite `allowed-tools`.
+3. [ ] Regression-test each rescoped skill on a representative task (U2).
 
 **Acceptance Criteria:**
-- [ ] WHEN Claude Code loads personal-plugin THEN all 9 agents SHALL register with routing descriptions and the specified tool set (not "Tools: All tools")
-- [ ] `for f in plugins/personal-plugin/agents/*.md; do head -1 "$f" | grep -q '^---$' || echo "FAIL $f"; done` prints nothing
-- [ ] Every `name:` value equals its filename stem exactly
+- [ ] WHEN a rescoped skill runs its normal workflow THEN it SHALL complete without permission-denied regressions.
+- [ ] No content-ingesting skill retains unscoped `Bash` unless justified in a Notes comment.
+- [ ] `claude plugin validate --strict` passes for all touched plugins.
 
----
+**Notes:** Delicate — over-scoping breaks skills, under-testing hides breakage. Revert per-skill if a scope proves insufficient. This is the U2 resolution surface.
 
-#### 3.2 Implementer agents: pins → aliases ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: haiku**
-**Requirement Refs:** R2, ADR-0005 (E008/E009)
-**Files Affected:**
-- `.claude/agents/haiku-implementer.md` (modify — line 3)
-- `.claude/agents/sonnet-implementer.md` (modify — line 3)
-- `.claude/agents/opus-implementer.md` (modify — line 3)
-
-**Description:**
-Replace `model: claude-haiku-4-5-20251001` → `model: haiku`; `model: claude-sonnet-4-6` → `model: sonnet`; `model: claude-opus-4-7` → `model: opus`. Bodies reference tiers conceptually only (verified) — no other edits. implement-plan references these agents by name, so no consumer changes are needed.
-
-**Tasks:**
-1. [ ] Three one-line frontmatter edits
-
-**Acceptance Criteria:**
-- [ ] `grep -h '^model:' .claude/agents/*.md` returns exactly `model: haiku`, `model: sonnet`, `model: opus`
-- [ ] WHEN implement-plan dispatches `sonnet-implementer` THEN it SHALL run on the current sonnet-tier model without any plan or command edit
-
----
-
-#### 3.3 arch-review dispatch simplification ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 3.2 Separate untrusted-fetch from local-action in recon/audit skills
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R1, R11 (E008/E009)
+**Recommendation Ref:** SEC-01
 **Depends On:** 3.1
 **Files Affected:**
-- `plugins/personal-plugin/skills/arch-review/SKILL.md` (modify — frontmatter line 6; dispatch block 86–128; synthesis 134–139)
+- `plugins/personal-plugin/skills/{spark-recon,jetson-recon,spark-audit,jetson-audit}/SKILL.md`
 
 **Description:**
-With agents registered via frontmatter, stop inlining agent-file contents into dispatch prompts: the dispatch block (92–112) passes `subagent_type` (namespaced `personal-plugin:<name>`; verify bare-name fallback in 3.5) plus the intake content and output paths only. Remove the `isolation: worktree` prescriptions (95, 128) — the per-agent meta files from 3.1 eliminate the collision they guarded against, and worktree isolation risks orphaning findings written to relative paths. Update the dispatch table (114–126) to namespaced values. Fix "Task tool" → "Agent tool" at :88 and `Task` → `Agent` in the frontmatter allowed-tools. Update the Lead synthesis step (134–139) to read the 9 per-agent `<agent>.meta.json` files and merge them (replacing the shared-file read).
+Restructure recon/audit skills so the "fetch untrusted content" step runs read-only (no `Bash`), separated from any "act locally/remotely" step. Consider `disable-model-invocation: true` on the highest-blast-radius recon skills so injected content cannot auto-trigger them.
 
 **Tasks:**
-1. [ ] Rewrite dispatch block: subagent_type-by-name, no file inlining, no worktree prose
-2. [ ] Update dispatch table to `personal-plugin:` namespaced types
-3. [ ] Fix Task→Agent naming (body :88 + frontmatter :6)
-4. [ ] Update synthesis to per-agent meta merge
+1. [ ] Split fetch vs act phases in each recon/audit skill body.
+2. [ ] Evaluate `disable-model-invocation` for spark-recon/jetson-recon.
 
 **Acceptance Criteria:**
-- [ ] WHEN arch-review dispatches an agent THEN the prompt SHALL NOT contain pasted agent-file contents and SHALL rely on the registered agent's own system prompt
-- [ ] `grep -n 'Task tool\|isolation: worktree' plugins/personal-plugin/skills/arch-review/SKILL.md` returns nothing
-- [ ] Synthesis instructions reference `findings/<agent>.meta.json` per-agent files
+- [ ] WHEN a recon skill fetches third-party content THEN no shell/SSH tool SHALL be active during that fetch step.
+- [ ] High-blast-radius recon skills are user-invoke-only where warranted.
 
-**Notes:**
-Escalate if the intake/prompt contract turns out to carry per-agent variation that the registered system prompts can't express — that would require keeping partial inlining.
+**Notes:** Depends on 3.1's scoping being in place.
 
----
-
-#### 3.4 arch-review-single + arch-synthesize alignment ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 3.3 Document the SSH-sudo trust boundary (resolve RI-03)
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R1, R11 (E008/E009)
-**Depends On:** 3.1
+**Recommendation Ref:** SEC-01 / RI-03
 **Files Affected:**
-- `plugins/personal-plugin/commands/arch-review-single.md` (modify — frontmatter line 5; steps 33–40)
-- `plugins/personal-plugin/commands/arch-synthesize.md` (modify — meta-reading step)
+- `plugins/personal-plugin/skills/{spark-audit,jetson-audit}/SKILL.md` (read/verify)
+- `SECURITY.md` (modify — document the boundary)
 
 **Description:**
-Mirror 3.3 in the single-agent command: dispatch by subagent_type instead of "Spawn a single Task with the agent's full definition" (L38); fix frontmatter `Task` → `Agent`. In arch-synthesize (read-only synthesizer), update the meta-reading instructions from the shared `.meta.json` to globbing `findings/*.meta.json` and merging.
+Confirm whether spark-audit/jetson-audit actually SSH into lab hosts (where the `claude` user has passwordless sudo) with tool grants that an injection could ride. Document the resulting trust boundary in SECURITY.md so the blast radius is explicit.
 
 **Tasks:**
-1. [ ] arch-review-single: dispatch-by-name rewrite + frontmatter fix
-2. [ ] arch-synthesize: per-agent meta glob + merge
+1. [ ] Read the audit skill bodies; confirm/deny SSH-sudo reachability.
+2. [ ] Document the boundary and any mitigation in SECURITY.md.
 
 **Acceptance Criteria:**
-- [ ] WHEN `/arch-review-single security-architect <target>` runs THEN it SHALL dispatch the registered agent by type and produce `findings/security-architect.md` + `findings/security-architect.meta.json`
-- [ ] arch-synthesize correctly aggregates N per-agent meta files
+- [ ] The SSH-sudo blast-radius question (RI-03) is answered in-repo with evidence.
+- [ ] SECURITY.md states the trust boundary for fleet recon/audit skills.
 
----
-
-#### 3.5 Smoke verification (resolves U1, U2) ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: sonnet**
-**Requirement Refs:** R1 (E009 Unknowns U1, U2)
-**Depends On:** 3.1, 3.3, 3.4
-**Files Affected:**
-- (no repo files — verification item; findings recorded in LAB_NOTEBOOK.md)
-
-**Description:**
-Dispatch one arch-review agent (smallest: solutions-architect) against a tiny target directory via the updated arch-review-single flow. Verify: (a) the namespaced subagent_type resolves (U2 — if `personal-plugin:solutions-architect` fails, test bare `solutions-architect` and update the dispatch table accordingly); (b) findings + per-agent meta land in the main working tree (U1 — no worktree isolation in the new design, so files must appear at the expected relative paths). Log results to LAB_NOTEBOOK as part of the phase entry.
-
-**Tasks:**
-1. [ ] Run the smoke dispatch; record subagent_type resolution behavior
-2. [ ] Verify findings file + meta file exist at expected paths with valid content
-3. [ ] Update dispatch tables if the namespace form differs from assumption; mark U1/U2 Resolved in this plan
-
-**Acceptance Criteria:**
-- [ ] WHEN the smoke dispatch completes THEN `arch-review/findings/solutions-architect.md` and `.../solutions-architect.meta.json` SHALL exist in the main tree
-- [ ] U1 and U2 rows in the Unknowns Register are marked Resolved with the answer
-
----
+**Notes:** Feeds the egress/trust documentation in Phase 7.
 
 ### Phase 3 Testing Requirements
 
-- [x] `claude plugin validate --strict ./plugins/personal-plugin` passes (agents were the only strict failure)
-- [x] Smoke dispatch (3.5) succeeds end-to-end
+- [ ] Each rescoped skill exercised on a representative task with no regression.
+- [ ] `claude plugin validate --strict` green for all touched plugins.
 
 ### Phase 3 Completion Checklist
 
-- [x] All work items complete
-- [x] All tests passing
-- [x] Documentation updated
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] No skill regressions
+- [ ] RI-03 resolved and documented
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `python -m pytest tests/ -v` | Exit code 0 |
-| Lint | `ruff check .` | Exit code 0 |
-| Markdown | `npx markdownlint-cli "**/*.md" --ignore node_modules` | Exit code 0 |
-| Official strict | `claude plugin validate --strict ./plugins/personal-plugin` | Exit code 0 |
-| Agent frontmatter | `for f in plugins/personal-plugin/agents/*.md; do head -1 "$f" \| grep -q '^---$' \|\| exit 1; done` | Exit code 0 |
+| Plugin validation | `claude plugin validate --strict ./plugins/personal-plugin` | Exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 4: Planning-Family Consolidation
+## Phase 4: CI Gate Integrity
 
-**Estimated Complexity:** L (~9 files, ~1,000 LOC churn)
+**Estimated Complexity:** M (~12 files, ~300 LOC)
 **Dependencies:** Phase 1
-**Execution Mode:** Parallel
+**Execution Mode:** Sequential
 
 ### Goals
 
-- Make `references/plan-template.md` the single source for the rubric, sizing tables, and append procedure
-- Collapse implement-plan's duplicated PATH A/B into one parameterized flow
-- Bring all three planning commands to ≤500 lines
+- Make the now-enforced gates correct and complete: no lint blind spot, real schema-data validation, blocking types, pinned actions, scoped audit.
 
 ### Work Items
 
-#### 4.1 Create shared planning references ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 4.1 Lint the per-tool tests/ dirs (fix the 28 hidden errors)
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R7 (E008/E009)
+**Recommendation Ref:** SE-01
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/references/plan-append-guide.md` (create)
-- `plugins/personal-plugin/references/recommendations-template.md` (create)
+- `.github/workflows/validate.yml` (modify globs)
+- `plugins/*/tools/*/tests/` (fix 28 ruff errors + format 16 files)
 
 **Description:**
-Extract the append-vs-overwrite procedure into `plan-append-guide.md` using create-plan's superset version (530–635, including the archive branch that plan-improvements lacks), parameterizing the separator string (`from /create-plan` vs `from /plan-improvements`). Extract the full RECOMMENDATIONS.md output template from plan-improvements 218–370 into `recommendations-template.md` (top-level `<noun>-template.md` naming convention). Both files get a one-paragraph purpose header naming their consumers.
+`validate.yml:213,217` lints `plugins/*/tools/*/src/ tests/` — the per-tool `tests/` dirs are unlinted, hiding 28 ruff errors + 16 unformatted files. Fix the errors and formatting FIRST, then extend the globs to include `plugins/*/tools/*/tests/` (order matters — extending first reddens CI).
 
 **Tasks:**
-1. [ ] Author plan-append-guide.md (procedure steps 1–10 + before/after example + archive branch)
-2. [ ] Author recommendations-template.md (header + 10 category blocks + Quick Wins/Strategic/Not-Recommended)
+1. [ ] `ruff check --fix` + `ruff format` the per-tool tests.
+2. [ ] Manually resolve any non-autofixable errors.
+3. [ ] Extend `ruff check` + `ruff format --check` globs to include per-tool tests.
 
 **Acceptance Criteria:**
-- [ ] Both files exist with content byte-equivalent in substance to the current inline versions (no semantic drift introduced)
-- [ ] Each names both consumer commands and the parameterized separator convention
+- [ ] WHEN `ruff check plugins/*/tools/*/tests/` runs THEN it SHALL report 0 errors.
+- [ ] validate.yml lints per-tool tests going forward.
 
----
+**Notes:** Fix-then-extend within one PR.
 
-#### 4.2 create-plan.md consolidation ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 4.2 Make mypy blocking for all three tools
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R6, R7 (E008/E009)
-**Depends On:** 4.1
+**Recommendation Ref:** SE-04, QA-05, PLAT-006
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/commands/create-plan.md` (modify — target ≤500 lines)
-- `plugins/personal-plugin/references/create-plan-examples.md` (create)
+- `.github/workflows/test.yml` (remove `continue-on-error` at 74, 109)
+- tool source (fix surfaced type errors)
 
 **Description:**
-Replace the inline model-tier rubric (437–440) with a pointer to plan-template.md rule 17; replace the S/M/L table (446–451) with a pointer to the template's Sizing Constraints. Replace the append section body (530–635) with a short control-flow summary + pointer to plan-append-guide.md. Move the Phase 5.2 summary-report sample (707–767), AGENTS.md generation details (693–706), and Examples (834–886) to create-plan-examples.md. Core workflow (Phases 1–3 logic, error handling) stays verbatim.
+Remove `continue-on-error: true` (test.yml:74,109) so mypy blocks for bpmn2drawio and visual-explainer as it already does for feedback-docx. Resolve U4 first (measure error volume) — if large, ratchet with a baseline instead of a big-bang fix.
 
 **Tasks:**
-1. [ ] Apply pointer replacements (rubric, sizing, append)
-2. [ ] Extract the three bulk blocks to create-plan-examples.md
-3. [ ] Verify remaining file reads coherently end-to-end and is ≤500 lines
+1. [ ] Run `mypy src/` per tool; count errors (U4).
+2. [ ] Fix errors, or introduce a ratchet baseline if the volume is high.
+3. [ ] Remove `continue-on-error`.
 
 **Acceptance Criteria:**
-- [ ] WHEN a planner follows create-plan THEN every rubric/sizing/append decision SHALL resolve via the shared template/guide (no inline copy to drift)
-- [ ] `wc -l < plugins/personal-plugin/commands/create-plan.md` ≤ 500
-- [ ] `/validate-plugin personal-plugin` passes
+- [ ] WHEN mypy finds a type error in any of the 3 tools THEN CI SHALL fail.
+- [ ] All three tools pass mypy at the chosen strictness.
 
-**Notes:**
-Behavior-preserving (constitution C8): pointers must carry enough inline context (one-line summaries) that the command remains executable without pre-reading every reference. Executed via one sonnet→opus escalation: the ≤500 target conflicted with the byte-intact clause; opus moved illustration blocks only — final 470 lines, decision logic untouched.
+**Notes:** Gated on U4. Keep `--ignore-missing-imports`; do not jump straight to `--strict`.
 
----
-
-#### 4.3 plan-improvements.md consolidation ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 4.3 Validate schema *data* + fix schemas/plugin.json
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R6, R7 (E008/E009)
-**Depends On:** 4.1
+**Recommendation Ref:** QA-02, INT-04
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/commands/plan-improvements.md` (modify — target ≤500 lines)
+- `.github/workflows/test.yml` (schema-validation job)
+- `schemas/plugin.json` (modify)
+- `scripts/` (add a validator if needed)
 
 **Description:**
-Same treatment: rubric (480–483) and S/M/L table (503–508) become template pointers; RECOMMENDATIONS template body (218–370) becomes a pointer to recommendations-template.md; append example (408–464) points to plan-append-guide.md; AGENTS.md gen (582–619) and Examples (692–756) trimmed to pointers/one short example. Critically, REFRAME the Execution-Hints section (553–568) to the canonical create-plan/template framing — per-item tiers primary, phase-level override secondary, rule-15 column schema (`Phase | Model Tier | Context Budget | Notes`) — resolving the conflicting-framings drift.
+The schema-validation job only checks the 4 schemas are well-formed JSON Schema; it never validates plugin/command/questions/answers *data* against them. Wire actual data validation; fix `schemas/plugin.json` (remove the forbidden `tools` property, set `additionalProperties:false`, align the version pattern to `^\d+\.\d+\.\d+$`); wire questions/answers schemas to a consumer or remove them.
 
 **Tasks:**
-1. [ ] Pointer replacements (rubric, sizing, RECOMMENDATIONS template, append)
-2. [ ] Execution-Hints reframe to rule-15 schema and per-item-primary semantics
-3. [ ] Verify ≤500 lines and coherent flow
+1. [ ] Fix `schemas/plugin.json` contradictions.
+2. [ ] Add a CI step validating each plugin.json + command frontmatter + any questions/answers artifacts against the schemas.
+3. [ ] Resolve U6 (surface + fix any existing violations).
 
 **Acceptance Criteria:**
-- [ ] WHEN plan-improvements emits Execution Hints THEN the columns and semantics SHALL match plan-template.md rule 15 exactly
-- [ ] `wc -l < plugins/personal-plugin/commands/plan-improvements.md` ≤ 500
-- [ ] The 10-category assessment checklist and priority rubric (core workflow) remain intact
+- [ ] WHEN a plugin.json violates `schemas/plugin.json` THEN the schema-validation job SHALL fail.
+- [ ] `schemas/plugin.json` no longer contradicts `claude plugin validate --strict`.
 
----
+**Notes:** The `strict` CLI already catches the `tools` case pre-merge, but the shipped schema must stop misleading contributors.
 
-#### 4.4 implement-plan.md: PATH collapse + mechanics cleanup ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: opus**
-**Requirement Refs:** R6, R11 (E008/E009)
+#### 4.4 Pin GitHub Actions to SHAs; fix dependabot claim; add concurrency/timeout
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** PLAT-004, SEC-06, PLAT-008
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/commands/implement-plan.md` (modify — target ≤650 lines)
-- `plugins/personal-plugin/references/implement-plan-state-schema.md` (create)
+- `.github/workflows/{validate.yml,test.yml}` (modify)
+- `.github/dependabot.yml` (fix false SHA-pin comment)
 
 **Description:**
-Collapse PATH A (375–522) and PATH B (526–669) into one flow parameterized on batch cardinality, using the verified difference ledger as the spec: singular vs `_batch` state keys; B-only `run_in_background: true` + single-message multi-dispatch + max-3/overlap constraints; commit-message template (single item vs phase+item list); plural wording in TESTS_STUCK/docs steps; B4b/B2 already delegate to A-logic. Extract the implementer prompt (405–413) and testing-subagent prompt (433–452) to appear once each. Move the state-schema JSON (130–181) to `references/implement-plan-state-schema.md` with a field-summary table inline. Drop vestigial `Task` from allowed-tools (line 5; keep Agent + TaskCreate/TaskUpdate/TaskOutput). Replace the `cat << EOF` state-file heredoc (317–347) with a Write-tool instruction and the `grep >> .gitignore` hack (355) with a Read-then-Edit "ensure line present" instruction.
+Pin `actions/checkout@v4`, `setup-python@v5`, `setup-node@v4` to full commit SHAs (Dependabot bumps SHAs), making the dependabot.yml "SHA-pinned" comment true. Add a `concurrency:` group (cancel superseded PR runs) and `timeout-minutes` to each job.
 
 **Tasks:**
-1. [ ] Author the unified execution flow encoding BOTH modes' exact semantics (cardinality-parameterized)
-2. [ ] Single-instance the two subagent prompts
-3. [ ] Extract state schema to the new reference; leave summary table
-4. [ ] allowed-tools, heredoc, and gitignore-hack cleanups
-5. [ ] Semantic side-by-side check: every A-step and B-step behavior maps to the unified flow
+1. [ ] Replace tag pins with SHA pins (+ `# vX` comment).
+2. [ ] Fix the dependabot.yml comment.
+3. [ ] Add `concurrency` + `timeout-minutes`.
 
 **Acceptance Criteria:**
-- [ ] WHEN a phase's Execution Mode is Sequential THEN the unified flow SHALL reproduce PATH A semantics exactly (state keys, commit format, escalation, shedding)
-- [ ] WHEN Parallel THEN PATH B semantics exactly (background dispatch, max-3 constraint, batch state, batch commit format)
-- [ ] `wc -l < plugins/personal-plugin/commands/implement-plan.md` ≤ 650
-- [ ] No instruction references the removed `Task` tool for spawning
+- [ ] All third-party actions are SHA-pinned.
+- [ ] Superseded PR runs are auto-cancelled; no job can exceed its timeout.
 
-**Notes:**
-Highest-risk item in the plan. The difference ledger (E009 investigation §3) is the authoritative spec — do not re-derive from scratch. If any A/B difference proves semantic rather than cardinality-mechanical, escalate is moot (already opus): flag it in LEARNINGS and preserve both behaviors explicitly.
+**Notes:** Mechanical; verify each SHA maps to the intended tag.
 
----
+#### 4.5 Scope pip-audit to tool deps; de-dup redundant runs; root coverage
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** PLAT-007, QA-10, PLAT-005, QA-06
+**Depends On:** None
+**Files Affected:**
+- `.github/workflows/{test.yml,validate.yml}` (modify)
+
+**Description:**
+Scope `pip-audit` to the tools' locked deps (`--requirement <lock>`) instead of the whole runner env (removes the setuptools-class false-failure recurrence — the Entry-016 workaround is a band-aid). De-duplicate the ~3× root-suite runs and add coverage measurement to root `tests/`.
+
+**Tasks:**
+1. [ ] Convert pip-audit to per-lockfile scoping.
+2. [ ] Remove the redundant root pytest invocation(s).
+3. [ ] Add `--cov` to the root suite with a sensible floor.
+
+**Acceptance Criteria:**
+- [ ] WHEN a runner-shipped build tool has a CVE THEN the audit job SHALL NOT fail on it (only tool deps are audited).
+- [ ] The root suite runs once per OS with coverage reported.
+
+**Notes:** Undoes the need for the Entry-016 `setuptools` upgrade hack.
 
 ### Phase 4 Testing Requirements
 
-- [x] `/validate-plugin personal-plugin` passes (template pointers intact, frontmatter clean)
-- [x] Line budgets met: create-plan ≤500, plan-improvements ≤500, implement-plan ≤650
-- [x] Manual read-through: each command executable without opening references (pointers carry summaries)
+- [ ] Injected type error fails CI; malformed plugin.json fails schema job; per-tool tests lint clean.
+- [ ] All CI jobs green both OSes after changes.
 
 ### Phase 4 Completion Checklist
 
-- [x] All work items complete
-- [x] All tests passing
-- [x] Documentation updated
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] CI green both OSes
+- [ ] No advisory gate remains where it should block
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `python -m pytest tests/ -v` | Exit code 0 |
-| Lint | `ruff check .` | Exit code 0 |
-| Markdown | `npx markdownlint-cli "**/*.md" --ignore node_modules` | Exit code 0 |
-| Budgets | `wc -l plugins/personal-plugin/commands/{create-plan,plan-improvements}.md \| awk '$1>500 && $2!="total"{exit 1}'; wc -l < plugins/personal-plugin/commands/implement-plan.md \| awk '{exit ($1>650)}'` | Exit code 0 |
-| Rubric single-source | `grep -c 'haiku.*deterministic' plugins/personal-plugin/commands/*.md \| grep -v ':0'` | Only pointers remain (no full rubric copies) |
+| Lint (incl. tests) | `ruff check plugins/*/tools/*/src/ plugins/*/tools/*/tests/ tests/` | Exit 0 |
+| Types | `mypy plugins/bpmn-plugin/tools/bpmn2drawio/src/ --ignore-missing-imports` | Exit 0 |
+| Schema data | `python scripts/validate_schemas_data.py` (new) | Exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 5: Progressive Disclosure — Remaining Giants
+## Phase 5: External-Call Robustness
 
-**Estimated Complexity:** L (~15 files, ~1,300 LOC churn)
+**Estimated Complexity:** S (~4 files, ~150 LOC)
 **Dependencies:** Phase 1
 **Execution Mode:** Parallel
 
 ### Goals
 
-- Bring validate-plugin, research-topic, ship, and six more files to/toward the official 500-line budget
-- Replace hand-synced inventories and hardcoded repo specifics in validate-plugin with dynamic checks
+- Make the raw-curl research/brain-entry integrations fail fast and cleanly instead of hanging.
 
 ### Work Items
 
-#### 5.1 validate-plugin refactor ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: opus**
-**Requirement Refs:** R6 (E008/E009)
+#### 5.1 Add timeouts to every raw-curl external call
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** INT-01
 **Files Affected:**
-- `plugins/personal-plugin/commands/validate-plugin.md` (modify — 1,385 → target ≤700 lines)
-- `plugins/personal-plugin/references/validation-output-examples.md` (create)
+- `plugins/personal-plugin/references/research-provider-protocols.md` (modify)
+- `plugins/personal-plugin/skills/brain-entry/SKILL.md` (modify)
 
 **Description:**
-Move the end-to-end example transcripts (1266–1385), mode output samples (--report/--strict/--scorecard, 1151–1257), and per-phase "Report:"/"Or on failure:" sample blocks to `references/validation-output-examples.md`, following the existing scorecard-extraction precedent — each phase keeps a one-line output-format pointer. Make Phase 8.6's reference inventory dynamic: keep a compact required-file list (data), replace the per-file "Required Since" prose table with "list `references/` and diff against the required set." Replace hardcoded `davistroy/claude-marketplace` (997, 1081, 1087) with `git remote get-url origin` derivation, and stale dates/versions (853–859, 878, 887–892, 1199, 1246) with `[N]`-style placeholders per the item-C10 precedent.
+Every `curl` (Anthropic/OpenAI/Gemini research legs + brain-entry POST) lacks `--max-time`/`--connect-timeout`; a hung connection blocks indefinitely and the 30-min poll bound is illusory (it caps poll count, not any single curl). Add `--max-time 60 --connect-timeout 10` (per-provider tunable).
 
 **Tasks:**
-1. [ ] Extract the three sample-output groups to the new reference
-2. [ ] Rewrite Phase 8.6 as required-list + dynamic diff
-3. [ ] Dynamic repo-URL + placeholder sweep
-4. [ ] Verify all 9 phases + modes remain fully specified; ≤700 lines
+1. [ ] Add timeout flags to all curl invocations.
+2. [ ] Add `--retry` w/ backoff for idempotent GET polls.
 
 **Acceptance Criteria:**
-- [ ] WHEN `/validate-plugin --all` runs THEN every phase SHALL execute identically to the pre-refactor behavior (checks unchanged; only sample bulk moved)
-- [ ] WHEN a new reference file is added to `references/` THEN Phase 8.6 SHALL report it without any validate-plugin edit
-- [ ] `wc -l < plugins/personal-plugin/commands/validate-plugin.md` ≤ 700
+- [ ] WHEN an external endpoint is unresponsive THEN the curl SHALL abort within its `--max-time` rather than hang.
 
-**Notes:**
-This file is the repo's QA tool — regressions here mask other regressions. Checks move verbatim; only illustrations move to references.
+**Notes:** Pure instruction-file edits.
 
----
-
-#### 5.2 research-topic structural dedup ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 5.2 Check HTTP status / job ID after submit; honor 429
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R6 (E008/E009)
+**Recommendation Ref:** INT-02, INT-07
+**Depends On:** 5.1
 **Files Affected:**
-- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify — 607 → target ≤400 lines)
-- `plugins/personal-plugin/references/research-provider-protocols.md` (create)
+- `plugins/personal-plugin/references/research-provider-protocols.md` (modify)
 
 **Description:**
-The three provider prompt blocks (Claude 211–268, OpenAI 270–341, Gemini 343–410) are near-identical. Replace with ONE parameterized subagent-prompt template plus a provider-deltas table (endpoint, auth mechanism, model field name, sync-vs-poll + status field, depth parameter, parse target — the verified table from E009), with full per-provider curl examples living in `references/research-provider-protocols.md`.
+Submits never check HTTP status; a failed submit yields an empty job ID and the poll loop burns ~30 min polling a nonexistent job. Check job-ID non-empty (and `error` absent) immediately after submit and fast-fail; treat missing poll `status`/`state` as an error; honor `Retry-After`/429 in the poll loop.
 
 **Tasks:**
-1. [ ] Author the parameterized prompt + deltas table in SKILL.md
-2. [ ] Move full curl/poll examples to the new reference
-3. [ ] Verify ≤400 lines and that each provider leg remains independently executable
+1. [ ] Add post-submit success check with `exit 1` on failure.
+2. [ ] Treat missing status as an error signal; add 429/Retry-After handling.
 
 **Acceptance Criteria:**
-- [ ] WHEN any of the three research legs dispatches THEN its subagent SHALL have a complete protocol (template + deltas or reference) with no behavioral change
-- [ ] `wc -l < plugins/personal-plugin/skills/research-topic/SKILL.md` ≤ 400
+- [ ] WHEN a submit returns 4xx/5xx or an empty job ID THEN the leg SHALL fail fast, not poll for 30 minutes.
 
-**Notes:**
-Escalate if the OpenAI/Gemini polling flows prove too divergent for one template — then keep two templates (sync/async) rather than forcing one. Final: 421 lines (documented-dense: residual overage is protected behavioral content; one template sufficed — sync/async collapsed into the deltas table).
+**Notes:** Biggest real-world win — turns a 30-min hang into an immediate error.
 
----
-
-#### 5.3 ship refactor ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: sonnet**
-**Requirement Refs:** R6, R10 (E008/E009)
+#### 5.3 Gemini research key → header; unique temp filenames
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** INT-03, INT-09
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/skills/ship/SKILL.md` (modify — 575 → target ≤420 lines)
-- `plugins/personal-plugin/references/ship-output-templates.md` (create)
+- `plugins/personal-plugin/references/research-provider-protocols.md` (modify)
 
 **Description:**
-Move the Phase 8 success/failure/exhaustion output templates (444–546) and the fix-loop pseudocode (335–376) to `references/ship-output-templates.md` with inline one-line pointers. Fold the body "Proactive Triggers" section (32–40) into the frontmatter description per the official all-triggers-in-description guidance (this is ship's R10 treatment; the other skills get theirs in Phase 8).
+Move the Gemini research key from `?key=$GOOGLE_API_KEY` (leaks to `ps`/history/logs) to the `x-goog-api-key` header. Include the run TIMESTAMP in the fixed `/tmp` response filenames to avoid clobbering across concurrent runs.
 
 **Tasks:**
-1. [ ] Extract templates + pseudocode to the reference
-2. [ ] Merge Proactive Triggers into description; delete the body section
-3. [ ] Verify ≤420 lines; dynamic git `!` injection block untouched
+1. [ ] Switch Gemini legs to `x-goog-api-key` header.
+2. [ ] Add TIMESTAMP to temp filenames.
 
 **Acceptance Criteria:**
-- [ ] WHEN ship reaches Phase 8 THEN it SHALL produce the same three output formats via the referenced templates
-- [ ] Frontmatter description alone captures all former Proactive-Trigger conditions
-- [ ] `wc -l < plugins/personal-plugin/skills/ship/SKILL.md` ≤ 420
+- [ ] WHEN the Gemini research leg runs THEN the key SHALL NOT appear in the process list or URL.
+- [ ] Two concurrent research runs SHALL NOT clobber each other's temp files.
 
-**Notes:**
-Final: 437 lines (documented-dense: both specified extractions complete; remainder is phase logic/gates).
-
----
-
-#### 5.4 Batch A: clean-repo, finish-document, bpmn-to-drawio ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: sonnet**
-**Requirement Refs:** R6 (E008/E009)
-**Files Affected:**
-- `plugins/personal-plugin/commands/clean-repo.md` (modify — 552 → ~440)
-- `plugins/personal-plugin/references/clean-repo-examples.md` (create)
-- `plugins/personal-plugin/commands/finish-document.md` (modify — 516 → ~420)
-- `plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md` (modify — 516 → ~330)
-- `plugins/bpmn-plugin/references/bpmn2drawio-reference.md` (create)
-
-**Description:**
-clean-repo: move the three example transcripts (462–544) and JSON-output schema (418–447) to a reference. finish-document: replace the duplicated question-flow display/session-command tables/help text (174–265) with pointers to `/ask-questions` (already cross-referenced at 146) and the inline JSON schemas (74–97, 302–326) with schema-file references — its win is de-duplication. bpmn-to-drawio: consolidate the post-line-165 reference material (CLI reference 167–203, themes 206–268, Python API 299–337, element tables 341–393) into `plugins/bpmn-plugin/references/bpmn2drawio-reference.md`; core Steps 1–6 stay.
-
-**Tasks:**
-1. [ ] clean-repo extraction (+ new reference)
-2. [ ] finish-document de-duplication via pointers
-3. [ ] bpmn-to-drawio consolidation (+ new reference in the bpmn-plugin bundle)
-
-**Acceptance Criteria:**
-- [ ] Each file at or under its target; every moved block reachable via an explicit pointer
-- [ ] WHEN bpmn-to-drawio runs a conversion THEN Steps 1–6 SHALL be fully specified without opening the reference (reference is for options/edge lookup)
-
----
-
-#### 5.5 Batch B: create-wiki, evaluate-pipeline-output, test-project ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: sonnet**
-**Requirement Refs:** R6 (E008/E009)
-**Files Affected:**
-- `plugins/personal-plugin/skills/create-wiki/SKILL.md` (modify — 503 → ~370)
-- `plugins/personal-plugin/references/claude-md-wiki-section.md` (create)
-- `plugins/personal-plugin/references/wiki-readme-template.md` (create)
-- `plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md` (modify — 645 → ~490)
-- `plugins/personal-plugin/skills/evaluate-pipeline-output/references/report-format.md` (create)
-- `plugins/personal-plugin/commands/test-project.md` (modify — 502 → ~465, light trim)
-
-**Description:**
-create-wiki: the verbatim-emitted CLAUDE.md injection block (349–428) and wiki README template (287–341) become reference files the skill Reads at emission time. evaluate-pipeline-output: Phase-13 report template (487–604) and evaluator-guidance tail (606–645) move to a skill-local `references/` dir; the 13-phase core is legitimately dense — do not force further cuts. test-project: trim the verbose Performance section (449–486) inline; no reference file warranted.
-
-**Tasks:**
-1. [ ] create-wiki extractions ×2 (+ Read-at-emission instructions)
-2. [ ] evaluate-pipeline-output extractions (skill-local references/)
-3. [ ] test-project inline trim
-
-**Acceptance Criteria:**
-- [ ] WHEN create-wiki performs Step 7/8 THEN it SHALL emit byte-identical README/CLAUDE.md content sourced from the reference files
-- [ ] evaluate-pipeline-output ≤500 or documented-dense with extraction complete
-- [ ] test-project ≤470
-
----
+**Notes:** Anthropic/OpenAI legs already use headers correctly.
 
 ### Phase 5 Testing Requirements
 
-- [x] `/validate-plugin --all` passes (reference inventory picks up 7 new files dynamically per 5.1)
-- [x] All line budgets met or documented-dense
-- [x] Spot execution check: one conversion via bpmn-to-drawio instructions reads coherently
+- [ ] Dry-run a research leg against an unreachable host — fast-fails within timeout.
+- [ ] `ps` during a Gemini leg shows no key.
 
 ### Phase 5 Completion Checklist
 
-- [x] All work items complete
-- [x] All tests passing
-- [x] Documentation updated
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] markdownlint clean
+- [ ] No key in process list / URL
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `python -m pytest tests/ -v` | Exit code 0 |
-| Lint | `ruff check .` | Exit code 0 |
-| Markdown | `npx markdownlint-cli "**/*.md" --ignore node_modules` | Exit code 0 |
-| Budgets | `wc -l` on the six refactored files vs targets in item descriptions | All ≤ target |
-| Official strict | `claude plugin validate --strict ./plugins/personal-plugin ./plugins/bpmn-plugin 2>/dev/null \|\| claude plugin validate --strict ./plugins/personal-plugin && claude plugin validate --strict ./plugins/bpmn-plugin` | Exit code 0 |
+| Markdown lint | `npx markdownlint-cli plugins/personal-plugin/references/research-provider-protocols.md plugins/personal-plugin/skills/brain-entry/SKILL.md` | Exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 6: Skills-First Scaffolding
+## Phase 6: slide-gen Integrity
 
-**Estimated Complexity:** M (~5 files, ~250 LOC)
-**Dependencies:** None
+**Estimated Complexity:** M (~9 files, ~300 LOC)
+**Dependencies:** Phase 1; Unknown U1
 **Execution Mode:** Parallel
 
 ### Goals
 
-- Implement ADR-0006: new functionality ships as skills; commands are frozen legacy
-- Port pattern-template support into new-skill; deprecate new-command; flip scaffold-plugin defaults
+- Make slide-gen honest: either it works on install, or its external dependency is loudly declared and preflight-checked.
 
 ### Work Items
 
-#### 6.1 new-skill pattern support ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 6.1 Declare slide-gen an external-dependency plugin + `sg` preflight
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R9, ADR-0006 (E008/E009)
+**Recommendation Ref:** SA-001
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/commands/new-skill.md` (modify)
+- `plugins/slide-gen/README.md` (modify)
+- `plugins/slide-gen/skills/sg-full-workflow/SKILL.md` (add preflight)
+- `docs/adr/0008-slide-gen-dependency-model.md` (create)
 
 **Description:**
-Add a pattern argument (e.g., `/new-skill my-skill --pattern generator`) that Reads the corresponding `references/templates/<pattern>.md` (the existing 8 command-pattern templates: conversion, generator, interactive, planning, read-only, synthesis, utility, workflow) and adapts it to SKILL form at generation time: nested `skills/<name>/SKILL.md`, `name:` frontmatter added, command-only guidance dropped. Templates themselves are NOT rewritten — the adapter lives in new-skill's instructions. Document the pattern list in the command's help.
+Per decision D2: formally declare slide-gen an external-dependency plugin (do NOT vendor the engine). Add an `sg` health-check preflight to `sg-full-workflow` (and each entry skill) that fails early with an install pointer if `sg` is missing. Generate ADR-0008 documenting external-dependency vs bundling, with rejection reasons. Resolve U1 (is `slide-generator` public/installable?) — if private, the ADR must state slide-gen is owner-only.
 
 **Tasks:**
-1. [ ] Add pattern argument + adaptation instructions (frontmatter transform, nesting, name rule)
-2. [ ] Document the 8 patterns with one-line descriptions
-3. [ ] Update argument-hint
+1. [ ] Resolve U1 (`gh repo view davistroy/slide-generator`).
+2. [ ] Add `sg --version` preflight to the workflow entry points.
+3. [ ] Write ADR-0008 (Status: Accepted).
 
 **Acceptance Criteria:**
-- [ ] WHEN `/new-skill foo --pattern generator` runs THEN it SHALL scaffold `skills/foo/SKILL.md` derived from templates/generator.md with skill-conformant frontmatter
-- [ ] WHEN no pattern is given THEN behavior SHALL be unchanged from today
+- [ ] WHEN `sg` is not installed and a slide-gen skill runs THEN it SHALL fail early with a clear install instruction (not `sg: command not found` mid-pipeline).
+- [ ] ADR-0008 documents the external-dependency decision.
 
----
+**Notes:** U1 outcome shapes the README wording (public install vs owner-only).
 
-#### 6.2 Deprecate new-command ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: sonnet**
-**Requirement Refs:** R9, ADR-0006 (E008/E009)
+#### 6.2 Fix homepage + document the external dependency in READMEs
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** SA-002, INT-05, RISK-01, PLAT-013
 **Depends On:** 6.1
 **Files Affected:**
-- `plugins/personal-plugin/commands/new-command.md` (move → `plugins/personal-plugin/deprecated/new-command.md`)
-- `plugins/personal-plugin/deprecated/README.md` (modify — add entry)
-- `README.md` (modify — command table)
+- `plugins/slide-gen/.claude-plugin/plugin.json` (homepage)
+- `plugins/slide-gen/README.md`, root `README.md` (slide-gen section)
 
 **Description:**
-Move new-command.md to `deprecated/` per house convention (convert-hooks/setup-statusline/check-updates precedent), with a deprecation header pointing to `/new-skill --pattern`. Add the deprecated/README.md entry (date, reason: official skills-first direction + ADR-0006, replacement). Update the root README command table (remove new-command from active list; note in a deprecation line) and the command count.
+Fix `plugin.json` homepage from `github.com/davistroy/slide-generator` to the marketplace repo. Add a prominent "External Dependency / Prerequisites" section to the slide-gen README and the root README slide-gen section (the dependency is currently buried in individual skill bodies).
 
 **Tasks:**
-1. [ ] Move file + add deprecation header
-2. [ ] deprecated/README.md entry
-3. [ ] Root README table + count update
+1. [ ] Correct the homepage URL.
+2. [ ] Add Prerequisites sections to both READMEs.
 
 **Acceptance Criteria:**
-- [ ] WHEN personal-plugin loads THEN `/new-command` SHALL no longer register (file outside commands/)
-- [ ] deprecated/README.md documents date, rationale (ADR-0006), and replacement
-- [ ] README active-command table has 23 commands and no new-command row
+- [ ] slide-gen `plugin.json` homepage points to claude-marketplace.
+- [ ] WHEN a user reads either README THEN the `sg` dependency SHALL be stated before the usage steps.
 
----
+**Notes:** Also extend the manifest-sync CI check to cover `homepage` (ties to INT-05).
 
-#### 6.3 scaffold-plugin skills-first defaults ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 6.3 Add CHANGELOGs; document/consolidate the dual Gemini path
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R9, ADR-0006 (E008/E009)
+**Recommendation Ref:** SA-005, SA-004
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify — lines 103, 123, 141, 176–188, 229, 238–239, 257, 273, 320, 342)
+- `plugins/slide-gen/CHANGELOG.md` (create)
+- `plugins/bpmn-plugin/CHANGELOG.md` (create)
+- `plugins/slide-gen/skills/sg-generate-images/SKILL.md` (cross-reference)
 
 **Description:**
-Flip generation defaults: `skills/` scaffolded by default; `commands/` only on explicit request with a "legacy format" note. "Next Steps" leads with `/new-skill` (the 238–239 and 257 mentions of `/new-command` change to `/new-skill`). The skill quick-ref (176–188) becomes the primary authoring guidance.
+Add per-plugin CHANGELOGs to slide-gen and bpmn-plugin (only personal-plugin has one — the two-tier versioning story is incompletely instrumented). Document the two divergent Gemini image paths (visual-explainer tool vs `sg generate-images`) with a shared-contract note, or reference one from the other.
 
 **Tasks:**
-1. [ ] Update the 7 default-generation sites + directory-layout examples
-2. [ ] Rewrite Next Steps ordering + replace /new-command mentions
+1. [ ] Backfill CHANGELOG.md for slide-gen + bpmn-plugin from git history.
+2. [ ] Add a cross-reference note between the two Gemini image paths.
 
 **Acceptance Criteria:**
-- [ ] WHEN `/scaffold-plugin` runs with no format flags THEN the generated plugin SHALL contain `skills/` (no `commands/` dir)
-- [ ] WHEN the user explicitly requests commands THEN scaffold SHALL generate them with a legacy-format note
+- [ ] Both plugins have a CHANGELOG traceable through their versions.
+- [ ] The two Gemini image paths reference each other / a shared contract note.
 
----
+**Notes:** CHANGELOG backfill is mechanical from `git log`.
 
 ### Phase 6 Testing Requirements
 
-- [x] `/validate-plugin personal-plugin` passes with new-command in deprecated/ (count checks use dynamic `[N]`)
-- [x] new-skill pattern flow produces a skill passing frontmatter validation
+- [ ] Preflight fails cleanly when `sg` absent; passes when present.
+- [ ] Manifest-sync check covers homepage.
 
 ### Phase 6 Completion Checklist
 
-- [x] All work items complete
-- [x] All tests passing
-- [x] Documentation updated
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] ADR-0008 accepted
+- [ ] U1 resolved and reflected in docs
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `python -m pytest tests/ -v` | Exit code 0 |
-| Lint | `ruff check .` | Exit code 0 |
-| Markdown | `npx markdownlint-cli "**/*.md" --ignore node_modules` | Exit code 0 |
-| Deprecation | `test ! -f plugins/personal-plugin/commands/new-command.md && test -f plugins/personal-plugin/deprecated/new-command.md` | Exit code 0 |
+| Plugin validation | `claude plugin validate --strict ./plugins/slide-gen` | Exit 0 |
+| Manifest sync | `python scripts/check_manifest_sync.py` (extended) | Exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 7: Guidance, CI & Evals
+## Phase 7: Governance Docs, Egress Policy & Hygiene
 
-**Estimated Complexity:** M (~3 files, ~200 LOC)
-**Dependencies:** Phases 3, 6
+**Estimated Complexity:** M (~14 files, ~350 LOC)
+**Dependencies:** Phase 1
 **Execution Mode:** Parallel
 
 ### Goals
 
-- Official `claude plugin validate` in CI (strict for plugins, non-strict for marketplace manifest)
-- Trigger evals guarding description behavior before Phase 8 edits descriptions
-- CLAUDE.md refreshed to current spec + skills-first policy
+- Close the documentation/policy debt (egress, supply-chain, ADR drift) and remove repo cruft.
 
 ### Work Items
 
-#### 7.1 CI plugin-validate job ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 7.1 Data-egress / confidentiality policy
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R8 (E008/E009; approved default: marketplace non-strict)
+**Recommendation Ref:** RISK-04, DA-04, SEC-09
 **Files Affected:**
-- `.github/workflows/validate.yml` (modify — new job)
+- `SECURITY.md` (modify)
 
 **Description:**
-Add a `plugin-validate` job on ubuntu-latest: `actions/setup-node@v4` (node 20, per the existing lint-markdown pattern), `npm install -g @anthropic-ai/claude-code@<pinned current version>`, then `claude plugin validate --strict` for each of the three plugin dirs and plain `claude plugin validate .` for the marketplace manifest (its `metadata.*version` fields are house bookkeeping the runtime ignores — approved default keeps them). No auth secrets — the validate subcommand is auth-free (verified locally on 2.1.204). Run the exact commands locally before pushing; the only current strict failure (agents) is fixed by Phase 3.
+Add an explicit egress/confidentiality policy: data-classification guidance, a "never send to third-party AI APIs" list, and pointers to Anthropic/OpenAI/Google DPAs/terms. This is the highest genuine compliance exposure — a user could feed a confidential client deliverable to `/visual-explainer` (→ Gemini) or `/research-topic` (→ 3 providers) with only a soft caution.
 
 **Tasks:**
-1. [ ] Author the job with pinned CLI version
-2. [ ] Local dry-run of all four commands; confirm green post-Phase-3
-3. [ ] Push and confirm the job passes in Actions
+1. [ ] Write the data-classification + "never send" policy.
+2. [ ] Link provider data-processing terms (resolve U5 on retention/training-use).
 
 **Acceptance Criteria:**
-- [ ] WHEN any PR introduces a loader-schema violation (missing frontmatter, bad manifest key) THEN CI SHALL fail on the plugin-validate job
-- [ ] Marketplace-manifest validation passes non-strict with the version fields retained
+- [ ] SECURITY.md states which data classes must not be sent to third-party AI APIs and links provider DPAs.
 
----
+**Notes:** Pairs with the trust-boundary doc from 3.3.
 
-#### 7.2 Trigger evals ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: sonnet**
-**Requirement Refs:** R8 (E008/E009)
+#### 7.2 Document the supply-chain control set
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** RISK-03
 **Files Affected:**
-- `evals/skills/description-triggers.eval.md` (create)
+- `SECURITY.md` (modify)
 
 **Description:**
-Author should-trigger/should-not-trigger scenarios in the plan-gate.eval.md idiom (frontmatter `command/type/fixtures`; scenarios with `**Context:**` + Must / Must NOT checklists): positive trigger phrases for the big-5 (bpmn-generator, explain-project, bpmn-to-drawio, spec-to-prototype, accessibility-annotator) including near-miss negatives between overlapping pairs (explain-project vs accessibility-annotator vs convert-markdown); Must-NOT-auto-invoke scenarios for the four locked skills (brain-entry, unlock, lab-notebook, create-wiki).
+SECURITY.md mentions none of the real controls (Dependabot, pip-audit, CodeQL, GitGuardian). Add a "Supply-Chain Controls" section enumerating each scanner, cadence, and enforcement point — the controls exist and are well-evidenced (LAB_NOTEBOOK E012/E013/E016); the gap is documentary.
 
 **Tasks:**
-1. [ ] Author ~12–16 scenarios covering the two groups
-2. [ ] Reference from evals/README.md index if one exists
+1. [ ] Enumerate each control, cadence, enforcement point.
 
 **Acceptance Criteria:**
-- [ ] Each big-5 skill has ≥1 should-trigger and ≥1 near-miss should-not scenario
-- [ ] Each locked skill has a Must NOT auto-invoke scenario
-- [ ] File follows the existing eval frontmatter/checklist format
+- [ ] WHEN an auditor reads SECURITY.md THEN each active supply-chain control SHALL be listed.
 
----
+**Notes:** Cross-reference the branch-protection gate from Phase 1.
 
-#### 7.3 CLAUDE.md guidance refresh ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 7.3 Resolve the ADR-0004 help-skill drift
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R12, R9 (E008/E009; ADR-0006)
+**Recommendation Ref:** SA-003
 **Files Affected:**
-- `CLAUDE.md` (modify)
+- `docs/adr/0004-plugin-encapsulation.md` OR new per-plugin `help` skills
+- `scripts/generate-help.py` (wire into CI or remove)
 
 **Description:**
-Update Verified Operational Rules: correct the skill-`name` rule to note the 2026 spec makes it optional (kept as house convention — D2 rationale update); add the skills-first policy line (new functionality ships as skills; commands legacy-frozen; cite ADR-0006); note new frontmatter fields (`when_to_use`, `arguments`, `user-invocable`, `disallowed-tools`, `shell`, scoped `hooks`) and description budgets (≤1024 chars; 1536 combined truncation; SKILL.md <500 lines); note hook fields (`once`, `if`, `statusMessage`). Update the repository-structure section (new-command → deprecated; new references files from Phases 4–5) and the command count. Keep edits surgical — CLAUDE.md is loaded every session.
+ADR-0004 (Accepted, non-superseded) mandates a `help` skill per plugin; none exist, and `generate-help.py` targets a nonexistent `help.md`. Either restore per-plugin `help` skills and wire generate-help.py into CI, or amend ADR-0004 to drop the requirement and remove/repurpose the dead script. (Recommend amending — skills-first + native `/help` supersede it.)
 
 **Tasks:**
-1. [ ] Verified Operational Rules updates (name nuance, skills-first, budgets)
-2. [ ] Structure/counts refresh
-3. [ ] Cross-check no rule contradicts the validator or template post-Phases-1–6
+1. [ ] Decide restore-vs-amend; execute.
+2. [ ] Remove or wire up generate-help.py accordingly.
 
 **Acceptance Criteria:**
-- [ ] WHEN a future session reads CLAUDE.md THEN every stated rule SHALL match the current official spec and the repo's actual state
-- [ ] No net growth >40 lines (session-context cost discipline)
+- [ ] No Accepted ADR states a requirement the codebase does not meet.
+- [ ] `generate-help.py` either runs in CI or is removed.
 
----
+**Notes:** Amending is the lower-effort, skills-first-consistent path.
+
+#### 7.4 Repo hygiene sweep
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** PLAT-010, RISK-05, SE-08, SA-007, PLAT-009
+**Files Affected:**
+- root (`GITHUB_ERRORS.md`, `gap-analysis-2026-04-30.md`, `uv.lock`), `docs/archive/GITHUB_ERRORS.md`, `ruff.toml`
+
+**Description:**
+`git rm` the tracked cruft (`GITHUB_ERRORS.md` root + `docs/archive/` copy, `gap-analysis-2026-04-30.md`); fix or remove the 52-byte placeholder `uv.lock` (misleading vs the real one under visual-explainer); drop the stale `ruff.toml:35` `research_orchestrator` first-party entry. (`.DS_Store` is already untracked — no action.)
+
+**Tasks:**
+1. [ ] Remove the cruft files.
+2. [ ] Drop the stale ruff.toml entry.
+3. [ ] Remove the markdownlint special-case ignore for the deleted GITHUB_ERRORS.md.
+
+**Acceptance Criteria:**
+- [ ] `git ls-files` shows none of the cruft.
+- [ ] `ruff.toml` has no dead first-party entry.
+
+**Notes:** Trivial; batch into one commit.
+
+#### 7.5 Add Python 3.10/3.12 to CI matrix; failure sections for 8 skills
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** PLAT-012, SE-10
+**Files Affected:**
+- `.github/workflows/test.yml` (matrix)
+- 8 skill/command files lacking error/failure sections
+
+**Description:**
+CI pins Python 3.11 only despite `py310` target + 3.10+ claim. Add 3.10 (and optionally 3.12) to the matrix. Add failure-branch/troubleshooting sections to the 8 skill/command files that lack them (undefined LLM behavior on failure branches).
+
+**Tasks:**
+1. [ ] Extend the CI Python matrix.
+2. [ ] Add Error Handling sections to the 8 files.
+
+**Acceptance Criteria:**
+- [ ] CI runs the tool suites on Python 3.10 and 3.11 (min).
+- [ ] The 8 flagged files have an Error Handling section.
+
+**Notes:** Matrix expansion may surface a py310 incompat — fix if so.
 
 ### Phase 7 Testing Requirements
 
-- [x] CI green on a branch push including the new job
-- [x] Eval file passes markdownlint and matches house eval format
+- [ ] markdownlint clean; CI matrix green on 3.10 + 3.11.
+- [ ] `git ls-files` clean of cruft.
 
 ### Phase 7 Completion Checklist
 
-- [x] All work items complete
-- [x] All tests passing
-- [x] Documentation updated
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] SECURITY.md updated (egress + supply-chain)
+- [ ] No stale config/cruft remains
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `python -m pytest tests/ -v` | Exit code 0 |
-| Lint | `ruff check .` | Exit code 0 |
-| Markdown | `npx markdownlint-cli "**/*.md" --ignore node_modules` | Exit code 0 |
-| Official validate (all) | `claude plugin validate --strict ./plugins/personal-plugin && claude plugin validate --strict ./plugins/bpmn-plugin && claude plugin validate --strict ./plugins/slide-gen && claude plugin validate .` | Exit code 0 |
+| Markdown lint | `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore .git --ignore output --ignore 'tests/fixtures/**'` | Exit 0 |
+| Cruft gone | `git ls-files \| grep -E 'GITHUB_ERRORS\|gap-analysis-2026'` | No output |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 8: Descriptions, Polish & Release
+## Phase 8: Test/Eval Safety Net (Scoped)
 
-**Estimated Complexity:** M (~30 files, ~400 LOC — wide-shallow: 1–5 line edits per file)
-**Dependencies:** Phases 1–7
+**Estimated Complexity:** L (~15 files, ~700 LOC)
+**Dependencies:** Phases 2, 4
 **Execution Mode:** Parallel
 
 ### Goals
 
-- Descriptions on the official formula (negative scope; all trigger info in frontmatter)
-- Close the small-gaps list (effort, argument-hint, hooks, per-plugin README/LICENSE)
-- Coordinated version bump and CHANGELOG release
+- Seed a behavioral safety net on the highest-risk surface and fix inert/contradictory test constructs. (Full cli.py decomposition + comprehensive eval corpus are OUT of scope — separate plan.)
 
 ### Work Items
 
-#### 8.1 Big-5 negative scope ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 8.1 Resolve the dead `generate_batch` concurrency
+**Status: PENDING**
+**Model Tier: opus**
+**Recommendation Ref:** PERF-01, PERF-05
+**Files Affected:**
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/{image_generator.py,cli.py}` (modify)
+
+**Description:**
+`generate_batch()` (the `asyncio.gather` path the semaphore governs) is defined but never called; the CLI runs images serially, so `--concurrency` and the semaphore are inert. Per decision: wire the primary path through `generate_batch` (parallelise across images, keep per-image refine serial) with a memory cap (≤3 concurrent 4K buffers per PERF-05), OR remove the `--concurrency` flag + semaphore to stop advertising an inert capability. Choose wiring if the wall-clock win justifies it; otherwise remove.
+
+**Tasks:**
+1. [ ] Decide wire-vs-remove (default: wire with memory cap; fall back to remove if risk too high).
+2. [ ] Implement + test the chosen path; free buffers promptly if parallelising.
+
+**Acceptance Criteria:**
+- [ ] Either `--concurrency` measurably parallelises multi-image runs (with a memory cap), OR the flag/semaphore are removed and no inert knob is advertised.
+- [ ] visual-explainer coverage floor (≥65%) held.
+
+**Notes:** Opus — judgment-heavy async + memory-ceiling reasoning.
+
+#### 8.2 Fix contradictory / conditional test skips
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R10 (E008/E009)
+**Recommendation Ref:** QA-07, QA-08
 **Files Affected:**
-- `plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md`, `bpmn-to-drawio/SKILL.md` (modify — description only)
-- `plugins/personal-plugin/skills/explain-project/SKILL.md`, `spec-to-prototype/SKILL.md`, `accessibility-annotator/SKILL.md` (modify — description only)
+- `plugins/personal-plugin/tools/visual-explainer/tests/{test_integration.py,test_image_evaluator.py}`
 
 **Description:**
-Add explicit negative scope ("Do NOT use for…") to the five longest, most overlap-prone descriptions, following the official document-skills formula. Disambiguate the known overlap triangle: explain-project (full annotated overview doc) vs accessibility-annotator (annotate an EXISTING document) vs convert-markdown (format conversion only); bpmn-generator (create XML) vs bpmn-to-drawio (convert existing XML). Keep each description ≤1024 chars.
+`test_full_pipeline_success` mocks the APIs yet is `skipif(not ANTHROPIC_API_KEY)`, so the only full-pipeline test never runs in CI. Remove the key gate (it's mocked). Make the resize/eval conditional skips deterministic (fixture that guarantees the branch runs) so a green run actually exercises them.
 
 **Tasks:**
-1. [ ] Author negative-scope clauses ×5 with pairwise disambiguation
-2. [ ] Verify against 7.2's near-miss eval scenarios
+1. [ ] Un-gate the mocked full-pipeline test from ANTHROPIC_API_KEY.
+2. [ ] Replace runtime-conditional skips with deterministic fixtures.
 
 **Acceptance Criteria:**
-- [ ] All five descriptions contain a "Do NOT use for" clause naming their nearest-neighbor skill
-- [ ] Each ≤1024 chars; trigger-eval scenarios from 7.2 read consistently with the new text
+- [ ] WHEN CI runs THEN `test_full_pipeline_success` SHALL execute (not skip).
+- [ ] The resize branch is exercised by a deterministic test.
 
----
+**Notes:** Improves real coverage without changing the floor.
 
-#### 8.2 Fold Proactive Triggers — personal-plugin skills ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: haiku**
-**Requirement Refs:** R10 (E008/E009)
-**Files Affected:**
-- 12 personal-plugin skills with body "Proactive Triggers" sections: plan-gate, brain-entry, summarize-feedback, lab-notebook, unlock, create-wiki, release-plugin, visual-explainer, security-analysis, research-topic, prime, evaluate-pipeline-output (modify)
-
-**Description:**
-Per official guidance, all when-to-use information belongs in the description (or `when_to_use`), not the body. For each file: merge the body "Proactive Triggers" bullets into the frontmatter description (append a compact "Suggest when…" clause) or a `when_to_use:` field where the description would exceed ~600 chars, then delete the body section. For the four locked skills (brain-entry, unlock, lab-notebook, create-wiki), phrase as "Suggest (do not auto-run) when…" consistent with disable-model-invocation.
-
-**Tasks:**
-1. [ ] Apply the fold to all 12 files (2–6 line edit each)
-2. [ ] Confirm combined description+when_to_use ≤1536 chars everywhere
-
-**Acceptance Criteria:**
-- [ ] `grep -rln 'Proactive Triggers' plugins/personal-plugin/skills/` returns nothing
-- [ ] Every touched skill passes frontmatter validation; no combined-text truncation
-
-**Notes:**
-Wide-shallow: 12 files exceeds the per-item file guideline but each edit is a mechanical 2–6 line move; splitting further would add coordination cost with no risk reduction. ship was handled in 5.3. Post-fold fix (caught by 8.6's strict-validate sweep): 12 descriptions used unquoted 'Suggest when:' — the colon broke YAML plain-scalar parsing; normalized to 'Suggest when —' phrasing.
-
----
-
-#### 8.3 Fold Proactive Triggers — slide-gen + cost rewrite ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: haiku**
-**Requirement Refs:** R10, R13 (E008/E009)
-**Files Affected:**
-- 9 slide-gen skills: sg-research, sg-outline, sg-draft, sg-optimize, sg-validate-graphics, sg-generate-images, sg-build, sg-full-workflow, build-cfa-deck (modify)
-
-**Description:**
-Same Proactive-Triggers fold for the nine slide-gen skills. Additionally in sg-full-workflow: replace the hardcoded dollar Cost Estimate section (136–142) with qualitative guidance ("image generation dominates cost; `--skip-images` eliminates most of it") — no dated absolutes.
-
-**Tasks:**
-1. [ ] Fold ×9
-2. [ ] Cost-section rewrite in sg-full-workflow
-
-**Acceptance Criteria:**
-- [ ] `grep -rln 'Proactive Triggers' plugins/slide-gen/` returns nothing
-- [ ] sg-full-workflow contains no absolute dollar figures
-
-**Notes:**
-Wide-shallow justification as 8.2.
-
----
-
-#### 8.4 Mechanical polish: effort, argument-hint, hooks ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: haiku**
-**Requirement Refs:** R13 (E008/E009)
-**Files Affected:**
-- `plugins/personal-plugin/commands/plan-next.md` (modify — add argument-hint)
-- ~8 command files gaining `effort:` (modify)
-- `plugins/personal-plugin/hooks/hooks.json` (modify — statusMessage ×2)
-
-**Description:**
-plan-next gets `argument-hint: "[focus-area]"` (the only command lacking one). Add `effort:` to the clearest command outliers only — heavy analyzers to `high` (assess-document, consolidate-documents, analyze-transcript, validate-plugin, test-project), mechanical ones to `low` (bump-version, convert-markdown, define-questions) — commands only, so no file overlap with 8.2/8.3. Add `statusMessage` to both hooks.json entries ("Checking for in-progress implementation plan…", "Lab-notebook gate: verifying entry before commit…").
-
-**Tasks:**
-1. [ ] argument-hint + 8 effort additions
-2. [ ] hooks.json statusMessage fields
-
-**Acceptance Criteria:**
-- [ ] All 24→23 active commands have argument-hint
-- [ ] hooks.json remains valid record-format JSON and both hooks fire with visible status text
-
----
-
-#### 8.5 Per-plugin README + LICENSE ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
-**Model Tier: haiku**
-**Requirement Refs:** R13 (E008/E009)
-**Files Affected:**
-- `plugins/personal-plugin/README.md`, `plugins/bpmn-plugin/README.md`, `plugins/slide-gen/README.md` (create)
-- `plugins/personal-plugin/LICENSE`, `plugins/bpmn-plugin/LICENSE`, `plugins/slide-gen/LICENSE` (create)
-
-**Description:**
-Official convention: every plugin ships README + LICENSE at plugin root. READMEs are brief (purpose, install line, command/skill inventory pointer to root README, version); LICENSE = MIT copy matching root.
-
-**Tasks:**
-1. [ ] Three READMEs (~30 lines each)
-2. [ ] Three MIT LICENSE copies
-
-**Acceptance Criteria:**
-- [ ] `ls plugins/*/README.md plugins/*/LICENSE` lists all six files
-
----
-
-#### 8.6 Coordinated release ✅ Completed 2026-07-08
-**Status: COMPLETE [2026-07-08]**
+#### 8.3 Eval-mapping CI check + targeted high-risk evals
+**Status: PENDING**
 **Model Tier: sonnet**
-**Requirement Refs:** R13, all (E008/E009; approved bumps)
-**Depends On:** 8.1, 8.2, 8.3, 8.4, 8.5
+**Recommendation Ref:** QA-03 (subset), SA-006
 **Files Affected:**
-- `plugins/personal-plugin/.claude-plugin/plugin.json` (modify — 9.3.0 → 10.0.0)
-- `plugins/bpmn-plugin/.claude-plugin/plugin.json` (modify — 4.1.0 → 4.2.0)
-- `plugins/slide-gen/.claude-plugin/plugin.json` (modify — 1.1.0 → 1.2.0)
-- `.claude-plugin/marketplace.json` (modify — marketplace_version 3.3.0 + three plugin entries)
-- `CHANGELOG.md`, `plugins/personal-plugin/CHANGELOG.md` (modify)
+- `scripts/` (add eval-mapping check), `.github/workflows/validate.yml`
+- `evals/` (remove drift; add evals for release-plugin, arch-review, ultra-plan, leak-risk-audit)
 
 **Description:**
-Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, per v5.x/v8.0.0 precedent), bpmn-plugin 4.2.0, slide-gen 1.2.0, marketplace 3.3.0 (repo-wide CI/docs changes). Write the root CHANGELOG entry covering all phases (Added: agent frontmatter/aliases, references, CI job, evals, pattern scaffolding, READMEs; Changed: consolidations/refactors/descriptions; Fixed: dangling refs, paths, CRLF, model plumbing; Deprecated: new-command) and mirror the personal-plugin-specific portion to its plugin CHANGELOG. Final sweep: full DoD suite + `/validate-plugin --all`.
+Add a CI check that every `evals/*.eval.md` maps to a live skill/command (kills the help/new-command drift, SA-006). Add behavioral evals for the highest-blast-radius skills (release-plugin, arch-review, ultra-plan, leak-risk-audit). Full-corpus coverage of all 39 skills is OUT of scope (separate plan).
 
 **Tasks:**
-1. [ ] Version fields ×4 files (plugin.json ×3 + marketplace.json entries + marketplace_version)
-2. [ ] CHANGELOG entries (root + personal-plugin)
-3. [ ] Full verification sweep
+1. [ ] Remove/repair drifted evals (help, new-command).
+2. [ ] Add the eval-mapping CI check.
+3. [ ] Author evals for the 4 high-risk skills.
 
 **Acceptance Criteria:**
-- [ ] validate.yml version-sync check passes (plugin.json ↔ marketplace.json agree everywhere)
-- [ ] WHEN the release commit lands on main THEN the installed-cache auto-update SHALL deliver 10.0.0/4.2.0/1.2.0 (verify post-merge per D19)
-- [ ] Root CHANGELOG names every user-visible change with its R# origin
+- [ ] WHEN an eval references a nonexistent skill/command THEN CI SHALL fail.
+- [ ] The 4 high-blast-radius skills have evals.
 
----
+**Notes:** Scoped subset — not the full corpus.
+
+#### 8.4 Add `pytest -n auto` to per-tool CI jobs
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** PERF-06
+**Depends On:** None
+**Files Affected:**
+- `.github/workflows/test.yml`, per-tool `pyproject.toml` (add pytest-xdist dev dep)
+
+**Description:**
+Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; Windows is the slow leg. Add `-n auto` (pytest-xdist) to cut developer-loop latency.
+
+**Tasks:**
+1. [ ] Add pytest-xdist to each tool's dev deps + lock.
+2. [ ] Add `-n auto` to the per-tool test commands.
+
+**Acceptance Criteria:**
+- [ ] Per-tool CI jobs run tests in parallel; suites still pass at the same coverage floors.
+
+**Notes:** Verify coverage aggregation works under xdist.
 
 ### Phase 8 Testing Requirements
 
-- [x] Full DoD suite green
-- [x] `/validate-plugin --all` passes end-to-end
+- [ ] Full-pipeline test runs in CI; eval-mapping check fails on a dangling eval.
+- [ ] Coverage floors held under xdist.
 
 ### Phase 8 Completion Checklist
 
-- [x] All work items complete
-- [x] All tests passing
-- [x] Documentation updated
-- [x] No regressions introduced
+- [ ] All work items complete
+- [ ] No inert concurrency knob advertised
+- [ ] Eval drift removed
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `python -m pytest tests/ -v` | Exit code 0 |
-| Lint | `ruff check .` | Exit code 0 |
-| Markdown | `npx markdownlint-cli "**/*.md" --ignore node_modules` | Exit code 0 |
-| Official validate (all) | `claude plugin validate --strict ./plugins/personal-plugin && claude plugin validate --strict ./plugins/bpmn-plugin && claude plugin validate --strict ./plugins/slide-gen && claude plugin validate .` | Exit code 0 |
-| Version sync | Compare `version` in each plugin.json to its marketplace.json entry | All equal |
-| Triggers folded | `! grep -rln 'Proactive Triggers' plugins/` | No matches |
+| visual-explainer tests | `python -m pytest plugins/personal-plugin/tools/visual-explainer -q --cov=visual_explainer --cov-branch --cov-fail-under=65` | Exit 0, ≥65% |
+| Eval mapping | `python scripts/check_eval_mapping.py` (new) | Exit 0 |
 
 <!-- END DOD -->
 
@@ -1233,79 +1042,84 @@ Approved bumps: personal-plugin **10.0.0** (major — new-command deprecation, p
 
 | Work Item | Can Run With | Notes |
 |-----------|--------------|-------|
-| Phases 1, 2, 3, 6 | Each other | No shared files; no incoming dependencies — all four can start immediately |
-| 1.1–1.5 | Each other | File-disjoint (verified in interaction mapping) |
-| 2.1–2.4 | Each other | File-disjoint; 2.4 is an isolated Python tool |
-| 3.1, 3.2 | Each other | Plugin agents vs repo agents |
-| 3.3, 3.4 | Each other | After 3.1; skill vs commands |
-| 4.2, 4.3, 4.4 | Each other | After 4.1; three distinct command files |
-| 5.1–5.5 | Each other | File-disjoint including their new reference files |
-| 6.1, 6.3 | Each other | 6.2 waits on 6.1 |
-| 7.1–7.3 | Each other | Workflow vs eval vs CLAUDE.md |
-| 8.1–8.5 | Each other | 8.2/8.3 are skills-only, 8.4 commands-only — no overlap; 8.6 last |
-
----
+| Phase 2 (all items) | Phase 3, 5, 6, 7 | Distinct file surfaces (tool code vs skill frontmatter vs docs vs slide-gen) |
+| Phase 3.1 | Phase 3.3 | 3.2 depends on 3.1; 3.3 is independent read/doc |
+| Phase 4 items | — | Sequential-ish: 4.1 fix-then-extend; others independent but share workflow files |
+| Phase 5 (all) | Phase 2, 3, 6, 7 | Instruction-file edits, disjoint from code |
+| Phase 7 items | Phase 2, 3, 5, 6 | Docs/hygiene, disjoint |
 
 ## Risk Mitigation
 
 | Risk | Likelihood | Impact | Mitigation Strategy | Status |
 |------|------------|--------|---------------------|--------|
-| implement-plan PATH A/B collapse regresses execution semantics | Med | High | E009 difference ledger is the authoritative spec; side-by-side semantic checklist in 4.4 acceptance; opus tier; per-phase commit enables `git revert` | Mitigated |
-| arch-review pipeline breaks under new dispatch/meta design | Med | Med | 3.5 smoke test gates phase completion; per-agent meta is strictly simpler than shared-merge; revert path is one commit | Mitigated |
-| `claude plugin validate --strict` flags unforeseen issues in CI | Med | Low | Full local dry-run in 7.1 before push; pinned CLI version; only known failure (agents) already fixed by Phase 3 | Mitigated |
-| Description edits shift auto-trigger behavior | Low | Med | 7.2 trigger evals land before Phase 8 description edits; near-miss scenarios encode current intended boundaries | Mitigated |
-| Renormalization churn or binary corruption | Low | Med | Blast radius pre-verified (2 CRLF text files, 1 zip); explicit `*.zip binary` rule; `git status` check in 2.3 | Mitigated |
-| new-skill pattern adapter produces malformed skills | Low | Med | Templates untouched (adapter-only); generated output must pass frontmatter validation per 6.1 acceptance | Mitigated |
-| validate-plugin refactor silently weakens a check | Low | High | 5.1 rule: checks move verbatim, only illustrations extracted; post-refactor `/validate-plugin --all` compared against pre-refactor output | Mitigated |
-
----
+| Required review deadlocks solo maintainer | Med | High | Require checks only, not review; enforce_admins=false | Open |
+| Extending ruff glob (4.1) before fixing reddens CI | High | Low | Fix 28 errors + format first, extend glob last, same PR | Open |
+| mypy-blocking (4.2) surfaces many errors | Med | Med | Resolve U4 first; ratchet with baseline if large | Open |
+| Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Open |
+| Scoping Bash (3.1) breaks legitimate skill actions | Med | Med | Test each rescoped skill (U2); revert per-skill | Open |
+| Parallelising images (8.1) breaches memory ceiling | Med | Med | Cap concurrency by memory budget (PERF-05); else remove knob | Open |
+| slide-generator repo private → slide-gen owner-only | Med | Med | Resolve U1 first; ADR-0008 states the constraint honestly | Open |
 
 ## Unknowns Register
 
 | ID | Unknown | Severity | Affects | Resolution Strategy | Status |
 |----|---------|----------|---------|---------------------|--------|
-| U1 | Whether worktree-isolated subagents return written files to the main tree (motivated dropping worktree isolation) | Med | Phase 3, Item 3.5 | Smoke dispatch verifies findings land in main tree under the new no-worktree design — RESOLVED: no-worktree design confirmed; dispatched agent file-writes land in the main tree | Resolved [2026-07-08] |
-| U2 | Whether dispatch requires namespaced (`personal-plugin:x`) or bare (`x`) subagent_type | Low | Phase 3, Items 3.3–3.5 | 3.5 tests both forms; dispatch table updated to whichever resolves — RESOLVED: namespaced `personal-plugin:<agent>` form resolves correctly (smoke-tested) | Resolved [2026-07-08] |
-| U3 | Current OpenAI/Google deep-research model IDs (unverifiable offline) | Low | Phase 1, Item 1.5 | Keep the skill's runtime model-check step authoritative; stamp verified-date on Anthropic ID only | Open |
-| U4 | `~/dev/info/technical-document-structure-template.md` missing on the Linux VM (sync gap) | Low | Phase 2, Item 2.2 | Fallback instruction added in 2.2; user syncs the file from Windows or accepts the fallback | Open |
-
----
+| U1 | Is the `slide-generator` repo public/installable? | High | Phase 6 (6.1) | `gh repo view davistroy/slide-generator` before Phase 6 | Open |
+| U2 | Does scoping `Bash` break any skill's real operations? | High | Phase 3 (3.1) | Test each rescoped skill on a representative task | Open |
+| U3 | Do recon/audit skills SSH with sudo (RI-03)? | Medium | Phase 3 (3.3) | Read spark-audit/jetson-audit bodies | Open |
+| U4 | How many errors does mypy-blocking surface? | Medium | Phase 4 (4.2) | Run `mypy src/` per tool before removing continue-on-error | Open |
+| U5 | Provider retention/training-use terms (RISK-08) | Medium | Phase 7 (7.1) | Check account tiers + provider DPAs | Open |
+| U6 | Does enforcing schema-data validation surface existing violations? | Low | Phase 4 (4.3) | Run the new validator over current manifests | Open |
 
 ## Success Metrics
 
-- [x] All phases completed
-- [x] All acceptance criteria met
-- [x] `claude plugin validate --strict` passes all three plugins; marketplace manifest validates
-- [x] Zero references to nonexistent commands anywhere in active plugin content
-- [x] Zero stale model pins: agent definitions on aliases; Python tools env-overridable at current defaults
-- [x] All 13 previously-oversized files at/under target or documented-dense; ~10 new reference files carry the extracted bulk
-- [x] 8 side-effect/user-only skills carry `disable-model-invocation` (4 pre-existing + 4 new)
-- [x] CI includes official plugin validation; trigger evals guard description behavior
-- [x] personal-plugin 10.0.0 / bpmn-plugin 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0 released with synced manifests and CHANGELOGs
+- [ ] All phases completed
+- [ ] All acceptance criteria met
+- [ ] The 1 Critical + 14 High findings are closed or explicitly accepted with rationale
+- [ ] `main` branch protection active; a red-CI PR cannot merge
+- [ ] Security: XXE/SSRF/plaintext-key paths closed; content-ingesting skills no longer hold unscoped `Bash`
+- [ ] CI: no advisory gate where it should block; per-tool tests linted; schema data validated
+- [ ] slide-gen either works on install or fails preflight with a clear pointer
 
----
+## Appendix: Recommendation Traceability
 
-## Appendix: Requirement Traceability
-
-| Requirement | Source | Phase | Work Item |
-|-------------|--------|-------|-----------|
-| R1 Agent frontmatter restoration | E008/E009 §R1 | 3 | 3.1, 3.3, 3.4, 3.5 |
-| R2 Stale model pins → aliases/current | E008/E009 §R2 | 1, 2, 3 | 1.2 (co-author), 1.5, 2.4, 3.2 |
-| R3 Dangling refs & self-drift bugs | E008/E009 §R3 | 1 | 1.1, 1.2, 1.3, 1.4, 1.5 |
-| R4 Dual-environment portability | E008/E009 §R4 | 2 | 2.2, 2.3 |
-| R5 Side-effect skill lockdown | E008/E009 §R5 | 2 | 2.1 |
-| R6 Progressive-disclosure refactor | E008/E009 §R6 | 4, 5 | 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5 |
-| R7 Planning-family single-sourcing | E008/E009 §R7 | 4 | 4.1, 4.2, 4.3 |
-| R8 Official validation + trigger evals | E008/E009 §R8 | 7 | 7.1, 7.2 |
-| R9 Skills-first policy (ADR-0006) | E008/E009 §R9 | 6, 7 | 6.1, 6.2, 6.3, 7.3 |
-| R10 Description/trigger optimization | E008/E009 §R10 | 5, 8 | 5.3, 8.1, 8.2, 8.3 |
-| R11 Harness-alignment mechanics | E008/E009 §R11 | 3, 4 | 3.3, 3.4, 4.4 |
-| R12 House-rules refresh | E008/E009 §R12 | 7 | 7.3 |
-| R13 Polish grab-bag | E008/E009 §R13 | 8 | 8.3 (cost), 8.4, 8.5, 8.6 |
+| Recommendation | Source | Phase | Work Item |
+|----------------|--------|-------|-----------|
+| PLAT-001 / QA-01 / INT-06 / RISK-02 / INT-11 | arch-review | 1 | 1.1 |
+| PLAT-002 | arch-review | 1 | 1.2 |
+| PLAT-015 / RISK-07 | arch-review | 1 | 1.3 |
+| autoUpdate doc correction | review synthesis | 1 | 1.4 |
+| DA-01 / SE-02 / SEC-02 | arch-review | 2 | 2.1 |
+| SEC-03 / DA-06 | arch-review | 2 | 2.2 |
+| SEC-04 / SE-07 / DA-09 | arch-review | 2 | 2.3 |
+| SE-05 / INT-10 | arch-review | 2 | 2.4 |
+| DA-02 / DA-05 | arch-review | 2 | 2.5 |
+| SEC-05 / SEC-01 | arch-review | 3 | 3.1, 3.2 |
+| SEC-01 / RI-03 | arch-review | 3 | 3.3 |
+| SE-01 | arch-review | 4 | 4.1 |
+| SE-04 / QA-05 / PLAT-006 | arch-review | 4 | 4.2 |
+| QA-02 / INT-04 | arch-review | 4 | 4.3 |
+| PLAT-004 / SEC-06 / PLAT-008 | arch-review | 4 | 4.4 |
+| PLAT-007 / QA-10 / PLAT-005 / QA-06 | arch-review | 4 | 4.5 |
+| INT-01 | arch-review | 5 | 5.1 |
+| INT-02 / INT-07 | arch-review | 5 | 5.2 |
+| INT-03 / INT-09 | arch-review | 5 | 5.3 |
+| SA-001 | arch-review | 6 | 6.1 |
+| SA-002 / INT-05 / RISK-01 / PLAT-013 | arch-review | 6 | 6.2 |
+| SA-005 / SA-004 | arch-review | 6 | 6.3 |
+| RISK-04 / DA-04 / SEC-09 | arch-review | 7 | 7.1 |
+| RISK-03 | arch-review | 7 | 7.2 |
+| SA-003 | arch-review | 7 | 7.3 |
+| PLAT-010 / RISK-05 / SE-08 / SA-007 / PLAT-009 | arch-review | 7 | 7.4 |
+| PLAT-012 / SE-10 | arch-review | 7 | 7.5 |
+| PERF-01 / PERF-05 | arch-review | 8 | 8.1 |
+| QA-07 / QA-08 | arch-review | 8 | 8.2 |
+| QA-03 (subset) / SA-006 | arch-review | 8 | 8.3 |
+| PERF-06 | arch-review | 8 | 8.4 |
 
 <!-- END TABLES -->
 
 ---
 
-*Implementation plan generated by Claude on 2026-07-08 14:59:15*
-*Source: /create-plan command*
+*Implementation plan generated by Claude on 2026-07-16 11:22:06*
+*Source: /ultra-plan → /create-plan (from arch-review 2026-07-16)*
