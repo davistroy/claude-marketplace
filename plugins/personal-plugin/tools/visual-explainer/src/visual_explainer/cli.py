@@ -62,6 +62,7 @@ from .pipeline import (  # noqa: E402
     _evaluate_and_refine,
     _execute_generation_loop,
     _generate_prompts,
+    _generate_single_image,
     _save_outputs,
     load_checkpoint_and_resume,
     run_generation_pipeline,
@@ -122,6 +123,7 @@ __all__ = [
     "_generate_prompts",
     "_evaluate_and_refine",
     "_execute_generation_loop",
+    "_generate_single_image",
     "_save_outputs",
 ]
 
@@ -149,6 +151,7 @@ def main() -> int:
             resolution=args.resolution,
             aspect_ratio=args.aspect_ratio,
             image_count=args.image_count,
+            concurrency=args.concurrency,
             no_cache=args.no_cache,
             dry_run=args.dry_run,
         )
@@ -234,6 +237,7 @@ def main() -> int:
             resolution=args.resolution,
             aspect_ratio=args.aspect_ratio,
             image_count=args.image_count,
+            concurrency=args.concurrency,
             no_cache=args.no_cache,
             dry_run=args.dry_run,
         )

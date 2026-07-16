@@ -129,6 +129,16 @@ Examples:
         default=0,
         help="Number of images to generate (default: 0 = auto based on content)",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=_bounded_int(1, 8, "concurrency"),
+        default=3,
+        help=(
+            "Max images generated in parallel, bounded for memory "
+            "(default: 3, range: 1-8; --concurrency 1 = serial). "
+            "Keep <=3 for 4K images."
+        ),
+    )
 
     # Image settings
     parser.add_argument(

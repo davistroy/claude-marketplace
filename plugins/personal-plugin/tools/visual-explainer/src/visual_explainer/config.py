@@ -67,6 +67,7 @@ class GenerationConfig(BaseModel):
         resolution: Image resolution (standard, high, ultra).
         aspect_ratio: Image aspect ratio.
         image_count: Number of images to generate (0=auto).
+        concurrency: Max images generated in parallel (memory-bounded, 1=serial).
         no_cache: Skip concept analysis cache.
         resume: Path to checkpoint file for resuming.
         dry_run: Show plan without generating images.
@@ -111,6 +112,16 @@ class GenerationConfig(BaseModel):
         ge=0,
         le=20,
         description="Number of images to generate (0=auto based on content analysis)",
+    )
+    concurrency: int = Field(
+        default=3,
+        ge=1,
+        le=8,
+        description=(
+            "Maximum number of images generated in parallel. Memory-bounded: "
+            "each in-flight 4K image holds decoded bytes in RAM, so keep this "
+            "<=3 for 4K to stay under the per-process memory ceiling. 1 = serial."
+        ),
     )
     no_cache: bool = Field(
         default=False,
@@ -174,6 +185,7 @@ class GenerationConfig(BaseModel):
         resolution: str | None = None,
         aspect_ratio: str | None = None,
         image_count: int | None = None,
+        concurrency: int = 3,
         no_cache: bool = False,
         resume: str | None = None,
         dry_run: bool = False,
@@ -192,6 +204,7 @@ class GenerationConfig(BaseModel):
             resolution: Image resolution (env: VISUAL_EXPLAINER_RESOLUTION).
             aspect_ratio: Aspect ratio (env: VISUAL_EXPLAINER_ASPECT_RATIO).
             image_count: Image count (env: VISUAL_EXPLAINER_IMAGE_COUNT).
+            concurrency: Max images generated in parallel (memory-bounded, 1=serial).
             no_cache: Skip cache flag.
             resume: Checkpoint path.
             dry_run: Dry run flag.
@@ -224,6 +237,7 @@ class GenerationConfig(BaseModel):
             image_count=image_count
             if image_count is not None
             else env_int("VISUAL_EXPLAINER_IMAGE_COUNT", 0),
+            concurrency=concurrency,
             no_cache=no_cache,
             resume=resume,
             dry_run=dry_run,
@@ -238,6 +252,7 @@ class GenerationConfig(BaseModel):
             "resolution": self.resolution.value,
             "aspect_ratio": self.aspect_ratio.value,
             "image_count": self.image_count,
+            "concurrency": self.concurrency,
             "style": self.style,
             "no_cache": self.no_cache,
         }
