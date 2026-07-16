@@ -7,11 +7,13 @@ This document describes the security model, data handling practices, and vulnera
 ## Table of Contents
 
 1. [Data Handling](#1-data-handling)
-2. [Secret Detection](#2-secret-detection)
-3. [Input Safety](#3-input-safety)
-4. [Output Safety](#4-output-safety)
-5. [Current Limitations](#5-current-limitations)
-6. [Vulnerability Reporting](#6-vulnerability-reporting)
+2. [Data Egress & Confidentiality Policy](#2-data-egress--confidentiality-policy)
+3. [Secret Detection](#3-secret-detection)
+4. [Input Safety](#4-input-safety)
+5. [Output Safety](#5-output-safety)
+6. [Current Limitations](#6-current-limitations)
+7. [Supply-Chain Controls](#7-supply-chain-controls)
+8. [Vulnerability Reporting](#8-vulnerability-reporting)
 
 ---
 
@@ -67,9 +69,65 @@ When you run plugin commands:
 
 **Important:** Claude API has its own data handling policies. See [Anthropic's Privacy Policy](https://www.anthropic.com/privacy) for details on how your data is handled by the API.
 
+**Before sending any document to a command or skill that egresses to a third-party AI API** (see Section 2 immediately below), classify the data first. Section 2 defines what must never leave your machine this way and which tools are the actual egress points.
+
 ---
 
-## 2. Secret Detection
+## 2. Data Egress & Confidentiality Policy
+
+This section exists because the soft caution in Section 1 ("data sent to each provider is subject to that provider's policies") is not sufficient on its own -- a user can point `/visual-explainer` or `/research-topic` at a confidential client document with nothing stronger than a note in this file standing between the document and a third-party API call. This is the highest genuine compliance exposure in this repository (arch-review RISK-04 / DA-04 / SEC-09) and this section is the explicit policy, not just a description of behavior.
+
+### Data Classification
+
+Classify input **before** running any command or skill against it:
+
+| Tier | Examples | Third-party AI API OK? |
+|------|----------|------------------------|
+| **Public** | Published docs, open-source code, marketing content, this repository itself | Yes |
+| **Internal / business-confidential** | Internal process docs, non-regulated internal notes, draft content not yet public | Generally yes, but treat provider egress as a business decision -- see retention/training note below |
+| **Regulated / confidential** | Anything in the "NEVER send" list below | **No.** Do not run `/visual-explainer`, `/research-topic`, `/analyze-transcript`, `/summarize-feedback`, or any other command against this tier without first stripping/redacting the regulated content, or without a verified data-processing agreement with the specific provider covering this use case |
+
+When in doubt, treat the input as the more restrictive tier. `/remove-ip` (Section 3) can help sanitize a document down to a lower tier, but review its output -- automated redaction is not a substitute for classification judgment.
+
+### NEVER Send to Third-Party AI APIs
+
+Do not provide the following as input to any command or skill, regardless of provider:
+
+- **Secrets and credentials** -- API keys, passwords, private keys, OAuth tokens, database connection strings, `.env` file contents (see Section 3, Secret Detection, for scanning coverage and gaps)
+- **Regulated client deliverables or work product** -- anything covered by an NDA, MSA confidentiality clause, or client contract restricting redistribution or third-party processing
+- **Personally Identifiable Information (PII) / Protected Health Information (PHI) / financial account data** belonging to clients, employees, or any third party
+- **Anything marked confidential, attorney-client privileged, export-controlled, or CUI (Controlled Unclassified Information)**
+- **Data subject to a residency or sovereignty requirement** inconsistent with processing by a public cloud AI API in an unknown jurisdiction
+
+### Which Tools/Skills Egress Data, and to Which Providers
+
+| Command / Skill | What Leaves Your Machine | Destination Provider(s) | Notes |
+|------------------|---------------------------|--------------------------|-------|
+| `/visual-explainer` | Text/content describing the image to generate (may be derived from a source document) | **Google Gemini** (image generation API) | Requires `GEMINI_API_KEY`; see `google-genai` SDK reference in Section 6 |
+| `/research-topic` | The research query and surrounding context | **Anthropic, OpenAI, and Google in parallel** (multi-provider fan-out) | The same query is sent to all three vendors simultaneously -- see the Multi-Provider Note in Section 1 |
+| `/analyze-transcript` | The full meeting transcript, verbatim | **Anthropic** (Claude API) | Purpose-built to ingest raw transcripts, which frequently contain internal/confidential discussion -- classify before running |
+| `/summarize-feedback` | Notion Voice Capture feedback content, often personnel-review material | **Anthropic** (Claude API) | Ingests potentially sensitive personnel feedback verbatim -- classify before running |
+| All other commands/skills (default case) | File contents you explicitly provide as input | **Anthropic** (Claude API) | Baseline behavior described in Section 1 |
+
+Egress is not limited to these five rows -- any command that reads a file and passes its content to an LLM sends that content to that provider. The five above are called out because they are the highest-likelihood entry points for regulated data reaching a third party: two call out to non-Anthropic providers, two are purpose-built to ingest raw, often-sensitive source documents.
+
+### Provider Data-Processing and Retention Terms
+
+Retention windows, training-data usage, and human-review policies **differ by provider, by product tier (API vs. consumer app), and by account agreement (individual vs. enterprise/commercial terms), and change over time.** The links below are pointers for locating the current terms -- they are not a substitute for reading the terms that apply to the specific account and tier in use, and they must be verified before sending anything above the "Internal" classification tier:
+
+- **Anthropic:** [Privacy Policy](https://www.anthropic.com/privacy) / [Commercial Terms & Data Processing Addendum](https://www.anthropic.com/legal/data-processing-addendum)
+- **OpenAI:** [Data Processing Addendum](https://openai.com/policies/data-processing-addendum/) / [Enterprise Privacy](https://openai.com/enterprise-privacy/)
+- **Google (Gemini API):** [Gemini API Additional Terms of Service](https://ai.google.dev/gemini-api/terms) / [Cloud Data Processing Addendum](https://cloud.google.com/terms/data-processing-addendum) (for Vertex AI / enterprise Gemini usage, which carries different retention terms than the free Gemini API tier)
+
+**Do not assume zero-retention or no-training-use by default.** Free/individual API tiers for some providers historically differ from paid/enterprise tiers on exactly these points. Verify the current terms for the account actually configured (see `.env` / Bitwarden item naming per the root `CLAUDE.md`) before sending regulated data through any of the tools in the table above.
+
+### Cross-Reference: Fleet Recon/Audit Trust Boundary
+
+The egress concern in this section is document/content confidentiality -- what leaves your machine when a command calls an AI provider. It is a distinct trust boundary from the one documented in Section 6, "Fleet recon/audit trust boundary," which covers SSH/sudo blast radius when `spark-audit`, `jetson-audit`, `spark-recon`, and `jetson-recon` interact with the personal fleet and untrusted web content. Both are documented, neither is fully closed -- see Section 6 for the fleet-specific mitigations and residual risk.
+
+---
+
+## 3. Secret Detection
 
 ### Built-in Secret Scanning
 
@@ -135,7 +193,7 @@ Several commands and skills are directly relevant to security workflows:
 
 ---
 
-## 3. Input Safety
+## 4. Input Safety
 
 ### Trust Model
 
@@ -167,7 +225,7 @@ You are responsible for:
 
 ---
 
-## 4. Output Safety
+## 5. Output Safety
 
 ### Output May Contain Sensitive Data
 
@@ -221,7 +279,7 @@ Before sharing output files (reports, JSON, etc.):
 
 ---
 
-## 5. Current Limitations
+## 6. Current Limitations
 
 ### No Sandboxing
 
@@ -284,7 +342,25 @@ Four skills interact with the personal fleet (DGX Spark, Jetson Orin Nano): `spa
 
 ---
 
-## 6. Vulnerability Reporting
+## 7. Supply-Chain Controls
+
+This section documents the automated controls that actually run against this repository's own dependencies and code (arch-review RISK-03). These are distinct from the "Third-Party Dependencies" list above, which covers external tools the *commands* shell out to at runtime -- this section covers what protects the repository's build/CI pipeline itself.
+
+| Control | What It Does | Cadence | Enforcement Point |
+|---------|---------------|---------|--------------------|
+| **Dependabot** | Scans for outdated/vulnerable pip packages in each bundled tool directory (`bpmn2drawio`, `visual-explainer`, `feedback-docx-generator`) and for outdated GitHub Actions at the repo root; opens PRs with the update. Minor/patch bumps are grouped per ecosystem to avoid one-PR-per-package pileup; major bumps always surface individually for review. | Weekly (Monday 06:00 America/New_York) | Opened PRs must pass the same required CI checks as any other PR before merge (branch protection, below) -- Dependabot gets no bypass |
+| **pip-audit** (`Dependency Security Audit` CI job) | Audits each tool's *declared, pinned* dependencies (`requirements-lock.txt`) against the NVD and PyPI advisory databases for known CVEs | Every push and PR (via CI) | **Required status check** under branch protection -- a PR cannot merge to `main` while this job is red |
+| **CodeQL** | Static analysis / code scanning for common vulnerability patterns, run via GitHub's default-setup configuration (no workflow file in this repo -- managed through repo Security settings) | Every push and PR | Advisory (Security tab) -- **not** a required status check (see rationale below) |
+| **GitGuardian** | Automated secret-scanning GitHub App; scans every push/PR for exposed credentials, keys, and tokens | Every push and PR | Advisory (Security tab) -- **not** a required status check (see rationale below) |
+| **Branch protection on `main`** | Requires a PR (no direct pushes) with all authored-workflow status checks green: `Run Tests` + the 3 per-tool test jobs (×2 OS), `Validate Plugins` (×2), `Schema Validation`, `Lint Markdown`, `Python Lint & Format`, and `Dependency Security Audit` -- 14 required checks total. `required_approving_review_count=0` (solo-maintained repo -- a required review would deadlock every merge). `enforce_admins=false` is an explicit maintainer escape hatch, not an oversight. | Always-on (repo config, not a schedule) | This *is* the enforcement point for every other control above -- it converts what used to be an advisory CI suite into a merge gate (ADR-0007) |
+
+**Why CodeQL and GitGuardian are advisory, not required:** both run as app/default-setup checks whose context names are less stable than this repo's own authored workflow jobs; making them required risked deadlocking merges on a check that fails to report a status at all. They are monitored via the Security tab instead of gating merges. This trade-off, and the branch-protection design as a whole, is recorded in [`docs/adr/0007-distribution-safety-model.md`](docs/adr/0007-distribution-safety-model.md).
+
+**Evidence trail (LAB_NOTEBOOK.md):** Entry 012 (regenerated 5 tool lockfiles to clear all 38 open pip CVE alerts), Entry 013 (added `.github/dependabot.yml`, verified CI green including the GitGuardian check on both OSes), Entry 016 (a live example of `Dependency Security Audit` acting as a real gate -- a newly-disclosed setuptools CVE broke an unrelated PR's audit job, fixed by patching the build tool in CI), and Entry 017/Entry 020 (branch protection enabled with the 14 required checks above via ADR-0007, and `Dependency Security Audit` subsequently re-scoped to each tool's lockfile only -- removing the whole-runner-environment scan that caused the Entry 016 false-positive class of failure -- alongside SHA-pinning the GitHub Actions Dependabot itself tracks).
+
+---
+
+## 8. Vulnerability Reporting
 
 ### Reporting Process
 

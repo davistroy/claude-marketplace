@@ -713,33 +713,13 @@ allowed-tools: Bash(git:*)
 
 ---
 
-### 6.2 Forgetting to Update help.md
+### 6.2 New Command Missing from `/help`
 
 **Symptom:** New command works but does not appear in `/help` output.
 
-**Cause:** The plugin's `help.md` skill was not updated after adding a new command.
+**Cause:** Plugins no longer ship a per-plugin `help` skill or `help.md` file (see [ADR-0004](docs/adr/0004-plugin-encapsulation.md), amended 2026-07-16). Claude Code's native `/help` command surfaces every installed plugin's commands and skills automatically — there is no plugin-authored documentation step to forget.
 
-**Problem:** You created a new command but forgot to run the help generator or manually update help.md.
-
-**Fix:**
-1. Regenerate help.md automatically:
-   ```bash
-   python scripts/generate-help.py plugins/personal-plugin
-   ```
-
-2. Or manually add an entry to `plugins/personal-plugin/skills/help/SKILL.md`:
-   ```markdown
-   ### /my-new-command
-   **Description:** Brief description of what it does
-   **Arguments:** `<required-arg>` `[--optional-flag]`
-   **Output:** What the command produces
-   ```
-
-**Validation that catches this:**
-- Pre-commit hook blocks commits with undocumented commands
-- Error message: `New command/skill not documented in help.md: my-new-command`
-
-**Fix command:**
+**Fix:** If the command still doesn't appear, reinstall or restart Claude Code to refresh plugin discovery, then confirm the command's frontmatter is valid with:
 ```
 /validate-plugin --fix
 ```

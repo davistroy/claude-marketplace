@@ -353,3 +353,12 @@ Navigate index-first (`kb/index.md` → section index → page), then grep. Cite
 ### `status` in OKF mode
 
 If `tools/lint.py --status` exists, run it and present its output (pages, marker census, asks, conflicts) plus the top of `kb/log.md` for recent activity. Otherwise, derive equivalents from the bundle: page count, marker counts, index table states.
+
+## Error Handling
+
+- **Neither a legacy `wiki/schema.yaml` nor an OKF `AGENTS.md` + `kb/index.md` bundle is found:** report "No wiki found" and direct the user to `/create-wiki` or to add an OKF bundle (see Pre-flight Check step 3) rather than guessing a layout.
+- **`ingest <path>` given a path that doesn't exist or isn't readable:** report the error and stop before touching `wiki/sources/` or `wiki/pages/`.
+- **`ingest` target file already exists in `wiki/sources/` with the same name:** warn the user and ask whether to overwrite or rename (see Protocol step 1) rather than silently overwriting.
+- **`query <topic>` finds no relevant pages:** report "No wiki pages found" and suggest ingesting a source or checking for a different name (see "Handle no results") rather than fabricating an answer.
+- **`lint` finds auto-fixable structural issues:** only apply them if the user confirms "yes" (see Auto-Fix) — content issues (stale/contradictions/duplicates) are never auto-fixed, only reported.
+- **OKF mode: `tools/lint.py` referenced by the contract doesn't exist:** derive equivalents manually from the bundle (page/marker/index counts) instead of failing the subcommand (see Mode-wide substitutions and `status` in OKF mode).

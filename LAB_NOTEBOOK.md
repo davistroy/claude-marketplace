@@ -953,4 +953,28 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 3. **6.2 (homepage + root README):** `plugins/slide-gen/plugin.json` homepage fixed `slide-generator`→`claude-marketplace` (RISK-01/PLAT-013); root README gained a slide-gen external-dependency note. `marketplace.json` carries no per-plugin `homepage`, so the version-sync check was correctly NOT extended (nothing to compare — INT-05 partially N/A).
 4. **Gate:** `claude plugin validate --strict` green on slide-gen + bpmn-plugin; markdownlint clean on all touched files; JSON valid.
 
-**Status:** IN PROGRESS — all 3 items implemented; validate + markdownlint green; PR pending. Entry closed with the squash-merge SHA at the start of the Phase 7 branch.
+**Status:** COMPLETE. PR #119 squash-merged as `9cf8963`, all 18 checks green. slide-gen now honest: external-dependency declaration (ADR-0008), fail-fast preflight, fixed homepage, CHANGELOGs for all 3 plugins. U1 resolved (private repo → owner-only). Local main 9cf8963.
+**Duration:** ~30 minutes
+
+---
+
+### Entry 023 — Implement-Plan Phase 7: Governance Docs, Egress Policy & Hygiene [config] [cleanup] [decision]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `9cf8963` (branch-protected), branch `impl/phase-7-docs`, orchestrator=Opus, implementers=Sonnet
+
+**Objective:** Execute IMPLEMENTATION_PLAN.md Phase 7 — close the documentation/policy debt + remove cruft: (7.1) SECURITY.md data-egress/confidentiality policy; (7.2) SECURITY.md supply-chain controls section; (7.3) resolve the ADR-0004 help-skill drift; (7.4) cruft removal (GITHUB_ERRORS.md ×2, gap-analysis, placeholder uv.lock, stale ruff.toml entry) + oversized command bodies → references; (7.5) skill error sections. Ship as one PR, merge on green CI.
+
+**Hypothesis:** Additive docs + deletions + config, so CI risk is markdownlint + plugin validation. **DEFERRED: PLAT-012 (7.5's CI Python-matrix expansion 3.10/3.12)** — adding `python-version` to the matrix would change the job check names (e.g. `Run Tests (ubuntu-latest)` → `(ubuntu-latest, 3.11)`), which are branch-protection REQUIRED checks — renaming them would deadlock merges until the protection config is updated in lockstep. That coordinated change is out of scope for a clean phase; 7.5 does only the skill error-section work (SE-10). Batching: 4 disjoint-file subagents — [A] 7.1+7.2 (both edit SECURITY.md, one subagent), [B] 7.3 (docs/adr/0004 + generate-help.py), [C] 7.4 (root cruft + commands/), [D] 7.5 (skills/ error sections). `uv.lock` removal note: it's gitignored but tracked (committed before the ignore rule), so `git rm --cached` + `rm`.
+
+**Rollback Plan:** All work on branch `impl/phase-7-docs`; `git branch -D` reverts pre-merge; deletions recoverable via git history. Post-merge `git revert <sha>`.
+
+**Actions & Results:**
+
+1. **7.1+7.2 (SECURITY.md):** added a "Data Egress & Confidentiality Policy" section (classification tiers, NEVER-send list, tool→provider egress table, provider-DPA pointers with a verify-before-regulated-data caveat) + a "Supply-Chain Controls" section (Dependabot/pip-audit/CodeQL/GitGuardian/branch-protection, each with cadence + enforcement); sections renumbered, cross-referenced. Subagent fact-checked the evidence-trail citations (E016 is clear-prep, not the pip-audit scope — corrected to E017/E020).
+2. **7.3 (ADR-0004 help drift):** amended ADR-0004 (2026-07-16 amendment) to drop the per-plugin help-skill requirement (superseded by ADR-0006 skills-first + native `/help`; no plugin ever implemented it); deleted the dead `scripts/generate-help.py`. Follow-up cleanup subagent removed the now-stale live references: `scripts/pre-commit` help.md-sync block (Check 5), CONTRIBUTING.md, TROUBLESHOOTING.md §6.2, docs/PLUGIN-DEVELOPMENT.md (checklist/PR-template/mistakes) — `bash -n` clean; only historical refs remain (CHANGELOG, docs/archive).
+3. **7.4 (cruft + config):** deleted `GITHUB_ERRORS.md` (root + docs/archive/), `gap-analysis-2026-04-30.md`, root placeholder `uv.lock` (verified 52 bytes, zero packages; real visual-explainer uv.lock untouched); removed stale `research_orchestrator` from `ruff.toml` isort; removed the now-dead `GITHUB_ERRORS.md` markdownlint ignore from `.markdownlint.json`. **SE-11 (oversized command-body extraction) DEFERRED** — mechanically refactoring 3 large frozen-legacy commands (validate-plugin 675 / implement-plan 573 / new-skill 530) without runtime tests is disproportionate risk for a Low finding.
+4. **7.5 (skill error sections):** added tailored `## Error Handling` sections to **14** skills that lacked one (SE-10 estimated ~8) — each 5-6 bullets on that skill's real failure branches. **PLAT-012 (CI Python-matrix 3.10/3.12) DEFERRED** — adding `python-version` to the matrix renames the branch-protection required checks (deadlock risk); needs a coordinated protection update, out of scope.
+5. **Gate:** `claude plugin validate --strict` green ×3 plugins; markdownlint clean on all touched .md; ruff.toml (TOML) + .markdownlint.json (JSON) parse OK; `bash -n scripts/pre-commit` clean.
+
+**Status:** IN PROGRESS — all 5 items implemented (SE-11 + PLAT-012 sub-parts deferred with rationale); local gates green; PR pending. Entry closed with the squash-merge SHA at the start of the Phase 8 branch.

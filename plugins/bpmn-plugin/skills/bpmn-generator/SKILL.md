@@ -467,6 +467,15 @@ After generating XML, display validation results confirming: structural checks p
 
 Interactive mode duration is dominated by the Q&A clarification phases (user response time not included). XML generation and DI coordinate calculation add 10-30 seconds regardless of complexity. Document parsing mode is faster because it skips the interactive question framework and extracts structure directly from markdown.
 
+## Error Handling
+
+- **No file path and no process description provided:** Ask the user for one before proceeding — do not guess a process or mode (see Mode Detection).
+- **Document Parsing Mode input doesn't match any known structural pattern** (no headings, no numbered steps, no role table): fall back to Interactive Mode and tell the user why, rather than emitting a mostly-empty BPMN file.
+- **Validation Checklist failures** (orphaned elements, missing flows, undocumented tasks) before writing output: fix the specific element or ask the user for the missing detail — never emit non-compliant XML.
+- **Preview Mode declined** (`n`/`no`): exit without writing any file.
+- **Unrecognized session command** during Interactive Mode Q&A: show the help message (see Session Commands) rather than silently treating it as an answer choice.
+- **Referenced support files missing** (`../references/*.md`, `../templates/*`): report which file is missing and proceed using the inline defaults documented in Part 3 rather than failing outright.
+
 # REFERENCES
 
 For detailed specifications, see:

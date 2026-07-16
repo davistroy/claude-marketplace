@@ -280,3 +280,12 @@ npm install -g eslint
 ```
 
 Agents degrade gracefully if tools are unavailable — they note it in `.meta.json` and proceed with grep-based analysis.
+
+## Error Handling
+
+- **`TARGET_PATH` missing or unreadable:** stop and print usage — do not guess a target (see Parse Arguments).
+- **Unrecognized name in `--focus`:** print the valid agent list and stop rather than silently dropping it.
+- **`personal-plugin:<agent-name>` subagent_type fails to resolve:** fall back to the bare `<agent-name>` form (see Step 3).
+- **A spawned domain agent returns incomplete output or no findings/meta file:** re-spawn that agent with the gaps identified (see Behavioral Constraints) — never silently omit a domain from the report.
+- **Optional tools (semgrep, bandit, trivy, eslint, etc.) unavailable** on the review machine: agents degrade gracefully to grep-based analysis and note the gap in `.meta.json` — this is expected, not a review failure.
+- **Conflicting findings across domains:** resolve using business impact as tiebreaker and document the reasoning in the Cross-Domain Risk Map (see Step 4) rather than dropping either side.

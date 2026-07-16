@@ -193,3 +193,12 @@ You assess risk across these categories, in order of severity:
 - **Use programmatic scanning in subagents**. Each severity-tier subagent writes and executes Python scripts via Bash to scan large datasets systematically. Do not rely on reading a few rows and guessing. Scan every row, every field.
 - **Dispatch pattern**: Steps 3 and 4 use `context: fork` subagents (one per severity tier) for parallel scanning. The parent skill handles all file writes — Step 6 (LEAK_RISK.md) is written exclusively by the parent after aggregating subagent results. Subagents return JSON findings only; they do not write any output files.
 - **Aggregation responsibility**: After all four subagents return, the parent must synthesize cross-tier risk (combinations of MEDIUM + LOW findings can collectively constitute HIGH risk). The cross-reference assessment requires parent-context reasoning across all findings simultaneously.
+
+## Error Handling
+
+- **`<path>` not provided:** ask the user rather than guessing a dataset (see Input Validation).
+- **Dataset file format not in the supported list** (CSV/JSON/JSONL/TSV/XLSX): report which files were skipped and why, rather than silently ignoring them.
+- **A severity-tier subagent fails to return valid JSON or times out:** retry once; if it still fails, note that tier's coverage as incomplete in the Appendix: Scan Methodology rather than silently omitting its findings.
+- **Confidence in a potential finding is below certainty but above the reporting bar (~60%):** flag it anyway per "Err on the side of caution" — never drop a finding for being unsure.
+- **A real company/individual name would appear verbatim in the report:** reference it obliquely instead (see "Do not leak in the report itself"), since the report itself may be shared.
+- **`--glossary` path provided but unreadable:** proceed with severity-tier scanning without replacement-quality verification and note the missing glossary in the Replacement Quality Assessment section.
