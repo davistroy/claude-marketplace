@@ -156,7 +156,13 @@ class PromptGenerator:
             )
 
             # Extract and parse response
-            response_text = response.content[0].text
+            # response.content is typed as a union of all Claude content block
+            # types (tool use, thinking, etc.); this call never enables tools
+            # or extended thinking, so the first block is always a TextBlock.
+            # Tests stub this with a duck-typed MagicMock(text=...), so an
+            # isinstance narrowing here would break them without changing
+            # actual runtime behavior — type: ignore is the accurate fix.
+            response_text = response.content[0].text  # type: ignore[union-attr]
             prompts_data = self._parse_prompts_response(response_text)
 
             # Build ImagePrompt objects
@@ -255,7 +261,14 @@ class PromptGenerator:
                 )
 
                 # Parse response and build ImagePrompt (delegated)
-                response_text = response.content[0].text
+                # response.content is typed as a union of all Claude content
+                # block types (tool use, thinking, etc.); this call never
+                # enables tools or extended thinking, so the first block is
+                # always a TextBlock. Tests stub this with a duck-typed
+                # MagicMock(text=...), so an isinstance narrowing here would
+                # break them without changing actual runtime behavior; a
+                # narrow ignore comment is the accurate fix.
+                response_text = response.content[0].text  # type: ignore[union-attr]
                 prompt_data = self.infographic_builder.parse_infographic_response(response_text)
 
                 image_prompt = self.infographic_builder.build_infographic_image_prompt(
@@ -576,9 +589,13 @@ Respond with ONLY the JSON array, no additional text."""
         )
 
         # Build flow connection
+        # NOTE: FlowConnection.next_image uses alias="next"; mypy's synthesized
+        # pydantic __init__ only recognizes the alias as a constructor keyword
+        # (populate_by_name only affects runtime parsing, not the static
+        # signature), so pass it via the alias. Equivalent at runtime.
         flow_connection = FlowConnection(
             previous=image_number - 1 if image_number > 1 else None,
-            next_image=image_number + 1 if image_number < total_images else None,
+            next=image_number + 1 if image_number < total_images else None,
             transition_intent=prompt_data.get("transition_intent", ""),
         )
 

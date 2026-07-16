@@ -39,12 +39,16 @@ except ImportError:
 if TYPE_CHECKING:
     from rich.console import Console
 
-    from visual_explainer.image_generator import GeminiImageGenerator
+    from visual_explainer.config import StyleConfig
+    from visual_explainer.image_evaluator import ImageEvaluator
+    from visual_explainer.image_generator import GeminiImageGenerator, GenerationResult
     from visual_explainer.models import (
         ConceptAnalysis,
+        EvaluationResult,
         ImagePrompt,
         ImageResult,
     )
+    from visual_explainer.prompt_generator import PromptGenerator
     from visual_explainer.reporting import ProgressReporter
 
 
@@ -54,7 +58,7 @@ async def _analyze_concepts(
     style_name: str,
     console: Console | None,
     infographic_mode: bool,
-) -> tuple[ConceptAnalysis, object, str, int]:
+) -> tuple[ConceptAnalysis, StyleConfig, str, int]:
     """Load style and analyze document concepts.
 
     Handles style loading and concept analysis (Steps 1-2 of the pipeline).
@@ -105,10 +109,10 @@ def _generate_prompts(
     config: GenerationConfig,
     internal_config: InternalConfig,
     analysis: ConceptAnalysis,
-    style: object,
+    style: StyleConfig,
     console: Console | None,
     infographic_mode: bool,
-) -> tuple[list[ImagePrompt], object, int]:
+) -> tuple[list[ImagePrompt], PromptGenerator, int]:
     """Generate image prompts from the concept analysis.
 
     Handles prompt generation and count adjustment (Steps 3-4 of the pipeline).
@@ -158,21 +162,21 @@ def _generate_prompts(
 
 
 async def _evaluate_and_refine(
-    gen_result: object,
+    gen_result: GenerationResult,
     current_prompt: ImagePrompt,
     prompt: ImagePrompt,
     attempt: int,
     image_dir: Path,
-    image_evaluator: object,
+    image_evaluator: ImageEvaluator,
     analysis: ConceptAnalysis,
     total_prompts: int,
     style_display_name: str,
     result: ImageResult,
     progress: ProgressReporter,
-    prompt_generator: object,
-    style: object,
+    prompt_generator: PromptGenerator,
+    style: StyleConfig,
     config: GenerationConfig,
-) -> tuple[object | None, ImagePrompt, int]:
+) -> tuple[EvaluationResult, ImagePrompt, int]:
     """Evaluate a generated image and optionally refine the prompt.
 
     Handles image saving, evaluation, attempt tracking, and prompt refinement
@@ -195,11 +199,17 @@ async def _evaluate_and_refine(
         config: Generation configuration.
 
     Returns:
-        Tuple of (eval_result_or_None, possibly_refined_prompt, api_calls).
+        Tuple of (eval_result, possibly_refined_prompt, api_calls).
     """
     from visual_explainer.models import EvaluationVerdict
 
     api_calls = 0
+
+    # gen_result.image_data is bytes | None on GenerationResult, but the only
+    # caller (_generate_single_image) already `continue`s past any gen_result
+    # with image_data is None before invoking this helper, so it is always
+    # bytes here.
+    assert gen_result.image_data is not None
 
     # Save image
     image_file = image_dir / f"attempt-{attempt:02d}.jpg"
@@ -261,12 +271,12 @@ async def _generate_single_image(
     config: GenerationConfig,
     internal_config: InternalConfig,
     analysis: ConceptAnalysis,
-    style: object,
+    style: StyleConfig,
     style_display_name: str,
-    prompt_generator: object,
+    prompt_generator: PromptGenerator,
     output_dir: Path,
     image_generator: GeminiImageGenerator,
-    image_evaluator: object,
+    image_evaluator: ImageEvaluator,
     progress: ProgressReporter,
     *,
     concurrent: bool,
@@ -413,9 +423,9 @@ async def _execute_generation_loop(
     config: GenerationConfig,
     internal_config: InternalConfig,
     analysis: ConceptAnalysis,
-    style: object,
+    style: StyleConfig,
     style_display_name: str,
-    prompt_generator: object,
+    prompt_generator: PromptGenerator,
     output_dir: Path,
     quiet: bool = False,
     json_output: bool = False,

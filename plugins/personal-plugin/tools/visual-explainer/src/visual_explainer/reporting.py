@@ -218,7 +218,7 @@ def prompt_for_input() -> str:
 
     if input_type == "1":
         console.print("[dim]Paste your text below (press Enter twice when done):[/dim]")
-        lines = []
+        lines: list[str] = []
         while True:
             line = input()
             if line == "":

@@ -103,7 +103,7 @@ class BoundaryPositioner:
             ID of the attached element, or None
         """
         attached_id = boundary.properties.get("attachedToRef")
-        if attached_id:
+        if isinstance(attached_id, str) and attached_id:
             return attached_id
 
         attachable_types = (

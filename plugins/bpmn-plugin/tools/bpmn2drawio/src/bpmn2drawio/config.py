@@ -57,7 +57,9 @@ def merge_theme_with_config(
         New BPMNTheme with merged values
     """
     # Create dict of base theme values
-    theme_dict = {
+    # (values are a str/int mix overridden by arbitrary YAML-sourced data below,
+    # so Any is the accurate type here, not just a suppression)
+    theme_dict: Dict[str, Any] = {
         "start_event_fill": base_theme.start_event_fill,
         "start_event_stroke": base_theme.start_event_stroke,
         "end_event_fill": base_theme.end_event_fill,

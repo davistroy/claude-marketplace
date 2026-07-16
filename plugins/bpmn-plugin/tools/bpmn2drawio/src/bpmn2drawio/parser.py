@@ -1,7 +1,7 @@
 """BPMN 2.0 XML parser."""
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from lxml import etree
 
@@ -30,7 +30,7 @@ _SECURE_XML_PARSER = etree.XMLParser(
 class BPMNParser:
     """Parser for BPMN 2.0 XML files."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize parser with BPMN namespaces."""
         self.namespaces = BPMN_NAMESPACES
         self._di_shapes: Dict[str, Dict] = {}
@@ -346,9 +346,9 @@ class BPMNParser:
             properties=properties,
         )
 
-    def _parse_element_properties(self, elem: etree._Element, elem_type: str) -> Dict:
+    def _parse_element_properties(self, elem: etree._Element, elem_type: str) -> Dict[str, Any]:
         """Parse element-specific properties."""
-        properties = {}
+        properties: Dict[str, Any] = {}
 
         # Event definitions
         for child in elem:
@@ -562,14 +562,13 @@ class BPMNParser:
             element_refs=element_refs,
         )
 
-    def _local_name(self, tag) -> str:
+    def _local_name(self, tag: Any) -> str:
         """Get local name from a potentially namespaced tag."""
         # Handle Python 3.14+ / lxml compatibility - ensure string
-        if not isinstance(tag, str):
-            tag = str(tag) if tag is not None else ""
-        if "}" in tag:
-            return tag.split("}")[1]
-        return tag
+        name: str = tag if isinstance(tag, str) else (str(tag) if tag is not None else "")
+        if "}" in name:
+            return name.split("}")[1]
+        return name
 
     def _mark_default_flows(self, model: BPMNModel) -> None:
         """Mark flows as default based on gateway default attribute."""

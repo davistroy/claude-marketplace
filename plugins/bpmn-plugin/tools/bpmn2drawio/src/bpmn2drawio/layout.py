@@ -167,8 +167,8 @@ class LayoutEngine:
 
         # Add fallback positions for elements not positioned by graphviz
         # (disconnected elements, etc.)
-        fallback_x = LayoutConstants.DIAGRAM_MARGIN
-        fallback_y = LayoutConstants.DIAGRAM_MARGIN
+        fallback_x: float = LayoutConstants.DIAGRAM_MARGIN
+        fallback_y: float = LayoutConstants.DIAGRAM_MARGIN
         if positions:
             # Place below existing positions
             max_y = max(p[1] for p in positions.values())
@@ -223,7 +223,7 @@ class LayoutEngine:
             rank_groups[rank].append(node_id)
 
         # Calculate positions based on direction
-        positions = {}
+        positions: Dict[str, Tuple[float, float]] = {}
         is_horizontal = self.direction in ("LR", "RL")
         is_reversed = self.direction in ("RL", "BT")
 
@@ -237,11 +237,11 @@ class LayoutEngine:
 
         # Position each rank
         sorted_ranks = sorted(rank_groups.keys(), reverse=is_reversed)
-        primary_pos = LayoutConstants.DIAGRAM_MARGIN
+        primary_pos: float = LayoutConstants.DIAGRAM_MARGIN
 
         for rank in sorted_ranks:
             nodes = rank_groups[rank]
-            secondary_pos = LayoutConstants.DIAGRAM_MARGIN
+            secondary_pos: float = LayoutConstants.DIAGRAM_MARGIN
 
             for node_id in nodes:
                 if node_id not in elem_lookup:
@@ -302,7 +302,7 @@ class LayoutEngine:
         Returns:
             Dictionary mapping node ID to rank (0 = source level)
         """
-        ranks = {}
+        ranks: Dict[str, int] = {}
         num_nodes = graph.number_of_nodes()
 
         if num_nodes == 0:
@@ -374,10 +374,10 @@ class LayoutEngine:
         Returns:
             Dictionary mapping element ID to (x, y) position
         """
-        positions = {}
-        x = LayoutConstants.DIAGRAM_MARGIN
-        y = LayoutConstants.DIAGRAM_MARGIN
-        row_height = 0
+        positions: Dict[str, Tuple[float, float]] = {}
+        x: float = LayoutConstants.DIAGRAM_MARGIN
+        y: float = LayoutConstants.DIAGRAM_MARGIN
+        row_height: float = 0
 
         for i, element in enumerate(elements):
             width, height = self._get_element_dimensions(element)

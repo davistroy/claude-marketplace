@@ -55,8 +55,8 @@ class SwimlaneSizer:
 
         if min_x == float("inf"):
             # No elements with positions
-            width = 600
-            height = 200
+            width: float = 600
+            height: float = 200
         else:
             width = max_x - min_x + self.padding * 2 + self.pool_header_width
             height = max_y - min_y + self.padding * 2
@@ -95,8 +95,8 @@ class SwimlaneSizer:
         # Distribute height equally among lanes
         lane_height = pool_height / len(lanes)
 
-        result = {}
-        y_offset = 0
+        result: Dict[str, Tuple[float, float, float, float]] = {}
+        y_offset: float = 0
 
         for lane in lanes:
             if lane.width and lane.height:

@@ -243,7 +243,8 @@ Respond with ONLY the JSON object, no additional text."""
             else:
                 json_str = response_text.strip()
 
-        return json.loads(json_str)
+        parsed: dict[str, Any] = json.loads(json_str)
+        return parsed
 
     def build_infographic_image_prompt(
         self,
@@ -301,9 +302,13 @@ Respond with ONLY the JSON object, no additional text."""
         )
 
         # Build flow connection
+        # NOTE: FlowConnection.next_image uses alias="next"; mypy's synthesized
+        # pydantic __init__ only recognizes the alias as a constructor keyword
+        # (populate_by_name only affects runtime parsing, not the static
+        # signature), so pass it via the alias. Equivalent at runtime.
         flow_connection = FlowConnection(
             previous=page_plan.page_number - 1 if page_plan.page_number > 1 else None,
-            next_image=page_plan.page_number + 1 if page_plan.page_number < total_pages else None,
+            next=page_plan.page_number + 1 if page_plan.page_number < total_pages else None,
             transition_intent=f"Continues to page {page_plan.page_number + 1}"
             if page_plan.page_number < total_pages
             else "Final page",
