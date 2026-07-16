@@ -12,6 +12,7 @@ are referenced module-qualified via ``terminal``.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from datetime import datetime
@@ -22,6 +23,7 @@ from . import terminal
 from .config import GenerationConfig, InternalConfig
 from .io_utils import _atomic_write_text
 from .reporting import (
+    ConcurrentGenerationProgress,
     GenerationProgress,
     display_analysis_summary,
     display_completion_summary,
@@ -37,11 +39,13 @@ except ImportError:
 if TYPE_CHECKING:
     from rich.console import Console
 
+    from visual_explainer.image_generator import GeminiImageGenerator
     from visual_explainer.models import (
         ConceptAnalysis,
         ImagePrompt,
         ImageResult,
     )
+    from visual_explainer.reporting import ProgressReporter
 
 
 async def _analyze_concepts(
@@ -164,7 +168,7 @@ async def _evaluate_and_refine(
     total_prompts: int,
     style_display_name: str,
     result: ImageResult,
-    progress: GenerationProgress,
+    progress: ProgressReporter,
     prompt_generator: object,
     style: object,
     config: GenerationConfig,
@@ -252,6 +256,158 @@ async def _evaluate_and_refine(
     return eval_result, current_prompt, api_calls
 
 
+async def _generate_single_image(
+    prompt: ImagePrompt,
+    config: GenerationConfig,
+    internal_config: InternalConfig,
+    analysis: ConceptAnalysis,
+    style: object,
+    style_display_name: str,
+    prompt_generator: object,
+    output_dir: Path,
+    image_generator: GeminiImageGenerator,
+    image_evaluator: object,
+    progress: ProgressReporter,
+    *,
+    concurrent: bool,
+) -> tuple[ImageResult, int]:
+    """Generate one image end-to-end: attempt loop, best-tracking, finalize.
+
+    This is the per-image body extracted from ``_execute_generation_loop`` so a
+    single image can be produced independently (own ``image-NN/`` directory, own
+    ``ImageResult``, own prompt-refinement chain). It is called once per prompt,
+    either serially or as one task among several under a concurrency semaphore.
+
+    Per-image framing (``start_image`` / ``complete_image`` / ``fail_image``) is
+    called polymorphically on ``progress``: the rich reporter renders a live
+    spinner/rule; the concurrency-safe reporter emits discrete, lock-guarded
+    lines. The per-attempt spinner calls (``start_attempt`` and the
+    ``update_status`` status lines) are gated behind ``concurrent`` and fire only
+    on the serial path — driving a shared per-attempt live render from
+    interleaved coroutines is exactly what is unsafe. (``_evaluate_and_refine``
+    still calls ``update_status`` / ``show_evaluation`` on ``progress``; those
+    are no-ops on the concurrency-safe reporter.)
+
+    Args:
+        prompt: The image prompt to generate.
+        config: Generation configuration.
+        internal_config: Internal configuration.
+        analysis: Concept analysis result.
+        style: Loaded style configuration.
+        style_display_name: Display name of the style.
+        prompt_generator: Prompt generator for refinements.
+        output_dir: Output directory for generated files.
+        image_generator: Shared image generator instance.
+        image_evaluator: Shared image evaluator instance.
+        progress: Progress reporter (rich spinner when serial, concurrency-safe
+            reporter when concurrent). ``progress.total_images`` supplies the
+            evaluation context's total-image count.
+        concurrent: Whether this image is being generated concurrently. Gates the
+            per-attempt spinner calls (serial only).
+
+    Returns:
+        Tuple of (image_result, api_calls_for_this_image).
+    """
+    import shutil
+
+    from visual_explainer.image_generator import GenerationStatus
+    from visual_explainer.models import EvaluationVerdict, ImageResult
+
+    api_calls = 0
+
+    progress.start_image(prompt.image_number, prompt.title)
+
+    # Create image result tracker
+    result = ImageResult(
+        image_number=prompt.image_number,
+        title=prompt.title,
+    )
+    result.status = "generating"
+
+    # Image directory
+    image_dir = output_dir / f"image-{prompt.image_number:02d}"
+    image_dir.mkdir(exist_ok=True)
+
+    current_prompt = prompt
+    best_score = 0.0
+    best_attempt = 0
+    best_image_path: str | None = None
+
+    for attempt in range(1, config.max_iterations + 1):
+        # Per-attempt live spinner is serial-only (unsafe across coroutines).
+        if not concurrent:
+            progress.start_attempt(attempt)
+
+        # Save prompt
+        prompt_file = image_dir / f"prompt-v{attempt}.txt"
+        prompt_file.write_text(current_prompt.prompt.main_prompt, encoding="utf-8")
+
+        # Generate image
+        if not concurrent:
+            progress.update_status("Generating...")
+        gen_result = await image_generator.generate_image(
+            prompt=current_prompt.get_full_prompt(),
+            aspect_ratio=config.aspect_ratio,
+            resolution=config.resolution,
+            negative_prompt=current_prompt.prompt.avoid,
+            image_number=prompt.image_number,
+        )
+        api_calls += 1
+
+        if gen_result.status != GenerationStatus.SUCCESS or gen_result.image_data is None:
+            if not concurrent:
+                progress.update_status(f"Generation failed: {gen_result.error_message}")
+            continue
+
+        # Evaluate and optionally refine
+        eval_result, current_prompt, eval_api_calls = await _evaluate_and_refine(
+            gen_result=gen_result,
+            current_prompt=current_prompt,
+            prompt=prompt,
+            attempt=attempt,
+            image_dir=image_dir,
+            image_evaluator=image_evaluator,
+            analysis=analysis,
+            total_prompts=progress.total_images,
+            style_display_name=style_display_name,
+            result=result,
+            progress=progress,
+            prompt_generator=prompt_generator,
+            style=style,
+            config=config,
+        )
+        api_calls += eval_api_calls
+
+        # Track best
+        image_file = image_dir / f"attempt-{attempt:02d}.jpg"
+        if eval_result.overall_score > best_score:
+            best_score = eval_result.overall_score
+            best_attempt = attempt
+            best_image_path = str(image_file)
+
+        # Check verdict
+        if eval_result.verdict == EvaluationVerdict.PASS:
+            break
+
+    # Finalize image result
+    if best_image_path:
+        result.final_attempt = best_attempt
+        result.final_score = best_score
+        result.final_path = best_image_path
+        result.status = "complete"
+
+        # Create final.jpg copy/link
+        final_path = image_dir / "final.jpg"
+        shutil.copy2(best_image_path, final_path)
+
+        progress.complete_image(prompt.image_number, best_attempt, best_score)
+    else:
+        result.status = "failed"
+        progress.fail_image(prompt.image_number, prompt.title)
+
+    return result, api_calls
+
+
 async def _execute_generation_loop(
     prompts: list[ImagePrompt],
     config: GenerationConfig,
@@ -264,11 +420,25 @@ async def _execute_generation_loop(
     quiet: bool = False,
     json_output: bool = False,
 ) -> tuple[list[ImageResult], int]:
-    """Execute the image generation loop with evaluation and refinement.
+    """Execute the image generation for all prompts (Steps 6-8 of the pipeline).
 
-    Initializes the image generator and evaluator, then iterates over each
-    prompt, generating images with up to max_iterations refinement attempts
-    per image (Steps 6-8 of the pipeline).
+    Initializes ONE image generator and ONE evaluator (both safe for concurrent
+    use — the generator runs its blocking work in a thread-pool executor), then
+    produces each image via :func:`_generate_single_image`.
+
+    The images are independent (own directory, own ``ImageResult``, own
+    refinement chain), so they run in parallel up to ``config.concurrency``:
+
+    - ``effective = min(config.concurrency, len(prompts))``; a single prompt (or
+      ``effective <= 1``) runs on the **serial** path, which is byte-for-byte
+      identical to the original loop — same ordering, same rich live spinner.
+    - Otherwise an :class:`asyncio.Semaphore` bounds in-flight images to
+      ``effective`` (memory-bounded: each 4K image holds decoded bytes in RAM),
+      and ``asyncio.gather`` collects results **in prompt order** — the returned
+      list is ordered by image number, never by completion order.
+
+    API-call counts are summed from each image's own returned count rather than
+    read off the shared generator, so concurrent counting stays correct.
 
     Args:
         prompts: List of image prompts to generate.
@@ -285,13 +455,8 @@ async def _execute_generation_loop(
     Returns:
         Tuple of (image_results, api_calls).
     """
-    import shutil
-
     from visual_explainer.image_evaluator import ImageEvaluator
-    from visual_explainer.image_generator import GeminiImageGenerator, GenerationStatus
-    from visual_explainer.models import EvaluationVerdict, ImageResult
-
-    api_calls = 0
+    from visual_explainer.image_generator import GeminiImageGenerator
 
     image_generator = GeminiImageGenerator(
         internal_config=internal_config,
@@ -300,98 +465,60 @@ async def _execute_generation_loop(
         model=internal_config.claude_model, pass_threshold=config.pass_threshold
     )
 
-    image_results: list[ImageResult] = []
+    suppress_output = quiet or json_output
+    effective = min(config.concurrency, len(prompts))
 
-    with GenerationProgress(len(prompts), config.max_iterations, quiet or json_output) as progress:
-        for prompt in prompts:
-            progress.start_image(prompt.image_number, prompt.title)
+    # --- Serial path: unchanged behavior, full rich live spinner ---
+    if len(prompts) <= 1 or effective <= 1:
+        image_results: list[ImageResult] = []
+        total_api_calls = 0
+        with GenerationProgress(len(prompts), config.max_iterations, suppress_output) as progress:
+            for prompt in prompts:
+                result, api_calls = await _generate_single_image(
+                    prompt,
+                    config,
+                    internal_config,
+                    analysis,
+                    style,
+                    style_display_name,
+                    prompt_generator,
+                    output_dir,
+                    image_generator,
+                    image_evaluator,
+                    progress,
+                    concurrent=False,
+                )
+                image_results.append(result)
+                total_api_calls += api_calls
+        return image_results, total_api_calls
 
-            # Create image result tracker
-            result = ImageResult(
-                image_number=prompt.image_number,
-                title=prompt.title,
+    # --- Concurrent path: bounded parallelism, prompt-ordered results ---
+    semaphore = asyncio.Semaphore(effective)
+    reporter = ConcurrentGenerationProgress(len(prompts), config.max_iterations, suppress_output)
+
+    async def _bounded_generate(prompt: ImagePrompt) -> tuple[ImageResult, int]:
+        async with semaphore:
+            return await _generate_single_image(
+                prompt,
+                config,
+                internal_config,
+                analysis,
+                style,
+                style_display_name,
+                prompt_generator,
+                output_dir,
+                image_generator,
+                image_evaluator,
+                reporter,
+                concurrent=True,
             )
-            result.status = "generating"
 
-            # Image directory
-            image_dir = output_dir / f"image-{prompt.image_number:02d}"
-            image_dir.mkdir(exist_ok=True)
+    # gather preserves input order, so results are ordered by prompt/image_number.
+    results_with_counts = await asyncio.gather(*(_bounded_generate(p) for p in prompts))
 
-            current_prompt = prompt
-            best_score = 0.0
-            best_attempt = 0
-            best_image_path: str | None = None
-
-            for attempt in range(1, config.max_iterations + 1):
-                progress.start_attempt(attempt)
-
-                # Save prompt
-                prompt_file = image_dir / f"prompt-v{attempt}.txt"
-                prompt_file.write_text(current_prompt.prompt.main_prompt, encoding="utf-8")
-
-                # Generate image
-                progress.update_status("Generating...")
-                gen_result = await image_generator.generate_image(
-                    prompt=current_prompt.get_full_prompt(),
-                    aspect_ratio=config.aspect_ratio,
-                    resolution=config.resolution,
-                    negative_prompt=current_prompt.prompt.avoid,
-                    image_number=prompt.image_number,
-                )
-                api_calls += 1
-
-                if gen_result.status != GenerationStatus.SUCCESS or gen_result.image_data is None:
-                    progress.update_status(f"Generation failed: {gen_result.error_message}")
-                    continue
-
-                # Evaluate and optionally refine
-                eval_result, current_prompt, eval_api_calls = await _evaluate_and_refine(
-                    gen_result=gen_result,
-                    current_prompt=current_prompt,
-                    prompt=prompt,
-                    attempt=attempt,
-                    image_dir=image_dir,
-                    image_evaluator=image_evaluator,
-                    analysis=analysis,
-                    total_prompts=len(prompts),
-                    style_display_name=style_display_name,
-                    result=result,
-                    progress=progress,
-                    prompt_generator=prompt_generator,
-                    style=style,
-                    config=config,
-                )
-                api_calls += eval_api_calls
-
-                # Track best
-                image_file = image_dir / f"attempt-{attempt:02d}.jpg"
-                if eval_result.overall_score > best_score:
-                    best_score = eval_result.overall_score
-                    best_attempt = attempt
-                    best_image_path = str(image_file)
-
-                # Check verdict
-                if eval_result.verdict == EvaluationVerdict.PASS:
-                    break
-
-            # Finalize image result
-            if best_image_path:
-                result.final_attempt = best_attempt
-                result.final_score = best_score
-                result.final_path = best_image_path
-                result.status = "complete"
-
-                # Create final.jpg copy/link
-                final_path = image_dir / "final.jpg"
-                shutil.copy2(best_image_path, final_path)
-
-                progress.complete_image(prompt.image_number, best_attempt, best_score)
-            else:
-                result.status = "failed"
-
-            image_results.append(result)
-
-    return image_results, api_calls
+    image_results = [result for result, _ in results_with_counts]
+    total_api_calls = sum(api_calls for _, api_calls in results_with_counts)
+    return image_results, total_api_calls
 
 
 def _save_outputs(

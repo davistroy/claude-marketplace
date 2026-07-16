@@ -12,8 +12,10 @@ statements, which re-resolve the name from the source module on every call.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from visual_explainer.config import GenerationConfig
@@ -30,6 +32,7 @@ from visual_explainer.pipeline import (
     _evaluate_and_refine,
     _execute_generation_loop,
     _generate_prompts,
+    _generate_single_image,
     _save_outputs,
     load_checkpoint_and_resume,
     run_generation_pipeline,
@@ -1388,3 +1391,543 @@ class TestLoadCheckpointAndResume:
         all_results = mock_save.call_args.args[0]
         # Image 1 has no reconstructable data, so only the newly generated image 2 appears.
         assert [r.image_number for r in all_results] == [2]
+
+
+# =============================================================================
+# Concurrent generation (PERF-01 / issue #128)
+# =============================================================================
+
+
+def _success_result(image_number: int) -> GenerationResult:
+    """A successful GenerationResult carrying image-number-tagged bytes."""
+    return GenerationResult(
+        status=GenerationStatus.SUCCESS,
+        image_data=f"img-{image_number}".encode(),
+        duration_seconds=0.01,
+    )
+
+
+async def _run_execute_loop(
+    prompts,
+    config,
+    internal_config,
+    analysis,
+    style,
+    output_dir,
+    image_generator,
+    image_evaluator,
+    *,
+    quiet=True,
+    json_output=False,
+):
+    """Invoke _execute_generation_loop with the generator/evaluator patched.
+
+    Mirrors TestExecuteGenerationLoop._run but supports multi-prompt runs and a
+    toggleable quiet flag so both the concurrent and serial branches (and their
+    progress reporting) can be exercised.
+    """
+    prompt_generator = MagicMock()
+    prompt_generator.refine_prompt.side_effect = lambda **kw: kw["original"]
+    with (
+        patch(
+            "visual_explainer.image_generator.GeminiImageGenerator",
+            return_value=image_generator,
+        ),
+        patch(
+            "visual_explainer.image_evaluator.ImageEvaluator",
+            return_value=image_evaluator,
+        ),
+    ):
+        return await _execute_generation_loop(
+            prompts,
+            config,
+            internal_config,
+            analysis,
+            style,
+            "Test_Style",
+            prompt_generator,
+            output_dir,
+            quiet=quiet,
+            json_output=json_output,
+        )
+
+
+class TestConcurrentGeneration:
+    """Parallel image generation with a memory-bounded concurrency cap."""
+
+    def _prompts(self, base: ImagePrompt, numbers: list[int]) -> list[ImagePrompt]:
+        return [_prompt_with_number(base, n) for n in numbers]
+
+    async def test_results_ordered_by_image_number_despite_out_of_order_completion(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        config = sample_generation_config.model_copy(update={"concurrency": 3})
+        prompts = self._prompts(sample_image_prompt, [1, 2, 3])
+
+        # Later images finish FIRST (shorter sleeps): completion order is 3, 2, 1.
+        delays = {1: 0.03, 2: 0.02, 3: 0.01}
+
+        async def fake_generate(**kwargs):
+            n = kwargs["image_number"]
+            await asyncio.sleep(delays[n])
+            return _success_result(n)
+
+        image_generator = MagicMock()
+        image_generator.generate_image = fake_generate
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image = MagicMock(
+            return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
+        )
+
+        results, api_calls = await _run_execute_loop(
+            prompts,
+            config,
+            sample_internal_config,
+            sample_concept_analysis,
+            sample_style_config,
+            temp_output_dir,
+            image_generator,
+            image_evaluator,
+        )
+
+        # gather preserves prompt order regardless of which image finished first.
+        assert [r.image_number for r in results] == [1, 2, 3]
+        for n in (1, 2, 3):
+            r = results[n - 1]
+            assert r.status == "complete"
+            assert r.final_attempt == 1
+            final = temp_output_dir / f"image-{n:02d}" / "final.jpg"
+            # Each image kept its own content — no cross-image bleed.
+            assert final.read_bytes() == f"img-{n}".encode()
+        # 3 images x (1 generation + 1 evaluation).
+        assert api_calls == 6
+
+    async def test_semaphore_bounds_max_concurrency(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        config = sample_generation_config.model_copy(update={"concurrency": 2})
+        prompts = self._prompts(sample_image_prompt, [1, 2, 3, 4])
+
+        state = {"depth": 0, "max_depth": 0}
+
+        async def fake_generate(**kwargs):
+            # Increment/record with no await in between, so the sample is atomic
+            # w.r.t. the event loop; the sleep then yields to let peers enter.
+            state["depth"] += 1
+            state["max_depth"] = max(state["max_depth"], state["depth"])
+            await asyncio.sleep(0.01)
+            state["depth"] -= 1
+            return _success_result(kwargs["image_number"])
+
+        image_generator = MagicMock()
+        image_generator.generate_image = fake_generate
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image = MagicMock(
+            return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
+        )
+
+        results, _ = await _run_execute_loop(
+            prompts,
+            config,
+            sample_internal_config,
+            sample_concept_analysis,
+            sample_style_config,
+            temp_output_dir,
+            image_generator,
+            image_evaluator,
+        )
+
+        assert [r.image_number for r in results] == [1, 2, 3, 4]
+        assert all(r.status == "complete" for r in results)
+        # The semaphore cap of 2 is never exceeded...
+        assert state["max_depth"] <= 2
+        # ...and real parallelism happened (it isn't accidentally serial).
+        assert state["max_depth"] == 2
+
+    async def test_api_calls_summed_across_concurrent_images_with_refinement(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        config = sample_generation_config.model_copy(update={"concurrency": 3, "max_iterations": 3})
+        prompts = self._prompts(sample_image_prompt, [1, 2, 3])
+
+        image_generator = MagicMock()
+        image_generator.generate_image = AsyncMock(
+            return_value=GenerationResult(
+                status=GenerationStatus.SUCCESS, image_data=b"x", duration_seconds=0.01
+            )
+        )
+
+        def eval_side_effect(**kwargs):
+            if kwargs["iteration"] == 1:
+                return _make_evaluation(0.6, EvaluationVerdict.NEEDS_REFINEMENT, iteration=1)
+            return _make_evaluation(0.95, EvaluationVerdict.PASS, iteration=kwargs["iteration"])
+
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image = MagicMock(side_effect=eval_side_effect)
+
+        results, api_calls = await _run_execute_loop(
+            prompts,
+            config,
+            sample_internal_config,
+            sample_concept_analysis,
+            sample_style_config,
+            temp_output_dir,
+            image_generator,
+            image_evaluator,
+        )
+
+        assert [r.image_number for r in results] == [1, 2, 3]
+        assert all(r.status == "complete" for r in results)
+        assert all(r.total_attempts == 2 for r in results)
+        # Per image: attempt 1 (gen + eval + refine = 3) + attempt 2 (gen + eval = 2) = 5.
+        # 3 images -> 15, summed from each task's own returned count (not the
+        # generator's shared internal counter).
+        assert api_calls == 15
+
+    async def test_serial_fallback_with_concurrency_one_preserves_order(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        config = sample_generation_config.model_copy(update={"concurrency": 1})
+        prompts = self._prompts(sample_image_prompt, [1, 2, 3])
+
+        image_generator = MagicMock()
+        image_generator.generate_image = AsyncMock(
+            side_effect=[_success_result(1), _success_result(2), _success_result(3)]
+        )
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image = MagicMock(
+            return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
+        )
+
+        results, api_calls = await _run_execute_loop(
+            prompts,
+            config,
+            sample_internal_config,
+            sample_concept_analysis,
+            sample_style_config,
+            temp_output_dir,
+            image_generator,
+            image_evaluator,
+        )
+
+        assert [r.image_number for r in results] == [1, 2, 3]
+        assert all(r.status == "complete" for r in results)
+        assert api_calls == 6
+        # concurrency=1 -> serial path -> exactly one generation per image.
+        assert image_generator.generate_image.await_count == 3
+
+    async def test_single_prompt_uses_serial_path_regardless_of_concurrency(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        config = sample_generation_config.model_copy(update={"concurrency": 8})
+        prompts = [sample_image_prompt]  # single prompt -> serial regardless of cap
+
+        image_generator = MagicMock()
+        image_generator.generate_image = AsyncMock(return_value=_success_result(1))
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image = MagicMock(
+            return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
+        )
+
+        results, api_calls = await _run_execute_loop(
+            prompts,
+            config,
+            sample_internal_config,
+            sample_concept_analysis,
+            sample_style_config,
+            temp_output_dir,
+            image_generator,
+            image_evaluator,
+        )
+
+        assert len(results) == 1
+        assert results[0].status == "complete"
+        assert api_calls == 2
+
+    async def test_concurrent_generation_overlaps_wall_clock(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        delay = 0.05
+        prompts = self._prompts(sample_image_prompt, [1, 2, 3])
+
+        async def fake_generate(**kwargs):
+            await asyncio.sleep(delay)
+            return _success_result(kwargs["image_number"])
+
+        def build_mocks():
+            gen = MagicMock()
+            gen.generate_image = fake_generate
+            ev = MagicMock()
+            ev.evaluate_image = MagicMock(
+                return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
+            )
+            return gen, ev
+
+        # Concurrent: 3 images overlap -> ~1x delay.
+        gen_c, ev_c = build_mocks()
+        config_c = sample_generation_config.model_copy(update={"concurrency": 3})
+        out_c = temp_output_dir / "concurrent"
+        out_c.mkdir()
+        t0 = time.perf_counter()
+        results_c, _ = await _run_execute_loop(
+            prompts,
+            config_c,
+            sample_internal_config,
+            sample_concept_analysis,
+            sample_style_config,
+            out_c,
+            gen_c,
+            ev_c,
+        )
+        concurrent_elapsed = time.perf_counter() - t0
+
+        # Serial: same 3 images one after another -> ~3x delay.
+        gen_s, ev_s = build_mocks()
+        config_s = sample_generation_config.model_copy(update={"concurrency": 1})
+        out_s = temp_output_dir / "serial"
+        out_s.mkdir()
+        t0 = time.perf_counter()
+        results_s, _ = await _run_execute_loop(
+            prompts,
+            config_s,
+            sample_internal_config,
+            sample_concept_analysis,
+            sample_style_config,
+            out_s,
+            gen_s,
+            ev_s,
+        )
+        serial_elapsed = time.perf_counter() - t0
+
+        assert all(r.status == "complete" for r in results_c)
+        assert all(r.status == "complete" for r in results_s)
+        # Concurrent run overlapped: well under the serial 3x wall clock.
+        assert concurrent_elapsed < 2 * delay
+        assert concurrent_elapsed < serial_elapsed
+
+    async def test_concurrent_mode_emits_started_and_completed_lines(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        config = sample_generation_config.model_copy(update={"concurrency": 2})
+        prompts = self._prompts(sample_image_prompt, [1, 2])
+
+        image_generator = MagicMock()
+        image_generator.generate_image = AsyncMock(return_value=_success_result(1))
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image = MagicMock(
+            return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
+        )
+
+        mock_console = MagicMock()
+        with (
+            patch("visual_explainer.terminal.RICH_AVAILABLE", True),
+            patch("visual_explainer.terminal.get_console", return_value=mock_console),
+        ):
+            results, _ = await _run_execute_loop(
+                prompts,
+                config,
+                sample_internal_config,
+                sample_concept_analysis,
+                sample_style_config,
+                temp_output_dir,
+                image_generator,
+                image_evaluator,
+                quiet=False,
+                json_output=False,
+            )
+
+        assert all(r.status == "complete" for r in results)
+        printed = " ".join(str(c.args[0]) for c in mock_console.print.call_args_list)
+        assert "Image 1/2 started" in printed
+        assert "Image 2/2 started" in printed
+        assert "Image 1/2 complete" in printed
+        assert "Image 2/2 complete" in printed
+
+    async def test_concurrent_mode_logs_failed_image(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        config = sample_generation_config.model_copy(update={"concurrency": 2, "max_iterations": 2})
+        prompts = self._prompts(sample_image_prompt, [1, 2])
+
+        async def fake_generate(**kwargs):
+            if kwargs["image_number"] == 2:
+                return GenerationResult(
+                    status=GenerationStatus.ERROR,
+                    image_data=None,
+                    error_message="boom",
+                    duration_seconds=0.01,
+                )
+            return _success_result(kwargs["image_number"])
+
+        image_generator = MagicMock()
+        image_generator.generate_image = fake_generate
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image = MagicMock(
+            return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
+        )
+
+        mock_console = MagicMock()
+        with (
+            patch("visual_explainer.terminal.RICH_AVAILABLE", True),
+            patch("visual_explainer.terminal.get_console", return_value=mock_console),
+        ):
+            results, _ = await _run_execute_loop(
+                prompts,
+                config,
+                sample_internal_config,
+                sample_concept_analysis,
+                sample_style_config,
+                temp_output_dir,
+                image_generator,
+                image_evaluator,
+                quiet=False,
+                json_output=False,
+            )
+
+        by_num = {r.image_number: r for r in results}
+        assert by_num[1].status == "complete"
+        assert by_num[2].status == "failed"
+        printed = " ".join(str(c.args[0]) for c in mock_console.print.call_args_list)
+        assert "Image 1/2 complete" in printed
+        assert "Image 2/2 failed" in printed
+
+    async def test_generate_single_image_concurrent_returns_result_and_count(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        temp_output_dir,
+    ):
+        from visual_explainer.reporting import ConcurrentGenerationProgress
+
+        image_generator = MagicMock()
+        image_generator.generate_image = AsyncMock(return_value=_success_result(1))
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image = MagicMock(
+            return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
+        )
+        prompt_generator = MagicMock()
+        progress = ConcurrentGenerationProgress(
+            1, sample_generation_config.max_iterations, quiet=True
+        )
+
+        result, api_calls = await _generate_single_image(
+            sample_image_prompt,
+            sample_generation_config,
+            sample_internal_config,
+            sample_concept_analysis,
+            sample_style_config,
+            "Test_Style",
+            prompt_generator,
+            temp_output_dir,
+            image_generator,
+            image_evaluator,
+            progress,
+            concurrent=True,
+        )
+
+        assert result.image_number == 1
+        assert result.status == "complete"
+        assert result.final_attempt == 1
+        assert api_calls == 2
+        assert (temp_output_dir / "image-01" / "final.jpg").read_bytes() == b"img-1"
+
+
+class TestConcurrentGenerationProgressReporter:
+    """Unit coverage for the concurrency-safe progress reporter itself."""
+
+    def test_quiet_mode_suppresses_all_lines(self):
+        from visual_explainer.reporting import ConcurrentGenerationProgress
+
+        mock_console = MagicMock()
+        with (
+            patch("visual_explainer.terminal.RICH_AVAILABLE", True),
+            patch("visual_explainer.terminal.get_console", return_value=mock_console),
+        ):
+            progress = ConcurrentGenerationProgress(3, 5, quiet=True)
+
+        # Per-attempt hooks are always no-ops.
+        progress.start_attempt(1)
+        progress.update_status("Generating...")
+        progress.show_evaluation(_make_evaluation(0.9, EvaluationVerdict.PASS))
+        # Discrete per-image lines are suppressed when quiet.
+        progress.start_image(1, "One")
+        progress.complete_image(1, 2, 0.9)
+        progress.fail_image(2, "Two")
+
+        mock_console.print.assert_not_called()
+
+    def test_non_quiet_mode_emits_lines_with_correct_pluralization(self):
+        from visual_explainer.reporting import ConcurrentGenerationProgress
+
+        mock_console = MagicMock()
+        with (
+            patch("visual_explainer.terminal.RICH_AVAILABLE", True),
+            patch("visual_explainer.terminal.get_console", return_value=mock_console),
+        ):
+            progress = ConcurrentGenerationProgress(2, 5, quiet=False)
+
+        progress.start_image(1, "One")
+        progress.complete_image(1, 1, 0.9)  # best_attempt 1 -> singular "1 attempt"
+        progress.complete_image(2, 3, 0.8)  # best_attempt 3 -> plural "3 attempts"
+        progress.fail_image(2, "Two")
+        # Per-attempt hooks stay no-ops even when not quiet.
+        progress.start_attempt(1)
+        progress.update_status("ignored")
+        progress.show_evaluation(_make_evaluation(0.9, EvaluationVerdict.PASS))
+
+        printed = " ".join(str(c.args[0]) for c in mock_console.print.call_args_list)
+        assert "Image 1/2 started" in printed
+        assert "(score 90%, 1 attempt)" in printed
+        assert "(score 80%, 3 attempts)" in printed
+        assert "Image 2/2 failed" in printed

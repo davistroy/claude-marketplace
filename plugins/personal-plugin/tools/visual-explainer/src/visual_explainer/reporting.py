@@ -10,6 +10,7 @@ so patches on ``visual_explainer.terminal.<symbol>`` intercept every call.
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -479,6 +480,109 @@ class GenerationProgress:
             self.console.print(
                 f"\n[green]Image {image_number} complete.[/green] Best version: Attempt {best_attempt} ({score:.0%})"
             )
+
+    def fail_image(self, image_number: int, title: str) -> None:
+        """Mark image as failed.
+
+        The rich serial reporter renders nothing here (failures surface in the
+        completion summary), preserving the original serial output. It exists so
+        both reporters expose the same surface and the generation loop can call
+        ``fail_image`` polymorphically.
+
+        Args:
+            image_number: Image number (1-indexed).
+            title: Image title.
+        """
+
+
+class ConcurrentGenerationProgress:
+    """Concurrency-safe progress reporter for parallel image generation.
+
+    ``GenerationProgress`` drives a single shared Rich live spinner and tracks
+    one "current" image/attempt. That model is fundamentally single-active-image:
+    when several images generate concurrently, interleaved ``start_attempt`` /
+    ``update_status`` calls clobber the shared ``current_image`` /
+    ``current_attempt`` state and produce garbled output.
+
+    This reporter avoids that by emitting only discrete, self-contained
+    per-image lines — ``start_image`` / ``complete_image`` / ``fail_image``,
+    each guarded by a lock so a line is never split across concurrent emitters.
+    It mirrors the method names of ``GenerationProgress`` so the generation loop
+    can call the same methods on either reporter (dispatch is polymorphic), and
+    the per-attempt render hooks (``start_attempt`` / ``update_status`` /
+    ``show_evaluation``) are no-ops here — driving a shared live render from
+    interleaved coroutines is exactly what is unsafe. The loop additionally
+    gates the per-attempt spinner calls behind its ``concurrent`` flag, so those
+    no-ops are belt-and-suspenders rather than the sole safeguard.
+    """
+
+    def __init__(self, total_images: int, max_iterations: int, quiet: bool = False) -> None:
+        """Initialize the concurrency-safe progress reporter.
+
+        Args:
+            total_images: Total number of images to generate.
+            max_iterations: Maximum iterations per image (kept for signature
+                parity with ``GenerationProgress``).
+            quiet: If True, suppress all output.
+        """
+        self.total_images = total_images
+        self.max_iterations = max_iterations
+        self.quiet = quiet
+        self.console = terminal.get_console() if terminal.RICH_AVAILABLE else None
+        self._lock = threading.Lock()
+
+    # -- Per-attempt live-render hooks are intentional no-ops ----------------
+    # ``update_status`` / ``show_evaluation`` are invoked by _evaluate_and_refine
+    # on whatever progress object it receives; ``start_attempt`` is gated out by
+    # the loop. Driving a shared live render from interleaved coroutines is
+    # unsafe, so the concurrent reporter renders nothing at attempt granularity.
+
+    def start_attempt(self, attempt: int) -> None:
+        """No-op in concurrent mode (no shared per-attempt spinner)."""
+
+    def update_status(self, status: str) -> None:
+        """No-op in concurrent mode (no shared live status line)."""
+
+    def show_evaluation(self, result: EvaluationResult) -> None:
+        """No-op in concurrent mode (no shared per-attempt evaluation render)."""
+
+    # -- Discrete, self-contained per-image lines (safe to interleave) -------
+
+    def start_image(self, image_number: int, title: str) -> None:
+        """Emit a single 'started' line for an image."""
+        if self.quiet or self.console is None:
+            return
+        with self._lock:
+            self.console.print(
+                f"[dim]Image {image_number}/{self.total_images} started:[/dim] {title}"
+            )
+
+    def complete_image(self, image_number: int, best_attempt: int, score: float) -> None:
+        """Emit a single 'completed' line for an image."""
+        if self.quiet or self.console is None:
+            return
+        plural = "s" if best_attempt != 1 else ""
+        with self._lock:
+            self.console.print(
+                f"[green]Image {image_number}/{self.total_images} complete[/green] "
+                f"[dim](score {score:.0%}, {best_attempt} attempt{plural})[/dim]"
+            )
+
+    def fail_image(self, image_number: int, title: str) -> None:
+        """Emit a single 'failed' line for an image."""
+        if self.quiet or self.console is None:
+            return
+        with self._lock:
+            self.console.print(
+                f"[red]Image {image_number}/{self.total_images} failed:[/red] {title}"
+            )
+
+
+# Either progress reporter can be handed to the generation loop; both expose the
+# same method surface (start_image / start_attempt / update_status /
+# show_evaluation / complete_image / fail_image and ``total_images``), so the
+# loop calls them polymorphically.
+ProgressReporter = GenerationProgress | ConcurrentGenerationProgress
 
 
 def display_completion_summary(
