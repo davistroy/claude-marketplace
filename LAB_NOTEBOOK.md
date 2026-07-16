@@ -1015,3 +1015,22 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 - **Recurring failure class:** the **windows-latest matrix** caught 2 defects a Linux-only check missed — a `/etc/hostname` XXE test (E018) and a PowerShell-vs-bash mypy-ratchet step (E020). Lesson reinforced: any new multi-line CI `run:` step needs `shell: bash`; any test with an OS-specific path needs a portable fixture (`tmp_path`/`Path.as_uri()`). See [[ci-learnings]].
 - **Branch-protection self-consistency:** required checks are keyed by JOB NAME, so every workflow edit (Phases 4, 8) had to preserve job names byte-for-byte; the Python-matrix expansion (PLAT-012) was deferred precisely because it would rename them.
 - **Open follow-ups (deferred, not lost):** SE-11 (oversized-command extraction), PLAT-012 (CI Python matrix + coordinated protection update), PERF-01 wiring (parallel image gen + memory cap), and the plan's explicit scope-outs (cli.py decomposition, full 39-skill eval corpus, visual-explainer floor→85%), plus a possible coordinated version bump to signal the hardening release.
+
+---
+
+### Entry 025 — Release personal-plugin 11.0.0 (arch-review hardening) [plugin] [build] [decision]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `689842c` (branch-protected), branch `release/personal-plugin-11.0.0`, personal-plugin v10.3.0 pre-release
+
+**Objective:** Bump personal-plugin **10.3.0 → 11.0.0** (MAJOR) to signal the arch-review hardening as a proper release, rather than shipping materially-changed skills/tools under the same 10.3.0. Lockstep plugin.json + marketplace.json bump; CHANGELOG 11.0.0 sections in root + plugin changelogs summarizing Entries 017–024. Merge on green CI, update installed cache.
+
+**Hypothesis:** MAJOR is the correct SemVer tier because the remediation changed user-facing/interface behavior: visual-explainer's `--concurrency` CLI flag was REMOVED (8.1); ~15 skills' + 7 commands' `allowed-tools` were narrowed (3.1) — a capability-grant change; 4 fleet skills gained `disable-model-invocation: true` (3.2) — they're no longer model-triggerable; tool internals hardened (XXE/SSRF/`.env`/atomic writes). Only personal-plugin is bumped (bpmn-plugin 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0 unchanged — marketplace_version is not bumped for single-plugin updates per CLAUDE.md). Expect `claude plugin validate --strict` exit 0, version-sync gate green (plugin.json == marketplace.json == 11.0.0), all 18 CI checks green under branch protection, squash-merge, cache update 10.3.0→11.0.0.
+
+**Rollback Plan:** All work on branch `release/personal-plugin-11.0.0`; `git branch -D` reverts pre-merge. Version/CHANGELOG edits git-tracked. Installed cache is rebuildable API-managed state (D19) — `claude plugin update personal-plugin@troys-plugins` re-syncs. Post-merge `git revert <sha>`.
+
+**Actions & Results:**
+
+1. Branch created; Entry 025 logged (this entry) before any commit.
+
+**Status:** IN PROGRESS — bumping + CHANGELOG; closed with the PR number/merge SHA in the follow-up close-docs PR (branch protection blocks direct-to-main).

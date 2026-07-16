@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.0.0] - 2026-07-16
+
+Architecture-review hardening release (8-phase remediation, LAB_NOTEBOOK Entries 017–024). MAJOR: interface/capability changes below.
+
+### Changed (breaking)
+- **visual-explainer:** removed the inert `--concurrency` CLI flag + `GenerationConfig.concurrency` field (the concurrent code path was never called; generation was always serial). *(PERF-01)*
+- **Tool permissions:** narrowed `allowed-tools` from unscoped `Bash` to specific `Bash(<cmd>:*)` scopes across ~16 skills + 7 commands (3 skills kept broad with justification). *(SEC-05)*
+- **Fleet skills:** `spark-recon`, `jetson-recon`, `spark-audit`, `jetson-audit` are now `disable-model-invocation: true` (user-invoke-only) with explicit trust-boundary sections — they can no longer be auto-triggered by injected content. *(SEC-01)*
+
+### Security
+- bpmn2drawio BPMN parser hardened against XXE (no external entities/DTD/network); `lxml>=5.0,<7`. *(DA-01/SE-02/SEC-02)*
+- visual-explainer: SSRF guard on URL fetch (blocks private/link-local/metadata IPs); `.env` key writes now `chmod 0600` + warning (ADR-0003 amended); atomic checkpoint writes. *(SEC-03/SEC-04/DA-02)*
+- Research/brain-entry curl calls: connect/max timeouts + submit status-checks (fast-fail) + Gemini key moved to header. *(INT-01/02/03)*
+- SECURITY.md: data-egress/confidentiality policy + supply-chain controls sections.
+
+### Added
+- 14 skills gained `## Error Handling` sections; error-classification for Gemini backoff uses typed exceptions.
+
+### Fixed
+- Contradictory test skips un-gated (full-pipeline + resize now run in CI). *(QA-07/08)*
+
 ## [personal-plugin v10.3.0] - 2026-07-16
 
 ### Added
