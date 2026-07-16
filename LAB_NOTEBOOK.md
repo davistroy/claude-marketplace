@@ -32,6 +32,7 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D22 | Distribution safety = branch-protection-only (required CI checks + PR-required 0-approvals + enforce_admins=false), NOT a stable/tagged release channel (ADR-0007, Accepted) | 2026-07-16 | ACTIVE | E017 | Stable/tagged channel + consumer pinning — rejected as disproportionate for a solo marketplace; required approving review — rejected (bus factor 1 deadlock); status quo — rejected (the Critical PLAT-001) |
 | D23 | slide-gen = external-dependency plugin (the `sg` engine stays in the private `davistroy/slide-generator` repo) with a fail-fast preflight, NOT vendored in-tree (ADR-0008, Accepted) | 2026-07-16 | ACTIVE | E022 | Vendor engine per ADR-0002 — rejected (large cross-repo import + sync burden); deprecate slide-gen — rejected (actively used by owner). Consequence: owner-only until slide-generator is public |
 | D24 | mypy enforced as a count-RATCHET (baselines bpmn 57 / visual-explainer 101, fail on net-new errors) rather than zeroing the 152 pre-existing errors | 2026-07-16 | ACTIVE | E020 | Full 152-error cleanup — deferred (disproportionate, risks behavior changes); leave advisory (continue-on-error) — rejected (the SE-04/QA-05/PLAT-006 finding). Tighten baseline toward 0 over time |
+| D25 | Dependabot GitHub-Actions version bumps are MERGED as-is (they update both the pinned SHA and the `# vN` comment, preserving Phase-4 SHA-pinning), NOT closed. Corrects Action Item A1's premise. | 2026-07-16 | ACTIVE | E026 | Close + let dependabot "re-propose SHA bumps" (A1's plan) — rejected: dependabot's bump ALREADY is the SHA bump; closing just loses the update. Pin to floating `# vN` tags — rejected (defeats supply-chain pinning) |
 
 Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#)
 
@@ -43,7 +44,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| — | (none) | | |
+| A2 | **Deferred remediation items → now tracked as GitHub issues #125–#131 (P1–P7).** #125 P1 decompose `cli.py`; #126 P2 grow eval corpus; #127 P3 visual-explainer floor→85%; #128 P4 PERF-01 wiring; #129 P5 tighten mypy baselines; #130 P6 PLAT-012 CI matrix; #131 P7 SE-11. **Going forward all tasks/work are managed from the GitHub issues list** (user directive 2026-07-16). Full rationale: `arch-review/reports/ultra-plan-analysis.md` + Entry 024 | 2026-07-16 | post-E025 session |
 
 ### Completed
 
@@ -69,6 +70,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C18 | Author `clear-prep` skill (context-clear handoff) + refresh 4-version-stale Current Baseline (prime finding); `claude plugin validate --strict` passed | 2026-07-16 | 2026-07-16 | E015 |
 | C19 | Ship personal-plugin 10.3.0 (clear-prep) via PR #108 — squash-merged `df33eef`, all 25 checks green both OSes, cache updated 10.2.0→10.3.0; folded a one-line setuptools-CVE (PYSEC-2026-3447) CI hygiene fix to unblock the audit gate | 2026-07-16 | 2026-07-16 | E016 |
 | C20 | Execute the 8-phase arch-review remediation (IMPLEMENTATION_PLAN v9, 32 items) via /implement-plan — one branch+PR+merge per phase (PRs #109/#110/#111/#112/#118/#119/#120/#121), all 18 checks green each after 2 Windows fix rounds; merges `8a2988a→039c2cc→c093904→7fe821d→99d0610→9cf8963→e3bf0a4→0e0895c`. Deferred: SE-11, PLAT-012, PERF-01-wiring + plan scope-outs | 2026-07-16 | 2026-07-16 | E017–E024 |
+| C21 | **Dependabot triage (A1)** — 5 merged (#104 google-genai 2.11 MAJOR verified-safe, #113/#114/#115 SHA-pinned action bumps, #116 bpmn2drawio group), 1 closed with root-cause (#117 broken pydantic/pydantic-core lockfile). main `37868fb→6bf2d84`, all tool lockfiles CVE-clean. Course-corrected A1's plan (see D25) | 2026-07-16 | 2026-07-16 | E026 |
 
 ---
 
@@ -112,7 +114,8 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 - **bpmn-plugin version:** 4.2.0 (2 skills, bpmn2drawio Python tool)
 - **slide-gen version:** 1.2.0 (9 skills, 7-step presentation pipeline)
 - **Git:** clean, main branch, synced with `origin/main` (2026-07-16)
-- **Last commit:** `fbb1437` — personal-plugin 11.0.0 arch-review hardening release (PR #123); remediation Entries 017–025, see C20
+- **Last commit:** `6bf2d84` — deps: google-genai 1.75→2.11 MAJOR (PR #104), atop the dependabot triage merges #113/#114/#115/#116 (E026/C21). 11.0.0 release is `fbb1437` (PR #123); remediation Entries 017–025, see C20. Dependency queue cleared; all 3 tool lockfiles CVE-clean. Next: deferred issues #125–#131 (backlog burndown, A2)
+- **Dependencies:** GitHub Actions SHA-pinned at v6/v7 (checkout/setup-python/setup-node); visual-explainer on google-genai **2.11.0** (verified API-compatible, E026); pydantic 2.13.4 / pydantic-core 2.46.4 (lockstep — do not bump independently, D25/E026)
 - **Arch-review remediation (2026-07-16):** 8-phase plan (32 items) COMPLETE. Branch protection now ENFORCED on `main` (14 required checks, PR-required, `enforce_admins=false`); CI gates hardened (per-tool tests linted, mypy count-ratchet, schema-data validation, SHA-pinned actions, pip-audit scoped, xdist); tool code hardened (XXE, SSRF, `.env` 0600, atomic writes); injection surface reduced (Bash scoped in 23 files, 4 fleet skills user-invoke-only); slide-gen honest (ADR-0008 external-dep + preflight); egress/supply-chain policy in SECURITY.md; cruft removed. **No plugin version bumps** — these were hardening changes, not feature releases (personal-plugin stays 10.3.0 / bpmn 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0); autoUpdate propagates content regardless of version. Deferred (documented): SE-11, PLAT-012, PERF-01 wiring, cli.py decomposition, full eval corpus, visual-explainer floor→85%.
 - **Plugin cache status:** in sync — marketplace source is GitHub (`davistroy/claude-marketplace`) with `autoUpdate: true` (see D19); cache tracks `origin/main` automatically, independent of local working tree state
 - **CI/CD:** GitHub Actions — `test.yml` (pytest matrix, per-tool coverage gates, pip-audit, JSON schema validation), `validate.yml` (plugin.json/frontmatter/version-sync checks, ruff, markdownlint)
@@ -1039,3 +1042,34 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** COMPLETE. personal-plugin **11.0.0** live on main (`fbb1437`), plugin.json == marketplace.json == 11.0.0; the arch-review hardening is now a tagged-by-version release. bpmn-plugin 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0 unchanged. Current Baseline updated below.
 **Duration:** ~15 minutes
+
+--- New session: 2026-07-16 — post-11.0.0 backlog burndown. User directive: prioritize the whole GitHub-issue backlog (dependabot PRs + deferred #125–#131) and work through it autonomously, one item at a time, stopping only when blocked or finished. This entry covers Action Item A1 (dependabot triage). ---
+
+### Entry 026 — Dependabot triage: 6 open dependency PRs [ci] [decision] [build]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `37868fb` (branch-protected, 14 required checks, `enforce_admins=false`), personal-plugin 11.0.0 / bpmn 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0. Open dep PRs: #113/#114/#115 (GitHub Actions), #116 (bpmn2drawio group), #117 (visual-explainer group), #104 (google-genai 1.75→2.11 MAJOR).
+
+**Objective:** Clear the dependabot PR queue (A1). Merge safe bumps, resolve the one blocked check, and correctly dispose the risky google-genai major bump.
+
+**Hypothesis (with A1 CORRECTION):** A1's original plan was to CLOSE #113/#114/#115 on the premise they "conflict with Phase-4 SHA-pinning." **Investigation refuted that premise:** these actions are SHA-pinned with a trailing `# vN` comment, and each dependabot PR updates *both* the pinned SHA *and* the comment (e.g. `actions/setup-python@ece7cb06…  # v6.3.0`) — it preserves the SHA-pinning discipline exactly. All three are `CLEAN` (14/14 checks green). So the corrected disposition is **MERGE #113/#114/#115**, not close. #116 (bpmn2drawio patch/minor group) is `CLEAN` → merge. #117 (visual-explainer group) is `BLOCKED` solely by a failing **Dependency Security Audit** (pip-audit) — the other 14 checks pass; hypothesis is the audit is stale/transient (branch predates a main-side scope/ignore) → rebase onto current main and re-run, merge if green. #104 (google-genai **1.75→2.11 MAJOR**) is `CLEAN` in CI but tests are fully mocked (cannot catch API breaks): typed-error contract VERIFIED intact in v2.11.0 (`APIError.code:int`, `ClientError`/`ServerError` subclasses all present at the v2.11.0 tag), but broader API surface (`genai.Client`, `types.HttpOptions/ImageConfig/GenerateContentConfig`, `client.models.generate_content`, response `.parts`/`.candidates`) is under source-level verification by a subagent → merge only if that returns SAFE, else HOLD with a documented reason. Success = green main after each merge, no CI regression, clean queue.
+
+**Rollback Plan:** Each dependabot merge is a squash/merge commit on main → `git revert <sha>` via a follow-up PR (branch-protected, so revert is itself a PR). Closing a PR is reversible (reopen). #104 HOLD is a no-op. This Entry 026 + the A1/A2 Action-Item and Current-Baseline doc edits land via a small docs PR on branch `docs/session-2026-07-16-triage`; `git branch -D` reverts pre-merge.
+
+**Actions & Results:**
+
+1. Entry 026 logged (this entry) before any merge. Verified branch protection: `strict_up_to_date=false` (no rebase needed between merges), `required_approving=0`, `enforce_admins=false` → owner can merge on green checks.
+2. **#116 / #115 / #113 / #114 → MERGED** (squash). #113/#114/#115 confirmed as correct SHA-pinned bumps (SHA + `# vN` comment both updated), 14/14 green; #116 bpmn2drawio group green. main `37868fb → e8d3317`, no conflicts (the two workflow-file PRs 3-way-merged cleanly).
+3. **#104 (google-genai 1.75→2.11 MAJOR) → MERGED** (squash), main `→ 6bf2d84`. Disposition changed from A1's "HOLD" to MERGE after two independent verifications: (a) subagent confirmed the full API surface used by `image_generator.py` — `genai.Client`, `types.HttpOptions(timeout=ms)`, `types.ImageConfig`, `types.GenerateContentConfig(image_config=…)`, `client.models.generate_content`, and response `.parts`/`.candidates`/`inline_data.data`/`finish_reason` — is unchanged at the v2.11.0 tag; the 2.0.0 breaking changes are scoped to the *Interactions API* (changelog: "GenerateContent usage is unaffected"), which this code never touches; typed-error contract (`APIError.code`, `ClientError`/`ServerError`) also intact. (b) Local `pip-audit --python 3.11` on #104's lockfile: resolves cleanly (consistent `pydantic 2.13.4` / `pydantic-core 2.46.4`), "No known vulnerabilities found" against today's advisory DB. pyproject floor widened to `google-genai>=1.0.0,<3.0.0`.
+4. **#117 (visual-explainer minor group) → CLOSED.** Root-caused the BLOCKED "Dependency Security Audit": *not* a CVE — a broken lockfile. Dependabot's grouped bump raised `pydantic-core` 2.46.4→**2.47.0** but left `pydantic` at 2.13.4, which pins `pydantic-core==2.46.4` exactly → `ResolutionImpossible` (reproduced locally on Python 3.11, matching CI). pip-audit fails because it can't install the inconsistent set to scan it. Closed with an explanatory comment; #104 regenerates this same lockfile with a consistent pair, so dependabot will re-propose the residual valid minors (anyio 4.14.1→4.14.2, google-auth 2.55.2→2.56.0) against the post-#104 baseline.
+5. Post-merge verification: `pip-audit` clean on all three tool lockfiles on main `6bf2d84`; the docs PR carrying this entry runs the full 14-check suite against the merged state (combined verification, since `strict=false` skipped a merged-state re-run).
+
+**What Worked:** Reproducing pip-audit locally via `uvx --python 3.11 pip-audit --requirement <lockfile>` (system `python3-venv` is absent, but `uv` is present) gave a definitive root cause in seconds where the CI logs were unretrievable via `gh run --log-failed`. Verifying a major-bump's real API surface at the pinned source tag (not just the changelog) is what flipped #104 from HOLD to a confident MERGE.
+
+**Findings (course-corrections vs the A1 plan):**
+- **A1 was wrong to propose closing #113/#114/#115.** SHA-pinned actions are updated *correctly* by dependabot (bumps both the pinned SHA and the trailing `# vN` comment). They preserve the pin discipline and should merge, not close. See D25.
+- **A1's HOLD on #104 was over-cautious given verification is cheap.** Source-tag API verification + local audit resolved it to a safe MERGE. Kept the HOLD discipline (didn't merge blind) but discharged it with evidence.
+- **Dependabot grouped updates can split tightly-coupled pins** (`pydantic`/`pydantic-core` are lockstep-versioned). This produces an un-installable lockfile that surfaces as a pip-audit *install* failure, not a vuln. Pattern logged to ci-learnings + CLAUDE.md.
+
+**Status:** COMPLETE. Queue cleared: 5 merged (#104/#113/#114/#115/#116), 1 closed with rationale (#117). main `6bf2d84`, all tool lockfiles CVE-clean, google-genai on 2.11.0. A1 → Completed (C21). External contributor PRs #97/#98 are out of scope for this triage.
+**Duration:** ~35 minutes
