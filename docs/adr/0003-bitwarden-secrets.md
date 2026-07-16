@@ -41,3 +41,18 @@ The marketplace provides helper scripts at `~/.claude/scripts/` for common opera
 - `.env` files still serve a purpose as documentation: they show which environment variables are expected and where to find the actual values
 - This pattern is specific to the repository owner's workflow; other marketplace users who fork or install plugins would need to adapt the secret retrieval mechanism to their own vault or secret manager
 - The Bitwarden access token itself (`TROY` environment variable) must be stored as a machine-level environment variable, creating a bootstrap dependency
+
+## Amendment: Sanctioned exception -- standalone-tool local runtime
+
+**Date:** 2026-07-16
+
+The `visual-explainer` tool (`plugins/personal-plugin/tools/visual-explainer/`) is a bundled, distributable Python CLI that end users run standalone -- it is not exclusively part of the repository owner's own Bitwarden-provisioned workflow. Requiring the `bws` CLI and a pre-populated Bitwarden vault before a first-run user can generate a single image is impractical: the tool's own setup wizard exists precisely to lower that first-run barrier, and forcing an external secrets manager onto every downstream installer contradicts that goal.
+
+To reconcile this with the Decision above, this ADR is amended to sanction a narrow exception:
+
+- The `visual-explainer` API key setup wizard (`api_setup.py::create_env_file`) MAY write `GOOGLE_API_KEY` and `ANTHROPIC_API_KEY` to a local `.env` file at runtime, as a first-run convenience.
+- The written file MUST be mode `0600` (owner read/write only) on platforms that support POSIX permissions; `chmod` failures on platforms where it is unsupported or a no-op (e.g. some Windows filesystems) are tolerated and do not block key storage.
+- The file MUST remain gitignored (`_update_gitignore` continues to run on every write) and MUST never be committed.
+- The wizard MUST print an explicit warning at write time that keys are stored locally **unencrypted** and that Bitwarden is the preferred store per this ADR.
+
+This exception is intentionally narrow: it applies only to this tool's local runtime `.env`, not to the Anthropic/OpenAI/Google credentials used by the marketplace's own plugins and skills, which continue to follow the Decision above (Bitwarden + `bws` + `/unlock`). The exception does not change this ADR's Status -- Bitwarden remains the accepted, preferred mechanism everywhere it is practical to require it.

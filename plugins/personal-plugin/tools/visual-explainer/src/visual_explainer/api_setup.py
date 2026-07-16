@@ -287,8 +287,23 @@ def create_env_file(
     # Write the file
     path.write_text(content, encoding="utf-8")
 
+    # Harden file permissions: owner read/write only (not world-readable).
+    # On some platforms (e.g. certain Windows filesystems), chmod is a no-op
+    # or unsupported -- treat that as best-effort, not fatal.
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
     # Ensure .gitignore includes .env
     _update_gitignore(path.parent)
+
+    print(
+        "WARNING: API keys are stored locally UNENCRYPTED in "
+        f"{path}. Bitwarden is the preferred credential store per project "
+        "policy (see ADR-0003) -- this local .env is a narrow, sanctioned "
+        "convenience for running this standalone tool."
+    )
 
     return path
 

@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "lxml>=4.9.0",
+    "lxml>=5.0,<7",
     "networkx>=3.0",
     "pyyaml>=6.0",
 ]

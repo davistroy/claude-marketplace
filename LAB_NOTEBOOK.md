@@ -829,4 +829,29 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 3. **Item 1.3:** `.github/CODEOWNERS` (`* @davistroy`, ownership-clarity not a review gate) + SECURITY.md SLAs softened to best-effort + RUNBOOK cross-ref (Sonnet subagent).
 4. **Item 1.4 (D19 correction):** done by orchestrator — see the D19 row correction note in the Decision Log above.
 
-**Status:** IN PROGRESS — all 4 items implemented; PR pending (CI must go green under the just-enabled branch protection). Entry closed with the squash-merge SHA at the start of the Phase 2 branch.
+**Status:** COMPLETE. PR #109 squash-merged as `8a2988a`, all 18 checks green under the newly-enabled branch protection (proving the gate is enforced end-to-end: the protection allowed the merge only after checks passed). Branch protection live on `main` (14 required checks, PR-required 0-approvals, `enforce_admins=false`). The Critical finding PLAT-001 is closed. Local main fast-forwarded 29096cc→8a2988a.
+**Duration:** ~25 minutes
+
+---
+
+### Entry 018 — Implement-Plan Phase 2: Tool Security Hardening (Code) [skill] [decision] [debug]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `8a2988a` (branch-protected), branch `impl/phase-2-security`, orchestrator=Opus, implementers=Sonnet
+
+**Objective:** Execute IMPLEMENTATION_PLAN.md Phase 2 — close the exploitable-in-code paths: (2.1) harden the bpmn2drawio lxml parser against XXE + cap the `lxml>=4.9.0` floor to `>=5.0,<7`; (2.2) harden visual-explainer's `.env` key write (chmod 600 + warning) and amend ADR-0003 to sanction the local-runtime path (decision D3); (2.3) add an SSRF guard to `concept_analyzer.fetch_url`; (2.4) switch Gemini backoff classification from `str(e)` substring-matching to typed exceptions; (2.5) make checkpoint/JSON writes atomic (temp+`os.replace`, add `schema_version`) and use the full-length cache hash key. Ship as one PR, merge on green CI.
+
+**Hypothesis:** All five are additive/hardening changes to Python tool code with existing test suites and coverage floors (bpmn2drawio 90%, visual-explainer 65%) as the regression guard. Expect: new XXE regression test (parser rejects external SYSTEM entities) and SSRF test (metadata IP blocked) pass; the 585 bpmn2drawio tests + visual-explainer suite stay green at/above floor; `ruff` clean. File-disjoint parallelization: batch1 [2.1 bpmn2drawio, 2.3 concept_analyzer.py, 2.4 image_generator.py] parallel; then [2.2 api_setup.py+ADR-0003, 2.5 checkpoint-writers+concept_analyzer cache-key] — 2.5 sequenced after 2.3 since both touch concept_analyzer.py. Risk: hardened lxml parser could reject legit BPMN using DTDs (low — BPMN rarely does; 585-test suite guards).
+
+**Rollback Plan:** All work on branch `impl/phase-2-security` (never main); `git branch -D` reverts pre-merge. Every file git-tracked; coverage floors + the new security tests guard regressions. Post-merge `git revert <sha>`.
+
+**Actions & Results:**
+
+1. **2.1 (lxml/XXE):** module-level hardened `XMLParser(resolve_entities=False, no_network=True, load_dtd=False, dtd_validation=False, huge_tree=False)` threaded through both `parse`/`fromstring`; `pyproject.toml` floor `lxml>=5.0,<7`; new `test_xxe.py` (3 tests) — **588 passed, 92% coverage**; empirically verified `/etc/hostname` content never leaks (entity unresolved / `BPMNParseError`).
+2. **2.3 (SSRF):** `_check_host_is_safe`/`_validate_url_target`/`SSRFError` in `concept_analyzer.py` resolve via `getaddrinfo` and block private/loopback/link-local/reserved/multicast (incl. 169.254.169.254) + non-http(s); `fetch_url_content` disables auto-redirects and re-validates each hop (≤5); new `test_ssrf.py` (23 tests) — **634 passed, 67.9%**.
+3. **2.4 (typed backoff):** new `_classify_exception` prefers typed `google.genai.errors` `.code` (429→rate, 5xx→retry) + `httpx.TimeoutException`, string-match fallback retained; 4 new tests — **611 passed, 66%**; `image_generator.py` at 87%.
+4. **2.2 (.env + ADR-0003):** `_create_env_file` now `chmod 0600` + explicit plaintext-storage warning (OSError-tolerant); ADR-0003 amended with a "Sanctioned exception: standalone-tool local runtime" section (Status still Accepted); README security note — **634 passed, 68%**.
+5. **2.5 (atomic + cache key):** `_atomic_write_text` (temp+`os.replace`) applied to checkpoint/metadata/eval/concepts writers in both `output.py` and the live `cli.py` path; `schema_version` on checkpoints (tolerated-if-absent on load); concept cache key now full SHA-256 (was `[:16]`); 2 new tests incl. interrupted-write-doesn't-corrupt — **636 passed, 68%**.
+6. **Orchestrator pre-commit gate:** `uvx ruff@0.14.10 check` surfaced one F841 (unused `family` from the SSRF `getaddrinfo` unpack) + 2 files needing `ruff format` (concept_analyzer.py, output.py) — fixed with `ruff format` + `--fix --unsafe-fixes`; re-verified ruff check + format clean (CI src scope), markdownlint clean. (Same subagents-skip-ruff-format class as E013.)
+
+**Status:** IN PROGRESS — all 5 items implemented + tool suites green above floors (bpmn 92% ≥90, visual-explainer 68% ≥65); PR pending. Entry closed with the squash-merge SHA at the start of the Phase 3 branch. Pyright surfaced a pre-existing `int.split` note at concept_analyzer.py:440 and many env import-resolution false positives (analyzer lacks the tools' venv) — not introduced here; mypy is advisory for visual-explainer until Phase 4.2.

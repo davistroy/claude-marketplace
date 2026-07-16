@@ -19,11 +19,14 @@ Usage:
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import re
+import socket
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import anthropic
 
@@ -195,7 +198,9 @@ def get_cache_path(content_hash: str, cache_dir: Path) -> Path:
     Returns:
         Path to the cache file.
     """
-    return cache_dir / f"concepts-{content_hash[:16]}.json"
+    # Use the full SHA-256 hash (not a truncated prefix) to avoid collisions
+    # between distinct documents that happen to share a 64-bit prefix (DA-05).
+    return cache_dir / f"concepts-{content_hash}.json"
 
 
 def load_from_cache(
@@ -400,8 +405,88 @@ def read_pdf_file(path: Path) -> str:
         raise ValueError(f"Could not read PDF file {path}: {e}") from e
 
 
+class SSRFError(ValueError):
+    """Raised when a URL target is blocked by the SSRF guard."""
+
+
+# Maximum redirect hops manually followed while re-validating each hop's
+# destination. Prevents unbounded redirect chains as well as redirect-based
+# SSRF (a public URL redirecting to a private/internal address).
+_MAX_REDIRECT_HOPS = 5
+
+
+def _check_host_is_safe(hostname: str) -> None:
+    """Resolve a hostname and reject disallowed (private/internal) targets.
+
+    Args:
+        hostname: The hostname to resolve and check.
+
+    Raises:
+        SSRFError: If the host can't be resolved, or resolves to a private,
+            loopback, link-local, reserved, multicast, or unspecified address
+            (including the cloud metadata address 169.254.169.254).
+    """
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as e:
+        raise SSRFError(f"Could not resolve host: {hostname}") from e
+
+    if not addr_infos:
+        raise SSRFError(f"Could not resolve host: {hostname}")
+
+    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
+        raw_addr = sockaddr[0]
+        # Strip IPv6 zone id (e.g. "fe80::1%eth0") before parsing.
+        raw_addr = raw_addr.split("%", 1)[0]
+
+        try:
+            ip = ipaddress.ip_address(raw_addr)
+        except ValueError as e:
+            raise SSRFError(f"Could not parse resolved address for {hostname}: {raw_addr}") from e
+
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise SSRFError(
+                f"Blocked URL target: {hostname} resolves to disallowed address {raw_addr}"
+            )
+
+
+def _validate_url_target(url: str) -> None:
+    """Validate that a URL uses an allowed scheme and a safe destination host.
+
+    Args:
+        url: The absolute URL to validate.
+
+    Raises:
+        SSRFError: If the scheme isn't http/https, the URL has no hostname,
+            or the hostname resolves to a disallowed address.
+    """
+    parsed = urlparse(url)
+
+    if parsed.scheme not in ("http", "https"):
+        raise SSRFError(f"Unsupported URL scheme: {parsed.scheme!r}. Only http/https are allowed.")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise SSRFError(f"URL has no hostname: {url}")
+
+    _check_host_is_safe(hostname)
+
+
 async def fetch_url_content(url: str, timeout: float = 30.0) -> str:
     """Fetch and extract text content from a URL.
+
+    Applies an SSRF guard: the initial URL and every redirect hop's
+    destination are resolved and checked against private, loopback,
+    link-local, reserved, multicast, and unspecified address ranges
+    (including the cloud metadata address 169.254.169.254) before any
+    request is made to that destination.
 
     Args:
         url: URL to fetch.
@@ -412,6 +497,8 @@ async def fetch_url_content(url: str, timeout: float = 30.0) -> str:
 
     Raises:
         ImportError: If httpx or beautifulsoup4 is not installed.
+        SSRFError: If the URL or a redirect target resolves to a blocked
+            destination, or uses a disallowed scheme.
         ValueError: If URL can't be fetched or parsed.
     """
     if not URL_AVAILABLE:
@@ -420,15 +507,37 @@ async def fetch_url_content(url: str, timeout: float = 30.0) -> str:
             "Install with: pip install httpx beautifulsoup4"
         )
 
+    _validate_url_target(url)
+
+    current_url = url
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-            response = await client.get(
-                url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; VisualExplainer/1.0)",
-                },
-            )
-            response.raise_for_status()
+        # follow_redirects is intentionally disabled: each redirect hop's
+        # destination is manually resolved and re-validated below before it
+        # is followed, closing the SSRF hole a naive follow_redirects=True
+        # would leave open (e.g. a public URL redirecting to a private IP).
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+            for _ in range(_MAX_REDIRECT_HOPS + 1):
+                response = await client.get(
+                    current_url,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (compatible; VisualExplainer/1.0)",
+                    },
+                )
+
+                if response.is_redirect:
+                    location = response.headers.get("location")
+                    if not location:
+                        response.raise_for_status()
+                        break
+                    next_url = str(response.url.join(location))
+                    _validate_url_target(next_url)
+                    current_url = next_url
+                    continue
+
+                response.raise_for_status()
+                break
+            else:
+                raise ValueError(f"Too many redirects while fetching URL: {url}")
 
             content_type = response.headers.get("content-type", "")
             if "text/html" not in content_type and "text/plain" not in content_type:

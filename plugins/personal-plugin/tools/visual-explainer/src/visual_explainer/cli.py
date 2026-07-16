@@ -958,6 +958,32 @@ def _generate_prompts(
     return prompts, prompt_generator, api_calls
 
 
+def _atomic_write_text(filepath: Path, content: str, encoding: str = "utf-8") -> None:
+    """Write text to a file atomically.
+
+    Writes to a temporary file in the same directory first, then atomically
+    replaces the destination with `os.replace` (atomic on both POSIX and
+    Windows). This prevents a truncated or partially-written durable file
+    (metadata.json, evaluation-NN.json, concepts.json) if the process is
+    interrupted mid-write, which would otherwise lose track of already
+    completed (and already-paid-for) generation work.
+
+    Args:
+        filepath: Destination path for the file.
+        content: Text content to write.
+        encoding: Text encoding to use.
+    """
+    import uuid
+
+    tmp_path = filepath.with_name(f".{filepath.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        tmp_path.write_text(content, encoding=encoding)
+        os.replace(tmp_path, filepath)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
 async def _evaluate_and_refine(
     gen_result: object,
     current_prompt: ImagePrompt,
@@ -1025,7 +1051,8 @@ async def _evaluate_and_refine(
 
     # Save evaluation
     eval_file = image_dir / f"evaluation-{attempt:02d}.json"
-    eval_file.write_text(
+    _atomic_write_text(
+        eval_file,
         json.dumps(eval_result.model_dump(mode="json"), indent=2),
         encoding="utf-8",
     )
@@ -1271,11 +1298,12 @@ def _save_outputs(
     }
 
     metadata_file = output_dir / "metadata.json"
-    metadata_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    _atomic_write_text(metadata_file, json.dumps(metadata, indent=2), encoding="utf-8")
 
     # Save concepts
     concepts_file = output_dir / "concepts.json"
-    concepts_file.write_text(
+    _atomic_write_text(
+        concepts_file,
         json.dumps(analysis.model_dump(mode="json"), indent=2),
         encoding="utf-8",
     )
