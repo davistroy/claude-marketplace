@@ -1118,4 +1118,24 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 6. Committed `abce39a`, opened **PR #134**. **Windows-latest CI caught 2 OS-specific test defects Linux missed** (the documented Windows-matrix value): `test_terminal.py::…test_fallthrough_to_legacy_returns_false` and `test_api_setup.py::…test_ctypes_fallback_returns_false_on_non_windows_ctypes` both `assert supports_unicode() is False` but got `True` on Windows. **Root cause:** the writers (running on Linux) relied on `ctypes.windll` being *absent* (→ AttributeError → False); on real Windows `ctypes.windll` exists and `GetConsoleOutputCP()` returns 65001 (UTF-8) → `True`. Windows coverage itself was fine (93.21% > 85). **Fix:** mock `ctypes.windll` (`create=True`) so `GetConsoleOutputCP` returns a legacy code page 437 (non-UTF8) → deterministically `False` on any host OS; renamed the api_setup test to `test_ctypes_legacy_codepage_returns_false`. (CodeQL's 2s "fail" is a non-required check — ignored.) Re-verified locally: 883 passed, 93.27%, ruff clean.
 
-**Status:** IMPLEMENTATION VERIFIED locally (883 tests, 93.27% ≥ 85 floor), Windows-defect fixed; re-pushing for CI. Tests-only + one CI-gate number — no product-code change. Reinforces the standing rule: any test touching an OS-specific path needs a portable fixture (fully mock the platform probe).
+**Status:** COMPLETE. Fix committed `e033577`, PR #134 CI green both OSes, squash-merged **`2cb6fed`**; issue #127 auto-closed. Coverage 69→**93%**, floor gate **65→85** live on main. Filed **#135** (CodeQL default-setup fails 2s on every PR — non-required/non-blocking, low-pri hygiene). Reinforces standing rule: any test touching an OS-specific path needs a portable fixture (fully mock the platform probe).
+**Duration:** ~55 minutes (6 parallel test-writers + integration + 1 Windows-portability fix round)
+
+### Entry 029 — Grow the behavioral eval corpus (#126 / P2) [test] [ci]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `2cb6fed`, branch `test/eval-corpus-expansion`. Corpus already at 35 evals (14 skills + 21 commands); `check_eval_mapping.py` (stdlib) enforces every eval maps to a live skill/command.
+
+**Objective:** Add behavioral evals for the next ~8–10 high-traffic skills that lack a dedicated eval (#126/P2, arch-review QA-03/SA-006), keeping `check_eval_mapping.py` green and following the established `.eval.md` format.
+
+**Hypothesis:** The gap (computed: skills whose name is not a `command:`/`maps_to:` target of any eval) is 9 personal-plugin + 9 slide-gen skills; bpmn-plugin already has coverage (the issue's "bpmn zero" is stale). Highest-value tranche = **slide-gen ×6** (sg-research/outline/draft/optimize/build/full-workflow — a whole-plugin surface from zero) + **personal-plugin ×4** (clear-prep, new-project, archive-project, wiki — user-facing). 10 new `evals/skills/<name>.eval.md` files, each a real behavioral contract (Purpose/Fixtures/Setup/Scenarios with Must/Should/Must-NOT + Rubric) derived from the actual SKILL.md, `command: <name>` + `type: skill` frontmatter. Written by 4 parallel eval-writers (distinct new files → no conflict). Expect `python3 scripts/check_eval_mapping.py` exit 0, markdownlint clean, all CI green. Success = 10 evals added, mapping-check green, no fixture needed (these skills are self-contained or use their own inputs).
+
+**Rollback Plan:** New-files-only additions in `evals/skills/` on branch `test/eval-corpus-expansion`; `git branch -D` pre-merge, `git revert` post-merge. Zero product-code/CI-gate change (pure eval docs + no changes to `check_eval_mapping.py`).
+
+**Actions & Results:**
+
+1. Gap computed, format internalized (ship.eval.md template + README), Entry 029 logged before any eval written.
+2. 4 parallel sonnet-implementer eval-writers, each deriving contracts from the actual SKILL.md (not invented). **10 new `evals/skills/*.eval.md`:** slide-gen — sg-research/sg-outline/sg-draft (6 scenarios each), sg-optimize/sg-build/sg-full-workflow (6–7 each, incl. fail-fast preflight + mid-pipeline-halt + missing-artifact); personal-plugin — clear-prep (5), new-project (6), archive-project (10, incl. 2 protect-unrecoverable-work failure scenarios), wiki (11, all sub-ops: ingest/lint/query/propagate + layout detection). Writers correctly adapted to `disable-model-invocation: true` (new-project, archive-project → no proactive-trigger scenario).
+3. **Independent verification:** `python3 scripts/check_eval_mapping.py` → "45 eval file(s) all map to a live skill or command" (exit 0); exactly 10 new files, all with correct `command: <name>` + `type: skill` frontmatter; `markdownlint-cli` clean on all 10. Quality spot-check (clear-prep.eval.md) confirmed a real behavioral contract with accurate Must/Should/Must-NOT + rubric, not boilerplate — even encodes the clear-prep-vs-new-project boundary.
+
+**Status:** IMPLEMENTATION VERIFIED locally (45 evals mapped, markdownlint clean); committing + PR next. Corpus grew 35 → 45 evals; slide-gen went from zero to 6-skill coverage. Docs-only additions (no product-code, no CI-gate, no `check_eval_mapping.py` change).
