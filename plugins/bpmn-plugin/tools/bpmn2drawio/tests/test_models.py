@@ -3,9 +3,9 @@
 from bpmn2drawio.models import (
     BPMNElement,
     BPMNFlow,
-    Pool,
-    Lane,
     BPMNModel,
+    Lane,
+    Pool,
 )
 
 

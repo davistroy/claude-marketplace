@@ -1,11 +1,11 @@
 """Tests for Draw.io style mappings and style generation functions."""
 
 from bpmn2drawio.styles import (
-    STYLE_MAP,
     EDGE_STYLES,
+    STYLE_MAP,
     SWIMLANE_STYLES,
-    get_element_style,
     get_edge_style,
+    get_element_style,
 )
 from bpmn2drawio.themes import BPMNTheme, get_theme
 
@@ -75,9 +75,7 @@ class TestStyleMapDefinitions:
             "boundaryEvent",
         ]
         for event_type in event_types:
-            assert "ellipse" in STYLE_MAP[event_type], (
-                f"{event_type} missing ellipse shape"
-            )
+            assert "ellipse" in STYLE_MAP[event_type], f"{event_type} missing ellipse shape"
 
     def test_tasks_use_rounded_shape(self):
         """Task element types use rounded rectangle shape."""
@@ -166,9 +164,7 @@ class TestEdgeStyleDefinitions:
     def test_all_edge_styles_use_orthogonal_routing(self):
         """All edge styles use orthogonal edge routing."""
         for flow_type, style in EDGE_STYLES.items():
-            assert "orthogonalEdgeStyle" in style, (
-                f"{flow_type} missing orthogonal routing"
-            )
+            assert "orthogonalEdgeStyle" in style, f"{flow_type} missing orthogonal routing"
 
 
 class TestSwimlaneStyleDefinitions:
@@ -198,9 +194,7 @@ class TestSwimlaneStyleDefinitions:
     def test_swimlane_styles_contain_swimlane_flag(self):
         """All swimlane styles include the swimlane shape type."""
         for key, style in SWIMLANE_STYLES.items():
-            assert style.startswith("swimlane;"), (
-                f"{key} does not start with 'swimlane;'"
-            )
+            assert style.startswith("swimlane;"), f"{key} does not start with 'swimlane;'"
 
 
 class TestGetElementStyle:

@@ -4,9 +4,8 @@ Tests the extracted boundary event positioning, subprocess coordinate
 adjustment, and laneless pool parent assignment logic.
 """
 
-from bpmn2drawio.models import BPMNElement, BPMNModel, Pool, Lane
 from bpmn2drawio.boundary_positioner import BoundaryPositioner
-
+from bpmn2drawio.models import BPMNElement, BPMNModel, Lane, Pool
 
 # ---------------------------------------------------------------------------
 # Helper factories
@@ -53,9 +52,7 @@ def make_pool(id, name=None, process_ref=None, x=None, y=None, width=None, heigh
     )
 
 
-def make_lane(
-    id, parent_pool_id="", name=None, x=None, y=None, width=None, height=None
-):
+def make_lane(id, parent_pool_id="", name=None, x=None, y=None, width=None, height=None):
     """Create a Lane."""
     return Lane(
         id=id,
@@ -81,9 +78,7 @@ class TestPositionBoundaryEvents:
 
     def test_boundary_attached_via_property(self):
         """Boundary event uses attachedToRef property to find parent."""
-        task = make_element(
-            "task1", type="userTask", x=200, y=200, width=120, height=80
-        )
+        task = make_element("task1", type="userTask", x=200, y=200, width=120, height=80)
         boundary = make_element(
             "b1",
             type="boundaryEvent",
@@ -102,9 +97,7 @@ class TestPositionBoundaryEvents:
 
     def test_boundary_x_starts_at_20(self):
         """First boundary event x starts at offset 20."""
-        task = make_element(
-            "task1", type="userTask", x=200, y=200, width=120, height=80
-        )
+        task = make_element("task1", type="userTask", x=200, y=200, width=120, height=80)
         boundary = make_element(
             "b1",
             type="boundaryEvent",
@@ -120,9 +113,7 @@ class TestPositionBoundaryEvents:
 
     def test_multiple_boundaries_spaced_apart(self):
         """Multiple boundary events on the same task are spaced by 50px."""
-        task = make_element(
-            "task1", type="userTask", x=200, y=200, width=120, height=80
-        )
+        task = make_element("task1", type="userTask", x=200, y=200, width=120, height=80)
         b1 = make_element(
             "b1",
             type="boundaryEvent",
@@ -146,9 +137,7 @@ class TestPositionBoundaryEvents:
 
     def test_no_attached_ref_skipped(self):
         """Boundary event without attachedToRef and no ID match keeps no parent."""
-        boundary = make_element(
-            "orphan", type="boundaryEvent", x=999, y=999, width=36, height=36
-        )
+        boundary = make_element("orphan", type="boundaryEvent", x=999, y=999, width=36, height=36)
         model = BPMNModel(elements=[boundary])
 
         self._positioner().position_boundary_events(model)
@@ -158,9 +147,7 @@ class TestPositionBoundaryEvents:
     def test_id_pattern_fallback(self):
         """Boundary event falls back to ID pattern matching."""
         task = make_element("myTask", type="task", x=100, y=100, width=120, height=80)
-        boundary = make_element(
-            "myTaskBoundary", type="boundaryEvent", width=36, height=36
-        )
+        boundary = make_element("myTaskBoundary", type="boundaryEvent", width=36, height=36)
         model = BPMNModel(elements=[task, boundary])
 
         self._positioner().position_boundary_events(model)
@@ -206,9 +193,7 @@ class TestAdjustSubprocessInternalPositions:
             height=250,
             properties={"_is_subprocess": True},
         )
-        internal = make_element(
-            "int1", x=250, y=260, width=80, height=60, subprocess_id="sub1"
-        )
+        internal = make_element("int1", x=250, y=260, width=80, height=60, subprocess_id="sub1")
         model = BPMNModel(elements=[sub, internal])
 
         self._positioner().adjust_subprocess_internal_positions(model)
@@ -238,18 +223,14 @@ class TestAdjustSubprocessInternalPositions:
             properties={"_is_subprocess": True},
         )
         # Element far outside subprocess
-        internal = make_element(
-            "int1", x=500, y=500, width=80, height=60, subprocess_id="sub1"
-        )
+        internal = make_element("int1", x=500, y=500, width=80, height=60, subprocess_id="sub1")
         model = BPMNModel(elements=[sub, internal])
 
         self._positioner().adjust_subprocess_internal_positions(model)
 
         # Should be clamped to max valid position
         assert internal.x <= (200 - 80)  # subprocess width - element width
-        assert internal.y <= (
-            150 - 26 - 60
-        )  # subprocess height - header - element height
+        assert internal.y <= (150 - 26 - 60)  # subprocess height - header - element height
 
     def test_subprocess_id_from_properties(self):
         """subprocess_id can also come from properties dict."""

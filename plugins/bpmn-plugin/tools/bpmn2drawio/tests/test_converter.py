@@ -4,7 +4,6 @@ from pathlib import Path
 
 from bpmn2drawio.converter import Converter
 
-
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
@@ -117,6 +116,4 @@ class TestEndToEnd:
         result = converter.convert(FIXTURES_DIR / "with_gateway.bpmn", output_file)
 
         assert result.success
-        assert (
-            result.element_count == 6
-        )  # start, gateway, yes task, no task, merge gateway, end
+        assert result.element_count == 6  # start, gateway, yes task, no task, merge gateway, end

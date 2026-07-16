@@ -2,10 +2,9 @@
 
 from pathlib import Path
 
-from bpmn2drawio.validation import ModelValidator, ValidationWarning, validate_model
-from bpmn2drawio.models import BPMNModel, BPMNElement, BPMNFlow
+from bpmn2drawio.models import BPMNElement, BPMNFlow, BPMNModel
 from bpmn2drawio.parser import parse_bpmn
-
+from bpmn2drawio.validation import ModelValidator, ValidationWarning, validate_model
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -15,9 +14,7 @@ class TestValidationWarning:
 
     def test_warning_creation(self):
         """Test creating a validation warning."""
-        warning = ValidationWarning(
-            level="error", element_id="Task_1", message="Invalid element"
-        )
+        warning = ValidationWarning(level="error", element_id="Task_1", message="Invalid element")
 
         assert warning.level == "error"
         assert warning.element_id == "Task_1"

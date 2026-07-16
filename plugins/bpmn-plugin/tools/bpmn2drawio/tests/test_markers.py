@@ -3,12 +3,11 @@
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from bpmn2drawio.parser import parse_bpmn
 from bpmn2drawio.generator import DrawioGenerator
-from bpmn2drawio.models import BPMNElement
+from bpmn2drawio.icons import create_event_icon, create_task_icon
 from bpmn2drawio.markers import create_gateway_marker
-from bpmn2drawio.icons import create_task_icon, create_event_icon
-
+from bpmn2drawio.models import BPMNElement
+from bpmn2drawio.parser import parse_bpmn
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

@@ -1,16 +1,16 @@
 """Tests for theming system."""
 
-import pytest
 from pathlib import Path
 
-from bpmn2drawio.themes import BPMNTheme, THEMES, get_theme
+import pytest
+
 from bpmn2drawio.config import (
+    get_env_config,
     load_brand_config,
     merge_theme_with_config,
-    get_env_config,
 )
 from bpmn2drawio.exceptions import ConfigurationError
-
+from bpmn2drawio.themes import THEMES, BPMNTheme, get_theme
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

@@ -1,10 +1,11 @@
 """Tests for BPMN parser."""
 
-import pytest
 from pathlib import Path
-from bpmn2drawio.parser import parse_bpmn
-from bpmn2drawio.exceptions import BPMNParseError
 
+import pytest
+
+from bpmn2drawio.exceptions import BPMNParseError
+from bpmn2drawio.parser import parse_bpmn
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -190,7 +191,4 @@ class TestParseErrors:
         """Test that missing file raises BPMNParseError."""
         with pytest.raises(BPMNParseError) as exc_info:
             parse_bpmn("/nonexistent/file.bpmn")
-        assert (
-            "not found" in str(exc_info.value).lower()
-            or "failed" in str(exc_info.value).lower()
-        )
+        assert "not found" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower()
