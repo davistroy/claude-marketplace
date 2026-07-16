@@ -106,7 +106,6 @@ def sample_generation_config(temp_output_dir: Path) -> GenerationConfig:
         image_count=2,
         no_cache=True,
         dry_run=False,
-        concurrency=2,
     )
 
 

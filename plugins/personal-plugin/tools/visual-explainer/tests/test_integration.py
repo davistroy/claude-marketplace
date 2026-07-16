@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -108,13 +107,10 @@ def create_mock_gemini_safety_block() -> dict[str, Any]:
 class TestFullPipeline:
     """Integration tests for the complete generation pipeline."""
 
-    @pytest.mark.skipif(
-        not os.environ.get("ANTHROPIC_API_KEY"),
-        reason="Requires ANTHROPIC_API_KEY environment variable",
-    )
     @pytest.mark.asyncio
     async def test_full_pipeline_success(
         self,
+        mock_env_with_api_keys: None,
         sample_generation_config: GenerationConfig,
         sample_internal_config: InternalConfig,
         sample_style_config: StyleConfig,
@@ -124,7 +120,14 @@ class TestFullPipeline:
         mock_claude_passing_evaluation_response: dict[str, Any],
         temp_output_dir: Path,
     ):
-        """Test full pipeline from input to final images with mocked APIs."""
+        """Test full pipeline from input to final images with mocked APIs.
+
+        Fully mocked (anthropic.Anthropic and httpx.AsyncClient.post are both
+        patched) — no real network calls are made. The ``mock_env_with_api_keys``
+        fixture only satisfies the ``ANTHROPIC_API_KEY`` presence check in
+        ``call_claude_for_analysis``; it is never used to authenticate a real
+        request.
+        """
         # Setup mocks
         mock_anthropic_client = MagicMock()
 
@@ -653,52 +656,6 @@ class TestErrorRecovery:
             assert "500" in result.error_message or "Internal Server Error" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_partial_batch_failure(
-        self,
-        sample_internal_config: InternalConfig,
-        sample_image_b64: str,
-    ):
-        """Test batch generation with partial failures."""
-        image_gen = GeminiImageGenerator(
-            api_key="test-key",
-            internal_config=sample_internal_config,
-            max_concurrent=2,
-            max_retries=1,
-            base_delay_seconds=0.01,
-        )
-
-        call_count = [0]
-
-        def mock_partial_failure(prompt, aspect_ratio, image_size):
-            call_count[0] += 1
-            if call_count[0] % 2 == 0:
-                return (
-                    GenerationStatus.ERROR,
-                    None,
-                    "Simulated failure",
-                )
-            return (
-                GenerationStatus.SUCCESS,
-                base64.b64decode(sample_image_b64),
-                None,
-            )
-
-        with patch.object(image_gen, "_generate_sync", side_effect=mock_partial_failure):
-            prompts = [
-                (1, "Prompt 1", AspectRatio.LANDSCAPE_16_9, None),
-                (2, "Prompt 2", AspectRatio.LANDSCAPE_16_9, None),
-                (3, "Prompt 3", AspectRatio.LANDSCAPE_16_9, None),
-            ]
-
-            results = await image_gen.generate_batch(prompts)
-
-            # Some should succeed, some fail
-            successes = [r for r in results if r.status == GenerationStatus.SUCCESS]
-            assert len(successes) >= 1
-            # Due to retry logic, we might have different counts
-            assert len(results) == 3
-
-    @pytest.mark.asyncio
     async def test_evaluation_error_recovery(
         self,
         sample_image_bytes: bytes,
@@ -904,59 +861,6 @@ class TestOutputVerification:
         assert output_manager.topic == "Machine Learning"
         assert output_manager._initialized is True
         assert output_manager.session_dir.exists()
-
-
-# =============================================================================
-# Integration Test: Concurrent Generation
-# =============================================================================
-
-
-class TestConcurrentGeneration:
-    """Integration tests for concurrent image generation."""
-
-    @pytest.mark.asyncio
-    @pytest.mark.slow
-    async def test_concurrent_generation_respects_semaphore(
-        self,
-        sample_internal_config: InternalConfig,
-        sample_image_b64: str,
-    ):
-        """Test that concurrent generation respects the semaphore limit."""
-        max_concurrent = 2
-        image_gen = GeminiImageGenerator(
-            api_key="test-key",
-            internal_config=sample_internal_config,
-            max_concurrent=max_concurrent,
-            max_retries=1,
-        )
-
-        concurrent_count = [0]
-        max_observed_concurrent = [0]
-
-        def mock_slow_api(prompt, aspect_ratio, image_size):
-            concurrent_count[0] += 1
-            max_observed_concurrent[0] = max(max_observed_concurrent[0], concurrent_count[0])
-            import time as _time
-
-            _time.sleep(0.1)  # Simulate API delay (sync — runs in executor)
-            concurrent_count[0] -= 1
-            return (
-                GenerationStatus.SUCCESS,
-                base64.b64decode(sample_image_b64),
-                None,
-            )
-
-        with patch.object(image_gen, "_generate_sync", side_effect=mock_slow_api):
-            prompts = [
-                (i, f"Prompt {i}", AspectRatio.LANDSCAPE_16_9, None)
-                for i in range(1, 6)  # 5 prompts
-            ]
-
-            results = await image_gen.generate_batch(prompts)
-
-            assert len(results) == 5
-            assert all(r.status == GenerationStatus.SUCCESS for r in results)
-            assert max_observed_concurrent[0] <= max_concurrent
 
 
 # =============================================================================

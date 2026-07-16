@@ -258,6 +258,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
+      - name: Check eval-mapping (evals/**/*.eval.md -> live skill/command)
+        # Stdlib-only script -- no Python setup step needed on ubuntu-latest.
+        # Fails the build if any eval file references a skill/command that no
+        # longer exists (see IMPLEMENTATION_PLAN.md 8.3 / arch-review SA-006).
+        run: python3 scripts/check_eval_mapping.py
+
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:

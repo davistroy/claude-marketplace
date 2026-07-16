@@ -156,7 +156,6 @@ If validation fails, you'll see a clear error message with troubleshooting sugge
 | `--pass-threshold` | 0.85 | 0.0-1.0 | Minimum evaluation score to pass |
 | `--resolution` | high | low, medium, high | Image quality (high=4K) |
 | `--aspect-ratio` | 16:9 | 16:9, 1:1, 4:3, 9:16, 3:4 | Image aspect ratio |
-| `--concurrency` | 3 | 1-10 | Maximum parallel generations |
 | `--no-cache` | false | flag | Disable concept analysis caching |
 | `--resume` | - | checkpoint path | Resume from checkpoint file |
 | `--dry-run` | false | flag | Show plan without generating |
@@ -486,14 +485,13 @@ The `summary.md` file provides a human-readable overview:
 
 #### "429 Too Many Requests" Error
 
-**Symptoms**: Repeated errors during generation, especially with high concurrency.
+**Symptoms**: Repeated errors during generation.
 
 **Solutions**:
-1. Reduce concurrency: `--concurrency 1`
-2. Wait a few minutes and retry
-3. Check your API usage limits in respective consoles
-4. For Gemini: Free tier allows 60 requests/minute
-5. The tool implements automatic exponential backoff - wait and it will retry
+1. Wait a few minutes and retry
+2. Check your API usage limits in respective consoles
+3. For Gemini: Free tier allows 60 requests/minute
+4. The tool implements automatic exponential backoff - wait and it will retry
 
 #### Generation Taking Too Long
 
@@ -502,8 +500,7 @@ The `summary.md` file provides a human-readable overview:
 **Solutions**:
 1. 4K images (high resolution) take 60-120 seconds each - this is normal
 2. Use `--resolution medium` or `--resolution low` for faster generation
-3. Reduce `--concurrency` if hitting rate limits
-4. Check your internet connection
+3. Check your internet connection
 
 ### Safety Filter Blocks
 
@@ -535,10 +532,9 @@ The `summary.md` file provides a human-readable overview:
 **Symptoms**: Process crashes during generation, especially with multiple images.
 
 **Solutions**:
-1. Reduce `--concurrency 1` (process one image at a time)
-2. Use `--resolution medium` (smaller images use less memory)
-3. Close other memory-intensive applications
-4. Restart and use `--resume` to continue from checkpoint
+1. Use `--resolution medium` (smaller images use less memory)
+2. Close other memory-intensive applications
+3. Restart and use `--resume` to continue from checkpoint
 
 #### "Timeout" Error
 

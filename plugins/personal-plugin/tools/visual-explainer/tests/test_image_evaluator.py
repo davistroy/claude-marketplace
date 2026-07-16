@@ -18,6 +18,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from PIL import Image
 
 from visual_explainer.image_evaluator import (
     CLAUDE_IMAGE_SIZE_LIMIT,
@@ -475,23 +476,29 @@ class TestResizeImageForClaude:
         assert result == sample_image_bytes
 
     def test_large_image_resized(self):
-        """Test large image is resized to fit limit."""
-        try:
-            from PIL import Image
+        """Test large image is resized to fit limit.
 
-            # Create a large image
-            img = Image.new("RGB", (4000, 3000), color="red")
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=100)
-            large_bytes = buf.getvalue()
+        A solid-color JPEG compresses far below the module's default 3.5MB
+        limit, so exercising the resize branch against that default would be
+        conditional on encoder behavior. Instead, pass an explicit
+        max_size_bytes well below the actual encoded size so the resize path
+        is deterministically exercised on every run, regardless of encoder or
+        Pillow version — Pillow is a hard dependency of this package, so
+        there is nothing to skip.
+        """
+        img = Image.new("RGB", (4000, 3000), color="red")
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=100)
+        large_bytes = buf.getvalue()
 
-            if len(large_bytes) <= CLAUDE_IMAGE_SIZE_LIMIT:
-                pytest.skip("Generated image not large enough to trigger resize")
+        # Force a limit well under the actual encoded size so the resize
+        # branch always runs, no matter how well this image happens to
+        # compress.
+        forced_limit = len(large_bytes) // 2
+        assert forced_limit > 0
 
-            result = resize_image_for_claude(large_bytes)
-            assert len(result) <= CLAUDE_IMAGE_SIZE_LIMIT
-        except ImportError:
-            pytest.skip("Pillow not available")
+        result = resize_image_for_claude(large_bytes, max_size_bytes=forced_limit)
+        assert len(result) <= forced_limit
 
     def test_resize_without_pil_raises(self):
         """Test resize raises when PIL is not available and image is too large."""

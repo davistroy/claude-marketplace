@@ -1,7 +1,8 @@
 ---
 command: description-triggers
-type: skill
+type: cross-cutting
 fixtures: []
+maps_to: [bpmn-generator, bpmn-to-drawio, explain-project, spec-to-prototype, accessibility-annotator, brain-entry, unlock, lab-notebook, create-wiki]
 ---
 
 # Eval: Skill Description Triggers (cross-plugin)

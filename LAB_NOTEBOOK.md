@@ -977,4 +977,28 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 4. **7.5 (skill error sections):** added tailored `## Error Handling` sections to **14** skills that lacked one (SE-10 estimated ~8) — each 5-6 bullets on that skill's real failure branches. **PLAT-012 (CI Python-matrix 3.10/3.12) DEFERRED** — adding `python-version` to the matrix renames the branch-protection required checks (deadlock risk); needs a coordinated protection update, out of scope.
 5. **Gate:** `claude plugin validate --strict` green ×3 plugins; markdownlint clean on all touched .md; ruff.toml (TOML) + .markdownlint.json (JSON) parse OK; `bash -n scripts/pre-commit` clean.
 
-**Status:** IN PROGRESS — all 5 items implemented (SE-11 + PLAT-012 sub-parts deferred with rationale); local gates green; PR pending. Entry closed with the squash-merge SHA at the start of the Phase 8 branch.
+**Status:** COMPLETE. PR #120 squash-merged as `e3bf0a4`, all 18 checks green. Egress/supply-chain policy documented, ADR-0004 help drift resolved + dead script/refs removed, cruft deleted, 14 skills gained error-handling. SE-11 + PLAT-012 deferred. Local main e3bf0a4.
+**Duration:** ~40 minutes
+
+---
+
+### Entry 024 — Implement-Plan Phase 8: Test/Eval Safety Net (scoped) [skill] [ci] [decision]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `e3bf0a4` (branch-protected), branch `impl/phase-8-tests`, orchestrator=Opus, implementers=Sonnet
+
+**Objective:** Execute IMPLEMENTATION_PLAN.md Phase 8 (final) — (8.1) resolve the dead `generate_batch`/`--concurrency` PERF-01 finding; (8.2) fix the contradictory/conditional test skips (QA-07 key-gated mocked full-pipeline test, QA-08 runtime-conditional resize skips); (8.3) add an eval-mapping CI check (every `evals/*.eval.md` maps to a live skill/command) + targeted evals for the 4 highest-blast-radius skills; (8.4) add `pytest -n auto` to per-tool CI jobs. Ship as one PR, merge on green CI.
+
+**Hypothesis:** **8.1 decision: REMOVE, not wire.** The `--concurrency` flag + `asyncio.Semaphore` + `generate_batch()` are inert (the CLI runs images serially); wiring them up (parallel images + a memory cap per PERF-05) is a genuine async rewrite better suited to a dedicated effort with the flagged-out cli.py decomposition — for this scoped phase, REMOVING the inert knob closes PERF-01 honestly with zero regression risk (removing dead code + an advertised-but-inert flag; PERF-05 becomes moot). Batching: 8.1 first (src: image_generator.py/cli.py), then [8.2 test files, 8.3 evals+validate.yml+script, 8.4 test.yml+pyproject×3] parallel (disjoint file sets). Coverage floors (bpmn 90 / visual-explainer 65 / feedback 95) + `-n auto` xdist coverage-aggregation are the CI guards; expect green.
+
+**Rollback Plan:** All work on branch `impl/phase-8-tests`; `git branch -D` reverts pre-merge; coverage floors guard regressions. Post-merge `git revert <sha>`.
+
+**Actions & Results:**
+
+1. **8.1 (PERF-01, REMOVE):** deleted the inert `generate_batch()`, `asyncio.Semaphore`, `max_concurrent`, and the `--concurrency` CLI flag + `GenerationConfig.concurrency` field; removed the corresponding tests. Serial generation path untouched. 624 passed, 68% (coverage UP — dead code removed). PERF-05 (concurrent-buffer memory) now moot. Stale `--concurrency` README refs cleaned separately.
+2. **8.2 (QA-07/QA-08):** un-gated `test_full_pipeline_success` from `ANTHROPIC_API_KEY` (root cause: `concept_analyzer` has a key-presence guard before the mocked client — satisfied with the `mock_env_with_api_keys` fixture, verified no real network call with `env -u`); made the resize test deterministic (`max_size_bytes` forces the branch) + removed the Pillow-absent skip (hard dep). 64 previously-skipped→run, full suite 626 passed.
+3. **8.3 (QA-03 subset/SA-006):** `scripts/check_eval_mapping.py` (every `evals/*.eval.md` → live skill/command; `cross-cutting`+`maps_to` escape hatch) wired into validate.yml's `plugin-validate` job; removed 3 drifted evals (help, new-command, and a bonus `validate-and-ship`→`release-plugin` rename); added 4 high-blast-radius evals (release-plugin, arch-review, ultra-plan, leak-risk-audit). 35 evals all map; verified exits 1 on injected drift.
+4. **8.4 (PERF-06):** `pytest-xdist>=3.5` added to all 3 tools' `[dev]` extras + `-n auto` on the 3 per-tool CI jobs; all xdist-safe locally (bpmn 588/92.27%, visual-explainer 624/67.74%, feedback 69/96.95%). Job names unchanged.
+5. **Combined gate:** visual-explainer 626 passed/68% (8.1+8.2 merged state); eval-mapping exit 0 (35); schema-data exit 0; ruff full-scope clean; test.yml + validate.yml YAML valid + all job names intact; `claude plugin validate --strict` OK. **PERF-01 wiring deferred** (chose safe remove).
+
+**Status:** IN PROGRESS — all 4 items implemented + combined gate green; PR pending. FINAL phase — this entry is closed (with the Phase 8 merge SHA) + IMPLEMENTATION_PLAN `Completed` field set + state file deleted in the FINALIZATION doc-polish PR that follows the Phase 8 merge.

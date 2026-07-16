@@ -102,18 +102,6 @@ class TestCreateParser:
         args = parser.parse_args(["-i", "test.md", "--pass-threshold", "0.70"])
         assert args.pass_threshold == 0.70
 
-    def test_concurrency_default(self):
-        """Test default concurrency value."""
-        parser = create_parser()
-        args = parser.parse_args(["-i", "test.md"])
-        assert args.concurrency == 3
-
-    def test_concurrency_custom(self):
-        """Test custom concurrency value."""
-        parser = create_parser()
-        args = parser.parse_args(["-i", "test.md", "--concurrency", "5"])
-        assert args.concurrency == 5
-
     def test_aspect_ratio_choices(self):
         """Test valid aspect ratio choices."""
         parser = create_parser()
@@ -557,21 +545,6 @@ class TestParameterValidation:
         with pytest.raises(SystemExit):
             parser.parse_args(["-i", "test.md", "--pass-threshold", "-0.1"])
 
-    def test_concurrency_valid_range(self):
-        """Test concurrency accepts valid range."""
-        parser = create_parser()
-        for val in ["1", "3", "5", "10"]:
-            args = parser.parse_args(["-i", "test.md", "--concurrency", val])
-            assert 1 <= args.concurrency <= 10
-
-    def test_concurrency_invalid_rejected(self):
-        """Test concurrency rejects out-of-range values at argparse level."""
-        parser = create_parser()
-        with pytest.raises(SystemExit):
-            parser.parse_args(["-i", "test.md", "--concurrency", "0"])
-        with pytest.raises(SystemExit):
-            parser.parse_args(["-i", "test.md", "--concurrency", "11"])
-
     def test_max_iterations_valid_range(self):
         """Test max-iterations accepts valid range."""
         parser = create_parser()
@@ -596,16 +569,6 @@ class TestParameterValidation:
 
         with pytest.raises(ValidationError):
             GenerationConfig(input_source="test", pass_threshold=-0.1)
-
-    def test_generation_config_rejects_invalid_concurrency(self):
-        """Test GenerationConfig rejects out-of-range concurrency."""
-        from pydantic import ValidationError
-
-        with pytest.raises(ValidationError):
-            GenerationConfig(input_source="test", concurrency=0)
-
-        with pytest.raises(ValidationError):
-            GenerationConfig(input_source="test", concurrency=11)
 
     def test_generation_config_rejects_invalid_max_iterations(self):
         """Test GenerationConfig rejects out-of-range max_iterations."""

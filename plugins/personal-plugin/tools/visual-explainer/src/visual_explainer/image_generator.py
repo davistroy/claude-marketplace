@@ -9,7 +9,6 @@ Key features:
 - 300-second timeout for 4K generation
 - Retry logic for transient failures
 - Safety filter handling (log and return None)
-- Concurrent generation with semaphore control
 - Progress callback support for UI updates
 """
 
@@ -91,7 +90,6 @@ class GeminiImageGenerator:
         max_retries: Maximum retry attempts for transient failures.
         base_delay_seconds: Base delay for exponential backoff.
         max_delay_seconds: Maximum delay between retries.
-        semaphore: Asyncio semaphore for concurrent generation control.
     """
 
     # Default model - gemini-3-pro-image-preview supports image generation
@@ -117,7 +115,6 @@ class GeminiImageGenerator:
         self,
         api_key: str | None = None,
         internal_config: InternalConfig | None = None,
-        max_concurrent: int = 3,
         max_retries: int = 3,
         base_delay_seconds: float = 5.0,
         max_delay_seconds: float = 60.0,
@@ -127,7 +124,6 @@ class GeminiImageGenerator:
         Args:
             api_key: Google API key. If None, reads from GOOGLE_API_KEY env var.
             internal_config: Internal configuration. If None, uses defaults from env.
-            max_concurrent: Maximum concurrent generations (default: 3).
             max_retries: Maximum retry attempts for transient failures.
             base_delay_seconds: Base delay for exponential backoff.
             max_delay_seconds: Maximum delay between retries.
@@ -161,9 +157,6 @@ class GeminiImageGenerator:
         self.max_retries = max_retries
         self.base_delay_seconds = base_delay_seconds
         self.max_delay_seconds = max_delay_seconds
-
-        # Concurrency control
-        self.semaphore = asyncio.Semaphore(max_concurrent)
 
         # Track API call count for cost estimation
         self._api_call_count = 0
@@ -370,15 +363,13 @@ class GeminiImageGenerator:
         Returns:
             GenerationResult with status and image data (if successful).
         """
-        # Acquire semaphore for concurrent generation control
-        async with self.semaphore:
-            return await self._generate_with_retry(
-                prompt=prompt,
-                aspect_ratio=aspect_ratio,
-                resolution=resolution,
-                image_number=image_number,
-                progress_callback=progress_callback,
-            )
+        return await self._generate_with_retry(
+            prompt=prompt,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            image_number=image_number,
+            progress_callback=progress_callback,
+        )
 
     async def _attempt_generation(
         self,
@@ -569,55 +560,6 @@ class GeminiImageGenerator:
             duration_seconds=total_duration,
             attempt_number=self.max_retries,
         )
-
-    async def generate_batch(
-        self,
-        prompts: list[tuple[int, str, AspectRatio | str, str | None]],
-        resolution: Resolution = Resolution.HIGH,
-        progress_callback: ProgressCallback | None = None,
-    ) -> list[GenerationResult]:
-        """Generate multiple images concurrently.
-
-        The semaphore controls concurrent generation to respect API limits.
-
-        Args:
-            prompts: List of (image_number, prompt, aspect_ratio, negative_prompt) tuples.
-            resolution: Image resolution for all images.
-            progress_callback: Optional callback for progress updates.
-
-        Returns:
-            List of GenerationResult in the same order as input prompts.
-        """
-        tasks = [
-            self.generate_image(
-                prompt=prompt,
-                aspect_ratio=aspect_ratio,
-                resolution=resolution,
-                negative_prompt=negative_prompt,
-                image_number=image_num,
-                progress_callback=progress_callback,
-            )
-            for image_num, prompt, aspect_ratio, negative_prompt in prompts
-        ]
-
-        # Run all tasks concurrently (semaphore controls actual concurrency)
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Convert exceptions to GenerationResult
-        final_results = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                logger.error(f"Batch generation error for prompt {i}: {result}")
-                final_results.append(
-                    GenerationResult(
-                        status=GenerationStatus.ERROR,
-                        error_message=str(result),
-                    )
-                )
-            else:
-                final_results.append(result)
-
-        return final_results
 
     def estimate_cost(self, image_count: int, avg_attempts: float = 1.5) -> str:
         """Estimate generation cost based on image count.
