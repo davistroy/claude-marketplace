@@ -23,9 +23,23 @@ Run the complete 7-step presentation generation pipeline end-to-end. Takes a top
 **Available templates:**
 !`sg list-templates 2>&1 || echo "Cannot list templates"`
 
+## Preflight Check (Required First Step — Fail Fast)
+
+Before running any pipeline step, confirm `sg` is actually installed and on `PATH`:
+
+```bash
+command -v sg >/dev/null 2>&1 && sg --version || echo "SG_MISSING"
+```
+
+**If this reports `SG_MISSING` (or the "Slide-generator installation check" above shows `NOT INSTALLED`), STOP immediately.** Do not proceed to Research or any other step. Report to the user, verbatim:
+
+> slide-gen requires the external `sg` engine from davistroy/slide-generator (currently a PRIVATE repo — owner-only). Install it and ensure `sg` is on PATH before running. This plugin ships only the pipeline skills, not the engine.
+
+This check exists so the pipeline never dies several steps in with an opaque `sg: command not found` — see ADR-0008 (`docs/adr/0008-slide-gen-dependency-model.md`) for why the engine is external rather than bundled, and the slide-gen README's "External Dependency" section for the current owner-only status.
+
 ## Prerequisites
 
-- `slide-generator` package installed (`pip install -e ".[all]"` from the slide-generator repo)
+- `slide-generator` package installed (`pip install -e ".[all]"` from the private `davistroy/slide-generator` repo — owner-only access as of this writing)
 - `ANTHROPIC_API_KEY` set in environment (required for steps 1-5)
 - `GOOGLE_API_KEY` set in environment (required for step 6, unless `--skip-images`)
 
@@ -45,6 +59,10 @@ Run the complete 7-step presentation generation pipeline end-to-end. Takes a top
 - `--no-interactive` - Non-interactive mode (no prompts)
 
 ## Instructions
+
+### Step 0: Preflight Check
+
+Run the preflight check above before anything else. If `sg` is missing, stop and report the message verbatim — do not attempt the Quick Path or Step-by-Step Path below.
 
 ### Quick Path (Single Command)
 
@@ -117,7 +135,7 @@ sg status
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `sg: command not found` | Not installed | `pip install -e ".[all]"` from slide-generator repo |
+| `sg: command not found` | Not installed, or private `slide-generator` repo inaccessible | Caught by the Preflight Check above before this step runs. If seen mid-pipeline anyway, install `sg` from the private `davistroy/slide-generator` repo (owner-only) and ensure it's on `PATH` |
 | `ANTHROPIC_API_KEY not found` | Missing env var | Set Claude API key |
 | `GOOGLE_API_KEY not found` | Missing env var (images) | Set Gemini key, or use `--skip-images` |
 | `Rate limit exceeded` | Too many API calls | Built-in retry with backoff handles this |

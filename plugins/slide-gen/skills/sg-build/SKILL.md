@@ -25,6 +25,7 @@ Assemble the final PowerPoint file (.pptx) from the presentation markdown and ge
 
 ## Prerequisites
 
+- **Preflight:** `sg --version` must succeed before proceeding — if `sg` is missing, stop and tell the user this requires the private `davistroy/slide-generator` engine (owner-only; see ADR-0008)
 - `slide-generator` package installed
 - A `presentation.md` file with slide content
 - Generated images in `images/` directory (optional — builds without images if missing)

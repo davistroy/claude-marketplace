@@ -22,6 +22,7 @@ Generate slide visuals using Gemini Pro from the validated graphics descriptions
 
 ## Prerequisites
 
+- **Preflight:** `sg --version` must succeed before proceeding — if `sg` is missing, stop and tell the user this requires the private `davistroy/slide-generator` engine (owner-only; see ADR-0008)
 - `slide-generator` package installed
 - `GOOGLE_API_KEY` set in environment (Gemini Pro access)
 - A `presentation.md` file with validated graphics descriptions
@@ -84,3 +85,7 @@ After images are generated, build the final PowerPoint:
 sg build presentation.md --template generic
 ```
 Or use `/sg-build` to continue the pipeline.
+
+## Related Gemini Image Path
+
+This step delegates image generation to the external `sg` CLI (the `slide-generator` package), which is unbundled and maintained outside this repo. personal-plugin's `visual-explainer` skill/tool is a **separate**, in-tree, tested Gemini image path with its own prompt builder and model config — the two are intentionally independent implementations, not a shared library. Future Gemini model or API changes (e.g. a new model ID, auth scheme, or block-reason handling) must be applied in **both** places: here (via the external `sg` package) and in `plugins/personal-plugin/tools/visual-explainer/`.

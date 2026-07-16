@@ -930,4 +930,27 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 3. **5.3 (key + temp files):** Gemini `?key=` moved to `x-goog-api-key` header (submit + poll); all `/tmp` response + header-dump filenames now include `[TIMESTAMP]` (reused the doc's existing placeholder, no new var).
 4. **Gate:** `claude plugin validate --strict` exit 0; markdownlint 0 errors on both files; all 6 embedded bash blocks pass `bash -n`.
 
-**Status:** IN PROGRESS — all 3 items implemented; validate + markdownlint + bash -n green; PR pending. Entry closed with the squash-merge SHA at the start of the Phase 6 branch.
+**Status:** COMPLETE. PR #118 squash-merged as `99d0610`, all 18 checks green (4 files, +212/−37). The raw-curl research/brain-entry legs now fail fast (timeouts + submit-status checks) instead of hanging, and the Gemini key no longer rides in the URL. Local main 99d0610.
+**Duration:** ~20 minutes
+
+---
+
+### Entry 022 — Implement-Plan Phase 6: slide-gen Integrity [plugin] [decision] [skill]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `99d0610` (branch-protected), branch `impl/phase-6-slidegen`, orchestrator=Opus, implementers=Sonnet
+
+**Objective:** Execute IMPLEMENTATION_PLAN.md Phase 6 (decision D2: declare external, do NOT vendor) — (6.1) formally declare slide-gen an external-dependency plugin + add an `sg` preflight health-check + ADR-0008; (6.2) fix the `plugin.json` homepage (points at the wrong repo) + add prominent External-Dependency sections to slide-gen + root READMEs; (6.3) add CHANGELOGs to slide-gen + bpmn-plugin + cross-reference the two divergent Gemini image paths. Ship as one PR, merge on green CI.
+
+**Hypothesis:** **U1 RESOLVED — the `slide-generator` engine repo is PRIVATE** (`gh repo view` → visibility PRIVATE), so slide-gen is genuinely owner-only today (confirms SA-001). ADR-0008 and the preflight must state this honestly rather than implying public installability: the preflight (`sg --version` early-exit with a clear "slide-gen requires the private slide-generator engine; not available to non-owners" message) is the key deliverable so a fresh non-owner install fails loudly-and-clearly instead of cryptically mid-pipeline. All changes are additive docs + skill-body preflight + a new ADR — no Python, so CI risk is markdownlint + plugin validation. Parallel: [6.1, 6.3] disjoint (6.1: slide-gen README/sg-full-workflow/ADR-0008; 6.3: CHANGELOGs + sg-generate-images), then 6.2 (plugin.json + slide-gen README + root README) after 6.1 (shared slide-gen README).
+
+**Rollback Plan:** All work on branch `impl/phase-6-slidegen`; additive; `git branch -D` reverts pre-merge. Post-merge `git revert <sha>`.
+
+**Actions & Results:**
+
+1. **6.1 (declare external + preflight + ADR-0008):** `docs/adr/0008-slide-gen-dependency-model.md` (Accepted) documents the external-dependency decision honestly — slide-gen is owner-only until `slide-generator` is public; alternatives (vendor / deprecate / status-quo) rejected with reasons. slide-gen README gained a prominent "External Dependency (REQUIRED)" section; `sg-full-workflow` gained a fail-fast Preflight (Step 0: `sg --version` → clear owner-only message if absent); one-line preflight bullets added to the 7 pipeline skills.
+2. **6.3 (CHANGELOGs + Gemini cross-ref):** new `plugins/slide-gen/CHANGELOG.md` + `plugins/bpmn-plugin/CHANGELOG.md` (Keep-a-Changelog, backfilled from git history — the two-tier versioning is now fully instrumented); `sg-generate-images` gained a "Related Gemini Image Path" note (SA-004: the two Gemini paths are intentionally separate; changes must be applied in both). Verified 6.1's preflight bullet + 6.3's note BOTH survived on the shared `sg-generate-images/SKILL.md` (no lost update).
+3. **6.2 (homepage + root README):** `plugins/slide-gen/plugin.json` homepage fixed `slide-generator`→`claude-marketplace` (RISK-01/PLAT-013); root README gained a slide-gen external-dependency note. `marketplace.json` carries no per-plugin `homepage`, so the version-sync check was correctly NOT extended (nothing to compare — INT-05 partially N/A).
+4. **Gate:** `claude plugin validate --strict` green on slide-gen + bpmn-plugin; markdownlint clean on all touched files; JSON valid.
+
+**Status:** IN PROGRESS — all 3 items implemented; validate + markdownlint green; PR pending. Entry closed with the squash-merge SHA at the start of the Phase 7 branch.

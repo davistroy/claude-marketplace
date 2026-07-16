@@ -99,6 +99,8 @@ You can install to different scopes:
 
 AI-assisted presentation generation pipeline: 7-step workflow from topic research to finished PowerPoint using Claude and Gemini.
 
+**External dependency (required):** the pipeline skills wrap an `sg` CLI from the separate, currently **private** `davistroy/slide-generator` repo — `/plugin install slide-gen@troys-plugins` installs the skills only, not the engine, so the plugin is owner-only until that repo is made public. See [ADR-0008](docs/adr/0008-slide-gen-dependency-model.md) and the [slide-gen README](plugins/slide-gen/README.md) for details.
+
 ```text
 /plugin install slide-gen@troys-plugins
 ```
