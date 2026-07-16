@@ -71,7 +71,6 @@ class GenerationConfig(BaseModel):
         resume: Path to checkpoint file for resuming.
         dry_run: Show plan without generating images.
         setup_keys: Force API key setup wizard.
-        concurrency: Max concurrent image generations (1-10).
     """
 
     input_source: str = Field(
@@ -129,12 +128,6 @@ class GenerationConfig(BaseModel):
         default=False,
         description="Force API key setup wizard even if keys exist",
     )
-    concurrency: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum concurrent image generations (1-10)",
-    )
 
     @field_validator("output_dir", mode="before")
     @classmethod
@@ -185,7 +178,6 @@ class GenerationConfig(BaseModel):
         resume: str | None = None,
         dry_run: bool = False,
         setup_keys: bool = False,
-        concurrency: int | None = None,
     ) -> GenerationConfig:
         """Create config from CLI args with environment variable fallbacks.
 
@@ -204,7 +196,6 @@ class GenerationConfig(BaseModel):
             resume: Checkpoint path.
             dry_run: Dry run flag.
             setup_keys: Force setup flag.
-            concurrency: Concurrent generations (env: VISUAL_EXPLAINER_CONCURRENCY).
 
         Returns:
             Validated GenerationConfig instance.
@@ -237,7 +228,6 @@ class GenerationConfig(BaseModel):
             resume=resume,
             dry_run=dry_run,
             setup_keys=setup_keys,
-            concurrency=concurrency or env_int("VISUAL_EXPLAINER_CONCURRENCY", 3),
         )
 
     def to_metadata_dict(self) -> dict[str, Any]:
@@ -249,7 +239,6 @@ class GenerationConfig(BaseModel):
             "aspect_ratio": self.aspect_ratio.value,
             "image_count": self.image_count,
             "style": self.style,
-            "concurrency": self.concurrency,
             "no_cache": self.no_cache,
         }
 

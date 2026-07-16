@@ -929,8 +929,8 @@ CI pins Python 3.11 only despite `py310` target + 3.10+ claim. Add 3.10 (and opt
 
 ### Work Items
 
-#### 8.1 Resolve the dead `generate_batch` concurrency
-**Status: PENDING**
+#### 8.1 Resolve the dead `generate_batch` concurrency ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]** (chose REMOVE over wire; PERF-01 wiring deferred)
 **Model Tier: opus**
 **Recommendation Ref:** PERF-01, PERF-05
 **Files Affected:**
@@ -949,8 +949,8 @@ CI pins Python 3.11 only despite `py310` target + 3.10+ claim. Add 3.10 (and opt
 
 **Notes:** Opus — judgment-heavy async + memory-ceiling reasoning.
 
-#### 8.2 Fix contradictory / conditional test skips
-**Status: PENDING**
+#### 8.2 Fix contradictory / conditional test skips ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** QA-07, QA-08
 **Files Affected:**
@@ -969,8 +969,8 @@ CI pins Python 3.11 only despite `py310` target + 3.10+ claim. Add 3.10 (and opt
 
 **Notes:** Improves real coverage without changing the floor.
 
-#### 8.3 Eval-mapping CI check + targeted high-risk evals
-**Status: PENDING**
+#### 8.3 Eval-mapping CI check + targeted high-risk evals ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** QA-03 (subset), SA-006
 **Files Affected:**
@@ -991,8 +991,8 @@ Add a CI check that every `evals/*.eval.md` maps to a live skill/command (kills 
 
 **Notes:** Scoped subset — not the full corpus.
 
-#### 8.4 Add `pytest -n auto` to per-tool CI jobs
-**Status: PENDING**
+#### 8.4 Add `pytest -n auto` to per-tool CI jobs ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: haiku**
 **Recommendation Ref:** PERF-06
 **Depends On:** None
@@ -1057,7 +1057,7 @@ Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; W
 | mypy-blocking (4.2) surfaces many errors | Med | Med | Resolve U4 first; ratchet with baseline if large | Mitigated |
 | Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Mitigated |
 | Scoping Bash (3.1) breaks legitimate skill actions | Med | Med | Test each rescoped skill (U2); revert per-skill | Mitigated |
-| Parallelising images (8.1) breaches memory ceiling | Med | Med | Cap concurrency by memory budget (PERF-05); else remove knob | Open |
+| Parallelising images (8.1) breaches memory ceiling | Med | Med | Cap concurrency by memory budget (PERF-05); else remove knob | Mitigated (moot — the inert concurrency was removed, generation stays serial) |
 | slide-generator repo private → slide-gen owner-only | Med | Med | Resolve U1 first; ADR-0008 states the constraint honestly | Materialized |
 
 ## Unknowns Register

@@ -35,6 +35,25 @@ command: <name>
 type: command|skill
 fixtures: [list of required fixtures]
 ---
+```
+
+`command: <name>` must match a live skill (`plugins/*/skills/<name>/SKILL.md`)
+or command (`plugins/*/commands/<name>.md`) somewhere in the repo — this is
+enforced in CI (see "Eval-Mapping Check" below).
+
+A small number of eval files intentionally exercise multiple skills/commands
+at once instead of one (e.g. `description-triggers.eval.md`, which
+regression-guards auto-invocation across several unrelated skills). These
+declare `type: cross-cutting` and a `maps_to: [name1, name2, ...]` list in
+place of a single `command:` target:
+
+```markdown
+---
+command: description-triggers
+type: cross-cutting
+fixtures: []
+maps_to: [skill-a, skill-b, skill-c]
+---
 
 # Eval: /<name>
 
@@ -113,9 +132,24 @@ For each command overall, score the Rubric criteria and record:
 | `json/questions-sample.json` | 5 pre-extracted questions from draft-prd.md | ask-questions |
 | `plans/implementation-plan.md` | 2-phase IMPLEMENTATION_PLAN.md for the standup bot | implement-plan |
 
+## Eval-Mapping Check
+
+`scripts/check_eval_mapping.py` (stdlib only, wired into the `plugin-validate`
+CI job) verifies that every `evals/**/*.eval.md` file maps to something real:
+either its `command:` frontmatter matches a live skill/command, or (for
+`type: cross-cutting` files) every name in `maps_to` does. It fails the build
+otherwise, so an eval can never silently outlive a renamed or removed skill.
+
+Run it locally with:
+
+```bash
+python3 scripts/check_eval_mapping.py
+```
+
 ## Maintenance
 
 - When a command's behavior changes, update the corresponding eval file
+- When a command/skill is renamed, rename or delete its eval file (or update `maps_to`) in the same change — `check_eval_mapping.py` will fail CI otherwise
 - When adding a new command or skill, add a new eval file and register the fixture if needed
 - Run the full eval suite before releasing a new plugin version (`/bump-version`)
 - The `/validate-plugin` command checks structure; evals check behavior

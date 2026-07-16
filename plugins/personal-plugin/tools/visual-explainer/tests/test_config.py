@@ -68,7 +68,6 @@ class TestGenerationConfig:
         assert config.max_iterations == 5
         assert config.pass_threshold == 0.85
         assert config.resolution == Resolution.HIGH
-        assert config.concurrency == 3
 
     def test_valid_config_all_fields(self, tmp_path: Path):
         """Test creating config with all fields."""
@@ -85,7 +84,6 @@ class TestGenerationConfig:
             resume=tmp_path / "checkpoint.json",
             dry_run=True,
             setup_keys=True,
-            concurrency=5,
         )
         assert config.style == "custom-style"
         assert config.output_dir == tmp_path
@@ -96,7 +94,6 @@ class TestGenerationConfig:
         assert config.image_count == 5
         assert config.no_cache is True
         assert config.dry_run is True
-        assert config.concurrency == 5
 
     def test_invalid_empty_input_source(self):
         """Test that empty input source is rejected."""
@@ -122,16 +119,6 @@ class TestGenerationConfig:
         """Test that pass_threshold above 1 is rejected."""
         with pytest.raises(ValidationError):
             GenerationConfig(input_source="test", pass_threshold=1.1)
-
-    def test_invalid_concurrency_too_low(self):
-        """Test that concurrency below 1 is rejected."""
-        with pytest.raises(ValidationError):
-            GenerationConfig(input_source="test", concurrency=0)
-
-    def test_invalid_concurrency_too_high(self):
-        """Test that concurrency above 10 is rejected."""
-        with pytest.raises(ValidationError):
-            GenerationConfig(input_source="test", concurrency=11)
 
     def test_invalid_image_count_negative(self):
         """Test that negative image_count is rejected."""
@@ -180,7 +167,6 @@ class TestGenerationConfig:
             aspect_ratio=AspectRatio.SQUARE,
             image_count=5,
             style="custom",
-            concurrency=2,
             no_cache=True,
         )
         metadata = config.to_metadata_dict()
@@ -190,7 +176,6 @@ class TestGenerationConfig:
         assert metadata["aspect_ratio"] == "1:1"
         assert metadata["image_count"] == 5
         assert metadata["style"] == "custom"
-        assert metadata["concurrency"] == 2
         assert metadata["no_cache"] is True
 
     def test_from_cli_and_env_defaults(self):
@@ -214,7 +199,6 @@ class TestGenerationConfig:
             image_count=5,
             no_cache=True,
             dry_run=True,
-            concurrency=2,
         )
         assert config.style == "custom"
         assert config.max_iterations == 3

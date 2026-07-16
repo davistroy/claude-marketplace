@@ -70,7 +70,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=bpmn2drawio --cov-branch --cov-report=term-missing --cov-fail-under=90
+          pytest tests/ -v -n auto --cov=bpmn2drawio --cov-branch --cov-report=term-missing --cov-fail-under=90
 
       - name: Type check (count-ratchet against baseline)
         shell: bash
@@ -122,7 +122,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=65
+          pytest tests/ -v -n auto --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=65
 
       - name: Type check (count-ratchet against baseline)
         shell: bash
@@ -174,7 +174,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=feedback_docx_generator --cov-branch --cov-report=term-missing --cov-fail-under=95
+          pytest tests/ -v -n auto --cov=feedback_docx_generator --cov-branch --cov-report=term-missing --cov-fail-under=95
 
       - name: Type check
         run: |

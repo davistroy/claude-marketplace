@@ -7,10 +7,8 @@ Tests the GeminiImageGenerator class including:
 - Safety filter handling
 - Timeout handling
 - Rate limit handling
-- Concurrent generation (semaphore)
 - Progress callbacks
 - Cost estimation
-- Batch generation
 """
 
 from __future__ import annotations
@@ -51,7 +49,6 @@ def generator(mock_env_with_api_keys, internal_config):
     gen = GeminiImageGenerator(
         api_key="test-google-api-key",
         internal_config=internal_config,
-        max_concurrent=2,
         max_retries=3,
         base_delay_seconds=0.01,
         max_delay_seconds=0.05,
@@ -106,15 +103,6 @@ class TestGeminiImageGeneratorInit:
         """Test timeout is converted from seconds to milliseconds."""
         gen = GeminiImageGenerator(api_key="test-key", internal_config=internal_config)
         assert gen.timeout_ms == int(internal_config.gemini_timeout_seconds * 1000)
-
-    def test_init_semaphore(self, mock_env_with_api_keys, internal_config):
-        """Test semaphore is created with correct concurrency."""
-        gen = GeminiImageGenerator(
-            api_key="test-key",
-            internal_config=internal_config,
-            max_concurrent=5,
-        )
-        assert gen.semaphore._value == 5
 
 
 # ---------------------------------------------------------------------------
@@ -478,52 +466,6 @@ class TestGenerateImage:
         result = await generator.generate_image(prompt="test prompt")
 
         assert result.duration_seconds >= 0.0
-
-
-# ---------------------------------------------------------------------------
-# Batch Generation Tests
-# ---------------------------------------------------------------------------
-
-
-class TestGenerateBatch:
-    """Tests for batch image generation."""
-
-    async def test_batch_generation(self, generator, sample_image_bytes):
-        """Test generating multiple images in a batch."""
-        mock_part = MagicMock()
-        mock_part.inline_data = MagicMock()
-        mock_part.inline_data.data = sample_image_bytes
-
-        mock_response = MagicMock()
-        mock_response.parts = [mock_part]
-
-        mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = mock_response
-        generator._client = mock_client
-
-        prompts = [
-            (1, "prompt 1", AspectRatio.LANDSCAPE_16_9, None),
-            (2, "prompt 2", AspectRatio.SQUARE, None),
-        ]
-
-        results = await generator.generate_batch(prompts)
-
-        assert len(results) == 2
-        assert all(r.status == GenerationStatus.SUCCESS for r in results)
-
-    async def test_batch_handles_exceptions(self, generator):
-        """Test batch generation handles individual exceptions gracefully."""
-        mock_client = MagicMock()
-        mock_client.models.generate_content.side_effect = Exception("Batch error")
-        generator._client = mock_client
-
-        prompts = [(1, "prompt 1", AspectRatio.LANDSCAPE_16_9, None)]
-
-        results = await generator.generate_batch(prompts)
-
-        assert len(results) == 1
-        # The result should be an ERROR (retries exhausted)
-        assert results[0].status == GenerationStatus.ERROR
 
 
 # ---------------------------------------------------------------------------

@@ -284,13 +284,6 @@ Examples:
         default="high",
         help="Image resolution - high=4K (default: high)",
     )
-    parser.add_argument(
-        "--concurrency",
-        type=_bounded_int(1, 10, "concurrency"),
-        default=3,
-        help="Max concurrent image generations (default: 3, range: 1-10)",
-    )
-
     # Cache and resume
     parser.add_argument(
         "--no-cache",
@@ -1126,7 +1119,6 @@ async def _execute_generation_loop(
 
     image_generator = GeminiImageGenerator(
         internal_config=internal_config,
-        max_concurrent=config.concurrency,
     )
     image_evaluator = ImageEvaluator(
         model=internal_config.claude_model, pass_threshold=config.pass_threshold
@@ -1674,7 +1666,6 @@ def main() -> int:
             image_count=args.image_count,
             no_cache=args.no_cache,
             dry_run=args.dry_run,
-            concurrency=args.concurrency,
         )
         result = asyncio.run(
             load_checkpoint_and_resume(
@@ -1760,7 +1751,6 @@ def main() -> int:
             image_count=args.image_count,
             no_cache=args.no_cache,
             dry_run=args.dry_run,
-            concurrency=args.concurrency,
         )
     except Exception as e:
         if args.json:
