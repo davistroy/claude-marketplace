@@ -444,8 +444,8 @@ Confirm whether spark-audit/jetson-audit actually SSH into lab hosts (where the 
 
 ### Work Items
 
-#### 4.1 Lint the per-tool tests/ dirs (fix the 28 hidden errors)
-**Status: PENDING**
+#### 4.1 Lint the per-tool tests/ dirs (fix the 28 hidden errors) ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SE-01
 **Depends On:** None
@@ -467,8 +467,8 @@ Confirm whether spark-audit/jetson-audit actually SSH into lab hosts (where the 
 
 **Notes:** Fix-then-extend within one PR.
 
-#### 4.2 Make mypy blocking for all three tools
-**Status: PENDING**
+#### 4.2 Make mypy blocking for all three tools ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** SE-04, QA-05, PLAT-006
 **Depends On:** None
@@ -490,8 +490,8 @@ Remove `continue-on-error: true` (test.yml:74,109) so mypy blocks for bpmn2drawi
 
 **Notes:** Gated on U4. Keep `--ignore-missing-imports`; do not jump straight to `--strict`.
 
-#### 4.3 Validate schema *data* + fix schemas/plugin.json
-**Status: PENDING**
+#### 4.3 Validate schema *data* + fix schemas/plugin.json ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** QA-02, INT-04
 **Depends On:** None
@@ -514,8 +514,8 @@ The schema-validation job only checks the 4 schemas are well-formed JSON Schema;
 
 **Notes:** The `strict` CLI already catches the `tools` case pre-merge, but the shipped schema must stop misleading contributors.
 
-#### 4.4 Pin GitHub Actions to SHAs; fix dependabot claim; add concurrency/timeout
-**Status: PENDING**
+#### 4.4 Pin GitHub Actions to SHAs; fix dependabot claim; add concurrency/timeout ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: haiku**
 **Recommendation Ref:** PLAT-004, SEC-06, PLAT-008
 **Depends On:** None
@@ -537,8 +537,8 @@ Pin `actions/checkout@v4`, `setup-python@v5`, `setup-node@v4` to full commit SHA
 
 **Notes:** Mechanical; verify each SHA maps to the intended tag.
 
-#### 4.5 Scope pip-audit to tool deps; de-dup redundant runs; root coverage
-**Status: PENDING**
+#### 4.5 Scope pip-audit to tool deps; de-dup redundant runs; root coverage ✅ Completed 2026-07-16
+**Status: COMPLETE [2026-07-16]**
 **Model Tier: sonnet**
 **Recommendation Ref:** PLAT-007, QA-10, PLAT-005, QA-06
 **Depends On:** None
@@ -1053,8 +1053,8 @@ Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; W
 | Risk | Likelihood | Impact | Mitigation Strategy | Status |
 |------|------------|--------|---------------------|--------|
 | Required review deadlocks solo maintainer | Med | High | Require checks only, not review; enforce_admins=false | Mitigated |
-| Extending ruff glob (4.1) before fixing reddens CI | High | Low | Fix 28 errors + format first, extend glob last, same PR | Open |
-| mypy-blocking (4.2) surfaces many errors | Med | Med | Resolve U4 first; ratchet with baseline if large | Open |
+| Extending ruff glob (4.1) before fixing reddens CI | High | Low | Fix 28 errors + format first, extend glob last, same PR | Mitigated |
+| mypy-blocking (4.2) surfaces many errors | Med | Med | Resolve U4 first; ratchet with baseline if large | Mitigated |
 | Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Mitigated |
 | Scoping Bash (3.1) breaks legitimate skill actions | Med | Med | Test each rescoped skill (U2); revert per-skill | Mitigated |
 | Parallelising images (8.1) breaches memory ceiling | Med | Med | Cap concurrency by memory budget (PERF-05); else remove knob | Open |
@@ -1067,9 +1067,9 @@ Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; W
 | U1 | Is the `slide-generator` repo public/installable? | High | Phase 6 (6.1) | `gh repo view davistroy/slide-generator` before Phase 6 | Open |
 | U2 | Does scoping `Bash` break any skill's real operations? | High | Phase 3 (3.1) | Test each rescoped skill on a representative task | Accepted (conservative union-scoping + 3 documented broad carve-outs + `claude plugin validate --strict` green; residual runtime risk accepted as skills aren't CI-runtime-testable) |
 | U3 | Do recon/audit skills SSH with sudo (RI-03)? | Medium | Phase 3 (3.3) | Read spark-audit/jetson-audit bodies | Resolved [2026-07-16] (yes — spark-audit/jetson-audit SSH with passwordless sudo; jetson-recon combines untrusted fetch + SSH) |
-| U4 | How many errors does mypy-blocking surface? | Medium | Phase 4 (4.2) | Run `mypy src/` per tool before removing continue-on-error | Open |
+| U4 | How many errors does mypy-blocking surface? | Medium | Phase 4 (4.2) | Run `mypy src/` per tool before removing continue-on-error | Resolved [2026-07-16] (54 bpmn + 98 visual-explainer = 152; count-ratchet baselines 57/101 instead of a full cleanup) |
 | U5 | Provider retention/training-use terms (RISK-08) | Medium | Phase 7 (7.1) | Check account tiers + provider DPAs | Open |
-| U6 | Does enforcing schema-data validation surface existing violations? | Low | Phase 4 (4.3) | Run the new validator over current manifests | Open |
+| U6 | Does enforcing schema-data validation surface existing violations? | Low | Phase 4 (4.3) | Run the new validator over current manifests | Resolved [2026-07-16] (no — current 3 manifests pass; command.json strictness flagged as follow-up) |
 
 ## Success Metrics
 

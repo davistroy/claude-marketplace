@@ -3,10 +3,9 @@
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from bpmn2drawio.parser import parse_bpmn
 from bpmn2drawio.generator import DrawioGenerator
-from bpmn2drawio.models import BPMNModel, BPMNElement
-
+from bpmn2drawio.models import BPMNElement, BPMNModel
+from bpmn2drawio.parser import parse_bpmn
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -96,9 +95,7 @@ class TestVertexStyles:
 
     def test_start_event_style(self):
         """Test start event has correct style."""
-        model = BPMNModel(
-            elements=[BPMNElement(id="start1", type="startEvent", name="Start")]
-        )
+        model = BPMNModel(elements=[BPMNElement(id="start1", type="startEvent", name="Start")])
         generator = DrawioGenerator()
 
         xml = generator.generate_string(model)
@@ -113,9 +110,7 @@ class TestVertexStyles:
 
     def test_end_event_style(self):
         """Test end event has correct style."""
-        model = BPMNModel(
-            elements=[BPMNElement(id="end1", type="endEvent", name="End")]
-        )
+        model = BPMNModel(elements=[BPMNElement(id="end1", type="endEvent", name="End")])
         generator = DrawioGenerator()
 
         xml = generator.generate_string(model)
@@ -198,9 +193,7 @@ class TestGeometry:
     def test_vertex_geometry(self):
         """Test vertices have geometry."""
         model = BPMNModel(
-            elements=[
-                BPMNElement(id="task1", type="task", x=100, y=200, width=120, height=80)
-            ]
+            elements=[BPMNElement(id="task1", type="task", x=100, y=200, width=120, height=80)]
         )
         generator = DrawioGenerator()
 

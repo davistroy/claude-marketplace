@@ -2,11 +2,10 @@
 
 from pathlib import Path
 
-from bpmn2drawio.parser import parse_bpmn
 from bpmn2drawio.layout import LayoutEngine
-from bpmn2drawio.position_resolver import PositionResolver, resolve_positions
 from bpmn2drawio.models import BPMNElement, BPMNFlow, BPMNModel
-
+from bpmn2drawio.parser import parse_bpmn
+from bpmn2drawio.position_resolver import PositionResolver, resolve_positions
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -22,9 +21,7 @@ class TestLayoutEngine:
             BPMNElement(id="end", type="endEvent"),
         ]
         flows = [
-            BPMNFlow(
-                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
-            ),
+            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="task", target_ref="end"),
         ]
 
@@ -63,9 +60,7 @@ class TestLayoutEngine:
             BPMNElement(id="end", type="endEvent"),
         ]
         flows = [
-            BPMNFlow(
-                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
-            ),
+            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="task", target_ref="end"),
         ]
 
@@ -85,15 +80,9 @@ class TestLayoutEngine:
             BPMNElement(id="end", type="endEvent", width=36, height=36),
         ]
         flows = [
-            BPMNFlow(
-                id="f1", type="sequenceFlow", source_ref="start", target_ref="task1"
-            ),
-            BPMNFlow(
-                id="f2", type="sequenceFlow", source_ref="task1", target_ref="task2"
-            ),
-            BPMNFlow(
-                id="f3", type="sequenceFlow", source_ref="task2", target_ref="end"
-            ),
+            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task1"),
+            BPMNFlow(id="f2", type="sequenceFlow", source_ref="task1", target_ref="task2"),
+            BPMNFlow(id="f3", type="sequenceFlow", source_ref="task2", target_ref="end"),
         ]
 
         engine = LayoutEngine()

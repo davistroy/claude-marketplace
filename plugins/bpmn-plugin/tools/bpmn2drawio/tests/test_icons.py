@@ -1,14 +1,14 @@
 """Tests for task and event icon definitions and creation functions."""
 
-from bpmn2drawio.models import BPMNElement
 from bpmn2drawio.icons import (
-    TASK_ICONS,
     EVENT_ICONS,
-    create_task_icon,
+    TASK_ICONS,
     create_event_icon,
-    get_task_icon_style,
+    create_task_icon,
     get_event_icon_style,
+    get_task_icon_style,
 )
+from bpmn2drawio.models import BPMNElement
 
 
 class TestTaskIconDefinitions:
@@ -142,9 +142,7 @@ class TestEventIconDefinitions:
     def test_intermediate_throw_event_icons_exist(self):
         """Intermediate throw event icons are defined."""
         throw_keys = [k for k in EVENT_ICONS if k.startswith("intermediateThrowEvent_")]
-        assert len(throw_keys) >= 3, (
-            f"Expected at least 3 throw event icons, got {len(throw_keys)}"
-        )
+        assert len(throw_keys) >= 3, f"Expected at least 3 throw event icons, got {len(throw_keys)}"
 
 
 class TestCreateTaskIcon:
@@ -393,9 +391,7 @@ class TestGetTaskIconStyle:
         """Each task type in TASK_ICONS returns a style via get_task_icon_style."""
         for task_type in TASK_ICONS:
             style = get_task_icon_style(task_type)
-            assert style is not None, (
-                f"get_task_icon_style returned None for {task_type}"
-            )
+            assert style is not None, f"get_task_icon_style returned None for {task_type}"
             assert isinstance(style, str)
 
 
@@ -423,11 +419,14 @@ class TestGetEventIconStyle:
         for key in EVENT_ICONS:
             parts = key.split("_", 1)
             event_type = parts[0]
-            # Reconstruct: keys like "intermediateCatchEvent_timer" -> type="intermediateCatchEvent", def="timer"
-            # But the split at first _ won't work for camelCase keys. Use the actual key parsing logic.
-            # The key format is f"{element.type}_{event_def}" so we need to find the underscore
-            # that separates event type from definition.
-            # Event types: startEvent, endEvent, intermediateCatchEvent, intermediateThrowEvent, boundaryEvent
+            # Reconstruct: keys like "intermediateCatchEvent_timer" ->
+            # type="intermediateCatchEvent", def="timer"
+            # But the split at first _ won't work for camelCase keys. Use the
+            # actual key parsing logic.
+            # The key format is f"{element.type}_{event_def}" so we need to
+            # find the underscore that separates event type from definition.
+            # Event types: startEvent, endEvent, intermediateCatchEvent,
+            # intermediateThrowEvent, boundaryEvent
             # Find the last component after the event type prefix
             for prefix in [
                 "intermediateCatchEvent",

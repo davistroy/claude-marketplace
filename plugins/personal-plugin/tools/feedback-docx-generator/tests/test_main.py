@@ -129,9 +129,7 @@ class TestCLIExecution:
         bad_file.write_text("not valid json {{{", encoding="utf-8")
         output_path = str(tmp_path / "output.docx")
 
-        with patch(
-            "sys.argv", ["prog", "--input", str(bad_file), "--output", output_path]
-        ):
+        with patch("sys.argv", ["prog", "--input", str(bad_file), "--output", output_path]):
             with pytest.raises(json.JSONDecodeError):
                 main()
 

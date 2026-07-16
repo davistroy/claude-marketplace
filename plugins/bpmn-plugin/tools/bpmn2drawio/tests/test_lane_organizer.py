@@ -4,10 +4,9 @@ Tests the extracted lane organization, height calculation, element positioning,
 and DI-preserve coordinate conversion logic.
 """
 
-from bpmn2drawio.models import BPMNElement, BPMNModel, Pool, Lane
-from bpmn2drawio.lane_organizer import LaneOrganizer
 from bpmn2drawio.constants import LayoutConstants
-
+from bpmn2drawio.lane_organizer import LaneOrganizer
+from bpmn2drawio.models import BPMNElement, BPMNModel, Lane, Pool
 
 # ---------------------------------------------------------------------------
 # Helper factories
@@ -104,9 +103,7 @@ class TestOrganize:
             make_element("t1", parent_id="laneA", x=100, y=100, width=120, height=80),
             make_element("t2", parent_id="laneB", x=300, y=300, width=120, height=80),
         ]
-        model = BPMNModel(
-            elements=elements, flows=[], pools=[pool], lanes=[lane_a, lane_b]
-        )
+        model = BPMNModel(elements=elements, flows=[], pools=[pool], lanes=[lane_a, lane_b])
 
         LaneOrganizer().organize(model)
 
@@ -279,9 +276,7 @@ class TestCalculateLaneYPositions:
         pool_lanes = {"pool1": [lane_a, lane_b]}
         lane_heights = {"lA": 120.0, "lB": 150.0}
 
-        y_positions, pool_heights = organizer._calculate_lane_y_positions(
-            pool_lanes, lane_heights
-        )
+        y_positions, pool_heights = organizer._calculate_lane_y_positions(pool_lanes, lane_heights)
 
         assert y_positions["lA"] == 0.0
         assert y_positions["lB"] == 120.0
@@ -299,9 +294,7 @@ class TestPreserveLanePositions:
     def test_absolute_coords_converted_to_relative(self):
         """Absolute DI coords become lane-relative in preserve mode."""
         pool = make_pool("pool1", x=50, y=50, width=800, height=400)
-        lane = make_lane(
-            "lane1", parent_pool_id="pool1", x=90, y=50, width=760, height=400
-        )
+        lane = make_lane("lane1", parent_pool_id="pool1", x=90, y=50, width=760, height=400)
         elem = make_element("t1", parent_id="lane1", x=200, y=150, width=120, height=80)
         model = BPMNModel(
             elements=[elem],
@@ -395,9 +388,7 @@ class TestPositionLanelessPoolElements:
         organizer._position_laneless_pool_elements(model, min_x=100.0)
 
         # X adjusted: x - min_x + padding + header_width
-        expected_x = (
-            200 - 100 + LayoutConstants.LANE_PADDING + LayoutConstants.POOL_HEADER_WIDTH
-        )
+        expected_x = 200 - 100 + LayoutConstants.LANE_PADDING + LayoutConstants.POOL_HEADER_WIDTH
         assert elem.x == expected_x
 
         # Y centered in pool

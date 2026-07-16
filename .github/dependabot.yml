@@ -2,7 +2,9 @@
 # The repo had zero update automation, which is how the 38 pip CVE alerts
 # (cleared in item 4.2) accumulated with no PRs ever opened. This config
 # covers pip in each of the 3 bundled tool directories plus the repo's
-# SHA-pinned GitHub Actions. Weekly cadence avoids noise while keeping CVE
+# GitHub Actions, which are SHA-pinned (item 4.4) with the tag kept as a
+# trailing comment so Dependabot can still open version-bump PRs against
+# the pinned SHA. Weekly cadence avoids noise while keeping CVE
 # exposure short; minor/patch bumps are grouped per ecosystem so routine
 # updates land as one PR instead of one-PR-per-package (majors are never
 # grouped, so they still surface individually for review).

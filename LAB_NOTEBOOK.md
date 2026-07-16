@@ -880,4 +880,31 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Findings:** U3 resolved (yes, SSH+sudo). U2 (does scoping break skills?) mitigated by conservative union-scoping + the 3 documented broad carve-outs + `claude plugin validate --strict` green; residual runtime-regression risk accepted (skills are LLM-interpreted, not runtime-testable in CI) — the `disable-model-invocation` change is the highest-value net reduction (4 SSH-capable skills can no longer be injection-triggered at all).
 
-**Status:** IN PROGRESS — all 3 items implemented, `claude plugin validate --strict` green; PR pending. Entry closed with the squash-merge SHA at the start of the Phase 4 branch.
+**Status:** COMPLETE. PR #111 squash-merged as `c093904`, all 18 checks green (26 files, +98/−33). Injection surface reduced: 23 files scoped, 4 fleet SSH/sudo skills made user-invoke-only with trust boundaries, RI-03 answered + documented. Local main c093904.
+**Duration:** ~40 minutes
+
+---
+
+### Entry 020 — Implement-Plan Phase 4: CI Gate Integrity [ci] [decision] [debug]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `c093904` (branch-protected), branch `impl/phase-4-ci`, orchestrator=Opus, implementers=Sonnet
+
+**Objective:** Execute IMPLEMENTATION_PLAN.md Phase 4 — make the now-enforced CI gates correct and complete: (4.1) lint the per-tool `tests/` dirs (fix ~28 hidden ruff errors, extend globs); (4.2) make mypy gate meaningfully (ratchet — see below); (4.3) validate schema *data* + fix `schemas/plugin.json` contradictions; (4.4) SHA-pin GitHub Actions + fix the dependabot false-claim + add concurrency/timeout; (4.5) scope pip-audit to tool deps + de-dup redundant root-suite runs + root coverage. Ship as one PR, merge on green CI.
+
+**Hypothesis:** These edit `.github/workflows/{validate.yml,test.yml}` — the gates protecting every other PR — so a mistake here reddens CI for the whole repo. Run **sequentially** (4 of 5 items touch the same two workflow files; the plan marks Phase 4 Sequential) to avoid collisions. Critical ordering: 4.1 must fix the per-tool test lint errors BEFORE extending the ruff glob (else this PR's CI reddens). **U4 resolved:** mypy on the CI target surfaces **54 errors (bpmn2drawio) + 98 (visual-explainer) = 152** — far too many to zero-out safely here, so 4.2 uses a COUNT-RATCHET (fail only if the error count exceeds a committed per-tool baseline; feedback-docx stays strict at 0), removing `continue-on-error` so the ratchet actually gates against *new* type debt. Reaching 0 is deferred to a separate cleanup (like the flagged-out cli.py decomposition). Baselines must be computed in a CI-matching env (Python 3.11, `pip install -e .[dev]`) to avoid false failures.
+
+**Rollback Plan:** All work on branch `impl/phase-4-ci`; `git branch -D` reverts pre-merge. Workflow edits are git-tracked and revert cleanly. If a workflow change reddens CI, fix-forward on the branch before merge (nothing reaches main until the PR is green). Post-merge `git revert <sha>`.
+
+**Actions & Results:**
+
+1. **4.1 (lint per-tool tests):** fixed 28 ruff errors in `plugins/*/tools/*/tests/` (25 auto I001 import-sort + 3 manual E501) + 19 files reformatted; extended validate.yml ruff check/format globs to include `plugins/*/tools/*/tests/`. Full-scope ruff check + format clean.
+2. **4.2 (mypy count-ratchet):** U4 measured 54 (bpmn2drawio) + 98 (visual-explainer) = 152 existing errors — too many to zero-out here, so a ratchet: `.mypy-baseline` files (57 / 101 = measured+3 margin), test.yml mypy steps rewritten to fail only if count > baseline, `continue-on-error` REMOVED (now actually gates net-new type debt); feedback-docx stays strict. Full cleanup deferred (separate plan).
+3. **4.3 (schema-data validation):** `schemas/plugin.json` fixed — removed the forbidden `tools` property, tightened version pattern to `^\d+\.\d+\.\d+$`, `additionalProperties:false` (after confirming all 9 real keys are declared). New `scripts/validate_schema_data.py` validates the 3 manifests against the schema, wired into the `Schema Validation` job. U6 clean (current manifests pass). Noted follow-up: `schemas/command.json` has `additionalProperties:false` without `argument-hint`/`effort` — enforcing as-is would fail every command, so left un-enforced (out of scope).
+4. **4.4 (SHA-pin + concurrency/timeout):** `actions/checkout@v4`→`34e1148…`, `setup-python@v5`→`a26af69…`, `setup-node@v4`→`49933ea…` (real SHAs via `gh api`, tag kept as trailing comment for Dependabot); `concurrency: cancel-in-progress` + `timeout-minutes` on all 10 jobs; dependabot.yml's false SHA-pin claim made truthful.
+5. **4.5 (scope pip-audit + de-dup):** `Dependency Security Audit` now runs `pip-audit --requirement <lock>` per tool instead of auditing the whole runner env (removes the Entry-016 setuptools-workaround, which was deleted); removed the redundant `pytest tests/integration/` step (the full `pytest tests/` covers it) + added root `--cov` reporting; removed validate.yml's duplicate root-pytest step (job kept 3 substantive steps, name unchanged). **All 10 job names verified byte-for-byte unchanged** (branch-protection required checks depend on job-name identity).
+6. **Orchestrator gate:** all 3 workflow/config files YAML-valid; `scripts/validate_schema_data.py` exit 0; ruff full-scope clean; job-name grep confirms `Run Tests (${{ matrix.os }})` etc. intact.
+
+7. **PR #112 first CI round:** 16/18 green; **BPMN2DrawIO + Visual Explainer Tests (windows-latest)** failed. Root cause: GitHub Actions defaults `run:` steps to **PowerShell** on Windows runners, and the new multi-line mypy-ratchet **bash** script (`set +e`, `[ "$ERRORS" -gt "$BASELINE" ]`, `if…then`) is not valid PowerShell (`ParserError: Missing '(' after 'if'`). The pre-existing single-command `run:` steps (pip/pytest) work under pwsh, which is why only the two NEW ratchet steps broke. Fix: added `shell: bash` to both ratchet steps (Git bash on Windows runners supports the `grep -oP` extraction). ubuntu legs were unaffected (bash default). This is the OS-fidelity value of the windows matrix again (cf. E018 XXE fix).
+
+**Status:** IN PROGRESS — all 5 items implemented; local gates green; Windows pwsh-vs-bash ratchet fix pushed; PR #112 re-running. Entry closed with the squash-merge SHA at the start of the Phase 5 branch.

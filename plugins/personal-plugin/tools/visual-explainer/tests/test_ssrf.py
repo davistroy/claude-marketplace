@@ -96,7 +96,9 @@ class TestCheckHostIsSafe:
 class TestValidateUrlTarget:
     """Tests for _validate_url_target -- scheme + host validation."""
 
-    @pytest.mark.parametrize("scheme_url", ["ftp://example.com/x", "file:///etc/passwd", "gopher://example.com"])
+    @pytest.mark.parametrize(
+        "scheme_url", ["ftp://example.com/x", "file:///etc/passwd", "gopher://example.com"]
+    )
     def test_rejects_disallowed_schemes(self, scheme_url):
         """Only http/https schemes are allowed."""
         with pytest.raises(SSRFError):

@@ -5,10 +5,9 @@ They cover resolve(), _organize_by_lanes(), _place_connected_elements(),
 _avoid_overlap(), _position_boundary_events(), and edge cases.
 """
 
-from bpmn2drawio.models import BPMNElement, BPMNFlow, BPMNModel, Pool, Lane
-from bpmn2drawio.position_resolver import PositionResolver, resolve_positions
 from bpmn2drawio.constants import LayoutConstants
-
+from bpmn2drawio.models import BPMNElement, BPMNFlow, BPMNModel, Lane, Pool
+from bpmn2drawio.position_resolver import PositionResolver, resolve_positions
 
 # ---------------------------------------------------------------------------
 # Helper factories
@@ -390,11 +389,7 @@ class TestOrganizeByLanes:
         pool = make_pool("pool1", process_ref="proc1")
         lane = make_lane("laneA", parent_pool_id="pool1")
         model = BPMNModel(
-            elements=[
-                make_element(
-                    "t1", parent_id="laneA", x=100, y=100, width=120, height=80
-                )
-            ],
+            elements=[make_element("t1", parent_id="laneA", x=100, y=100, width=120, height=80)],
             flows=[],
             pools=[pool],
             lanes=[lane],
@@ -613,9 +608,7 @@ class TestPositionBoundaryEvents:
 
     def test_boundary_event_attached_via_property(self):
         """Boundary event uses attachedToRef from properties to find parent."""
-        task = make_element(
-            "task1", type="userTask", x=200, y=200, width=120, height=80
-        )
+        task = make_element("task1", type="userTask", x=200, y=200, width=120, height=80)
         boundary = make_element(
             "boundary1",
             type="boundaryEvent",
@@ -636,9 +629,7 @@ class TestPositionBoundaryEvents:
 
     def test_boundary_event_x_offset(self):
         """Boundary event x starts at offset 20 from the left of the parent."""
-        task = make_element(
-            "task1", type="userTask", x=200, y=200, width=120, height=80
-        )
+        task = make_element("task1", type="userTask", x=200, y=200, width=120, height=80)
         boundary = make_element(
             "b1",
             type="boundaryEvent",
@@ -655,9 +646,7 @@ class TestPositionBoundaryEvents:
 
     def test_multiple_boundary_events_spaced(self):
         """Multiple boundary events on same task are spaced horizontally."""
-        task = make_element(
-            "task1", type="userTask", x=200, y=200, width=120, height=80
-        )
+        task = make_element("task1", type="userTask", x=200, y=200, width=120, height=80)
         b1 = make_element(
             "b1",
             type="boundaryEvent",
@@ -699,9 +688,7 @@ class TestPositionBoundaryEvents:
         """Boundary event without attachedToRef falls back to ID pattern matching."""
         task = make_element("myTask", type="task", x=100, y=100, width=120, height=80)
         # The boundary event id contains the parent task id
-        boundary = make_element(
-            "myTaskBoundary", type="boundaryEvent", width=36, height=36
-        )
+        boundary = make_element("myTaskBoundary", type="boundaryEvent", width=36, height=36)
         model = BPMNModel(elements=[task, boundary])
         resolver = self._build_resolver()
 
@@ -1083,9 +1070,7 @@ class TestAdjustSubprocessInternalPositions:
             height=250,
             properties={"_is_subprocess": True},
         )
-        internal = make_element(
-            "int1", x=250, y=260, width=80, height=60, subprocess_id="sub1"
-        )
+        internal = make_element("int1", x=250, y=260, width=80, height=60, subprocess_id="sub1")
         model = BPMNModel(elements=[sub, internal])
         resolver = PositionResolver()
 
@@ -1135,9 +1120,7 @@ class TestPreserveLanePositions:
     def test_absolute_coords_converted_to_relative(self):
         """Element absolute coords become lane-relative in preserve mode."""
         pool = make_pool("pool1", x=50, y=50, width=800, height=400)
-        lane = make_lane(
-            "lane1", parent_pool_id="pool1", x=90, y=50, width=760, height=400
-        )
+        lane = make_lane("lane1", parent_pool_id="pool1", x=90, y=50, width=760, height=400)
         elem = make_element("t1", parent_id="lane1", x=200, y=150, width=120, height=80)
         model = BPMNModel(
             elements=[elem],

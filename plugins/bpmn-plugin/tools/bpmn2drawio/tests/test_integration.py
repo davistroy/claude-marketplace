@@ -1,13 +1,13 @@
 """Integration tests for end-to-end conversion."""
 
-import pytest
-from pathlib import Path
 import xml.etree.ElementTree as ET
+from pathlib import Path
+
+import pytest
 
 from bpmn2drawio.converter import Converter
 from bpmn2drawio.parser import parse_bpmn
 from bpmn2drawio.validation import validate_model
-
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

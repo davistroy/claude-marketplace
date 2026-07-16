@@ -1,12 +1,12 @@
 """Tests for CLI."""
 
-import pytest
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
-from bpmn2drawio.cli import main, create_parser
+import pytest
 
+from bpmn2drawio.cli import create_parser, main
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

@@ -3,17 +3,16 @@
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from bpmn2drawio.parser import parse_bpmn
-from bpmn2drawio.generator import DrawioGenerator
 from bpmn2drawio.converter import Converter
-from bpmn2drawio.models import Pool, Lane, BPMNElement, BPMNModel
+from bpmn2drawio.generator import DrawioGenerator
+from bpmn2drawio.models import BPMNElement, BPMNModel, Lane, Pool
+from bpmn2drawio.parser import parse_bpmn
 from bpmn2drawio.swimlanes import (
     SwimlaneSizer,
-    create_pool_cell,
     create_lane_cell,
+    create_pool_cell,
     resolve_parent_hierarchy,
 )
-
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -97,9 +96,7 @@ class TestCreatePoolCell:
         cell = create_pool_cell(pool, "10")
 
         # Vertical pools don't have horizontal=0
-        assert "horizontal=0" not in cell.get("style") or "startSize=30" in cell.get(
-            "style"
-        )
+        assert "horizontal=0" not in cell.get("style") or "startSize=30" in cell.get("style")
 
 
 class TestCreateLaneCell:

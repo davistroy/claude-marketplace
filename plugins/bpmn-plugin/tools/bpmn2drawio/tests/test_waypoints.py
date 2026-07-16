@@ -3,20 +3,17 @@
 from bpmn2drawio.models import BPMNElement, BPMNFlow
 from bpmn2drawio.waypoints import (
     convert_bpmn_waypoints,
-    generate_waypoints,
     create_waypoint_array,
+    generate_waypoints,
     position_edge_label,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _el(
-    id: str, x: float, y: float, w: float = 120, h: float = 80, **kw
-) -> BPMNElement:
+def _el(id: str, x: float, y: float, w: float = 120, h: float = 80, **kw) -> BPMNElement:
     """Shorthand to build a BPMNElement with coordinates."""
     return BPMNElement(id=id, type=kw.get("type", "task"), x=x, y=y, width=w, height=h)
 

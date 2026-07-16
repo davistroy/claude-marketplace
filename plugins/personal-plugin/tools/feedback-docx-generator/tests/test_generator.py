@@ -25,7 +25,6 @@ from feedback_docx_generator.__main__ import (
     generate_docx,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helper function tests
 # ---------------------------------------------------------------------------
@@ -490,9 +489,7 @@ class TestBuildAppendix:
         _build_appendix(doc, sample_feedback_data["entries"])
 
         # Count separator paragraphs (runs with "_" * 60)
-        separator_count = sum(
-            1 for p in doc.paragraphs if p.runs and "_" * 60 in p.runs[0].text
-        )
+        separator_count = sum(1 for p in doc.paragraphs if p.runs and "_" * 60 in p.runs[0].text)
         assert separator_count == len(sample_feedback_data["entries"]) - 1
 
 

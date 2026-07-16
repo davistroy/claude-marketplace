@@ -3,19 +3,18 @@
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from bpmn2drawio.parser import parse_bpmn
-from bpmn2drawio.generator import DrawioGenerator
 from bpmn2drawio.converter import Converter
+from bpmn2drawio.generator import DrawioGenerator
 from bpmn2drawio.models import BPMNElement, BPMNFlow
+from bpmn2drawio.parser import parse_bpmn
 from bpmn2drawio.routing import EdgeRouter, calculate_edge_routes
+from bpmn2drawio.styles import get_edge_style
 from bpmn2drawio.waypoints import (
     convert_bpmn_waypoints,
-    generate_waypoints,
     create_waypoint_array,
+    generate_waypoints,
     position_edge_label,
 )
-from bpmn2drawio.styles import get_edge_style
-
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -26,9 +25,7 @@ class TestEdgeRouter:
     def test_route_horizontal(self):
         """Test routing between horizontally adjacent elements."""
         elements = [
-            BPMNElement(
-                id="start", type="startEvent", x=100, y=100, width=36, height=36
-            ),
+            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
             BPMNElement(id="task", type="task", x=200, y=80, width=120, height=80),
         ]
         router = EdgeRouter(elements)
@@ -44,9 +41,7 @@ class TestEdgeRouter:
     def test_route_vertical(self):
         """Test routing between vertically adjacent elements."""
         elements = [
-            BPMNElement(
-                id="start", type="startEvent", x=100, y=100, width=36, height=36
-            ),
+            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
             BPMNElement(id="task", type="task", x=80, y=250, width=120, height=80),
         ]
         router = EdgeRouter(elements)
@@ -58,9 +53,7 @@ class TestEdgeRouter:
     def test_route_preserves_existing_waypoints(self):
         """Test that existing waypoints are preserved."""
         elements = [
-            BPMNElement(
-                id="start", type="startEvent", x=100, y=100, width=36, height=36
-            ),
+            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
             BPMNElement(id="task", type="task", x=300, y=100, width=120, height=80),
         ]
         router = EdgeRouter(elements)
@@ -90,9 +83,7 @@ class TestWaypointConversion:
 
     def test_generate_waypoints_horizontal(self):
         """Test generating waypoints for horizontal flow."""
-        source = BPMNElement(
-            id="s", type="startEvent", x=100, y=100, width=36, height=36
-        )
+        source = BPMNElement(id="s", type="startEvent", x=100, y=100, width=36, height=36)
         target = BPMNElement(id="t", type="task", x=300, y=80, width=120, height=80)
 
         waypoints = generate_waypoints(source, target)
@@ -124,9 +115,7 @@ class TestEdgeLabelPosition:
 
     def test_label_position_two_points(self):
         """Test label position with two waypoints."""
-        flow = BPMNFlow(
-            id="f1", type="sequenceFlow", source_ref="s", target_ref="t", name="Yes"
-        )
+        flow = BPMNFlow(id="f1", type="sequenceFlow", source_ref="s", target_ref="t", name="Yes")
         waypoints = [(100, 100), (300, 100)]
 
         position = position_edge_label(flow, waypoints)
@@ -237,16 +226,12 @@ class TestEdgeRouteCalculation:
     def test_calculate_all_routes(self):
         """Test calculating routes for all flows."""
         elements = [
-            BPMNElement(
-                id="start", type="startEvent", x=100, y=100, width=36, height=36
-            ),
+            BPMNElement(id="start", type="startEvent", x=100, y=100, width=36, height=36),
             BPMNElement(id="task", type="task", x=200, y=80, width=120, height=80),
             BPMNElement(id="end", type="endEvent", x=400, y=100, width=36, height=36),
         ]
         flows = [
-            BPMNFlow(
-                id="f1", type="sequenceFlow", source_ref="start", target_ref="task"
-            ),
+            BPMNFlow(id="f1", type="sequenceFlow", source_ref="start", target_ref="task"),
             BPMNFlow(id="f2", type="sequenceFlow", source_ref="task", target_ref="end"),
         ]
 

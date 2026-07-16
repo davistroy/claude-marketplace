@@ -2,10 +2,9 @@
 
 from pathlib import Path
 
-from bpmn2drawio.recovery import RecoveryStrategy, recover_model
-from bpmn2drawio.models import BPMNModel, BPMNElement, BPMNFlow
+from bpmn2drawio.models import BPMNElement, BPMNFlow, BPMNModel
 from bpmn2drawio.parser import parse_bpmn
-
+from bpmn2drawio.recovery import RecoveryStrategy, recover_model
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -108,9 +107,7 @@ class TestRecoverInvalidFlow:
     def test_valid_flow_returns_true(self):
         """Test valid flow returns True."""
         strategy = RecoveryStrategy()
-        flow = BPMNFlow(
-            id="Flow_1", type="sequenceFlow", source_ref="Start_1", target_ref="Task_1"
-        )
+        flow = BPMNFlow(id="Flow_1", type="sequenceFlow", source_ref="Start_1", target_ref="Task_1")
         element_ids = {"Start_1", "Task_1", "End_1"}
 
         result = strategy.recover_invalid_flow(flow, element_ids)
@@ -120,9 +117,7 @@ class TestRecoverInvalidFlow:
     def test_invalid_source_returns_false(self):
         """Test flow with invalid source returns False."""
         strategy = RecoveryStrategy()
-        flow = BPMNFlow(
-            id="Flow_1", type="sequenceFlow", source_ref="Invalid", target_ref="Task_1"
-        )
+        flow = BPMNFlow(id="Flow_1", type="sequenceFlow", source_ref="Invalid", target_ref="Task_1")
         element_ids = {"Start_1", "Task_1", "End_1"}
 
         result = strategy.recover_invalid_flow(flow, element_ids)

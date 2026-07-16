@@ -6,13 +6,12 @@ from textwrap import dedent
 import pytest
 
 from bpmn2drawio.config import (
+    get_env_config,
     load_brand_config,
     merge_theme_with_config,
-    get_env_config,
 )
 from bpmn2drawio.exceptions import ConfigurationError
-from bpmn2drawio.themes import BPMNTheme, THEMES
-
+from bpmn2drawio.themes import THEMES, BPMNTheme
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
