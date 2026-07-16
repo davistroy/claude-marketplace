@@ -253,7 +253,7 @@ class TestPromptForStyle:
 
     def test_non_interactive_returns_default(self):
         """Test non-interactive returns default style."""
-        with patch("visual_explainer.cli.is_interactive", return_value=False):
+        with patch("visual_explainer.terminal.is_interactive", return_value=False):
             result = prompt_for_style()
         assert result == "professional-clean"
 
@@ -268,7 +268,7 @@ class TestPromptForImageCount:
 
     def test_non_interactive_returns_recommended(self):
         """Test non-interactive returns recommended count."""
-        with patch("visual_explainer.cli.is_interactive", return_value=False):
+        with patch("visual_explainer.terminal.is_interactive", return_value=False):
             result = prompt_for_image_count(3)
         assert result == 3
 
@@ -283,7 +283,7 @@ class TestGenerationProgress:
 
     def test_init(self):
         """Test progress tracker initialization."""
-        with patch("visual_explainer.cli.get_console", return_value=MagicMock()):
+        with patch("visual_explainer.terminal.get_console", return_value=MagicMock()):
             progress = GenerationProgress(5, 3, quiet=False)
         assert progress.total_images == 5
         assert progress.max_iterations == 3
@@ -291,13 +291,13 @@ class TestGenerationProgress:
 
     def test_quiet_mode(self):
         """Test quiet mode suppresses output."""
-        with patch("visual_explainer.cli.get_console", return_value=MagicMock()):
+        with patch("visual_explainer.terminal.get_console", return_value=MagicMock()):
             progress = GenerationProgress(5, 3, quiet=True)
         assert progress.quiet is True
 
     def test_context_manager_quiet(self):
         """Test context manager works in quiet mode."""
-        with patch("visual_explainer.cli.get_console", return_value=MagicMock()):
+        with patch("visual_explainer.terminal.get_console", return_value=MagicMock()):
             with GenerationProgress(2, 3, quiet=True) as progress:
                 progress.start_image(1, "Test Image")
                 progress.start_attempt(1)
@@ -306,7 +306,7 @@ class TestGenerationProgress:
 
     def test_start_image(self):
         """Test starting a new image."""
-        with patch("visual_explainer.cli.get_console", return_value=MagicMock()):
+        with patch("visual_explainer.terminal.get_console", return_value=MagicMock()):
             with GenerationProgress(2, 3, quiet=True) as progress:
                 progress.start_image(1, "Test")
                 assert progress.current_image == 1
@@ -314,21 +314,21 @@ class TestGenerationProgress:
 
     def test_start_attempt(self):
         """Test starting a new attempt."""
-        with patch("visual_explainer.cli.get_console", return_value=MagicMock()):
+        with patch("visual_explainer.terminal.get_console", return_value=MagicMock()):
             with GenerationProgress(2, 3, quiet=True) as progress:
                 progress.start_attempt(2)
                 assert progress.current_attempt == 2
 
     def test_complete_image_quiet(self):
         """Test completing an image in quiet mode."""
-        with patch("visual_explainer.cli.get_console", return_value=MagicMock()):
+        with patch("visual_explainer.terminal.get_console", return_value=MagicMock()):
             with GenerationProgress(2, 3, quiet=True) as progress:
                 progress.complete_image(1, 2, 0.90)
                 # Should not raise
 
     def test_show_evaluation_quiet(self):
         """Test showing evaluation in quiet mode."""
-        with patch("visual_explainer.cli.get_console", return_value=MagicMock()):
+        with patch("visual_explainer.terminal.get_console", return_value=MagicMock()):
             with GenerationProgress(2, 3, quiet=True) as progress:
                 mock_eval = MagicMock()
                 mock_eval.verdict = EvaluationVerdict.PASS
@@ -360,14 +360,14 @@ class TestMain:
     def test_no_input_non_interactive_json(self):
         """Test no input with --json returns error JSON."""
         with patch("sys.argv", ["visual-explainer", "--json"]):
-            with patch("visual_explainer.cli.is_interactive", return_value=False):
+            with patch("visual_explainer.terminal.is_interactive", return_value=False):
                 result = main()
                 assert result == 1
 
     def test_no_input_non_interactive_error(self):
         """Test no input in non-interactive mode returns error."""
         with patch("sys.argv", ["visual-explainer"]):
-            with patch("visual_explainer.cli.is_interactive", return_value=False):
+            with patch("visual_explainer.terminal.is_interactive", return_value=False):
                 result = main()
                 assert result == 1
 
@@ -413,7 +413,7 @@ class TestMain:
             "sys.argv",
             ["visual-explainer", "-i", "test.md"],
         ):
-            with patch("visual_explainer.cli.is_interactive", return_value=False):
+            with patch("visual_explainer.terminal.is_interactive", return_value=False):
                 with patch(
                     "visual_explainer.cli.GenerationConfig.from_cli_and_env",
                     side_effect=ValueError("Bad config"),
@@ -438,23 +438,23 @@ class TestDisplayFunctions:
 
     def test_display_welcome(self):
         """Test display_welcome doesn't crash."""
-        with patch("visual_explainer.cli._console", None):
-            with patch("visual_explainer.cli.is_interactive", return_value=False):
-                with patch("visual_explainer.cli.supports_unicode", return_value=False):
-                    with patch("visual_explainer.cli.RICH_AVAILABLE", True):
+        with patch("visual_explainer.terminal._console", None):
+            with patch("visual_explainer.terminal.is_interactive", return_value=False):
+                with patch("visual_explainer.terminal.supports_unicode", return_value=False):
+                    with patch("visual_explainer.terminal.RICH_AVAILABLE", True):
                         # Reset console
-                        import visual_explainer.cli as cli_mod
+                        import visual_explainer.terminal as cli_mod
 
                         cli_mod._console = None
                         display_welcome()
 
     def test_display_analysis_summary(self, sample_concept_analysis):
         """Test display_analysis_summary doesn't crash."""
-        with patch("visual_explainer.cli._console", None):
-            with patch("visual_explainer.cli.is_interactive", return_value=False):
-                with patch("visual_explainer.cli.supports_unicode", return_value=False):
-                    with patch("visual_explainer.cli.RICH_AVAILABLE", True):
-                        import visual_explainer.cli as cli_mod
+        with patch("visual_explainer.terminal._console", None):
+            with patch("visual_explainer.terminal.is_interactive", return_value=False):
+                with patch("visual_explainer.terminal.supports_unicode", return_value=False):
+                    with patch("visual_explainer.terminal.RICH_AVAILABLE", True):
+                        import visual_explainer.terminal as cli_mod
 
                         cli_mod._console = None
                         display_analysis_summary(sample_concept_analysis)
@@ -591,31 +591,31 @@ class TestGetConsole:
 
     def test_returns_console(self):
         """Test get_console returns a Console instance."""
-        import visual_explainer.cli as cli_mod
+        import visual_explainer.terminal as cli_mod
 
         cli_mod._console = None
-        with patch("visual_explainer.cli.is_interactive", return_value=False):
-            with patch("visual_explainer.cli.supports_unicode", return_value=False):
+        with patch("visual_explainer.terminal.is_interactive", return_value=False):
+            with patch("visual_explainer.terminal.supports_unicode", return_value=False):
                 console = get_console()
                 assert console is not None
 
     def test_caches_console(self):
         """Test get_console returns same instance on second call."""
-        import visual_explainer.cli as cli_mod
+        import visual_explainer.terminal as cli_mod
 
         cli_mod._console = None
-        with patch("visual_explainer.cli.is_interactive", return_value=False):
-            with patch("visual_explainer.cli.supports_unicode", return_value=False):
+        with patch("visual_explainer.terminal.is_interactive", return_value=False):
+            with patch("visual_explainer.terminal.supports_unicode", return_value=False):
                 c1 = get_console()
                 c2 = get_console()
                 assert c1 is c2
 
     def test_no_rich_raises(self):
         """Test error when Rich not available."""
-        import visual_explainer.cli as cli_mod
+        import visual_explainer.terminal as cli_mod
 
         cli_mod._console = None
-        with patch("visual_explainer.cli.RICH_AVAILABLE", False):
+        with patch("visual_explainer.terminal.RICH_AVAILABLE", False):
             with pytest.raises(RuntimeError, match="Rich"):
                 get_console()
 
@@ -632,7 +632,7 @@ class TestPromptForInput:
         """Test prompt_for_input raises in non-interactive mode."""
         from visual_explainer.cli import prompt_for_input
 
-        with patch("visual_explainer.cli.is_interactive", return_value=False):
+        with patch("visual_explainer.terminal.is_interactive", return_value=False):
             with pytest.raises(RuntimeError, match="non-interactive"):
                 prompt_for_input()
 
@@ -856,12 +856,12 @@ class TestCheckpointResume:
         )
 
         with patch(
-            "visual_explainer.cli._analyze_concepts",
+            "visual_explainer.pipeline._analyze_concepts",
             new_callable=AsyncMock,
             return_value=(mock_analysis, mock_style, "professional-clean", 1),
         ):
             with patch(
-                "visual_explainer.cli._generate_prompts",
+                "visual_explainer.pipeline._generate_prompts",
                 return_value=(
                     [mock_prompt1, mock_prompt2, mock_prompt3],
                     mock_prompt_gen,
@@ -869,14 +869,14 @@ class TestCheckpointResume:
                 ),
             ):
                 with patch(
-                    "visual_explainer.cli._execute_generation_loop",
+                    "visual_explainer.pipeline._execute_generation_loop",
                     new_callable=AsyncMock,
                     return_value=(
                         [mock_new_result_2, mock_new_result_3],
                         10,
                     ),
                 ) as mock_gen_loop:
-                    with patch("visual_explainer.cli._save_outputs"):
+                    with patch("visual_explainer.pipeline._save_outputs"):
                         result = asyncio.run(
                             load_checkpoint_and_resume(checkpoint_path, mock_config, quiet=True)
                         )
