@@ -63,7 +63,8 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C15 | Force plugin cache to release versions + arch-review smoke test (A10) — cache at 10.0.0/4.2.0/1.2.0 verified on disk; dispatch mechanics green; new definitions restart-gated (load next session) | 2026-07-08 | 2026-07-08 | E011 |
 | C16 | Regenerate 5 tool lockfiles for patched CVE versions (plan item 4.2) — 0 pyproject.toml floor changes needed; pip-audit clean ×3 tools; coverage floors held (92.32%/67.03%/96.95%); neither flagged risk (lxml 6.1, pillow 12.2) regressed | 2026-07-12 | 2026-07-12 | E012 |
 | C17 | Plan item 4.3 (A11): `.github/dependabot.yml` created (pip ×3 tool dirs + github-actions, grouped weekly); PR #99 opened from `fix/dependency-cves-2026-07`; all 15 CI checks green on ubuntu + windows; squash-merged | 2026-07-12 | 2026-07-12 | E013 |
-| C18 | Author `clear-prep` skill (context-clear handoff) + refresh 4-version-stale Current Baseline (prime finding); `claude plugin validate --strict` passed, not yet shipped | 2026-07-16 | 2026-07-16 | E015 |
+| C18 | Author `clear-prep` skill (context-clear handoff) + refresh 4-version-stale Current Baseline (prime finding); `claude plugin validate --strict` passed | 2026-07-16 | 2026-07-16 | E015 |
+| C19 | Ship personal-plugin 10.3.0 (clear-prep) via PR #108 — squash-merged `df33eef`, all 25 checks green both OSes, cache updated 10.2.0→10.3.0; folded a one-line setuptools-CVE (PYSEC-2026-3447) CI hygiene fix to unblock the audit gate | 2026-07-16 | 2026-07-16 | E016 |
 
 ---
 
@@ -103,11 +104,11 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 ## Current Baseline
 
 - **Marketplace version:** 3.3.0
-- **personal-plugin version:** 10.2.0 (23 commands, 27→28 skills [clear-prep added E015], 10 named agents in `.claude/agents/`, hooks system)
+- **personal-plugin version:** 10.3.0 (23 commands, 28 skills [clear-prep added E015/E016], 10 named agents in `.claude/agents/`, hooks system)
 - **bpmn-plugin version:** 4.2.0 (2 skills, bpmn2drawio Python tool)
 - **slide-gen version:** 1.2.0 (9 skills, 7-step presentation pipeline)
-- **Git:** clean, main branch, verified synced with `origin/main` via `git fetch` (2026-07-16, 0/0 divergence)
-- **Last commit:** `c9d3dd4` — docs: close LAB_NOTEBOOK Entry 014 (PR #105 merged 9c12188, personal-plugin 10.2.0)
+- **Git:** clean, main branch, synced with `origin/main` (2026-07-16)
+- **Last commit:** `df33eef` — personal-plugin 10.3.0: clear-prep skill (PR #108); closing docs commit follows
 - **Plugin cache status:** in sync — marketplace source is GitHub (`davistroy/claude-marketplace`) with `autoUpdate: true` (see D19); cache tracks `origin/main` automatically, independent of local working tree state
 - **CI/CD:** GitHub Actions — `test.yml` (pytest matrix, per-tool coverage gates, pip-audit, JSON schema validation), `validate.yml` (plugin.json/frontmatter/version-sync checks, ruff, markdownlint)
 - **Platform:** Linux (this session); prior sessions ran Windows 11 — see root CLAUDE.md "Dual environment" section
@@ -799,6 +800,9 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 **Finding:** the `Dependency Security Audit` job audits the *runner environment* (implicit build tools like setuptools included), not just declared tool deps — so it can fail on an unrelated feature PR the moment a new setuptools/pip/wheel CVE lands. Contrast E013's lockfile audit, which only saw declared deps. Mitigation options weighed with the user (scope-isolate per E013 precedent vs fold the one-line CI hygiene fix into this release).
 
 7. **Decision (user):** fold the one-line CI hygiene fix into #108 (over scope-isolation into a separate PR, and over admin-merging past the red gate). Rationale: single workflow-file line, unblocks immediately, keeps `main`'s audit green, and hardens the gate against future stale-build-tool CVEs for every subsequent PR — the isolation concern (E013) applies to *tool dependency* churn, not a one-line runner-hygiene patch. Added `python -m pip install --upgrade setuptools` to the audit job's install step in `.github/workflows/test.yml` (with an explanatory comment). CHANGELOG deliberately untouched — CI-infra hygiene is not a plugin-facing change.
-8. Re-push + re-run CI + squash-merge: recorded in Status below.
+8. CI fix committed `8ee1eae`, pushed to #108. Second run: **ALL 25 checks pass, both OSes** — including `Dependency Security Audit` (31s, now green with patched setuptools). Runs 29507058656 (test.yml) + 29507058648 (validate.yml).
+9. Squash-merged as **`df33eef`** ("personal-plugin 10.3.0: clear-prep skill for context-clear handoffs (#108)"); remote branch deleted; local main fast-forwarded c9d3dd4→df33eef, clean.
+10. Installed cache: `claude plugin marketplace update troys-plugins` + `claude plugin update personal-plugin@troys-plugins` → updated 10.2.0→10.3.0; verified `~/.claude/plugins/cache/troys-plugins/personal-plugin/10.3.0/skills/clear-prep/SKILL.md` present. New skill is restart-gated (E011) — appears in the live skill list next fresh session.
 
-**Status:** IN PROGRESS — CI fix pushed to #108, re-running. Entry closed with the squash-merge SHA in a follow-up `docs:` commit on main (Entry 014 / `c9d3dd4` pattern).
+**Status:** COMPLETE. personal-plugin 10.3.0 live on main (`df33eef`), plugin.json == marketplace.json == 10.3.0, `clear-prep` skill shipped and in the installed cache. CI hardened against stale-build-tool CVEs. Current Baseline refreshed below.
+**Duration:** ~35 minutes (including the setuptools CVE detour + one CI re-run)
