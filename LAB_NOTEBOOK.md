@@ -108,11 +108,11 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 ## Current Baseline
 
 - **Marketplace version:** 3.3.0
-- **personal-plugin version:** 10.3.0 (23 commands, 28 skills [clear-prep added E015/E016], 10 named agents in `.claude/agents/`, hooks system)
+- **personal-plugin version:** 11.0.0 (23 commands, 28 skills, 10 named agents in `.claude/agents/`, hooks system) — arch-review hardening release (E017–E025); MAJOR (removed visual-explainer `--concurrency`, scoped `allowed-tools`, 4 fleet skills user-invoke-only)
 - **bpmn-plugin version:** 4.2.0 (2 skills, bpmn2drawio Python tool)
 - **slide-gen version:** 1.2.0 (9 skills, 7-step presentation pipeline)
 - **Git:** clean, main branch, synced with `origin/main` (2026-07-16)
-- **Last commit:** `0e0895c` — Phase 8 of the arch-review remediation (PR #121); see C20 / Entries 017–024
+- **Last commit:** `fbb1437` — personal-plugin 11.0.0 arch-review hardening release (PR #123); remediation Entries 017–025, see C20
 - **Arch-review remediation (2026-07-16):** 8-phase plan (32 items) COMPLETE. Branch protection now ENFORCED on `main` (14 required checks, PR-required, `enforce_admins=false`); CI gates hardened (per-tool tests linted, mypy count-ratchet, schema-data validation, SHA-pinned actions, pip-audit scoped, xdist); tool code hardened (XXE, SSRF, `.env` 0600, atomic writes); injection surface reduced (Bash scoped in 23 files, 4 fleet skills user-invoke-only); slide-gen honest (ADR-0008 external-dep + preflight); egress/supply-chain policy in SECURITY.md; cruft removed. **No plugin version bumps** — these were hardening changes, not feature releases (personal-plugin stays 10.3.0 / bpmn 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0); autoUpdate propagates content regardless of version. Deferred (documented): SE-11, PLAT-012, PERF-01 wiring, cli.py decomposition, full eval corpus, visual-explainer floor→85%.
 - **Plugin cache status:** in sync — marketplace source is GitHub (`davistroy/claude-marketplace`) with `autoUpdate: true` (see D19); cache tracks `origin/main` automatically, independent of local working tree state
 - **CI/CD:** GitHub Actions — `test.yml` (pytest matrix, per-tool coverage gates, pip-audit, JSON schema validation), `validate.yml` (plugin.json/frontmatter/version-sync checks, ruff, markdownlint)
@@ -1033,4 +1033,9 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 1. Branch created; Entry 025 logged (this entry) before any commit.
 
-**Status:** IN PROGRESS — bumping + CHANGELOG; closed with the PR number/merge SHA in the follow-up close-docs PR (branch protection blocks direct-to-main).
+2. Bumped plugin.json + marketplace.json 10.3.0→11.0.0 (version-sync gate green); wrote `## [11.0.0]` MAJOR sections into root + plugin CHANGELOGs (Changed-breaking / Security / Added / Fixed / Removed). `claude plugin validate --strict` exit 0.
+3. Committed, opened **PR #123**, all 18 checks green under branch protection, squash-merged as **`fbb1437`**; local main fast-forwarded 689842c→fbb1437.
+4. Installed cache: `claude plugin update personal-plugin@troys-plugins` → 10.3.0→11.0.0 (restart-gated; new definitions load next session).
+
+**Status:** COMPLETE. personal-plugin **11.0.0** live on main (`fbb1437`), plugin.json == marketplace.json == 11.0.0; the arch-review hardening is now a tagged-by-version release. bpmn-plugin 4.2.0 / slide-gen 1.2.0 / marketplace 3.3.0 unchanged. Current Baseline updated below.
+**Duration:** ~15 minutes
