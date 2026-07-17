@@ -41,6 +41,8 @@ None — operates on the current repository.
 
 ### S2: Health metrics accuracy
 
+**Context:** Continuing from the `/prime` run in S1 — same report, evaluated against these additional criteria.
+
 **Must:**
 - [ ] If the project has no unit tests, the health report reflects this as a gap
 - [ ] If CLAUDE.md is well-maintained, this is noted as a strength

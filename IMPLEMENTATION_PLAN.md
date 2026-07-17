@@ -503,8 +503,8 @@ The hook is opt-in via manual `cp scripts/pre-commit .git/hooks/`; `.git/hooks/`
 
 ### Work Items
 
-#### 6.1 Extend `check_eval_mapping.py` into a structural linter
-**Status: PENDING**
+#### 6.1 Extend `check_eval_mapping.py` into a structural linter ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #150 (CS6a)
 **Files Affected:**
@@ -526,8 +526,8 @@ Extend the mapping check to also validate structure: every scenario has an Invoc
 - [ ] WHEN a cross-cutting eval's `command:` names no live surface THEN the check SHALL fail.
 - [ ] WHEN the check runs THEN it SHALL import only the stdlib.
 
-#### 6.2 Close the 10-surface eval coverage gap
-**Status: PENDING**
+#### 6.2 Close the 10-surface eval coverage gap ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #150 (CS6a)
 **Files Affected:**
@@ -547,8 +547,8 @@ Extend the mapping check to also validate structure: every scenario has an Invoc
 
 **Depends On:** 6.1
 
-#### 6.3 ADR-0009 — defer the LLM-judge behavioral runner
-**Status: PENDING**
+#### 6.3 ADR-0009 — defer the LLM-judge behavioral runner ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #150 (decision record)
 **Files Affected:**
