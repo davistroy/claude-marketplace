@@ -298,8 +298,8 @@ class TestGeometricParentAssignmentUnit:
 
     def test_element_without_coordinates_is_skipped(self):
         """An element with no centre (missing coords) is left unparented."""
+        from bpmn2drawio.models import BPMNElement, BPMNModel, Lane
         from bpmn2drawio.parser import BPMNParser
-        from bpmn2drawio.models import BPMNModel, Lane, BPMNElement
 
         model = BPMNModel()
         model.lanes.append(Lane(id="L1", process_id="P", x=0, y=0, width=100, height=100))
@@ -313,8 +313,8 @@ class TestGeometricParentAssignmentUnit:
 
     def test_falls_back_to_laneless_pool_of_same_process(self):
         """Element whose process has no lanes lands in its own laneless pool."""
+        from bpmn2drawio.models import BPMNElement, BPMNModel, Lane, Pool
         from bpmn2drawio.parser import BPMNParser
-        from bpmn2drawio.models import BPMNModel, Lane, Pool, BPMNElement
 
         model = BPMNModel()
         # Lanes belong to a different process (PY).
@@ -335,8 +335,8 @@ class TestGeometricParentAssignmentUnit:
 
     def test_element_not_pulled_into_other_process_lane(self):
         """With no lane and no pool for its process, the element stays unparented."""
+        from bpmn2drawio.models import BPMNElement, BPMNModel, Lane, Pool
         from bpmn2drawio.parser import BPMNParser
-        from bpmn2drawio.models import BPMNModel, Lane, Pool, BPMNElement
 
         model = BPMNModel()
         model.lanes.append(
@@ -356,8 +356,8 @@ class TestGeometricParentAssignmentUnit:
 
     def test_noop_when_no_lanes_or_pools_with_di(self):
         """With no DI lanes or pools, the method returns without changes."""
+        from bpmn2drawio.models import BPMNElement, BPMNModel
         from bpmn2drawio.parser import BPMNParser
-        from bpmn2drawio.models import BPMNModel, BPMNElement
 
         model = BPMNModel()
         element = BPMNElement(id="E", type="task", x=10, y=10, width=80, height=60)
@@ -369,8 +369,8 @@ class TestGeometricParentAssignmentUnit:
 
     def test_subprocess_children_are_skipped(self):
         """Elements owned by a subprocess are not reparented by geometry."""
+        from bpmn2drawio.models import BPMNElement, BPMNModel, Lane
         from bpmn2drawio.parser import BPMNParser
-        from bpmn2drawio.models import BPMNModel, Lane, BPMNElement
 
         model = BPMNModel()
         model.lanes.append(Lane(id="L1", process_id="P", x=0, y=0, width=200, height=200))
@@ -385,8 +385,8 @@ class TestGeometricParentAssignmentUnit:
 
     def test_widens_to_all_lanes_without_process_info(self):
         """When the element has no process id, geometry uses every lane."""
+        from bpmn2drawio.models import BPMNElement, BPMNModel, Lane
         from bpmn2drawio.parser import BPMNParser
-        from bpmn2drawio.models import BPMNModel, Lane, BPMNElement
 
         model = BPMNModel()
         model.lanes.append(Lane(id="L1", x=0, y=0, width=200, height=200))

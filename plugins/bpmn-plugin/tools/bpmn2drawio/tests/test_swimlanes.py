@@ -290,12 +290,20 @@ class TestPoolHeaderAlignment:
         model = BPMNModel()
         model.pools.append(Pool(id="P", name="Pool", x=0, y=0, width=600, height=200))
         model.lanes.append(
-            Lane(id="L", name="Lane", parent_pool_id="P", x=inset, y=0, width=600 - inset, height=200)
+            Lane(
+                id="L", name="Lane", parent_pool_id="P", x=inset, y=0, width=600 - inset, height=200
+            )
         )
         model.elements.append(
             BPMNElement(
-                id="T", type="task", name="T",
-                x=inset + 60, y=50, width=100, height=60, parent_id="L",
+                id="T",
+                type="task",
+                name="T",
+                x=inset + 60,
+                y=50,
+                width=100,
+                height=60,
+                parent_id="L",
             )
         )
         return model
@@ -337,7 +345,9 @@ class TestPoolHeaderAlignment:
         model = BPMNModel()
         model.pools.append(Pool(id="P", name="Box", x=0, y=0, width=400, height=200))
         model.elements.append(
-            BPMNElement(id="T", type="task", name="T", x=60, y=50, width=100, height=60, parent_id="P")
+            BPMNElement(
+                id="T", type="task", name="T", x=60, y=50, width=100, height=60, parent_id="P"
+            )
         )
         xml = DrawioGenerator().generate_string(model)
         assert "startSize=40" in self._style_of(xml, "Box")

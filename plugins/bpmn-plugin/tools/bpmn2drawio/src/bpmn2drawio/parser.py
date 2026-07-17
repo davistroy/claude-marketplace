@@ -584,9 +584,7 @@ class BPMNParser:
             if ln.x is not None and ln.y is not None and ln.width and ln.height
         ]
         pools_with_di = [
-            p
-            for p in model.pools
-            if p.x is not None and p.y is not None and p.width and p.height
+            p for p in model.pools if p.x is not None and p.y is not None and p.width and p.height
         ]
 
         if not lanes_with_di and not pools_with_di:
@@ -623,8 +621,7 @@ class BPMNParser:
             pool_candidates = [
                 p
                 for p in pools_with_di
-                if p.id not in pooled_lane_ids
-                and (elem_proc is None or p.process_ref == elem_proc)
+                if p.id not in pooled_lane_ids and (elem_proc is None or p.process_ref == elem_proc)
             ]
             chosen_pool = self._best_container(cx, cy, pool_candidates)
             if chosen_pool is not None:
@@ -650,9 +647,7 @@ class BPMNParser:
             return None
 
         containing = [
-            c
-            for c in containers
-            if c.x <= cx <= c.x + c.width and c.y <= cy <= c.y + c.height
+            c for c in containers if c.x <= cx <= c.x + c.width and c.y <= cy <= c.y + c.height
         ]
         if containing:
             return min(containing, key=lambda c: c.width * c.height)
