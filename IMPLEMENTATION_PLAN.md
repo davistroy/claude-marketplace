@@ -92,8 +92,8 @@ Every work item below was checked against these. No item violates one; two items
 
 ### Work Items
 
-#### 1.1 Promote D14–D18 into the Decision Log table
-**Status: PENDING**
+#### 1.1 Promote D14–D18 into the Decision Log table ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #154 (prerequisite)
 **Files Affected:**
@@ -706,7 +706,7 @@ Seven genuine external referrers point at entries that move (CLAUDE.md:26 → E0
 | Recursive glob fails all 39 skills | 3.1 | High | Use `glob('*/SKILL.md')`, never `rglob`; verify against strict CLI | Revert the workflow change |
 | feedback-docx floor silently weakens (branch omitted) | 4.1 | Medium | Add `branch = true` alongside `fail_under = 95` | Revert pyproject |
 | `python-compat` inherits the floor and goes red | 4.1 | Low | Pin `--cov-fail-under=0` on that job | Revert workflow line |
-| Rotation deletes D14–D18 / orphans ADR-0005 | Phase 1 gates Phase 7 | High | Phase 1 promotes them first; Phase 7 blocked on Phase 1 | Restore from git / archive |
+| Rotation deletes D14–D18 / orphans ADR-0005 | Phase 1 gates Phase 7 | High | Mitigated — Phase 1 (Entry 042) promoted D14–D18 into the Decision Log table; Phase 7 no longer blocked | Restore from git / archive |
 | Installing the hook spams contributors (dead help.md check) | 5.1→5.2 | Low | Remove dead check (5.1) before install (5.2) | Revert hook |
 | New required-check name deadlocks merges (PLAT-012 class) | 2.3, 3.1, 6.x | Medium | Only add _steps_ to existing jobs; never rename/add required checks | Revert; check set unchanged |
 | Branch protection blocks self-merge (bus factor 1) | all PRs | Low | `enforce_admins=false` (D22) permits owner merge on green | n/a |

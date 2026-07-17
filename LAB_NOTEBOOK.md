@@ -26,6 +26,11 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D11 | Fold Lab Notebook A2, A3, A4 into gap-analysis implementation plan Phase 5 | 2026-04-30 | ACTIVE | E002 | Execute separately — rejected, they naturally fit Phase 5's implement-plan updates |
 | D12 | Fix `/ultraplan` vs `/ultra-plan` reference ambiguity (no full rename) | 2026-04-30 | ACTIVE | E002 | Full rename — rejected, breaking change for user muscle memory. Hyphen already distinguishes. |
 | D13 | Constitution constraints live in CLAUDE.md, not separate constitution.md | 2026-04-30 | ACTIVE | E002 | Separate constitution.md (Spec Kit pattern) — rejected, artifact sprawl for solo-builder context |
+| D14 | Name the implementer agents `haiku-implementer` / `sonnet-implementer` / `opus-implementer` (agent name encodes tier), referenced by plan by name only | 2026-05-10 | ACTIVE | E005 | Use `model:` param directly in Agent calls — rejected because it couples model selection to plan content; a global model swap would require editing every plan |
+| D15 | One escalation per item allowed (lower → next tier); accept at the highest tier even if imperfect | 2026-05-10 | ACTIVE | E005 | Unlimited escalation loop — rejected because it can cycle; capping at one step keeps orchestrator budget bounded |
+| D16 | Orchestrator advisory note in `implement-plan.md` recommends Opus for large plans; not enforced programmatically | 2026-05-10 | ACTIVE | E005 | Skip the note — rejected because a cheap orchestrator with wrong tier assignment costs more than its token savings |
+| D17 | Version source of truth is always `origin/main`, never the local working tree | 2026-05-14 | ACTIVE | E006 | (No fix was needed for the misdiagnosed slide-gen "drift" — the 1.1.0 local plugin.json was an unpushed pre-session edit); accepting local state as truth — rejected, it caused version-bump math on a stale base |
+| D18 | Use `git checkout <branch> -- <path>` to cherry-pick a single file from a stale branch rather than rebasing the whole branch | 2026-05-14 | ACTIVE | E006 | Rebase the whole branch — rejected, it drags in all the conflicting version changes; file-level checkout is surgical |
 | D19 | Plugin cache freshness is governed by install-side origin/main tracking, not by manual local reinstall | 2026-07-08 | ACTIVE (corrected E017) | E007 | Manual reinstall (A1/A7 premise) — superseded; cache already tracks GitHub origin automatically. The real risk is the local dev clone lagging origin (second occurrence of D17's root cause). **Correction (E017, item 1.4):** the original wording cited an `autoUpdate: true` setting *in marketplace.json* — verified inaccurate; `.metadata` holds only description/marketplace_version/schema_version. Auto-propagation is Claude Code's install-side default for GitHub-sourced marketplaces, NOT a repo-declared flag. |
 | D20 | Agent `model:` fields use tier aliases (haiku/sonnet/opus/inherit), never pinned IDs (ADR-0005, Accepted) | 2026-07-08 | ACTIVE | E009/E010 | Pinned + periodic review — rejected, drifted twice undetected (9.1.0→9.3.0) |
 | D21 | Skills-first authoring: new functionality ships as skills; commands/ frozen legacy; new-command deprecated, patterns ported to /new-skill --pattern (ADR-0006, Accepted) | 2026-07-08 | ACTIVE | E009/E010 | Mass-migrate 24 commands — rejected (churn, zero functional gain); status quo — rejected (diverges from official direction) |
@@ -1465,3 +1470,24 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **System insight:** Wall-clock timing assertions in CI are an anti-pattern — they encode an environment assumption (overhead << signal) that loaded, cold, parallel runners violate unpredictably. The behavior under test (does concurrency overlap?) is directly observable via an in-flight counter; test the property, not a timing proxy for it. Filed nothing new — this is a fix, and #128 (which introduced the test) is already closed.
 **Duration:** ~20 minutes (2 CI failures → local repro → root cause → 2 fix iterations → full-suite verify).
+
+### Entry 042 — Promote D14–D18 into the Decision Log (Phase 1 of prime-backlog plan) [decision] [docs]
+**Date:** 2026-07-17
+**Environment:** Linux VM, `claude-marketplace` main, personal-plugin 11.1.0 / bpmn 4.3.1 / slide-gen 1.2.0 / marketplace 3.3.0. Phase 1 of the `/implement-plan` run against `IMPLEMENTATION_PLAN.md` (7-phase prime-backlog plan from Entry 040).
+**Status:** COMPLETE
+
+**Objective:** Promote the 5 body-only decisions (D14–D18) into the Decision Log table, restoring a gapless D1–D31 and unblocking the notebook rotation gated on this in Phase 7 (per the Risk Mitigation row "Rotation deletes D14–D18 / orphans ADR-0005").
+
+**Hypothesis:** After the edit, the Decision Log reads D1..D31 contiguous with no gap; ADR-0005's citation of "D14 (Lab Notebook E005)" is now resolvable directly in the table, not only in an entry body; and the file stays markdownlint-clean under the project's `.markdownlint.json`.
+
+**Rollback Plan:** `git checkout LAB_NOTEBOOK.md` — this is a table-only insertion; no existing decision row or entry text was altered.
+
+**Actions & Results:**
+1. Inserted 5 rows (D14–D18) into the Decision Log table, in D-number order, immediately after D13 and before D19, drawn verbatim from the entry bodies: D14–D16 from Entry 005 (agent naming, escalation cap, orchestrator advisory), D17–D18 from Entry 006 (origin/main-is-truth, surgical file-level cherry-pick).
+2. Confirmed D17 stays ACTIVE (not SUPERSEDED) — D19 references D17's root cause as a "second occurrence" but is a distinct decision about plugin cache freshness, not a replacement of D17.
+3. Verified `grep -oP '^\| D\K[0-9]+' LAB_NOTEBOOK.md | sort -n | uniq` prints a contiguous 1..31 with no gap at 14–18.
+4. `markdownlint-cli` run against `LAB_NOTEBOOK.md` and `IMPLEMENTATION_PLAN.md` — exit 0.
+5. Set `IMPLEMENTATION_PLAN.md` work item 1.1 to `COMPLETE [2026-07-17]` and updated the Risk Mitigation row for "Rotation deletes D14–D18 / orphans ADR-0005" to reflect the mitigation as applied.
+
+**Status:** COMPLETE. Decision Log is now gapless D1–D31. Phase 7 (notebook rotation) is unblocked on this precondition.
+**Duration:** ~10 minutes (extract verbatim decision text from E005/E006 → insert rows → verify contiguity → markdownlint → update plan file).
