@@ -94,11 +94,10 @@ jobs:
               if not plugin_dir.is_dir():
                   continue
 
-              for subdir in ['commands', 'skills']:
-                  cmd_dir = plugin_dir / subdir
-                  if not cmd_dir.exists():
-                      continue
-
+              # Commands: flat files under commands/*.md — 'name' field is forbidden
+              # (the filename determines the command name).
+              cmd_dir = plugin_dir / 'commands'
+              if cmd_dir.exists():
                   for md_file in cmd_dir.glob('*.md'):
                       try:
                           content = md_file.read_text(encoding='utf-8')
@@ -127,6 +126,53 @@ jobs:
                           # Check forbidden field
                           if 'name' in frontmatter:
                               errors.append(f'{md_file.relative_to(\".\")}: Contains forbidden \"name\" field (filename determines command name)')
+
+                          print(f'{md_file.relative_to(\".\")}: frontmatter valid')
+
+                      except yaml.YAMLError as e:
+                          errors.append(f'{md_file.relative_to(\".\")}: Invalid YAML in frontmatter - {e}')
+                      except Exception as e:
+                          errors.append(f'{md_file.relative_to(\".\")}: Error reading file - {e}')
+
+              # Skills: nested dirs under skills/<name>/SKILL.md — 'name' field is required
+              # and must match the parent directory name (house convention, ADR-0006).
+              # NOTE: glob('*/SKILL.md') is intentional, NOT rglob('*.md') — rglob would
+              # also match frontmatter-less reference docs under skills/*/references/.
+              skills_dir = plugin_dir / 'skills'
+              if skills_dir.exists():
+                  for md_file in skills_dir.glob('*/SKILL.md'):
+                      try:
+                          content = md_file.read_text(encoding='utf-8')
+
+                          # Check for frontmatter
+                          if not content.startswith('---'):
+                              errors.append(f'{md_file.relative_to(\".\")}: Missing frontmatter delimiters')
+                              continue
+
+                          # Extract frontmatter
+                          parts = content.split('---', 2)
+                          if len(parts) < 3:
+                              errors.append(f'{md_file.relative_to(\".\")}: Invalid frontmatter structure')
+                              continue
+
+                          frontmatter = yaml.safe_load(parts[1])
+
+                          if frontmatter is None:
+                              errors.append(f'{md_file.relative_to(\".\")}: Empty frontmatter')
+                              continue
+
+                          # Check required field
+                          if 'description' not in frontmatter:
+                              errors.append(f'{md_file.relative_to(\".\")}: Missing required field \"description\"')
+
+                          # Check required field: name must be present and match the skill directory
+                          skill_name = md_file.parent.name
+                          if 'name' not in frontmatter:
+                              errors.append(f'{md_file.relative_to(\".\")}: Missing required \"name\" field (skills must declare name matching directory)')
+                          else:
+                              declared_name = frontmatter['name']
+                              if declared_name != skill_name:
+                                  errors.append(f'{md_file.relative_to(\".\")}: \"name\" field (\"{declared_name}\") does not match directory name (\"{skill_name}\")')
 
                           print(f'{md_file.relative_to(\".\")}: frontmatter valid')
 

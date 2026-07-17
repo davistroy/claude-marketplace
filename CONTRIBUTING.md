@@ -704,7 +704,7 @@ The pre-commit hook validates staged `.md` files in the plugins directory:
 
 - Valid YAML frontmatter syntax
 - Required `description` field present
-- No forbidden `name` field in frontmatter
+- Frontmatter `name` field by type: **forbidden** on commands (`commands/*.md`), **required** on skills (`skills/<name>/SKILL.md`) and must match the directory name (house convention, ADR-0006)
 - Markdown parses correctly
 
 ### Bypassing (Not Recommended)

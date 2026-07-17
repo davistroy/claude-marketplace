@@ -260,8 +260,8 @@ Add `python3 scripts/update-readme.py --check` as a step in the `Validate Plugin
 
 ### Work Items
 
-#### 3.1 Path-branch the `validate.yml` frontmatter check + recurse into SKILL.md
-**Status: PENDING**
+#### 3.1 Path-branch the `validate.yml` frontmatter check + recurse into SKILL.md ✅ Completed 2026-07-17
+**Status:** COMPLETE [2026-07-17]
 **Model Tier: sonnet**
 **Recommendation Ref:** #151
 **Files Affected:**
@@ -284,8 +284,8 @@ The check globs `['commands','skills']` with one rule that treats `name` as forb
 
 **Notes:** `claude plugin validate --strict` passing with `name:` present is the authoritative tiebreaker. NEVER resolve this by stripping `name:` from skills.
 
-#### 3.2 Align the third voice in CONTRIBUTING.md
-**Status: PENDING**
+#### 3.2 Align the third voice in CONTRIBUTING.md ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #151
 **Files Affected:**
