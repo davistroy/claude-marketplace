@@ -15,7 +15,6 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from visual_explainer.config import GenerationConfig
@@ -1683,28 +1682,43 @@ class TestConcurrentGeneration:
         sample_image_prompt,
         temp_output_dir,
     ):
-        delay = 0.05
+        delay = 0.02
         prompts = self._prompts(sample_image_prompt, [1, 2, 3])
 
-        async def fake_generate(**kwargs):
-            await asyncio.sleep(delay)
-            return _success_result(kwargs["image_number"])
+        # Deterministically observe real overlap instead of timing it: track how
+        # many fake_generate coroutines are in flight simultaneously. asyncio is
+        # single-threaded and cooperative, so the counter needs no lock — it only
+        # mutates between awaits. This replaces a wall-clock assertion that was
+        # flaky on windows-latest: fixed per-task overhead (and a one-time
+        # cold-start hit on whichever run executed first under xdist) could swamp
+        # the timing signal, making a genuinely-concurrent run look serial.
+        def make_generate():
+            state = {"in_flight": 0, "max_in_flight": 0}
 
-        def build_mocks():
+            async def fake_generate(**kwargs):
+                state["in_flight"] += 1
+                state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
+                await asyncio.sleep(delay)
+                state["in_flight"] -= 1
+                return _success_result(kwargs["image_number"])
+
+            return fake_generate, state
+
+        def build_mocks(gen_fn):
             gen = MagicMock()
-            gen.generate_image = fake_generate
+            gen.generate_image = gen_fn
             ev = MagicMock()
             ev.evaluate_image = MagicMock(
                 return_value=_make_evaluation(0.95, EvaluationVerdict.PASS)
             )
             return gen, ev
 
-        # Concurrent: 3 images overlap -> ~1x delay.
-        gen_c, ev_c = build_mocks()
+        # Concurrent: 3 images with concurrency=3 -> all three in flight at once.
+        gen_fn_c, state_c = make_generate()
+        gen_c, ev_c = build_mocks(gen_fn_c)
         config_c = sample_generation_config.model_copy(update={"concurrency": 3})
         out_c = temp_output_dir / "concurrent"
         out_c.mkdir()
-        t0 = time.perf_counter()
         results_c, _ = await _run_execute_loop(
             prompts,
             config_c,
@@ -1715,14 +1729,13 @@ class TestConcurrentGeneration:
             gen_c,
             ev_c,
         )
-        concurrent_elapsed = time.perf_counter() - t0
 
-        # Serial: same 3 images one after another -> ~3x delay.
-        gen_s, ev_s = build_mocks()
+        # Serial: concurrency=1 -> never more than one in flight.
+        gen_fn_s, state_s = make_generate()
+        gen_s, ev_s = build_mocks(gen_fn_s)
         config_s = sample_generation_config.model_copy(update={"concurrency": 1})
         out_s = temp_output_dir / "serial"
         out_s.mkdir()
-        t0 = time.perf_counter()
         results_s, _ = await _run_execute_loop(
             prompts,
             config_s,
@@ -1733,13 +1746,13 @@ class TestConcurrentGeneration:
             gen_s,
             ev_s,
         )
-        serial_elapsed = time.perf_counter() - t0
 
         assert all(r.status == "complete" for r in results_c)
         assert all(r.status == "complete" for r in results_s)
-        # Concurrent run overlapped: well under the serial 3x wall clock.
-        assert concurrent_elapsed < 2 * delay
-        assert concurrent_elapsed < serial_elapsed
+        # The concurrent run genuinely overlapped work (>=2 in flight); the serial
+        # run never did. Deterministic — no dependency on wall-clock timing.
+        assert state_c["max_in_flight"] >= 2
+        assert state_s["max_in_flight"] == 1
 
     async def test_concurrent_mode_emits_started_and_completed_lines(
         self,
