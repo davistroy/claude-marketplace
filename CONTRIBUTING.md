@@ -13,7 +13,7 @@ See [CLAUDE.md](CLAUDE.md) for required repository structure and compatibility r
 
 ## Table of Contents
 
-- [Quick Start: Adding a Command](#quick-start-adding-a-command)
+- [Quick Start: Adding a Skill](#quick-start-adding-a-skill)
 - [Quick Start: Adding a Plugin](#quick-start-adding-a-plugin)
 - [Plugin Development Guide](#plugin-development-guide)
 - [Adding a New Command](#adding-a-new-command)
@@ -26,40 +26,38 @@ See [CLAUDE.md](CLAUDE.md) for required repository structure and compatibility r
 
 ---
 
-## Quick Start: Adding a Command
+## Quick Start: Adding a Skill
 
-The simplified workflow for adding a new command is just 4 steps:
+New functionality ships as **skills**; `commands/` is frozen-legacy (maintained, not extended — see [ADR-0006](docs/adr/0006-skills-first-authoring-policy.md)). Adding a skill is 4 steps:
 
-### Step 1: Create the Command File
+### Step 1: Create the Skill
 
-Use the `/new-command` command to generate a properly structured command file:
+Use the `/new-skill` command to scaffold a properly structured skill:
 
 ```
-/new-command
+/new-skill
 ```
 
 This will:
-- Prompt for command name (validates kebab-case)
+- Prompt for skill name (validates kebab-case; creates the nested `skills/<name>/SKILL.md` layout)
 - Prompt for description
-- Ask which pattern type to use
-- Generate the command file from a template
+- Optionally seed a starter pattern (`--pattern`, porting the retired command patterns)
+- Generate `SKILL.md` with the required `name` frontmatter matching the directory
 
-Alternatively, create the file manually in `plugins/[plugin-name]/commands/[command-name].md`.
+Alternatively, create the file manually at `plugins/[plugin-name]/skills/[skill-name]/SKILL.md` (the directory and `name:` frontmatter must match).
 
-### Step 2: Update Documentation
-
-The `/help` skill uses a static table. After adding a new command, update `skills/help/SKILL.md` to include it in both the summary table (Mode 1) and detailed reference (Mode 2).
-
-### Step 3: Update CHANGELOG
+### Step 2: Update CHANGELOG
 
 Manually add an entry to `CHANGELOG.md` under `[Unreleased]`:
 
 ```markdown
 ### Added
-- New `/my-command` for doing something useful
+- New `/my-skill` for doing something useful
 ```
 
-### Step 4: Validate and Commit
+> Command/skill discovery is handled by native `/help` in Claude Code — there is no per-plugin help file to update.
+
+### Step 3: Validate and Commit
 
 ```bash
 # Validate the plugin
@@ -67,7 +65,7 @@ Manually add an entry to `CHANGELOG.md` under `[Unreleased]`:
 
 # Commit your changes
 git add .
-git commit -m "feat(personal-plugin): add my-command"
+git commit -m "feat(personal-plugin): add my-skill"
 ```
 
 ---
@@ -88,12 +86,12 @@ This will:
 - Prompt for plugin name
 - Prompt for description and category
 - Create the directory structure
-- Generate `plugin.json` and starter `help.md`
+- Generate `plugin.json`
 - Update `marketplace.json`
 
-### Step 2: Add Commands
+### Step 2: Add Skills
 
-Use `/new-command` to add commands to your new plugin.
+Use `/new-skill` to add skills to your new plugin.
 
 ### Step 3: Validate and Update Documentation
 
@@ -125,6 +123,8 @@ The guide includes:
 ---
 
 ## Adding a New Command
+
+> **Legacy format.** `commands/` is frozen (ADR-0006): the existing commands are maintained, but new functionality should ship as a skill (see [Quick Start: Adding a Skill](#quick-start-adding-a-skill)). This section remains as reference for maintaining the current commands.
 
 Commands are user-initiated workflows that take control of the Claude Code session. They are comprehensive, standalone operations.
 
@@ -521,15 +521,15 @@ See `plugins/personal-plugin/references/common-patterns.md` for:
 - [Brief bullet points of what changed]
 
 ## Test Plan
-- [ ] Tested `/new-command` with valid input
-- [ ] Tested `/new-command` with missing arguments
+- [ ] Tested `/my-skill` with valid input
+- [ ] Tested `/my-skill` with missing arguments
 - [ ] Verified error messages are helpful
 - [ ] Checked output file naming follows conventions
 
 ## Marketplace Compatibility
 - [ ] Verified `/plugin marketplace add davistroy/claude-marketplace` works
 - [ ] Verified `/plugin install [plugin-name]@troys-plugins` works
-- [ ] Verified `/help` shows all commands after installation
+- [ ] Verified native `/help` lists the new command/skill after installation
 
 ## Related Issues
 Closes #123
