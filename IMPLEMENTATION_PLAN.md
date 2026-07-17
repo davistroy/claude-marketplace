@@ -1,7 +1,7 @@
 # Implementation Plan
 
 **Generated:** 2026-07-17
-**Completed:** _(in progress)_
+**Completed:** 2026-07-17
 **Based On:** `/prime` health assessment 2026-07-17 → GitHub issues #149–#154 (the canonical backlog), refined by a `/ultra-plan` investigation that overturned 4 of the 6 issues as filed. Prior plan (arch-review remediation, COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v9.md`.
 **Total Phases:** 7
 **Estimated Total Effort:** ~900 LOC across ~35 files (script repair, CI config, tool config, 45 eval specs touched lightly, notebook rotation, 1 ADR)
@@ -604,8 +604,8 @@ Record the decision (this session): ship the deterministic structural linter now
 
 ### Work Items
 
-#### 7.1 Create the archive file with banner + back-pointer
-**Status: PENDING**
+#### 7.1 Create the archive file with banner + back-pointer ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: opus**
 **Recommendation Ref:** #154
 **Files Affected:**
@@ -624,8 +624,8 @@ Extract entries E001–E016 (up to the session marker at line 830) verbatim into
 - [ ] WHEN the archive is opened THEN its banner SHALL state the range, archive date, and a pointer to the live notebook.
 - [ ] WHEN each archived entry's `### Entry NNN` anchor is sought THEN it SHALL be present verbatim.
 
-#### 7.2 Cut E001–E016 from the live notebook + add a forward pointer
-**Status: PENDING**
+#### 7.2 Cut E001–E016 from the live notebook + add a forward pointer ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: opus**
 **Recommendation Ref:** #154
 **Files Affected:**
@@ -647,8 +647,8 @@ Remove the archived entries from the live file (cut at the line-830 session mark
 
 **Depends On:** 7.1, Phase 1
 
-#### 7.3 Re-point external references to archived entries
-**Status: PENDING**
+#### 7.3 Re-point external references to archived entries ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: opus**
 **Recommendation Ref:** #154
 **Files Affected:**

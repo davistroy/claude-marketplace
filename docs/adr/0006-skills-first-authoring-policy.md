@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-08
 **Status:** Accepted
-**Deciders:** Troy Davis (proposed via /ultra-plan session, Lab Notebook E009)
+**Deciders:** Troy Davis (proposed via /ultra-plan session, Lab Notebook E009 -- archived, see `docs/archive/LAB_NOTEBOOK-E001-E016.md`)
 
 ## Context
 
