@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.1.0] - 2026-07-16
+
+Releases the post-11.0.0 backlog-burndown work (#125–#131) that had landed on `main` without a version bump — headlined by a new visual-explainer image-generation feature.
+
+### Added
+- **visual-explainer memory-bounded parallel image generation** (`--concurrency`, default 3): parallelizes Gemini image calls under an `asyncio.Semaphore` for a ~2.92× speedup; `--concurrency 1` restores exact serial behavior. Backward-compatible. (#128)
+
+### Changed
+- **visual-explainer:** decomposed the 1,814-line `cli.py` god module into 6 focused modules (terminal / cli_args / io_utils / reporting / pipeline + a thin cli entry). (#125)
+- Extracted 3 oversized command bodies (`validate-plugin`, `implement-plan`, `new-skill`) under the 500-line house budget via `references/*-examples.md`. (#131)
+
+### Fixed / Internal
+- visual-explainer test coverage raised 69% → 93%, coverage-floor gate 65 → 85. (#127)
+- visual-explainer mypy baseline zeroed (101 → 0); the tool is now mypy-clean. (#129)
+- Behavioral eval corpus grown 35 → 45 across high-traffic skills. (#126)
+
 ## [bpmn-plugin v4.3.1] - 2026-07-16
 
 ### Fixed

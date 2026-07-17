@@ -117,7 +117,7 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 ## Current Baseline
 
 - **Marketplace version:** 3.3.0
-- **personal-plugin version:** 11.0.0 (23 commands, 28 skills, 10 named agents in `.claude/agents/`, hooks system) — arch-review hardening release (E017–E025); MAJOR (removed visual-explainer `--concurrency`, scoped `allowed-tools`, 4 fleet skills user-invoke-only)
+- **personal-plugin version:** 11.1.0 (23 commands, 28 skills, 10 named agents in `.claude/agents/`, hooks system) — E038: released the post-11.0.0 burndown work (visual-explainer parallel image-gen `--concurrency` #128, cli.py decomposition, coverage 69→93%, mypy 0, command extraction). Prior 11.0.0: arch-review hardening (E017–E025)
 - **bpmn-plugin version:** 4.3.1 (2 skills, bpmn2drawio Python tool) — E035: integrated external PR #98 (DI-layout preservation, `auto` default layout mode, geometric lane assignment, data-store cylinders, label/pool fixes); E036: partial-DI guard (`auto`→`preserve` only on complete DI, #143)
 - **slide-gen version:** 1.2.0 (9 skills, 7-step presentation pipeline)
 - **Git:** clean, main branch, synced with `origin/main` (2026-07-16)
@@ -1329,3 +1329,25 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** COMPLETE. #97 commented (decline rationale + suggested they publish their own marketplace) + closed. No code/schema/SECURITY.md changes (the accept-path work was declined). Establishes the third-party-plugin acceptance policy (D31) for future contributor PRs.
 **Duration:** ~5 minutes (post-review decision + close; review was a parallel background subagent)
+
+### Entry 038 — personal-plugin 11.0.0 → 11.1.0: release the accumulated burndown work [plugin] [release]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `f00973f`, branch `release/personal-plugin-11.1.0`. Trigger: user ran `/bump-version all minor`.
+
+**Objective:** Version the post-11.0.0 backlog-burndown work (#125–#131) that landed on main WITHOUT a bump — headlined by the new visual-explainer memory-bounded parallel image-generation feature (#128).
+
+**Decision (course-correction on `all minor`):** Bump **personal-plugin only** (minor, 11.0.0→11.1.0), NOT all three. `all minor` doesn't match state: bpmn-plugin was just released 4.3.1 this session (nothing since → an empty bump); slide-gen 1.2.0 has only test/hardening since (no features → minor overstates). personal-plugin is the one plugin with genuine unreleased changes incl. a backward-compatible feature, so minor is correct there. Owner chose "personal-plugin minor only" from the presented options; `[Unreleased]` was empty so no other pending work. Alt "all three minor" (coordinated release) — rejected by owner (2 empty bumps); "+ slide-gen patch" — rejected (hardening not worth a version).
+
+**Hypothesis:** plugin.json + marketplace.json → 11.1.0 (lockstep, version-sync gate green); a real (non-placeholder) `personal-plugin v11.1.0` CHANGELOG entry for #125/#127/#128/#129/#131; markdownlint clean; all 14 required checks green; 11.1.0 propagates via `autoUpdate` (D19). No code change — pure release metadata.
+
+**Rollback Plan:** All on `release/personal-plugin-11.1.0`; `git branch -D` pre-merge / `git revert` post-merge. Metadata-only (2 version fields + CHANGELOG + this entry); no skill/command/tool code touched.
+
+**Actions & Results:**
+
+1. Verified state before bumping: personal-plugin 11.0.0 has real unreleased burndown work (parallel-gen feature #128 + visual-explainer decomposition/coverage/mypy + command extraction); bpmn-plugin 4.3.1 + slide-gen 1.2.0 have no unreleased features; `[Unreleased]` empty. Presented → owner chose personal-plugin-only. Entry 038 logged before the marketplace.json edit.
+2. Bumped plugin.json + marketplace.json 11.0.0→11.1.0 (lockstep); added a real `personal-plugin v11.1.0` CHANGELOG section (#125/#127/#128/#129/#131). markdownlint clean; version-sync 11.1.0==11.1.0.
+3. Push `release/personal-plugin-11.1.0` → release PR → on green CI (both OSes) squash-merge; 11.1.0 then propagates via `autoUpdate`.
+
+**Status:** Bump COMPLETE on-branch (metadata-only; the burndown code was already on main); release PR is the remaining mechanical step. bpmn-plugin 4.3.1 + slide-gen 1.2.0 deliberately NOT bumped (no unreleased features). Target marketplace state: personal-plugin 11.1.0 / bpmn-plugin 4.3.1 / slide-gen 1.2.0 / marketplace 3.3.0.
+**Duration:** ~10 minutes (state check → bump → release)
