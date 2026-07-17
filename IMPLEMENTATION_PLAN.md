@@ -1,1126 +1,749 @@
 # Implementation Plan
 
-**Generated:** 2026-07-16 11:22:06
-**Completed:** 2026-07-16
-**Based On:** Architecture Review 2026-07-16 (`arch-review/reports/executive-summary.md`, `arch-review/reports/ultra-plan-analysis.md`, and the 9 domain findings under `arch-review/findings/`) — 1 Critical, 14 High, 37 Medium, 35 Low
-**Total Phases:** 8
-**Estimated Total Effort:** ~2,600 LOC across ~70 files (incl. docs, CI config, tool code, skill frontmatter)
+**Generated:** 2026-07-17
+**Completed:** _(in progress)_
+**Based On:** `/prime` health assessment 2026-07-17 → GitHub issues #149–#154 (the canonical backlog), refined by a `/ultra-plan` investigation that overturned 4 of the 6 issues as filed. Prior plan (arch-review remediation, COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v9.md`.
+**Total Phases:** 7
+**Estimated Total Effort:** ~900 LOC across ~35 files (script repair, CI config, tool config, 45 eval specs touched lightly, notebook rotation, 1 ADR)
 
 ---
 
 ## Executive Summary
 
-This plan remediates the 9-agent architecture review of the claude-marketplace repo. The findings de-duplicate into eight coherent change sets rather than 97 isolated patches: the XXE finding surfaced from three domains resolves in one parser fix; the ungated-distribution finding surfaced from four domains resolves in one branch-protection change. The single Critical (unprotected `main` while installs track it, making every CI gate advisory) leads, because until distribution is gated, every later fix can be bypassed by a direct push and any regression auto-ships to all installs.
+This plan discharges the six-issue backlog filed from the 2026-07-17 prime run. The investigation's central finding is that the six issues are **not six independent defects** — five of them are symptoms of one root cause: the repo has excellent _artifacts_ of verification discipline (a README-sync script, a pre-commit hook, coverage floors, an eval corpus) that are **not mechanically enforced**. Every drift and staleness finding traces back to that gap. The plan therefore sequences by _wiring the guards_, not by patching the symptoms one at a time.
 
-Three architecture decisions were made before planning (recorded as ADRs during implementation): (1) **branch-protection-only** distribution safety — require CI status checks and block direct pushes, but not an approving review, because a solo maintainer (bus factor 1) would deadlock on required review (ADR-0007); (2) slide-gen is **formally declared an external-dependency plugin** with an `sg` preflight health-check rather than vendoring the engine in-tree (ADR-0008); (3) the `.env` secrets path is **hardened (chmod 600 + warning) and ADR-0003 is amended** to sanction a local-runtime convenience path, rather than forcing Bitwarden into a distributable tool.
+Investigation overturned four of the six issues as they were filed, and each correction changes the work:
 
-Phases sequence by risk-reduction leverage: governance (1) → exploitable-in-code security (2) → injection-surface reduction (3) → CI gate correctness (4) → external-call robustness (5) → slide-gen integrity (6) → docs/policy/hygiene (7) → test/eval safety net (8). Two large items are explicitly scoped OUT to their own future plan: decomposing the 1,796-line `cli.py` god module and raising visual-explainer's coverage floor to 85%+, and building a comprehensive eval corpus for all 39 skills. Phase 8 does only the highest-leverage test subset.
+1. **#149(b) is a repair, not an extension.** `scripts/update-readme.py` is _structurally dead_ — verified by running it: it finds 0 skills (its glob misses nested `SKILL.md`) and cannot locate the commands table (its anchor predates the count-prefixed headers), so `--check` exits 0 for _any_ drift. Wiring it into CI before repairing it would ship a green no-op gate — false assurance, strictly worse than nothing. This forces a hard repair→wire ordering inside Phase 2.
+2. **#153 is a byproduct of #149, not a standalone typo.** Three README counts are stale (41/70/108) and five skills are entirely absent from the tables. The #149(b) repair regenerates those tables; #153 closes as a consequence. Hand-fixing line 41 would be overwritten and still leave five skills invisible.
+3. **#151 has three contradicting sources, not two,** and does NOT depend on #149 (a mis-filing). `claude plugin validate --strict` — which passes with `name:` present in all 39 skills — is the authoritative tiebreaker: the pre-commit hook is correct, `validate.yml` is the bug. The fix branches the rule by path and must never strip `name:`.
+4. **#150 overturns a documented design decision.** `evals/README.md:87` states evals are human-run behavioral contracts, _not_ automated tests. Making them CI-executable is an architecture change, so it is split: a deterministic **structural** linter ships now (this plan), and the LLM-judge behavioral runner is deferred to **ADR-0009** as an explicit go/no-go — a decision about whether CI should hold its first secret.
+
+A fifth finding is a latent data-integrity bug that blocks the notebook rotation: the Decision Log jumps **D13 → D19**. Decisions **D14–D18 exist only inside entry bodies** and were never promoted to the table (a Rule 7 lapse from May 2026). ADR-0005 (Accepted) cites D14; CLAUDE.md's top operational rule rests on D17. Rotating the notebook without first promoting these five decisions would silently delete them and orphan an Accepted ADR's cited precedent — violating the very Rule 4 that issue #154 invokes. The promotion is therefore a standalone Phase 1, independently valuable even if rotation never happens.
+
+All changes propagate to installs via `autoUpdate` from `origin/main` (D19), so **no plugin version bump is required** — these are correctness and enforcement changes, not feature releases.
 
 ---
 
 ## Plan Overview
 
-The critical path is Phase 1 → (2, 3, 4) → 8. Phase 1 must land first: it converts the existing (genuinely strong) CI suite from advisory to enforced, so every subsequent phase's PR is actually gated. Phases 2 and 3 are the security spine (exploitable code, then capability-grant scoping) and carry the most risk reduction after Phase 1. Phase 4 makes the now-enforced gates correct and complete (a lint blind spot hiding 28 errors, a schema job that never validates data, mutable action tags, a whole-runner-env pip-audit). Phases 5–7 are independent hardening/hygiene tracks. Phase 8 (test/eval) trails because it is the largest and lowest-urgency, and one of its items (raising coverage) depends on the tool code stabilising in Phases 2/8.
+The critical path is **Phase 2 → Phase 3** (repair the README guard before wiring it; the frontmatter reconcile is independent but shares the enforcement theme) with everything else parallelizable after. Phase 1 (D14–D18 promotion) leads because it is a correctness fix to the permanent record, is cheap, and is the hard prerequisite for Phase 7 (rotation). Phase 7 trails because it is the largest single diff, touches the most external cross-references, and is the lowest-urgency item — and it is only safe once Phase 1 has landed.
 
-Findings sharing a root cause are single work items: XXE (DA-01=SE-02=SEC-02) → item 2.1; ungated distribution (PLAT-001=QA-01=INT-06=RISK-02) → item 1.1; `.env` secrets (SEC-03=DA-06) → item 2.2; SSRF (SEC-04=SE-07=DA-09) → item 2.3; slide-gen facets (SA-001/002/004/005, INT-05, RISK-01, PLAT-013) → Phase 6; mypy inconsistency (SE-04=QA-05=PLAT-006) → item 4.2; stale ruff.toml (SA-007=SE-06=PLAT-009) → item 7.4.
+Findings sharing a root cause are single work items or co-located in one phase: README drift (#149a/b + #153) → Phase 2; frontmatter contradiction across three files (#151 + CONTRIBUTING.md) → Phase 3; local-gate reproduction + stale mypy prose (#149c + #152, both in `test.yml`) → Phase 4.
+
+Two items are explicitly scoped OUT to their own follow-up issues (filed with this plan): the `feedback-docx-generator` mypy-gate asymmetry (a real two-sided decision, not a docs fix), and a `rotate` operation for the `lab-notebook` skill (without which #154 re-files itself in ~40 entries).
 
 ### Phase Summary Table
 
 | Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies | Execution Mode |
 |-------|------------|------------------|-----------------|--------------|----------------|
-| 1 | Distribution governance | Branch protection (checks-only), rollback runbook, CODEOWNERS, D19 doc fix, ADR-0007 | S (~6 files, ~200 LOC) | None | Sequential |
-| 2 | Tool security hardening (code) | Hardened lxml parser + capped floor, `.env` chmod+warn + ADR-0003 amend, SSRF guard, typed backoff, atomic writes | M (~10 files, ~350 LOC) | Phase 1 | Parallel |
-| 3 | Injection-surface reduction | Scoped `Bash` across ~15 skills, fetch/act separation in recon, SSH-sudo boundary documented | M (~18 files, ~250 LOC) | Phase 1 | Parallel |
-| 4 | CI gate integrity | Lint per-tool tests (fix 28 errors), mypy blocking, schema-data validation, SHA-pinned actions, scoped pip-audit, de-dup runs | M (~12 files, ~300 LOC) | Phase 1 | Sequential |
-| 5 | External-call robustness | curl timeouts + status checks, key→header, unique temp files | S (~4 files, ~150 LOC) | Phase 1 | Parallel |
-| 6 | slide-gen integrity | External-dependency declaration + `sg` preflight, homepage/README fix, CHANGELOGs, ADR-0008 | M (~9 files, ~300 LOC) | Phase 1; U1 | Parallel |
-| 7 | Docs, egress policy & hygiene | Egress/confidentiality policy, supply-chain docs, help-skill drift, cruft removal | M (~14 files, ~350 LOC) | Phase 1 | Parallel |
-| 8 | Test/eval safety net (scoped) | generate_batch decision, fix contradictory skips, eval-mapping CI check, `-n auto`, targeted evals | L (~15 files, ~700 LOC) | Phases 2, 4 | Parallel |
+| 1 | Notebook data integrity | Promote D14–D18 into the Decision Log (refs E005/E006) | S (~1 file, ~10 lines) | None | Sequential |
+| 2 | Repair the README guard | Fix `update-readme.py` (dead glob + dead anchor + prose counts), migrate hand-edited rows to frontmatter, wire `--check` as a step in `plugin-validate` | M (~8 files, ~180 LOC) | None | Sequential (repair→wire) |
+| 3 | Reconcile the frontmatter rule | Path-branch `validate.yml` (commands forbid / skills require `name`), recurse into `SKILL.md`, align CONTRIBUTING.md | S (~2 files, ~40 LOC) | None | Sequential |
+| 4 | Reproduce gates locally | Coverage floors → `[tool.coverage.report]` (+`branch=true` for feedback-docx), drop CI-line floors, guard `python-compat`, rewrite stale mypy comments | M (~6 files, ~60 LOC) | None | Sequential |
+| 5 | Install the hook | Install `pre-commit`, remove the dead `help.md` sync check, document verifiable installation | S (~3 files, ~30 LOC) | Phase 3 | Sequential |
+| 6 | Eval structural linter + ADR | Extend `check_eval_mapping.py` (structure + coverage gap + `command:` validation + normalization), ADR-0009 defers the runner | M (~8 files, ~150 LOC) | None | Sequential |
+| 7 | Rotate the notebook | Archive E001–E016 (banner + back-pointer), cut @line 830, re-point 7 external referrers | M (~6 files, ~700 lines moved) | Phase 1 | Sequential |
 
 ### Execution Hints
 
 | Phase | Model Tier | Context Budget | Notes |
 |-------|------------|----------------|-------|
 | All (default) | `sonnet` | Standard | Override per-phase below |
-| 1 | `sonnet` | Standard | 1.1 branch protection is a `gh api` call + judgment on required-check names |
-| 2 | `sonnet` | Extended | Security-sensitive code; 2.1/2.3 warrant care but are single-file |
-| 3 | `sonnet` | Extended | Delicate — each rescoped skill must be regression-tested (U2) |
-| 8 | `opus` | Extended | 8.1 (generate_batch wiring + memory cap) is judgment-heavy async work |
+| 2 | `sonnet` | Extended | The `update-readme.py` prose-count rewrite must be surgically scoped to the count sentence; regeneration must not clobber hand-edited rows (mitigated by task 2.1) |
+| 6 | `sonnet` | Extended | Normalizing 45 heterogeneous eval specs is fiddly; the structural grammar must tolerate real variance (`**Context:**` vs `**Invocation:**`, `Must NOT` before `Must`) |
+| 7 | `opus` | Extended | Judgment-heavy: choosing exactly what moves, preserving every decision, re-pointing cross-references without breaking them |
 
 ### Milestones
 
-| Milestone | Phases | Description |
-|-----------|--------|-------------|
-| Critical + Security (ship first) | 1–3 | Distribution gated; exploitable code paths closed; capability grants scoped. Marketplace is safe to keep auto-distributing. |
-| Hardening & Correctness | 4–7 | CI gates correct; external calls resilient; slide-gen honest; docs/policy complete. |
-| Full remediation | 1–8 | All in-scope High/Medium findings closed; behavioral safety net seeded. |
-
-<!-- BEGIN PHASES -->
+- **M1 (Phase 1):** Decision Log is complete D1–D31, no gaps. ADR-0005's cited precedent is restored. Independently shippable.
+- **M2 (Phases 2–3):** The README can no longer drift silently, and the two frontmatter validators agree. The root cause is closed.
+- **M3 (Phases 4–6):** Local dev reproduces the CI gates; contributors get the hook automatically; eval structure is enforced and the coverage gap is closed.
+- **M4 (Phase 7):** The mandatory first-read notebook is ~43% smaller with zero decision loss.
 
 ---
 
-## Phase 1: Distribution Governance
+## Constraints (Pre-Plan Gates — from Phase 0)
 
-**Estimated Complexity:** S (~6 files, ~200 LOC)
+Every work item below was checked against these. No item violates one; two items are explicitly shaped by them (3.x preserves the house `name`-for-skills rule; 7.x keeps the Decision Log canonical in the main file).
+
+| Constraint | Applies to |
+|-----------|-----------|
+| Skills require `name:` (house convention, ADR-0006); commands forbid it | Phase 3, Phase 5 |
+| 14 required CI checks; adding a _step_ to an existing job keeps the check name (no branch-protection rename) | Phases 2, 4, 6 |
+| `python3` only on this VM; `validate.yml` is ubuntu-only (bare `python3` safe there) | Phases 2, 6 |
+| Coverage floors are gating (90/85/95, branch coverage); mypy hard-zero | Phase 4 |
+| markdownlint globs `**/*.md` with no `docs/archive/` ignore | Phases 1, 6, 7 |
+| Rule 4 (never delete decisions) / Rule 6 (continue from notebook alone) / Rule 7 (dashboard current) | Phases 1, 7 |
+| `autoUpdate` propagates content — no version bump | All |
+
+---
+
+## Phase 1: Notebook Data Integrity — Promote D14–D18
+
+**Estimated Complexity:** S (~1 file, ~10 lines)
 **Dependencies:** None
 **Execution Mode:** Sequential
 
 ### Goals
 
-- Convert the entire existing CI suite from advisory to enforced (close the single Critical finding).
-- Give the solo maintainer a time-bounded recovery path for a bad `main`.
-- Correct the inaccurate `autoUpdate` documentation.
+- Restore the Decision Log to a complete, gapless D1–D31 record before anything archives the entries that currently hold D14–D18.
+- Fix the Rule 7 lapse independently of whether rotation (Phase 7) ever happens.
 
 ### Work Items
 
-#### 1.1 Enable branch protection on `main` (checks-only) ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 1.1 Promote D14–D18 into the Decision Log table
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** PLAT-001, QA-01, INT-06, RISK-02, INT-11
+**Recommendation Ref:** #154 (prerequisite)
 **Files Affected:**
-- `docs/adr/0007-distribution-safety-model.md` (create)
-- (GitHub repo settings — via `gh api`, not a repo file)
+- `LAB_NOTEBOOK.md` (modify — Decision Log table only)
 
 **Description:**
-Enable GitHub branch protection on `main` requiring the existing CI status checks to pass before merge and blocking direct pushes. Per decision D1, require **status checks only — NOT an approving review** (author == reviewer at bus factor 1 would deadlock), and leave `enforce_admins` false so the maintainer retains an escape hatch. Generate ADR-0007 documenting the branch-protection-only model with alternatives (stable/tagged release channel; status quo) and their rejection reasons.
+The Decision Log jumps from D13 (line 25) to D19 (line 29). D14–D18 were recorded only in entry bodies (E005 lines 341–343: D14 agent naming, D15 escalation cap, D16 orchestrator advisory; E006 lines 392/394: D17 origin/main-is-truth, D18 surgical cherry-pick) and never promoted. Add five table rows between D13 and D19, drawn verbatim from those entry bodies, each with Status ACTIVE (or SUPERSEDED where a later decision revisits it — verify D17 against D19's "second occurrence" language), Date, Entry (E005/E006), and Alternatives.
 
 **Tasks:**
-1. [ ] Enumerate the exact required check names from a recent green run (`Run Tests (ubuntu-latest)`, `Run Tests (windows-latest)`, the 3 per-tool test jobs, `Validate Plugins`, `Validate Plugins (official CLI)`, `Schema Validation`, `Lint Markdown`, `Dependency Security Audit`, `CodeQL`).
-2. [ ] `gh api -X PUT repos/davistroy/claude-marketplace/branches/main/protection` with `required_status_checks.strict=true`, the check contexts, `required_pull_request_reviews=null`, `enforce_admins=false`, `allow_force_pushes=false`, `restrictions=null`.
-3. [ ] Write `docs/adr/0007-distribution-safety-model.md` (Status: Accepted) from `references/adr-template.md`.
+1. [ ] Extract D14–D18 statements + alternatives from E005 (L341–343) and E006 (L392/394).
+2. [ ] Insert five rows in D-number order between D13 and D19; keep the table's column format exactly.
+3. [ ] Cross-check: does any later decision supersede one of these? (D19 references D17's root cause — mark the relationship, do not mark D17 superseded unless a decision actually replaces it.)
+4. [ ] markdownlint the file.
 
 **Acceptance Criteria:**
-- [ ] WHEN `gh api repos/davistroy/claude-marketplace/branches/main/protection` is called THEN it SHALL return HTTP 200 with the required check contexts listed.
-- [ ] WHEN a PR has any required check red THEN GitHub SHALL block its merge button.
-- [ ] WHEN a direct `git push origin main` is attempted THEN it SHALL be rejected.
-- [ ] ADR-0007 exists with Status Accepted and documents the two rejected alternatives.
+- [ ] WHEN the Decision Log is read top-to-bottom THEN it SHALL contain D1 through D31 with no missing numbers.
+- [ ] WHEN ADR-0005's "per D14 (Lab Notebook E005)" reference is followed THEN D14 SHALL be present in the Decision Log table, not only in an entry body.
+- [ ] WHEN markdownlint runs THEN it SHALL exit 0.
 
-**Notes:**
-Branch-protection settings are API-managed state, fully reversible via `gh api -X DELETE .../protection` (rollback). Do NOT set required reviewers. Confirm the check *names* exactly match what Actions reports (case/spacing sensitive) or the gate silently never satisfies.
-
-#### 1.2 Maintainer incident & rollback runbook ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** PLAT-002
-**Files Affected:**
-- `docs/RUNBOOK.md` (create) or `TROUBLESHOOTING.md` (modify — add "Maintainer: Bad Release Recovery")
-
-**Description:**
-Document the maintainer-side P1 procedure absent today: detect a bad `main` → `git revert <merge-sha>` → re-verify → propagation timing (restart-gating + `claude plugin update`) → the user-side version-pin escape hatch (how a consumer freezes on a known-good commit while a fix lands).
-
-**Tasks:**
-1. [ ] Write the detect → revert → verify → propagate sequence with exact commands.
-2. [ ] Document the user version-pin/freeze escape hatch.
-3. [ ] Cross-link from SECURITY.md and TROUBLESHOOTING.md.
-
-**Acceptance Criteria:**
-- [ ] WHEN a bad change reaches `main` THEN a non-author following the runbook SHALL be able to revert and confirm propagation without prior context.
-- [ ] The runbook states a target RTO and the propagation mechanism.
-
-**Notes:** Pairs with 1.1 — protection reduces bad merges; this handles the ones that slip through.
-
-#### 1.3 CODEOWNERS + soften committed SLAs ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: haiku**
-**Recommendation Ref:** PLAT-015, RISK-07
-**Files Affected:**
-- `.github/CODEOWNERS` (create)
-- `SECURITY.md` (modify)
-
-**Description:**
-Add a CODEOWNERS file (partial bus-factor mitigation / ownership clarity) and soften SECURITY.md's hard vulnerability-response SLAs (48h ack, 2–4wk fix) to best-effort, since a single responder cannot guarantee them during absence.
-
-**Tasks:**
-1. [ ] Create `.github/CODEOWNERS` assigning `* @davistroy`.
-2. [ ] Reword SECURITY.md §6 timelines to "best-effort target".
-
-**Acceptance Criteria:**
-- [ ] CODEOWNERS present and valid.
-- [ ] SECURITY.md no longer commits hard timelines a bus-factor-1 maintainer cannot guarantee.
-
-**Notes:** Do NOT add CODEOWNERS as a *required-review* rule in 1.1 (would deadlock solo merges).
-
-#### 1.4 Correct the D19 autoUpdate documentation ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: haiku**
-**Recommendation Ref:** Review correction (intake fact #1)
-**Files Affected:**
-- `LAB_NOTEBOOK.md` (modify — Decision D19 + Current Baseline)
-- `CLAUDE.md` (modify if it repeats the claim)
-
-**Description:**
-Decision D19 and related docs assert `autoUpdate: true` in marketplace.json. Verified false — `.metadata` holds only description/marketplace_version/schema_version; auto-propagation is Claude Code's install-side default for GitHub-sourced marketplaces. Correct the wording to describe the actual mechanism.
-
-**Tasks:**
-1. [ ] Amend D19 to describe install-side origin/main tracking (not a repo flag), preserving the decision's intent per LAB_NOTEBOOK Rule 4 (mark superseded-by-correction, do not delete).
-2. [ ] Grep CLAUDE.md / docs for other `autoUpdate: true` claims and correct.
-
-**Acceptance Criteria:**
-- [ ] WHEN a reader consults D19 THEN it SHALL accurately describe install-side tracking, not a marketplace.json flag.
-- [ ] No remaining doc asserts `autoUpdate: true` as a repo-declared field.
-
-**Notes:** Doc-accuracy only; the distribution *risk* is unchanged and handled by 1.1.
+**Notes:** Worth doing on its own merits even if #154 is dropped — it is a correctness fix to the permanent record. Ship as its own PR so it can stand alone.
 
 ### Phase 1 Testing Requirements
 
-- [ ] `gh api .../branches/main/protection` returns 200 with required checks after 1.1.
-- [ ] A throwaway test PR with a deliberately-red check cannot be merged.
-- [ ] markdownlint clean on all modified `.md`.
+- [ ] `grep '^| D' LAB_NOTEBOOK.md` shows a contiguous D1–D31 sequence.
+- [ ] markdownlint clean.
 
 ### Phase 1 Completion Checklist
 
-- [ ] All work items complete
-- [ ] Branch protection verified active
-- [ ] ADR-0007 accepted
-- [ ] No regressions introduced
+- [ ] D14–D18 present in the table with alternatives and entry refs.
+- [ ] No decision text altered — promotion is verbatim, not a rewrite.
+- [ ] Living-section dashboard still accurate (Rule 7).
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Protection active | `gh api repos/davistroy/claude-marketplace/branches/main/protection` | HTTP 200, required_status_checks populated |
-| Markdown lint | `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore .git --ignore output --ignore 'tests/fixtures/**'` | Exit code 0 |
+| Decision Log complete | `grep -oP '^\| D\K[0-9]+' LAB_NOTEBOOK.md \| sort -n \| uniq \| tr '\n' ' '` | Contiguous 1..31, no gap at 14–18 |
+| Markdown lint | `npx markdownlint-cli 'LAB_NOTEBOOK.md'` | Exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 2: Tool Security Hardening (Code)
+## Phase 2: Repair the README Guard (#149a/b + #153)
 
-**Estimated Complexity:** M (~10 files, ~350 LOC)
-**Dependencies:** Phase 1
-**Execution Mode:** Parallel
+**Estimated Complexity:** M (~8 files, ~180 LOC)
+**Dependencies:** None
+**Execution Mode:** Sequential (repair MUST precede wire)
 
 ### Goals
 
-- Close the exploitable-in-code paths: XXE, plaintext-key write, SSRF-to-metadata.
-- Make external-API failure handling robust and durable state uncorruptible.
+- Make `update-readme.py --check` actually detect drift (today it is dead in two independent places).
+- Close #153 as a byproduct of a working regenerator, without destroying hand-edited content.
+- Wire the working guard into CI as a step in an existing required job (no new check name).
 
 ### Work Items
 
-#### 2.1 Harden the BPMN XML parser + cap the lxml floor ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 2.1 Migrate hand-edited README rows into frontmatter
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** DA-01, SE-02, SEC-02
+**Recommendation Ref:** #149(b) prerequisite
 **Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/parser.py` (modify)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/pyproject.toml` (modify)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/` (add XXE regression test)
+- 5 skill/command source files whose README rows carry flag docs absent from frontmatter (the "(supports `--focus`)"/"(supports `--json`)" rows at `README.md:50,57,60,64,67`)
 
 **Description:**
-`parser.py:54,58` use lxml's default parser on attacker-authored BPMN. Build a hardened `etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, dtd_validation=False, huge_tree=False)` once and pass it to `etree.parse` and `etree.fromstring`. Raise the `pyproject.toml` floor from `lxml>=4.9.0` to `lxml>=5.0,<7` (safe-by-default versions).
+`README.md` rows 50/57/60/64/67 contain flag documentation that exists in _no_ frontmatter `description`. `generate_table` rebuilds rows from frontmatter, so regenerating (2.2) would silently delete this. Move the flag info into the source `description` (respecting the ≤1024-char budget) first, so regeneration is content-preserving.
 
 **Tasks:**
-1. [ ] Add a module-level hardened parser factory; thread it into both parse paths.
-2. [ ] Add a regression test: a BPMN with `<!ENTITY xxe SYSTEM "file:///etc/hostname">` must NOT read the file (raises/ignores, no host content in output).
-3. [ ] Bump lxml floor and re-lock (`requirements-lock.txt`).
+1. [ ] Diff each README row's text against its source `description`; identify every row with extra info.
+2. [ ] Fold the extra info into the frontmatter `description`, or drop it if redundant with `argument-hint`.
+3. [ ] Confirm no row loses information after the move.
 
 **Acceptance Criteria:**
-- [ ] WHEN a BPMN file containing an external SYSTEM entity is parsed THEN the parser SHALL NOT resolve it and SHALL NOT emit local-file content into the `.drawio` output.
-- [ ] WHEN the existing 585 bpmn2drawio tests run THEN all SHALL pass (branch coverage ≥90%).
+- [ ] WHEN 2.2 regenerates the tables THEN no currently-documented flag/behavior note SHALL disappear from the README.
 
-**Notes:** BPMN rarely uses DTDs, so disabling DTD loading is low-risk; the 585-test suite guards regressions.
+**Notes:** Do this BEFORE 2.2. This is the single silent-data-loss risk in the phase.
 
-#### 2.2 Harden the `.env` secrets write + amend ADR-0003 ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 2.2 Repair `update-readme.py` (dead glob, dead anchor, prose counts)
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** SEC-03, DA-06
+**Recommendation Ref:** #149(b), #153
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/api_setup.py` (modify)
-- `docs/adr/0003-bitwarden-secrets.md` (modify — add sanctioned local-runtime exception)
+- `scripts/update-readme.py` (modify)
+- `README.md` (regenerated: tables + counts at lines 41, 70, 108, 124)
 
 **Description:**
-Per decision D3: keep the local `.env` convenience path but `os.chmod(path, 0o600)` after writing and print an explicit warning that keys are stored locally unencrypted and Bitwarden is preferred. Amend ADR-0003 to sanction a narrowly-scoped standalone-tool-runtime `.env` exception (currently the tool violates the Bitwarden-only rule outright).
+Three defects: (a) `skills_dir.glob('*.md')` (~line 141) misses nested `skills/<name>/SKILL.md` → 0 skills; fix to `glob('*/SKILL.md')`. (b) The commands-table anchor `r'(\*\*Commands:\*\*\n)...'` (~line 213) no longer matches the count-prefixed `**23 Commands:**` header; relax to tolerate the optional `N ` prefix, and likewise for Skills. (c) The prose counts at `README.md:41` ("24 skills"), `:70` ("24 Skills"), `:108` ("8 Skills") are hand-typed literals no code computes; add a prose-count pass that rewrites the "`N commands and M skills`" sentence and the "`**M Skills:**`"/"`**N Commands:**`" headers from the scanned counts. Scope the prose rewrite surgically to the count tokens — do not reflow surrounding text.
 
 **Tasks:**
-1. [ ] In `_create_env_file`, set mode 0600 and emit the warning.
-2. [ ] Amend ADR-0003 with the sanctioned exception + rationale.
-3. [ ] Update visual-explainer README to reflect the policy.
+1. [ ] Fix the skills glob to `glob('*/SKILL.md')` (NOT `rglob` — it catches 15 frontmatter-less reference `.md` files).
+2. [ ] Relax both table anchors to tolerate the optional count prefix.
+3. [ ] Add prose-count computation + surgical rewrite for the sentence and the `**N Skills:**`/`**N Commands:**` headers across all three plugin sections.
+4. [ ] Remove the unused `import os` (line 26) if ruff would later flag it.
+5. [ ] Run `python3 scripts/update-readme.py`; verify the 5 missing skills appear and counts read 28/9.
+6. [ ] Preserve the exit-code contract: 0 = up to date, 2 = drift (with `--check`), 1 = error.
 
 **Acceptance Criteria:**
-- [ ] WHEN `--setup-keys` writes `.env` THEN the file SHALL be mode 0600 and a plaintext-storage warning SHALL be shown.
-- [ ] ADR-0003 documents the sanctioned local-runtime exception; the tool no longer silently contradicts policy.
+- [ ] WHEN `python3 scripts/update-readme.py --check` runs against a drifted README THEN it SHALL exit 2 (currently unreachable).
+- [ ] WHEN the tables are regenerated THEN personal-plugin SHALL show 28 skills, slide-gen 9, and all 62 surfaces SHALL appear.
+- [ ] WHEN `README.md:41` is read THEN it SHALL say "23 commands and 28 skills".
 
-**Notes:** Read path (`os.getenv`) is unchanged; only the write path hardens.
+**Depends On:** 2.1
+**Notes:** The two structural breaks were verified by running the script; this is a repair of never-working code, not a tweak.
 
-#### 2.3 SSRF guard on arbitrary-URL fetch ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 2.3 Wire `--check` into CI as a step in `plugin-validate`
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** SEC-04, SE-07, DA-09
+**Recommendation Ref:** #149(a)
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/concept_analyzer.py` (modify)
-- tests (add SSRF-block test)
+- `.github/workflows/validate.yml` (modify — add a step to the existing `plugin-validate` job)
 
 **Description:**
-`fetch_url`/`fetch_url_content` follow redirects with no destination filtering — a URL can redirect to `169.254.169.254` or an internal service, and the content egresses to Gemini. Resolve the host and block RFC-1918 / link-local / loopback / metadata ranges; disable or bound redirects (re-validate each hop).
+Add `python3 scripts/update-readme.py --check` as a step in the `Validate Plugins (official CLI)` job, next to `check_eval_mapping.py` (both stdlib-only, no setup-python, ubuntu-only). Adding a _step_ to an existing job does NOT change any of the 14 required check names — avoiding the branch-protection rename deadlock (PLAT-012/D28).
 
 **Tasks:**
-1. [ ] Add a host-safety check (resolve → reject private/link-local/loopback).
-2. [ ] Bound redirects and re-check each hop's target.
-3. [ ] Test: a URL resolving/redirecting to a metadata IP is rejected before fetch.
+1. [ ] Add the `--check` step after `check_eval_mapping.py` in the `plugin-validate` job.
+2. [ ] Confirm the job still reports under its existing check name.
+3. [ ] Push a throwaway drift to confirm the step goes red, then revert.
 
 **Acceptance Criteria:**
-- [ ] WHEN a fetch target resolves or redirects to a private/link-local/metadata address THEN the fetch SHALL be refused before any request body is retrieved.
-- [ ] WHEN a normal public URL is fetched THEN behavior SHALL be unchanged.
+- [ ] WHEN a PR drifts the README counts/tables THEN the `Validate Plugins (official CLI)` check SHALL fail.
+- [ ] WHEN branch protection is inspected THEN the required-check name set SHALL be unchanged (still 14).
 
-**Notes:** Optional allowlist can be added later; block-list of internal ranges is the minimum.
-
-#### 2.4 Typed exception classification for Gemini backoff ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** SE-05, INT-10
-**Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/image_generator.py` (modify)
-
-**Description:**
-`image_generator.py:278–287` classifies failures by substring-matching `str(e)` (`"429"`, `"rate"`, `"timeout"`, `"safety"`). Switch to typed `google.genai` exceptions / HTTP `.code` so an SDK message reword can't silently degrade a 429 into a generic ERROR and defeat the backoff path.
-
-**Tasks:**
-1. [ ] Catch typed google-genai error classes / inspect `.code`; keep the string-match as a last-resort fallback.
-2. [ ] Update/extend the rate-limit and timeout classification tests.
-
-**Acceptance Criteria:**
-- [ ] WHEN the SDK raises a typed rate-limit/timeout error THEN classification SHALL use the type/`.code`, not message text.
-- [ ] Existing image_generator tests pass.
-
-**Notes:** Low-risk; keep the string fallback for SDK versions lacking typed errors.
-
-#### 2.5 Atomic durable writes + full-length cache key ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** DA-02, DA-05
-**Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/` (checkpoint + JSON writers, concept cache)
-
-**Description:**
-`save_checkpoint` and the metadata/eval/analysis writers write directly to the final path — an interrupted write truncates `checkpoint.json` and breaks resume (costly: paid Gemini generations). Write to a temp file in the same dir and `os.replace()` (atomic); add a `schema_version` key. Use the full-length SHA-256 as the `.cache/` key (currently truncated to 64 bits — a silent wrong-result vector).
-
-**Tasks:**
-1. [ ] Wrap durable writes in temp-file + `os.replace`.
-2. [ ] Add `schema_version` to checkpoint; handle its absence on load.
-3. [ ] Use full hash for cache keys.
-
-**Acceptance Criteria:**
-- [ ] WHEN a checkpoint write is interrupted THEN the previous checkpoint SHALL remain intact and loadable.
-- [ ] WHEN a checkpoint lacks `schema_version` THEN load SHALL degrade gracefully (no `KeyError`).
-
-**Notes:** `os.replace` is atomic on same-filesystem POSIX + Windows — matches the ubuntu+windows CI matrix.
+**Depends On:** 2.2
+**Notes:** MUST come after 2.2 — wiring a dead script yields a green no-op gate.
 
 ### Phase 2 Testing Requirements
 
-- [ ] New XXE and SSRF regression tests pass.
-- [ ] bpmn2drawio ≥90%, visual-explainer ≥65% branch coverage held.
-- [ ] `ruff check` + `ruff format --check` clean on changed tool code.
+- [ ] `python3 scripts/update-readme.py --check` exits 0 on a clean tree, 2 after a deliberate count edit.
+- [ ] README shows all 62 surfaces; no hand-edited flag note lost (diff vs pre-change).
+- [ ] markdownlint clean on README.
 
 ### Phase 2 Completion Checklist
 
-- [ ] All work items complete
-- [ ] All tests passing (both OSes)
-- [ ] ADR-0003 amended
-- [ ] No coverage regression
+- [ ] Script repaired and verified drift-detecting.
+- [ ] #153 counts corrected as a byproduct; 5 missing skills now listed.
+- [ ] `--check` wired without a new required-check name.
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| bpmn tests | `python -m pytest plugins/bpmn-plugin/tools/bpmn2drawio -q --cov=bpmn2drawio --cov-branch --cov-fail-under=90` | Exit 0, ≥90% |
-| visual-explainer tests | `python -m pytest plugins/personal-plugin/tools/visual-explainer -q --cov=visual_explainer --cov-branch --cov-fail-under=65` | Exit 0, ≥65% |
-| Lint | `ruff check plugins/*/tools/*/src/` | Exit 0 |
+| Guard detects drift | `python3 scripts/update-readme.py --check; echo $?` | 0 on clean tree; 2 after a test count edit |
+| Counts correct | `grep -c '23 commands and 28 skills' README.md` | ≥1 |
+| All surfaces listed | `for s in archive-project clear-prep fleet-health new-project build-cfa-deck; do grep -q "$s" README.md \|\| echo MISSING $s; done` | no output |
+| Markdown lint | `npx markdownlint-cli 'README.md'` | Exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 3: Injection-Surface Reduction
+## Phase 3: Reconcile the Frontmatter Rule (#151)
 
-**Estimated Complexity:** M (~18 files, ~250 LOC)
-**Dependencies:** Phase 1
-**Execution Mode:** Parallel
-
-### Goals
-
-- Remove the "lethal trifecta" (untrusted content + unscoped `Bash` + egress/SSH) from content-ingesting skills.
-- Document the SSH-sudo blast-radius boundary for recon/audit skills.
-
-### Work Items
-
-#### 3.1 Scope `Bash` in content-ingesting skills ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** SEC-05, SEC-01
-**Depends On:** None
-**Files Affected:**
-- `plugins/personal-plugin/skills/{spark-recon,jetson-recon,research-topic,arch-review,analyze-transcript,summarize-feedback,assess-document,visual-explainer,...}` (frontmatter `allowed-tools`)
-
-**Description:**
-Replace unscoped `Bash` with `Bash(<cmd>:*)` scopes matching each skill's actual needs, prioritising skills that ingest untrusted web/document/PR content. A content-reading skill should not also hold unrestricted shell (an injected instruction executes with that grant).
-
-**Tasks:**
-1. [ ] Inventory every skill/command with unscoped `Bash` (~15).
-2. [ ] For each, derive the minimal command scopes from its body and rewrite `allowed-tools`.
-3. [ ] Regression-test each rescoped skill on a representative task (U2).
-
-**Acceptance Criteria:**
-- [ ] WHEN a rescoped skill runs its normal workflow THEN it SHALL complete without permission-denied regressions.
-- [ ] No content-ingesting skill retains unscoped `Bash` unless justified in a Notes comment.
-- [ ] `claude plugin validate --strict` passes for all touched plugins.
-
-**Notes:** Delicate — over-scoping breaks skills, under-testing hides breakage. Revert per-skill if a scope proves insufficient. This is the U2 resolution surface.
-
-#### 3.2 Separate untrusted-fetch from local-action in recon/audit skills ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** SEC-01
-**Depends On:** 3.1
-**Files Affected:**
-- `plugins/personal-plugin/skills/{spark-recon,jetson-recon,spark-audit,jetson-audit}/SKILL.md`
-
-**Description:**
-Restructure recon/audit skills so the "fetch untrusted content" step runs read-only (no `Bash`), separated from any "act locally/remotely" step. Consider `disable-model-invocation: true` on the highest-blast-radius recon skills so injected content cannot auto-trigger them.
-
-**Tasks:**
-1. [ ] Split fetch vs act phases in each recon/audit skill body.
-2. [ ] Evaluate `disable-model-invocation` for spark-recon/jetson-recon.
-
-**Acceptance Criteria:**
-- [ ] WHEN a recon skill fetches third-party content THEN no shell/SSH tool SHALL be active during that fetch step.
-- [ ] High-blast-radius recon skills are user-invoke-only where warranted.
-
-**Notes:** Depends on 3.1's scoping being in place.
-
-#### 3.3 Document the SSH-sudo trust boundary (resolve RI-03) ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** SEC-01 / RI-03
-**Files Affected:**
-- `plugins/personal-plugin/skills/{spark-audit,jetson-audit}/SKILL.md` (read/verify)
-- `SECURITY.md` (modify — document the boundary)
-
-**Description:**
-Confirm whether spark-audit/jetson-audit actually SSH into lab hosts (where the `claude` user has passwordless sudo) with tool grants that an injection could ride. Document the resulting trust boundary in SECURITY.md so the blast radius is explicit.
-
-**Tasks:**
-1. [ ] Read the audit skill bodies; confirm/deny SSH-sudo reachability.
-2. [ ] Document the boundary and any mitigation in SECURITY.md.
-
-**Acceptance Criteria:**
-- [ ] The SSH-sudo blast-radius question (RI-03) is answered in-repo with evidence.
-- [ ] SECURITY.md states the trust boundary for fleet recon/audit skills.
-
-**Notes:** Feeds the egress/trust documentation in Phase 7.
-
-### Phase 3 Testing Requirements
-
-- [ ] Each rescoped skill exercised on a representative task with no regression.
-- [ ] `claude plugin validate --strict` green for all touched plugins.
-
-### Phase 3 Completion Checklist
-
-- [ ] All work items complete
-- [ ] No skill regressions
-- [ ] RI-03 resolved and documented
-
-### Definition of Done (Runnable)
-<!-- BEGIN DOD -->
-
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| Plugin validation | `claude plugin validate --strict ./plugins/personal-plugin` | Exit 0 |
-
-<!-- END DOD -->
-
----
-
-## Phase 4: CI Gate Integrity
-
-**Estimated Complexity:** M (~12 files, ~300 LOC)
-**Dependencies:** Phase 1
+**Estimated Complexity:** S (~2 files, ~40 LOC)
+**Dependencies:** None
 **Execution Mode:** Sequential
 
 ### Goals
 
-- Make the now-enforced gates correct and complete: no lint blind spot, real schema-data validation, blocking types, pinned actions, scoped audit.
+- Make all validators agree that commands forbid `name:` and skills require it.
+- Activate the currently-dead skills-frontmatter validation in CI without breaking all 39 skills.
 
 ### Work Items
 
-#### 4.1 Lint the per-tool tests/ dirs (fix the 28 hidden errors) ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 3.1 Path-branch the `validate.yml` frontmatter check + recurse into SKILL.md
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** SE-01
-**Depends On:** None
+**Recommendation Ref:** #151
 **Files Affected:**
-- `.github/workflows/validate.yml` (modify globs)
-- `plugins/*/tools/*/tests/` (fix 28 ruff errors + format 16 files)
+- `.github/workflows/validate.yml` (modify — the inline frontmatter-check step, ~lines 82–145)
 
 **Description:**
-`validate.yml:213,217` lints `plugins/*/tools/*/src/ tests/` — the per-tool `tests/` dirs are unlinted, hiding 28 ruff errors + 16 unformatted files. Fix the errors and formatting FIRST, then extend the globs to include `plugins/*/tools/*/tests/` (order matters — extending first reddens CI).
+The check globs `['commands','skills']` with one rule that treats `name` as forbidden, dormant only because `cmd_dir.glob('*.md')` is non-recursive and never sees `skills/<name>/SKILL.md`. Branch the rule by artifact type: for `commands/*.md`, `name` forbidden (unchanged); for `skills/*/SKILL.md`, `name` REQUIRED and must match the directory name. Use `glob('*/SKILL.md')` — NOT `rglob('*.md')`, which catches 15 frontmatter-less reference files and produces 15 false errors.
 
 **Tasks:**
-1. [ ] `ruff check --fix` + `ruff format` the per-tool tests.
-2. [ ] Manually resolve any non-autofixable errors.
-3. [ ] Extend `ruff check` + `ruff format --check` globs to include per-tool tests.
+1. [ ] Split the loop: command files vs `skills/*/SKILL.md`.
+2. [ ] Command branch: assert `name` absent (unchanged).
+3. [ ] Skill branch: assert `name` present AND equal to the parent directory name.
+4. [ ] Verify against all 39 skills (should pass) and against `tests/fixtures/invalid-plugin/commands/forbidden-name-field.md` (should still fail).
 
 **Acceptance Criteria:**
-- [ ] WHEN `ruff check plugins/*/tools/*/tests/` runs THEN it SHALL report 0 errors.
-- [ ] validate.yml lints per-tool tests going forward.
+- [ ] WHEN a `skills/<n>/SKILL.md` omits `name` THEN CI SHALL fail.
+- [ ] WHEN a `commands/*.md` includes `name` THEN CI SHALL fail (the negative fixture still trips).
+- [ ] WHEN all 39 current skills are validated THEN CI SHALL pass (no regression).
+- [ ] WHEN non-SKILL reference `.md` files under `skills/*/` are scanned THEN they SHALL NOT be treated as skills.
 
-**Notes:** Fix-then-extend within one PR.
+**Notes:** `claude plugin validate --strict` passing with `name:` present is the authoritative tiebreaker. NEVER resolve this by stripping `name:` from skills.
 
-#### 4.2 Make mypy blocking for all three tools ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 3.2 Align the third voice in CONTRIBUTING.md
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** SE-04, QA-05, PLAT-006
-**Depends On:** None
+**Recommendation Ref:** #151
 **Files Affected:**
-- `.github/workflows/test.yml` (remove `continue-on-error` at 74, 109)
-- tool source (fix surfaced type errors)
+- `CONTRIBUTING.md` (modify — line ~707)
 
 **Description:**
-Remove `continue-on-error: true` (test.yml:74,109) so mypy blocks for bpmn2drawio and visual-explainer as it already does for feedback-docx. Resolve U4 first (measure error volume) — if large, ratchet with a baseline instead of a big-bang fix.
+`CONTRIBUTING.md:707` states "No forbidden `name` field in frontmatter" unconditionally, describing it as the hook's behavior — but the hook (correctly) _requires_ `name` for skills. Correct the wording to the branched rule: commands forbid `name`, skills require it (matching the dir name).
 
 **Tasks:**
-1. [ ] Run `mypy src/` per tool; count errors (U4).
-2. [ ] Fix errors, or introduce a ratchet baseline if the volume is high.
-3. [ ] Remove `continue-on-error`.
+1. [ ] Rewrite the line to state both halves of the rule.
+2. [ ] Scan CONTRIBUTING.md + docs/PLUGIN-DEVELOPMENT.md for any other unconditional statement of the rule.
 
 **Acceptance Criteria:**
-- [ ] WHEN mypy finds a type error in any of the 3 tools THEN CI SHALL fail.
-- [ ] All three tools pass mypy at the chosen strictness.
+- [ ] WHEN a contributor reads the frontmatter rule in CONTRIBUTING.md THEN it SHALL match what pre-commit and validate.yml enforce.
 
-**Notes:** Gated on U4. Keep `--ignore-missing-imports`; do not jump straight to `--strict`.
+**Depends On:** none (doc-only; can land with 3.1)
 
-#### 4.3 Validate schema *data* + fix schemas/plugin.json ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+### Phase 3 Testing Requirements
+
+- [ ] validate.yml frontmatter step passes on all 39 skills, fails on the negative fixture.
+- [ ] markdownlint clean.
+
+### Phase 3 Completion Checklist
+
+- [ ] Three sources (pre-commit, validate.yml, CONTRIBUTING.md) agree.
+- [ ] Skills frontmatter now actually validated in CI.
+
+### Definition of Done (Runnable)
+<!-- BEGIN DOD -->
+
+| Check | Command | Pass Criteria |
+|-------|---------|---------------|
+| Skills validate | `npx --yes @anthropic-ai/claude-code@2.1.204 plugin validate plugins/personal-plugin --strict` | Exit 0 (all skills have valid `name`) |
+| Negative fixture trips | (run the validate.yml frontmatter logic against `tests/fixtures/invalid-plugin`) | Reports the forbidden-name error |
+| Markdown lint | `npx markdownlint-cli 'CONTRIBUTING.md'` | Exit 0 |
+
+<!-- END DOD -->
+
+---
+
+## Phase 4: Reproduce Gates Locally (#149c + #152)
+
+**Estimated Complexity:** M (~6 files, ~60 LOC)
+**Dependencies:** None
+**Execution Mode:** Sequential
+
+### Goals
+
+- Make `pytest` in a tool dir reproduce the CI coverage gate.
+- Correct the stale mypy ratchet comments (comments-only; the logic is already a hard zero-gate).
+- Do both in one PR since both edit `test.yml` (avoids sibling-PR conflicts).
+
+### Work Items
+
+#### 4.1 Move coverage floors into `[tool.coverage.report]`
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** QA-02, INT-04
-**Depends On:** None
+**Recommendation Ref:** #149(c)
 **Files Affected:**
-- `.github/workflows/test.yml` (schema-validation job)
-- `schemas/plugin.json` (modify)
-- `scripts/` (add a validator if needed)
+- `plugins/bpmn-plugin/tools/bpmn2drawio/pyproject.toml` (add `fail_under = 90`)
+- `plugins/personal-plugin/tools/visual-explainer/pyproject.toml` (add `fail_under = 85`)
+- `plugins/personal-plugin/tools/feedback-docx-generator/pyproject.toml` (create `[tool.coverage.run] branch = true` + `[tool.coverage.report] fail_under = 95`)
+- `.github/workflows/test.yml` (drop `--cov-fail-under=N` from lines 73/125/177; pin `--cov-fail-under=0` on `python-compat`)
 
 **Description:**
-The schema-validation job only checks the 4 schemas are well-formed JSON Schema; it never validates plugin/command/questions/answers *data* against them. Wire actual data validation; fix `schemas/plugin.json` (remove the forbidden `tools` property, set `additionalProperties:false`, align the version pattern to `^\d+\.\d+\.\d+$`); wire questions/answers schemas to a consumer or remove them.
+Floors live only on the CI command lines, so local `pytest` enforces none. Put `fail_under` in `[tool.coverage.report]` (NOT pytest `addopts` — that makes local single-file runs spuriously fail). feedback-docx has no coverage config at all and its 95 floor was measured _with_ `--cov-branch`; create the section AND `branch = true`, else the floor silently measures a laxer metric. The `python-compat` advisory job runs from tool dirs and would inherit the floor — pin `--cov-fail-under=0` there.
 
 **Tasks:**
-1. [ ] Fix `schemas/plugin.json` contradictions.
-2. [ ] Add a CI step validating each plugin.json + command frontmatter + any questions/answers artifacts against the schemas.
-3. [ ] Resolve U6 (surface + fix any existing violations).
+1. [ ] Add `fail_under` to the two existing `[tool.coverage.report]` sections.
+2. [ ] Create feedback-docx's `[tool.coverage.run] branch = true` + `[tool.coverage.report] fail_under = 95`.
+3. [ ] Remove `--cov-fail-under=N` from `test.yml:73,125,177`.
+4. [ ] Add `--cov-fail-under=0` (or `--no-cov`) to the `python-compat` invocations.
+5. [ ] Verify the root aggregated run is unaffected (it reads only the root `pyproject.toml`, which has no `fail_under`).
 
 **Acceptance Criteria:**
-- [ ] WHEN a plugin.json violates `schemas/plugin.json` THEN the schema-validation job SHALL fail.
-- [ ] `schemas/plugin.json` no longer contradicts `claude plugin validate --strict`.
+- [ ] WHEN `pytest` runs in a tool dir THEN it SHALL fail if coverage is below that tool's floor.
+- [ ] WHEN the three tool CI jobs run THEN they SHALL still enforce 90/85/95 with branch coverage (no silent weakening).
+- [ ] WHEN `python-compat` runs THEN it SHALL NOT fail on coverage.
+- [ ] WHEN the root aggregated suite runs THEN no floor SHALL apply (unchanged behavior).
 
-**Notes:** The `strict` CLI already catches the `tools` case pre-merge, but the shipped schema must stop misleading contributors.
+**Notes:** The double-apply risk I first suspected is false — pytest reads one configfile per run. The real risk is the feedback-docx `--cov-branch` omission; task 2 handles it.
 
-#### 4.4 Pin GitHub Actions to SHAs; fix dependabot claim; add concurrency/timeout ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: haiku**
-**Recommendation Ref:** PLAT-004, SEC-06, PLAT-008
-**Depends On:** None
-**Files Affected:**
-- `.github/workflows/{validate.yml,test.yml}` (modify)
-- `.github/dependabot.yml` (fix false SHA-pin comment)
-
-**Description:**
-Pin `actions/checkout@v4`, `setup-python@v5`, `setup-node@v4` to full commit SHAs (Dependabot bumps SHAs), making the dependabot.yml "SHA-pinned" comment true. Add a `concurrency:` group (cancel superseded PR runs) and `timeout-minutes` to each job.
-
-**Tasks:**
-1. [ ] Replace tag pins with SHA pins (+ `# vX` comment).
-2. [ ] Fix the dependabot.yml comment.
-3. [ ] Add `concurrency` + `timeout-minutes`.
-
-**Acceptance Criteria:**
-- [ ] All third-party actions are SHA-pinned.
-- [ ] Superseded PR runs are auto-cancelled; no job can exceed its timeout.
-
-**Notes:** Mechanical; verify each SHA maps to the intended tag.
-
-#### 4.5 Scope pip-audit to tool deps; de-dup redundant runs; root coverage ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 4.2 Rewrite the stale mypy ratchet comments
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** PLAT-007, QA-10, PLAT-005, QA-06
-**Depends On:** None
+**Recommendation Ref:** #152
 **Files Affected:**
-- `.github/workflows/{test.yml,validate.yml}` (modify)
+- `.github/workflows/test.yml` (modify comment blocks at lines ~78–82 and ~130–134)
 
 **Description:**
-Scope `pip-audit` to the tools' locked deps (`--requirement <lock>`) instead of the whole runner env (removes the setuptools-class false-failure recurrence — the Entry-016 workaround is a band-aid). De-duplicate the ~3× root-suite runs and add coverage measurement to root `tests/`.
+Both comment blocks claim "pre-existing mypy debt (54/98 errors as of 2026-07-16)" and advise tightening toward 0. Both `.mypy-baseline` files contain `0` (verified) — the debt was paid in #129. The ratchet logic is correct and now acts as a hard zero-errors gate. Rewrite the prose to describe the current state; keep the baseline files (the ratchet's data source) and the control flow untouched.
 
 **Tasks:**
-1. [ ] Convert pip-audit to per-lockfile scoping.
-2. [ ] Remove the redundant root pytest invocation(s).
-3. [ ] Add `--cov` to the root suite with a sensible floor.
+1. [ ] Replace the two comment blocks with an accurate description: baseline 0, any new error fails the build, raising the baseline requires justification.
+2. [ ] Do NOT alter the ratchet control flow or delete the `.mypy-baseline` files.
 
 **Acceptance Criteria:**
-- [ ] WHEN a runner-shipped build tool has a CVE THEN the audit job SHALL NOT fail on it (only tool deps are audited).
-- [ ] The root suite runs once per OS with coverage reported.
+- [ ] WHEN the mypy step comments are read THEN they SHALL state the baseline is 0 and the gate is zero-new-errors.
+- [ ] WHEN the mypy jobs run THEN their behavior SHALL be identical to before (comments-only change).
 
-**Notes:** Undoes the need for the Entry-016 `setuptools` upgrade hack.
+**Notes:** The feedback-docx mypy-gate asymmetry (no baseline, bare `mypy src/`) is deliberately OUT of scope — separate follow-up issue, because unifying it is a two-sided decision.
 
 ### Phase 4 Testing Requirements
 
-- [ ] Injected type error fails CI; malformed plugin.json fails schema job; per-tool tests lint clean.
-- [ ] All CI jobs green both OSes after changes.
+- [ ] All three tool test jobs pass with unchanged floors.
+- [ ] A deliberate coverage drop in a tool fails local `pytest` in that dir.
+- [ ] `python-compat` stays green (advisory, no coverage enforcement).
 
 ### Phase 4 Completion Checklist
 
-- [ ] All work items complete
-- [ ] CI green both OSes
-- [ ] No advisory gate remains where it should block
+- [ ] Floors reproduce locally.
+- [ ] feedback-docx measures branch coverage against its 95 floor.
+- [ ] mypy comments accurate; logic untouched.
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Lint (incl. tests) | `ruff check plugins/*/tools/*/src/ plugins/*/tools/*/tests/ tests/` | Exit 0 |
-| Types | `mypy plugins/bpmn-plugin/tools/bpmn2drawio/src/ --ignore-missing-imports` | Exit 0 |
-| Schema data | `python scripts/validate_schemas_data.py` (new) | Exit 0 |
+| Local floor enforced | `cd plugins/personal-plugin/tools/visual-explainer && python3 -m pytest tests/ -q` | Fails if coverage < 85 |
+| Baseline still 0 | `cat plugins/*/tools/*/.mypy-baseline` | all `0` |
+| Comments accurate | `grep -c '54 errors\|98 errors' .github/workflows/test.yml` | 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 5: External-Call Robustness
+## Phase 5: Install the Hook (#149d)
 
-**Estimated Complexity:** S (~4 files, ~150 LOC)
-**Dependencies:** Phase 1
-**Execution Mode:** Parallel
+**Estimated Complexity:** S (~3 files, ~30 LOC)
+**Dependencies:** Phase 3 (the hook's skill-`name` rule must match the reconciled validators)
+**Execution Mode:** Sequential
 
 ### Goals
 
-- Make the raw-curl research/brain-entry integrations fail fast and cleanly instead of hanging.
+- Make the pre-commit hook run automatically instead of relying on an undocumented manual copy.
+- Remove the dead `help.md` sync check so installing the hook doesn't spam every contributor.
 
 ### Work Items
 
-#### 5.1 Add timeouts to every raw-curl external call ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: haiku**
-**Recommendation Ref:** INT-01
-**Files Affected:**
-- `plugins/personal-plugin/references/research-provider-protocols.md` (modify)
-- `plugins/personal-plugin/skills/brain-entry/SKILL.md` (modify)
-
-**Description:**
-Every `curl` (Anthropic/OpenAI/Gemini research legs + brain-entry POST) lacks `--max-time`/`--connect-timeout`; a hung connection blocks indefinitely and the 30-min poll bound is illusory (it caps poll count, not any single curl). Add `--max-time 60 --connect-timeout 10` (per-provider tunable).
-
-**Tasks:**
-1. [ ] Add timeout flags to all curl invocations.
-2. [ ] Add `--retry` w/ backoff for idempotent GET polls.
-
-**Acceptance Criteria:**
-- [ ] WHEN an external endpoint is unresponsive THEN the curl SHALL abort within its `--max-time` rather than hang.
-
-**Notes:** Pure instruction-file edits.
-
-#### 5.2 Check HTTP status / job ID after submit; honor 429 ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 5.1 Remove the dead `help.md` sync check
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** INT-02, INT-07
-**Depends On:** 5.1
+**Recommendation Ref:** #149(d) prerequisite
 **Files Affected:**
-- `plugins/personal-plugin/references/research-provider-protocols.md` (modify)
+- `scripts/pre-commit` (modify — remove the `check_help_sync` path, ~lines 136–142, 189, 285–286)
 
 **Description:**
-Submits never check HTTP status; a failed submit yields an empty job ID and the poll loop burns ~30 min polling a nonexistent job. Check job-ID non-empty (and `error` absent) immediately after submit and fast-fail; treat missing poll `status`/`state` as an error; honor `Retry-After`/429 in the poll loop.
+`scripts/pre-commit:136` looks for `$plugin_dir/skills/help/SKILL.md`, which exists in no plugin. Every plugin hits the WARN+return, then the script prints "[PASS] help.md sync check complete" — it reports PASS while checking nothing, and its error tips reference a non-existent contract. Remove the dead check so installing the hook (5.2) doesn't hand contributors three phantom warnings per commit.
 
 **Tasks:**
-1. [ ] Add post-submit success check with `exit 1` on failure.
-2. [ ] Treat missing status as an error signal; add 429/Retry-After handling.
+1. [ ] Remove the `check_help_sync` function, its call, and the stale error tips.
+2. [ ] Verify the remaining checks (frontmatter, code-block closure, timestamp, ruff) still run and the <5s target holds.
 
 **Acceptance Criteria:**
-- [ ] WHEN a submit returns 4xx/5xx or an empty job ID THEN the leg SHALL fail fast, not poll for 30 minutes.
+- [ ] WHEN the hook runs THEN it SHALL NOT emit help.md warnings.
+- [ ] WHEN the hook runs THEN it SHALL still enforce frontmatter, code-block, timestamp, and ruff checks.
 
-**Notes:** Biggest real-world win — turns a 30-min hang into an immediate error.
-
-#### 5.3 Gemini research key → header; unique temp filenames ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: haiku**
-**Recommendation Ref:** INT-03, INT-09
-**Depends On:** None
+#### 5.2 Make hook installation automatic and verifiable
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #149(d)
 **Files Affected:**
-- `plugins/personal-plugin/references/research-provider-protocols.md` (modify)
+- `scripts/pre-commit` (ensure skill-`name` rule matches Phase 3)
+- `CONTRIBUTING.md` (document install + a verification command)
+- optionally `scripts/install-hooks.sh` (new — copies the hook and chmods it) OR a documented `core.hooksPath` pointer
 
 **Description:**
-Move the Gemini research key from `?key=$GOOGLE_API_KEY` (leaks to `ps`/history/logs) to the `x-goog-api-key` header. Include the run TIMESTAMP in the fixed `/tmp` response filenames to avoid clobbering across concurrent runs.
+The hook is opt-in via manual `cp scripts/pre-commit .git/hooks/`; `.git/hooks/` is verified empty. Provide a scripted, documented install (a tiny `install-hooks.sh` or `git config core.hooksPath`), and document how to verify it's installed. Ensure the hook's skill-`name` requirement matches the Phase 3 reconciliation exactly.
 
 **Tasks:**
-1. [ ] Switch Gemini legs to `x-goog-api-key` header.
-2. [ ] Add TIMESTAMP to temp filenames.
+1. [ ] Provide a scripted install path + document it in CONTRIBUTING.md.
+2. [ ] Add a verification command (e.g. `test -x .git/hooks/pre-commit`).
+3. [ ] Confirm the hook's `name`-for-skills logic matches Phase 3.
 
 **Acceptance Criteria:**
-- [ ] WHEN the Gemini research leg runs THEN the key SHALL NOT appear in the process list or URL.
-- [ ] Two concurrent research runs SHALL NOT clobber each other's temp files.
+- [ ] WHEN a contributor follows CONTRIBUTING.md THEN the hook SHALL be installed with one documented command.
+- [ ] WHEN the hook and validate.yml both run on the same tree THEN they SHALL agree on the frontmatter rule.
 
-**Notes:** Anthropic/OpenAI legs already use headers correctly.
+**Depends On:** 5.1, Phase 3
 
 ### Phase 5 Testing Requirements
 
-- [ ] Dry-run a research leg against an unreachable host — fast-fails within timeout.
-- [ ] `ps` during a Gemini leg shows no key.
+- [ ] Fresh `.git/hooks/` → documented install → hook fires on a test commit.
+- [ ] No help.md warnings; frontmatter/timestamp/ruff checks still fire.
 
 ### Phase 5 Completion Checklist
 
-- [ ] All work items complete
-- [ ] markdownlint clean
-- [ ] No key in process list / URL
+- [ ] Dead check removed.
+- [ ] Install scripted, documented, verifiable.
+- [ ] Hook rule matches CI rule.
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Markdown lint | `npx markdownlint-cli plugins/personal-plugin/references/research-provider-protocols.md plugins/personal-plugin/skills/brain-entry/SKILL.md` | Exit 0 |
+| No dead check | `grep -c 'help.md sync\|check_help_sync' scripts/pre-commit` | 0 |
+| Hook runs clean | (install per docs, then) `git commit --allow-empty -m test` in a scratch clone | frontmatter/ruff checks run, no help.md warning |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 6: slide-gen Integrity
+## Phase 6: Eval Structural Linter + ADR-0009 (#150)
 
-**Estimated Complexity:** M (~9 files, ~300 LOC)
-**Dependencies:** Phase 1; Unknown U1
-**Execution Mode:** Parallel
+**Estimated Complexity:** M (~8 files, ~150 LOC)
+**Dependencies:** None
+**Execution Mode:** Sequential
 
 ### Goals
 
-- Make slide-gen honest: either it works on install, or its external dependency is loudly declared and preflight-checked.
+- Gate eval _structure_ deterministically (stdlib-only, auth-free) and close the 10-surface coverage gap.
+- Record the decision to defer the LLM-judge behavioral runner as ADR-0009.
 
 ### Work Items
 
-#### 6.1 Declare slide-gen an external-dependency plugin + `sg` preflight ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 6.1 Extend `check_eval_mapping.py` into a structural linter
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** SA-001
-**Depends On:** None
+**Recommendation Ref:** #150 (CS6a)
 **Files Affected:**
-- `plugins/slide-gen/README.md` (modify)
-- `plugins/slide-gen/skills/sg-full-workflow/SKILL.md` (add preflight)
-- `docs/adr/0008-slide-gen-dependency-model.md` (create)
+- `scripts/check_eval_mapping.py` (modify)
+- a few `evals/**/*.eval.md` (normalize non-conforming scenarios, e.g. `prime.eval.md:44` bare `**Must:**`)
 
 **Description:**
-Per decision D2: formally declare slide-gen an external-dependency plugin (do NOT vendor the engine). Add an `sg` health-check preflight to `sg-full-workflow` (and each entry skill) that fails early with an install pointer if `sg` is missing. Generate ADR-0008 documenting external-dependency vs bundling, with rejection reasons. Resolve U1 (is `slide-generator` public/installable?) — if private, the ADR must state slide-gen is owner-only.
+Extend the mapping check to also validate structure: every scenario has an Invocation/Context line and ≥1 `Must:` block; every `.eval.md` has a Rubric; and validate the `command:` field even for cross-cutting evals (today `description-triggers.eval.md:2` declares a `command:` matching no live surface and passes only because the cross-cutting branch `continue`s before checking). Tolerate real variance (`**Context:**` vs `**Invocation:**`; `Must NOT` before `Must`) with a normalization pass. Stay stdlib-only (no PyYAML) — this is a required CI check.
 
 **Tasks:**
-1. [ ] Resolve U1 (`gh repo view davistroy/slide-generator`).
-2. [ ] Add `sg --version` preflight to the workflow entry points.
-3. [ ] Write ADR-0008 (Status: Accepted).
+1. [ ] Add a structural grammar validator (scenario shape, Must presence, Rubric presence).
+2. [ ] Normalize scenario-header variants before validating.
+3. [ ] Validate `command:` for cross-cutting evals too (fix the dead-field gap).
+4. [ ] Fix or normalize the non-conforming specs the validator flags.
+5. [ ] Keep it stdlib-only and fast (<2s).
 
 **Acceptance Criteria:**
-- [ ] WHEN `sg` is not installed and a slide-gen skill runs THEN it SHALL fail early with a clear install instruction (not `sg: command not found` mid-pipeline).
-- [ ] ADR-0008 documents the external-dependency decision.
+- [ ] WHEN an eval scenario lacks a `Must:` block THEN the check SHALL fail.
+- [ ] WHEN a cross-cutting eval's `command:` names no live surface THEN the check SHALL fail.
+- [ ] WHEN the check runs THEN it SHALL import only the stdlib.
 
-**Notes:** U1 outcome shapes the README wording (public install vs owner-only).
+#### 6.2 Close the 10-surface eval coverage gap
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #150 (CS6a)
+**Files Affected:**
+- `scripts/check_eval_mapping.py` (add a coverage assertion + explicit allowlist)
+- new `evals/**/*.eval.md` stubs OR allowlist entries for the 10 uncovered surfaces (`arch-review-single`, `arch-synthesize`, `build-cfa-deck`, `fleet-health`, `jetson-audit`, `jetson-recon`, `sg-generate-images`, `sg-validate-graphics`, `spark-audit`, `spark-recon`)
 
-#### 6.2 Fix homepage + document the external dependency in READMEs ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: haiku**
-**Recommendation Ref:** SA-002, INT-05, RISK-01, PLAT-013
+**Description:**
+52 of 62 surfaces are covered; 10 are not. Add a coverage gate: every live surface has an eval OR an explicit, justified allowlist entry (e.g. `evaluate-pipeline-output` is pinned to a machine-specific path and is unrunnable in CI — allowlist it with a reason). Silent gaps become CI failures.
+
+**Tasks:**
+1. [ ] Add the coverage assertion (live surfaces ⊆ evals ∪ allowlist).
+2. [ ] Author minimal eval stubs for the runnable uncovered surfaces; allowlist the unrunnable ones with a stated reason.
+
+**Acceptance Criteria:**
+- [ ] WHEN a new skill/command lands without an eval or allowlist entry THEN the check SHALL fail.
+- [ ] WHEN the allowlist is read THEN each entry SHALL carry a reason.
+
 **Depends On:** 6.1
-**Files Affected:**
-- `plugins/slide-gen/.claude-plugin/plugin.json` (homepage)
-- `plugins/slide-gen/README.md`, root `README.md` (slide-gen section)
 
-**Description:**
-Fix `plugin.json` homepage from `github.com/davistroy/slide-generator` to the marketplace repo. Add a prominent "External Dependency / Prerequisites" section to the slide-gen README and the root README slide-gen section (the dependency is currently buried in individual skill bodies).
-
-**Tasks:**
-1. [ ] Correct the homepage URL.
-2. [ ] Add Prerequisites sections to both READMEs.
-
-**Acceptance Criteria:**
-- [ ] slide-gen `plugin.json` homepage points to claude-marketplace.
-- [ ] WHEN a user reads either README THEN the `sg` dependency SHALL be stated before the usage steps.
-
-**Notes:** Also extend the manifest-sync CI check to cover `homepage` (ties to INT-05).
-
-#### 6.3 Add CHANGELOGs; document/consolidate the dual Gemini path ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
+#### 6.3 ADR-0009 — defer the LLM-judge behavioral runner
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** SA-005, SA-004
-**Depends On:** None
+**Recommendation Ref:** #150 (decision record)
 **Files Affected:**
-- `plugins/slide-gen/CHANGELOG.md` (create)
-- `plugins/bpmn-plugin/CHANGELOG.md` (create)
-- `plugins/slide-gen/skills/sg-generate-images/SKILL.md` (cross-reference)
+- `docs/adr/0009-eval-execution-strategy.md` (new)
 
 **Description:**
-Add per-plugin CHANGELOGs to slide-gen and bpmn-plugin (only personal-plugin has one — the two-tier versioning story is incompletely instrumented). Document the two divergent Gemini image paths (visual-explainer tool vs `sg generate-images`) with a shared-contract note, or reference one from the other.
+Record the decision (this session): ship the deterministic structural linter now; defer the LLM-judge runner to an explicit future go/no-go. Context = `evals/README.md:87` (evals are human-run by design) + CI has zero secrets. Decision = structural gate now. Alternatives = full runner now (rejected: first CI secret, fork-PR breakage, flake, cost), hybrid re-authoring (rejected: largest diff, likely equals the structural linter with extra steps), close #150 (rejected: leaves coverage gap + dead field). Status = Accepted.
 
 **Tasks:**
-1. [ ] Backfill CHANGELOG.md for slide-gen + bpmn-plugin from git history.
-2. [ ] Add a cross-reference note between the two Gemini image paths.
+1. [ ] Write ADR-0009 from `references/adr-template.md`; populate Context/Decision/Alternatives from this session.
+2. [ ] List it in the Generated ADRs section and reference it from the notebook.
 
 **Acceptance Criteria:**
-- [ ] Both plugins have a CHANGELOG traceable through their versions.
-- [ ] The two Gemini image paths reference each other / a shared contract note.
+- [ ] WHEN ADR-0009 is read THEN it SHALL state the structural-linter-now / runner-deferred decision with alternatives and rationale.
 
-**Notes:** CHANGELOG backfill is mechanical from `git log`.
+**Depends On:** none
 
 ### Phase 6 Testing Requirements
 
-- [ ] Preflight fails cleanly when `sg` absent; passes when present.
-- [ ] Manifest-sync check covers homepage.
+- [ ] The extended check passes on the current tree after stub/allowlist additions.
+- [ ] A deliberately malformed eval (missing Must) fails the check.
+- [ ] markdownlint clean on ADR-0009 and any new evals.
 
 ### Phase 6 Completion Checklist
 
-- [ ] All work items complete
-- [ ] ADR-0008 accepted
-- [ ] U1 resolved and reflected in docs
+- [ ] Structure gated; coverage gap closed or allowlisted with reasons.
+- [ ] Dead `command:` field fixed.
+- [ ] ADR-0009 Accepted.
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Plugin validation | `claude plugin validate --strict ./plugins/slide-gen` | Exit 0 |
-| Manifest sync | `python scripts/check_manifest_sync.py` (extended) | Exit 0 |
+| Structural check passes | `python3 scripts/check_eval_mapping.py` | Exit 0 |
+| ADR present | `test -f docs/adr/0009-eval-execution-strategy.md && echo ok` | ok |
+| Markdown lint | `npx markdownlint-cli 'docs/adr/0009-eval-execution-strategy.md'` | Exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 7: Governance Docs, Egress Policy & Hygiene
+## Phase 7: Rotate the Notebook (#154)
 
-**Estimated Complexity:** M (~14 files, ~350 LOC)
-**Dependencies:** Phase 1
-**Execution Mode:** Parallel
+**Estimated Complexity:** M (~6 files, ~700 lines moved)
+**Dependencies:** Phase 1 (D14–D18 must be in the Decision Log first)
+**Execution Mode:** Sequential
 
 ### Goals
 
-- Close the documentation/policy debt (egress, supply-chain, ADR drift) and remove repo cruft.
+- Reduce the mandatory first-read notebook by ~43% with zero decision loss.
+- Establish a partial-extraction archive convention (banner + bidirectional pointers) the repo lacks.
 
 ### Work Items
 
-#### 7.1 Data-egress / confidentiality policy ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** RISK-04, DA-04, SEC-09
+#### 7.1 Create the archive file with banner + back-pointer
+**Status: PENDING**
+**Model Tier: opus**
+**Recommendation Ref:** #154
 **Files Affected:**
-- `SECURITY.md` (modify)
+- `docs/archive/LAB_NOTEBOOK-E001-E016.md` (new)
 
 **Description:**
-Add an explicit egress/confidentiality policy: data-classification guidance, a "never send to third-party AI APIs" list, and pointers to Anthropic/OpenAI/Google DPAs/terms. This is the highest genuine compliance exposure — a user could feed a confidential client deliverable to `/visual-explainer` (→ Gemini) or `/research-topic` (→ 3 providers) with only a soft caution.
+Extract entries E001–E016 (up to the session marker at line 830) verbatim into a new archive file. Prepend a banner: date archived, source (`LAB_NOTEBOOK.md`), entry range, and a back-pointer to the live notebook. The existing `docs/archive/IMPLEMENTATION_PLAN-v*` precedent is whole-file snapshots and doesn't transfer — a partial extraction needs an explicit banner because the slice isn't self-describing. The file must pass markdownlint (`**/*.md` globs it, no ignore).
 
 **Tasks:**
-1. [ ] Write the data-classification + "never send" policy.
-2. [ ] Link provider data-processing terms (resolve U5 on retention/training-use).
+1. [ ] Copy E001–E016 verbatim into the archive.
+2. [ ] Add the banner + back-pointer to `../../LAB_NOTEBOOK.md`.
+3. [ ] markdownlint the archive.
+4. [ ] `git add -f docs/archive/LAB_NOTEBOOK-E001-E016.md` — **`docs/archive/` is matched by the global `~/.gitignore_global` `archive/` rule**, so new files there are ignored; the existing v4–v9 archives are all force-added. A plain `git add -A` will silently skip it.
 
 **Acceptance Criteria:**
-- [ ] SECURITY.md states which data classes must not be sent to third-party AI APIs and links provider DPAs.
+- [ ] WHEN the archive is opened THEN its banner SHALL state the range, archive date, and a pointer to the live notebook.
+- [ ] WHEN each archived entry's `### Entry NNN` anchor is sought THEN it SHALL be present verbatim.
 
-**Notes:** Pairs with the trust-boundary doc from 3.3.
-
-#### 7.2 Document the supply-chain control set ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: haiku**
-**Recommendation Ref:** RISK-03
+#### 7.2 Cut E001–E016 from the live notebook + add a forward pointer
+**Status: PENDING**
+**Model Tier: opus**
+**Recommendation Ref:** #154
 **Files Affected:**
-- `SECURITY.md` (modify)
+- `LAB_NOTEBOOK.md` (remove the archived entries; add an archive pointer at the top of the Experiment Log)
 
 **Description:**
-SECURITY.md mentions none of the real controls (Dependabot, pip-audit, CodeQL, GitGuardian). Add a "Supply-Chain Controls" section enumerating each scanner, cadence, and enforcement point — the controls exist and are well-evidenced (LAB_NOTEBOOK E012/E013/E016); the gap is documentary.
+Remove the archived entries from the live file (cut at the line-830 session marker so no session narrative is split — re-verify the exact boundary at implementation time, since Phase 1 and Entry 040 shift line numbers). Keep all living sections (Decision Log incl. the Phase-1 D14–D18 rows, Action Items, Prior Work Summary, Current Baseline) and E017–E039. Add a one-line forward pointer at the top of the Experiment Log. Result: ~43% smaller.
 
 **Tasks:**
-1. [ ] Enumerate each control, cadence, enforcement point.
+1. [ ] Re-locate the E016/E017 session-marker boundary (line numbers moved since investigation).
+2. [ ] Cut E001–E016; do not split a session or an entry.
+3. [ ] Insert the forward pointer.
+4. [ ] Re-verify the commit-gate hook still passes (it stats mtime + greps a today/yesterday date; recent entries remain).
 
 **Acceptance Criteria:**
-- [ ] WHEN an auditor reads SECURITY.md THEN each active supply-chain control SHALL be listed.
+- [ ] WHEN the live notebook is read THEN it SHALL contain the complete D1–D31 Decision Log, E017 onward, and a pointer to the archive.
+- [ ] WHEN a session crashes THEN the next session SHALL still continue from `LAB_NOTEBOOK.md` alone (Rule 6 — every decision is still present).
+- [ ] WHEN the lab-notebook commit gate runs THEN it SHALL still pass.
 
-**Notes:** Cross-reference the branch-protection gate from Phase 1.
+**Depends On:** 7.1, Phase 1
 
-#### 7.3 Resolve the ADR-0004 help-skill drift ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** SA-003
+#### 7.3 Re-point external references to archived entries
+**Status: PENDING**
+**Model Tier: opus**
+**Recommendation Ref:** #154
 **Files Affected:**
-- `docs/adr/0004-plugin-encapsulation.md` OR new per-plugin `help` skills
-- `scripts/generate-help.py` (wire into CI or remove)
+- `SECURITY.md` (line ~359 — refs E012/E013/E016)
+- `IMPLEMENTATION_PLAN.md` (this file — any ref into E001–E016)
+- optionally `CLAUDE.md:26` (E006/E007) and `docs/adr/0005` (E005) — prose mentions
 
 **Description:**
-ADR-0004 (Accepted, non-superseded) mandates a `help` skill per plugin; none exist, and `generate-help.py` targets a nonexistent `help.md`. Either restore per-plugin `help` skills and wire generate-help.py into CI, or amend ADR-0004 to drop the requirement and remove/repurpose the dead script. (Recommend amending — skills-first + native `/help` supersede it.)
+Seven genuine external referrers point at entries that move (CLAUDE.md:26 → E006; SECURITY.md:359 → E012/E013/E016; IMPLEMENTATION_PLAN → E012/E013/E016; ADR-0005 → E005; ADR-0006 → E009 which stays). They are prose mentions ("Entry 0NN"/"E0NN"), not markdown links, so archiving _degrades_ them (a reader must know to look in the archive) rather than _breaking_ them. Add an archive-path hint to the ones worth updating (SECURITY.md, this plan). Do NOT touch the frozen `docs/archive/*` self-references.
 
 **Tasks:**
-1. [ ] Decide restore-vs-amend; execute.
-2. [ ] Remove or wire up generate-help.py accordingly.
+1. [ ] Add "(archived — see `docs/archive/LAB_NOTEBOOK-E001-E016.md`)" next to the SECURITY.md:359 and IMPLEMENTATION_PLAN references into E001–E016.
+2. [ ] Decide per-ref whether CLAUDE.md:26 / ADR-0005 warrant a hint (low value — those decisions are now in the Decision Log table).
+3. [ ] Confirm no markdown _link_ target broke (none exist — all are prose).
 
 **Acceptance Criteria:**
-- [ ] No Accepted ADR states a requirement the codebase does not meet.
-- [ ] `generate-help.py` either runs in CI or is removed.
+- [ ] WHEN an external file references an archived entry THEN either it points at the archive OR the reference resolves via the still-present Decision Log entry.
+- [ ] WHEN the repo is searched for broken markdown links to LAB_NOTEBOOK THEN none SHALL exist.
 
-**Notes:** Amending is the lower-effort, skills-first-consistent path.
-
-#### 7.4 Repo hygiene sweep ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16] (SE-11 oversized-command extraction deferred — see LAB_NOTEBOOK E023)**
-**Model Tier: haiku**
-**Recommendation Ref:** PLAT-010, RISK-05, SE-08, SA-007, PLAT-009
-**Files Affected:**
-- root (`GITHUB_ERRORS.md`, `gap-analysis-2026-04-30.md`, `uv.lock`), `docs/archive/GITHUB_ERRORS.md`, `ruff.toml`
-
-**Description:**
-`git rm` the tracked cruft (`GITHUB_ERRORS.md` root + `docs/archive/` copy, `gap-analysis-2026-04-30.md`); fix or remove the 52-byte placeholder `uv.lock` (misleading vs the real one under visual-explainer); drop the stale `ruff.toml:35` `research_orchestrator` first-party entry. (`.DS_Store` is already untracked — no action.)
-
-**Tasks:**
-1. [ ] Remove the cruft files.
-2. [ ] Drop the stale ruff.toml entry.
-3. [ ] Remove the markdownlint special-case ignore for the deleted GITHUB_ERRORS.md.
-
-**Acceptance Criteria:**
-- [ ] `git ls-files` shows none of the cruft.
-- [ ] `ruff.toml` has no dead first-party entry.
-
-**Notes:** Trivial; batch into one commit.
-
-#### 7.5 Add Python 3.10/3.12 to CI matrix; failure sections for 8 skills ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16] (PLAT-012 CI Python-matrix deferred — would rename required checks; see E023)**
-**Model Tier: sonnet**
-**Recommendation Ref:** PLAT-012, SE-10
-**Files Affected:**
-- `.github/workflows/test.yml` (matrix)
-- 8 skill/command files lacking error/failure sections
-
-**Description:**
-CI pins Python 3.11 only despite `py310` target + 3.10+ claim. Add 3.10 (and optionally 3.12) to the matrix. Add failure-branch/troubleshooting sections to the 8 skill/command files that lack them (undefined LLM behavior on failure branches).
-
-**Tasks:**
-1. [ ] Extend the CI Python matrix.
-2. [ ] Add Error Handling sections to the 8 files.
-
-**Acceptance Criteria:**
-- [ ] CI runs the tool suites on Python 3.10 and 3.11 (min).
-- [ ] The 8 flagged files have an Error Handling section.
-
-**Notes:** Matrix expansion may surface a py310 incompat — fix if so.
+**Depends On:** 7.1
 
 ### Phase 7 Testing Requirements
 
-- [ ] markdownlint clean; CI matrix green on 3.10 + 3.11.
-- [ ] `git ls-files` clean of cruft.
+- [ ] Live notebook ~43% smaller; Decision Log complete; E017 onward intact.
+- [ ] Archive passes markdownlint; every archived entry present verbatim.
+- [ ] Commit-gate hook still passes.
+- [ ] No broken links repo-wide.
 
 ### Phase 7 Completion Checklist
 
-- [ ] All work items complete
-- [ ] SECURITY.md updated (egress + supply-chain)
-- [ ] No stale config/cruft remains
+- [ ] E001–E016 archived with banner + bidirectional pointers.
+- [ ] Zero decisions lost (D1–D31 all in the live Decision Log).
+- [ ] External refs re-pointed or resolve via the Decision Log.
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Markdown lint | `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore .git --ignore output --ignore 'tests/fixtures/**'` | Exit 0 |
-| Cruft gone | `git ls-files \| grep -E 'GITHUB_ERRORS\|gap-analysis-2026'` | No output |
+| Notebook shrunk | `wc -l LAB_NOTEBOOK.md` | materially smaller (~43% fewer lines) |
+| Decisions intact | `grep -oP '^\| D\K[0-9]+' LAB_NOTEBOOK.md \| sort -n \| tail -1` | 31 (and no gap 14–18) |
+| Archive verbatim | `grep -c '^### Entry' docs/archive/LAB_NOTEBOOK-E001-E016.md` | 16 |
+| Markdown lint | `npx markdownlint-cli 'LAB_NOTEBOOK.md' 'docs/archive/LAB_NOTEBOOK-E001-E016.md'` | Exit 0 |
 
 <!-- END DOD -->
 
 ---
-
-## Phase 8: Test/Eval Safety Net (Scoped)
-
-**Estimated Complexity:** L (~15 files, ~700 LOC)
-**Dependencies:** Phases 2, 4
-**Execution Mode:** Parallel
-
-### Goals
-
-- Seed a behavioral safety net on the highest-risk surface and fix inert/contradictory test constructs. (Full cli.py decomposition + comprehensive eval corpus are OUT of scope — separate plan.)
-
-### Work Items
-
-#### 8.1 Resolve the dead `generate_batch` concurrency ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]** (chose REMOVE over wire; PERF-01 wiring deferred)
-**Model Tier: opus**
-**Recommendation Ref:** PERF-01, PERF-05
-**Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/{image_generator.py,cli.py}` (modify)
-
-**Description:**
-`generate_batch()` (the `asyncio.gather` path the semaphore governs) is defined but never called; the CLI runs images serially, so `--concurrency` and the semaphore are inert. Per decision: wire the primary path through `generate_batch` (parallelise across images, keep per-image refine serial) with a memory cap (≤3 concurrent 4K buffers per PERF-05), OR remove the `--concurrency` flag + semaphore to stop advertising an inert capability. Choose wiring if the wall-clock win justifies it; otherwise remove.
-
-**Tasks:**
-1. [ ] Decide wire-vs-remove (default: wire with memory cap; fall back to remove if risk too high).
-2. [ ] Implement + test the chosen path; free buffers promptly if parallelising.
-
-**Acceptance Criteria:**
-- [ ] Either `--concurrency` measurably parallelises multi-image runs (with a memory cap), OR the flag/semaphore are removed and no inert knob is advertised.
-- [ ] visual-explainer coverage floor (≥65%) held.
-
-**Notes:** Opus — judgment-heavy async + memory-ceiling reasoning.
-
-#### 8.2 Fix contradictory / conditional test skips ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** QA-07, QA-08
-**Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/tests/{test_integration.py,test_image_evaluator.py}`
-
-**Description:**
-`test_full_pipeline_success` mocks the APIs yet is `skipif(not ANTHROPIC_API_KEY)`, so the only full-pipeline test never runs in CI. Remove the key gate (it's mocked). Make the resize/eval conditional skips deterministic (fixture that guarantees the branch runs) so a green run actually exercises them.
-
-**Tasks:**
-1. [ ] Un-gate the mocked full-pipeline test from ANTHROPIC_API_KEY.
-2. [ ] Replace runtime-conditional skips with deterministic fixtures.
-
-**Acceptance Criteria:**
-- [ ] WHEN CI runs THEN `test_full_pipeline_success` SHALL execute (not skip).
-- [ ] The resize branch is exercised by a deterministic test.
-
-**Notes:** Improves real coverage without changing the floor.
-
-#### 8.3 Eval-mapping CI check + targeted high-risk evals ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: sonnet**
-**Recommendation Ref:** QA-03 (subset), SA-006
-**Files Affected:**
-- `scripts/` (add eval-mapping check), `.github/workflows/validate.yml`
-- `evals/` (remove drift; add evals for release-plugin, arch-review, ultra-plan, leak-risk-audit)
-
-**Description:**
-Add a CI check that every `evals/*.eval.md` maps to a live skill/command (kills the help/new-command drift, SA-006). Add behavioral evals for the highest-blast-radius skills (release-plugin, arch-review, ultra-plan, leak-risk-audit). Full-corpus coverage of all 39 skills is OUT of scope (separate plan).
-
-**Tasks:**
-1. [ ] Remove/repair drifted evals (help, new-command).
-2. [ ] Add the eval-mapping CI check.
-3. [ ] Author evals for the 4 high-risk skills.
-
-**Acceptance Criteria:**
-- [ ] WHEN an eval references a nonexistent skill/command THEN CI SHALL fail.
-- [ ] The 4 high-blast-radius skills have evals.
-
-**Notes:** Scoped subset — not the full corpus.
-
-#### 8.4 Add `pytest -n auto` to per-tool CI jobs ✅ Completed 2026-07-16
-**Status: COMPLETE [2026-07-16]**
-**Model Tier: haiku**
-**Recommendation Ref:** PERF-06
-**Depends On:** None
-**Files Affected:**
-- `.github/workflows/test.yml`, per-tool `pyproject.toml` (add pytest-xdist dev dep)
-
-**Description:**
-Per-tool jobs run plain `pytest` with branch-coverage tracing, no parallelism; Windows is the slow leg. Add `-n auto` (pytest-xdist) to cut developer-loop latency.
-
-**Tasks:**
-1. [ ] Add pytest-xdist to each tool's dev deps + lock.
-2. [ ] Add `-n auto` to the per-tool test commands.
-
-**Acceptance Criteria:**
-- [ ] Per-tool CI jobs run tests in parallel; suites still pass at the same coverage floors.
-
-**Notes:** Verify coverage aggregation works under xdist.
-
-### Phase 8 Testing Requirements
-
-- [ ] Full-pipeline test runs in CI; eval-mapping check fails on a dangling eval.
-- [ ] Coverage floors held under xdist.
-
-### Phase 8 Completion Checklist
-
-- [ ] All work items complete
-- [ ] No inert concurrency knob advertised
-- [ ] Eval drift removed
-
-### Definition of Done (Runnable)
-<!-- BEGIN DOD -->
-
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| visual-explainer tests | `python -m pytest plugins/personal-plugin/tools/visual-explainer -q --cov=visual_explainer --cov-branch --cov-fail-under=65` | Exit 0, ≥65% |
-| Eval mapping | `python scripts/check_eval_mapping.py` (new) | Exit 0 |
-
-<!-- END DOD -->
-
-<!-- END PHASES -->
-
----
-
-<!-- BEGIN TABLES -->
-
-## Parallel Work Opportunities
-
-| Work Item | Can Run With | Notes |
-|-----------|--------------|-------|
-| Phase 2 (all items) | Phase 3, 5, 6, 7 | Distinct file surfaces (tool code vs skill frontmatter vs docs vs slide-gen) |
-| Phase 3.1 | Phase 3.3 | 3.2 depends on 3.1; 3.3 is independent read/doc |
-| Phase 4 items | — | Sequential-ish: 4.1 fix-then-extend; others independent but share workflow files |
-| Phase 5 (all) | Phase 2, 3, 6, 7 | Instruction-file edits, disjoint from code |
-| Phase 7 items | Phase 2, 3, 5, 6 | Docs/hygiene, disjoint |
 
 ## Risk Mitigation
 
-| Risk | Likelihood | Impact | Mitigation Strategy | Status |
-|------|------------|--------|---------------------|--------|
-| Required review deadlocks solo maintainer | Med | High | Require checks only, not review; enforce_admins=false | Mitigated |
-| Extending ruff glob (4.1) before fixing reddens CI | High | Low | Fix 28 errors + format first, extend glob last, same PR | Mitigated |
-| mypy-blocking (4.2) surfaces many errors | Med | Med | Resolve U4 first; ratchet with baseline if large | Mitigated |
-| Hardened lxml parser rejects legit BPMN | Low | Med | BPMN rarely uses DTDs; 585-test suite + new XXE test guard | Mitigated |
-| Scoping Bash (3.1) breaks legitimate skill actions | Med | Med | Test each rescoped skill (U2); revert per-skill | Mitigated |
-| Parallelising images (8.1) breaches memory ceiling | Med | Med | Cap concurrency by memory budget (PERF-05); else remove knob | Mitigated (moot — the inert concurrency was removed, generation stays serial) |
-| slide-generator repo private → slide-gen owner-only | Med | Med | Resolve U1 first; ADR-0008 states the constraint honestly | Materialized |
+| Risk | Phase/Item | Severity | Mitigation | Rollback |
+|------|-----------|----------|-----------|----------|
+| Wiring the dead README script yields a green no-op gate | 2.2→2.3 | High | Hard order: repair (2.2), verify exit-2, then wire (2.3) | Revert the PR |
+| Regenerating README destroys hand-edited flag docs | 2.1→2.2 | Medium | Migrate flag info to frontmatter (2.1) before regen (2.2) | Revert; rows restored from git |
+| Recursive glob fails all 39 skills | 3.1 | High | Use `glob('*/SKILL.md')`, never `rglob`; verify against strict CLI | Revert the workflow change |
+| feedback-docx floor silently weakens (branch omitted) | 4.1 | Medium | Add `branch = true` alongside `fail_under = 95` | Revert pyproject |
+| `python-compat` inherits the floor and goes red | 4.1 | Low | Pin `--cov-fail-under=0` on that job | Revert workflow line |
+| Rotation deletes D14–D18 / orphans ADR-0005 | Phase 1 gates Phase 7 | High | Phase 1 promotes them first; Phase 7 blocked on Phase 1 | Restore from git / archive |
+| Installing the hook spams contributors (dead help.md check) | 5.1→5.2 | Low | Remove dead check (5.1) before install (5.2) | Revert hook |
+| New required-check name deadlocks merges (PLAT-012 class) | 2.3, 3.1, 6.x | Medium | Only add _steps_ to existing jobs; never rename/add required checks | Revert; check set unchanged |
+| Branch protection blocks self-merge (bus factor 1) | all PRs | Low | `enforce_admins=false` (D22) permits owner merge on green | n/a |
 
 ## Unknowns Register
 
-| ID | Unknown | Severity | Affects | Resolution Strategy | Status |
-|----|---------|----------|---------|---------------------|--------|
-| U1 | Is the `slide-generator` repo public/installable? | High | Phase 6 (6.1) | `gh repo view davistroy/slide-generator` before Phase 6 | Resolved [2026-07-16] (PRIVATE — slide-gen is owner-only; documented in ADR-0008) |
-| U2 | Does scoping `Bash` break any skill's real operations? | High | Phase 3 (3.1) | Test each rescoped skill on a representative task | Accepted (conservative union-scoping + 3 documented broad carve-outs + `claude plugin validate --strict` green; residual runtime risk accepted as skills aren't CI-runtime-testable) |
-| U3 | Do recon/audit skills SSH with sudo (RI-03)? | Medium | Phase 3 (3.3) | Read spark-audit/jetson-audit bodies | Resolved [2026-07-16] (yes — spark-audit/jetson-audit SSH with passwordless sudo; jetson-recon combines untrusted fetch + SSH) |
-| U4 | How many errors does mypy-blocking surface? | Medium | Phase 4 (4.2) | Run `mypy src/` per tool before removing continue-on-error | Resolved [2026-07-16] (54 bpmn + 98 visual-explainer = 152; count-ratchet baselines 57/101 instead of a full cleanup) |
-| U5 | Provider retention/training-use terms (RISK-08) | Medium | Phase 7 (7.1) | Check account tiers + provider DPAs | Open |
-| U6 | Does enforcing schema-data validation surface existing violations? | Low | Phase 4 (4.3) | Run the new validator over current manifests | Resolved [2026-07-16] (no — current 3 manifests pass; command.json strictness flagged as follow-up) |
+| Unknown | Severity | Affects | Resolution |
+|---------|----------|---------|-----------|
+| Should CI ever hold a secret for an LLM-judge eval runner? | Medium | #150 follow-up | Deferred to ADR-0009 as explicit go/no-go — NOT decided here |
+| Which direction to unify the feedback-docx mypy asymmetry (give it a baseline, or drop both baselines for bare `mypy`)? | Low | Phase 4 scope-out | Separate follow-up issue; both directions valid |
+| Exact prose-count rewrite scope in `update-readme.py` (sentence + headers only, no reflow) | Low | 2.2 | Resolve during implementation with a tight regex on the count tokens |
+| Exact E016/E017 cut line after Phases 1 + Entry 040 shift line numbers | Low | 7.2 | Re-locate the session marker at implementation time, not by the static 830 |
 
-## Success Metrics
+## Scope Boundaries
 
-- [ ] All phases completed
-- [ ] All acceptance criteria met
-- [ ] The 1 Critical + 14 High findings are closed or explicitly accepted with rationale
-- [ ] `main` branch protection active; a red-CI PR cannot merge
-- [ ] Security: XXE/SSRF/plaintext-key paths closed; content-ingesting skills no longer hold unscoped `Bash`
-- [ ] CI: no advisory gate where it should block; per-tool tests linted; schema data validated
-- [ ] slide-gen either works on install or fails preflight with a clear pointer
+**This plan covers:** the six canonical issues #149–#154, with the four re-scopings the investigation forced, plus the D14–D18 data-integrity prerequisite and ADR-0009.
 
-## Appendix: Recommendation Traceability
+**This plan explicitly does NOT cover:**
+- The LLM-judge behavioral eval runner (deferred to ADR-0009; a CI-posture decision).
+- The `feedback-docx-generator` mypy-gate asymmetry (separate follow-up issue).
+- A `rotate` operation for the `lab-notebook` skill (separate follow-up issue; without it #154 recurs in ~40 entries).
+- `evals/skills/evaluate-pipeline-output.eval.md`'s machine-specific path (allowlisted in 6.2, not fixed).
 
-| Recommendation | Source | Phase | Work Item |
-|----------------|--------|-------|-----------|
-| PLAT-001 / QA-01 / INT-06 / RISK-02 / INT-11 | arch-review | 1 | 1.1 |
-| PLAT-002 | arch-review | 1 | 1.2 |
-| PLAT-015 / RISK-07 | arch-review | 1 | 1.3 |
-| autoUpdate doc correction | review synthesis | 1 | 1.4 |
-| DA-01 / SE-02 / SEC-02 | arch-review | 2 | 2.1 |
-| SEC-03 / DA-06 | arch-review | 2 | 2.2 |
-| SEC-04 / SE-07 / DA-09 | arch-review | 2 | 2.3 |
-| SE-05 / INT-10 | arch-review | 2 | 2.4 |
-| DA-02 / DA-05 | arch-review | 2 | 2.5 |
-| SEC-05 / SEC-01 | arch-review | 3 | 3.1, 3.2 |
-| SEC-01 / RI-03 | arch-review | 3 | 3.3 |
-| SE-01 | arch-review | 4 | 4.1 |
-| SE-04 / QA-05 / PLAT-006 | arch-review | 4 | 4.2 |
-| QA-02 / INT-04 | arch-review | 4 | 4.3 |
-| PLAT-004 / SEC-06 / PLAT-008 | arch-review | 4 | 4.4 |
-| PLAT-007 / QA-10 / PLAT-005 / QA-06 | arch-review | 4 | 4.5 |
-| INT-01 | arch-review | 5 | 5.1 |
-| INT-02 / INT-07 | arch-review | 5 | 5.2 |
-| INT-03 / INT-09 | arch-review | 5 | 5.3 |
-| SA-001 | arch-review | 6 | 6.1 |
-| SA-002 / INT-05 / RISK-01 / PLAT-013 | arch-review | 6 | 6.2 |
-| SA-005 / SA-004 | arch-review | 6 | 6.3 |
-| RISK-04 / DA-04 / SEC-09 | arch-review | 7 | 7.1 |
-| RISK-03 | arch-review | 7 | 7.2 |
-| SA-003 | arch-review | 7 | 7.3 |
-| PLAT-010 / RISK-05 / SE-08 / SA-007 / PLAT-009 | arch-review | 7 | 7.4 |
-| PLAT-012 / SE-10 | arch-review | 7 | 7.5 |
-| PERF-01 / PERF-05 | arch-review | 8 | 8.1 |
-| QA-07 / QA-08 | arch-review | 8 | 8.2 |
-| QA-03 (subset) / SA-006 | arch-review | 8 | 8.3 |
-| PERF-06 | arch-review | 8 | 8.4 |
+## Generated ADRs
 
-<!-- END TABLES -->
+| ADR | Title | Status | Change Set |
+|-----|-------|--------|-----------|
+| ADR-0009 | Eval execution strategy (structural linter now, behavioral runner deferred) | Proposed → Accepted (in 6.3) | Phase 6 |
+
+## Execution Notes
+
+- One branch + PR + merge per phase (per the C20 precedent). Each PR must be green on all 14 required checks (ubuntu + windows) before merge.
+- `autoUpdate` propagates content from `origin/main` — **no version bump** for any phase.
+- Log a LAB_NOTEBOOK entry before the first commit of each phase (Rule 11).
+- Suggested verification points: stop after Phase 2 (root cause closed) and after Phase 4 (gates reproducible) to confirm before proceeding.
+- Phases 1, 3, 4, 6 are mutually independent and could run in any order or as parallel branches; 2 is the highest-leverage; 5 depends on 3; 7 depends on 1.
 
 ---
 
-*Implementation plan generated by Claude on 2026-07-16 11:22:06*
-*Source: /ultra-plan → /create-plan (from arch-review 2026-07-16)*
+_Plan generated by `/ultra-plan` on 2026-07-17 from the `/prime` backlog (#149–#154). Prior plan archived at `docs/archive/IMPLEMENTATION_PLAN-v9.md`._

@@ -51,7 +51,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| A2 | **Deferred remediation items → now tracked as GitHub issues #125–#131 (P1–P7).** #125 P1 decompose `cli.py`; #126 P2 grow eval corpus; #127 P3 visual-explainer floor→85%; #128 P4 PERF-01 wiring; #129 P5 tighten mypy baselines; #130 P6 PLAT-012 CI matrix; #131 P7 SE-11. **Going forward all tasks/work are managed from the GitHub issues list** (user directive 2026-07-16). Full rationale: `arch-review/reports/ultra-plan-analysis.md` + Entry 024 | 2026-07-16 | post-E025 session |
+| A12 | **Execute the `/prime` backlog — GitHub issues #149–#154 (P1–P6).** #149 P1 wire the unwired guards (ROOT CAUSE; blocks #151); #150 P2 make the 45 evals executable; #151 P3 `name:`-frontmatter contradiction; #152 P4 stale mypy comments; #153 P5 README:41 count; #154 P6 rotate LAB_NOTEBOOK. Per A2's standing directive, **GitHub issues are the canonical master list** — this row is a pointer, not a duplicate backlog. Plan: Entry 040 (`/ultra-plan`) | 2026-07-17 | E039 |
 
 ### Completed
 
@@ -77,6 +77,8 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 | C18 | Author `clear-prep` skill (context-clear handoff) + refresh 4-version-stale Current Baseline (prime finding); `claude plugin validate --strict` passed | 2026-07-16 | 2026-07-16 | E015 |
 | C19 | Ship personal-plugin 10.3.0 (clear-prep) via PR #108 — squash-merged `df33eef`, all 25 checks green both OSes, cache updated 10.2.0→10.3.0; folded a one-line setuptools-CVE (PYSEC-2026-3447) CI hygiene fix to unblock the audit gate | 2026-07-16 | 2026-07-16 | E016 |
 | C20 | Execute the 8-phase arch-review remediation (IMPLEMENTATION_PLAN v9, 32 items) via /implement-plan — one branch+PR+merge per phase (PRs #109/#110/#111/#112/#118/#119/#120/#121), all 18 checks green each after 2 Windows fix rounds; merges `8a2988a→039c2cc→c093904→7fe821d→99d0610→9cf8963→e3bf0a4→0e0895c`. Deferred: SE-11, PLAT-012, PERF-01-wiring + plan scope-outs | 2026-07-16 | 2026-07-16 | E017–E024 |
+| C22 | **A2 CLOSED — its tracked issues #125–#131 are all closed** (burndown complete, E026–E033); the row had gone stale on the dashboard while still listed Open. Its standing directive ("all tasks/work are managed from the GitHub issues list") is now carried by A12 | 2026-07-16 | 2026-07-17 | E039 |
+| C23 | **Prime findings synced → canonical GitHub backlog (#149–#154)** — 6 issues filed against existing labels using the `[Pn]` convention; tracker went 0 → 6 open, 0 duplicates of closed work. Verification corrections applied *before* filing: repo-level secret scanning + push protection already `enabled` (top risk-agent finding NOT filed — it was wrong); mypy ratchet logic sound, only its comments stale (filed as docs). Gitea's 17 open issues are `davistroy/homeserver` (fleet, incl. 2 P0 rotations) — deliberately out of scope here | 2026-07-17 | 2026-07-17 | E039 |
 | C21 | **Dependabot triage (A1)** — 5 merged (#104 google-genai 2.11 MAJOR verified-safe, #113/#114/#115 SHA-pinned action bumps, #116 bpmn2drawio group), 1 closed with root-cause (#117 broken pydantic/pydantic-core lockfile). main `37868fb→6bf2d84`, all tool lockfiles CVE-clean. Course-corrected A1's plan (see D25) | 2026-07-16 | 2026-07-16 | E026 |
 
 ---
@@ -1351,3 +1353,115 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** Bump COMPLETE on-branch (metadata-only; the burndown code was already on main); release PR is the remaining mechanical step. bpmn-plugin 4.3.1 + slide-gen 1.2.0 deliberately NOT bumped (no unreleased features). Target marketplace state: personal-plugin 11.1.0 / bpmn-plugin 4.3.1 / slide-gen 1.2.0 / marketplace 3.3.0.
 **Duration:** ~10 minutes (state check → bump → release)
+
+### Entry 039 — Sync prime findings → GitHub issues (canonical backlog) [decision] [cleanup]
+**Date:** 2026-07-17
+**Environment:** Linux VM, main at `2789dd7` (clean, synced with origin/main), personal-plugin 11.1.0 / bpmn-plugin 4.3.1 / slide-gen 1.2.0 / marketplace 3.3.0. Trigger: user ran `/prime`, then directed "make sure all tasks are synced with the github issues list — it is the canonical master list", then `/ultra-plan` on the result.
+**Status:** IN PROGRESS
+
+**Objective:** Make the GitHub issues list the true canonical backlog by filing the 6 actionable findings from the 2026-07-17 `/prime` run. Post-burndown the tracker is EMPTY (0 issues / 0 PRs) while real work exists only in a conversation-scoped prime report — a direct violation of A2's standing directive ("all tasks/work are managed from the GitHub issues list"). Also close stale Action Item A2, whose tracked issues (#125–#131) are all closed.
+
+**Root cause of the findings being filed:** Not 6 independent defects. The repo has excellent *artifacts* of discipline that aren't *mechanically enforced* — `update-readme.py --check` (not in CI), the pre-commit hook (opt-in, verified NOT installed at `.git/hooks/pre-commit`), the 45 evals (mapping-checked, never executed), and the coverage floors (CI-command-line only, absent from config). Every drift/staleness finding traces to that one gap, which is why they accumulated during a fast burst where CI stayed green throughout.
+
+**Hypothesis:** 6 issues file cleanly against existing labels (ci/tech-debt/test/enhancement/documentation) using the established `[Pn]` title convention (matching closed #125–#131). Expected end state: `gh issue list` returns exactly 6 open, none duplicating a closed issue, dependency P1→P3 recorded in the bodies. Issue creation is metadata-only — zero repo files touched, CI unaffected, no version bump (nothing ships).
+
+**Rollback Plan:** Issues are pure GitHub metadata, fully reversible and touch no code. To undo: `gh issue close <n> --reason "not planned"` for each created issue (numbers logged below as they're minted), or `gh issue delete <n>` for a hard remove. The LAB_NOTEBOOK edit (this entry + the A2 Action Item move) is git-tracked and revertible via `git checkout LAB_NOTEBOOK.md` pre-commit or `git revert` post-commit. No plugin/tool/CI file is modified in this step, so plugin discovery and the 14 required checks cannot regress.
+
+**Verification corrections carried in from the prime run (do not re-litigate):**
+- The risk pass named "no repo-level secrets scanning" as the top gap. **Wrong** — verified via `gh api`: `secret_scanning`, `secret_scanning_push_protection`, and `dependabot_security_updates` are all `enabled` on this public repo. Push protection specifically blocks the direct-push bypass that finding described. NOT filed.
+- `.mypy-baseline` is `0` for BOTH tools (verified by reading the files); `test.yml:78,130` comments still describe "pre-existing debt (54/98 errors)". The ratchet logic is correct and now acts as a hard zero-gate — only the prose is stale. Filed as docs, not a logic fix.
+- `update-readme.py --check` exits 0 / "README.md is up to date" while `README.md:41` says "24 skills" against 28 on disk — the script syncs *tables* only, never prose. That is why the drift survived.
+- Gitea (`gitea.tale-mamba.ts.net`) hosts NO claude-marketplace repo; its 17 open issues are all `davistroy/homeserver` (fleet), incl. 2 P0 credential rotations. Out of scope for this project's backlog — deliberately NOT filed here.
+
+**Actions & Results:**
+
+1. Verified tracker state before filing: `gh issue list --state open` → **empty**; `gh pr list --state open` → **empty**. Confirmed the premise — post-burndown the canonical list held nothing while real work existed only in a conversation-scoped report.
+2. Read existing labels + the `[Pn]` title convention from closed #125–#131 to file consistently rather than inventing a taxonomy.
+3. Entry 039 (Objective/Hypothesis/Rollback) logged **before** the first `gh issue create` — protocol Rule 1 satisfied.
+4. Filed 6 issues, priority-ordered by leverage with the dependency recorded in-body:
+   - **#149 [P1]** wire the unwired guards — `ci`,`tech-debt` — ROOT CAUSE; **blocks #151**
+   - **#150 [P2]** make the 45 evals executable — `test`,`enhancement`
+   - **#151 [P3]** `name:`-frontmatter contradiction — `ci`,`tech-debt` — depends on #149
+   - **#152 [P4]** stale mypy ratchet comments — `documentation`,`ci`
+   - **#153 [P5]** README:41 skill count — `documentation`
+   - **#154 [P6]** rotate LAB_NOTEBOOK.md — `documentation`,`tech-debt`
+5. Verified end state: `gh issue list` → exactly **6 open**, labels applied as intended, no duplicates of closed work. Hypothesis **confirmed** — no repo file touched, CI untouched, no version bump.
+6. Action Items updated (Rule 7): A2 → Completed as **C22** (stale — its #125–#131 all closed); C23 records this sync; new **A12** points at #149–#154 as a pointer row, explicitly not a parallel backlog.
+
+**What Worked:**
+- **Verifying agent findings before filing them.** The risk pass called "no repo-level secrets scanning" the single most actionable gap; `gh api` showed `secret_scanning` + push protection + Dependabot all `enabled`, and push protection blocks the exact bypass it described. Filing it would have put a fictional security gap on the canonical list. Two of three agent findings needed correction before they were fit to file — the pattern holds: **treat subagent output as a lead, not a conclusion.**
+- Reading the existing label set and `[Pn]` convention first meant zero taxonomy drift against the closed #125–#131.
+- Issue-creation-as-metadata proved a genuinely clean rollback surface: 6 `gh issue close` calls, no code risk, so the protocol cost was seconds.
+
+**System insight:** The tracker being *empty* was itself the defect, and it was invisible precisely because every conventional health signal was green (clean tree, synced main, 14/14 checks passing, zero TODOs). A backlog that lives only in a report is indistinguishable from no backlog — the "everything's green" state actively camouflaged it. The same class as the D17/D19 lesson (a clean `git status` proving nothing about origin): **absence of a signal is not evidence of health.**
+
+**Status:** COMPLETE. Canonical backlog is now GitHub #149–#154 (6 open). Next: Entry 040 — `/ultra-plan` over these 6 to produce a sequenced implementation plan.
+**Duration:** ~15 minutes (verify → log → file 6 → verify → dashboard update)
+
+### Entry 040 — /ultra-plan the prime backlog (#149–#154) → fresh IMPLEMENTATION_PLAN.md [plan] [decision]
+**Date:** 2026-07-17
+**Environment:** Linux VM, main at `2789dd7` (clean + Entry 039 uncommitted), personal-plugin 11.1.0 / bpmn 4.3.1 / slide-gen 1.2.0 / marketplace 3.3.0. Trigger: user ran `/personal-plugin:ultra-plan` on the 6 canonical issues, approved the Phase 4 summary, said "implement".
+**Status:** IN PROGRESS
+
+**Objective:** Generate a formal, sequenced IMPLEMENTATION_PLAN.md for GitHub issues #149–#154, and file 2 scoped-out follow-up issues. "Implement" here = Phase 5 plan generation (the code changes are Phases 1–7, executed later one-branch-per-phase), per the ultra-plan contract I set with the user.
+
+**Investigation overturned 4 of the 6 issues as filed (all verified in main context, not just by subagents):**
+1. **`update-readme.py` is STRUCTURALLY DEAD, not prose-blind** — I ran it: "Found 0 skills" (nested-skills glob `skills/*.md` misses `skills/*/SKILL.md`) + "Commands table not found" (anchor `**Commands:**` no longer matches the count-prefixed `**23 Commands:**` header added in `6c40719`). Exit 2 is unreachable; it reports "up to date" for ANY drift. My 2026-07-17 prime report's "syncs tables only" was WRONG. ⇒ #149(b) is a REPAIR; wiring `--check` before repair ships a green no-op gate (false assurance, worse than nothing). Hard order: repair→wire.
+2. **#151 does NOT depend on #149** (I mis-filed it) — it fixes validate.yml's dead skills-frontmatter branch, independent of hook install. Also there are THREE contradicting voices, not 2: `scripts/pre-commit` (name REQUIRED for skills, CORRECT), `validate.yml:128` (name FORBIDDEN, globs skills too — the BUG, dormant only because `glob('*.md')` is non-recursive), `CONTRIBUTING.md:707` (sides with the wrong one). Tiebreaker: `claude plugin validate --strict` passes WITH `name:` in all 39 skills ⇒ pre-commit is right. Fix by path-branching; NEVER strip name; use `glob('*/SKILL.md')` NOT `rglob` (rglob catches 15 frontmatter-less reference .md → 15 false errors).
+3. **#153 is NOT a 5-min typo, and NOT independent** — it's a byproduct of the #149(b) repair. 3 stale counts (README:41/70/108) + 5 skills MISSING from tables (archive-project, clear-prep, fleet-health, new-project, build-cfa-deck). Hand-fixing line 41 gets overwritten by the repair and leaves 5 skills invisible. Also: 5 README rows carry hand-edited flag docs ("supports `--focus`") absent from frontmatter — must migrate to frontmatter BEFORE regen or they're silently destroyed.
+4. **#150 overturns a DOCUMENTED design** — `evals/README.md:87`: "Evals are designed to be executed in a live Claude Code session. They are not automated unit tests." CI-not-executing is the original intent, not a regression. My prime "largest structural gap" framing was imprecise. ⇒ ADR-0009 required. Also CI has ZERO secrets (`grep secrets. .github/` empty) ⇒ an LLM-judge runner needs the repo's first CI secret + can't run on fork PRs (breaks external PRs like #98).
+
+**Key blocker found (CS5):** Decision Log jumps D13→D19. **D14–D18 exist ONLY in entry bodies** (E005 L341–343, E006 L392/394), never promoted (Rule 7 lapse, May 2026). ADR-0005 (Accepted) cites "D14 (Lab Notebook E005)"; CLAUDE.md:26 (top Verified Operational Rule) rests on D17. Rotating the notebook without first promoting D14–D18 = silently deleting 5 decisions + orphaning an Accepted ADR's precedent = violating the very Rule 4 #154 cites. ⇒ promotion is a standalone prerequisite commit, independently valuable.
+
+**User decisions (AskUserQuestion, this session):**
+- **#150 → Ship structural linter now, DEFER the runner** (option A). Extend `check_eval_mapping.py` (structure gate + close 10-surface coverage gap + validate `command:` on cross-cutting + normalize bare-`Must:`). Stays stdlib-only/auth-free/deterministic/required. LLM-judge runner → its own go/no-go = **ADR-0009**. Alts rejected: full runner now (first CI secret, flake, fork-PR breakage); hybrid re-authoring (largest diff, likely = option A with extra steps); close #150 (leaves coverage gap + dead field).
+- **CS5 → Promote D14–D18 FIRST, then rotate @line 830** (option A). Cut@830 = session marker, 43% reduction, keeps E017–E039 arc that Current Baseline + SECURITY.md:359 + IMPLEMENTATION_PLAN.md:825 narrate live. Alts rejected: promote-only/drop-rotation; cut@1056 (60% but strands E017–E025 that are cited live).
+
+**Hypothesis:** Fresh IMPLEMENTATION_PLAN.md, 7 phases (≤6 items each), one-branch-per-phase, each green on all 14 required checks; `autoUpdate` propagates content so NO version bump. Old completed arch-review plan archived → `docs/archive/IMPLEMENTATION_PLAN-v9.md` (v4–v8 precedent). 2 follow-up issues filed (feedback-docx mypy asymmetry; lab-notebook `rotate` operation). Plan file + notebook edits stay UNCOMMITTED on main (user commits per-phase during execution; harness rule: branch before committing on main).
+
+**Rollback Plan:** All artifacts reversible & non-code. Plan file: `git checkout IMPLEMENTATION_PLAN.md docs/archive/IMPLEMENTATION_PLAN-v9.md` (pre-commit) — v9 archive is a fresh copy, deletable via `rm`. Notebook: `git checkout LAB_NOTEBOOK.md`. Issues: `gh issue close <n> --reason "not planned"` (numbers logged below). NO plugin/tool/CI/skill file touched in THIS step — plugin discovery + the 14 checks cannot regress from plan generation. Actual Phases 1–7 each carry their own per-branch rollback in the plan's Risk Mitigation table.
+
+**Actions & Results:**
+
+1. Ran per-phase Explore investigation (3 clustered subagents) + verified every load-bearing claim in main context. Key verifications: ran `update-readme.py --check` (confirmed dead — "0 skills", "Commands table not found", exit 0); confirmed Decision Log D13→D19 gap + D14–D18 in bodies only; `grep secrets. .github/` empty (zero CI secrets); `claude plugin validate --strict` green with `name:` in all 39 skills; root `pyproject.toml` aggregates 3 suites (one configfile per pytest run → no double-apply). Constitution (Phase 0): CLAUDE.md comprehensive, no gap-filling questions needed.
+2. Archived completed arch-review plan → `docs/archive/IMPLEMENTATION_PLAN-v9.md` (1126 lines; matches v4–v8 precedent).
+3. Wrote fresh `IMPLEMENTATION_PLAN.md`: 7 phases / 15 work items, one-branch-per-phase, ≤6 items/phase, plan-template schema (Files Affected / Description / Tasks / Acceptance Criteria WHEN-THEN / Depends On / DOD). Verified: all 6 issues referenced (149×16, 150×7, 151×5, 152×3, 153×6, 154×12), 7 balanced DOD blocks, no atomic set split (README #149a/b+#153 co-located P2; frontmatter 3-file #151 co-located P3; test.yml #149c+#152 co-located P4).
+4. Filed 2 scoped-out follow-ups: **#155** feedback-docx mypy-gate asymmetry (P4, two-sided decision, split from #152); **#156** lab-notebook `rotate` operation + threshold (P5, else #154 recurs in ~40 entries). Backlog now 8 open (#149–#156).
+5. User AskUserQuestion decisions recorded above (#150 = structural-linter-now/defer-runner→ADR-0009; CS5 = promote-D14–D18-then-cut@830).
+
+**What Worked:**
+- **Verifying subagent claims before trusting them (again).** The guards agent claimed `update-readme.py` was fully dead, contradicting my OWN prime report ("syncs tables only"). I ran it — the agent was right, my prime was wrong. Two of three prime risk-findings and my own two filed dependencies (#151→#149, #153-as-typo) were wrong until investigation corrected them. Pattern holds firmly: subagent output AND prior-session conclusions are leads, not facts.
+- **Per-phase clustered Explore dispatch** kept ~2600 lines of file reads out of main context while surfacing the D14–D18 blocker that a symptom-level plan would have walked straight into.
+- **AskUserQuestion for the 2 genuine forks** (CI-secret posture; rotation depth) rather than deciding unilaterally — both were owner-domain calls (bus-factor-1 CI risk; permanent-record shape).
+
+**System insight:** 5 of 6 "independent" issues collapsed to one root cause (verification artifacts that exist but aren't wired to run), and the 6th (#154) hid a data-integrity landmine (D14–D18) that ONLY surfaces under the action the issue requests. Filing issues from a symptom-level scan (my prime) produced a correct *list* but wrong *shape* — the deep investigation didn't add items, it re-grouped and re-sequenced them and found the blocker. Lesson for the prime→issues→plan pipeline: the plan phase is where symptom-issues get their true root-cause structure; don't over-trust the issue text (even your own).
+
+**Status:** COMPLETE (plan generation). `IMPLEMENTATION_PLAN.md` (7 phases) + `docs/archive/IMPLEMENTATION_PLAN-v9.md` + Entry 040 + #155/#156 filed. All UNCOMMITTED on main (working tree: LAB_NOTEBOOK.md, IMPLEMENTATION_PLAN.md, docs/archive/IMPLEMENTATION_PLAN-v9.md) — per "commit only when asked" + "branch before committing on main". Next: execute Phase 1 (start with `/implement-plan`, or a manual branch), OR user commits the planning artifacts first.
+**Duration:** ~35 minutes (3-agent investigation → constitution → interaction map → design → 2 user decisions → plan gen → 2 follow-ups → verify).
+
+### Entry 041 — Fix flaky wall-clock concurrency test (visual-explainer) [test] [debug] [ci]
+**Date:** 2026-07-17
+**Environment:** Linux VM, branch `fix/flaky-concurrent-timing-test` off `docs/ultra-plan-prime-backlog` (stacked). Trigger: during `/ship` of the planning artifacts (PR #157), the required check **Visual Explainer Tests (windows-latest)** failed on `test_concurrent_generation_overlaps_wall_clock` — twice.
+**Status:** COMPLETE
+
+**Objective:** Unblock PR #157 (docs-only) by fixing a pre-existing flaky timing test that #157 merely surfaced. User chose "fix first (separate PR), then merge #157" (AskUserQuestion).
+
+**Symptom:** `assert concurrent_elapsed < 2 * delay` (delay=0.05 → threshold 0.10s) failed on windows-latest: attempt 1 `0.110 < 0.100`, attempt 2 `0.175 < 0.100`. Coverage passed (93.37%); 893/894 passed. My PR touches ZERO Python — the Python is byte-identical to green `main` tip 2789dd7. So: flaky, not a regression.
+
+**Root cause (systematic-debugging, deeper than the symptom):** The test measures the CONCURRENT run FIRST (line ~1707) and the SERIAL run SECOND. The first-measured run pays a one-time cold-start cost (asyncio loop init, first mock/import warmup) the second does not. Proven locally: run in ISOLATION (cold) the test FAILED even my first fix attempt (subtraction form) in 43.96s; run inside its 9-test class (warm) it PASSED. Under xdist on Windows, whichever worker schedules this test early hits the cold path → the wall-clock overlap signal collapses → intermittent red. An *absolute* threshold (`< 2*delay`) breaks whenever fixed overhead exceeds one delay; a *subtraction* threshold (`concurrent < serial - delay`, my first attempt) still breaks under cold-start ASYMMETRY because the overhead isn't equal across the two measured runs.
+
+**Fix:** Abandon wall-clock timing entirely (an inherently CI-fragile proxy). Instrument ACTUAL overlap: `fake_generate` increments/decrements an `in_flight` counter around its `await asyncio.sleep`, tracking `max_in_flight`. asyncio is single-threaded/cooperative, so the counter is lock-free-safe (mutates only between awaits). Assert `state_c["max_in_flight"] >= 2` (concurrent genuinely overlapped) and `state_s["max_in_flight"] == 1` (serial never did). Deterministic, timing-independent, and STILL catches a broken concurrency path (if images didn't overlap, max_in_flight stays 1 and the concurrent assert fails). Removed now-unused `import time` + 4 `perf_counter` calls; reduced `delay` 0.05→0.02 (no longer timing-load-bearing, just holds tasks in flight).
+
+**Hypothesis:** deterministic assertions pass on every runner incl. windows-latest under xdist; coverage stays ≥85%; ruff clean.
+
+**Rollback Plan:** Single-file test change (`test_pipeline.py`) + this entry, both on `fix/flaky-concurrent-timing-test`. `git checkout 289e45eb88c7c70854ba7a743997637132e79fdf -- plugins/personal-plugin/tools/visual-explainer/tests/test_pipeline.py` pre-commit; `git branch -D` pre-merge / revert the fix PR post-merge. No src/ code touched — only the test.
+
+**Actions & Results:**
+1. Read the full test (lines 1677–1742): it ALREADY measured both concurrent + serial; the fragile part was the absolute `< 2*delay` line plus cold-start ordering.
+2. First attempt (subtraction `concurrent < serial - delay`): FAILED in isolated cold run → revealed the cold-start-asymmetry root cause, not just threshold tightness. Discarded.
+3. Rewrote to deterministic in-flight counting. Local verification via tool `.venv`: ISOLATED (the failing cold case) → **1 passed**; full class → **9 passed**; full suite → **894 passed, cov 93.37%** (gate 85); `uvx ruff@0.14.10 check` + `format --check` clean.
+
+**What Worked:** Reproducing the failure LOCALLY in isolation (not just re-running CI) exposed that the subtraction fix was insufficient — the isolated cold run is the same condition as an early-scheduled xdist worker. Had I shipped the subtraction fix (which "looked right" and passes warm), it would have stayed flaky. Deterministic instrumentation > any wall-clock proxy for concurrency tests.
+
+**System insight:** Wall-clock timing assertions in CI are an anti-pattern — they encode an environment assumption (overhead << signal) that loaded, cold, parallel runners violate unpredictably. The behavior under test (does concurrency overlap?) is directly observable via an in-flight counter; test the property, not a timing proxy for it. Filed nothing new — this is a fix, and #128 (which introduced the test) is already closed.
+**Duration:** ~20 minutes (2 CI failures → local repro → root cause → 2 fix iterations → full-suite verify).
