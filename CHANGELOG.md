@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [bpmn-plugin v4.3.1] - 2026-07-16
+
+### Fixed
+- **bpmn2drawio partial-DI files no longer strand shapes at the origin (#143).** `auto` now resolves to `preserve` only when DI is complete (every element positioned) — `BPMNModel.has_complete_di_coordinates` — and falls back to a full graphviz layout otherwise. Fully-DI (Bizagi) and non-DI behavior unchanged.
+
 ## [bpmn-plugin v4.3.0] - 2026-07-16
 
 Integrates external contributor PR #98 (Oleksandr Panasenko / @AlexanderV) into the bundled bpmn2drawio tool, rebased onto current `main` and brought up to the ruff/mypy/coverage gates.

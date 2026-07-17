@@ -37,6 +37,7 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D27 | Parallel image generation defaults to `concurrency=3` (memory-bounded via `asyncio.Semaphore`), parallel-by-default; `--concurrency 1` restores exact serial behavior | 2026-07-16 | ACTIVE | E030 | Default 1 / opt-in — rejected (feature dormant, near-zero value by default); unbounded `gather` — rejected (4K buffers breach the 1.5 GB ceiling). 3 chosen per PERF-05; rate-limit spikes handled by existing 429 backoff |
 | D28 | Python 3.10/3.12 CI coverage added as a NON-required advisory `python-compat` job, NOT by expanding the required job matrices | 2026-07-16 | ACTIVE | E033 | Expand required `Run Tests`/tool matrices + lockstep branch-protection required-check rename (issue's literal acceptance) — rejected by owner as disproportionate deadlock-risk for a P6 item; defer — rejected (cheap to verify). Advisory can be promoted to required later |
 | D29 | Keep CodeQL **default setup** as-is (`languages: [actions, python]`); close #135 as a self-resolved GitHub-side transient, make NO config change | 2026-07-16 | ACTIVE | E034 | Migrate to advanced-setup `codeql.yml` — rejected (adds a workflow to keep green on both OSes; doesn't prevent an infra transient); disable default setup — rejected (loses real security scanning, which passed on every commit incl. #134). The 2s `CodeQL` aggregate check failed only on #134's two commits, is non-required, and passed on #132/#133 before and #136–#141 after |
+| D30 | bpmn2drawio `auto` layout resolves to `preserve` only on **complete** DI (`has_complete_di_coordinates` — every element positioned), not any-DI; partial-DI ⇒ graphviz | 2026-07-16 | ACTIVE | E036 | Hybrid partial-fallback (graphviz-layout only the DI-less elements) — rejected (fiddly, graphviz doesn't know the DI-fixed positions → new overlap risk); document-only — rejected (silent (0,0) stranding is a poor default). Guard restores exact pre-4.3.0 graphviz for partial-DI files while keeping the 4.3.0 preserve for fully-DI (Bizagi). Refines D-none; fixes #143 introduced by the 4.3.0 `auto` default (E035) |
 
 Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#)
 
@@ -1286,3 +1287,27 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** COMPLETE. PR #98 integrated → **bpmn-plugin 4.3.0** (`d2b702e`), all 14 required checks green both OSes. 637 tests / 92.83% branch cov / mypy 0 / ruff clean; DI-preservation verified end-to-end with no non-DI regression. Contributor authorship + credit preserved. Follow-up #143 filed (partial-DI edge). Backlog now: 1 external PR (#97 xquik) + #143.
 **Duration:** ~50 minutes (recon → cherry-pick/resolve → verify → review integration → release → merge)
+
+### Entry 036 — #143 partial-DI guard: `auto` picks `preserve` only on COMPLETE DI [plugin] [bpmn] [decision]
+
+**Date:** 2026-07-16
+**Environment:** Linux VM, main at `e02147d` (post-4.3.0), branch `fix/partial-di-guard`. bpmn2drawio 637 tests / mypy 0 / ruff clean baseline.
+
+**Objective:** Close #143 — the 4.3.0 `auto` default sends a *partially*-DI file to `preserve` (because `has_di_coordinates` is all-or-nothing: `bool(self._di_shapes)`, parser.py:94), stranding the DI-less elements at the origin. Fully-DI (Bizagi) and fully-non-DI files are unaffected; only mixed files regress vs pre-4.3.0 graphviz.
+
+**Decision (D30):** Option 1 (guard `_effective_layout`) over Option 2 (hybrid partial-fallback: graphviz-layout only the DI-less elements) and Option 3 (document-only). Add a `BPMNModel.has_complete_di_coordinates` property (`has_di_coordinates AND every element has x/y`) and gate `auto`→`preserve` on it; partial-DI ⇒ graphviz. Alt 2 rejected — hybrid layouts are fiddly (graphviz doesn't know the DI-fixed positions → new overlap risk) and disproportionate for a rare edge. Alt 3 rejected — a silent "some shapes at (0,0)" is a poor default. The guard restores exact pre-4.3.0 behavior for partial-DI files (full graphviz) while keeping preserve for fully-DI. Conservative-but-safe consequence: a fully-DI file with even ONE element missing DI now uses graphviz for all (consistent layout beats one shape at origin). `has_di_coordinates` semantics unchanged (still used by the preserve-warning at converter.py:99 and lane_organizer.py:69).
+
+**Hypothesis:** `auto`→`preserve` iff `has_complete_di_coordinates`. Existing tests stay green: `with_di.bpmn` and `geometric_lanes.bpmn` are fully-DI (verified: every flow-node has a BPMNShape) → still `preserve`; `minimal.bpmn` has no DI → still `graphviz`. New: a `partial_di.bpmn` fixture (Start/End with DI, Task without) resolves `auto`→`graphviz` and lays out ALL elements (none at origin). Success = new + existing tests pass, mypy 0, ruff clean, coverage ≥90; patch bump 4.3.0→4.3.1.
+
+**Rollback Plan:** All on branch `fix/partial-di-guard`; `git branch -D` pre-merge / `git revert` post-merge. Change is additive (one property + a one-line predicate swap in `_effective_layout` + a fixture + tests); no change to `has_di_coordinates`, `preserve`/`graphviz` internals, or the 4.3.0 feature for fully-DI files.
+
+**Actions & Results:**
+
+1. Traced the mechanism (parser.py:94 all-or-nothing `has_di_coordinates`; converter.py:72 `auto`→`preserve`); confirmed `with_di.bpmn` + `geometric_lanes.bpmn` are fully-DI (every flow-node has a BPMNShape) so the guard won't regress the existing preserve tests. Entry 036 + D30 logged before any code.
+2. Implemented: `BPMNModel.has_complete_di_coordinates` property (`has_di_coordinates AND all(e.has_coordinates())`); `_effective_layout` swapped to gate on it; `has_di_coordinates` semantics untouched (still drives the preserve-warning + lane_organizer). Added `tests/fixtures/partial_di.bpmn` (Start/End DI, Task none).
+3. **Pre-test sanity** (venv): `with_di`/`geometric_lanes` → complete=True → `auto=preserve` (unchanged); `partial_di` → has_di=True/complete=False → **`auto=graphviz`**; `minimal` → graphviz. End-to-end on `partial_di` in auto mode: all 3 elements laid out at DISTINCT positions, **none at (0,0)**, no warnings — regression fixed.
+4. Tests added: `test_has_complete_di_coordinates` (full/partial/none), `test_effective_layout_falls_back_to_graphviz_for_partial_di`, `test_auto_partial_di_lays_out_all_elements` (e2e origin check). Full gate green: **640 passed**, 92.84% branch cov, mypy 0, ruff (0.14.10) check+format clean. Committed `99335dd`.
+5. Patch bump **4.3.0 → 4.3.1** (plugin.json + marketplace.json lockstep; both CHANGELOGs). *(PR next)*
+
+**Status:** COMPLETE (pending PR merge). #143 fixed via the complete-DI guard; bpmn2drawio 640 tests / 92.84% / mypy 0 / ruff clean; e2e confirms no origin-stranding with fully-DI/non-DI behavior unchanged. bpmn-plugin → 4.3.1.
+**Duration:** ~25 minutes (trace → implement → verify → release)

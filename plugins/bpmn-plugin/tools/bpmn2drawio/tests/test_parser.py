@@ -134,6 +134,20 @@ class TestParseDICoordinates:
         assert start is not None
         assert not start.has_coordinates()
 
+    def test_has_complete_di_coordinates(self):
+        """`has_complete_di_coordinates` requires every element to be positioned (#143)."""
+        full = parse_bpmn(FIXTURES_DIR / "with_di.bpmn")
+        assert full.has_di_coordinates
+        assert full.has_complete_di_coordinates  # every element has DI
+
+        partial = parse_bpmn(FIXTURES_DIR / "partial_di.bpmn")
+        assert partial.has_di_coordinates  # some shapes carry DI
+        assert not partial.has_complete_di_coordinates  # but Task_1 does not
+
+        none = parse_bpmn(FIXTURES_DIR / "minimal.bpmn")
+        assert not none.has_di_coordinates
+        assert not none.has_complete_di_coordinates
+
 
 class TestParseSimpleProcess:
     """Tests for parsing simple process with different task types."""

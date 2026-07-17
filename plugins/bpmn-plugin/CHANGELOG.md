@@ -5,6 +5,11 @@ All notable changes to bpmn-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.1] - 2026-07-16
+
+### Fixed
+- **Partial-DI files no longer strand shapes at the origin (#143).** The 4.3.0 `auto` default resolved to `preserve` whenever *any* shape carried DI (`has_di_coordinates` is all-or-nothing), so a file where only some elements had DI coordinates left the DI-less elements at (0,0). `auto` now resolves to `preserve` only when DI is **complete** (every element positioned) via the new `BPMNModel.has_complete_di_coordinates`, and falls back to a full graphviz layout otherwise. Fully-DI (e.g. Bizagi) and non-DI behavior is unchanged.
+
 ## [4.3.0] - 2026-07-16
 
 Integrates external contributor PR #98 (Oleksandr Panasenko / @AlexanderV) — DI-layout preservation and swimlane/label fixes for the bundled bpmn2drawio tool, rebased onto current `main` and brought up to the repo's ruff/mypy/coverage gates.
