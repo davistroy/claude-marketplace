@@ -109,6 +109,18 @@ class BPMNModel:
     process_id: Optional[str] = None
     process_name: Optional[str] = None
 
+    @property
+    def has_complete_di_coordinates(self) -> bool:
+        """True when DI is present AND every element carries x/y coordinates.
+
+        ``has_di_coordinates`` is all-or-nothing at the shape level (True if any
+        shape has DI). ``preserve``/``auto`` layout needs every element
+        positioned, or the DI-less ones fall to the origin. ``auto`` resolves to
+        ``preserve`` only when this stricter check holds, so a partial-DI file
+        falls back to a full graphviz layout instead of stranding shapes at (0,0).
+        """
+        return self.has_di_coordinates and all(e.has_coordinates() for e in self.elements)
+
     def get_element_by_id(self, element_id: str) -> Optional[BPMNElement]:
         """Get element by ID."""
         for element in self.elements:

@@ -229,3 +229,35 @@ class TestAutoLayoutMode:
         assert pos["Start"] == (50.0, 40.0)
         assert pos["Do Work"] == (150.0, 30.0)
         assert pos["End"] == (350.0, 40.0)
+
+    def test_effective_layout_falls_back_to_graphviz_for_partial_di(self):
+        """'auto' resolves to 'graphviz' when only SOME elements carry DI (#143)."""
+        from bpmn2drawio.parser import parse_bpmn
+
+        model = parse_bpmn(FIXTURES_DIR / "partial_di.bpmn")
+
+        # Some shapes have DI, but not every element -> not "complete".
+        assert model.has_di_coordinates
+        assert not model.has_complete_di_coordinates
+        assert Converter()._effective_layout(model) == "graphviz"
+
+    def test_auto_partial_di_lays_out_all_elements(self, tmp_path):
+        """A partial-DI file lays out every element instead of stranding the
+        DI-less ones at the origin (the #143 regression)."""
+        from xml.etree import ElementTree as ET
+
+        converter = Converter()  # auto -> graphviz for partial DI
+        output_file = tmp_path / "partial.drawio"
+
+        result = converter.convert(FIXTURES_DIR / "partial_di.bpmn", output_file)
+        assert result.success
+
+        root = ET.fromstring(output_file.read_text(encoding="utf-8").encode())
+        positions = [
+            (c.find("mxGeometry").get("x"), c.find("mxGeometry").get("y"))
+            for c in root.iter("mxCell")
+            if c.get("vertex") == "1" and c.get("value")
+        ]
+        assert len(positions) == 3
+        assert len(set(positions)) == 3  # all distinct
+        assert ("0", "0") not in positions  # nothing stranded at the origin

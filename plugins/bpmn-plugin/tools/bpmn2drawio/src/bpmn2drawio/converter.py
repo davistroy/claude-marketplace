@@ -59,8 +59,10 @@ class Converter:
     def _effective_layout(self, model: BPMNModel) -> str:
         """Resolve the concrete layout mode for a parsed model.
 
-        "auto" becomes "preserve" when the model carries DI coordinates,
-        otherwise "graphviz".
+        "auto" becomes "preserve" only when the model carries *complete* DI
+        coordinates (every element positioned); otherwise "graphviz". Gating on
+        complete-rather-than-any DI keeps partial-DI files on a full graphviz
+        layout instead of stranding the DI-less elements at the origin (#143).
 
         Args:
             model: Parsed BPMN model
@@ -69,7 +71,7 @@ class Converter:
             Either "preserve" or "graphviz"
         """
         if self.layout == "auto":
-            return "preserve" if model.has_di_coordinates else "graphviz"
+            return "preserve" if model.has_complete_di_coordinates else "graphviz"
         return self.layout
 
     def convert(
