@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [bpmn-plugin v4.3.0] - 2026-07-16
+
+Integrates external contributor PR #98 (Oleksandr Panasenko / @AlexanderV) into the bundled bpmn2drawio tool, rebased onto current `main` and brought up to the ruff/mypy/coverage gates.
+
+### Added
+- **bpmn2drawio `auto` layout mode (now default):** preserves existing BPMN DI coordinates when present, else falls back to graphviz. `--layout graphviz`/`preserve` unchanged.
+- Geometric lane/pool assignment from DI bounds for `flowNodeRef`-less lanes (per-process constrained); data stores as cylinders; event-based/complex gateway theme styles.
+
+### Fixed
+- DI-carrying exports (e.g. Bizagi) no longer collapse all shapes into one pool / reflow valid coordinates; phantom empty pools skipped; event/gateway/data labels placed below shapes; pool title aligned to lane inset.
+- 32 new tests; integrated suite 636 passing / 92.83% branch cov, mypy 0, ruff clean.
+
 ## [personal-plugin v11.0.0] - 2026-07-16
 
 Architecture-review hardening release (8-phase remediation, LAB_NOTEBOOK Entries 017–024). MAJOR: interface/capability changes below.
