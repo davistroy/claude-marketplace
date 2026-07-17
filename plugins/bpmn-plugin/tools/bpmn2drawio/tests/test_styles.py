@@ -336,3 +336,145 @@ class TestThemeStyleIntegration:
         task_style = theme.style_for("task")
         assert sub_style != task_style
         assert "container=1" in sub_style
+
+
+class TestLabelAlignment:
+    """Tests for label placement on small shapes (events and gateways).
+
+    Event circles and gateway diamonds are small, so their labels must render
+    below the shape instead of centred inside it (where long names overflow).
+    """
+
+    EVENT_TYPES = [
+        "startEvent",
+        "endEvent",
+        "intermediateCatchEvent",
+        "intermediateThrowEvent",
+        "boundaryEvent",
+    ]
+    GATEWAY_TYPES = [
+        "exclusiveGateway",
+        "parallelGateway",
+        "inclusiveGateway",
+        "eventBasedGateway",
+        "complexGateway",
+    ]
+    TASK_TYPES = [
+        "task",
+        "userTask",
+        "serviceTask",
+        "scriptTask",
+        "businessRuleTask",
+        "manualTask",
+    ]
+
+    def test_events_place_label_below_in_style_map(self):
+        """Every event style positions its label below the shape."""
+        for event_type in self.EVENT_TYPES:
+            style = STYLE_MAP[event_type]
+            assert "verticalLabelPosition=bottom" in style, event_type
+            assert "verticalAlign=top" in style, event_type
+
+    def test_gateways_place_label_below_in_style_map(self):
+        """Every gateway style positions its label below the shape."""
+        for gw_type in self.GATEWAY_TYPES:
+            style = STYLE_MAP[gw_type]
+            assert "verticalLabelPosition=bottom" in style, gw_type
+            assert "verticalAlign=top" in style, gw_type
+
+    def test_tasks_keep_centered_label_in_style_map(self):
+        """Tasks are large enough to keep their label centred inside."""
+        for task_type in self.TASK_TYPES:
+            style = STYLE_MAP[task_type]
+            assert "verticalLabelPosition=bottom" not in style, task_type
+
+    def test_events_place_label_below_in_theme(self):
+        """Theme-generated event styles also place labels below."""
+        theme = BPMNTheme()
+        for event_type in self.EVENT_TYPES:
+            style = theme.style_for(event_type)
+            assert "verticalLabelPosition=bottom" in style, event_type
+            assert "verticalAlign=top" in style, event_type
+
+    def test_gateways_place_label_below_in_theme(self):
+        """Theme-generated gateway styles also place labels below."""
+        theme = BPMNTheme()
+        for gw_type in self.GATEWAY_TYPES:
+            style = theme.style_for(gw_type)
+            assert "verticalLabelPosition=bottom" in style, gw_type
+            assert "verticalAlign=top" in style, gw_type
+
+    def test_tasks_keep_centered_label_in_theme(self):
+        """Theme-generated task styles keep the label centred."""
+        theme = BPMNTheme()
+        for task_type in self.TASK_TYPES:
+            style = theme.style_for(task_type)
+            assert "verticalLabelPosition=bottom" not in style, task_type
+
+    def test_theme_and_style_map_agree_for_events(self):
+        """Default theme and STYLE_MAP stay consistent for event label styling."""
+        theme = BPMNTheme()
+        for event_type in self.EVENT_TYPES:
+            assert theme.style_for(event_type) == STYLE_MAP[event_type], event_type
+
+
+class TestDataElementStyles:
+    """Tests that data elements render as their proper BPMN shapes.
+
+    Data stores must be cylinders and data objects must be documents, in both
+    the STYLE_MAP and the theme paths (the theme path previously fell back to
+    the task rectangle).
+    """
+
+    def test_data_stores_use_cylinder_in_style_map(self):
+        for data_type in ("dataStore", "dataStoreReference"):
+            assert "cylinder" in STYLE_MAP[data_type], data_type
+
+    def test_data_objects_use_document_in_style_map(self):
+        for data_type in ("dataObject", "dataObjectReference"):
+            assert "shape=document" in STYLE_MAP[data_type], data_type
+
+    def test_data_stores_use_cylinder_in_theme(self):
+        theme = BPMNTheme()
+        for data_type in ("dataStore", "dataStoreReference"):
+            assert "cylinder" in theme.style_for(data_type), data_type
+
+    def test_data_objects_use_document_in_theme(self):
+        theme = BPMNTheme()
+        for data_type in ("dataObject", "dataObjectReference"):
+            assert "shape=document" in theme.style_for(data_type), data_type
+
+    def test_theme_data_style_is_not_task_fallback(self):
+        """Data styles must be distinct from the task rectangle fallback."""
+        theme = BPMNTheme()
+        task_style = theme.style_for("task")
+        for data_type in (
+            "dataStore",
+            "dataStoreReference",
+            "dataObject",
+            "dataObjectReference",
+        ):
+            assert theme.style_for(data_type) != task_style, data_type
+
+    def test_theme_and_style_map_agree_for_data_types(self):
+        """Default theme and STYLE_MAP produce identical data-element styles."""
+        theme = BPMNTheme()
+        for data_type in (
+            "dataStore",
+            "dataStoreReference",
+            "dataObject",
+            "dataObjectReference",
+        ):
+            assert theme.style_for(data_type) == STYLE_MAP[data_type], data_type
+
+    def test_data_elements_place_label_below(self):
+        """Data stores/objects render their label below the shape, not inside."""
+        theme = BPMNTheme()
+        for data_type in (
+            "dataStore",
+            "dataStoreReference",
+            "dataObject",
+            "dataObjectReference",
+        ):
+            assert "verticalLabelPosition=bottom" in STYLE_MAP[data_type], data_type
+            assert "verticalLabelPosition=bottom" in theme.style_for(data_type), data_type

@@ -36,6 +36,10 @@ class BPMNTheme:
     lane_fill: str = "#ffffff"
     lane_stroke: str = "#666666"
 
+    # Data element colors
+    data_fill: str = "#f5f5f5"
+    data_stroke: str = "#666666"
+
     # Flow colors
     sequence_flow_stroke: str = "#666666"
     message_flow_stroke: str = "#666666"
@@ -55,11 +59,11 @@ class BPMNTheme:
             Draw.io style string
         """
         styles = {
-            "startEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor={self.start_event_fill};strokeColor={self.start_event_stroke};perimeter=ellipsePerimeter;",
-            "endEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor={self.end_event_fill};strokeColor={self.end_event_stroke};strokeWidth=3;perimeter=ellipsePerimeter;",
-            "intermediateCatchEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor={self.intermediate_event_fill};strokeColor={self.intermediate_event_stroke};strokeWidth=2;perimeter=ellipsePerimeter;",
-            "intermediateThrowEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor={self.intermediate_event_fill};strokeColor={self.intermediate_event_stroke};strokeWidth=2;perimeter=ellipsePerimeter;",
-            "boundaryEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor={self.intermediate_event_fill};strokeColor={self.intermediate_event_stroke};strokeWidth=2;perimeter=ellipsePerimeter;",
+            "startEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.start_event_fill};strokeColor={self.start_event_stroke};perimeter=ellipsePerimeter;",
+            "endEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.end_event_fill};strokeColor={self.end_event_stroke};strokeWidth=3;perimeter=ellipsePerimeter;",
+            "intermediateCatchEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.intermediate_event_fill};strokeColor={self.intermediate_event_stroke};strokeWidth=2;perimeter=ellipsePerimeter;",
+            "intermediateThrowEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.intermediate_event_fill};strokeColor={self.intermediate_event_stroke};strokeWidth=2;perimeter=ellipsePerimeter;",
+            "boundaryEvent": f"ellipse;whiteSpace=wrap;html=1;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.intermediate_event_fill};strokeColor={self.intermediate_event_stroke};strokeWidth=2;perimeter=ellipsePerimeter;",
             "task": f"rounded=1;whiteSpace=wrap;html=1;fillColor={self.task_fill};strokeColor={self.task_stroke};arcSize=10;",
             "userTask": f"rounded=1;whiteSpace=wrap;html=1;fillColor={self.task_fill};strokeColor={self.task_stroke};arcSize=10;",
             "serviceTask": f"rounded=1;whiteSpace=wrap;html=1;fillColor={self.task_fill};strokeColor={self.task_stroke};arcSize=10;",
@@ -68,9 +72,15 @@ class BPMNTheme:
             "manualTask": f"rounded=1;whiteSpace=wrap;html=1;fillColor={self.manual_task_fill};strokeColor={self.manual_task_stroke};arcSize=10;",
             "subProcess": f"rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=1;childLayout=stackLayout;horizontalStack=0;resizeParent=1;resizeLast=0;dropTarget=1;fontStyle=1;swimlane=0;startSize=26;fillColor={self.task_fill};strokeColor={self.task_stroke};",
             "callActivity": f"rounded=1;whiteSpace=wrap;html=1;fillColor={self.task_fill};strokeColor={self.task_stroke};arcSize=10;strokeWidth=3;",
-            "exclusiveGateway": f"rhombus;whiteSpace=wrap;html=1;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
-            "parallelGateway": f"rhombus;whiteSpace=wrap;html=1;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
-            "inclusiveGateway": f"rhombus;whiteSpace=wrap;html=1;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
+            "exclusiveGateway": f"rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
+            "parallelGateway": f"rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
+            "inclusiveGateway": f"rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
+            "eventBasedGateway": f"rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
+            "complexGateway": f"rhombus;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.gateway_fill};strokeColor={self.gateway_stroke};perimeter=rhombusPerimeter;",
+            "dataObject": f"shape=document;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.data_fill};strokeColor={self.data_stroke};",
+            "dataObjectReference": f"shape=document;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.data_fill};strokeColor={self.data_stroke};",
+            "dataStore": f"shape=cylinder3;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.data_fill};strokeColor={self.data_stroke};",
+            "dataStoreReference": f"shape=cylinder3;whiteSpace=wrap;html=1;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;fillColor={self.data_fill};strokeColor={self.data_stroke};",
         }
         return styles.get(element_type, styles["task"])
 

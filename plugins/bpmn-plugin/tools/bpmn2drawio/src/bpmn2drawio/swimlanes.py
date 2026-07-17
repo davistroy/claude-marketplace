@@ -1,6 +1,6 @@
 """Swimlane handling for pools and lanes."""
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from xml.etree import ElementTree as ET
 
 from .constants import LayoutConstants
@@ -122,6 +122,7 @@ def create_pool_cell(
     pool: Pool,
     cell_id: str,
     parent_id: str = "1",
+    start_size: Optional[float] = None,
 ) -> ET.Element:
     """Create swimlane mxCell for pool.
 
@@ -129,6 +130,9 @@ def create_pool_cell(
         pool: Pool data
         cell_id: Cell ID to assign
         parent_id: Parent cell ID
+        start_size: Title-strip width to use. When provided it must match the
+            inset at which the pool's lanes begin, otherwise the lanes overlap
+            the pool title strip. ``None`` keeps the style default.
 
     Returns:
         mxCell element
@@ -143,6 +147,9 @@ def create_pool_cell(
     else:
         style = SWIMLANE_STYLES["pool_vertical"]
 
+    if start_size is not None and start_size > 0:
+        style = _with_start_size(style, int(round(start_size)))
+
     cell.set("style", style)
     cell.set("vertex", "1")
     cell.set("parent", parent_id)
@@ -156,6 +163,21 @@ def create_pool_cell(
     geometry.set("as", "geometry")
 
     return cell
+
+
+def _with_start_size(style: str, size: int) -> str:
+    """Return the style string with its startSize set to ``size``.
+
+    Args:
+        style: Original Draw.io style string
+        size: Desired title-strip width
+
+    Returns:
+        Updated style string ending with a semicolon
+    """
+    segments = [s for s in style.split(";") if s and not s.startswith("startSize=")]
+    segments.append(f"startSize={size}")
+    return ";".join(segments) + ";"
 
 
 def create_lane_cell(

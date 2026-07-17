@@ -5,6 +5,23 @@ All notable changes to bpmn-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-07-16
+
+Integrates external contributor PR #98 (Oleksandr Panasenko / @AlexanderV) — DI-layout preservation and swimlane/label fixes for the bundled bpmn2drawio tool, rebased onto current `main` and brought up to the repo's ruff/mypy/coverage gates.
+
+### Added
+- **`auto` layout mode (now the default):** preserves a BPMN file's existing DI (Diagram Interchange) coordinates when present, and falls back to graphviz auto-layout when absent. Explicit `--layout graphviz` / `--layout preserve` behave as before.
+- Geometric lane/pool assignment: when lanes declare no `flowNodeRef`, membership is inferred from DI bounds, constrained to the element's own process to avoid cross-process misassignment.
+- Data stores render as cylinders with inherited labels; event-based and complex gateway styles added to the theme path.
+
+### Fixed
+- DI-carrying files (e.g. Bizagi exports) whose lanes have no `flowNodeRef` no longer collapse every shape into a single pool while graphviz reflows shapes that already had valid coordinates — the root cause of heavily-overlapping output.
+- Empty phantom pools (no lanes, no elements) that overlapped content are now skipped.
+- Event/gateway labels placed below the shape so long names no longer overflow the small circles/diamonds; data-element labels placed below; pool title strip aligned with the lane inset.
+
+### Tests
+- 32 new tests (parser geometry, auto-layout resolution, phantom-pool skipping, label alignment). Integrated suite: 636 passing, 92.83% branch coverage; mypy clean (baseline 0); ruff check + format clean.
+
 ## [4.2.0] - 2026-07-16
 
 ### Added

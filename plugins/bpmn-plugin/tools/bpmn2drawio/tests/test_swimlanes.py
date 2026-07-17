@@ -276,3 +276,98 @@ class TestEndToEndSwimlanes:
 
         content = output_file.read_text()
         assert "Customer" in content or "Service" in content
+
+
+class TestPoolHeaderAlignment:
+    """Tests that the pool title strip aligns with where its lanes begin.
+
+    If the pool startSize is wider than the lane inset, the lanes overlap and
+    squash the pool label (the "SAP ERP" cramped-text bug).
+    """
+
+    @staticmethod
+    def _model_with_lane_inset(inset):
+        model = BPMNModel()
+        model.pools.append(Pool(id="P", name="Pool", x=0, y=0, width=600, height=200))
+        model.lanes.append(
+            Lane(
+                id="L", name="Lane", parent_pool_id="P", x=inset, y=0, width=600 - inset, height=200
+            )
+        )
+        model.elements.append(
+            BPMNElement(
+                id="T",
+                type="task",
+                name="T",
+                x=inset + 60,
+                y=50,
+                width=100,
+                height=60,
+                parent_id="L",
+            )
+        )
+        return model
+
+    @staticmethod
+    def _style_of(xml, value):
+        root = ET.fromstring(xml.encode())
+        for c in root.findall(".//mxCell[@vertex='1']"):
+            if c.get("value") == value:
+                return c.get("style") or ""
+        return ""
+
+    def test_pool_header_matches_preserve_inset(self):
+        """A DI inset of 20 yields a 20px pool title strip."""
+        xml = DrawioGenerator().generate_string(self._model_with_lane_inset(20))
+        style = self._style_of(xml, "Pool")
+        assert "startSize=20" in style
+        assert "startSize=40" not in style
+
+    def test_pool_header_matches_graphviz_inset(self):
+        """The graphviz-organized inset of 40 keeps a 40px pool title strip."""
+        xml = DrawioGenerator().generate_string(self._model_with_lane_inset(40))
+        assert "startSize=40" in self._style_of(xml, "Pool")
+
+    def test_lane_starts_at_pool_header(self):
+        """The lane's inset equals the pool title-strip width (no overlap)."""
+        model = self._model_with_lane_inset(20)
+        xml = DrawioGenerator().generate_string(model)
+        root = ET.fromstring(xml.encode())
+
+        pool_style = self._style_of(xml, "Pool")
+        assert "startSize=20" in pool_style
+
+        lane = next(c for c in root.findall(".//mxCell[@vertex='1']") if c.get("value") == "Lane")
+        assert float(lane.find("mxGeometry").get("x")) == 20
+
+    def test_pool_without_lanes_keeps_default_header(self):
+        """A laneless pool keeps the default title-strip width."""
+        model = BPMNModel()
+        model.pools.append(Pool(id="P", name="Box", x=0, y=0, width=400, height=200))
+        model.elements.append(
+            BPMNElement(
+                id="T", type="task", name="T", x=60, y=50, width=100, height=60, parent_id="P"
+            )
+        )
+        xml = DrawioGenerator().generate_string(model)
+        assert "startSize=40" in self._style_of(xml, "Box")
+
+
+class TestWithStartSizeHelper:
+    """Unit tests for the _with_start_size style helper."""
+
+    def test_replaces_existing_start_size(self):
+        from bpmn2drawio.swimlanes import _with_start_size
+
+        out = _with_start_size("swimlane;startSize=40;html=1;", 20)
+        assert "startSize=20" in out
+        assert "startSize=40" not in out
+        assert out.endswith(";")
+
+    def test_adds_start_size_when_absent(self):
+        from bpmn2drawio.swimlanes import _with_start_size
+
+        out = _with_start_size("swimlane;html=1;", 25)
+        assert "startSize=25" in out
+        assert "swimlane" in out
+        assert "html=1" in out

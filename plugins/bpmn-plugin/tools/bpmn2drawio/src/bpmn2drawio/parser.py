@@ -35,6 +35,7 @@ class BPMNParser:
         self.namespaces = BPMN_NAMESPACES
         self._di_shapes: Dict[str, Dict] = {}
         self._di_edges: Dict[str, List[Tuple[float, float]]] = {}
+        self._data_definitions: Dict[str, str] = {}
 
     def _find_element(self, parent, ns_xpath: str, wildcard_xpath: str):
         """Find element with namespace fallback."""
@@ -84,6 +85,10 @@ class BPMNParser:
         # Parse DI information first
         self._parse_di(root)
 
+        # Collect data store / data object definitions so that references
+        # without their own name can inherit the label of the definition.
+        self._parse_data_definitions(root)
+
         # Parse model
         model = BPMNModel()
         model.has_di_coordinates = bool(self._di_shapes)
@@ -96,6 +101,12 @@ class BPMNParser:
 
         # Parse collaboration (pools and lanes)
         self._parse_collaboration(root, model)
+
+        # Geometric fallback: some tools (e.g. Bizagi) do not list flowNodeRef
+        # inside lanes. In that case lane membership is only expressed through
+        # the DI geometry, so assign remaining unparented elements to the lane
+        # (or laneless pool) whose bounds contain them.
+        self._assign_geometric_parents(model)
 
         return model
 
@@ -165,6 +176,27 @@ class BPMNParser:
                     waypoints.append((x, y))
                 if waypoints:
                     self._di_edges[bpmn_element] = waypoints
+
+    def _parse_data_definitions(self, root: etree._Element) -> None:
+        """Collect id -> name for dataStore / dataObject definitions.
+
+        In BPMN a ``dataStoreReference`` (or ``dataObjectReference``) frequently
+        carries no name of its own and instead points, via ``dataStoreRef`` /
+        ``dataObjectRef``, to a definition that holds the label (this is how
+        Bizagi exports them). This map lets references inherit that label.
+
+        Args:
+            root: Root definitions element
+        """
+        self._data_definitions = {}
+        for node in root.iter():
+            if not isinstance(node.tag, str):
+                continue
+            if self._local_name(node.tag) in ("dataStore", "dataObject"):
+                node_id = node.get("id")
+                name = node.get("name")
+                if node_id and name:
+                    self._data_definitions[node_id] = name
 
     def _parse_process(self, root: etree._Element, model: BPMNModel) -> None:
         """Parse process elements and flows."""
@@ -312,6 +344,13 @@ class BPMNParser:
         """Parse a BPMN element."""
         elem_id = elem.get("id", "")
         elem_name = elem.get("name")
+
+        # Data references often have no name of their own; inherit it from the
+        # referenced dataStore / dataObject definition.
+        if not elem_name and elem_type in ("dataStoreReference", "dataObjectReference"):
+            ref = elem.get("dataStoreRef") or elem.get("dataObjectRef")
+            if ref:
+                elem_name = self._data_definitions.get(ref)
 
         # Get DI coordinates if available
         di_info = self._di_shapes.get(elem_id, {})
@@ -525,6 +564,111 @@ class BPMNParser:
             for element in model.elements:
                 if element.id in lane.element_refs:
                     element.parent_id = lane.id
+
+    def _assign_geometric_parents(self, model: BPMNModel) -> None:
+        """Assign parents by DI geometry for elements still lacking one.
+
+        Handles BPMN files (such as Bizagi exports) where lanes do not declare
+        ``flowNodeRef`` children. Lane membership is inferred from the DI
+        bounds: an element belongs to the lane (or laneless pool) whose
+        rectangle contains the element centre. Matching is constrained to the
+        element's own process first, so overlapping/decorative pools do not
+        capture unrelated elements.
+
+        Args:
+            model: BPMN model with parsed elements, lanes and pools
+        """
+        lanes_with_di = [
+            ln
+            for ln in model.lanes
+            if ln.x is not None and ln.y is not None and ln.width and ln.height
+        ]
+        pools_with_di = [
+            p for p in model.pools if p.x is not None and p.y is not None and p.width and p.height
+        ]
+
+        if not lanes_with_di and not pools_with_di:
+            return
+
+        # Loop-invariant: pools that back a lane are never a laneless-pool parent.
+        pooled_lane_ids = {ln.parent_pool_id for ln in model.lanes}
+
+        for element in model.elements:
+            if element.parent_id:
+                continue
+            if element.subprocess_id or element.properties.get("subprocess_id"):
+                continue
+
+            center = element.center()
+            if center is None:
+                continue
+            cx, cy = center
+            elem_proc = element.properties.get("_process_id")
+
+            # Prefer lanes belonging to the element's own process. Only widen
+            # to every lane when no lane carries process information at all,
+            # otherwise an element whose process has no lanes could be wrongly
+            # pulled into a different process's lane.
+            if elem_proc is not None and any(ln.process_id for ln in lanes_with_di):
+                lane_candidates = [ln for ln in lanes_with_di if ln.process_id == elem_proc]
+            else:
+                lane_candidates = lanes_with_di
+
+            chosen_lane = self._best_container(cx, cy, lane_candidates)
+            if chosen_lane is not None:
+                element.parent_id = chosen_lane.id
+                continue
+
+            # Fall back to a laneless pool for the element's process.
+            pool_candidates = [
+                p
+                for p in pools_with_di
+                if p.id not in pooled_lane_ids and (elem_proc is None or p.process_ref == elem_proc)
+            ]
+            chosen_pool = self._best_container(cx, cy, pool_candidates)
+            if chosen_pool is not None:
+                element.parent_id = chosen_pool.id
+
+    @staticmethod
+    def _best_container(cx: float, cy: float, containers: list):
+        """Pick the container best matching a point.
+
+        Prefers containers whose bounds contain the point (smallest area wins
+        for nested lanes); otherwise returns the nearest container by edge
+        distance. Returns ``None`` when the candidate list is empty.
+
+        Args:
+            cx: Point X (element centre)
+            cy: Point Y (element centre)
+            containers: Candidate lanes or pools with DI bounds
+
+        Returns:
+            Best-matching container or None
+        """
+        if not containers:
+            return None
+
+        containing = [
+            c for c in containers if c.x <= cx <= c.x + c.width and c.y <= cy <= c.y + c.height
+        ]
+        if containing:
+            return min(containing, key=lambda c: c.width * c.height)
+
+        def edge_distance(c):
+            dx = 0.0
+            if cx < c.x:
+                dx = c.x - cx
+            elif cx > c.x + c.width:
+                dx = cx - (c.x + c.width)
+            dy = 0.0
+            if cy < c.y:
+                dy = c.y - cy
+            elif cy > c.y + c.height:
+                dy = cy - (c.y + c.height)
+            # Prioritise vertical proximity for horizontal swimlanes.
+            return (dy, dx)
+
+        return min(containers, key=edge_distance)
 
     def _parse_lane(self, lane_elem: etree._Element, process_id: Optional[str] = None) -> Lane:
         """Parse a lane element.

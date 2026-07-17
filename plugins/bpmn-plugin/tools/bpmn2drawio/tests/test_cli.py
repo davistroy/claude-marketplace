@@ -45,7 +45,7 @@ class TestCLIParser:
         assert args.input == "input.bpmn"
         assert args.output == "output.drawio"
         assert args.theme == "default"
-        assert args.layout == "graphviz"
+        assert args.layout == "auto"
 
     def test_parse_all_options(self):
         """Test parsing all options."""

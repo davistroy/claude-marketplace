@@ -101,12 +101,21 @@ class DrawioGenerator:
             # Calculate pool size if not set
             pool_elements = [e for e in model.elements if e.parent_id == pool.id]
             pool_lanes = [lane for lane in model.lanes if lane.parent_pool_id == pool.id]
+            # Skip decorative/phantom pools that hold neither lanes nor
+            # elements (e.g. an empty "Main Process" participant that would
+            # otherwise overlap the real content).
+            if not pool_lanes and not pool_elements:
+                continue
             if not pool.width or not pool.height:
                 pool.width, pool.height = sizer.calculate_pool_size(pool, pool_elements, pool_lanes)
 
             cell_id = str(self._cell_counter)
             self._cell_counter += 1
-            pool_cell = create_pool_cell(pool, cell_id)
+            # Align the pool title strip with the inset where its lanes begin,
+            # so the lanes do not overlap (and squash) the pool label.
+            lane_insets = [lane.x for lane in pool_lanes if lane.x is not None and lane.x > 0]
+            header_width = min(lane_insets) if lane_insets else None
+            pool_cell = create_pool_cell(pool, cell_id, start_size=header_width)
             root.append(pool_cell)
             pool_cell_ids[pool.id] = cell_id
 
