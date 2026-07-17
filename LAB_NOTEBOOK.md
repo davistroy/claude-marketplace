@@ -1438,3 +1438,30 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** COMPLETE (plan generation). `IMPLEMENTATION_PLAN.md` (7 phases) + `docs/archive/IMPLEMENTATION_PLAN-v9.md` + Entry 040 + #155/#156 filed. All UNCOMMITTED on main (working tree: LAB_NOTEBOOK.md, IMPLEMENTATION_PLAN.md, docs/archive/IMPLEMENTATION_PLAN-v9.md) — per "commit only when asked" + "branch before committing on main". Next: execute Phase 1 (start with `/implement-plan`, or a manual branch), OR user commits the planning artifacts first.
 **Duration:** ~35 minutes (3-agent investigation → constitution → interaction map → design → 2 user decisions → plan gen → 2 follow-ups → verify).
+
+### Entry 041 — Fix flaky wall-clock concurrency test (visual-explainer) [test] [debug] [ci]
+**Date:** 2026-07-17
+**Environment:** Linux VM, branch `fix/flaky-concurrent-timing-test` off `docs/ultra-plan-prime-backlog` (stacked). Trigger: during `/ship` of the planning artifacts (PR #157), the required check **Visual Explainer Tests (windows-latest)** failed on `test_concurrent_generation_overlaps_wall_clock` — twice.
+**Status:** COMPLETE
+
+**Objective:** Unblock PR #157 (docs-only) by fixing a pre-existing flaky timing test that #157 merely surfaced. User chose "fix first (separate PR), then merge #157" (AskUserQuestion).
+
+**Symptom:** `assert concurrent_elapsed < 2 * delay` (delay=0.05 → threshold 0.10s) failed on windows-latest: attempt 1 `0.110 < 0.100`, attempt 2 `0.175 < 0.100`. Coverage passed (93.37%); 893/894 passed. My PR touches ZERO Python — the Python is byte-identical to green `main` tip 2789dd7. So: flaky, not a regression.
+
+**Root cause (systematic-debugging, deeper than the symptom):** The test measures the CONCURRENT run FIRST (line ~1707) and the SERIAL run SECOND. The first-measured run pays a one-time cold-start cost (asyncio loop init, first mock/import warmup) the second does not. Proven locally: run in ISOLATION (cold) the test FAILED even my first fix attempt (subtraction form) in 43.96s; run inside its 9-test class (warm) it PASSED. Under xdist on Windows, whichever worker schedules this test early hits the cold path → the wall-clock overlap signal collapses → intermittent red. An *absolute* threshold (`< 2*delay`) breaks whenever fixed overhead exceeds one delay; a *subtraction* threshold (`concurrent < serial - delay`, my first attempt) still breaks under cold-start ASYMMETRY because the overhead isn't equal across the two measured runs.
+
+**Fix:** Abandon wall-clock timing entirely (an inherently CI-fragile proxy). Instrument ACTUAL overlap: `fake_generate` increments/decrements an `in_flight` counter around its `await asyncio.sleep`, tracking `max_in_flight`. asyncio is single-threaded/cooperative, so the counter is lock-free-safe (mutates only between awaits). Assert `state_c["max_in_flight"] >= 2` (concurrent genuinely overlapped) and `state_s["max_in_flight"] == 1` (serial never did). Deterministic, timing-independent, and STILL catches a broken concurrency path (if images didn't overlap, max_in_flight stays 1 and the concurrent assert fails). Removed now-unused `import time` + 4 `perf_counter` calls; reduced `delay` 0.05→0.02 (no longer timing-load-bearing, just holds tasks in flight).
+
+**Hypothesis:** deterministic assertions pass on every runner incl. windows-latest under xdist; coverage stays ≥85%; ruff clean.
+
+**Rollback Plan:** Single-file test change (`test_pipeline.py`) + this entry, both on `fix/flaky-concurrent-timing-test`. `git checkout 289e45eb88c7c70854ba7a743997637132e79fdf -- plugins/personal-plugin/tools/visual-explainer/tests/test_pipeline.py` pre-commit; `git branch -D` pre-merge / revert the fix PR post-merge. No src/ code touched — only the test.
+
+**Actions & Results:**
+1. Read the full test (lines 1677–1742): it ALREADY measured both concurrent + serial; the fragile part was the absolute `< 2*delay` line plus cold-start ordering.
+2. First attempt (subtraction `concurrent < serial - delay`): FAILED in isolated cold run → revealed the cold-start-asymmetry root cause, not just threshold tightness. Discarded.
+3. Rewrote to deterministic in-flight counting. Local verification via tool `.venv`: ISOLATED (the failing cold case) → **1 passed**; full class → **9 passed**; full suite → **894 passed, cov 93.37%** (gate 85); `uvx ruff@0.14.10 check` + `format --check` clean.
+
+**What Worked:** Reproducing the failure LOCALLY in isolation (not just re-running CI) exposed that the subtraction fix was insufficient — the isolated cold run is the same condition as an early-scheduled xdist worker. Had I shipped the subtraction fix (which "looked right" and passes warm), it would have stayed flaky. Deterministic instrumentation > any wall-clock proxy for concurrency tests.
+
+**System insight:** Wall-clock timing assertions in CI are an anti-pattern — they encode an environment assumption (overhead << signal) that loaded, cold, parallel runners violate unpredictably. The behavior under test (does concurrency overlap?) is directly observable via an in-flight counter; test the property, not a timing proxy for it. Filed nothing new — this is a fix, and #128 (which introduced the test) is already closed.
+**Duration:** ~20 minutes (2 CI failures → local repro → root cause → 2 fix iterations → full-suite verify).
