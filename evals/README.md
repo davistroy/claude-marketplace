@@ -45,7 +45,11 @@ A small number of eval files intentionally exercise multiple skills/commands
 at once instead of one (e.g. `description-triggers.eval.md`, which
 regression-guards auto-invocation across several unrelated skills). These
 declare `type: cross-cutting` and a `maps_to: [name1, name2, ...]` list in
-place of a single `command:` target:
+place of a single `command:` target. `command:` is still required on a
+cross-cutting eval, but it is not a live-surface reference (`maps_to` is) —
+it must equal the eval's own filename slug (`description-triggers.eval.md`
+→ `command: description-triggers`), so the field can never silently go
+blank or drift:
 
 ```markdown
 ---
@@ -135,12 +139,23 @@ For each command overall, score the Rubric criteria and record:
 ## Eval-Mapping Check
 
 `scripts/check_eval_mapping.py` (stdlib only, wired into the `plugin-validate`
-CI job) verifies that every `evals/**/*.eval.md` file maps to something real:
-either its `command:` frontmatter matches a live skill/command, or (for
-`type: cross-cutting` files) every name in `maps_to` does. It fails the build
-otherwise, so an eval can never silently outlive a renamed or removed skill.
+CI job) runs three checks over `evals/**/*.eval.md`:
 
-Run it locally with:
+1. **Mapping** — every eval maps to something real: either its `command:`
+   frontmatter matches a live skill/command, or (for `type: cross-cutting`
+   files) every name in `maps_to` does. An eval can never silently outlive a
+   renamed or removed skill.
+2. **Structure** — every eval has at least one `### S<n>: ...` scenario, every
+   scenario has a `**Must:**` or `**Must NOT:**` block, an invocation
+   (`**Invocation:**` or `**Context:**`) is established at least once per
+   file (later scenarios may inherit it from an earlier one), and the file
+   has a `## Rubric` section.
+3. **Coverage** — every live skill/command is referenced by some eval, or has
+   a reasoned entry in the `COVERAGE_ALLOWLIST` dict inside the script (e.g.
+   fleet-ops skills that require SSH to specific hosts, or slide-gen skills
+   that require the external engine + API keys per ADR-0008).
+
+Any failure fails the build. Run it locally with:
 
 ```bash
 python3 scripts/check_eval_mapping.py

@@ -1,7 +1,7 @@
 # Implementation Plan
 
 **Generated:** 2026-07-17
-**Completed:** _(in progress)_
+**Completed:** 2026-07-17
 **Based On:** `/prime` health assessment 2026-07-17 → GitHub issues #149–#154 (the canonical backlog), refined by a `/ultra-plan` investigation that overturned 4 of the 6 issues as filed. Prior plan (arch-review remediation, COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v9.md`.
 **Total Phases:** 7
 **Estimated Total Effort:** ~900 LOC across ~35 files (script repair, CI config, tool config, 45 eval specs touched lightly, notebook rotation, 1 ADR)
@@ -92,8 +92,8 @@ Every work item below was checked against these. No item violates one; two items
 
 ### Work Items
 
-#### 1.1 Promote D14–D18 into the Decision Log table
-**Status: PENDING**
+#### 1.1 Promote D14–D18 into the Decision Log table ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #154 (prerequisite)
 **Files Affected:**
@@ -152,8 +152,8 @@ The Decision Log jumps from D13 (line 25) to D19 (line 29). D14–D18 were recor
 
 ### Work Items
 
-#### 2.1 Migrate hand-edited README rows into frontmatter
-**Status: PENDING**
+#### 2.1 Migrate hand-edited README rows into frontmatter ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(b) prerequisite
 **Files Affected:**
@@ -163,17 +163,17 @@ The Decision Log jumps from D13 (line 25) to D19 (line 29). D14–D18 were recor
 `README.md` rows 50/57/60/64/67 contain flag documentation that exists in _no_ frontmatter `description`. `generate_table` rebuilds rows from frontmatter, so regenerating (2.2) would silently delete this. Move the flag info into the source `description` (respecting the ≤1024-char budget) first, so regeneration is content-preserving.
 
 **Tasks:**
-1. [ ] Diff each README row's text against its source `description`; identify every row with extra info.
-2. [ ] Fold the extra info into the frontmatter `description`, or drop it if redundant with `argument-hint`.
-3. [ ] Confirm no row loses information after the move.
+1. [x] Diff each README row's text against its source `description`; identify every row with extra info.
+2. [x] Fold the extra info into the frontmatter `description`, or drop it if redundant with `argument-hint`.
+3. [x] Confirm no row loses information after the move.
 
 **Acceptance Criteria:**
-- [ ] WHEN 2.2 regenerates the tables THEN no currently-documented flag/behavior note SHALL disappear from the README.
+- [x] WHEN 2.2 regenerates the tables THEN no currently-documented flag/behavior note SHALL disappear from the README.
 
-**Notes:** Do this BEFORE 2.2. This is the single silent-data-loss risk in the phase.
+**Notes:** Do this BEFORE 2.2. This is the single silent-data-loss risk in the phase. A systematic diff of every command/skill row against its frontmatter (not just the 5 originally-flagged lines) found only 3 genuine losses — `consolidate-documents` (`--json`), `validate-plugin` (`--check-updates`), and `lab-notebook` (scientific-notebook/ADR/postmortem framing, absent from frontmatter entirely) — folded into their `description` fields. `assess-document`, `clean-repo`, `new-skill`, `review-arch`, and `develop-image-prompt` were dropped per the argument-hint escape valve: each flag is already documented in that file's `argument-hint`.
 
-#### 2.2 Repair `update-readme.py` (dead glob, dead anchor, prose counts)
-**Status: PENDING**
+#### 2.2 Repair `update-readme.py` (dead glob, dead anchor, prose counts) ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(b), #153
 **Files Affected:**
@@ -184,23 +184,23 @@ The Decision Log jumps from D13 (line 25) to D19 (line 29). D14–D18 were recor
 Three defects: (a) `skills_dir.glob('*.md')` (~line 141) misses nested `skills/<name>/SKILL.md` → 0 skills; fix to `glob('*/SKILL.md')`. (b) The commands-table anchor `r'(\*\*Commands:\*\*\n)...'` (~line 213) no longer matches the count-prefixed `**23 Commands:**` header; relax to tolerate the optional `N ` prefix, and likewise for Skills. (c) The prose counts at `README.md:41` ("24 skills"), `:70` ("24 Skills"), `:108` ("8 Skills") are hand-typed literals no code computes; add a prose-count pass that rewrites the "`N commands and M skills`" sentence and the "`**M Skills:**`"/"`**N Commands:**`" headers from the scanned counts. Scope the prose rewrite surgically to the count tokens — do not reflow surrounding text.
 
 **Tasks:**
-1. [ ] Fix the skills glob to `glob('*/SKILL.md')` (NOT `rglob` — it catches 15 frontmatter-less reference `.md` files).
-2. [ ] Relax both table anchors to tolerate the optional count prefix.
-3. [ ] Add prose-count computation + surgical rewrite for the sentence and the `**N Skills:**`/`**N Commands:**` headers across all three plugin sections.
-4. [ ] Remove the unused `import os` (line 26) if ruff would later flag it.
-5. [ ] Run `python3 scripts/update-readme.py`; verify the 5 missing skills appear and counts read 28/9.
-6. [ ] Preserve the exit-code contract: 0 = up to date, 2 = drift (with `--check`), 1 = error.
+1. [x] Fix the skills glob to `glob('*/SKILL.md')` (NOT `rglob` — it catches 15 frontmatter-less reference `.md` files).
+2. [x] Relax both table anchors to tolerate the optional count prefix.
+3. [x] Add prose-count computation + surgical rewrite for the sentence and the `**N Skills:**`/`**N Commands:**` headers across all three plugin sections.
+4. [x] Remove the unused `import os` (line 26) if ruff would later flag it.
+5. [x] Run `python3 scripts/update-readme.py`; verify the 5 missing skills appear and counts read 28/9.
+6. [x] Preserve the exit-code contract: 0 = up to date, 2 = drift (with `--check`), 1 = error.
 
 **Acceptance Criteria:**
-- [ ] WHEN `python3 scripts/update-readme.py --check` runs against a drifted README THEN it SHALL exit 2 (currently unreachable).
-- [ ] WHEN the tables are regenerated THEN personal-plugin SHALL show 28 skills, slide-gen 9, and all 62 surfaces SHALL appear.
-- [ ] WHEN `README.md:41` is read THEN it SHALL say "23 commands and 28 skills".
+- [x] WHEN `python3 scripts/update-readme.py --check` runs against a drifted README THEN it SHALL exit 2 (currently unreachable).
+- [x] WHEN the tables are regenerated THEN personal-plugin SHALL show 28 skills, slide-gen 9, and all 62 surfaces SHALL appear.
+- [x] WHEN `README.md:41` is read THEN it SHALL say "23 commands and 28 skills".
 
 **Depends On:** 2.1
-**Notes:** The two structural breaks were verified by running the script; this is a repair of never-working code, not a tweak.
+**Notes:** The two structural breaks were verified by running the script; this is a repair of never-working code, not a tweak. Also fixed a corollary bug the dead glob was masking: skill `CommandEntry.name` was derived from `md_file.stem` (always `"SKILL"` for nested files) — now uses `md_file.parent.name`. Verified: clean tree exits 0, a deliberate count edit exits 2, restoring returns to exit 0, markdownlint clean.
 
-#### 2.3 Wire `--check` into CI as a step in `plugin-validate`
-**Status: PENDING**
+#### 2.3 Wire `--check` into CI as a step in `plugin-validate` ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(a)
 **Files Affected:**
@@ -260,8 +260,8 @@ Add `python3 scripts/update-readme.py --check` as a step in the `Validate Plugin
 
 ### Work Items
 
-#### 3.1 Path-branch the `validate.yml` frontmatter check + recurse into SKILL.md
-**Status: PENDING**
+#### 3.1 Path-branch the `validate.yml` frontmatter check + recurse into SKILL.md ✅ Completed 2026-07-17
+**Status:** COMPLETE [2026-07-17]
 **Model Tier: sonnet**
 **Recommendation Ref:** #151
 **Files Affected:**
@@ -284,8 +284,8 @@ The check globs `['commands','skills']` with one rule that treats `name` as forb
 
 **Notes:** `claude plugin validate --strict` passing with `name:` present is the authoritative tiebreaker. NEVER resolve this by stripping `name:` from skills.
 
-#### 3.2 Align the third voice in CONTRIBUTING.md
-**Status: PENDING**
+#### 3.2 Align the third voice in CONTRIBUTING.md ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #151
 **Files Affected:**
@@ -340,8 +340,8 @@ The check globs `['commands','skills']` with one rule that treats `name` as forb
 
 ### Work Items
 
-#### 4.1 Move coverage floors into `[tool.coverage.report]`
-**Status: PENDING**
+#### 4.1 Move coverage floors into `[tool.coverage.report]` ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(c)
 **Files Affected:**
@@ -368,8 +368,8 @@ Floors live only on the CI command lines, so local `pytest` enforces none. Put `
 
 **Notes:** The double-apply risk I first suspected is false — pytest reads one configfile per run. The real risk is the feedback-docx `--cov-branch` omission; task 2 handles it.
 
-#### 4.2 Rewrite the stale mypy ratchet comments
-**Status: PENDING**
+#### 4.2 Rewrite the stale mypy ratchet comments ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #152
 **Files Affected:**
@@ -426,8 +426,8 @@ Both comment blocks claim "pre-existing mypy debt (54/98 errors as of 2026-07-16
 
 ### Work Items
 
-#### 5.1 Remove the dead `help.md` sync check
-**Status: PENDING**
+#### 5.1 Remove the dead `help.md` sync check ✅ Completed 2026-07-17
+**Status:** COMPLETE [2026-07-17]
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(d) prerequisite
 **Files Affected:**
@@ -444,8 +444,8 @@ Both comment blocks claim "pre-existing mypy debt (54/98 errors as of 2026-07-16
 - [ ] WHEN the hook runs THEN it SHALL NOT emit help.md warnings.
 - [ ] WHEN the hook runs THEN it SHALL still enforce frontmatter, code-block, timestamp, and ruff checks.
 
-#### 5.2 Make hook installation automatic and verifiable
-**Status: PENDING**
+#### 5.2 Make hook installation automatic and verifiable ✅ Completed 2026-07-17
+**Status:** COMPLETE [2026-07-17]
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(d)
 **Files Affected:**
@@ -503,8 +503,8 @@ The hook is opt-in via manual `cp scripts/pre-commit .git/hooks/`; `.git/hooks/`
 
 ### Work Items
 
-#### 6.1 Extend `check_eval_mapping.py` into a structural linter
-**Status: PENDING**
+#### 6.1 Extend `check_eval_mapping.py` into a structural linter ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #150 (CS6a)
 **Files Affected:**
@@ -526,8 +526,8 @@ Extend the mapping check to also validate structure: every scenario has an Invoc
 - [ ] WHEN a cross-cutting eval's `command:` names no live surface THEN the check SHALL fail.
 - [ ] WHEN the check runs THEN it SHALL import only the stdlib.
 
-#### 6.2 Close the 10-surface eval coverage gap
-**Status: PENDING**
+#### 6.2 Close the 10-surface eval coverage gap ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #150 (CS6a)
 **Files Affected:**
@@ -547,8 +547,8 @@ Extend the mapping check to also validate structure: every scenario has an Invoc
 
 **Depends On:** 6.1
 
-#### 6.3 ADR-0009 — defer the LLM-judge behavioral runner
-**Status: PENDING**
+#### 6.3 ADR-0009 — defer the LLM-judge behavioral runner ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #150 (decision record)
 **Files Affected:**
@@ -604,8 +604,8 @@ Record the decision (this session): ship the deterministic structural linter now
 
 ### Work Items
 
-#### 7.1 Create the archive file with banner + back-pointer
-**Status: PENDING**
+#### 7.1 Create the archive file with banner + back-pointer ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: opus**
 **Recommendation Ref:** #154
 **Files Affected:**
@@ -624,8 +624,8 @@ Extract entries E001–E016 (up to the session marker at line 830) verbatim into
 - [ ] WHEN the archive is opened THEN its banner SHALL state the range, archive date, and a pointer to the live notebook.
 - [ ] WHEN each archived entry's `### Entry NNN` anchor is sought THEN it SHALL be present verbatim.
 
-#### 7.2 Cut E001–E016 from the live notebook + add a forward pointer
-**Status: PENDING**
+#### 7.2 Cut E001–E016 from the live notebook + add a forward pointer ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: opus**
 **Recommendation Ref:** #154
 **Files Affected:**
@@ -647,8 +647,8 @@ Remove the archived entries from the live file (cut at the line-830 session mark
 
 **Depends On:** 7.1, Phase 1
 
-#### 7.3 Re-point external references to archived entries
-**Status: PENDING**
+#### 7.3 Re-point external references to archived entries ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: opus**
 **Recommendation Ref:** #154
 **Files Affected:**
@@ -704,10 +704,10 @@ Seven genuine external referrers point at entries that move (CLAUDE.md:26 → E0
 | Wiring the dead README script yields a green no-op gate | 2.2→2.3 | High | Hard order: repair (2.2), verify exit-2, then wire (2.3) | Revert the PR |
 | Regenerating README destroys hand-edited flag docs | 2.1→2.2 | Medium | Migrate flag info to frontmatter (2.1) before regen (2.2) | Revert; rows restored from git |
 | Recursive glob fails all 39 skills | 3.1 | High | Use `glob('*/SKILL.md')`, never `rglob`; verify against strict CLI | Revert the workflow change |
-| feedback-docx floor silently weakens (branch omitted) | 4.1 | Medium | Add `branch = true` alongside `fail_under = 95` | Revert pyproject |
-| `python-compat` inherits the floor and goes red | 4.1 | Low | Pin `--cov-fail-under=0` on that job | Revert workflow line |
-| Rotation deletes D14–D18 / orphans ADR-0005 | Phase 1 gates Phase 7 | High | Phase 1 promotes them first; Phase 7 blocked on Phase 1 | Restore from git / archive |
-| Installing the hook spams contributors (dead help.md check) | 5.1→5.2 | Low | Remove dead check (5.1) before install (5.2) | Revert hook |
+| feedback-docx floor silently weakens (branch omitted) | 4.1 | Medium | Mitigated — `branch = true` added alongside `fail_under = 95` in `[tool.coverage.run]` | Revert pyproject |
+| `python-compat` inherits the floor and goes red | 4.1 | Low | Mitigated — `--cov-fail-under=0` pinned on all three python-compat pytest invocations | Revert workflow line |
+| Rotation deletes D14–D18 / orphans ADR-0005 | Phase 1 gates Phase 7 | High | Mitigated — Phase 1 (Entry 042) promoted D14–D18 into the Decision Log table; Phase 7 no longer blocked | Restore from git / archive |
+| Installing the hook spams contributors (dead help.md check) | 5.1→5.2 | Low | Mitigated — dead check removed (5.1) before scripted install added (5.2) | Revert hook |
 | New required-check name deadlocks merges (PLAT-012 class) | 2.3, 3.1, 6.x | Medium | Only add _steps_ to existing jobs; never rename/add required checks | Revert; check set unchanged |
 | Branch protection blocks self-merge (bus factor 1) | all PRs | Low | `enforce_admins=false` (D22) permits owner merge on green | n/a |
 

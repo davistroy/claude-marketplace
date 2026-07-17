@@ -2,11 +2,11 @@
 
 **Date:** 2026-07-08
 **Status:** Accepted
-**Deciders:** Troy Davis (proposed via /ultra-plan session, Lab Notebook E009)
+**Deciders:** Troy Davis (proposed via /ultra-plan session, Lab Notebook E009 -- archived, see `docs/archive/LAB_NOTEBOOK-E001-E016.md`)
 
 ## Context
 
-The named implementer agents (`.claude/agents/haiku-implementer.md`, `sonnet-implementer.md`, `opus-implementer.md`) pin full model IDs in frontmatter, per D14 (Lab Notebook E005). By 2026-07-08 two of the three pins had silently drifted behind the current lineup: `claude-sonnet-4-6` (current: Sonnet 5) and `claude-opus-4-7` (current: Opus 4.8). Every `/implement-plan` dispatch ran on outdated models with no warning. The same staleness class appeared in `research-topic` (`claude-opus-4-6-20250725`) and the visual-explainer tool (`claude-sonnet-4-20250514`).
+The named implementer agents (`.claude/agents/haiku-implementer.md`, `sonnet-implementer.md`, `opus-implementer.md`) pin full model IDs in frontmatter, per D14 (Lab Notebook E005 -- archived, see `docs/archive/LAB_NOTEBOOK-E001-E016.md`; D14 remains in the live Decision Log). By 2026-07-08 two of the three pins had silently drifted behind the current lineup: `claude-sonnet-4-6` (current: Sonnet 5) and `claude-opus-4-7` (current: Opus 4.8). Every `/implement-plan` dispatch ran on outdated models with no warning. The same staleness class appeared in `research-topic` (`claude-opus-4-6-20250725`) and the visual-explainer tool (`claude-sonnet-4-20250514`).
 
 Claude Code agent frontmatter now officially supports model aliases — `haiku`, `sonnet`, `opus`, `fable`, `inherit` — which resolve to the current model of each tier at dispatch time (code.claude.com/docs plugins-reference).
 

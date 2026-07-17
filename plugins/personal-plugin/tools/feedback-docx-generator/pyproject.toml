@@ -27,6 +27,19 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "--cov=feedback_docx_generator --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/feedback_docx_generator"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 95
+
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = true

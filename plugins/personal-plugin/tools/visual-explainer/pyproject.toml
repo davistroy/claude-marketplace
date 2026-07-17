@@ -76,6 +76,7 @@ source = ["src/visual_explainer"]
 branch = true
 
 [tool.coverage.report]
+fail_under = 85
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

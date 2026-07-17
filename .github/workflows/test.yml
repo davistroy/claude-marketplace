@@ -70,16 +70,17 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v -n auto --cov=bpmn2drawio --cov-branch --cov-report=term-missing --cov-fail-under=90
+          pytest tests/ -v -n auto --cov=bpmn2drawio --cov-branch --cov-report=term-missing
 
       - name: Type check (count-ratchet against baseline)
         shell: bash
         run: |
-          # The codebase has pre-existing mypy debt (54 errors here as of 2026-07-16).
-          # Zeroing it out is out of scope for now, so instead of ignoring mypy
-          # entirely (continue-on-error) we enforce a regression CEILING: new
-          # errors above the committed baseline fail the build. Tighten
-          # .mypy-baseline toward 0 over time as errors are fixed.
+          # .mypy-baseline is 0 (the pre-existing debt was paid off in #129).
+          # Instead of ignoring mypy entirely (continue-on-error), we enforce a
+          # regression CEILING: any error count above the committed baseline
+          # fails the build. With the baseline at 0, this is a hard
+          # zero-new-errors gate. Raising .mypy-baseline above 0 requires
+          # explicit justification in the PR.
           BASELINE=$(cat .mypy-baseline)
           set +e
           MYPY_OUTPUT=$(mypy src/ --ignore-missing-imports 2>&1)
@@ -122,16 +123,17 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v -n auto --cov=visual_explainer --cov-branch --cov-report=term-missing --cov-fail-under=85
+          pytest tests/ -v -n auto --cov=visual_explainer --cov-branch --cov-report=term-missing
 
       - name: Type check (count-ratchet against baseline)
         shell: bash
         run: |
-          # The codebase has pre-existing mypy debt (98 errors here as of 2026-07-16).
-          # Zeroing it out is out of scope for now, so instead of ignoring mypy
-          # entirely (continue-on-error) we enforce a regression CEILING: new
-          # errors above the committed baseline fail the build. Tighten
-          # .mypy-baseline toward 0 over time as errors are fixed.
+          # .mypy-baseline is 0 (the pre-existing debt was paid off in #129).
+          # Instead of ignoring mypy entirely (continue-on-error), we enforce a
+          # regression CEILING: any error count above the committed baseline
+          # fails the build. With the baseline at 0, this is a hard
+          # zero-new-errors gate. Raising .mypy-baseline above 0 requires
+          # explicit justification in the PR.
           BASELINE=$(cat .mypy-baseline)
           set +e
           MYPY_OUTPUT=$(mypy src/ --ignore-missing-imports 2>&1)
@@ -174,7 +176,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v -n auto --cov=feedback_docx_generator --cov-branch --cov-report=term-missing --cov-fail-under=95
+          pytest tests/ -v -n auto --cov=feedback_docx_generator --cov-branch --cov-report=term-missing
 
       - name: Type check
         run: |
@@ -213,19 +215,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,all]"
-          pytest tests/ -q -p no:cacheprovider
+          pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
 
       - name: bpmn2drawio tests
         working-directory: plugins/bpmn-plugin/tools/bpmn2drawio
         run: |
           pip install -e ".[dev]"
-          pytest tests/ -q -p no:cacheprovider
+          pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
 
       - name: feedback-docx-generator tests
         working-directory: plugins/personal-plugin/tools/feedback-docx-generator
         run: |
           pip install -e ".[dev]"
-          pytest tests/ -q -p no:cacheprovider
+          pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
 
   # pip-audit scans installed Python packages for known CVEs.
   # It checks the NIST NVD and PyPI advisory databases.

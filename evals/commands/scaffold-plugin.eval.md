@@ -81,7 +81,7 @@ Run on a feature branch to avoid polluting main with test plugins.
 
 ---
 
-### S5: Cleanup after eval
+### Cleanup (post-eval, not a scored scenario)
 
 **After evals**, clean up test plugins:
 

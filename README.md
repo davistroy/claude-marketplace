@@ -38,62 +38,66 @@ You can install to different scopes:
 
 ### personal-plugin
 
-23 commands and 24 skills for productivity workflows, code review, document processing, and security analysis.
+23 commands and 28 skills for productivity workflows, code review, document processing, and security analysis.
 
 **23 Commands:**
 | Command | Description |
 |---------|-------------|
 | [`/analyze-transcript`](plugins/personal-plugin/commands/analyze-transcript.md) | Meeting transcript to structured markdown report |
 | [`/arch-review-single`](plugins/personal-plugin/commands/arch-review-single.md) | Run a single domain agent from the architecture review team against a target codebase |
-| [`/arch-synthesize`](plugins/personal-plugin/commands/arch-synthesize.md) | Re-synthesize the executive summary from existing domain findings — use after editing findings, re-running a single agent, or resolving conflicts |
+| [`/arch-synthesize`](plugins/personal-plugin/commands/arch-synthesize.md) | Re-synthesize the executive summary from existing domain findings — use after editing findings, r... |
 | [`/ask-questions`](plugins/personal-plugin/commands/ask-questions.md) | Interactive Q&A session from questions JSON file |
-| [`/assess-document`](plugins/personal-plugin/commands/assess-document.md) | Document quality evaluation with scored assessment report (supports `--focus`) |
+| [`/assess-document`](plugins/personal-plugin/commands/assess-document.md) | Document quality evaluation with scored assessment report |
 | [`/bump-version`](plugins/personal-plugin/commands/bump-version.md) | Automate version bumping across plugin files with CHANGELOG placeholder |
-| [`/clean-repo`](plugins/personal-plugin/commands/clean-repo.md) | Comprehensive repository cleanup, organization, and documentation refresh (supports `--json`) |
-| [`/consolidate-documents`](plugins/personal-plugin/commands/consolidate-documents.md) | Analyze multiple document variations and synthesize a superior consolidated version (supports `--json`) |
+| [`/clean-repo`](plugins/personal-plugin/commands/clean-repo.md) | Comprehensive repository cleanup, organization, and documentation refresh |
+| [`/consolidate-documents`](plugins/personal-plugin/commands/consolidate-documents.md) | Analyze multiple document variations and synthesize a superior consolidated version (supports `--... |
 | [`/convert-markdown`](plugins/personal-plugin/commands/convert-markdown.md) | Convert a markdown file to a nicely formatted Microsoft Word document |
 | [`/create-plan`](plugins/personal-plugin/commands/create-plan.md) | Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs) |
 | [`/define-questions`](plugins/personal-plugin/commands/define-questions.md) | Extract questions and open items from documents to JSON |
-| [`/develop-image-prompt`](plugins/personal-plugin/commands/develop-image-prompt.md) | Generate detailed image generator prompts from content, optimized for 11x17 landscape prints |
+| [`/develop-image-prompt`](plugins/personal-plugin/commands/develop-image-prompt.md) | Generate detailed image generator prompts from content, with configurable dimensions and style op... |
 | [`/finish-document`](plugins/personal-plugin/commands/finish-document.md) | Extract questions from a document, answer them interactively, and update the document |
-| [`/implement-plan`](plugins/personal-plugin/commands/implement-plan.md) | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing and git workflow |
-| [`/new-skill`](plugins/personal-plugin/commands/new-skill.md) | Generate a new skill file with proper nested directory structure, required frontmatter, and optional `--pattern <name>` template support |
-| [`/plan-improvements`](plugins/personal-plugin/commands/plan-improvements.md) | Analyze codebase and generate prioritized improvement recommendations with phased implementation plan |
+| [`/implement-plan`](plugins/personal-plugin/commands/implement-plan.md) | Execute IMPLEMENTATION_PLAN.md using orchestrated subagents with automatic testing, documentation... |
+| [`/new-skill`](plugins/personal-plugin/commands/new-skill.md) | Generate a new skill file with proper nested directory structure and required frontmatter |
+| [`/plan-improvements`](plugins/personal-plugin/commands/plan-improvements.md) | Analyze codebase and generate prioritized improvement recommendations with phased implementation... |
 | [`/plan-next`](plugins/personal-plugin/commands/plan-next.md) | Analyze repo and recommend the next logical action |
-| [`/remove-ip`](plugins/personal-plugin/commands/remove-ip.md) | Sanitize documents by removing company identifiers and non-public intellectual property |
-| [`/review-arch`](plugins/personal-plugin/commands/review-arch.md) | Quick architectural audit with technical debt assessment (supports `--json`, `--focus`) |
-| [`/review-intent`](plugins/personal-plugin/commands/review-intent.md) | Determine original project intent and compare against current implementation |
+| [`/remove-ip`](plugins/personal-plugin/commands/remove-ip.md) | Sanitize documents by removing company identifiers and non-public intellectual property while pre... |
+| [`/review-arch`](plugins/personal-plugin/commands/review-arch.md) | Quick architectural audit with technical debt assessment (read-only, no files generated) |
+| [`/review-intent`](plugins/personal-plugin/commands/review-intent.md) | Determine original project intent and compare against current implementation, reporting discrepan... |
 | [`/scaffold-plugin`](plugins/personal-plugin/commands/scaffold-plugin.md) | Create a new plugin with proper directory structure, metadata, and starter files |
-| [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create and merge PR |
-| [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content (supports `--check-updates`) |
+| [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create PR (merge onl... |
+| [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content for consistency and correctness (supports `--... |
 
-**24 Skills:**
+**28 Skills:**
 | Skill | Description |
 |-------|-------------|
-| [`/accessibility-annotator`](plugins/personal-plugin/skills/accessibility-annotator/SKILL.md) | Analyze technical documents and add explanation annotations for non-CS readers |
-| [`/arch-review`](plugins/personal-plugin/skills/arch-review/SKILL.md) | Comprehensive 9-agent architecture review — spawns parallel domain specialists and produces structured findings with executive report and go/no-go recommendation |
-| [`/brain-entry`](plugins/personal-plugin/skills/brain-entry/SKILL.md) | Send captures to Open Brain — summarize sessions, log decisions, capture ideas |
-| [`/create-wiki`](plugins/personal-plugin/skills/create-wiki/SKILL.md) | Set up a persistent, LLM-maintained wiki inside any project with auto-maintenance rules injected into CLAUDE.md |
-| [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input |
-| [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate comprehensive annotated technical overview document for non-technical stakeholders |
-| [`/jetson-audit`](plugins/personal-plugin/skills/jetson-audit/SKILL.md) | SSH into the Jetson Orin Nano and audit running inference config against best practices — complements jetson-recon with internal config validation |
-| [`/jetson-recon`](plugins/personal-plugin/skills/jetson-recon/SKILL.md) | Periodic Jetson Orin Nano inference performance landscape scan — JetPack updates, llama.cpp releases, small model landscape, and live device health |
-| [`/lab-notebook`](plugins/personal-plugin/skills/lab-notebook/SKILL.md) | Initialize mandatory experiment logging with scientific notebook, ADR, and postmortem patterns |
-| [`/leak-risk-audit`](plugins/personal-plugin/skills/leak-risk-audit/SKILL.md) | Audit datasets for proprietary information leaks before sharing with public/cloud services |
-| [`/plan-gate`](plugins/personal-plugin/skills/plan-gate/SKILL.md) | Assess task complexity and route to the right planning approach |
-| [`/prime`](plugins/personal-plugin/skills/prime/SKILL.md) | Evaluate codebase: purpose, health, status, and recommended next steps |
-| [`/release-plugin`](plugins/personal-plugin/skills/release-plugin/SKILL.md) | Validate plugins, clean repository, and ship plugin releases in one automated workflow |
-| [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers and synthesize results |
-| [`/security-analysis`](plugins/personal-plugin/skills/security-analysis/SKILL.md) | Comprehensive security vulnerability scanning with technology-specific patterns |
-| [`/ship`](plugins/personal-plugin/skills/ship/SKILL.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge |
-| [`/spark-audit`](plugins/personal-plugin/skills/spark-audit/SKILL.md) | SSH into the DGX Spark and audit all running containers against best practices — complements spark-recon with internal config validation |
-| [`/spark-recon`](plugins/personal-plugin/skills/spark-recon/SKILL.md) | Periodic DGX Spark inference performance landscape scan |
-| [`/spec-to-prototype`](plugins/personal-plugin/skills/spec-to-prototype/SKILL.md) | Build visual HTML/CSS prototypes from spec documents or wireframe descriptions |
-| [`/summarize-feedback`](plugins/personal-plugin/skills/summarize-feedback/SKILL.md) | Synthesize employee feedback from Notion into a professional .docx assessment |
-| [`/ultra-plan`](plugins/personal-plugin/skills/ultra-plan/SKILL.md) | Structured implementation planning for bug lists, feature requests, or change sets |
-| [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment |
-| [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated visual explanations |
-| [`/wiki`](plugins/personal-plugin/skills/wiki/SKILL.md) | Wiki operations: ingest sources, lint for health issues, query for answers, and report status. Companion to /create-wiki |
+| [`/accessibility-annotator`](plugins/personal-plugin/skills/accessibility-annotator/SKILL.md) | Analyze technical documents for CS/ML concepts a smart non-CS reader wouldn't understand, recomme... |
+| [`/arch-review`](plugins/personal-plugin/skills/arch-review/SKILL.md) | Comprehensive 9-agent architecture review — spawns parallel domain specialists (architecture, cod... |
+| [`/archive-project`](plugins/personal-plugin/skills/archive-project/SKILL.md) | Archive, retire, or sunset a project repo — writes a status header into README.md, tags and commi... |
+| [`/brain-entry`](plugins/personal-plugin/skills/brain-entry/SKILL.md) | Send a capture to Open Brain. |
+| [`/clear-prep`](plugins/personal-plugin/skills/clear-prep/SKILL.md) | Prepare a project for a context clear (/clear) or compaction with zero loss of state. |
+| [`/create-wiki`](plugins/personal-plugin/skills/create-wiki/SKILL.md) | Set up a persistent, LLM-maintained wiki inside any project. |
+| [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input, checking sanitizati... |
+| [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate a comprehensive, annotated technical overview document for any project/repo, written for... |
+| [`/fleet-health`](plugins/personal-plugin/skills/fleet-health/SKILL.md) | One-shot, read-only health snapshot across the personal fleet (DGX Spark, Jetson Orin Nano, homes... |
+| [`/jetson-audit`](plugins/personal-plugin/skills/jetson-audit/SKILL.md) | SSH into the Jetson Orin Nano and audit the running inference config against known best practices... |
+| [`/jetson-recon`](plugins/personal-plugin/skills/jetson-recon/SKILL.md) | Use when checking on Jetson Orin Nano inference performance landscape — scans JetPack updates, ll... |
+| [`/lab-notebook`](plugins/personal-plugin/skills/lab-notebook/SKILL.md) | Initialize mandatory experiment logging using scientific notebook, ADR, and postmortem patterns. |
+| [`/leak-risk-audit`](plugins/personal-plugin/skills/leak-risk-audit/SKILL.md) | Audit a dataset for proprietary information leaks before sharing with public/cloud services. |
+| [`/new-project`](plugins/personal-plugin/skills/new-project/SKILL.md) | Scaffold a brand-new project directory end-to-end — git init, remote repository (GitHub by defaul... |
+| [`/plan-gate`](plugins/personal-plugin/skills/plan-gate/SKILL.md) | Before starting complex multi-step implementation tasks, assess scope and route to the right plan... |
+| [`/prime`](plugins/personal-plugin/skills/prime/SKILL.md) | Evaluate an existing codebase to produce a detailed report on project purpose, health, status, an... |
+| [`/release-plugin`](plugins/personal-plugin/skills/release-plugin/SKILL.md) | Validate plugins, clean repository, and ship plugin releases in one automated workflow. |
+| [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers using native context:fork subage... |
+| [`/security-analysis`](plugins/personal-plugin/skills/security-analysis/SKILL.md) | Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediatio... |
+| [`/ship`](plugins/personal-plugin/skills/ship/SKILL.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge — the full ship workflow. |
+| [`/spark-audit`](plugins/personal-plugin/skills/spark-audit/SKILL.md) | SSH into the DGX Spark and audit all running containers against known best practices and communit... |
+| [`/spark-recon`](plugins/personal-plugin/skills/spark-recon/SKILL.md) | Use when checking on DGX Spark inference performance landscape — scans Arena leaderboard, vLLM re... |
+| [`/spec-to-prototype`](plugins/personal-plugin/skills/spec-to-prototype/SKILL.md) | Use when the user has a spec document, design system reference, component library doc, wireframe... |
+| [`/summarize-feedback`](plugins/personal-plugin/skills/summarize-feedback/SKILL.md) | Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment docu... |
+| [`/ultra-plan`](plugins/personal-plugin/skills/ultra-plan/SKILL.md) | "Structured implementation planning for bug lists, feature requests, or change sets. |
+| [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment using bws CLI. |
+| [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated infographic pages that explain concepts visually us... |
+| [`/wiki`](plugins/personal-plugin/skills/wiki/SKILL.md) | "Wiki operations: ingest source documents into wiki pages, lint for health issues, query the wiki... |
 
 ### slide-gen
 
@@ -105,23 +109,24 @@ AI-assisted presentation generation pipeline: 7-step workflow from topic researc
 /plugin install slide-gen@troys-plugins
 ```
 
-**8 Skills:**
+**9 Skills:**
 | Skill | Description |
 |-------|-------------|
-| [`/sg-full-workflow`](plugins/slide-gen/skills/sg-full-workflow/SKILL.md) | Run the complete 7-step slide generation pipeline from topic to PowerPoint |
-| [`/sg-research`](plugins/slide-gen/skills/sg-research/SKILL.md) | Conduct autonomous web research on a topic, producing structured research.json |
-| [`/sg-outline`](plugins/slide-gen/skills/sg-outline/SKILL.md) | Generate a structured presentation outline from research findings |
-| [`/sg-draft`](plugins/slide-gen/skills/sg-draft/SKILL.md) | Draft full slide content (titles, bullets, speaker notes, graphics descriptions) |
-| [`/sg-optimize`](plugins/slide-gen/skills/sg-optimize/SKILL.md) | Run quality analysis and automated improvement on drafted slide content |
-| [`/sg-validate-graphics`](plugins/slide-gen/skills/sg-validate-graphics/SKILL.md) | Validate that image descriptions are concrete enough for AI image generation |
-| [`/sg-generate-images`](plugins/slide-gen/skills/sg-generate-images/SKILL.md) | Generate slide visuals using Gemini Pro from validated graphics descriptions |
-| [`/sg-build`](plugins/slide-gen/skills/sg-build/SKILL.md) | Assemble final PowerPoint (.pptx) from presentation markdown and generated images |
+| [`/build-cfa-deck`](plugins/slide-gen/skills/build-cfa-deck/SKILL.md) | Generate a complete, on-brand Chick-fil-A PowerPoint presentation from a topic using CFA brand gu... |
+| [`/sg-build`](plugins/slide-gen/skills/sg-build/SKILL.md) | Assemble final PowerPoint (.pptx) from presentation markdown and generated images. |
+| [`/sg-draft`](plugins/slide-gen/skills/sg-draft/SKILL.md) | Draft full slide content (titles, bullets, speaker notes, graphics descriptions) from an outline. |
+| [`/sg-full-workflow`](plugins/slide-gen/skills/sg-full-workflow/SKILL.md) | Run the complete 7-step slide generation pipeline from topic to PowerPoint. |
+| [`/sg-generate-images`](plugins/slide-gen/skills/sg-generate-images/SKILL.md) | Generate slide visuals using Gemini Pro from validated graphics descriptions. |
+| [`/sg-optimize`](plugins/slide-gen/skills/sg-optimize/SKILL.md) | Run quality analysis and automated improvement on drafted slide content. |
+| [`/sg-outline`](plugins/slide-gen/skills/sg-outline/SKILL.md) | Generate a structured presentation outline from research findings. |
+| [`/sg-research`](plugins/slide-gen/skills/sg-research/SKILL.md) | Conduct autonomous web research on a topic using Claude Agent SDK, producing structured research.... |
+| [`/sg-validate-graphics`](plugins/slide-gen/skills/sg-validate-graphics/SKILL.md) | Validate that image descriptions are concrete enough for AI image generation. |
 
 ### bpmn-plugin
 
 BPMN 2.0 workflow tools for generating and converting process diagrams.
 
-**Skills:**
+**2 Skills:**
 | Skill | Description |
 |-------|-------------|
 | [`/bpmn-generator`](plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md) | Generate BPMN 2.0 compliant XML files from natural language process descriptions OR from structur... |
