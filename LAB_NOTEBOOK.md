@@ -1491,3 +1491,17 @@ Commit: `97837ca` — 8 files changed, 215 insertions, 29 deletions
 
 **Status:** COMPLETE. Decision Log is now gapless D1–D31. Phase 7 (notebook rotation) is unblocked on this precondition.
 **Duration:** ~10 minutes (extract verbatim decision text from E005/E006 → insert rows → verify contiguity → markdownlint → update plan file).
+
+### Entry 043 — Execute prime-backlog plan Phases 2–6 (code/CI enforcement) [build] [ci] [plugin]
+**Date:** 2026-07-17
+**Environment:** Linux VM, branch `impl/prime-backlog-149-156` (off main `4e1568c`), via `/implement-plan`. Running entry — updated before each phase commit (Rule 11).
+**Status:** IN PROGRESS
+
+**Objective:** Implement Phases 2–6 of IMPLEMENTATION_PLAN.md (the code/CI enforcement phases): repair the README guard (#149a/b+#153), reconcile the frontmatter rule (#151), reproduce coverage gates locally + fix mypy comments (#149c+#152), install the pre-commit hook (#149d), and build the eval structural linter + ADR-0009 (#150). No version bump (autoUpdate, D19).
+
+**Rollback Plan:** Each phase is one commit on the feature branch; `git revert <sha>` per phase, or reset the branch. `last_good_sha` tracked in `.implement-plan-state.json`. No merge to main until the final PR (human-reviewed, no --auto-merge).
+
+**Phase 2 (README guard) — Hypothesis:** After migrating hand-edited flag-doc rows into frontmatter (2.1), repairing `update-readme.py`'s dead skills glob (`*/SKILL.md`) + count-prefixed table anchors + adding prose-count rewrite (2.2), and wiring `--check` as a STEP in the existing `plugin-validate` job (2.3, no new required-check name): `update-readme.py --check` exits 0 clean / 2 on drift (currently unreachable), README shows 28 skills + all 62 surfaces incl. the 5 missing ones, no hand-edited flag note lost, markdownlint clean. Hard order 2.1→2.2→2.3 (wiring a dead script = green no-op gate).
+
+**Actions & Results:** (per phase, appended below)
+- Phase 2 (README guard) COMPLETE: `update-readme.py` was DEAD in two ways — nested-skill glob (`*/SKILL.md` fix) + count-prefixed anchor regex; also a masked bug (all skill names resolved to "SKILL"). Added surgical prose-count rewrite. Verified guard now detects drift: `--check` clean-exit=0, drift-exit=2 (was unreachable). 3 genuine hand-edited flag-doc rows migrated to frontmatter (consolidate-documents, validate-plugin, lab-notebook) — 5 others already covered by argument-hint, left alone. README regenerated: 28 skills + all 62 surfaces incl. the 5 previously-missing (archive-project/clear-prep/fleet-health/new-project/build-cfa-deck). Wired `--check` as a STEP in the existing `Validate Plugins (official CLI)` job (no new required-check name, avoids PLAT-012 deadlock). Removed unused `Optional` import. Closes #149a/b + #153.

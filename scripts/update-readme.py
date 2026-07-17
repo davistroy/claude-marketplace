@@ -23,12 +23,11 @@ Exit codes:
     2 - Changes detected (with --check)
 """
 
-import os
 import sys
 import re
 import argparse
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 from dataclasses import dataclass
 
 
@@ -135,10 +134,13 @@ def scan_plugin(plugin_path: Path, repo_root: Path) -> Tuple[List[CommandEntry],
             except Exception as e:
                 print(f"Warning: Could not read {md_file}: {e}", file=sys.stderr)
 
-    # Scan skills
+    # Scan skills (nested layout: skills/<name>/SKILL.md — NOT a flat glob).
+    # Deliberately `glob('*/SKILL.md')` rather than `rglob('*.md')`: rglob would
+    # also pick up the ~15 frontmatter-less reference .md files living under
+    # skills/*/ (e.g. references/, templates/) and choke on them.
     skills_dir = plugin_path / 'skills'
     if skills_dir.exists():
-        for md_file in sorted(skills_dir.glob('*.md')):
+        for md_file in sorted(skills_dir.glob('*/SKILL.md')):
             try:
                 content = md_file.read_text(encoding='utf-8')
                 fm = parse_frontmatter(content)
@@ -148,7 +150,7 @@ def scan_plugin(plugin_path: Path, repo_root: Path) -> Tuple[List[CommandEntry],
                     # Get relative path from repo root for linking
                     rel_path = md_file.relative_to(repo_root).as_posix()
                     skills.append(CommandEntry(
-                        name=md_file.stem,
+                        name=md_file.parent.name,
                         description=description,
                         is_skill=True,
                         file_path=rel_path
@@ -186,6 +188,49 @@ def generate_table(entries: List[CommandEntry], entry_type: str) -> str:
     return header + "\n" + "\n".join(rows)
 
 
+def rewrite_prose_counts(section_content: str,
+                          commands: List[CommandEntry],
+                          skills: List[CommandEntry]) -> str:
+    """Surgically rewrite the count tokens in a plugin section's prose.
+
+    Touches exactly two things, and nothing else in the surrounding text:
+      1. The "N commands and M skills" summary sentence, if present.
+      2. The "**N Commands:**" / "**M Skills:**" table header counts, if present.
+
+    Both substitutions are no-ops when the corresponding text isn't present
+    (e.g. a plugin with zero commands has no "Commands:" header to rewrite),
+    so this never fabricates a section that wasn't there before.
+    """
+    n_commands = len(commands)
+    n_skills = len(skills)
+
+    # "N commands and M skills" prose sentence (personal-plugin style intro).
+    section_content = re.sub(
+        r'\d+ commands and \d+ skills',
+        f'{n_commands} commands and {n_skills} skills',
+        section_content,
+        count=1,
+    )
+
+    # "**N Commands:**" table header (optional existing count prefix).
+    section_content = re.sub(
+        r'\*\*(?:\d+ )?Commands:\*\*',
+        f'**{n_commands} Commands:**',
+        section_content,
+        count=1,
+    )
+
+    # "**M Skills:**" table header (optional existing count prefix).
+    section_content = re.sub(
+        r'\*\*(?:\d+ )?Skills:\*\*',
+        f'**{n_skills} Skills:**',
+        section_content,
+        count=1,
+    )
+
+    return section_content
+
+
 def update_readme_section(readme_content: str, plugin_name: str,
                           commands: List[CommandEntry],
                           skills: List[CommandEntry],
@@ -205,12 +250,20 @@ def update_readme_section(readme_content: str, plugin_name: str,
     section_start = plugin_match.start()
     section_end = plugin_match.end()
 
+    # Rewrite prose/header counts before touching the tables themselves —
+    # the table-anchor regexes below tolerate either the old or new header
+    # text, so ordering relative to the table rewrite doesn't matter.
+    section_content = rewrite_prose_counts(section_content, commands, skills)
+
     # Update Commands table if commands exist
     if commands:
         commands_table = generate_table(commands, 'Command')
 
-        # Pattern to match existing commands table (header + separator + rows)
-        commands_pattern = r'(\*\*Commands:\*\*\n)((?:\|[^\n]+\n)+)'
+        # Pattern to match existing commands table (header + separator + rows).
+        # Tolerates an optional "N " count prefix on the header, e.g.
+        # "**23 Commands:**", since rewrite_prose_counts() may have just
+        # written one (or the README may already carry one).
+        commands_pattern = r'(\*\*(?:\d+ )?Commands:\*\*\n)((?:\|[^\n]+\n)+)'
         commands_match = re.search(commands_pattern, section_content)
 
         if commands_match:
@@ -229,8 +282,9 @@ def update_readme_section(readme_content: str, plugin_name: str,
     if skills:
         skills_table = generate_table(skills, 'Skill')
 
-        # Pattern to match existing skills table (header + separator + rows)
-        skills_pattern = r'(\*\*Skills:\*\*\n)((?:\|[^\n]+\n)+)'
+        # Pattern to match existing skills table (header + separator + rows).
+        # Tolerates an optional "N " count prefix on the header, same as above.
+        skills_pattern = r'(\*\*(?:\d+ )?Skills:\*\*\n)((?:\|[^\n]+\n)+)'
         skills_match = re.search(skills_pattern, section_content)
 
         if skills_match:

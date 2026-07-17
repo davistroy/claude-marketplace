@@ -1,5 +1,5 @@
 ---
-description: Analyze multiple document variations and synthesize a superior consolidated version
+description: Analyze multiple document variations and synthesize a superior consolidated version (supports `--json`)
 argument-hint: "<doc1-path> <doc2-path> [doc3-path...] [--format] [--preview]"
 effort: high
 allowed-tools: Read, Write, Edit, Glob, Grep

@@ -1,6 +1,6 @@
 ---
 name: lab-notebook
-description: Initialize mandatory experiment logging for projects involving system changes, benchmarks, debugging, or exploratory work. Creates LAB_NOTEBOOK.md with living decision/action tracking and injects iron-clad CLAUDE.md rules that make logging a PRECONDITION for every action. Suggest (do not auto-run) when — infrastructure/experimental/expensive-failure projects, multi-session work, or keywords like optimize/benchmark/debug/configure.
+description: Initialize mandatory experiment logging using scientific notebook, ADR, and postmortem patterns. For projects involving system changes, benchmarks, debugging, or exploratory work. Creates LAB_NOTEBOOK.md with living decision/action tracking and injects iron-clad CLAUDE.md rules that make logging a PRECONDITION for every action. Suggest (do not auto-run) when — infrastructure/experimental/expensive-failure projects, multi-session work, or keywords like optimize/benchmark/debug/configure.
 effort: medium
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)

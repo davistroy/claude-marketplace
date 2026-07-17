@@ -152,8 +152,8 @@ The Decision Log jumps from D13 (line 25) to D19 (line 29). D14–D18 were recor
 
 ### Work Items
 
-#### 2.1 Migrate hand-edited README rows into frontmatter
-**Status: PENDING**
+#### 2.1 Migrate hand-edited README rows into frontmatter ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(b) prerequisite
 **Files Affected:**
@@ -163,17 +163,17 @@ The Decision Log jumps from D13 (line 25) to D19 (line 29). D14–D18 were recor
 `README.md` rows 50/57/60/64/67 contain flag documentation that exists in _no_ frontmatter `description`. `generate_table` rebuilds rows from frontmatter, so regenerating (2.2) would silently delete this. Move the flag info into the source `description` (respecting the ≤1024-char budget) first, so regeneration is content-preserving.
 
 **Tasks:**
-1. [ ] Diff each README row's text against its source `description`; identify every row with extra info.
-2. [ ] Fold the extra info into the frontmatter `description`, or drop it if redundant with `argument-hint`.
-3. [ ] Confirm no row loses information after the move.
+1. [x] Diff each README row's text against its source `description`; identify every row with extra info.
+2. [x] Fold the extra info into the frontmatter `description`, or drop it if redundant with `argument-hint`.
+3. [x] Confirm no row loses information after the move.
 
 **Acceptance Criteria:**
-- [ ] WHEN 2.2 regenerates the tables THEN no currently-documented flag/behavior note SHALL disappear from the README.
+- [x] WHEN 2.2 regenerates the tables THEN no currently-documented flag/behavior note SHALL disappear from the README.
 
-**Notes:** Do this BEFORE 2.2. This is the single silent-data-loss risk in the phase.
+**Notes:** Do this BEFORE 2.2. This is the single silent-data-loss risk in the phase. A systematic diff of every command/skill row against its frontmatter (not just the 5 originally-flagged lines) found only 3 genuine losses — `consolidate-documents` (`--json`), `validate-plugin` (`--check-updates`), and `lab-notebook` (scientific-notebook/ADR/postmortem framing, absent from frontmatter entirely) — folded into their `description` fields. `assess-document`, `clean-repo`, `new-skill`, `review-arch`, and `develop-image-prompt` were dropped per the argument-hint escape valve: each flag is already documented in that file's `argument-hint`.
 
-#### 2.2 Repair `update-readme.py` (dead glob, dead anchor, prose counts)
-**Status: PENDING**
+#### 2.2 Repair `update-readme.py` (dead glob, dead anchor, prose counts) ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(b), #153
 **Files Affected:**
@@ -184,23 +184,23 @@ The Decision Log jumps from D13 (line 25) to D19 (line 29). D14–D18 were recor
 Three defects: (a) `skills_dir.glob('*.md')` (~line 141) misses nested `skills/<name>/SKILL.md` → 0 skills; fix to `glob('*/SKILL.md')`. (b) The commands-table anchor `r'(\*\*Commands:\*\*\n)...'` (~line 213) no longer matches the count-prefixed `**23 Commands:**` header; relax to tolerate the optional `N ` prefix, and likewise for Skills. (c) The prose counts at `README.md:41` ("24 skills"), `:70` ("24 Skills"), `:108` ("8 Skills") are hand-typed literals no code computes; add a prose-count pass that rewrites the "`N commands and M skills`" sentence and the "`**M Skills:**`"/"`**N Commands:**`" headers from the scanned counts. Scope the prose rewrite surgically to the count tokens — do not reflow surrounding text.
 
 **Tasks:**
-1. [ ] Fix the skills glob to `glob('*/SKILL.md')` (NOT `rglob` — it catches 15 frontmatter-less reference `.md` files).
-2. [ ] Relax both table anchors to tolerate the optional count prefix.
-3. [ ] Add prose-count computation + surgical rewrite for the sentence and the `**N Skills:**`/`**N Commands:**` headers across all three plugin sections.
-4. [ ] Remove the unused `import os` (line 26) if ruff would later flag it.
-5. [ ] Run `python3 scripts/update-readme.py`; verify the 5 missing skills appear and counts read 28/9.
-6. [ ] Preserve the exit-code contract: 0 = up to date, 2 = drift (with `--check`), 1 = error.
+1. [x] Fix the skills glob to `glob('*/SKILL.md')` (NOT `rglob` — it catches 15 frontmatter-less reference `.md` files).
+2. [x] Relax both table anchors to tolerate the optional count prefix.
+3. [x] Add prose-count computation + surgical rewrite for the sentence and the `**N Skills:**`/`**N Commands:**` headers across all three plugin sections.
+4. [x] Remove the unused `import os` (line 26) if ruff would later flag it.
+5. [x] Run `python3 scripts/update-readme.py`; verify the 5 missing skills appear and counts read 28/9.
+6. [x] Preserve the exit-code contract: 0 = up to date, 2 = drift (with `--check`), 1 = error.
 
 **Acceptance Criteria:**
-- [ ] WHEN `python3 scripts/update-readme.py --check` runs against a drifted README THEN it SHALL exit 2 (currently unreachable).
-- [ ] WHEN the tables are regenerated THEN personal-plugin SHALL show 28 skills, slide-gen 9, and all 62 surfaces SHALL appear.
-- [ ] WHEN `README.md:41` is read THEN it SHALL say "23 commands and 28 skills".
+- [x] WHEN `python3 scripts/update-readme.py --check` runs against a drifted README THEN it SHALL exit 2 (currently unreachable).
+- [x] WHEN the tables are regenerated THEN personal-plugin SHALL show 28 skills, slide-gen 9, and all 62 surfaces SHALL appear.
+- [x] WHEN `README.md:41` is read THEN it SHALL say "23 commands and 28 skills".
 
 **Depends On:** 2.1
-**Notes:** The two structural breaks were verified by running the script; this is a repair of never-working code, not a tweak.
+**Notes:** The two structural breaks were verified by running the script; this is a repair of never-working code, not a tweak. Also fixed a corollary bug the dead glob was masking: skill `CommandEntry.name` was derived from `md_file.stem` (always `"SKILL"` for nested files) — now uses `md_file.parent.name`. Verified: clean tree exits 0, a deliberate count edit exits 2, restoring returns to exit 0, markdownlint clean.
 
-#### 2.3 Wire `--check` into CI as a step in `plugin-validate`
-**Status: PENDING**
+#### 2.3 Wire `--check` into CI as a step in `plugin-validate` ✅ Completed 2026-07-17
+**Status: COMPLETE [2026-07-17]**
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(a)
 **Files Affected:**
