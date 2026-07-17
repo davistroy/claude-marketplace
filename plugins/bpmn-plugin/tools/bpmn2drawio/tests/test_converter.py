@@ -199,3 +199,33 @@ class TestAutoLayoutMode:
         work = [geom(c) for c in shapes if c.get("value") in {"Start", "Do Work", "End"}]
         assert len(work) == 3
         assert len(set(work)) == 3  # distinct positions preserved
+
+    def test_auto_preserves_exact_lane_relative_coordinates(self, tmp_path):
+        """DI coordinates are preserved verbatim as lane-relative offsets.
+
+        Locks in the exact geometry so a future double-offset regression (adding
+        the lane origin twice, or dropping the relative conversion) is caught —
+        the distinctness check above would still pass under such a bug.
+        """
+        from xml.etree import ElementTree as ET
+
+        converter = Converter()  # auto -> preserve
+        output_file = tmp_path / "geo.drawio"
+
+        result = converter.convert(FIXTURES_DIR / "geometric_lanes.bpmn", output_file)
+        assert result.success
+
+        root = ET.fromstring(output_file.read_text(encoding="utf-8").encode())
+        shapes = [c for c in root.findall(".//mxCell[@vertex='1']") if c.get("value")]
+
+        def geom(cell):
+            g = cell.find("mxGeometry")
+            return (float(g.get("x")), float(g.get("y")))
+
+        pos = {
+            c.get("value"): geom(c) for c in shapes if c.get("value") in {"Start", "Do Work", "End"}
+        }
+        # Lane-relative offsets = element DI bounds minus the containing lane origin.
+        assert pos["Start"] == (50.0, 40.0)
+        assert pos["Do Work"] == (150.0, 30.0)
+        assert pos["End"] == (350.0, 40.0)

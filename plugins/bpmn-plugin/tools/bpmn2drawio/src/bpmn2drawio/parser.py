@@ -590,6 +590,9 @@ class BPMNParser:
         if not lanes_with_di and not pools_with_di:
             return
 
+        # Loop-invariant: pools that back a lane are never a laneless-pool parent.
+        pooled_lane_ids = {ln.parent_pool_id for ln in model.lanes}
+
         for element in model.elements:
             if element.parent_id:
                 continue
@@ -617,7 +620,6 @@ class BPMNParser:
                 continue
 
             # Fall back to a laneless pool for the element's process.
-            pooled_lane_ids = {ln.parent_pool_id for ln in model.lanes}
             pool_candidates = [
                 p
                 for p in pools_with_di
