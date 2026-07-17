@@ -828,3 +828,17 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 
 **Status:** COMPLETE — all 7 phases (16 items) implemented, tested, committed one-per-phase; #149–#154 closed, #155/#156 filed for scoped-out work. Final step: PR (no auto-merge; human review).
 **Duration:** ~90 minutes across the 7 phases (investigation + 8 subagent dispatches + per-phase verification).
+
+### Entry 044 — CONTRIBUTING.md skills-first cleanup (close E043 tangent) [docs] [cleanup]
+**Date:** 2026-07-17
+**Environment:** Linux VM, branch `docs/contributing-skills-first` off main `e594158` (post-#159 merge). Trigger: user "tackle that last thing" — the stale CONTRIBUTING.md refs flagged in E043 Phase 5.
+**Status:** COMPLETE
+
+**Objective:** Make CONTRIBUTING.md factually correct and consistent with ADR-0006 (skills-first). Investigation showed the flagged refs were broader than 2 lines: `/new-command` is DEPRECATED (in `deprecated/`) yet the Quick Start led with it; the dead help skill (`skills/help/SKILL.md`, no such dir/file anywhere) was referenced in the Quick Start step 2 and the plugin scaffold step, contradicting the doc's own line 248.
+
+**Decision:** Reframe "Quick Start: Adding a Command" → "Quick Start: Adding a Skill" (primary path via `/new-skill`, which exists), add a frozen-legacy banner to the "Adding a New Command" reference section (kept — still valid for the 23 existing commands), and remove every dead help.md reference (native `/help` handles discovery). Alt considered: minimal 2-line patch — rejected, it would leave the Quick Start telling new contributors to use a deprecated tool. Alt: full command→skill doc rewrite — rejected as disproportionate; the command reference sections are valid legacy.
+
+**Rollback Plan:** Single-file docs change (CONTRIBUTING.md) + this entry; `git checkout` pre-commit / revert the PR post-merge. Docs-only — no code, no version bump.
+
+**Actions & Results:** Edited ToC, Quick Start (command→skill via `/new-skill`), plugin scaffold step (help.md→removed, `/new-command`→`/new-skill`), PR-template test plan (`/new-command`→`/my-skill`, "shows all commands"→"native /help lists command/skill"), and added the ADR-0006 legacy banner. Verified: zero remaining deprecated `/new-command` tool refs or dead help.md/skills-help refs (only legit `my-new-command.md` example filenames + the kept legacy ToC entry remain); all `/help` mentions are native; markdownlint clean; README sync guard still exit 0 (counts untouched).
+**Duration:** ~10 minutes.
