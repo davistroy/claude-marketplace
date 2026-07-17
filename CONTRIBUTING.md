@@ -687,15 +687,18 @@ A pre-commit hook is available to validate plugin files before committing.
 
 ### Installation
 
+Run the install script (works on Unix/Mac/WSL and Windows Git Bash):
+
 ```bash
-# Copy the pre-commit hook
-cp scripts/pre-commit .git/hooks/
+bash scripts/install-hooks.sh
+```
 
-# Make it executable (Unix/Mac/WSL)
-chmod +x .git/hooks/pre-commit
+This copies `scripts/pre-commit` to `.git/hooks/pre-commit` and makes it executable. It is idempotent — safe to re-run any time (e.g. after pulling hook updates from origin).
 
-# On Windows (Git Bash)
-chmod +x .git/hooks/pre-commit
+Verify it's installed:
+
+```bash
+test -x .git/hooks/pre-commit && echo "hook installed"
 ```
 
 ### What It Checks

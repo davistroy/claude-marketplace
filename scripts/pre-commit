@@ -7,17 +7,15 @@
 # Checks performed:
 #   1. Frontmatter validation:
 #      - description: REQUIRED for all commands and skills
-#      - name: FORBIDDEN for commands, REQUIRED for skills
+#      - name: FORBIDDEN for commands, REQUIRED for skills (and must match dir name)
 #   2. Code block closure validation
-#   3. help.md sync check (commands/skills match actual files)
-#   4. Timestamp format validation (YYYYMMDD-HHMMSS)
-#   5. Python lint/format check with ruff
+#   3. Timestamp format validation (YYYYMMDD-HHMMSS)
+#   4. Python lint/format check with ruff
 #
 # Target: < 5 seconds execution time
 #
 # Installation:
-#   cp scripts/pre-commit .git/hooks/
-#   chmod +x .git/hooks/pre-commit
+#   bash scripts/install-hooks.sh
 #
 
 set -e
@@ -88,11 +86,21 @@ for FILE in $STAGED_FILES; do
         IS_SKILL=true
     fi
 
-    # Check name field: FORBIDDEN for commands, REQUIRED for skills
+    # Check name field: FORBIDDEN for commands, REQUIRED for skills (and must match dir name)
     if [ "$IS_SKILL" = true ]; then
-        # Skills REQUIRE name field (needed for skill registration)
+        # Skills REQUIRE name field (needed for skill registration), and it MUST
+        # equal the skill's parent directory name (house convention, ADR-0006;
+        # matches the skills/*/SKILL.md rule enforced in .github/workflows/validate.yml)
         if echo "$FRONTMATTER" | grep -q "^name:"; then
-            echo -e "  ${GREEN}[PASS]${NC} Required 'name' field present (skill)"
+            SKILL_DIR_NAME=$(basename "$(dirname "$FILE")")
+            NAME_VALUE=$(echo "$FRONTMATTER" | grep "^name:" | head -n 1 | sed -E "s/^name:[[:space:]]*//; s/[\"']//g" | xargs)
+            if [ "$NAME_VALUE" = "$SKILL_DIR_NAME" ]; then
+                echo -e "  ${GREEN}[PASS]${NC} Required 'name' field present and matches directory name (skill)"
+            else
+                echo -e "  ${RED}[FAIL]${NC} 'name' field ('$NAME_VALUE') does not match directory name ('$SKILL_DIR_NAME')"
+                echo -e "         Skills must have: name: $SKILL_DIR_NAME (matching directory name)"
+                ERRORS=$((ERRORS + 1))
+            fi
         else
             echo -e "  ${RED}[FAIL]${NC} Missing required 'name' field in skill frontmatter"
             echo -e "         Skills must have: name: skill-name (matching directory name)"
@@ -125,72 +133,7 @@ for FILE in $STAGED_FILES; do
 done
 
 # ============================================
-# Check 3: help.md Sync Validation
-# ============================================
-echo "Checking help.md sync..."
-
-# Function to extract commands/skills from a help skill file
-check_help_sync() {
-    local plugin_dir="${1%/}"  # Remove trailing slash
-    local plugin_name=$(basename "$plugin_dir")
-    local help_file="$plugin_dir/skills/help/SKILL.md"
-
-    if [ ! -f "$help_file" ]; then
-        echo -e "  ${YELLOW}[WARN]${NC} $plugin_name: No help skill found at $help_file"
-        WARNINGS=$((WARNINGS + 1))
-        return
-    fi
-
-    # Get actual commands (md files in commands/)
-    local commands_dir="$plugin_dir/commands"
-    if [ -d "$commands_dir" ]; then
-        for cmd_file in "$commands_dir"/*.md; do
-            if [ -f "$cmd_file" ]; then
-                local cmd_name=$(basename "$cmd_file" .md)
-                if ! grep -q "/$cmd_name" "$help_file" 2>/dev/null; then
-                    echo -e "  ${RED}[FAIL]${NC} $plugin_name: Command /$cmd_name not documented in help.md"
-                    echo -e "         Suggestion: Add /$cmd_name to $help_file"
-                    ERRORS=$((ERRORS + 1))
-                fi
-            fi
-        done
-    fi
-
-    # Get actual skills (SKILL.md files in skills/*/SKILL.md, excluding help/)
-    local skills_dir="$plugin_dir/skills"
-    if [ -d "$skills_dir" ]; then
-        for skill_dir in "$skills_dir"/*/; do
-            if [ -d "$skill_dir" ]; then
-                local skill_name=$(basename "$skill_dir")
-                # Skip help skill
-                if [ "$skill_name" = "help" ]; then
-                    continue
-                fi
-                # Check if SKILL.md exists
-                if [ -f "$skill_dir/SKILL.md" ]; then
-                    if ! grep -q "/$skill_name" "$help_file" 2>/dev/null; then
-                        echo -e "  ${RED}[FAIL]${NC} $plugin_name: Skill /$skill_name not documented in help"
-                        echo -e "         Suggestion: Add /$skill_name to $help_file"
-                        ERRORS=$((ERRORS + 1))
-                    fi
-                fi
-            fi
-        done
-    fi
-}
-
-# Check each plugin directory
-for plugin_dir in plugins/*/; do
-    if [ -d "$plugin_dir" ]; then
-        check_help_sync "$plugin_dir"
-    fi
-done
-
-echo -e "  ${GREEN}[PASS]${NC} help.md sync check complete"
-echo ""
-
-# ============================================
-# Check 4: Timestamp Format Validation
+# Check 3: Timestamp Format Validation
 # ============================================
 echo "Checking timestamp format in staged files..."
 
@@ -241,7 +184,7 @@ echo ""
 fi  # End of markdown file checks (STAGED_FILES non-empty)
 
 # ============================================
-# Check 5: Python File Lint/Format with ruff
+# Check 4: Python File Lint/Format with ruff
 # ============================================
 PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
 if [ -n "$PYTHON_FILES" ]; then
@@ -280,10 +223,8 @@ if [ $ERRORS -gt 0 ]; then
     echo "Tips:"
     echo "  - Every command/skill needs frontmatter with 'description'"
     echo "  - Commands: Do NOT include 'name' field (filename determines command name)"
-    echo "  - Skills: MUST include 'name' field (required for skill registration)"
+    echo "  - Skills: MUST include 'name' field matching the directory name (required for skill registration)"
     echo "  - Ensure all code blocks are closed with \`\`\`"
-    echo "  - help.md MUST be synced when changing commands/skills"
-    echo "    Fix by manually adding the new command/skill entry to the plugin's help.md"
     echo "  - Use YYYYMMDD-HHMMSS format for timestamps (e.g., 20260114-143052)"
     echo "  - Python files must pass ruff check and ruff format"
     echo "    Fix with: ruff check --fix . && ruff format ."

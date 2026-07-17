@@ -426,8 +426,8 @@ Both comment blocks claim "pre-existing mypy debt (54/98 errors as of 2026-07-16
 
 ### Work Items
 
-#### 5.1 Remove the dead `help.md` sync check
-**Status: PENDING**
+#### 5.1 Remove the dead `help.md` sync check ✅ Completed 2026-07-17
+**Status:** COMPLETE [2026-07-17]
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(d) prerequisite
 **Files Affected:**
@@ -444,8 +444,8 @@ Both comment blocks claim "pre-existing mypy debt (54/98 errors as of 2026-07-16
 - [ ] WHEN the hook runs THEN it SHALL NOT emit help.md warnings.
 - [ ] WHEN the hook runs THEN it SHALL still enforce frontmatter, code-block, timestamp, and ruff checks.
 
-#### 5.2 Make hook installation automatic and verifiable
-**Status: PENDING**
+#### 5.2 Make hook installation automatic and verifiable ✅ Completed 2026-07-17
+**Status:** COMPLETE [2026-07-17]
 **Model Tier: sonnet**
 **Recommendation Ref:** #149(d)
 **Files Affected:**
@@ -707,7 +707,7 @@ Seven genuine external referrers point at entries that move (CLAUDE.md:26 → E0
 | feedback-docx floor silently weakens (branch omitted) | 4.1 | Medium | Mitigated — `branch = true` added alongside `fail_under = 95` in `[tool.coverage.run]` | Revert pyproject |
 | `python-compat` inherits the floor and goes red | 4.1 | Low | Mitigated — `--cov-fail-under=0` pinned on all three python-compat pytest invocations | Revert workflow line |
 | Rotation deletes D14–D18 / orphans ADR-0005 | Phase 1 gates Phase 7 | High | Mitigated — Phase 1 (Entry 042) promoted D14–D18 into the Decision Log table; Phase 7 no longer blocked | Restore from git / archive |
-| Installing the hook spams contributors (dead help.md check) | 5.1→5.2 | Low | Remove dead check (5.1) before install (5.2) | Revert hook |
+| Installing the hook spams contributors (dead help.md check) | 5.1→5.2 | Low | Mitigated — dead check removed (5.1) before scripted install added (5.2) | Revert hook |
 | New required-check name deadlocks merges (PLAT-012 class) | 2.3, 3.1, 6.x | Medium | Only add _steps_ to existing jobs; never rename/add required checks | Revert; check set unchanged |
 | Branch protection blocks self-merge (bus factor 1) | all PRs | Low | `enforce_admins=false` (D22) permits owner merge on green | n/a |
 
