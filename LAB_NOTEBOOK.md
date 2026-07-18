@@ -866,3 +866,23 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 1. Replaced both count-ratchet CI blocks with the 3-line bare `mypy src/ --ignore-missing-imports` step (matching feedback-docx); deleted both `.mypy-baseline` files. All 3 tools now use one identical hard-zero mypy step.
 2. Verified bare mypy clean locally: bpmn2drawio "Success: no issues found in 23 source files"; visual-explainer clean too. YAML parses; 0 ratchet refs remain.
 **Duration:** ~10 min.
+
+### Entry 046 — Add `rotate` operation to the lab-notebook skill (#156) [skill] [decision]
+**Date:** 2026-07-17
+**Environment:** Linux VM, branch `feat/lab-notebook-rotate-156` off main `646093e`. Trigger: user "tackle #155 then #156".
+**Status:** COMPLETE
+
+**Objective:** Close #156 — the notebook rotation I did manually in E043 (#154) had no automation, so it would recur in ~40 entries. Encode it as a repeatable skill operation with the hard-won invariants.
+
+**Hypothesis:** A `rotate` operation added to the lab-notebook skill + a threshold rule in CLAUDE.md means the next rotation is routine, not a from-scratch judgment call. Skill body stays <500 (detailed procedure in `references/`); plugin validate --strict + markdownlint clean; no version bump.
+
+**Rollback Plan:** Additive skill/docs change (SKILL.md + new references/rotation.md + CLAUDE.md Rule 12); `git revert` / branch delete. No tool code touched.
+
+**Actions & Results:**
+1. Added `rotate` to the skill's operations list + a compact "On `rotate`" section (SKILL.md 499 lines, under budget); full step-by-step in new `plugins/personal-plugin/skills/lab-notebook/references/rotation.md`.
+2. Encoded the E042/E043 invariants as the procedure's load-bearing steps: **Step 0 (BLOCKING) promote body-only decisions FIRST** (the D14–D18 near-loss), cut only at a session marker, **`git add -f`** the archive (docs/archive/ globally gitignored), banner + bidirectional pointers, and a verify block (Decision Log contiguous / archive count == removed / zero live-archive overlap / lint clean).
+3. Stated the trigger in CLAUDE.md as **Rule 12: Rotate When Large** (~40 entries or ~1200 lines → keep last ~20) and mirrored a one-line rotation note into the skill's injected Rule-7 template so new projects inherit it.
+4. Verified: SKILL.md 499 lines; markdownlint clean (SKILL + rotation.md + CLAUDE.md); `claude plugin validate --strict` passed; eval-mapping + README guards still green (the frontmatter-less reference file isn't scanned as a skill).
+
+**What Worked:** Doing the manual rotation first (E043) then encoding it (E046) — the reference file is a direct transcription of what actually worked, including the two gotchas (body-only decisions, gitignored archive) that only surfaced by doing it. Codify-after-doing beats codify-from-imagination.
+**Duration:** ~20 min.

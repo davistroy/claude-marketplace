@@ -364,6 +364,10 @@ This traces context switches between sessions and helps explain gaps, changes in
 
 This is the rule that prevents batching. It's easy to skip a "log results" step. It's harder to skip when the log IS the commit workflow.
 
+### Rule 12: Rotate When Large
+
+The notebook is read in full by CLAUDE.md and `/prime`, so it must stay bounded. When the Experiment Log exceeds **~40 entries or LAB_NOTEBOOK.md exceeds ~1200 lines**, run `/lab-notebook rotate` to archive the oldest entries to `docs/archive/` (keeping the living sections + the last ~20 entries). Rotation is a MOVE, never a delete (Rule 4): **promote any body-only decisions to the Decision Log table BEFORE archiving their entries** (a naive cut nearly lost D14–D18), cut only at a session-marker boundary, and `git add -f` the archive (`docs/archive/` is gitignored). Full procedure: `plugins/personal-plugin/skills/lab-notebook/references/rotation.md`.
+
 ### Enforcement
 
 These rules are BLOCKING PRECONDITIONS, not suggestions. The mechanical process is:
