@@ -23,6 +23,7 @@ Supported arguments:
 - `init` — Full initialization: discover prior work, create LAB_NOTEBOOK.md, inject CLAUDE.md rules
 - `entry "title"` — Add a new numbered entry to an existing notebook
 - `status` — Show notebook health: entries, staleness, open action items, active decisions
+- `rotate` — Archive the oldest experiment entries to `docs/archive/` once the log grows large, keeping the living sections and recent entries. Preserves every decision (a move, never a delete).
 - No arguments — Same as `init` if no notebook exists, same as `status` if one does
 
 ## Instructions
@@ -325,7 +326,7 @@ After EVERY completed entry, update the living sections at the top of LAB_NOTEBO
 - **Decision Log:** Add new decisions, update superseded ones
 - **Action Items:** Add follow-ups from the entry, mark completed items
 
-These tables are the "dashboard" — they must always reflect the current state.
+These tables are the "dashboard" — they must always reflect the current state. When the Experiment Log grows past ~40 entries, archive the oldest to `docs/archive/` via the notebook's `rotate` operation — a MOVE that promotes any body-only decisions into the Decision Log first, never a delete.
 
 ### Rule 8: Tag and Contextualize Every Entry
 
@@ -409,6 +410,18 @@ After creating both files:
    - Tags used across entries (frequency)
    - Any entries still marked IN PROGRESS — **if the last IN PROGRESS entry is older than 7 days, flag it: "WARNING: Entry NNN has been IN PROGRESS since {date}. This may indicate incomplete or abandoned work. Review and update its status."**
 3. Check if CLAUDE.md has the mandatory logging section — warn loudly if missing: "CRITICAL: CLAUDE.md is missing the Lab Notebook logging rules. The notebook exists but enforcement is not active. Run `/lab-notebook init` to reinject the rules."
+
+Also report **rotation health**: if the Experiment Log exceeds **~40 entries or LAB_NOTEBOOK.md exceeds ~1200 lines**, recommend `/lab-notebook rotate` (the mandatory first-read is getting expensive).
+
+### On `rotate`:
+
+Archive the oldest entries once the log grows large, so the mandatory first-read stays cheap. A MOVE (archive + bidirectional pointers), never a delete (Rule 4). **Full procedure: [`references/rotation.md`](references/rotation.md).** Load-bearing invariants, in order:
+
+1. **Promote body-only decisions FIRST** — scan entries being archived for decisions in entry bodies only (`**Decision (Dxx):**`, `Dxx:` bullets) that are not yet Decision Log rows; promote them before archiving, or the archive silently removes live decisions (this nearly lost D14–D18).
+2. **Cut at a session-marker boundary** (`--- New session:`), never mid-session/entry; keep ~20 recent entries plus all living sections.
+3. **`git add -f` the archive** — `docs/archive/` is matched by a global gitignore, so plain `git add` skips new archive files.
+4. Banner + back-pointer in the archive, forward pointer in the live notebook; re-point external prose refs to archived entries.
+5. **Verify before commit:** Decision Log contiguous (no gaps), archive entry count == removed, zero live/archive overlap, both markdownlint-clean.
 
 ## Relationship to Existing Documentation
 
