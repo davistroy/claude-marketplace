@@ -72,27 +72,12 @@ jobs:
         run: |
           pytest tests/ -v -n auto --cov=bpmn2drawio --cov-branch --cov-report=term-missing
 
-      - name: Type check (count-ratchet against baseline)
-        shell: bash
+      - name: Type check
         run: |
-          # .mypy-baseline is 0 (the pre-existing debt was paid off in #129).
-          # Instead of ignoring mypy entirely (continue-on-error), we enforce a
-          # regression CEILING: any error count above the committed baseline
-          # fails the build. With the baseline at 0, this is a hard
-          # zero-new-errors gate. Raising .mypy-baseline above 0 requires
-          # explicit justification in the PR.
-          BASELINE=$(cat .mypy-baseline)
-          set +e
-          MYPY_OUTPUT=$(mypy src/ --ignore-missing-imports 2>&1)
-          set -e
-          echo "$MYPY_OUTPUT"
-          ERRORS=$(echo "$MYPY_OUTPUT" | grep -oP 'Found \K[0-9]+(?= error)' || echo 0)
-          echo "mypy errors: $ERRORS (baseline ceiling: $BASELINE)"
-          if [ "$ERRORS" -gt "$BASELINE" ]; then
-            echo "::error::mypy error count ($ERRORS) exceeds baseline ceiling ($BASELINE). Fix the new error(s) or, if intentional, raise .mypy-baseline with justification."
-            exit 1
-          fi
-          echo "OK: $ERRORS <= baseline $BASELINE"
+          # Hard zero-errors gate: all three tools are mypy-clean (D24/#129),
+          # so mypy runs bare and any error fails the build. Fix new errors, or
+          # add a scoped `# type: ignore[code]` with a reason — no baseline ratchet.
+          mypy src/ --ignore-missing-imports
 
   visual-explainer:
     name: Visual Explainer Tests (${{ matrix.os }})
@@ -125,27 +110,12 @@ jobs:
         run: |
           pytest tests/ -v -n auto --cov=visual_explainer --cov-branch --cov-report=term-missing
 
-      - name: Type check (count-ratchet against baseline)
-        shell: bash
+      - name: Type check
         run: |
-          # .mypy-baseline is 0 (the pre-existing debt was paid off in #129).
-          # Instead of ignoring mypy entirely (continue-on-error), we enforce a
-          # regression CEILING: any error count above the committed baseline
-          # fails the build. With the baseline at 0, this is a hard
-          # zero-new-errors gate. Raising .mypy-baseline above 0 requires
-          # explicit justification in the PR.
-          BASELINE=$(cat .mypy-baseline)
-          set +e
-          MYPY_OUTPUT=$(mypy src/ --ignore-missing-imports 2>&1)
-          set -e
-          echo "$MYPY_OUTPUT"
-          ERRORS=$(echo "$MYPY_OUTPUT" | grep -oP 'Found \K[0-9]+(?= error)' || echo 0)
-          echo "mypy errors: $ERRORS (baseline ceiling: $BASELINE)"
-          if [ "$ERRORS" -gt "$BASELINE" ]; then
-            echo "::error::mypy error count ($ERRORS) exceeds baseline ceiling ($BASELINE). Fix the new error(s) or, if intentional, raise .mypy-baseline with justification."
-            exit 1
-          fi
-          echo "OK: $ERRORS <= baseline $BASELINE"
+          # Hard zero-errors gate: all three tools are mypy-clean (D24/#129),
+          # so mypy runs bare and any error fails the build. Fix new errors, or
+          # add a scoped `# type: ignore[code]` with a reason — no baseline ratchet.
+          mypy src/ --ignore-missing-imports
 
   feedback-docx-generator:
     name: Feedback DOCX Generator Tests (${{ matrix.os }})
