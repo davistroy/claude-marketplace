@@ -934,3 +934,18 @@ Confirmed: bundled Python tool = 7 files + 1 CI job (2 required checks) + branch
 **Actions & Results:** archived completed prime-backlog plan → `docs/archive/IMPLEMENTATION_PLAN-v10.md`; wrote fresh IMPLEMENTATION_PLAN.md (below).
 
 **Duration:** ~plan generation. **Next:** /implement-plan (6 phases, one PR each; tool CI job stays un-required until Phase 6).
+
+### Entry 049 — Build task-sync (implement-plan execution) [skill] [build] [ci]
+**Date:** 2026-07-18
+**Environment:** Linux VM, branch `impl/task-sync` (off main `b181b4f`), via `/implement-plan` on IMPLEMENTATION_PLAN.md (task-sync, 6 phases/18 items). Running entry — updated before each phase commit (Rule 11).
+**Status:** IN PROGRESS
+
+**Objective:** Build the task-sync skill + bundled Python tool per the plan (D34, E048): tool skeleton+model → providers (GitHub gh / Gitea REST) → reconcile engine → confidentiality scanner → SKILL.md → registration+release.
+
+**Hypothesis:** Each phase leaves CI green; tool built bottom-up with tests to the coverage floor (start 90) + bare mypy + ruff; the tool CI job runs UN-required until Phase 6; personal-plugin → 11.2.0 at release. One feature branch, commit per phase, one PR at end (human-reviewed, no auto-merge).
+
+**Rollback Plan:** All on `impl/task-sync`; `git revert`/branch-delete per phase; `last_good_sha` in `.implement-plan-state.json`. No merge to main until the final reviewed PR. NON-NEGOTIABLE guardrail (Phase 4): never commit contact-center-lab client brand terms into this public repo.
+
+**Actions & Results:** (per phase, below)
+
+- Phase 1 (tool skeleton + model) COMPLETE: scaffolded `plugins/personal-plugin/tools/task-sync/` (stdlib-only package `task_sync`, argparse CLI with 8 subcommand stubs, `Task`/`TaskList` dataclass model, canonical atomic JSON store, pure-function `TASKS.md` renderer). Wired into root pyproject test aggregation + a new NON-required `Task Sync Tests` CI job (branch protection untouched — Phase 6). 63 tests / 96.8% coverage (floor 90) / mypy + ruff clean; independently re-verified (8/8 DoD checks pass).

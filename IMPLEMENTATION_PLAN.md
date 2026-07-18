@@ -92,8 +92,8 @@ Phase 3 (reconcile) and Phase 4 (confidentiality) are the correctness- and leak-
 
 ### Work Items
 
-#### 1.1 Scaffold the `task-sync` tool package
-**Status: PENDING**
+#### 1.1 Scaffold the `task-sync` tool package ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `plugins/personal-plugin/tools/task-sync/pyproject.toml` (new — copy feedback-docx's shape; `fail_under = 90` to start)
@@ -113,8 +113,8 @@ Create the src-layout package `task_sync` with an argparse `main()` dispatching 
 
 **Notes:** Decide dataclasses vs pydantic here; lean stdlib dataclasses for minimal deps unless Phase 2/3 validation needs pydantic. Record the choice in a code comment.
 
-#### 1.2 Task model + canonical `tasks.json` store
-**Status: PENDING**
+#### 1.2 Task model + canonical `tasks.json` store ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/models.py` (new — `Task`, `TaskList` header dataclasses; status/priority enums)
@@ -129,8 +129,8 @@ Implement the schema from the design (`id`, `title`, `body`, `status`, `priority
 - [ ] WHEN a task list is loaded and re-saved THEN unrelated fields and ordering SHALL be preserved deterministically.
 - [ ] WHEN an invalid status/priority is loaded THEN it SHALL raise a clear validation error.
 
-#### 1.3 `TASKS.md` renderer + status summary
-**Status: PENDING**
+#### 1.3 `TASKS.md` renderer + status summary ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/render.py` (new — table renderer + summary)
