@@ -1,0 +1,6 @@
+# task-sync has zero runtime dependencies (stdlib only) as of Phase 1.
+# This file exists so the repo-wide pip-audit convention (one
+# requirements-lock.txt per bundled tool) still holds; it is intentionally
+# empty of packages. Populate via `pip-compile --output-file=requirements-lock.txt
+# pyproject.toml` if/when a runtime dependency (e.g. httpx for the Gitea
+# adapter) is added in a later phase.

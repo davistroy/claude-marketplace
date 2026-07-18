@@ -1,7 +1,7 @@
 # Implementation Plan
 
 **Generated:** 2026-07-18
-**Completed:** _(in progress)_
+**Completed:** 2026-07-18
 **Based On:** `/ultra-plan` of the approved task-sync design (`docs/plans/2026-07-18-task-sync-design.md`, D34) — user selected the Python-tool architecture (fork A). Prior plan (prime-backlog, COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v10.md`.
 **Total Phases:** 6
 **Estimated Total Effort:** ~2,500 LOC across ~40 files (a new bundled Python tool + tests, a new skill + references, an eval, CI/registration wiring)
@@ -92,8 +92,8 @@ Phase 3 (reconcile) and Phase 4 (confidentiality) are the correctness- and leak-
 
 ### Work Items
 
-#### 1.1 Scaffold the `task-sync` tool package
-**Status: PENDING**
+#### 1.1 Scaffold the `task-sync` tool package ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `plugins/personal-plugin/tools/task-sync/pyproject.toml` (new — copy feedback-docx's shape; `fail_under = 90` to start)
@@ -113,8 +113,8 @@ Create the src-layout package `task_sync` with an argparse `main()` dispatching 
 
 **Notes:** Decide dataclasses vs pydantic here; lean stdlib dataclasses for minimal deps unless Phase 2/3 validation needs pydantic. Record the choice in a code comment.
 
-#### 1.2 Task model + canonical `tasks.json` store
-**Status: PENDING**
+#### 1.2 Task model + canonical `tasks.json` store ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/models.py` (new — `Task`, `TaskList` header dataclasses; status/priority enums)
@@ -129,8 +129,8 @@ Implement the schema from the design (`id`, `title`, `body`, `status`, `priority
 - [ ] WHEN a task list is loaded and re-saved THEN unrelated fields and ordering SHALL be preserved deterministically.
 - [ ] WHEN an invalid status/priority is loaded THEN it SHALL raise a clear validation error.
 
-#### 1.3 `TASKS.md` renderer + status summary
-**Status: PENDING**
+#### 1.3 `TASKS.md` renderer + status summary ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/render.py` (new — table renderer + summary)
@@ -178,8 +178,8 @@ Render the open-tasks table (the design's mock: `#`, priority, status, title, la
 
 ### Work Items
 
-#### 2.1 Normalized Issue model + provider interface
-**Status: PENDING**
+#### 2.1 Normalized Issue model + provider interface ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/providers/base.py` (new — `Issue` dataclass; `Provider` protocol: `list_issues`, `create_issue`, `update_issue`, `set_state`, `ensure_labels`, `ensure_milestone`, `visibility`)
@@ -191,8 +191,8 @@ Define a provider-agnostic `Issue` (number, title, body, state, labels, mileston
 **Acceptance Criteria:**
 - [ ] WHEN either adapter returns issues THEN they SHALL be normalized to the same `Issue` shape (labels as a list, timestamps as aware datetimes).
 
-#### 2.2 GitHub adapter
-**Status: PENDING**
+#### 2.2 GitHub adapter ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/providers/github.py` (new — wraps `gh issue list --json …`, `gh issue create/edit/close/reopen`, `gh api` for milestones + visibility)
@@ -205,8 +205,8 @@ Implement the interface over `gh`. Read via `gh issue list --state all --json nu
 - [ ] WHEN `list_issues` runs against mocked `gh` output THEN it SHALL return normalized `Issue`s including `updated_at`.
 - [ ] WHEN `visibility()` runs THEN it SHALL return public/private from `gh repo view`.
 
-#### 2.3 Gitea adapter (REST)
-**Status: PENDING**
+#### 2.3 Gitea adapter (REST) ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/providers/gitea.py` (new — REST client; token + base URL from `~/.config/tea/config.yml`; GET/POST/PATCH issues, labels, milestones)
@@ -219,8 +219,8 @@ Implement the interface over the Gitea REST API (`/api/v1/repos/{owner}/{repo}/i
 - [ ] WHEN `list_issues` runs against a mocked Gitea response THEN it SHALL return normalized `Issue`s with `updated_at` and `body`.
 - [ ] WHEN the token/URL is absent THEN it SHALL raise a clear, actionable error (points to `tea login`).
 
-#### 2.4 Provider detection
-**Status: PENDING**
+#### 2.4 Provider detection ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/detect.py` (new — parse `git remote get-url origin` → github/gitea/none)
@@ -261,8 +261,8 @@ Implement the interface over the Gitea REST API (`/api/v1/repos/{owner}/{repo}/i
 
 ### Work Items
 
-#### 3.1 Three-way classifier
-**Status: PENDING**
+#### 3.1 Three-way classifier ✅ Completed 2026-07-18
+**Status:** COMPLETE [2026-07-18]
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/reconcile/classify.py` (new — match on `issue_number`, diff task vs issue vs `last_synced` base)
@@ -276,8 +276,8 @@ For every task/issue, classify against the `last_synced` base: new-local (no iss
 - [ ] WHEN both sides changed THEN it SHALL classify as changed-both (a conflict candidate).
 - [ ] WHEN an issue exists with no matching task THEN it SHALL classify as new-remote (adopt).
 
-#### 3.2 Resolution + field mapping
-**Status: PENDING**
+#### 3.2 Resolution + field mapping ✅ Completed 2026-07-18
+**Status:** COMPLETE [2026-07-18]
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/reconcile/resolve.py` (new — last-write-wins by `updated_at`; conflicts emitted, not auto-resolved)
@@ -292,8 +292,8 @@ One-sided changes apply to the other side. Two-sided conflicts are collected int
 - [ ] WHEN `status=in-progress` pushes THEN the issue SHALL be open with a `status/in-progress` label and no other `status/*` label.
 - [ ] WHEN an issue is closed remotely THEN the task SHALL become `done` on pull.
 
-#### 3.3 Plan/apply + prune
-**Status: PENDING**
+#### 3.3 Plan/apply + prune ✅ Completed 2026-07-18
+**Status:** COMPLETE [2026-07-18]
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/reconcile/plan.py` (new — build a `SyncPlan` [creates/pushes/pulls/conflicts/confidentiality-findings]; serialize to JSON)
@@ -342,8 +342,8 @@ One-sided changes apply to the other side. Two-sided conflicts are collected int
 
 ### Work Items
 
-#### 4.1 Secret/token detector
-**Status: PENDING**
+#### 4.1 Secret/token detector ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/confidential/secrets.py` (new — regexes: `ghp_`/`gho_`/`github_pat_`, `sk-`, AWS `AKIA`, PEM blocks, generic bearer/high-entropy)
@@ -356,8 +356,8 @@ The primary tracker-push risk. Detect common secret shapes with precise regexes 
 - [ ] WHEN a task body contains a `ghp_…` token THEN it SHALL be flagged CRITICAL.
 - [ ] WHEN a task contains an ordinary sentence THEN it SHALL NOT be flagged (no false positive on the negative-fixture corpus).
 
-#### 4.2 Structural identifier detectors (adapt cc-lab, generic only)
-**Status: PENDING**
+#### 4.2 Structural identifier detectors (adapt cc-lab, generic only) ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/confidential/patterns.py` (new — GENERIC regexes adapted from `contact-center-lab/pipeline/stage_B_redaction/patterns.py`: email, phone, IPv4, internal-hostname TLDs, ticket/asset IDs — with an attribution comment)
@@ -370,8 +370,8 @@ Adapt only the **structural, non-client-specific** regexes. **Do NOT copy `conta
 - [ ] WHEN task text contains an email or an internal `*.corp`/`*.internal` hostname THEN it SHALL be flagged.
 - [ ] WHEN the repo is grepped for known client brand strings THEN NONE SHALL be present in the tool source (verified by a test/CI check).
 
-#### 4.3 Terms config, dispositions, and memory
-**Status: PENDING**
+#### 4.3 Terms config, dispositions, and memory ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/confidential/scan.py` (new — combine detectors + per-repo sensitive-terms list from the tasks.json header/config; produce findings)
@@ -418,8 +418,8 @@ A finding carries {span, category, severity, suggestion}. Dispositions transform
 
 ### Work Items
 
-#### 5.1 SKILL.md (frontmatter + body)
-**Status: PENDING**
+#### 5.1 SKILL.md (frontmatter + body) ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `plugins/personal-plugin/skills/task-sync/SKILL.md` (new — `name: task-sync`, description ≤1024 with triggers, body <500 lines)
@@ -432,8 +432,8 @@ Author the skill via `/new-skill` conventions. Commands: `sync` (default), `list
 - [ ] WHEN `plugin validate --strict` runs THEN the skill SHALL pass (name==dir, valid frontmatter).
 - [ ] WHEN the SKILL.md body is counted THEN it SHALL be < 500 lines.
 
-#### 5.2 Plan → decide → apply orchestration
-**Status: PENDING**
+#### 5.2 Plan → decide → apply orchestration ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `SKILL.md` (the orchestration section)
@@ -476,8 +476,8 @@ The skill runs `sync --plan --json`, renders the plan (creates/pushes/pulls) plu
 
 ### Work Items
 
-#### 6.1 Eval + README + docs
-**Status: PENDING**
+#### 6.1 Eval + README + docs ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `evals/skills/task-sync.eval.md` (new — scenarios: init, add, push-create, adopt-remote, conflict, confidentiality disposition, prune; passes the #150 structural gate)
@@ -486,12 +486,12 @@ The skill runs `sync --plan --json`, renders the plan (creates/pushes/pulls) plu
 - `docs/PLUGIN-DEVELOPMENT.md` (optional — note task-sync as the reference tool-backed skill)
 
 **Acceptance Criteria:**
-- [ ] WHEN `check_eval_mapping.py` runs THEN task-sync SHALL be covered (eval present and well-formed).
-- [ ] WHEN `update-readme.py --check` runs THEN it SHALL exit 0 (README lists task-sync).
-- [ ] WHEN SECURITY.md is read THEN it SHALL document the tracker egress class.
+- [x] WHEN `check_eval_mapping.py` runs THEN task-sync SHALL be covered (eval present and well-formed).
+- [x] WHEN `update-readme.py --check` runs THEN it SHALL exit 0 (README lists task-sync).
+- [x] WHEN SECURITY.md is read THEN it SHALL document the tracker egress class.
 
-#### 6.2 ADR-0010 + CHANGELOG + version bump
-**Status: PENDING**
+#### 6.2 ADR-0010 + CHANGELOG + version bump ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `docs/adr/0010-task-sync-tool-architecture.md` (new — Status Accepted; Python tool + plan/apply + REST providers; alternatives: bash+jq, tea-CLI reads)
@@ -499,11 +499,11 @@ The skill runs `sync --plan --json`, renders the plan (creates/pushes/pulls) plu
 - `plugins/personal-plugin/.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` (version 11.1.0 → **11.2.0**, lockstep)
 
 **Acceptance Criteria:**
-- [ ] WHEN ADR-0010 is read THEN it SHALL record the tool-vs-bash decision with alternatives.
-- [ ] WHEN version-sync validation runs THEN plugin.json and marketplace.json SHALL both read 11.2.0.
+- [x] WHEN ADR-0010 is read THEN it SHALL record the tool-vs-bash decision with alternatives.
+- [x] WHEN version-sync validation runs THEN plugin.json and marketplace.json SHALL both read 11.2.0.
 
-#### 6.3 CI registration + branch protection
-**Status: PENDING**
+#### 6.3 CI registration + branch protection ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `.github/workflows/test.yml` (add task-sync lock to the `dependency-audit` job; optionally add a `python-compat` step — advisory)
@@ -513,8 +513,8 @@ The skill runs `sync --plan --json`, renders the plan (creates/pushes/pulls) plu
 Now that the job has been green across Phases 1–5, add its two checks to branch protection. Order: ensure the release PR is green first, then `gh api … --method PATCH` the required-checks list, then merge. This is the only step that touches branch protection and it happens last (avoids the D28 deadlock).
 
 **Acceptance Criteria:**
-- [ ] WHEN the required-checks list is read after this item THEN it SHALL include the two Task Sync checks (16 total).
-- [ ] WHEN `pip-audit` runs THEN it SHALL include the task-sync lock file.
+- [x] WHEN `pip-audit` runs THEN it SHALL include the task-sync lock file. (Code done: `.github/workflows/test.yml` dependency-audit job now runs `pip-audit --requirement plugins/personal-plugin/tools/task-sync/requirements-lock.txt`; advisory `python-compat` step for task-sync also added.)
+- [ ] WHEN the required-checks list is read after this item THEN it SHALL include the two Task Sync checks (16 total). **Deferred to orchestrator finalization** — the `gh api … --method PATCH` branch-protection update happens after this PR's `Task Sync Tests` job is confirmed green, per the D28 deadlock-avoidance ordering; not run by this work item.
 
 ### Phase 6 Testing Requirements
 
@@ -539,9 +539,9 @@ Now that the job has been green across Phases 1–5, add its two checks to branc
 
 | Risk | Phase/Item | Severity | Mitigation | Rollback |
 |------|-----------|----------|-----------|----------|
-| Copying `contact-center-lab` client terms into this public repo (leak) | 4.2 | **High** | Adapt only generic structural regexes; terms are per-repo config; a CI check asserts no client terms in source | Revert; strip the terms |
-| Branch-protection deadlock from a new required check | 1.1 → 6.3 | Medium | Add job un-required in Phase 1; require it only in Phase 6 after it is proven green | Remove the check from protection |
-| Reconcile bug silently corrupts a task list | Phase 3 | Medium | Plan/apply split, `--dry-run` default posture, exhaustive unit tests, committed `last_synced` base | Revert the sync via git (tasks.json is committed) |
+| Copying `contact-center-lab` client terms into this public repo (leak) | 4.2 | **High** | **Mitigated (2026-07-18):** only generic structural regexes adapted (no term lists copied); client terms are runtime per-repo config (`scan_task(sensitive_terms=…)`, never hardcoded); guardrail test `test_no_client_terms.py` AST-asserts the detector modules carry no proper-noun string lists and no reference to the sibling repo's client-identifying source files; `grep` of `src/` for known brand strings prints NO CLIENT TERMS | Revert; strip the terms |
+| Branch-protection deadlock from a new required check | 1.1 → 6.3 | Medium | **Mitigated (2026-07-18) — code side:** job kept non-required through Phases 1–5 as planned; task-sync lock now audited in `dependency-audit` (6.3). Final required-check flip via `gh api` is deferred to orchestrator finalization after this PR's `Task Sync Tests` job is confirmed green (avoids the D28 deadlock) | Remove the check from protection |
+| Reconcile bug silently corrupts a task list | Phase 3 | Medium | **Mitigated (2026-07-18):** plan/apply split shipped, `--dry-run`/`--plan` proven to write nothing (test + git-clean assert), exhaustive classify/resolve/mapping/prune tests, committed `last_synced` base; conflicts surfaced, never auto-clobbered | Revert the sync via git (tasks.json is committed) |
 | Secret slips into an issue (detector false negative) | 4.1 | Medium | Precise well-known-token regexes + GitGuardian backstop + public-repo visibility guardrail | Close/delete the issue; rotate the secret |
 | Gitea API pagination/rate limits on large repos | 2.3 | Low | Paginate reads; back off on 429 | n/a |
 | Windows CI portability (paths, subprocess) | all | Low | Pure Python, `pathlib`, no shell assumptions; the matrix catches it | Fix per failure |
@@ -570,7 +570,7 @@ Now that the job has been green across Phases 1–5, add its two checks to branc
 
 | ADR | Title | Status | Change Set |
 |-----|-------|--------|-----------|
-| ADR-0010 | task-sync tool architecture (Python tool, plan/apply, REST providers) | Proposed → Accepted (6.2) | Phase 6 |
+| ADR-0010 | task-sync tool architecture (Python tool, plan/apply, REST providers) | Accepted (6.2) | Phase 6 |
 
 ## Execution Notes
 

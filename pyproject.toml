@@ -4,6 +4,7 @@ testpaths = [
     "plugins/bpmn-plugin/tools/bpmn2drawio/tests",
     "plugins/personal-plugin/tools/feedback-docx-generator/tests",
     "plugins/personal-plugin/tools/visual-explainer/tests",
+    "plugins/personal-plugin/tools/task-sync/tests",
 ]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
@@ -11,6 +12,7 @@ pythonpath = [
     "plugins/bpmn-plugin/tools/bpmn2drawio/src",
     "plugins/personal-plugin/tools/feedback-docx-generator/src",
     "plugins/personal-plugin/tools/visual-explainer/src",
+    "plugins/personal-plugin/tools/task-sync/src",
 ]
 addopts = "--import-mode=importlib"
 asyncio_mode = "auto"

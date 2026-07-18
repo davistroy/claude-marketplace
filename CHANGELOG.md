@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.2.0] - 2026-07-18
+
+Adds **task-sync**: a new skill that keeps a per-repo `tasks.json` (with a generated `TASKS.md` view) reconciled with the repo's issue tracker (GitHub via `gh`, Gitea via its REST API). Built per ADR-0010 / D34.
+
+### Added
+- **task-sync skill + bundled Python tool** (`plugins/personal-plugin/tools/task-sync/`, stdlib-only): direct commands (`init`/`list`/`add`/`edit`/`done`/`remove`/`status`) plus a `sync` subcommand driven by a `plan → decide → apply` protocol — `sync --plan --json` computes creates/pushes/pulls/conflicts/confidentiality findings read-only, the skill renders them and collects explicit decisions, `sync --apply` executes exactly what was decided.
+- **3-way reconcile engine** classifying each task against its last-synced base (new-local/new-remote/changed-local/changed-remote/changed-both/unchanged); conflicts (both sides changed) are always surfaced for an explicit user decision and never auto-resolved, with last-write-wins offered only as a recommendation.
+- **Confidentiality scanner**: secret/token detection (`ghp_`/`sk-`/AWS keys/PEM/bearer tokens) plus generic structural detectors (email/phone/IP/internal hostname/ticket/asset id) and per-repo `sensitive_terms` config, gating every outbound create/push; `CRITICAL` findings require an explicit `keep`/`redact`/`remove`/`anonymize` disposition before anything leaves the machine.
+- **Public-repo visibility guardrail**: warns and requires explicit confirmation before the first push/create of a sync session against a public GitHub/Gitea repo.
+- **Prune**: `done` tasks whose linked issue has been closed longer than `config.prune_closed_after_days` (default 30) are pruned during `sync --apply` only.
+- New `Task Sync Tests` CI job (non-required through Phases 1–5, added to branch protection in Phase 6) and its lockfile added to the dependency-audit gate.
+
 ## [personal-plugin v11.1.0] - 2026-07-16
 
 Releases the post-11.0.0 backlog-burndown work (#125–#131) that had landed on `main` without a version bump — headlined by a new visual-explainer image-generation feature.

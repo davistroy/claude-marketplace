@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "task-sync"
+version = "0.1.0"
+description = "Local-first task tracker with reconciling sync to GitHub/Gitea issues"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+keywords = ["tasks", "issues", "github", "gitea", "sync"]
+# Dependency choice (Phase 1): stdlib only (json/argparse/dataclasses/urllib).
+# No pydantic — validation is explicit in models.py to keep the dependency
+# surface at zero for the local-only skeleton. httpx may be added in Phase 2
+# if the Gitea REST adapter needs it; the GitHub adapter shells out to `gh`.
+dependencies = []
+
+[project.scripts]
+task-sync = "task_sync.__main__:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-xdist>=3.5",
+    "mypy>=1.8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "--cov=task_sync --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/task_sync"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

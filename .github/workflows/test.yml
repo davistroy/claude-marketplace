@@ -152,6 +152,47 @@ jobs:
         run: |
           mypy src/ --ignore-missing-imports
 
+  # NON-required (Phase 1 of the task-sync build-out, per IMPLEMENTATION_PLAN.md):
+  # this job must run green on every PR but is deliberately withheld from
+  # branch protection until the tool has proven itself over several phases
+  # (added to required checks in Phase 6). This sequencing avoids a deadlock
+  # where a not-yet-existing required check would block the very PR that
+  # creates it.
+  task-sync:
+    name: Task Sync Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: plugins/personal-plugin/tools/task-sync
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v -n auto --cov=task_sync --cov-branch --cov-report=term-missing
+
+      - name: Type check
+        run: |
+          mypy src/ --ignore-missing-imports
+
   # Advisory (NON-required) Python 3.10/3.12 compatibility check. All three
   # tools declare requires-python >=3.10 but CI otherwise only exercises 3.11.
   # This is a SEPARATE job with distinct check names ("Python Compat (3.10)")
@@ -199,6 +240,12 @@ jobs:
           pip install -e ".[dev]"
           pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
 
+      - name: task-sync tests
+        working-directory: plugins/personal-plugin/tools/task-sync
+        run: |
+          pip install -e ".[dev]"
+          pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
+
   # pip-audit scans installed Python packages for known CVEs.
   # It checks the NIST NVD and PyPI advisory databases.
   dependency-audit:
@@ -231,6 +278,7 @@ jobs:
           pip-audit --requirement plugins/bpmn-plugin/tools/bpmn2drawio/requirements-lock.txt
           pip-audit --requirement plugins/personal-plugin/tools/visual-explainer/requirements-lock.txt
           pip-audit --requirement plugins/personal-plugin/tools/feedback-docx-generator/requirements-lock.txt
+          pip-audit --requirement plugins/personal-plugin/tools/task-sync/requirements-lock.txt
 
   schema-validation:
     name: Schema Validation

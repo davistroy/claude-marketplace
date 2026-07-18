@@ -934,3 +934,32 @@ Confirmed: bundled Python tool = 7 files + 1 CI job (2 required checks) + branch
 **Actions & Results:** archived completed prime-backlog plan → `docs/archive/IMPLEMENTATION_PLAN-v10.md`; wrote fresh IMPLEMENTATION_PLAN.md (below).
 
 **Duration:** ~plan generation. **Next:** /implement-plan (6 phases, one PR each; tool CI job stays un-required until Phase 6).
+
+### Entry 049 — Build task-sync (implement-plan execution) [skill] [build] [ci]
+**Date:** 2026-07-18
+**Environment:** Linux VM, branch `impl/task-sync` (off main `b181b4f`), via `/implement-plan` on IMPLEMENTATION_PLAN.md (task-sync, 6 phases/18 items). Running entry — updated before each phase commit (Rule 11).
+**Status:** COMPLETE
+
+**Objective:** Build the task-sync skill + bundled Python tool per the plan (D34, E048): tool skeleton+model → providers (GitHub gh / Gitea REST) → reconcile engine → confidentiality scanner → SKILL.md → registration+release.
+
+**Hypothesis:** Each phase leaves CI green; tool built bottom-up with tests to the coverage floor (start 90) + bare mypy + ruff; the tool CI job runs UN-required until Phase 6; personal-plugin → 11.2.0 at release. One feature branch, commit per phase, one PR at end (human-reviewed, no auto-merge).
+
+**Rollback Plan:** All on `impl/task-sync`; `git revert`/branch-delete per phase; `last_good_sha` in `.implement-plan-state.json`. No merge to main until the final reviewed PR. NON-NEGOTIABLE guardrail (Phase 4): never commit contact-center-lab client brand terms into this public repo.
+
+**Actions & Results:** (per phase, below)
+
+- Phase 1 (tool skeleton + model) COMPLETE: scaffolded `plugins/personal-plugin/tools/task-sync/` (stdlib-only package `task_sync`, argparse CLI with 8 subcommand stubs, `Task`/`TaskList` dataclass model, canonical atomic JSON store, pure-function `TASKS.md` renderer). Wired into root pyproject test aggregation + a new NON-required `Task Sync Tests` CI job (branch protection untouched — Phase 6). 63 tests / 96.8% coverage (floor 90) / mypy + ruff clean; independently re-verified (8/8 DoD checks pass).
+- Phase 2 (provider abstraction) COMPLETE: normalized `Issue` model + `Provider` protocol; GitHub adapter over `gh` (subprocess), Gitea adapter over the REST API via stdlib urllib (token from tea config — needed because `tea` CLI JSON lacks updated_at/body); provider detection from the git remote (github/gitea/none). Zero runtime deps; all provider I/O mocked in tests (no live network). Coverage ≥90, mypy+ruff clean.
+- Phase 3 (reconcile engine) COMPLETE: 3-way classify (new-local/new-remote/changed-local/changed-remote/changed-both/unchanged) against the last_synced base; resolution surfaces CHANGED_BOTH as a conflict (never auto-clobbers) with last-write-wins as the recommendation; status↔status/* label + priority↔priority/* + milestone mapping round-trips; plan/apply split (--plan/--dry-run write nothing, --apply executes against the Provider) + prune done>N days. Exhaustive matrix tests, Provider mocked. Coverage ≥90, mypy+ruff clean.
+- Phase 4 (confidentiality scanner) COMPLETE: secret/token detector (ghp_/sk-/AKIA/PEM/bearer, precision-first) as the primary tracker-push gate; GENERIC structural detectors adapted from cc-lab (email/phone/IP/internal-hostname/ticket/asset) — NO client terms copied; per-repo sensitive-terms from config (never hardcoded); dispositions keep/redact/remove/anonymize (stable-token) applied to the stored task + content-hash review memory. Guardrail test asserts no client/brand terms in source. Coverage ≥90, mypy+ruff clean.
+- Phase 5 (SKILL.md orchestration) COMPLETE: implemented the remaining tool subcommands (init/list+ls/add/edit/done+close/remove+rm/status — store ops + TASKS.md regen, tested) and authored the task-sync SKILL.md (name==dir, <500 lines, references/ for detail) driving the tool via plan→decide→apply: render plan+conflicts+confidentiality findings → prompt → apply; dry-run/init/public-repo visibility guardrail. plugin validate --strict passes.
+- Phase 5 fix: wired the confidentiality scan into `sync --plan` (was a documented gap — findings were always empty, skill used inline-python workaround). Now the tool emits populated `confidentiality_findings` for outbound (create/push) content using per-repo sensitive_terms + secret detectors, read-only (dry-run still writes nothing); SKILL reads them from the plan, no more inline heredocs.
+- Phase 6 (registration + release) COMPLETE: eval `evals/skills/task-sync.eval.md` (passes check_eval_mapping structural+coverage gate); README regenerated (task-sync listed, --check clean); SECURITY.md issue-tracker egress subsection; ADR-0010 (Accepted, tool-vs-bash + REST providers); CHANGELOG v11.2.0; personal-plugin bumped 11.1.0→11.2.0 lockstep; dependency-audit line for the task-sync lock. Branch-protection required-check update deferred to orchestrator finalization (after the job is green on the PR).
+
+**What Worked:** Per-phase subagent dispatch (sonnet for the tool skeleton/providers/CLI/registration, opus for the reconcile + confidentiality cores) with INDEPENDENT verification of every phase's DoD by a separate subagent. The independent verify caught a real integration gap in Phase 5 — the confidentiality scanner was built + unit-tested but NOT wired into `sync --plan`, so `confidentiality_findings` were always empty; the skill worked around it with fragile inline `python3` heredocs. Wiring the scanner into the tool closed the design's clean tool/skill boundary. Lesson: "built + unit-tested" is not "integrated" — a verify pass that only re-runs the unit tests would have missed it; ask specifically whether components are wired together end-to-end.
+
+**System insight:** The plan/apply (plan→decide→apply) split made the whole thing testable — the tool is a pure function of its inputs (dry-run provably writes nothing, conflicts never auto-clobber), and all the LLM interaction lives in the skill. The bundled-Python-tool choice (over bash+jq) paid off exactly where predicted: the reconcile + confidentiality logic hit 100% coverage and would have been untestable in bash.
+
+**Status:** COMPLETE — all 6 phases / 18 items; personal-plugin 11.2.0; final tool suite 335 tests / 95.89% coverage / mypy + ruff clean; NO client terms. PR pending (orchestrator finalization: branch-protection required-check flip after the job is green).
+
+**Duration:** ~6-phase autonomous build.
