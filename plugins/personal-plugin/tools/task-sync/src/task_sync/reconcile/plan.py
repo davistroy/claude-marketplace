@@ -6,8 +6,13 @@ and confidentiality findings. It is what ``sync --plan --json`` emits and
 what ``sync --dry-run`` summarizes. Building a plan is **pure** — it reads a
 classification/resolution and writes nothing; only ``apply`` mutates state.
 
-``confidentiality_findings`` is wired in but always empty here; Phase 4 fills
-it before any push leaves the machine.
+``confidentiality_findings`` starts empty out of :func:`build_plan` itself —
+that function stays pure, taking no task content and doing no I/O. It is
+populated by the CLI's ``sync --plan``/``--dry-run`` path
+(``task_sync.__main__.run_sync``), which scans every ``creates``/``pushes``
+task's current content via ``task_sync.confidential.scan.scan_task`` and
+assigns the result onto ``plan.confidentiality_findings`` before printing —
+still read-only, still writing nothing.
 """
 
 from __future__ import annotations

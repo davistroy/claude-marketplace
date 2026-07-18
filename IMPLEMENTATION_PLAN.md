@@ -418,8 +418,8 @@ A finding carries {span, category, severity, suggestion}. Dispositions transform
 
 ### Work Items
 
-#### 5.1 SKILL.md (frontmatter + body)
-**Status: PENDING**
+#### 5.1 SKILL.md (frontmatter + body) ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `plugins/personal-plugin/skills/task-sync/SKILL.md` (new — `name: task-sync`, description ≤1024 with triggers, body <500 lines)
@@ -432,8 +432,8 @@ Author the skill via `/new-skill` conventions. Commands: `sync` (default), `list
 - [ ] WHEN `plugin validate --strict` runs THEN the skill SHALL pass (name==dir, valid frontmatter).
 - [ ] WHEN the SKILL.md body is counted THEN it SHALL be < 500 lines.
 
-#### 5.2 Plan → decide → apply orchestration
-**Status: PENDING**
+#### 5.2 Plan → decide → apply orchestration ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `SKILL.md` (the orchestration section)

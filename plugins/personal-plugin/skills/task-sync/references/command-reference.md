@@ -1,0 +1,135 @@
+# task-sync Command Reference
+
+Every subcommand below is invoked the same way:
+
+```bash
+PYTHONPATH="$TOOL_SRC" python3 -m task_sync <command> [args...] [--tasks <path>]
+```
+
+`--tasks` defaults to `tasks.json` in the current working directory and is
+accepted by every subcommand. Every mutating command (`init` when creating,
+`add`, `edit`, `done`, `remove`) saves `tasks.json` canonically (stable key
+order, tasks sorted by id, atomic write) and regenerates `TASKS.md` in the
+same directory before returning.
+
+## `init`
+
+```bash
+python3 -m task_sync init [--tasks tasks.json] [--repo-root .]
+```
+
+Creates `tasks.json` if it does not already exist: detects `provider`
+(`github`/`gitea`/`none`) from the `origin` remote at `--repo-root`, writes the
+header (`provider`, `repo`, `last_sync_at: null`, `config:
+{prune_closed_after_days: 30, sensitive_terms: []}`), and generates
+`TASKS.md`. If `tasks.json` already exists this is a no-op on the file itself,
+but `TASKS.md` is still regenerated from current content (so a stale/deleted
+`TASKS.md` is repaired). Always safe to run — use it as the "make sure this
+repo is set up" step before any other command.
+
+## `list` (alias `ls`)
+
+```bash
+python3 -m task_sync list [--status S] [--priority P] [--milestone M] [--sort FIELD] [--all]
+```
+
+Prints the open-tasks table (`#`, priority, status, title, labels; `blocked`
+tasks show what they are waiting on if `last_synced.blocked_on` is set).
+`done` tasks are hidden unless `--status done` or `--all` is given.
+
+- `--status` — exact-match filter on one status (`backlog`/`todo`/
+  `in-progress`/`blocked`/`done`).
+- `--priority` — exact-match filter on one priority (`P1`-`P4`).
+- `--milestone` — exact-match filter on milestone name.
+- `--sort` — any `Task` field name (e.g. `title`, `priority`, `id`); ties
+  break on `id`. Omit for the default status → priority → id ordering.
+- `--all` — include `done` tasks without narrowing to only `done`.
+
+Filters combine with AND (all given filters must match).
+
+## `add "title"`
+
+```bash
+python3 -m task_sync add "Write the release notes" \
+  --body "..." --priority P2 --labels "backend,urgent" --milestone v1
+```
+
+Creates a new task with `status: todo` (the only default; there is no way to
+add directly into another status — use `edit` afterward if needed), a fresh
+`id` (`t-` + 6 hex chars), `created_at`/`updated_at` stamped now, and prints
+the added task's one-line summary. `--labels` is a single comma-separated
+value; whitespace around each label is stripped and empty entries dropped.
+`--priority`, if given, must be one of `P1`-`P4` or the tool rejects it with a
+`ValueError`-derived message.
+
+## `edit <id|#>`
+
+```bash
+python3 -m task_sync edit t-ab12cd --status in-progress --priority P1
+python3 -m task_sync edit 42 --title "New title"          # by issue number
+python3 -m task_sync edit "#42" --labels "a,b"             # '#'-prefixed also matches
+```
+
+Updates only the fields explicitly passed (`--title`, `--body`, `--status`,
+`--priority`, `--labels`, `--milestone`); anything omitted is left as-is.
+`--labels` **replaces** the full label set (there is no add/remove-one
+primitive — pass the complete desired list). `updated_at` is always
+refreshed. The merged result is re-validated the same way a fresh task would
+be (invalid `--status`/`--priority` values are rejected before anything is
+written). Matches `<id|#>` against the task's `id` first, then — if the ref is
+numeric (optionally `#`-prefixed) — against `issue_number`.
+
+## `done <id|#>` (alias `close`)
+
+```bash
+python3 -m task_sync done t-ab12cd
+python3 -m task_sync close 42
+```
+
+Sets `status: done` and stamps `closed_at`/`updated_at` to now. Does not touch
+the tracker — that only happens on the next `sync --apply` (which will close
+the corresponding issue as part of the push). A `done` task is hidden from
+`list`'s default view (use `--all` or `--status done` to see it) and is a
+candidate for pruning by `sync --apply` once its issue has been closed for
+longer than `config.prune_closed_after_days`.
+
+## `remove <id|#>` (alias `rm`)
+
+```bash
+python3 -m task_sync remove t-ab12cd
+python3 -m task_sync rm 42
+```
+
+Deletes the task from `tasks.json` entirely. This does **not** close or
+delete the corresponding tracker issue (there is nothing left locally to push
+that state) — if the task was already linked to an issue, close it on the
+tracker separately if that is also the intent. Irreversible other than via
+git history on `tasks.json` (assuming it is committed).
+
+## `status`
+
+```bash
+python3 -m task_sync status
+```
+
+Prints counts by status (`backlog`/`todo`/`in-progress`/`blocked`/`done`,
+plus `total` and `open`), `last_sync_at` (or `never`), the detected
+`provider`/`repo`, and a health hint: if any `done` task has been closed for
+longer than `config.prune_closed_after_days`, it is called out as
+prune-eligible on the next `sync --apply`; otherwise "health: ok" is printed.
+
+## `sync`
+
+```bash
+python3 -m task_sync sync --dry-run                          # default: preview only
+python3 -m task_sync sync --plan --json                       # machine-readable plan, writes nothing
+python3 -m task_sync sync --apply --decisions decisions.json  # execute
+```
+
+The only subcommand this skill does not call directly for its own output —
+see the SKILL.md "Plan → Decide → Apply" section for the full orchestration.
+`--plan`, `--dry-run`, and `--apply` are mutually exclusive; `--dry-run` (or
+no mode flag at all) is the default and is always safe — it never writes
+`tasks.json` or `TASKS.md` and never calls the tracker's write API. In
+local-only mode (no tracker remote detected) `sync` prints a notice and exits
+0 immediately; there is nothing to reconcile.

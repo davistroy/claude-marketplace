@@ -62,20 +62,42 @@ def _sort_key(task: Task) -> tuple[int, str, str]:
     return (status_rank, priority, task.id)
 
 
-def render_open(tasklist: TaskList, filters: dict[str, Any] | None = None) -> str:
+def _sort_field_value(task: Task, sort: str) -> str:
+    value = getattr(task, sort, None)
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ", ".join(value)
+    return str(value)
+
+
+def render_open(
+    tasklist: TaskList,
+    filters: dict[str, Any] | None = None,
+    *,
+    include_done: bool = False,
+    sort: str | None = None,
+) -> str:
     """Render the open-tasks table.
 
     `done` tasks are hidden by default; pass `filters={"status": "done"}`
-    (or another explicit status) to see only that status, including "done".
+    (or another explicit status) to see only that status, including "done",
+    or `include_done=True` to show every status without narrowing to one.
     Any other filter key/value pair is matched by exact equality against the
-    corresponding `Task` attribute.
+    corresponding `Task` attribute. `sort`, when given, is a `Task`
+    attribute name to sort by (ties broken by `id`); otherwise the default
+    status/priority/id ordering is used.
     """
     candidates = [task for task in tasklist.tasks if _matches_filters(task, filters)]
 
-    if not filters or "status" not in filters:
+    hide_done = not include_done and (not filters or "status" not in filters)
+    if hide_done:
         candidates = [task for task in candidates if task.status not in _DEFAULT_HIDDEN_STATUSES]
 
-    candidates.sort(key=_sort_key)
+    if sort:
+        candidates.sort(key=lambda task: (_sort_field_value(task, sort), task.id))
+    else:
+        candidates.sort(key=_sort_key)
 
     rows: list[tuple[str, str, str, str, str]] = [
         (

@@ -21,6 +21,7 @@ from task_sync.__main__ import (
     _apply_summary,
     _build_provider,
     _load_decisions,
+    _scan_confidentiality,
     build_parser,
     main,
     run_sync,
@@ -147,6 +148,127 @@ def test_plan_json_writes_nothing_and_emits_valid_plan(
     assert len(payload["creates"]) == 1  # the local task
     assert len(payload["pulls"]) == 1  # the NEW_REMOTE issue
     assert payload["confidentiality_findings"] == []
+
+
+# -- confidentiality scan is wired into --plan/--dry-run --------------------
+
+
+def test_plan_populates_confidentiality_findings_for_secret_bearing_create(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A create/push whose body carries a live-looking secret is flagged in the plan."""
+    ghp_token = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
+    tl = TaskList(
+        provider="github",
+        repo="o/r",
+        tasks=[
+            Task(
+                id="t-secret",
+                title="local task",
+                body=f"connect using token {ghp_token}",
+                issue_number=None,
+            )
+        ],
+    )
+    tasks_path = _committed_repo(tmp_path, tl)
+    before = tasks_path.read_bytes()
+
+    provider = MockProvider(issues=[])
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    rc = run_sync(_parse(tasks_path, tmp_path, "--plan", "--json"), provider=provider)  # type: ignore[arg-type]
+
+    assert rc == 0
+    # Provably side-effect-free even though findings were produced.
+    assert tasks_path.read_bytes() == before
+    assert _git_status(tmp_path) == ""
+
+    payload = json.loads(capsys.readouterr().out)
+    findings = payload["confidentiality_findings"]
+    assert len(findings) == 1
+    assert findings[0]["task_id"] == "t-secret"
+    categories = {f["category"] for f in findings[0]["findings"]}
+    assert "secret.github" in categories
+
+
+def test_dry_run_with_secret_still_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--dry-run` surfaces the same findings but remains provably write-nothing."""
+    ghp_token = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
+    tl = TaskList(
+        provider="github",
+        repo="o/r",
+        tasks=[
+            Task(
+                id="t-secret",
+                title="local task",
+                body=f"connect using token {ghp_token}",
+                issue_number=None,
+            )
+        ],
+    )
+    tasks_path = _committed_repo(tmp_path, tl)
+    before = tasks_path.read_bytes()
+
+    provider = MockProvider(issues=[])
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    rc = run_sync(_parse(tasks_path, tmp_path, "--dry-run"), provider=provider)  # type: ignore[arg-type]
+
+    assert rc == 0
+    assert tasks_path.read_bytes() == before
+    assert _git_status(tmp_path) == ""
+    assert provider.method_calls("create_issue") == []
+    assert provider.method_calls("update_issue") == []
+    out = capsys.readouterr().out
+    assert "confidentiality findings:  1" in out
+
+
+def test_plan_flags_sensitive_term_on_push() -> None:
+    """A push whose body contains a configured sensitive term is flagged."""
+    task = Task(id="t-push", title="push me", body="the Zephyrix rollout continues", status="todo")
+    task.last_synced = {"hash": "stale-hash", "at": BASE_AT}  # local diverged from base
+    task.issue_number = 5
+    tl = TaskList(
+        provider="github",
+        repo="o/r",
+        config={"sensitive_terms": ["Zephyrix"]},
+        tasks=[task],
+    )
+    issue = _issue(number=5, updated=BASE_AT)  # remote unchanged -> CHANGED_LOCAL -> push
+    plan = build_plan(classify(tl, [issue]))
+    assert len(plan.pushes) == 1
+
+    findings = _scan_confidentiality(plan, tl)
+    assert len(findings) == 1
+    assert findings[0]["task_id"] == "t-push"
+    assert findings[0]["findings"][0]["category"] == "sensitive-term"
+
+
+def test_clean_outbound_task_yields_no_confidentiality_findings() -> None:
+    """A create with no secrets/terms produces zero findings."""
+    tl = TaskList(tasks=[Task(id="t-1", title="tidy task", body="nothing sensitive here")])
+    plan = build_plan(classify(tl, []))
+    assert len(plan.creates) == 1
+    assert _scan_confidentiality(plan, tl) == []
+
+
+def test_already_reviewed_unchanged_task_is_not_reflagged() -> None:
+    """A task whose confidentiality review still covers its content is skipped."""
+    from task_sync.confidential.apply import apply_review
+    from task_sync.confidential.scan import scan_task as _scan
+
+    task = Task(id="t-1", title="task", body="the Zephyrix rollout continues")
+    findings = _scan(task, ["Zephyrix"])
+    assert findings  # sanity: the term is actually detected pre-review
+    apply_review(task, findings, "keep", at=BASE_AT)  # stamps confidentiality.reviewed_hash
+
+    tl = TaskList(config={"sensitive_terms": ["Zephyrix"]}, tasks=[task])
+    plan = build_plan(classify(tl, []))
+    assert len(plan.creates) == 1  # still a NEW_LOCAL create
+
+    assert _scan_confidentiality(plan, tl) == []
 
 
 # -- build_plan is pure -----------------------------------------------------
