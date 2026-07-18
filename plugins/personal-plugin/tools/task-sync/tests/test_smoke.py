@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from task_sync.__main__ import SUBCOMMANDS, build_parser, main
+from task_sync.__main__ import STUB_SUBCOMMANDS, SUBCOMMANDS, build_parser, main
 
 
 def test_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
@@ -23,7 +23,7 @@ def test_subcommand_help_exits_zero(name: str, capsys: pytest.CaptureFixture[str
     assert exc_info.value.code == 0
 
 
-@pytest.mark.parametrize("name", SUBCOMMANDS)
+@pytest.mark.parametrize("name", STUB_SUBCOMMANDS)
 def test_subcommand_stub_runs_and_prints_notice(
     name: str, capsys: pytest.CaptureFixture[str]
 ) -> None:

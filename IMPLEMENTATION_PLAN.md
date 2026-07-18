@@ -261,8 +261,8 @@ Implement the interface over the Gitea REST API (`/api/v1/repos/{owner}/{repo}/i
 
 ### Work Items
 
-#### 3.1 Three-way classifier
-**Status: PENDING**
+#### 3.1 Three-way classifier ✅ Completed 2026-07-18
+**Status:** COMPLETE [2026-07-18]
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/reconcile/classify.py` (new — match on `issue_number`, diff task vs issue vs `last_synced` base)
@@ -276,8 +276,8 @@ For every task/issue, classify against the `last_synced` base: new-local (no iss
 - [ ] WHEN both sides changed THEN it SHALL classify as changed-both (a conflict candidate).
 - [ ] WHEN an issue exists with no matching task THEN it SHALL classify as new-remote (adopt).
 
-#### 3.2 Resolution + field mapping
-**Status: PENDING**
+#### 3.2 Resolution + field mapping ✅ Completed 2026-07-18
+**Status:** COMPLETE [2026-07-18]
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/reconcile/resolve.py` (new — last-write-wins by `updated_at`; conflicts emitted, not auto-resolved)
@@ -292,8 +292,8 @@ One-sided changes apply to the other side. Two-sided conflicts are collected int
 - [ ] WHEN `status=in-progress` pushes THEN the issue SHALL be open with a `status/in-progress` label and no other `status/*` label.
 - [ ] WHEN an issue is closed remotely THEN the task SHALL become `done` on pull.
 
-#### 3.3 Plan/apply + prune
-**Status: PENDING**
+#### 3.3 Plan/apply + prune ✅ Completed 2026-07-18
+**Status:** COMPLETE [2026-07-18]
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/reconcile/plan.py` (new — build a `SyncPlan` [creates/pushes/pulls/conflicts/confidentiality-findings]; serialize to JSON)
@@ -541,7 +541,7 @@ Now that the job has been green across Phases 1–5, add its two checks to branc
 |------|-----------|----------|-----------|----------|
 | Copying `contact-center-lab` client terms into this public repo (leak) | 4.2 | **High** | Adapt only generic structural regexes; terms are per-repo config; a CI check asserts no client terms in source | Revert; strip the terms |
 | Branch-protection deadlock from a new required check | 1.1 → 6.3 | Medium | Add job un-required in Phase 1; require it only in Phase 6 after it is proven green | Remove the check from protection |
-| Reconcile bug silently corrupts a task list | Phase 3 | Medium | Plan/apply split, `--dry-run` default posture, exhaustive unit tests, committed `last_synced` base | Revert the sync via git (tasks.json is committed) |
+| Reconcile bug silently corrupts a task list | Phase 3 | Medium | **Mitigated (2026-07-18):** plan/apply split shipped, `--dry-run`/`--plan` proven to write nothing (test + git-clean assert), exhaustive classify/resolve/mapping/prune tests, committed `last_synced` base; conflicts surfaced, never auto-clobbered | Revert the sync via git (tasks.json is committed) |
 | Secret slips into an issue (detector false negative) | 4.1 | Medium | Precise well-known-token regexes + GitGuardian backstop + public-repo visibility guardrail | Close/delete the issue; rotate the secret |
 | Gitea API pagination/rate limits on large repos | 2.3 | Low | Paginate reads; back off on 429 | n/a |
 | Windows CI portability (paths, subprocess) | all | Low | Pure Python, `pathlib`, no shell assumptions; the matrix catches it | Fix per failure |
