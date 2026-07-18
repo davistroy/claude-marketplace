@@ -342,8 +342,8 @@ One-sided changes apply to the other side. Two-sided conflicts are collected int
 
 ### Work Items
 
-#### 4.1 Secret/token detector
-**Status: PENDING**
+#### 4.1 Secret/token detector ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/confidential/secrets.py` (new — regexes: `ghp_`/`gho_`/`github_pat_`, `sk-`, AWS `AKIA`, PEM blocks, generic bearer/high-entropy)
@@ -356,8 +356,8 @@ The primary tracker-push risk. Detect common secret shapes with precise regexes 
 - [ ] WHEN a task body contains a `ghp_…` token THEN it SHALL be flagged CRITICAL.
 - [ ] WHEN a task contains an ordinary sentence THEN it SHALL NOT be flagged (no false positive on the negative-fixture corpus).
 
-#### 4.2 Structural identifier detectors (adapt cc-lab, generic only)
-**Status: PENDING**
+#### 4.2 Structural identifier detectors (adapt cc-lab, generic only) ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/confidential/patterns.py` (new — GENERIC regexes adapted from `contact-center-lab/pipeline/stage_B_redaction/patterns.py`: email, phone, IPv4, internal-hostname TLDs, ticket/asset IDs — with an attribution comment)
@@ -370,8 +370,8 @@ Adapt only the **structural, non-client-specific** regexes. **Do NOT copy `conta
 - [ ] WHEN task text contains an email or an internal `*.corp`/`*.internal` hostname THEN it SHALL be flagged.
 - [ ] WHEN the repo is grepped for known client brand strings THEN NONE SHALL be present in the tool source (verified by a test/CI check).
 
-#### 4.3 Terms config, dispositions, and memory
-**Status: PENDING**
+#### 4.3 Terms config, dispositions, and memory ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: opus**
 **Files Affected:**
 - `src/task_sync/confidential/scan.py` (new — combine detectors + per-repo sensitive-terms list from the tasks.json header/config; produce findings)
@@ -539,7 +539,7 @@ Now that the job has been green across Phases 1–5, add its two checks to branc
 
 | Risk | Phase/Item | Severity | Mitigation | Rollback |
 |------|-----------|----------|-----------|----------|
-| Copying `contact-center-lab` client terms into this public repo (leak) | 4.2 | **High** | Adapt only generic structural regexes; terms are per-repo config; a CI check asserts no client terms in source | Revert; strip the terms |
+| Copying `contact-center-lab` client terms into this public repo (leak) | 4.2 | **High** | **Mitigated (2026-07-18):** only generic structural regexes adapted (no term lists copied); client terms are runtime per-repo config (`scan_task(sensitive_terms=…)`, never hardcoded); guardrail test `test_no_client_terms.py` AST-asserts the detector modules carry no proper-noun string lists and no reference to the sibling repo's client-identifying source files; `grep` of `src/` for known brand strings prints NO CLIENT TERMS | Revert; strip the terms |
 | Branch-protection deadlock from a new required check | 1.1 → 6.3 | Medium | Add job un-required in Phase 1; require it only in Phase 6 after it is proven green | Remove the check from protection |
 | Reconcile bug silently corrupts a task list | Phase 3 | Medium | **Mitigated (2026-07-18):** plan/apply split shipped, `--dry-run`/`--plan` proven to write nothing (test + git-clean assert), exhaustive classify/resolve/mapping/prune tests, committed `last_synced` base; conflicts surfaced, never auto-clobbered | Revert the sync via git (tasks.json is committed) |
 | Secret slips into an issue (detector false negative) | 4.1 | Medium | Precise well-known-token regexes + GitGuardian backstop + public-repo visibility guardrail | Close/delete the issue; rotate the secret |
