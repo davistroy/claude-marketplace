@@ -240,6 +240,12 @@ jobs:
           pip install -e ".[dev]"
           pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
 
+      - name: task-sync tests
+        working-directory: plugins/personal-plugin/tools/task-sync
+        run: |
+          pip install -e ".[dev]"
+          pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
+
   # pip-audit scans installed Python packages for known CVEs.
   # It checks the NIST NVD and PyPI advisory databases.
   dependency-audit:
@@ -272,6 +278,7 @@ jobs:
           pip-audit --requirement plugins/bpmn-plugin/tools/bpmn2drawio/requirements-lock.txt
           pip-audit --requirement plugins/personal-plugin/tools/visual-explainer/requirements-lock.txt
           pip-audit --requirement plugins/personal-plugin/tools/feedback-docx-generator/requirements-lock.txt
+          pip-audit --requirement plugins/personal-plugin/tools/task-sync/requirements-lock.txt
 
   schema-validation:
     name: Schema Validation

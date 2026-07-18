@@ -121,9 +121,15 @@ Retention windows, training-data usage, and human-review policies **differ by pr
 
 **Do not assume zero-retention or no-training-use by default.** Free/individual API tiers for some providers historically differ from paid/enterprise tiers on exactly these points. Verify the current terms for the account actually configured (see `.env` / Bitwarden item naming per the root `CLAUDE.md`) before sending regulated data through any of the tools in the table above.
 
-### Cross-Reference: Fleet Recon/Audit Trust Boundary
+### Issue-Tracker Egress (task-sync)
 
-The egress concern in this section is document/content confidentiality -- what leaves your machine when a command calls an AI provider. It is a distinct trust boundary from the one documented in Section 6, "Fleet recon/audit trust boundary," which covers SSH/sudo blast radius when `spark-audit`, `jetson-audit`, `spark-recon`, and `jetson-recon` interact with the personal fleet and untrusted web content. Both are documented, neither is fully closed -- see Section 6 for the fleet-specific mitigations and residual risk.
+`/task-sync` introduces a **different egress class** from everything else in this section: authenticated calls to an **issue tracker** (GitHub via the `gh` CLI, Gitea via its REST API), not an LLM provider. Nothing in the table above covers it, so it is called out on its own.
+
+- **What leaves the machine:** task titles, bodies, labels, milestones, and status for any task the plan-decide-apply sync creates or pushes as an issue. Reads (pulling issue state to reconcile locally) are lower-risk but still authenticated calls to the same API.
+- **Destination:** the tracker configured for the current repo's `origin` remote -- GitHub (via the already-authenticated `gh` CLI) or Gitea (via REST, using the token in `~/.config/tea/config.yml`). Never an LLM API; the bundled `task_sync` tool has zero third-party AI dependencies.
+- **Confidentiality scan gates outbound content.** Before any create/push, `sync --plan` scans the affected task's title/body for secret/token shapes (`ghp_`, `sk-`, AWS keys, PEM blocks, bearer tokens) and generic structural identifiers (emails, internal hostnames, ticket/asset IDs), plus any per-repo `sensitive_terms` configured in `tasks.json`. `CRITICAL` findings (recognizable secret shapes) block that item until the user explicitly dispositions it (`keep`/`redact`/`remove`/`anonymize`) -- the skill never lets a flagged push proceed silently, and the scan output itself never prints the full secret, only a redacted preview.
+- **Public-repo visibility guardrail.** Before the first push/create of a sync session, the skill checks the target repo's visibility (`gh repo view --json visibility`, or the Gitea REST equivalent) and requires an explicit "yes" if the repo is public -- pushing task content to a public tracker is a materially different exposure than a private one, and this guardrail exists so that is never assumed silently.
+- **What this does NOT cover:** the confidentiality scan is a content-shape detector, not a classification engine -- it catches known secret patterns and configured terms, not every form of regulated data. Classify task content the same way you would classify input to any other command (Data Classification, above) before syncing it to a tracker, especially a public one.
 
 ---
 

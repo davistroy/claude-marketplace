@@ -38,7 +38,7 @@ You can install to different scopes:
 
 ### personal-plugin
 
-23 commands and 28 skills for productivity workflows, code review, document processing, and security analysis.
+23 commands and 29 skills for productivity workflows, code review, document processing, and security analysis.
 
 **23 Commands:**
 | Command | Description |
@@ -67,7 +67,7 @@ You can install to different scopes:
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create PR (merge onl... |
 | [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content for consistency and correctness (supports `--... |
 
-**28 Skills:**
+**29 Skills:**
 | Skill | Description |
 |-------|-------------|
 | [`/accessibility-annotator`](plugins/personal-plugin/skills/accessibility-annotator/SKILL.md) | Analyze technical documents for CS/ML concepts a smart non-CS reader wouldn't understand, recomme... |
@@ -94,6 +94,7 @@ You can install to different scopes:
 | [`/spark-recon`](plugins/personal-plugin/skills/spark-recon/SKILL.md) | Use when checking on DGX Spark inference performance landscape — scans Arena leaderboard, vLLM re... |
 | [`/spec-to-prototype`](plugins/personal-plugin/skills/spec-to-prototype/SKILL.md) | Use when the user has a spec document, design system reference, component library doc, wireframe... |
 | [`/summarize-feedback`](plugins/personal-plugin/skills/summarize-feedback/SKILL.md) | Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment docu... |
+| [`/task-sync`](plugins/personal-plugin/skills/task-sync/SKILL.md) | Manage a local task/backlog list (tasks.json + a generated TASKS.md) for the current repo and rec... |
 | [`/ultra-plan`](plugins/personal-plugin/skills/ultra-plan/SKILL.md) | "Structured implementation planning for bug lists, feature requests, or change sets. |
 | [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment using bws CLI. |
 | [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated infographic pages that explain concepts visually us... |
