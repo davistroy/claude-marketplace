@@ -912,3 +912,25 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 **What Worked:** Section-by-section validation surfaced two reframes the user hadn't stated but agreed with — (1) "mirror" is actually bidirectional, (2) format choice doesn't buy sort/filter/edit; the interface does. Also caught the public-repo trap (committed `tasks.json` is world-readable), which reshaped the confidentiality model.
 **Next:** `/ultra-plan` the design → resolve the Python-vs-bash fork → `/implement-plan`.
 **Duration:** ~design conversation.
+
+### Entry 048 — /ultra-plan task-sync → fresh IMPLEMENTATION_PLAN.md [plan] [skill]
+**Date:** 2026-07-18
+**Environment:** Linux VM, branch `plan/task-sync` off main `a6955cc`. Trigger: `/ultra-plan docs/plans/2026-07-18-task-sync-design.md`, user chose Python-tool (fork A), approved Phase 4 summary, said "implement".
+**Status:** COMPLETE (plan generation; build is the next /implement-plan run)
+
+**Objective:** Turn the approved task-sync design (D34, `docs/plans/2026-07-18-task-sync-design.md`) into a formal 6-phase IMPLEMENTATION_PLAN.md.
+
+**Investigation corrections folded in (Phase 1):**
+1. **Confidentiality "reuse" was false** — `leak-risk-audit`/`remove-ip` are PROMPT-ONLY, no callable machinery. Real deterministic patterns live in sibling repo `contact-center-lab` (`stage_B_redaction/patterns.py`, `leak_scan.py`, `mapping_db.py`) — copy/adapt, not importable. Neither covers generic secrets/tokens (the #1 tracker-push leak) → task-sync builds its own secret detector + adapts cc-lab's GENERIC structural regexes only. **⚠ cc-lab's hardcoded client brand terms must NOT be copied into this public repo — that would itself leak; sensitive-terms are per-repo config.**
+2. **Gitea reads need the REST API** — `tea` CLI JSON omits `updated_at`/`body` (labels space-joined), breaking last-write-wins. Verified the Gitea REST API (token in tea config, reachable) returns the full GitHub-compatible shape → both providers read via REST behind one normalized adapter interface.
+Confirmed: bundled Python tool = 7 files + 1 CI job (2 required checks) + branch-protection lockstep + root-pyproject aggregation + dependency-audit line; new skill needs an eval (#150 gate), README regen (#149), SECURITY.md egress note, personal-plugin minor bump.
+
+**Key design decision (ADR-0010, to be authored in build phase 6):** Python tool (not bash+jq) — reconcile/confidentiality are deterministic, correctness-critical, test-worthy; bash+jq untestable + Windows-fragile; a sync bug silently corrupts task lists. Tool is NON-interactive (plan→decide→apply protocol: `sync --plan --json` emits push/pull/conflicts/confidentiality-findings; SKILL renders + prompts; `sync --apply --decisions`); the SKILL owns all interaction, the tool owns logic.
+
+**Hypothesis:** Fresh IMPLEMENTATION_PLAN.md, 6 phases (~18 items), one-branch-per-phase; each phase leaves CI green (tool CI job runs un-required until phase 6 proves it green, then branch protection updated — avoids the D28 deadlock). Old prime-backlog plan archived → v10.
+
+**Rollback Plan:** Plan-doc + notebook + v10 archive only (no code). `git checkout` pre-commit / branch delete. Actual Phases 1-6 each carry their own rollback in the plan.
+
+**Actions & Results:** archived completed prime-backlog plan → `docs/archive/IMPLEMENTATION_PLAN-v10.md`; wrote fresh IMPLEMENTATION_PLAN.md (below).
+
+**Duration:** ~plan generation. **Next:** /implement-plan (6 phases, one PR each; tool CI job stays un-required until Phase 6).
