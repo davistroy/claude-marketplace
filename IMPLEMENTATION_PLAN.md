@@ -178,8 +178,8 @@ Render the open-tasks table (the design's mock: `#`, priority, status, title, la
 
 ### Work Items
 
-#### 2.1 Normalized Issue model + provider interface
-**Status: PENDING**
+#### 2.1 Normalized Issue model + provider interface ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/providers/base.py` (new — `Issue` dataclass; `Provider` protocol: `list_issues`, `create_issue`, `update_issue`, `set_state`, `ensure_labels`, `ensure_milestone`, `visibility`)
@@ -191,8 +191,8 @@ Define a provider-agnostic `Issue` (number, title, body, state, labels, mileston
 **Acceptance Criteria:**
 - [ ] WHEN either adapter returns issues THEN they SHALL be normalized to the same `Issue` shape (labels as a list, timestamps as aware datetimes).
 
-#### 2.2 GitHub adapter
-**Status: PENDING**
+#### 2.2 GitHub adapter ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/providers/github.py` (new — wraps `gh issue list --json …`, `gh issue create/edit/close/reopen`, `gh api` for milestones + visibility)
@@ -205,8 +205,8 @@ Implement the interface over `gh`. Read via `gh issue list --state all --json nu
 - [ ] WHEN `list_issues` runs against mocked `gh` output THEN it SHALL return normalized `Issue`s including `updated_at`.
 - [ ] WHEN `visibility()` runs THEN it SHALL return public/private from `gh repo view`.
 
-#### 2.3 Gitea adapter (REST)
-**Status: PENDING**
+#### 2.3 Gitea adapter (REST) ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/providers/gitea.py` (new — REST client; token + base URL from `~/.config/tea/config.yml`; GET/POST/PATCH issues, labels, milestones)
@@ -219,8 +219,8 @@ Implement the interface over the Gitea REST API (`/api/v1/repos/{owner}/{repo}/i
 - [ ] WHEN `list_issues` runs against a mocked Gitea response THEN it SHALL return normalized `Issue`s with `updated_at` and `body`.
 - [ ] WHEN the token/URL is absent THEN it SHALL raise a clear, actionable error (points to `tea login`).
 
-#### 2.4 Provider detection
-**Status: PENDING**
+#### 2.4 Provider detection ✅ Completed 2026-07-18
+**Status: COMPLETE [2026-07-18]**
 **Model Tier: sonnet**
 **Files Affected:**
 - `src/task_sync/detect.py` (new — parse `git remote get-url origin` → github/gitea/none)
