@@ -238,3 +238,5 @@ output/
 
 .tmp/
 uv.lock
+TASKS.md
+tasks.json
