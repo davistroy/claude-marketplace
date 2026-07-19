@@ -5,6 +5,13 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.2.1] - 2026-07-18
+
+### Fixed
+- `tools/task-sync`: `init` now persists `config.gitea_url` from the origin remote instead of leaving it unset (closes #173).
+- `tools/task-sync`: `_build_provider` now falls back to the tea CLI config (`~/.config/tea/config.yml`) for the Gitea base URL and token when `$GITEA_URL`/`$GITEA_TOKEN` are unset, with env vars overriding tea config when both are present (closes #174).
+- `skills/task-sync/SKILL.md` + config-reference docs now accurately describe this env → tea-config → unset resolution order (closes #172).
+
 ## [11.0.0] - 2026-07-16
 
 Architecture-review hardening release (8-phase remediation; LAB_NOTEBOOK Entries 017–024). MAJOR due to interface/capability changes.

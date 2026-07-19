@@ -501,14 +501,63 @@ def test_build_provider_github() -> None:
 def test_build_provider_gitea_from_config(monkeypatch: pytest.MonkeyPatch) -> None:
     from task_sync.providers.gitea import GiteaProvider
 
+    monkeypatch.delenv("GITEA_URL", raising=False)
     monkeypatch.setenv("GITEA_TOKEN", "tok")
     provider = _build_provider("gitea", "o/r", {"gitea_url": "https://git.example.com"})
     assert isinstance(provider, GiteaProvider)
+    assert provider._base_url == "https://git.example.com"
+    assert provider._token == "tok"
+
+
+def test_build_provider_gitea_falls_back_to_tea_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No env vars, no `config['gitea_url']` — falls back to the tea config."""
+    from task_sync.providers.gitea import GiteaProvider
+
+    monkeypatch.delenv("GITEA_URL", raising=False)
+    monkeypatch.delenv("GITEA_TOKEN", raising=False)
+    monkeypatch.setattr(
+        "task_sync.providers.gitea.load_gitea_credentials",
+        lambda: ("https://tea.example.com", "tea-tok"),
+    )
+
+    provider = _build_provider("gitea", "o/r", {})
+
+    assert isinstance(provider, GiteaProvider)
+    assert provider._base_url == "https://tea.example.com"
+    assert provider._token == "tea-tok"
+
+
+def test_build_provider_gitea_env_overrides_tea_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`$GITEA_URL`/`$GITEA_TOKEN` win over both config and tea config, and the
+    tea config is never even consulted once env fully supplies both."""
+    from task_sync.providers.gitea import GiteaProvider
+
+    monkeypatch.setenv("GITEA_URL", "https://env.example.com")
+    monkeypatch.setenv("GITEA_TOKEN", "env-tok")
+
+    def _unexpected() -> tuple[str, str]:
+        raise AssertionError("tea config should not be read when env supplies both")
+
+    monkeypatch.setattr("task_sync.providers.gitea.load_gitea_credentials", _unexpected)
+
+    provider = _build_provider("gitea", "o/r", {"gitea_url": "https://config.example.com"})
+
+    assert isinstance(provider, GiteaProvider)
+    assert provider._base_url == "https://env.example.com"
+    assert provider._token == "env-tok"
 
 
 def test_build_provider_gitea_needs_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No env, no `config['gitea_url']`, and no usable tea config: a clear error."""
     monkeypatch.delenv("GITEA_URL", raising=False)
-    with pytest.raises(ValueError, match="gitea"):
+    monkeypatch.delenv("GITEA_TOKEN", raising=False)
+
+    def _no_config() -> tuple[str, str]:
+        raise RuntimeError("no Gitea credentials found at ...; run `tea login add` ...")
+
+    monkeypatch.setattr("task_sync.providers.gitea.load_gitea_credentials", _no_config)
+
+    with pytest.raises(ValueError, match="gitea provider needs credentials"):
         _build_provider("gitea", "o/r", {})
 
 

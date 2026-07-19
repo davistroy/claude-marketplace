@@ -57,7 +57,11 @@ PYTHONPATH="$TOOL_SRC" python3 -m task_sync init
 the `origin` git remote, writes the `tasks.json` header (`provider`, `repo`,
 `last_sync_at: null`, and a `config` block with
 `prune_closed_after_days: 30` and an empty `sensitive_terms` list), and
-generates `TASKS.md`. After init, also make sure `TASKS.md` is gitignored in
+generates `TASKS.md`. For a `gitea` provider with an http(s) `origin`, `config`
+also gets a `gitea_url` (scheme+host+port) so the first `sync` has a base URL
+without needing `$GITEA_URL` or a `tea login` first; an ssh `origin` leaves it
+unset (scheme/port aren't derivable from ssh) and relies on the fallback in
+"Config (`tasks.json`)" below. After init, also make sure `TASKS.md` is gitignored in
 the **target** repo (it is a generated view, regenerated after every mutating
 command — never hand-edit it, never commit it):
 
@@ -177,8 +181,8 @@ gh repo view --json visibility --jq .visibility 2>/dev/null
 ```
 
 (For a Gitea remote, check the repo's `private` field via its REST API using
-the token from `~/.config/tea/config.yml`, the same source the tool's own
-Gitea adapter uses.)
+`$GITEA_TOKEN` if set, else the token from `~/.config/tea/config.yml` — the
+same order the tool's own Gitea adapter uses.)
 
 If the result is `PUBLIC` (GitHub) or `private: false` (Gitea), show:
 
@@ -233,7 +237,8 @@ auto-applied. Full classify/resolve/prune rules: `references/sync-semantics.md`.
 
 Header fields (`provider`, `repo`, `last_sync_at`, `config`) and the
 `config` block (`prune_closed_after_days`, `sensitive_terms`, optional
-`gitea_url`): `references/config-reference.md`.
+`gitea_url`), plus the full Gitea base-URL/token resolution order:
+`references/config-reference.md`.
 
 ## Error Handling
 

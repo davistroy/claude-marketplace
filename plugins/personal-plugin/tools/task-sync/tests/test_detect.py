@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from task_sync.detect import detect_provider
+from task_sync.detect import detect_gitea_base_url, detect_provider
 
 
 class _FakeCompletedProcess:
@@ -82,3 +82,51 @@ def test_git_not_installed_returns_none(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(subprocess, "run", _raise)
     provider, repo = detect_provider("/repo")
     assert (provider, repo) == ("none", None)
+
+
+# -- detect_gitea_base_url --------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://git.example.com/owner/repo.git", "https://git.example.com"),
+        ("https://git.example.com:3000/owner/repo.git", "https://git.example.com:3000"),
+        ("http://git.example.com/owner/repo.git", "http://git.example.com"),
+        ("https://user@git.example.com/owner/repo.git", "https://git.example.com"),
+    ],
+)
+def test_gitea_base_url_derived_from_http_origin(
+    monkeypatch: pytest.MonkeyPatch, url: str, expected: str
+) -> None:
+    _mock_remote(monkeypatch, url + "\n")
+    assert detect_gitea_base_url("/repo") == expected
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "git@git.example.com:owner/repo.git",
+        "ssh://git@git.example.com:2222/owner/repo.git",
+    ],
+)
+def test_gitea_base_url_empty_for_ssh_origin(monkeypatch: pytest.MonkeyPatch, url: str) -> None:
+    _mock_remote(monkeypatch, url + "\n")
+    assert detect_gitea_base_url("/repo") == ""
+
+
+def test_gitea_base_url_is_provider_agnostic(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Parses any http(s) origin, github.com included — gating on `provider ==
+    'gitea'` is the caller's job (`commands.cmd_init`), not this function's."""
+    _mock_remote(monkeypatch, "https://github.com/owner/repo.git\n")
+    assert detect_gitea_base_url("/repo") == "https://github.com"
+
+
+def test_gitea_base_url_empty_when_no_remote(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_remote(monkeypatch, "", returncode=128)
+    assert detect_gitea_base_url("/repo") == ""
+
+
+def test_gitea_base_url_empty_for_unparseable_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_remote(monkeypatch, "not-a-url\n")
+    assert detect_gitea_base_url("/repo") == ""

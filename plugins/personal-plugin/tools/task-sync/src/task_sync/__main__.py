@@ -61,12 +61,35 @@ def _build_provider(name: str, repo: str | None, config: dict[str, Any]) -> Prov
     if name == "gitea":
         import os
 
-        from task_sync.providers.gitea import GiteaProvider
+        from task_sync.providers.gitea import GiteaProvider, load_gitea_credentials
 
-        base_url = str(config.get("gitea_url") or os.environ.get("GITEA_URL", ""))
-        token = os.environ.get("GITEA_TOKEN", "")
-        if not base_url:
-            raise ValueError("gitea provider needs config['gitea_url'] or $GITEA_URL")
+        env_base_url = os.environ.get("GITEA_URL", "")
+        env_token = os.environ.get("GITEA_TOKEN", "")
+        config_base_url = str(config.get("gitea_url") or "")
+
+        # Resolution order — env overrides everything, then the value `init`
+        # persisted into tasks.json, then whatever `tea login` configured:
+        #   base_url: $GITEA_URL -> config['gitea_url'] -> tea config
+        #   token:    $GITEA_TOKEN -> tea config
+        # Only consult the tea config when something is still missing, and
+        # read it at most once — `load_gitea_credentials` does its own file
+        # I/O, and a missing/unreadable config is not fatal here, it just
+        # means "no credentials from that source".
+        tea_base_url = tea_token = ""
+        if not env_token or (not env_base_url and not config_base_url):
+            try:
+                tea_base_url, tea_token = load_gitea_credentials()
+            except RuntimeError:
+                pass
+
+        base_url = env_base_url or config_base_url or tea_base_url
+        token = env_token or tea_token
+
+        if not base_url or not token:
+            raise ValueError(
+                "gitea provider needs credentials — run `tea login add`, or "
+                "export $GITEA_TOKEN (and $GITEA_URL, unless config['gitea_url'] is set)"
+            )
         return GiteaProvider(repo, base_url, token)
     raise ValueError(f"unknown provider {name!r}")
 

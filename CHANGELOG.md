@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.2.1] - 2026-07-18
+
+### Fixed
+- **task-sync Gitea sync path: `init` now persists `config.gitea_url`** from the origin remote instead of leaving it unset (closes #173).
+- **task-sync Gitea sync path: `_build_provider` now falls back to the tea CLI config** (`~/.config/tea/config.yml`) for the Gitea base URL and token when `$GITEA_URL`/`$GITEA_TOKEN` are unset, with env vars overriding tea config when both are present (closes #174).
+- **task-sync SKILL.md / config-reference docs** now accurately describe this env → tea-config → unset resolution order (closes #172).
+
 ## [personal-plugin v11.2.0] - 2026-07-18
 
 Adds **task-sync**: a new skill that keeps a per-repo `tasks.json` (with a generated `TASKS.md` view) reconciled with the repo's issue tracker (GitHub via `gh`, Gitea via its REST API). Built per ADR-0010 / D34.
