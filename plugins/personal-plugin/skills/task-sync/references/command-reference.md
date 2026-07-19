@@ -21,8 +21,9 @@ python3 -m task_sync init [--tasks tasks.json] [--repo-root .]
 Creates `tasks.json` if it does not already exist: detects `provider`
 (`github`/`gitea`/`none`) from the `origin` remote at `--repo-root`, writes the
 header (`provider`, `repo`, `last_sync_at: null`, `config:
-{prune_closed_after_days: 30, sensitive_terms: []}`), and generates
-`TASKS.md`. If `tasks.json` already exists this is a no-op on the file itself,
+{prune_closed_after_days: 30, sensitive_terms: []}`, plus `gitea_url` when
+`provider` is `gitea` and `origin` is http(s) — see `config-reference.md`),
+and generates `TASKS.md`. If `tasks.json` already exists this is a no-op on the file itself,
 but `TASKS.md` is still regenerated from current content (so a stale/deleted
 `TASKS.md` is repaired). Always safe to run — use it as the "make sure this
 repo is set up" step before any other command.

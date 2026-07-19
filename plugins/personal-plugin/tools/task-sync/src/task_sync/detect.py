@@ -21,6 +21,15 @@ _SSH_RE = re.compile(r"^git@(?P<host>[^:/]+):(?P<path>.+?)(?:\.git)?/?$")
 # and the unauthenticated `http://` variant.
 _URL_RE = re.compile(r"^(?:ssh|https?)://(?:[^@/]+@)?(?P<host>[^/]+)/(?P<path>.+?)(?:\.git)?/?$")
 
+# Same shape as `_URL_RE` restricted to http(s) (never ssh), with the scheme
+# captured — used by `detect_gitea_base_url` to derive an API base. ssh
+# origins are excluded on purpose: there is no reliable way to infer the
+# http(s) scheme/port a Gitea instance's API listens on from its ssh
+# endpoint.
+_HTTP_URL_RE = re.compile(
+    r"^(?P<scheme>https?)://(?:[^@/]+@)?(?P<host>[^/]+)/(?P<path>.+?)(?:\.git)?/?$"
+)
+
 
 def _parse_remote(url: str) -> tuple[str, str] | None:
     url = url.strip()
@@ -34,12 +43,11 @@ def _parse_remote(url: str) -> tuple[str, str] | None:
     return host, path
 
 
-def detect_provider(repo_root: str | Path) -> tuple[str, str | None]:
-    """Return `(provider, repo)` for the `origin` remote at `repo_root`.
+def _get_origin_url(repo_root: str | Path) -> str | None:
+    """Return the raw, stripped `origin` remote URL at `repo_root`, or `None`.
 
-    `provider` is one of `'github'`, `'gitea'`, `'none'`. `repo` is the
-    `owner/repo`-shaped path from the remote URL, or `None` when `provider`
-    is `'none'`.
+    `None` covers every reason there is nothing to parse: `git` is not
+    installed, there is no `origin` remote, or the command otherwise failed.
     """
     try:
         result = subprocess.run(
@@ -49,12 +57,26 @@ def detect_provider(repo_root: str | Path) -> tuple[str, str | None]:
             check=False,
         )
     except FileNotFoundError:
-        return ("none", None)
+        return None
 
     if result.returncode != 0 or not result.stdout.strip():
+        return None
+
+    return result.stdout.strip()
+
+
+def detect_provider(repo_root: str | Path) -> tuple[str, str | None]:
+    """Return `(provider, repo)` for the `origin` remote at `repo_root`.
+
+    `provider` is one of `'github'`, `'gitea'`, `'none'`. `repo` is the
+    `owner/repo`-shaped path from the remote URL, or `None` when `provider`
+    is `'none'`.
+    """
+    url = _get_origin_url(repo_root)
+    if url is None:
         return ("none", None)
 
-    parsed = _parse_remote(result.stdout)
+    parsed = _parse_remote(url)
     if parsed is None:
         return ("none", None)
 
@@ -68,3 +90,24 @@ def detect_provider(repo_root: str | Path) -> tuple[str, str | None]:
         return ("github", repo_path)
 
     return ("gitea", repo_path)
+
+
+def detect_gitea_base_url(repo_root: str | Path) -> str:
+    """Derive a Gitea API base URL (`scheme://host[:port]`, no path/user).
+
+    Only trusts http(s) `origin` remotes — an ssh remote (`git@host:owner/
+    repo.git` or `ssh://...`) cannot reliably yield an http(s) API base
+    (the scheme and port are ambiguous), so this returns `""` for those and
+    for anything else that isn't a parseable http(s) URL (no remote, an
+    unparseable URL, etc.). Callers should treat `""` as "unknown" and fall
+    back to `$GITEA_URL` or the `tea` config (see `providers/gitea.py`).
+    """
+    url = _get_origin_url(repo_root)
+    if url is None:
+        return ""
+
+    match = _HTTP_URL_RE.match(url)
+    if match is None:
+        return ""
+
+    return f"{match.group('scheme')}://{match.group('host')}"

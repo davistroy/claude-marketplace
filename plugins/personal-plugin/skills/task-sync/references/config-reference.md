@@ -34,12 +34,27 @@ byte-identical and sync diffs stay minimal and readable.
 |---|---|---|---|
 | `prune_closed_after_days` | int | `30` | How long a `done` task with a closed issue stays in `tasks.json` before `sync --apply` drops the row. The issue itself is never deleted or reopened — this only prunes the local record. |
 | `sensitive_terms` | list[string] | `[]` | Per-repo confidentiality terms (client/brand names, etc.) matched case-insensitively, whole-word, against `title`/`body` during the confidentiality scan. **The only place such terms may ever appear** — never hardcode them in the tool or the skill. |
-| `gitea_url` | string | (unset) | Base URL for the Gitea REST API, used when `provider: "gitea"`. Falls back to `$GITEA_URL` if unset; the token comes from `$GITEA_TOKEN` (or `~/.config/tea/config.yml` for the visibility check — see SKILL.md's public-repo guardrail). Not needed for `provider: "github"` (uses the `gh` CLI's own auth). |
+| `gitea_url` | string | (unset) | Base URL for the Gitea REST API, used when `provider: "gitea"`. Written automatically by `init` for an http(s) `origin` (left unset for an ssh `origin` — see `init` in SKILL.md). Not needed for `provider: "github"` (uses the `gh` CLI's own auth). |
 
 Editing `sensitive_terms` (e.g., to add a repo-specific brand name before the
 first sync) is the one config change expected to happen by hand — edit
 `tasks.json` directly, or `edit`/re-`init` do not currently expose it as a
 flag.
+
+### Gitea base URL / token resolution
+
+`sync`'s `_build_provider` resolves the Gitea base URL and token independently,
+env always overriding whatever `init`/`tea login` already configured:
+
+- **base URL:** `$GITEA_URL` → `config.gitea_url` (written by `init`, see
+  above) → the `url` from `~/.config/tea/config.yml`'s default (or first)
+  login.
+- **token:** `$GITEA_TOKEN` → the `token` from the same `tea` config login.
+
+A missing/unreadable `tea` config is treated as "no credentials from that
+source," not an error — the error only surfaces if every source above is
+exhausted, and it names the remedy (`tea login add`, or export
+`$GITEA_TOKEN`/`$GITEA_URL`).
 
 ## Why this file is committed, `TASKS.md` is not
 

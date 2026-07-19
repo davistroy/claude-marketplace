@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from task_sync import store
-from task_sync.detect import detect_provider
+from task_sync.detect import detect_gitea_base_url, detect_provider
 from task_sync.models import Task, TaskList, new_id
 from task_sync.providers.base import parse_aware_datetime
 from task_sync.render import render_open, render_summary
@@ -101,7 +101,11 @@ def cmd_init(tasks_path: str | Path, repo_root: str | Path = ".") -> str:
     """Create `tasks.json` if absent; no-op (but still refresh TASKS.md) if present.
 
     Returns the message to print. The provider/repo are auto-detected from
-    the `origin` git remote at `repo_root`.
+    the `origin` git remote at `repo_root`. For a `gitea` provider with an
+    http(s) `origin` (not ssh — see `detect_gitea_base_url`), `config.gitea_url`
+    is also populated so the very first `sync` has a base URL to call without
+    needing `$GITEA_URL` or a `tea login` first. GitHub needs no analogous
+    field (the `gh` CLI carries its own auth).
     """
     path = Path(tasks_path)
 
@@ -111,11 +115,19 @@ def cmd_init(tasks_path: str | Path, repo_root: str | Path = ".") -> str:
         return f"task-sync init: {path} already exists — no-op"
 
     provider, repo = detect_provider(repo_root)
+    config: dict[str, Any] = {
+        "prune_closed_after_days": DEFAULT_PRUNE_DAYS,
+        "sensitive_terms": [],
+    }
+    if provider == "gitea":
+        gitea_url = detect_gitea_base_url(repo_root)
+        if gitea_url:
+            config["gitea_url"] = gitea_url
     tasklist = TaskList(
         provider=provider,
         repo=repo,
         last_sync_at=None,
-        config={"prune_closed_after_days": DEFAULT_PRUNE_DAYS, "sensitive_terms": []},
+        config=config,
         tasks=[],
     )
     save_and_regenerate(tasklist, path)

@@ -963,3 +963,39 @@ Confirmed: bundled Python tool = 7 files + 1 CI job (2 required checks) + branch
 **Status:** COMPLETE — all 6 phases / 18 items; personal-plugin 11.2.0; final tool suite 335 tests / 95.89% coverage / mypy + ruff clean; NO client terms. PR pending (orchestrator finalization: branch-protection required-check flip after the job is green).
 
 **Duration:** ~6-phase autonomous build.
+
+### Entry 050 — Fix task-sync Gitea path (#173/#174, closes #172) [skill] [debug] [ci]
+**Date:** 2026-07-18
+**Environment:** Linux VM, branch `fix/gitea-sync-173-174` off main `3c47f68`. Trigger: user dogfooded task-sync against a Gitea repo, found the Gitea sync path broken, logged 3 bug tasks (now issues #172/#173/#174).
+**Status:** COMPLETE
+
+**Objective:** Fix task-sync's Gitea sync path, which is currently broken end-to-end (works for GitHub + local-only, but Gitea sync crashes/401s).
+
+**Root causes (from the user's issue reports, confirmed 2026-07-18):**
+- **#173 (P2):** `init` detects provider=gitea from the origin remote but does NOT persist `config.gitea_url`; the sync path then raises `ValueError: gitea provider needs config['gitea_url'] or $GITEA_URL` on first sync.
+- **#174 (P2):** `_build_provider` (CLI sync path) reads the Gitea token ONLY from `$GITEA_TOKEN` env, never falling back to `GiteaProvider.from_tea_config()`/`load_gitea_credentials()` — so a valid `tea login` still 401s.
+- **#172 (P3 doc):** SKILL.md claims the Gitea token comes from the tea config; fixing #174 (add the fallback) makes that claim TRUE → #172 resolved by the #174 fix.
+
+**Hypothesis:** `init` writes `config.gitea_url` (derived from the origin remote) for gitea provider; `_build_provider` falls back to tea config for BOTH base_url and token when env is unset (env overrides tea config). Gitea sync then works with a plain `tea login`. Unit-tested (mocked — CI can't reach the homeserver Gitea). personal-plugin patch bump 11.2.0→11.2.1. All required checks (incl Task Sync Tests) green.
+
+**Rollback Plan:** `git revert`/branch-delete; the tool code + tests + a version bump only. No data touched (user's local tasks.json untouched).
+
+**What was built (dispatched to sonnet-implementer, code + tests only — version bump/CHANGELOG/git left to the orchestrator):**
+- `detect.py`: factored the `git remote get-url origin` call out into `_get_origin_url()` (shared by `detect_provider` and the new function, same subprocess call/behavior — `test_detect.py`'s existing mocks still pass unchanged). Added `detect_gitea_base_url(repo_root) -> str`: parses `origin` as `scheme://host[:port]` for http(s) remotes only (new `_HTTP_URL_RE`), returns `""` for ssh remotes/no-remote/unparseable — scheme+port aren't derivable from `git@host:owner/repo.git` or `ssh://...`. Provider-agnostic by design (doesn't know about `github`/`gitea`); the caller gates on provider.
+- `commands.py::cmd_init`: when `provider == "gitea"`, calls `detect_gitea_base_url(repo_root)` and, if non-empty, sets `config["gitea_url"]`; otherwise the key is omitted entirely (not `""`) — matches the pre-existing "(unset)" default documented in `config-reference.md`. GitHub gets no analogous field.
+- `__main__.py::_build_provider` (gitea branch): resolves independently — **base_url:** `$GITEA_URL` → `config['gitea_url']` → `load_gitea_credentials()` (tea config) — **token:** `$GITEA_TOKEN` → `load_gitea_credentials()`. Tea config is read at most once, only when something is still missing after env+config, via `task_sync.providers.gitea.load_gitea_credentials` (reused, not reimplemented). A `RuntimeError` from a missing/unreadable tea config is caught and treated as "no credentials from that source" — falls through to a `ValueError` naming the remedy (`tea login add` or `$GITEA_TOKEN`/`$GITEA_URL`), never crashes.
+- Updated the two pre-existing `_build_provider` gitea tests in `test_plan_apply.py` for full env isolation (they previously didn't `delenv`/mock the tea-config path, which would have made them nondeterministic on any machine with a real `~/.config/tea/config.yml` — this dev VM has one with live credentials, confirmed by reading it during investigation). Added 3 more: tea-config fallback when env is unset, env overriding tea config (asserts `load_gitea_credentials` is never even called), and the clear-error case with a mocked-missing tea config.
+- Added 3 `cmd_init` tests in `test_commands.py` using a real (offline) `git init` + `git remote add origin <url>` fixture — exercises the actual `detect_provider`/`detect_gitea_base_url` path end-to-end rather than mocking `subprocess`, for http(s) gitea / ssh gitea / github origins.
+- Added `detect_gitea_base_url` unit tests to `test_detect.py` (http/https/port/userinfo-stripping, ssh forms → `""`, no-remote → `""`, unparseable → `""`, and a provider-agnostic case for a github.com http origin, since the function itself doesn't gate on provider).
+- Docs (#172): SKILL.md's `init` paragraph now mentions `gitea_url` auto-population; the public-repo guardrail's Gitea aside now states the `$GITEA_TOKEN`-then-tea-config order instead of implying tea-config-only; `references/config-reference.md` got a new "Gitea base URL / token resolution" subsection spelling out the exact precedence; `references/command-reference.md`'s `init` entry mentions the new `gitea_url` write. `npx markdownlint-cli --config .markdownlint.json` clean on all three.
+
+**What worked:** reusing `load_gitea_credentials()` unchanged (no tea-config parsing duplicated) kept the fix small — the whole `_build_provider` gitea branch is still ~25 lines. The real-git-repo test fixture (`git init` + `git remote add` in `tmp_path`, no network) proved less brittle than mocking `subprocess.run` for the 3-way `cmd_init` origin-shape matrix, and exercises the actual `detect.py` regexes instead of a hand-maintained mock.
+
+**Quality gates (`plugins/personal-plugin/tools/task-sync/`, via the tool's own `.venv` — system `python3` lacked `pytest-cov`):**
+- `PYTHONPATH=src ./.venv/bin/python3 -m pytest tests/ -q` → **349 passed**, coverage **95.98%** (floor 90%).
+- `uvx ruff@0.14.10 check src tests` → All checks passed. `uvx ruff@0.14.10 format --check src tests` → 43 files already formatted.
+- `./.venv/bin/python3 -m mypy src` (bare `mypy` not on this shell's `PATH`; venv mypy is equivalent) → Success: no issues found in 23 source files.
+
+**System insight:** the two bugs were genuinely coupled the way the task framed them — fixing #174's fallback without #173's write would still 401 on a from-scratch `init` against an http(s) Gitea remote that has no `tea login` yet (no tea config to fall back to), and fixing #173 alone would leave `_build_provider` still ignoring `tea login` credentials on repos that predate this fix (existing `tasks.json` files with no `gitea_url`). Designing the resolution order once, in one place, is what makes both bugs disappear together.
+
+**Actions & Results:** (below)

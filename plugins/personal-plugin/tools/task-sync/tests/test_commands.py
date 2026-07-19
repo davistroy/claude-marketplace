@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -11,6 +12,22 @@ from task_sync import commands, store
 from task_sync.__main__ import main
 from task_sync.commands import TaskNotFoundError
 from task_sync.models import Task, TaskList
+
+
+def _init_git_repo_with_origin(repo_root: Path, remote_url: str) -> None:
+    """Create a real (but remote-less-network) git repo with `origin` set.
+
+    Used to exercise `cmd_init`'s real `detect_provider`/`detect_gitea_base_url`
+    path end to end, rather than mocking `subprocess` — no network I/O occurs,
+    `git init`/`git remote add` never touch anything outside `repo_root`.
+    """
+    subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", remote_url],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
 
 
 def _tasklist_with(*tasks: Task, **header: object) -> TaskList:
@@ -61,6 +78,41 @@ def test_init_regenerates_stale_tasks_md(tmp_path: Path) -> None:
     md = commands.tasks_md_path(tasks_path).read_text(encoding="utf-8")
     assert "Fresh title" in md
     assert "stale content" not in md
+
+
+def test_init_sets_gitea_url_for_http_gitea_origin(tmp_path: Path) -> None:
+    _init_git_repo_with_origin(tmp_path, "https://git.example.com:3000/owner/repo.git")
+    tasks_path = tmp_path / "tasks.json"
+
+    commands.cmd_init(tasks_path, repo_root=str(tmp_path))
+
+    tasklist = store.load(tasks_path)
+    assert tasklist.provider == "gitea"
+    assert tasklist.config["gitea_url"] == "https://git.example.com:3000"
+
+
+def test_init_leaves_gitea_url_unset_for_ssh_gitea_origin(tmp_path: Path) -> None:
+    _init_git_repo_with_origin(tmp_path, "git@git.example.com:owner/repo.git")
+    tasks_path = tmp_path / "tasks.json"
+
+    commands.cmd_init(tasks_path, repo_root=str(tmp_path))
+
+    tasklist = store.load(tasks_path)
+    assert tasklist.provider == "gitea"
+    # No reliable http(s) scheme/port to derive from an ssh remote — leave it
+    # for the `$GITEA_URL` / `tea` config fallback in `_build_provider`.
+    assert not tasklist.config.get("gitea_url")
+
+
+def test_init_does_not_set_gitea_url_for_github_origin(tmp_path: Path) -> None:
+    _init_git_repo_with_origin(tmp_path, "https://github.com/owner/repo.git")
+    tasks_path = tmp_path / "tasks.json"
+
+    commands.cmd_init(tasks_path, repo_root=str(tmp_path))
+
+    tasklist = store.load(tasks_path)
+    assert tasklist.provider == "github"
+    assert "gitea_url" not in tasklist.config
 
 
 # -- add -----------------------------------------------------------------
