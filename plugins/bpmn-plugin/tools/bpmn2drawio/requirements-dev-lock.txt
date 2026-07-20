@@ -34,7 +34,7 @@ pathspec==1.1.1
     # via
     #   black
     #   mypy
-platformdirs==4.10.0
+platformdirs==4.10.1
     # via black
 pluggy==1.6.0
     # via
