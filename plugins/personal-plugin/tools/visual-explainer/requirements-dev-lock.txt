@@ -8,9 +8,9 @@ aiofiles==25.1.0
     # via visual-explainer (pyproject.toml)
 annotated-types==0.7.0
     # via pydantic
-anthropic==0.116.0
+anthropic==0.117.0
     # via visual-explainer (pyproject.toml)
-anyio==4.14.1
+anyio==4.14.2
     # via
     #   anthropic
     #   google-genai
@@ -30,7 +30,7 @@ charset-normalizer==3.4.9
     # via requests
 click==8.4.2
     # via black
-coverage[toml]==7.15.0
+coverage[toml]==7.15.2
     # via pytest-cov
 cryptography==49.0.0
     # via google-auth
@@ -40,9 +40,9 @@ distro==1.9.0
     #   google-genai
 docstring-parser==0.18.0
     # via anthropic
-google-auth[requests]==2.55.2
+google-auth[requests]==2.56.0
     # via google-genai
-google-genai==2.11.0
+google-genai==2.12.1
     # via visual-explainer (pyproject.toml)
 h11==0.16.0
     # via httpcore
@@ -69,7 +69,7 @@ markdown-it-py==4.2.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
-mypy==2.2.0
+mypy==2.3.0
     # via visual-explainer (pyproject.toml)
 mypy-extensions==1.1.0
     # via
@@ -85,7 +85,7 @@ pathspec==1.1.1
     #   mypy
 pillow==12.3.0
     # via visual-explainer (pyproject.toml)
-platformdirs==4.10.0
+platformdirs==4.10.1
     # via black
 pluggy==1.6.0
     # via
@@ -102,7 +102,7 @@ pydantic==2.13.4
     #   anthropic
     #   google-genai
     #   visual-explainer (pyproject.toml)
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pygments==2.20.0
     # via
@@ -129,7 +129,7 @@ respx==0.23.1
     # via visual-explainer (pyproject.toml)
 rich==15.0.0
     # via visual-explainer (pyproject.toml)
-ruff==0.15.21
+ruff==0.15.22
     # via visual-explainer (pyproject.toml)
 sniffio==1.3.1
     # via
@@ -149,5 +149,5 @@ typing-inspection==0.4.2
     # via pydantic
 urllib3==2.7.0
     # via requests
-websockets==16.1
+websockets==16.1.1
     # via google-genai
