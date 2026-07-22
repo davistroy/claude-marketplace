@@ -60,7 +60,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| — | **No open action items.** Canonical backlog is the GitHub issues list (A2/A12 directive). #155/#156 are DONE (E045/E046); task-sync shipped 11.2.0 (E049) and its Gitea path was repaired in 11.2.1 (E050). #167 (adoption window) + #168 (disposition-apply CLI) closed by E051 (11.3.0). Current open backlog: **#181** (orphan/deleted-issue handling) and **#182** (GitHub `list_issues` pagination), both filed from E051; plus v2 scope-outs **#169/#170/#171** (deliberately deferred, not work items). | — | E043 |
+| — | **No open action items.** Canonical backlog is the GitHub issues list (A2/A12 directive). #155/#156 are DONE (E045/E046); task-sync shipped 11.2.0 (E049) and its Gitea path was repaired in 11.2.1 (E050). #167 (adoption window) + #168 (disposition-apply CLI) closed by E051 (11.3.0). Current open backlog: **#181** (orphan/deleted-issue handling) and **#182** (GitHub `list_issues` pagination), both filed from E051; **#183** (unguarded `` !`git ...` `` dynamic injections abort `clear-prep`/`prime`/`explain-project`/`ship` in non-git dirs — root cause is a wrong "failure is silent" claim in `references/patterns/advanced-features.md:132`); plus v2 scope-outs **#169/#170/#171** (deliberately deferred, not work items). | — | E043 |
 
 ### Completed
 
@@ -129,7 +129,7 @@ Plugin discovery is fragile and fails silently. The five verified operational ru
 ## Current Baseline
 
 - **Marketplace version:** 3.3.0
-- **personal-plugin version:** 11.1.0 (23 commands, 28 skills, 10 named agents in `.claude/agents/`, hooks system) — E038: released the post-11.0.0 burndown work (visual-explainer parallel image-gen `--concurrency` #128, cli.py decomposition, coverage 69→93%, mypy 0, command extraction). Prior 11.0.0: arch-review hardening (E017–E025)
+- **personal-plugin version:** **11.3.0** (E051 — task-sync adoption window `adopt_closed_within_days` default 0 + `scan-apply` subcommand, #167/#168; task-sync tool now 409 tests / 96.36% cov). Prior: 11.2.1 (E050, Gitea sync repair), 11.2.0 (E049, task-sync shipped). **Backlog after this: #181/#182 (filed from E051) + v2 scope-outs #169/#170/#171 + #183 (unguarded `!`git ...`` injections abort 4 skills in non-git dirs).** HISTORICAL 11.1.0 (23 commands, 28 skills, 10 named agents in `.claude/agents/`, hooks system) — E038: released the post-11.0.0 burndown work (visual-explainer parallel image-gen `--concurrency` #128, cli.py decomposition, coverage 69→93%, mypy 0, command extraction). Prior 11.0.0: arch-review hardening (E017–E025)
 - **bpmn-plugin version:** 4.3.1 (2 skills, bpmn2drawio Python tool) — E035: integrated external PR #98 (DI-layout preservation, `auto` default layout mode, geometric lane assignment, data-store cylinders, label/pool fixes); E036: partial-DI guard (`auto`→`preserve` only on complete DI, #143)
 - **slide-gen version:** 1.2.0 (9 skills, 7-step presentation pipeline)
 - **Git:** clean, main branch, synced with `origin/main` (2026-07-17)
@@ -1006,7 +1006,7 @@ Confirmed: bundled Python tool = 7 files + 1 CI job (2 required checks) + branch
 ### Entry 051 — task-sync adoption window + `scan-apply` subcommand (#167/#168) [skill] [decision] [build]
 **Date:** 2026-07-22
 **Environment:** Linux VM, branch `fix/task-sync-167-168` off main `71cca6a` (clean, 0/0 vs `origin/main`). personal-plugin 11.2.1 → 11.3.0, marketplace 3.3.0. Investigation via 2 parallel Explore subagents; `/ultra-plan` Phases 0–4 run, Phase 5 (formal plan doc) deliberately skipped by user choice.
-**Status:** COMPLETE (code + docs + review remediation; PR pending)
+**Status:** COMPLETE — shipped as personal-plugin 11.3.0 (PR #184, main `1d5eacd`)
 
 **Objective:** Ship the last two task-sync backlog items as personal-plugin 11.3.0 — (#167) stop adopting long-closed issues on sync, and (#168) make confidentiality disposition-apply a first-class CLI subcommand instead of an inline heredoc in the skill.
 
@@ -1083,4 +1083,10 @@ Also fixed: F6 (a comment citing #168 for the #167 bug), F7 (the combined-error 
 
 **Post-remediation verification:** **409 tests, 96.36%** coverage, ruff check + format clean, `mypy src` clean. Live re-checks: first sync `pull: 8, skipped: 20` with the 20 issue numbers enumerated (previously "already in sync"); `scan-apply` re-run byte-identical no-op; missing decisions file → `task-sync scan-apply: cannot read decisions file /nope/missing.json: No such file or directory`, exit 1.
 
-**Note for the #167 close comment:** the issue's stated acceptance criterion is "an open *or recently-closed* one **is** adopted", and the shipped default (`0`) deliberately does not adopt recently-closed issues. That reversal is evidence-based (D37) and user-approved, but it must be stated on the issue or a future reader will read the criterion, read the test asserting the opposite, and conclude the fix is wrong.
+**Note for the #167 close comment:** the issue's stated acceptance criterion is "an open *or recently-closed* one **is** adopted", and the shipped default (`0`) deliberately does not adopt recently-closed issues. That reversal is evidence-based (D37) and user-approved, but it must be stated on the issue or a future reader will read the criterion, read the test asserting the opposite, and conclude the fix is wrong. **Done** — posted as a comment on #167 with the measurement table and both investigation findings.
+
+**Windows CI failure (one round, root-caused not retried).** `Task Sync Tests (windows-latest)` failed while ubuntu passed: 3 of the new `_load_decisions` tests used `pytest.raises(..., match=str(path))`. **`match` is a regex**, and the Windows tmp path `C:\Users\runneradmin\...` makes `\U` an incomplete escape, so `re.compile` raised `re.error` before the assertion was ever evaluated. Ubuntu passed only because POSIX paths contain no backslashes. Reproduced locally by running the real Windows path through `re.search` (`re.error: incomplete escape \U at position 2`), then fixed with plain substring assertions on the exception message — same property checked, no regex in the path. **Pattern for the future: never interpolate a filesystem path into `pytest.raises(match=...)`; use a substring assert or `re.escape`.**
+
+**Result:** Shipped as personal-plugin **11.3.0** via PR #184 (squash-merged to main `1d5eacd`; 2 commits — feature + the Windows fix). All 21 required checks green on both OSes. #167/#168 auto-closed; #181/#182 filed from the investigation. Installed plugin cache updated 11.2.1 → **11.3.0** (`claude plugin marketplace update` — note `claude plugin update personal-plugin` reported "Plugin not found"; the marketplace-level refresh is what pulls a new version). Both features verified live **from the cache**: `scan-apply --help` present, and `sync --plan` against the real tracker prints `pull: 6, skipped (closed outside adopt window): 22 — use --adopt-all to mirror them`.
+
+**Duration:** ~one session (investigate → design → build → measure → redesign → review → remediate → ship).
