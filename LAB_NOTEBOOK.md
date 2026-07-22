@@ -998,4 +998,4 @@ Confirmed: bundled Python tool = 7 files + 1 CI job (2 required checks) + branch
 
 **System insight:** the two bugs were genuinely coupled the way the task framed them — fixing #174's fallback without #173's write would still 401 on a from-scratch `init` against an http(s) Gitea remote that has no `tea login` yet (no tea config to fall back to), and fixing #173 alone would leave `_build_provider` still ignoring `tea login` credentials on repos that predate this fix (existing `tasks.json` files with no `gitea_url`). Designing the resolution order once, in one place, is what makes both bugs disappear together.
 
-**Actions & Results:** (below)
+**Result:** Shipped as personal-plugin **11.2.1** via PR #176 (squash-merged to main `6dedd2d`). All 21 required CI checks green (Task Sync Tests ubuntu+windows pass). Issues #172/#173/#174 auto-closed. Installed plugin cache updated 11.2.0→11.2.1 (`claude plugin update`) and the fix verified live in the cache (`_build_provider` tea-config fallback + `cmd_init` gitea_url write present; tool imports clean). Independent verifier confirmed `config` is threaded through `_build_provider` (the #173 write is live, not dead).
