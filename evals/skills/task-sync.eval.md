@@ -175,11 +175,12 @@ recognizable secret/token shape (e.g. a `ghp_`-prefixed string).
 **Setup:** Continuing S7, the user disposition the finding as `anonymize`.
 
 **Must:**
-- [ ] Applies the disposition before `sync --apply` (per the SKILL.md
-      ordering), swapping in a stable `<<TERM_xxxxxx>>` token so the same
-      term maps to the same token on reuse
-- [ ] Saves `tasks.json` and regenerates `TASKS.md` after applying the
-      disposition
+- [ ] Applies the disposition via `task-sync scan-apply --decisions <file>`
+      before `sync --apply` (per the SKILL.md ordering), swapping in a
+      stable `<<TERM_xxxxxx>>` token so the same term maps to the same
+      token on reuse
+- [ ] `scan-apply` saves `tasks.json` and regenerates `TASKS.md` after
+      applying the disposition
 - [ ] A subsequent scan of the same unchanged content is skipped (the
       content-hash review memory recognizes it was already reviewed)
 

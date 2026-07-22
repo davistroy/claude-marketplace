@@ -14,6 +14,8 @@ against GitHub/Gitea issues. Every subcommand is live as of Phase 5:
     sync --dry-run              # default: print the plan, write nothing
     sync --plan --json          # emit the machine-readable plan, write nothing
     sync --apply --decisions f  # execute the plan (resolving conflicts via f)
+    sync --adopt-all            # full mirror: adopt every issue, ignore adopt window
+    scan-apply --decisions f    # apply confidentiality dispositions (keep/redact/remove/anonymize)
 
 Usage:
     python -m task_sync <subcommand> [options]
@@ -43,7 +45,7 @@ from task_sync.reconcile.plan import SyncPlan, build_plan, summarize_plan
 # Every registered subcommand's canonical name. `sync` first so it heads the
 # help; aliases (`ls`, `close`, `rm`) are registered on top of these but are
 # not repeated here.
-SUBCOMMANDS = ("sync", "init", "list", "add", "edit", "done", "remove", "status")
+SUBCOMMANDS = ("sync", "init", "list", "add", "edit", "done", "remove", "status", "scan-apply")
 
 
 def _build_provider(name: str, repo: str | None, config: dict[str, Any]) -> Provider:
@@ -98,16 +100,31 @@ def _load_decisions(path: str | None) -> dict[str, str]:
     """Load a conflict-decisions file: `{task_id: "local"|"remote"}`.
 
     Accepts either a flat mapping or one wrapped under a `"decisions"` key.
-    A missing path yields an empty mapping (every conflict left unresolved).
+    A `None`/empty `path` yields an empty mapping (every conflict left
+    unresolved) — that is "no decisions file was requested", not "the
+    requested file was missing".
+
+    **Every** failure mode raises `ValueError` naming the offending path.
+    This is the contract both CLI call sites rely on: a stale or mistyped
+    `--decisions` path is the likeliest user error (it is `required=True`
+    for `scan-apply`), and an unhandled `FileNotFoundError` — an `OSError`,
+    not a `ValueError` — used to escape their handlers as a raw traceback.
+    Converting here rather than widening each `except` keeps the path, which
+    only this function has, inside the message.
     """
     if not path:
         return {}
-    with Path(path).open("r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with Path(path).open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except OSError as exc:
+        raise ValueError(f"cannot read decisions file {path}: {exc.strerror or exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"malformed JSON in decisions file {path}: {exc}") from exc
     if isinstance(data, dict) and "decisions" in data:
         data = data["decisions"]
     if not isinstance(data, dict):
-        raise ValueError("decisions file must be a JSON object of task_id -> decision")
+        raise ValueError(f"decisions file {path} must be a JSON object of task_id -> decision")
     return {str(k): str(v) for k, v in data.items()}
 
 
@@ -162,13 +179,25 @@ def _scan_confidentiality(plan: SyncPlan, tasklist: TaskList) -> list[dict[str, 
 
 
 def _apply_summary(plan: SyncPlan) -> str:
-    """One-line-per-section summary printed after a successful `--apply`."""
-    return (
+    """One-line-per-section summary printed after a successful `--apply`.
+
+    Skipped adoptions get their own trailing sentence, and only when there
+    are any — an `--apply` that mirrored nothing *because* N issues fell
+    outside the adopt window would otherwise report a bare "0 pull(s)",
+    which is the same silence `summarize_plan` was fixed for.
+    """
+    summary = (
         "task-sync sync: applied "
         f"{len(plan.creates)} create(s), {len(plan.pushes)} push(es), "
         f"{len(plan.pulls)} pull(s); "
         f"{len(plan.conflicts)} conflict(s) surfaced."
     )
+    if plan.skipped_adopts:
+        summary += (
+            f" {len(plan.skipped_adopts)} issue(s) closed outside the adopt "
+            "window were not adopted — use --adopt-all to mirror them."
+        )
+    return summary
 
 
 def run_sync(args: argparse.Namespace, provider: Provider | None = None) -> int:
@@ -193,12 +222,25 @@ def run_sync(args: argparse.Namespace, provider: Provider | None = None) -> int:
         provider = _build_provider(name, repo, tasklist.config)
 
     issues = provider.list_issues("all")
-    plan = build_plan(classify(tasklist, issues))
+    # --adopt-all is a full-mirror escape hatch (no window: adopt everything);
+    # otherwise NEW_REMOTE adoption is gated by its own `adopt_closed_within_days`
+    # config key (default 0 == adopt open issues only) — a separate question
+    # from `prune_closed_after_days`, which governs how long a *tracked* done
+    # task is kept locally, not whether a not-yet-tracked issue is worth
+    # adopting.
+    adopt_window = None if args.adopt_all else commands.adopt_window(tasklist)
+    plan = build_plan(classify(tasklist, issues), adopt_closed_within_days=adopt_window)
     # Read-only: scans current content, never mutates tasklist/tasks/files.
     plan.confidentiality_findings = _scan_confidentiality(plan, tasklist)
 
     if args.apply:
-        decisions = _load_decisions(args.decisions)
+        try:
+            decisions = _load_decisions(args.decisions)
+        except ValueError as exc:
+            # `_load_decisions` normalizes every read/parse failure (including
+            # a missing file) into a ValueError carrying the path.
+            print(f"task-sync sync: {exc}", file=sys.stderr)
+            return 1
         updated = apply(plan, decisions, tasklist, provider)
         store.save(updated, tasks_path)
         commands.regenerate_tasks_md(updated, tasks_path)
@@ -349,6 +391,31 @@ def run_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_scan_apply(args: argparse.Namespace) -> int:
+    """Handle `task-sync scan-apply --decisions f`.
+
+    Applies a confidentiality disposition (keep/redact/remove/anonymize)
+    per task, re-scanning each to recover finding spans. Replaces the
+    inline `python3` heredoc previously documented for this step.
+
+    The single `except ValueError` covers both stages because
+    `_load_decisions` normalizes its read/parse failures (a missing or
+    unreadable `--decisions` path included) into `ValueError`.
+    """
+    tasks_path = Path(args.tasks)
+    tasklist = _require_tasklist(tasks_path)
+    if tasklist is None:
+        return 1
+    try:
+        dispositions = _load_decisions(args.decisions)
+        message = commands.cmd_scan_apply(tasklist, dispositions, tasks_path)
+    except ValueError as exc:
+        print(f"task-sync scan-apply: {exc}", file=sys.stderr)
+        return 1
+    print(message)
+    return 0
+
+
 def _add_tasks_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--tasks", default="tasks.json", help="path to tasks.json")
 
@@ -366,6 +433,16 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--repo-root", dest="repo_root", default=".", help="git repo root")
     sync.add_argument("--json", action="store_true", help="emit the plan as JSON")
     sync.add_argument("--decisions", help="conflict-decisions JSON file (with --apply)")
+    sync.add_argument(
+        "--adopt-all",
+        dest="adopt_all",
+        action="store_true",
+        help=(
+            "full-mirror mode: adopt every issue regardless of how long ago "
+            "it closed (default: only adopt issues within the "
+            "adopt_closed_within_days window, 0 days = open issues only)"
+        ),
+    )
     mode = sync.add_mutually_exclusive_group()
     mode.add_argument("--plan", action="store_true", help="print the plan, write nothing")
     mode.add_argument(
@@ -426,6 +503,18 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="status counts + last sync + health hint")
     _add_tasks_argument(status)
     status.set_defaults(func=run_status)
+
+    scan_apply = subparsers.add_parser(
+        "scan-apply",
+        help="apply confidentiality dispositions (keep/redact/remove/anonymize)",
+    )
+    _add_tasks_argument(scan_apply)
+    scan_apply.add_argument(
+        "--decisions",
+        required=True,
+        help="confidentiality-dispositions JSON file (task_id -> disposition)",
+    )
+    scan_apply.set_defaults(func=run_scan_apply)
 
     return parser
 

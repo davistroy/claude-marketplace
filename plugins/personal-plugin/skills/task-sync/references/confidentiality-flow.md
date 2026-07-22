@@ -8,10 +8,9 @@ scanner over every `creates`/`pushes` task's current content and populate
 `confidentiality_findings` on the returned plan; nothing has to be invoked
 separately for scanning, and the step is still strictly read-only (it never
 writes `tasks.json` and never mutates a task). The four dispositions
-(`keep`/`redact`/`remove`/`anonymize`) are implemented and unit-tested in the
-tool's Python API (`task_sync.confidential`) but — unlike the seven CLI
-subcommands — applying one is not yet exposed as a dedicated `task-sync`
-subcommand; that half still runs via the short inline script in Step 3 below.
+(`keep`/`redact`/`remove`/`anonymize`) are implemented in the tool's Python
+API (`task_sync.confidential`) and applied via a dedicated `task-sync
+scan-apply --decisions <file>` subcommand — see Step 3 below.
 
 ## What gets scanned
 
@@ -82,31 +81,41 @@ double-checked with the user before writing it.
 
 ## Step 3: apply dispositions
 
-Write the per-task decisions to a file (`{task_id: disposition}`), then apply
-and persist them — this step directly saves `tasks.json` and regenerates
+Write the per-task decisions to a file (`{task_id: disposition}`, or wrapped
+under a `"decisions"` key), then apply and persist them with the
+`scan-apply` subcommand — it directly saves `tasks.json` and regenerates
 `TASKS.md`, independent of `sync --apply`:
 
 ```bash
-PYTHONPATH="$TOOL_SRC" python3 - <<'PY'
-import json
-from task_sync import store, commands
-from task_sync.confidential.scan import scan_task
-from task_sync.confidential.apply import apply_review
+cat > /tmp/task-sync-confidentiality-decisions.json <<'JSON'
+{"t-ab12cd": "anonymize"}
+JSON
 
-tasklist = store.load("tasks.json")
-dispositions = json.load(open("/tmp/task-sync-confidentiality-decisions.json"))
-
-by_id = {t.id: t for t in tasklist.tasks}
-sensitive_terms = tasklist.config.get("sensitive_terms", [])
-
-for task_id, disposition in dispositions.items():
-    task = by_id[task_id]
-    findings = scan_task(task, sensitive_terms)
-    apply_review(task, findings, disposition)
-
-commands.save_and_regenerate(tasklist, "tasks.json")
-PY
+PYTHONPATH="$TOOL_SRC" python3 -m task_sync scan-apply \
+  --decisions /tmp/task-sync-confidentiality-decisions.json
 ```
+
+`scan-apply` validates every task id and disposition in the file **before**
+mutating anything — an unknown task id or an invalid disposition rejects the
+whole batch with a single error and writes nothing, rather than applying some
+dispositions and failing partway through the rest. If the `--decisions` file
+itself can't be read (missing, unreadable, malformed JSON), the error names
+the path directly, e.g. `task-sync scan-apply: cannot read decisions file
+/tmp/x.json: No such file or directory`. For each accepted pair, the task is
+re-scanned to recover the finding spans (the sync plan JSON does not carry
+them) and the disposition is applied, then `tasks.json` is saved and
+`TASKS.md` regenerated together.
+
+**Idempotent.** Re-running the same decisions file against content that
+hasn't changed since it was last reviewed is a genuine no-op: a pair is
+skipped when the task's recorded `confidentiality.decision` already equals
+the requested disposition *and* its content is unchanged. When every pair is
+skipped this way, nothing is written and the tool says so:
+`task-sync scan-apply: N task(s) already carry the requested disposition —
+nothing to apply`. A partial run — some applied, some already up to date —
+reports both, e.g. `reviewed 2 task(s) — redact: 2 (1 already up to date)`.
+Re-deciding a task with a *different* disposition than its recorded one
+still applies, even though its content hasn't changed.
 
 Do this **before** `sync --apply` so the create/push step reads the already-
 cleaned content. Every task gets a `confidentiality` record
