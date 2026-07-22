@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -144,10 +145,172 @@ def test_plan_json_writes_nothing_and_emits_valid_plan(
     assert tasks_path.read_bytes() == before
     assert _git_status(tmp_path) == ""
     payload = json.loads(capsys.readouterr().out)
-    assert set(payload) == {"creates", "pushes", "pulls", "conflicts", "confidentiality_findings"}
+    # `skipped_adopts` is part of the documented --plan --json shape: without
+    # it a consumer cannot tell "nothing to pull" from "N issues were left
+    # unadopted by the window".
+    assert set(payload) == {
+        "creates",
+        "pushes",
+        "pulls",
+        "conflicts",
+        "skipped_adopts",
+        "confidentiality_findings",
+    }
     assert len(payload["creates"]) == 1  # the local task
     assert len(payload["pulls"]) == 1  # the NEW_REMOTE issue
+    assert payload["skipped_adopts"] == []  # the issue is open -> adopted
     assert payload["confidentiality_findings"] == []
+
+
+# -- --adopt-all vs. the default adopt window (issue #167) ------------------
+
+
+SKIPPED_LINE = "skipped (closed outside adopt window): 1 — use --adopt-all to mirror them"
+
+
+def test_plan_long_closed_new_remote_issue_is_not_adopted_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A NEW_REMOTE issue past the adopt window is skipped, not adopted-then-pruned.
+
+    And the skip is *reported*: a silent `continue` let the plan print
+    "already in sync — nothing to do" while the issue sat unmirrored.
+    """
+    tl = TaskList(provider="github", repo="o/r", tasks=[])
+    tasks_path = _committed_repo(tmp_path, tl)
+
+    long_closed = datetime.now(timezone.utc) - timedelta(days=400)
+    issue = _issue(number=9, state="closed", closed_at=long_closed)
+    provider = MockProvider(issues=[issue])
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    rc = run_sync(_parse(tasks_path, tmp_path, "--plan"), provider=provider)  # type: ignore[arg-type]
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "pull   (remote -> local): 0" in out
+    assert SKIPPED_LINE in out
+    assert "already in sync" not in out
+
+
+def test_plan_recently_closed_new_remote_issue_is_not_adopted_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The adopt window's own default is 0 (open issues only) — unlike the old
+    30-day prune-window-sourced default, even a 3-day-old close is skipped."""
+    tl = TaskList(provider="github", repo="o/r", tasks=[])
+    tasks_path = _committed_repo(tmp_path, tl)
+
+    recently_closed = datetime.now(timezone.utc) - timedelta(days=3)
+    issue = _issue(number=9, state="closed", closed_at=recently_closed)
+    provider = MockProvider(issues=[issue])
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    rc = run_sync(_parse(tasks_path, tmp_path, "--plan"), provider=provider)  # type: ignore[arg-type]
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "pull   (remote -> local): 0" in out
+    assert SKIPPED_LINE in out
+    assert "already in sync" not in out
+
+
+def test_plan_json_reports_skipped_adopt_issue_numbers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The machine-readable plan names the skipped issues, not just a count."""
+    tl = TaskList(provider="github", repo="o/r", tasks=[])
+    tasks_path = _committed_repo(tmp_path, tl)
+
+    closed = datetime.now(timezone.utc) - timedelta(days=3)
+    provider = MockProvider(
+        issues=[
+            _issue(number=9, state="closed", closed_at=closed),
+            _issue(number=11, state="closed", closed_at=closed),
+        ]
+    )
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    rc = run_sync(_parse(tasks_path, tmp_path, "--plan", "--json"), provider=provider)  # type: ignore[arg-type]
+
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["pulls"] == []
+    assert payload["skipped_adopts"] == [9, 11]
+
+
+def test_plan_adopt_all_flag_adopts_a_long_closed_issue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--adopt-all` is the full-mirror escape hatch: it ignores the window entirely."""
+    tl = TaskList(provider="github", repo="o/r", tasks=[])
+    tasks_path = _committed_repo(tmp_path, tl)
+
+    long_closed = datetime.now(timezone.utc) - timedelta(days=400)
+    issue = _issue(number=9, state="closed", closed_at=long_closed)
+    provider = MockProvider(issues=[issue])
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    rc = run_sync(_parse(tasks_path, tmp_path, "--plan", "--adopt-all"), provider=provider)  # type: ignore[arg-type]
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "pull   (remote -> local): 1" in out
+    assert "skipped (closed outside adopt window)" not in out
+
+
+def test_apply_adopt_all_mirrors_a_closed_issue_into_tasks_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`sync --apply --adopt-all` — the documented mutating combination.
+
+    The issue is closed 3 days ago: outside the default adopt window (0, open
+    issues only) but well inside the 30-day prune window, so `--adopt-all`
+    must both adopt it AND leave it in the store rather than adopting-then-
+    pruning it in the same run.
+    """
+    tl = TaskList(provider="github", repo="o/r", tasks=[])
+    tasks_path = _committed_repo(tmp_path, tl)
+
+    closed = datetime.now(timezone.utc) - timedelta(days=3)
+    issue = _issue(number=9, title="closed issue", state="closed", closed_at=closed)
+    provider = MockProvider(issues=[issue], now=NOW)
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    rc = run_sync(_parse(tasks_path, tmp_path, "--apply", "--adopt-all"), provider=provider)  # type: ignore[arg-type]
+
+    assert rc == 0
+    saved = store.load(tasks_path)
+    assert [t.issue_number for t in saved.tasks] == [9]
+    assert saved.tasks[0].title == "closed issue"
+    assert saved.tasks[0].status == "done"
+    # A pull is purely local: no issue was created or mutated on the tracker.
+    assert provider.method_calls("create_issue") == []
+    assert provider.method_calls("update_issue") == []
+    assert "1 pull(s)" in capsys.readouterr().out
+
+
+def test_apply_without_adopt_all_leaves_a_closed_issue_unadopted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The counterpart: the same `--apply` run without `--adopt-all` adopts nothing."""
+    tl = TaskList(provider="github", repo="o/r", tasks=[])
+    tasks_path = _committed_repo(tmp_path, tl)
+
+    closed = datetime.now(timezone.utc) - timedelta(days=3)
+    issue = _issue(number=9, title="closed issue", state="closed", closed_at=closed)
+    provider = MockProvider(issues=[issue], now=NOW)
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    rc = run_sync(_parse(tasks_path, tmp_path, "--apply"), provider=provider)  # type: ignore[arg-type]
+
+    assert rc == 0
+    assert store.load(tasks_path).tasks == []
+    out = capsys.readouterr().out
+    assert "0 pull(s)" in out
+    # ...and --apply says WHY it pulled nothing, rather than reporting a bare 0.
+    assert "1 issue(s) closed outside the adopt window were not adopted" in out
+    assert "--adopt-all" in out
 
 
 # -- confidentiality scan is wired into --plan/--dry-run --------------------
@@ -490,6 +653,72 @@ def test_load_decisions_rejects_non_object(tmp_path: Path) -> None:
     bad.write_text(json.dumps(["not", "a", "map"]))
     with pytest.raises(ValueError, match="must be a JSON object"):
         _load_decisions(str(bad))
+    # the offending path is named, so the user knows *which* file to fix.
+    # Substring, not `match=` — `match` is a regex and a Windows tmp path
+    # (`C:\Users\...`) is full of backslash escapes.
+    with pytest.raises(ValueError) as excinfo:
+        _load_decisions(str(bad))
+    assert str(bad) in str(excinfo.value)
+
+
+def test_load_decisions_missing_file_raises_value_error_naming_the_path(tmp_path: Path) -> None:
+    """A missing `--decisions` path is an OSError underneath; it must surface
+    as a ValueError carrying the path, not escape as a raw traceback."""
+    missing = tmp_path / "gone.json"
+    with pytest.raises(ValueError, match="cannot read decisions file"):
+        _load_decisions(str(missing))
+    with pytest.raises(ValueError) as excinfo:
+        _load_decisions(str(missing))
+    assert str(missing) in str(excinfo.value)
+
+
+def test_load_decisions_malformed_json_names_the_path(tmp_path: Path) -> None:
+    bad = tmp_path / "broken.json"
+    bad.write_text("{not json", encoding="utf-8")
+    with pytest.raises(ValueError, match="malformed JSON in decisions file"):
+        _load_decisions(str(bad))
+    with pytest.raises(ValueError) as excinfo:
+        _load_decisions(str(bad))
+    assert str(bad) in str(excinfo.value)
+
+
+def test_sync_apply_with_missing_decisions_file_errors_cleanly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`sync --apply --decisions missing.json` exits 1 with a message, and —
+    critically — writes nothing, since the load happens before `apply`."""
+    tl = TaskList(
+        provider="github",
+        repo="o/r",
+        tasks=[Task(id="t-1", title="local task", issue_number=None)],
+    )
+    tasks_path = _committed_repo(tmp_path, tl)
+    before = tasks_path.read_bytes()
+    missing = tmp_path / "gone.json"
+
+    provider = MockProvider(issues=[], now=NOW)
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    args = build_parser().parse_args(
+        [
+            "sync",
+            "--apply",
+            "--decisions",
+            str(missing),
+            "--tasks",
+            str(tasks_path),
+            "--repo-root",
+            str(tmp_path),
+        ]
+    )
+    rc = run_sync(args, provider=provider)
+
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "task-sync sync:" in err
+    assert str(missing) in err
+    assert tasks_path.read_bytes() == before
+    assert provider.method_calls("create_issue") == []
 
 
 def test_build_provider_github() -> None:
@@ -571,12 +800,25 @@ def test_build_provider_rejects_missing_repo_and_unknown() -> None:
 def test_apply_summary_text() -> None:
     tl = TaskList(tasks=[Task(id="t-1", title="x", issue_number=None)])
     plan = build_plan(classify(tl, []))
-    assert "1 create" in _apply_summary(plan)
+    text = _apply_summary(plan)
+    assert "1 create" in text
+    # no skipped adoptions -> no trailing sentence about them
+    assert "adopt window" not in text
 
 
 def test_summarize_empty_plan_says_in_sync() -> None:
     text = summarize_plan(SyncPlan())
     assert "already in sync" in text
+    assert "skipped (closed outside adopt window)" not in text
+
+
+def test_plan_with_only_skipped_adopts_is_not_empty_and_says_so() -> None:
+    """No actions, but 20 issues left unadopted is NOT "already in sync"."""
+    plan = SyncPlan(skipped_adopts=list(range(1, 21)))
+    assert not plan.is_empty()
+    text = summarize_plan(plan)
+    assert "skipped (closed outside adopt window): 20 — use --adopt-all to mirror them" in text
+    assert "already in sync" not in text
 
 
 def test_summarize_plan_lists_conflicts() -> None:

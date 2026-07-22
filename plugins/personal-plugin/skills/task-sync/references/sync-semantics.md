@@ -18,10 +18,16 @@ task's syncable fields plus the issue's `updated_at` at that moment):
 | no | yes | `CHANGED_REMOTE` | pull (update the task) |
 | yes | yes | `CHANGED_BOTH` | **conflict** — surfaced, never auto-applied |
 | n/a (no `issue_number`) | n/a | `NEW_LOCAL` | create (new issue) |
-| n/a | issue with no matching task | `NEW_REMOTE` | pull (adopt: create a new task) |
+| n/a | issue with no matching task | `NEW_REMOTE` | pull (adopt: create a new task, subject to the adoption window — see Prune below) |
 
-A `CHANGED_LOCAL` task whose issue has vanished (deleted on the tracker) is
-re-created instead of pushed — there is nothing left to push to.
+A `CHANGED_LOCAL` task whose issue has vanished from the tracker's returned
+issue list is still **pushed** to its recorded `issue_number`, not
+re-created. `resolve()`'s create-vs-push branch for `CHANGED_LOCAL` keys off
+`task.issue_number is None` — but `classify()` only ever produces
+`CHANGED_LOCAL` for a task that already has a non-`None` `issue_number`
+(a task with no `issue_number` at all is always `NEW_LOCAL` instead), so that
+branch is never true for an orphaned task. There is no automatic "issue
+vanished, re-create it" path today.
 
 ## Field mapping (task ↔ issue)
 
@@ -61,6 +67,30 @@ The issue itself is left closed on the tracker as the permanent record —
 pruning only removes the row from the local file/table, it never deletes or
 reopens anything remotely.
 
+Adoption (the `NEW_REMOTE` row above) is gated separately, by its own
+`config.adopt_closed_within_days` key (default `0`) — not by
+`prune_closed_after_days`. `0` means adopt open issues only: a closed issue
+is skipped no matter how recently it closed (the check is
+`now - closed_at > timedelta(days=window)`, which is true for every closed
+issue when `window` is `0`). A larger value is a grace window — e.g. `3` also
+adopts issues closed within the last 3 days, with the same strict-greater-than
+comparison so exactly-N-days-ago is still adopted. An absent key (a
+`tasks.json` predating this setting) resolves to `0`, not to the prune
+window. An already-adopted task is unaffected by the window — only
+first-time adoption is gated; a `CHANGED_REMOTE` update to an adopted task
+always applies in full, no matter how long ago the issue closed. Pass `sync
+--adopt-all` to disable the adoption window and mirror every issue in
+history regardless of when it closed.
+
+Adoption and prune answer different questions on purpose — "is this issue
+actionable enough to be worth tracking at all?" versus "how long do we keep
+completed work?" — and are therefore separate keys rather than one shared
+threshold.
+
+Every issue the window rejects is still visible, never silently dropped:
+`sync --plan --json` lists their issue numbers under `skipped_adopts` (see
+below), and `--dry-run` surfaces a count with the same `--adopt-all` pointer.
+
 ## What `--plan --json` returns
 
 ```json
@@ -69,13 +99,29 @@ reopens anything remotely.
   "pushes": [{"task_id": "t-ef34gh", "issue_number": 12, "fields": {...}}],
   "pulls": [{"issue_number": 15, "task_id": null, "fields": {"title": "...", "body": "...", "status": "todo", "priority": null, "labels": [...], "milestone": null}, "issue_updated_at": "...", "issue_closed_at": null}],
   "conflicts": [{"task_id": "t-ij56kl", "issue_number": 9, "local": {...}, "remote": {...}, "recommendation": "remote", "local_updated_at": "...", "remote_updated_at": "...", "remote_closed_at": null}],
+  "skipped_adopts": [174, 173, 172, 156],
   "confidentiality_findings": []
 }
 ```
 
+The key order is fixed: `creates`, `pushes`, `pulls`, `conflicts`,
+`skipped_adopts`, `confidentiality_findings`.
+
 A `pulls` entry with `task_id: null` is an **adopt** (a brand-new task will be
 created from the issue); a non-null `task_id` is an update to an existing
-task. `confidentiality_findings` is populated by `sync --plan`/`--dry-run`
+task.
+
+`skipped_adopts` is a JSON array of tracker issue *numbers* (not task ids —
+these issues have no local task yet), in classification order, e.g. `[174,
+173, 172, 156]`. Each is a `NEW_REMOTE` issue the adopt window (see Prune
+above) left unadopted because it closed outside
+`config.adopt_closed_within_days`. It is not an action list — nothing in it
+is ever applied by `--apply` — it exists purely so a plan whose only
+outstanding work is N unadoptable issues does not read as "already in sync."
+Act on it by re-running with `sync --adopt-all` to mirror every one of them
+regardless of the window, or leave them unadopted if that is the intent.
+
+`confidentiality_findings` is populated by `sync --plan`/`--dry-run`
 itself: the tool scans every `creates` + `pushes` task's current content
 before printing the plan (skipping tasks whose prior review still covers
 their content) and is empty only when nothing outbound is flagged. See

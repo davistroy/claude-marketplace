@@ -152,12 +152,11 @@ jobs:
         run: |
           mypy src/ --ignore-missing-imports
 
-  # NON-required (Phase 1 of the task-sync build-out, per IMPLEMENTATION_PLAN.md):
-  # this job must run green on every PR but is deliberately withheld from
-  # branch protection until the tool has proven itself over several phases
-  # (added to required checks in Phase 6). This sequencing avoids a deadlock
-  # where a not-yet-existing required check would block the very PR that
-  # creates it.
+  # REQUIRED: both matrix legs ("Task Sync Tests (ubuntu-latest)" and
+  # "(windows-latest)") are in branch protection's required-check list, added
+  # in Phase 6 of the task-sync build-out once the job had proven green over
+  # several phases. It was deliberately non-required before that, so a
+  # not-yet-existing required check could not deadlock the PR creating it.
   task-sync:
     name: Task Sync Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

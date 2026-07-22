@@ -22,8 +22,9 @@ or updating from a closed issue lands the task in ``done`` automatically.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 
-from task_sync.providers.base import parse_aware_datetime
+from task_sync.providers.base import Issue, parse_aware_datetime
 from task_sync.reconcile.classify import Classification, ClassKind
 from task_sync.reconcile.mapping import issue_to_task_fields, task_to_issue_fields
 
@@ -87,12 +88,19 @@ class Conflict:
 
 @dataclass
 class ResolveResult:
-    """The fully-split set of actions produced from a classification list."""
+    """The fully-split set of actions produced from a classification list.
+
+    ``skipped_adopts`` holds the issue *numbers* of every NEW_REMOTE issue
+    the adopt window rejected — not just a count. The numbers are what makes
+    the outcome actionable ("#12, #14 and 18 more were left unadopted"); a
+    bare count is recoverable from them via ``len()``, the reverse is not.
+    """
 
     creates: list[CreateAction] = field(default_factory=list)
     pushes: list[PushAction] = field(default_factory=list)
     pulls: list[PullAction] = field(default_factory=list)
     conflicts: list[Conflict] = field(default_factory=list)
+    skipped_adopts: list[int] = field(default_factory=list)
 
 
 def _recommend(local_updated_at: str | None, remote_updated_at: str) -> str:
@@ -109,9 +117,88 @@ def _recommend(local_updated_at: str | None, remote_updated_at: str) -> str:
     return "remote"
 
 
-def resolve(classifications: list[Classification]) -> ResolveResult:
-    """Split classifications into creates / pushes / pulls / conflicts."""
+def _should_skip_adopt(issue: Issue, now: datetime, window_days: int) -> bool:
+    """True when a NEW_REMOTE issue is past the adopt window and must not be adopted.
+
+    The window answers "is this issue recent enough to be worth adopting at
+    all" — a different question from prune's "how long do we keep completed
+    work", and driven by its own ``adopt_closed_within_days`` config key,
+    never by the prune threshold.
+
+    The gate keys off ``issue.state``, not ``closed_at``. ``state`` is
+    validated to ``("open", "closed")`` in :class:`Issue`, so it is non-null
+    by construction; ``closed_at`` is populated from an optional provider
+    field (``.get("closedAt")`` / ``.get("closed_at")``) and can legitimately
+    be ``None`` on an issue the tracker reports as closed. Keying off the
+    nullable field let exactly that issue slip through and be adopted — the
+    regression this window exists to prevent (#167).
+
+    The rule is therefore fail-closed: a closed issue is adopted only when
+    its age is *provably* inside the window. Anything unprovable — a missing
+    ``closed_at``, or a ``closed_at`` in the future from clock skew between
+    the tracker and this machine — is skipped rather than adopted.
+
+    Boundary convention is unchanged and mirrors prune's: the comparison is
+    strictly greater-than, so exactly N days ago is still inside the window,
+    and the same comparison composes correctly at ``window_days=0`` (adopt
+    open issues only — even a closure moments ago is outside a zero window).
+    """
+    if issue.state != "closed":
+        return False
+    if issue.closed_at is None:
+        # Closed, but the tracker gave us no closure timestamp: its age is
+        # unknowable, so it cannot be proven recent. Skip.
+        return True
+    age = now - issue.closed_at
+    if age < timedelta(0):
+        # closed_at is in the future (clock skew). Not provably recent. Skip.
+        return True
+    return age > timedelta(days=window_days)
+
+
+def resolve(
+    classifications: list[Classification],
+    *,
+    adopt_closed_within_days: int | None = None,
+    now: datetime | None = None,
+) -> ResolveResult:
+    """Split classifications into creates / pushes / pulls / conflicts.
+
+    ``adopt_closed_within_days`` gates NEW_REMOTE adoption only: an issue
+    closed more than that many days ago is left unadopted (no
+    :class:`PullAction` is emitted for it). This answers "is this issue
+    recent enough to be worth adopting at all", a distinct question from
+    how long an already-tracked ``done`` task is kept locally (that is
+    prune's ``prune_closed_after_days``, a separate config key read by
+    ``reconcile.apply``/``commands``, never by this function). The default
+    ``None`` adopts every NEW_REMOTE issue regardless of how long ago it
+    closed — today's behavior, so every existing call site stays correct
+    unchanged. (The CLI's own default, sourced from its
+    ``adopt_closed_within_days`` config key, is ``0`` — adopt open issues
+    only — but that policy choice lives in the caller, not here.) An open
+    issue (``state == "open"``) is always adopted, window or not; a closed
+    one is adopted only when its closure is provably inside the window (see
+    :func:`_should_skip_adopt`).
+
+    Issues skipped by the window are recorded on
+    :attr:`ResolveResult.skipped_adopts` rather than dropped silently, so a
+    plan can say "0 pulls *because* N issues were outside the window"
+    instead of reporting itself as already in sync.
+
+    This window applies to NEW_REMOTE only. CHANGED_REMOTE (an
+    already-adopted task whose issue changed) is completely unaffected —
+    an adopted task always keeps full remote fidelity, including a closed
+    state, no matter how long ago that closure happened.
+
+    ``now`` is only consulted — and only defaulted to the current time —
+    when ``adopt_closed_within_days`` is not None; with no window in
+    effect ``resolve`` remains a pure function of ``classifications`` alone.
+    """
     result = ResolveResult()
+
+    effective_now: datetime | None = now
+    if adopt_closed_within_days is not None and effective_now is None:
+        effective_now = datetime.now(timezone.utc)
 
     for c in classifications:
         if c.kind is ClassKind.NEW_LOCAL:
@@ -139,6 +226,14 @@ def resolve(classifications: list[Classification]) -> ResolveResult:
 
         elif c.kind is ClassKind.NEW_REMOTE:
             assert c.issue is not None
+            if adopt_closed_within_days is not None:
+                assert effective_now is not None
+                if _should_skip_adopt(c.issue, effective_now, adopt_closed_within_days):
+                    # Record, never drop: a silently-skipped adoption makes an
+                    # otherwise-empty plan claim "already in sync" while N
+                    # issues sit unmirrored.
+                    result.skipped_adopts.append(c.issue.number)
+                    continue
             result.pulls.append(
                 PullAction(
                     issue_number=c.issue.number,

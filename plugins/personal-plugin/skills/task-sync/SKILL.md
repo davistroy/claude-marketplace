@@ -11,7 +11,7 @@ description: >
   sync tasks with GitHub/Gitea issues, mentions a local task tracker or
   TASKS.md, or asks to push/pull/reconcile tasks against issues; keywords —
   task list, backlog, sync issues, task-sync, todo list, reconcile issues.
-argument-hint: "[sync|list|add|edit|done|remove|status|init] [args...] [--dry-run]"
+argument-hint: "[sync|list|add|edit|done|remove|status|init|scan-apply] [args...] [--dry-run]"
 effort: medium
 allowed-tools: Read, Write, Edit, Glob, Bash
 ---
@@ -55,8 +55,8 @@ PYTHONPATH="$TOOL_SRC" python3 -m task_sync init
 
 `init` detects the provider (`github`, `gitea`, or `none` for local-only) from
 the `origin` git remote, writes the `tasks.json` header (`provider`, `repo`,
-`last_sync_at: null`, and a `config` block with
-`prune_closed_after_days: 30` and an empty `sensitive_terms` list), and
+`last_sync_at: null`, and a `config` block with `prune_closed_after_days: 30`,
+`adopt_closed_within_days: 0`, and an empty `sensitive_terms` list), and
 generates `TASKS.md`. For a `gitea` provider with an http(s) `origin`, `config`
 also gets a `gitea_url` (scheme+host+port) so the first `sync` has a base URL
 without needing `$GITEA_URL` or a `tea login` first; an ssh `origin` leaves it
@@ -84,6 +84,7 @@ same tool calls. Full flag reference: `references/command-reference.md`.
 | `remove <id\|#>` | `rm` | "delete task …", "drop …" | yes |
 | `status` | — | "task status", "how many open tasks" | no |
 | `init` | — | "set up task tracking here" | yes (first run only) |
+| `scan-apply` | — | "apply that redaction decision", "anonymize that task" | yes |
 
 For a bare command (`list`, `add "…"`, `edit`, `done`, `remove`, `status`,
 `init`), run `init` if needed (see above), then invoke the subcommand and
@@ -111,8 +112,22 @@ This is **strictly read-only** — it never writes `tasks.json` or `TASKS.md`
 and never calls the tracker's write API. If the repo has no tracker remote,
 the tool prints "local-only mode" and exits 0; there is nothing to plan.
 
-Parse the JSON: `creates`, `pushes`, `pulls`, `conflicts`,
-`confidentiality_findings`. Field shapes: `references/sync-semantics.md`.
+Parse the JSON: `creates`, `pushes`, `pulls`, `conflicts`, `skipped_adopts`,
+`confidentiality_findings`. `skipped_adopts` is a list of tracker issue
+numbers left unadopted by the adopt window — not an action, but always worth
+surfacing (see step 2). Field shapes: `references/sync-semantics.md`.
+
+By default, a remote-only issue (`NEW_REMOTE` — no local task references it
+yet) is only adopted into `pulls` if it is still open, or closed within
+`config.adopt_closed_within_days` days — its own key, default `0`, meaning
+**adopt open issues only**: any closed issue is left unadopted no matter how
+recently it closed. Set it higher (e.g. `3`) for a grace window that also
+adopts issues closed within the last N days. An absent key (a `tasks.json`
+predating this setting) also resolves to `0`, not to the unrelated
+`prune_closed_after_days` window. Already-adopted tasks are never affected by
+this window — it gates first-time adoption only. Pass `sync --adopt-all` to
+disable the window and mirror every issue in history regardless of how long
+ago it closed.
 
 ### 2. Render the plan as tables
 
@@ -128,9 +143,18 @@ decision:
 - **Conflicts** — both sides changed since the last sync; render as a
   side-by-side table (`local` vs `remote`, each field) with the tool's
   `recommendation` (last-write-wins) called out, but never pre-select it.
+- **Skipped adoptions** — if `skipped_adopts` is non-empty, always call it out
+  even though it needs no decision: "N issue(s) closed outside the adopt
+  window were not adopted: #174, #173, …" plus a pointer to `--adopt-all`.
+  These issues are otherwise invisible in the rest of the plan, and a user
+  who expects a closed issue to show up as a task would see nothing without
+  this line.
 
-If every section is empty, report "already in sync" and stop — there is
-nothing to decide or apply.
+If `creates`, `pushes`, `pulls`, `conflicts`, and `skipped_adopts` are all
+empty, report "already in sync" and stop — there is nothing to decide or
+apply. If only `skipped_adopts` is non-empty, do not report "already in
+sync" — surface the skipped count and stop; there is nothing to decide, but
+it is not nothing to report.
 
 ### 3. Confidentiality scan
 
@@ -165,11 +189,20 @@ cat > /tmp/task-sync-decisions.json <<'JSON'
 JSON
 ```
 
-Apply confidentiality dispositions immediately (before `sync --apply`) using
-the disposition-apply script from `references/confidentiality-flow.md` — this
-directly saves `tasks.json` and regenerates `TASKS.md`. (Disposition apply is
-not yet a dedicated CLI subcommand; scanning is — the plan already did that
-part in step 3.)
+Apply confidentiality dispositions immediately (before `sync --apply`) by
+running `scan-apply` (full walkthrough: `references/confidentiality-flow.md`):
+
+```bash
+PYTHONPATH="$TOOL_SRC" python3 -m task_sync scan-apply \
+  --decisions /tmp/task-sync-confidentiality-decisions.json
+```
+
+This validates every task id and disposition in the file before mutating
+anything — a bad entry rejects the whole batch and writes nothing — then, if
+anything actually changed, saves `tasks.json` and regenerates `TASKS.md`. It
+is idempotent: re-running the same decisions file against content that
+hasn't changed since the last review is a true no-op (nothing written), and
+the tool says so explicitly rather than pretending it applied something.
 
 ### 5. Public-repo visibility guardrail
 
@@ -206,7 +239,9 @@ This executes creates/pushes/pulls, applies only the decided conflicts
 closed more than `prune_closed_after_days` ago, refreshes `last_sync_at`, and
 saves `tasks.json` + regenerates `TASKS.md` — all inside the tool, atomically.
 Report the printed summary (counts of creates/pushes/pulls, conflicts
-surfaced) to the user.
+surfaced, and — only when `skipped_adopts` was non-empty — the trailing
+"N issue(s) closed outside the adopt window were not adopted" sentence) to
+the user.
 
 ### `--dry-run`
 
@@ -218,12 +253,14 @@ show the summary, and stop. Do not build a decisions file or call `--apply`.
 ## Confidentiality Flow (summary)
 
 Four dispositions, applied deterministically by the tool and remembered by
-content hash (`keep` is a no-op; `redact` masks a span; `remove` deletes it;
-`anonymize` swaps in a stable `<<TERM_xxxxxx>>` token so the same term always
-maps to the same token). A previously-reviewed task is skipped on re-scan
-unless its content changed — the scan itself runs inside `sync --plan`/
-`--dry-run` now, so there is nothing to invoke separately for it. Full flow,
-output shapes, and the disposition-apply script:
+content hash (`keep` is a no-op to content; `redact` masks a span; `remove`
+deletes it; `anonymize` swaps in a stable `<<TERM_xxxxxx>>` token so the same
+term always maps to the same token). A previously-reviewed task is skipped on
+re-scan unless its content changed — the scan itself runs inside `sync
+--plan`/`--dry-run` now, so there is nothing to invoke separately for it;
+applying a disposition runs via `scan-apply --decisions <file>`, which is
+itself idempotent (re-applying the same disposition to unchanged content
+writes nothing). Full flow, output shapes, and the exact invocation:
 `references/confidentiality-flow.md`.
 
 ## Sync Semantics (summary)
@@ -236,9 +273,9 @@ auto-applied. Full classify/resolve/prune rules: `references/sync-semantics.md`.
 ## Config (`tasks.json`)
 
 Header fields (`provider`, `repo`, `last_sync_at`, `config`) and the
-`config` block (`prune_closed_after_days`, `sensitive_terms`, optional
-`gitea_url`), plus the full Gitea base-URL/token resolution order:
-`references/config-reference.md`.
+`config` block (`prune_closed_after_days`, `adopt_closed_within_days`,
+`sensitive_terms`, optional `gitea_url`), plus the full Gitea base-URL/token
+resolution order: `references/config-reference.md`.
 
 ## Error Handling
 
@@ -256,5 +293,5 @@ Header fields (`provider`, `repo`, `last_sync_at`, `config`) and the
 
 - `references/command-reference.md` — full flag reference for every subcommand.
 - `references/sync-semantics.md` — 3-way classify, last-write-wins, conflicts, prune.
-- `references/confidentiality-flow.md` — scan/disposition flow and exact inline scripts.
+- `references/confidentiality-flow.md` — scan/disposition flow and the `scan-apply` invocation.
 - `references/config-reference.md` — `tasks.json` header and `config` shape.

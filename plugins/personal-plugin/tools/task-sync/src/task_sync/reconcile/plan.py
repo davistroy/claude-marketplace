@@ -2,9 +2,10 @@
 
 A plan is the complete, inspectable description of what a sync *would* do:
 issues to create, issues to push, tasks to pull/adopt, unresolved conflicts,
-and confidentiality findings. It is what ``sync --plan --json`` emits and
-what ``sync --dry-run`` summarizes. Building a plan is **pure** — it reads a
-classification/resolution and writes nothing; only ``apply`` mutates state.
+issues the adopt window left unadopted, and confidentiality findings. It is
+what ``sync --plan --json`` emits and what ``sync --dry-run`` summarizes.
+Building a plan is **pure** — it reads a classification/resolution and writes
+nothing; only ``apply`` mutates state.
 
 ``confidentiality_findings`` starts empty out of :func:`build_plan` itself —
 that function stays pure, taking no task content and doing no I/O. It is
@@ -19,6 +20,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from typing import Any
 
 from task_sync.reconcile.classify import Classification
@@ -34,17 +36,31 @@ from task_sync.reconcile.resolve import (
 
 @dataclass
 class SyncPlan:
-    """The full set of pending sync actions, ready to serialize or apply."""
+    """The full set of pending sync actions, ready to serialize or apply.
+
+    ``skipped_adopts`` carries the issue numbers the adopt window rejected.
+    It is *not* an action — nothing is applied for it — but it is part of the
+    plan because leaving it out makes an otherwise-empty plan claim the repo
+    is already in sync while N issues sit unmirrored.
+    """
 
     creates: list[CreateAction] = field(default_factory=list)
     pushes: list[PushAction] = field(default_factory=list)
     pulls: list[PullAction] = field(default_factory=list)
     conflicts: list[Conflict] = field(default_factory=list)
+    skipped_adopts: list[int] = field(default_factory=list)
     confidentiality_findings: list[dict[str, Any]] = field(default_factory=list)
 
     def is_empty(self) -> bool:
-        """True when the plan would perform no actions at all."""
-        return not (self.creates or self.pushes or self.pulls or self.conflicts)
+        """True when the plan has nothing at all to report.
+
+        Skipped adoptions count even though they are not actions: a plan
+        holding them is *not* "already in sync", and reporting it as such is
+        exactly the silent-data-loss story this field exists to prevent.
+        """
+        return not (
+            self.creates or self.pushes or self.pulls or self.conflicts or self.skipped_adopts
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """A JSON-ready dict with a stable, section-ordered shape."""
@@ -53,6 +69,7 @@ class SyncPlan:
             "pushes": [asdict(a) for a in self.pushes],
             "pulls": [asdict(a) for a in self.pulls],
             "conflicts": [asdict(c) for c in self.conflicts],
+            "skipped_adopts": list(self.skipped_adopts),
             "confidentiality_findings": list(self.confidentiality_findings),
         }
 
@@ -64,14 +81,24 @@ class SyncPlan:
 def build_plan(
     classifications: list[Classification],
     confidentiality_findings: list[dict[str, Any]] | None = None,
+    *,
+    adopt_closed_within_days: int | None = None,
+    now: datetime | None = None,
 ) -> SyncPlan:
-    """Resolve classifications into a :class:`SyncPlan`. Pure — writes nothing."""
-    resolved: ResolveResult = resolve(classifications)
+    """Resolve classifications into a :class:`SyncPlan`. Pure — writes nothing.
+
+    ``adopt_closed_within_days`` and ``now`` are threaded straight through to
+    :func:`resolve` — see its docstring for the adopt-window semantics.
+    """
+    resolved: ResolveResult = resolve(
+        classifications, adopt_closed_within_days=adopt_closed_within_days, now=now
+    )
     return SyncPlan(
         creates=resolved.creates,
         pushes=resolved.pushes,
         pulls=resolved.pulls,
         conflicts=resolved.conflicts,
+        skipped_adopts=list(resolved.skipped_adopts),
         confidentiality_findings=list(confidentiality_findings or []),
     )
 
@@ -82,6 +109,13 @@ def summarize_plan(plan: SyncPlan) -> str:
     lines.append(f"  create (new issues):   {len(plan.creates)}")
     lines.append(f"  push   (local -> remote): {len(plan.pushes)}")
     lines.append(f"  pull   (remote -> local): {len(plan.pulls)}")
+    if plan.skipped_adopts:
+        # Placed directly under the pull count because it qualifies it: the
+        # honest reading of "pull: 0" is impossible without this line.
+        lines.append(
+            f"  skipped (closed outside adopt window): {len(plan.skipped_adopts)} "
+            "— use --adopt-all to mirror them"
+        )
     lines.append(f"  conflicts (need decision): {len(plan.conflicts)}")
     lines.append(f"  confidentiality findings:  {len(plan.confidentiality_findings)}")
 

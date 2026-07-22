@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.3.0] - 2026-07-22
+
+### Added
+- **task-sync `scan-apply` subcommand** — applying a confidentiality disposition (`keep`/`redact`/`remove`/`anonymize`) is now a first-class, tested CLI subcommand instead of an inline `python3` heredoc embedded in the skill. Takes the same `{task_id: disposition}` JSON shape as `sync --decisions` (flat, or wrapped under a `"decisions"` key), then saves `tasks.json` and regenerates `TASKS.md`. It validates **every** task id and disposition before mutating anything, so one bad entry rejects the whole batch and writes nothing — the previous inline script raised a bare `KeyError` mid-loop and silently discarded the dispositions it had already applied (closes #168).
+- **`sync --adopt-all`** — full-mirror escape hatch that adopts every tracker issue regardless of how long ago it closed (the pre-11.3.0 behavior).
+- **`adopt_closed_within_days` config key** (default `0`) — governs which unadopted tracker issues a sync will adopt.
+
+### Changed
+- **task-sync `sync` no longer adopts closed issues you never tracked.** By default (`adopt_closed_within_days: 0`) only **open** issues are adopted; a larger value adds a grace window for recently-closed ones. Previously every issue ever closed was adopted as a `done` task — in an established repo the first sync flooded the list with long-finished work, and because adoption (`apply.py:207`) and pruning (`:209-211`) happen in the *same* `apply()` call, an issue closed past the prune window was adopted and destroyed within one sync and then re-proposed on **every** subsequent sync, forever (closes #167).
+  - The window gates **new adoptions only**. An already-adopted task keeps full remote fidelity — it still learns that its issue was closed, however long afterward.
+  - The tracker fetch is unchanged (`--state all`). Filtering at the provider layer was rejected: `classify()` treats the fetched issue list as authoritative, so a missing issue silently downgrades a genuine both-sides-changed **conflict into a one-sided push** (a remote clobber), and that push carries `state`, which could even reopen a long-closed issue.
+  - Existing `tasks.json` files predate the new key; an absent key resolves to `0` (open-only), not to the unrelated 30-day prune window.
+
+- **`sync` plans now report what they skipped.** `sync --plan`/`--dry-run` emit `skipped (closed outside adopt window): N — use --adopt-all to mirror them`, `sync --apply` says the same in its summary, and the `--plan --json` payload gained a `skipped_adopts` array of the affected issue numbers (key order: `creates, pushes, pulls, conflicts, skipped_adopts, confidentiality_findings`). Without this, a plan that adopted nothing printed "already in sync — nothing to do" while issues sat unadopted.
+- **`scan-apply` is idempotent.** Re-running the same decisions file over unchanged content writes nothing and reports `N task(s) already carry the requested disposition`. A task is skipped only when its recorded decision matches *and* its content is unchanged since review; re-deciding with a different disposition still applies.
+
+### Fixed
+- **task-sync `scan-apply` now stamps `updated_at`.** It previously mutated `title`/`body` without touching the timestamp, so the conflict recommender's last-write-wins comparison saw a stale local time and recommended `remote` for a task redacted seconds earlier — and accepting that recommendation would restore the un-redacted content from the tracker. Every other content-mutating command already stamped it.
+- **task-sync adoption now keys off `issue.state`, not the nullable `closed_at`.** A `state="closed"` issue whose `closed_at` was absent from the tracker payload (both adapters read it with `.get()`), or whose timestamp was in the future due to clock skew, was still adopted. The predicate is now fail-closed: a closed issue is adopted only when its age is provably inside the window.
+- **task-sync: a missing or malformed `--decisions` file now reports the path** instead of raising an unhandled `FileNotFoundError` traceback (`cannot read decisions file <path>: …`). Affects both the new `scan-apply` and the pre-existing `sync --apply`.
+- **task-sync docs:** `sync-semantics.md` claimed a locally-changed task whose issue vanished is "re-created instead of pushed" — the reachable code path **pushes** to the recorded issue number (`classify()` returns `NEW_LOCAL` whenever `issue_number` is `None`, so `resolve()`'s re-create branch is unreachable from the pipeline). `config-reference.md` claimed `tasks.json` "is meant to be committed"; this repo gitignores both it and `TASKS.md`, so committing is now described as an optional per-repo choice.
+- **CI:** the `task-sync` job in `test.yml` still carried a "NON-required … withheld from branch protection" comment; both matrix legs have been required checks since Phase 6.
+
 ## [personal-plugin v11.2.1] - 2026-07-18
 
 ### Fixed
