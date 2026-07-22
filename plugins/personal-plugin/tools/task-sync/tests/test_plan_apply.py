@@ -653,9 +653,12 @@ def test_load_decisions_rejects_non_object(tmp_path: Path) -> None:
     bad.write_text(json.dumps(["not", "a", "map"]))
     with pytest.raises(ValueError, match="must be a JSON object"):
         _load_decisions(str(bad))
-    # the offending path is named, so the user knows *which* file to fix
-    with pytest.raises(ValueError, match=str(bad)):
+    # the offending path is named, so the user knows *which* file to fix.
+    # Substring, not `match=` — `match` is a regex and a Windows tmp path
+    # (`C:\Users\...`) is full of backslash escapes.
+    with pytest.raises(ValueError) as excinfo:
         _load_decisions(str(bad))
+    assert str(bad) in str(excinfo.value)
 
 
 def test_load_decisions_missing_file_raises_value_error_naming_the_path(tmp_path: Path) -> None:
@@ -664,8 +667,9 @@ def test_load_decisions_missing_file_raises_value_error_naming_the_path(tmp_path
     missing = tmp_path / "gone.json"
     with pytest.raises(ValueError, match="cannot read decisions file"):
         _load_decisions(str(missing))
-    with pytest.raises(ValueError, match=str(missing)):
+    with pytest.raises(ValueError) as excinfo:
         _load_decisions(str(missing))
+    assert str(missing) in str(excinfo.value)
 
 
 def test_load_decisions_malformed_json_names_the_path(tmp_path: Path) -> None:
@@ -673,8 +677,9 @@ def test_load_decisions_malformed_json_names_the_path(tmp_path: Path) -> None:
     bad.write_text("{not json", encoding="utf-8")
     with pytest.raises(ValueError, match="malformed JSON in decisions file"):
         _load_decisions(str(bad))
-    with pytest.raises(ValueError, match=str(bad)):
+    with pytest.raises(ValueError) as excinfo:
         _load_decisions(str(bad))
+    assert str(bad) in str(excinfo.value)
 
 
 def test_sync_apply_with_missing_decisions_file_errors_cleanly(
