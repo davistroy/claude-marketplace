@@ -65,6 +65,8 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D51 | **Audit/report findings are filed as ~18 coherent-bundle issues, one per work unit — not one per finding** (250+ singletons would be unusable) — using the `[Pn]` title prefix; an existing issue that already covers a finding gets an extending comment, never a duplicate issue | 2026-07-28 | ACTIVE | E053 | One issue per finding — rejected (unusable tracker); one mega-issue per report section — rejected (not independently closable) |
 | D52 | **The `/research-topic` Claude depth ladder is `low`/`medium`/`high` (8k/16k/32k `max_tokens`), capped by the transport rather than by preference** — the leg is a single non-streaming `curl`, and Anthropic requires `max_tokens` >= 64,000 at `xhigh`/`max`, which is ~18 min of generation and cannot finish inside any defensible `--max-time` | 2026-07-29 | ACTIVE | E058 | `medium`/`high`/`xhigh` — rejected, `xhigh` under 64k `max_tokens` is explicitly against Anthropic's guidance, so the top tier would ship knowingly-marginal; raising to 64k blows the transport budget. Rewrite the leg to stream — rejected as out of scope for a P0 crash fix and because it means shipping unverified SSE-parsing bash into the one path that is currently broken; filed as a follow-up. `budget_tokens` was a token ceiling and `effort` governs depth *and* total spend, so the ladder had to be re-derived, not translated |
 | D53 | **A bundled skill that needs a Bitwarden secret must `eval "$(grep -m1 '^export BWS_ACCESS_TOKEN=' ~/.config/claude-env.sh)"` before calling `bws`, never trust the inherited env var** — `~/.bashrc:167` loads that file behind `case $- in *i*)`, so a non-interactive tool shell keeps whatever stale token it inherited | 2026-07-29 | ACTIVE | E058 | Treat `400 invalid_client` as a revoked token and rotate — rejected, the token was valid; the shell was loading a retired machine account (`da8557b9…`) while the file held the current one (`f283b1a6…`). Treat it as a region mismatch — rejected by measurement, US *and* EU identity endpoints both rejected the stale token |
+| D54 | **The new plan's scope is "actively wrong or actively multiplying" (16 issues), not "everything open" (24)** — 8 calibration/hygiene issues (#198, #199-sweep, #200, #206, #210, #216, #217, #218) are deferred to a follow-on plan. Ordering within the plan puts silent-corruption and data-loss fixes (Phases 2-4) *ahead* of documentation multipliers | 2026-07-29 | ACTIVE | E060 | All 24 in one plan — rejected: ~60 work items, and it would have deferred #193 (silent layout corruption) and #181 (silent remote clobber) behind doc work. My own first split did exactly that and was corrected before generation. Ship only the 8 P1s — rejected: leaves the generator layer, which propagates six issues' defects into every future skill, untouched |
+| D55 | **#204 (the ADR-0005 CI gate) lands BEFORE #197 (the stale-ID instances), reversing E053's recorded instance-then-class order** — all 13 agent files already comply, so a correctly-scoped gate is green on day one and has no dependency on #197 | 2026-07-29 | ACTIVE | E060 | E053's "guard after instances" order — rejected on evidence: it assumes the gate would fail on existing violations, and there are none. The real hazard runs the other way: if #204's scope creeps to a repo-wide pinned-ID grep it fires on the 8 `claude-sonnet-5` Python defaults that **ADR-0005 line 24 explicitly permits**, reddening `main`'s own push build and deadlocking every subsequent PR until #197 lands |
 
 Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#)
 
@@ -76,7 +78,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| — | **No open action items** — the canonical backlog is the GitHub issues list (A2/A12 directive), summarized in Current Baseline above. **#189 (the only P0) was fixed and shipped as 11.5.0 this session** (E058), joining #208/#212 (11.4.0/11.4.1, E056/E057). The **stale `priority: null` on #189's local `tasks.json` record is RESOLVED** — E057's live `sync --apply` healed it; verified across all 49 tracked tasks with zero local-vs-remote priority drift, detector negative-tested. Remaining landing order: #190/#196/#197 (quick P1s) → #191/#192 with #183 (they share fix lines) → #193/#194/#195 → #198–#206, plus **#210** (plugin CHANGELOG missing 11.2.0/11.3.0). Two constraints carry forward from E053: #201 must land before #205's `description-triggers` re-run or the causes conflate, and #197/#204 are an instance-fix + class-close pair (negative-test the guard before wiring it). **New follow-ups from E058, now filed:** **#216** (stream the `/research-topic` Claude leg for `xhigh`/`max`), **#217** (`/unlock` must source `~/.config/claude-env.sh` — D53 — plus the `bws secret list` plaintext-leak fix), **#218** (back or delete `research-models.md`'s unmechanised `Last Verified` column). **Traps:** `gh issue view <n>` silently resolves PR numbers — derive issue ranges from `gh issue list`; the installed plugin's *active* version lags the cache until a fresh session, so **run bundled tools from the repo source when a fix matters** (the 11.3.0 cache still carries #208/#212 and would have stripped `priority/P0` from #189 itself); and `bws secret list` prints plaintext values — never use it as an auth probe. | — | E043 |
+| — | **No open action items** — the canonical backlog is the GitHub issues list (A2/A12). **`IMPLEMENTATION_PLAN.md` (8 phases / 42 items, E060) is now the execution blueprint for 16 of the 24 open issues**; run `/implement-plan` to execute, one branch+PR per phase. Deferred to a follow-on plan (D54): #198, #199 (the 31-component `effort:` sweep; the enum half lands in Phase 5), #200, #206, #210, #216, #217, #218. **#217 must be REWRITTEN before implementation** — 3 of its 4 claims are wrong and `/unlock` is blocked by an unrelated `$TROY` defect. **#183's location table must be corrected** (Phase 1.5) — `prime`/`explain-project` are inert. **Traps:** `gh issue view <n>` silently resolves PR numbers; the installed plugin's active version lags the cache, so run bundled tools from the repo source when a fix matters; `bws secret list` prints plaintext — never use it as an auth probe; and any injection linter must **replay the pre-pass, not grep** (74 textual sites, 14 live). | — | E043 |
 
 ### Completed
 
@@ -103,11 +105,11 @@ Planning pipeline: `/ultra-plan` → `/create-plan` / `/plan-improvements` → `
 
 ## Current Baseline
 
-*Verified 2026-07-29 against `origin/main` @ `5cd2005`.*
+*Verified 2026-07-29 against `origin/main` @ `264f082`.*
 
 | Item | State |
 |---|---|
-| Versions | marketplace **3.3.0** · personal-plugin **11.5.0** (E058) · bpmn-plugin **4.3.1** (E036) · slide-gen **1.2.0** |
+| Versions | marketplace **3.3.0** · personal-plugin **11.5.1** (E059) · bpmn-plugin **4.3.1** (E036) · slide-gen **1.2.0** |
 | Surfaces | 23 commands · 40 skills (personal 29 / slide-gen 9 / bpmn 2) · 3 implementer agents in `.claude/agents/` · 10 arch-review agents in `plugins/personal-plugin/agents/` |
 | Bundled tools | visual-explainer 894 tests / 93% · bpmn2drawio 640 / 92.84% · feedback-docx 69 / 96.95% · **task-sync 427 / 96.33%**. All bare-`mypy` clean (D33) and ruff clean; green on 3.10/3.11/3.12 |
 | Evals | **48** `.eval.md` specs; structural + coverage linter in CI (`check_eval_mapping.py`, ADR-0009/D32); LLM-judge runner deliberately deferred |
@@ -721,3 +723,39 @@ A non-zero exit does **not** degrade to empty output — the decompiled handler 
 **Version:** 11.5.0 → **11.5.1** (patch: crash fix, no capability change — E057 precedent).
 
 **Duration:** ~30 min (verify the agent's decompilation independently → fix → negative-test → ship).
+
+### Entry 060 — `/ultra-plan` over the 24-item backlog: 11 parallel investigators, 22 of 24 issues corrected [plan] [decision]
+**Date:** 2026-07-29
+**Environment:** Linux VM, branch `plan/v12-correctness-backlog` off `main` `264f082`. personal-plugin 11.5.1, marketplace 3.3.0. Claude Code 2.1.220.
+**Status:** COMPLETE — `IMPLEMENTATION_PLAN.md` generated (8 phases / 42 items); prior plan archived as v11
+
+**Objective:** Run the full `/ultra-plan` workflow over the open backlog and produce a formal implementation plan. User scoped it to 24 of 27 open items, excluding the three deliberately-deferred task-sync v2 scope-outs (#169/#170/#171).
+
+**Method:** Phase 0 constitution check against CLAUDE.md + 10 ADRs + 53 decisions (no gaps, no questions needed). Phase 1 dispatched **11 read-only Explore agents**, clustered 2-3 items each by shared code path so same-root-cause duplicates surfaced *within* a cluster. Every brief carried the same rubric plus this repo's own doctrine (D-numbers, ADRs, E043/E040) as the lens — the E052 lesson that grounding subagents in local doctrine makes them find contradictions between the repo's rules and its files rather than generic style nits.
+
+**Headline result: 22 of 24 issues required correction.** Only #194 and #204 were accurate as filed. That is far above E040's 4-in-6 base rate, and two agents independently explained why: issues derived from *reading tool source* held up; issues derived from *reading docs* did not.
+
+**Six findings that changed the plan's shape:**
+
+| # | Finding | Consequence |
+|---|---|---|
+| 1 | The injection escaping rule is **inverted** — the tidy `` `` !`cmd` `` `` form is LIVE, the sloppy nested form is INERT | #183's two largest cited blocks (`prime` 7, `explain-project` 2) execute nothing; two unfiled components were crashing (fixed as 11.5.1, E059) |
+| 2 | **#202 as filed would delete working features** — 6 of 8 "unverified" frontmatter keys are real; the defect is correct keys with wrong *semantics* | Remedy inverted. `/schedule` is real and shipping; the issue's proposed replacement `create_trigger` appears **zero** times in the harness |
+| 3 | **#204 is green on day one** (13/13 agents already compliant) and the real hazard is scope creep reddening `main` | Reverses E053's recorded order (**D55**) |
+| 4 | **Both** `build-cfa-deck` slide-removal implementations fail on the installed python-pptx — including the one labelled "reliable" | #195 is a functional blocker, not a docs nit |
+| 5 | task-sync's `UNCHANGED` orphan is **100% invisible** in every plan section — the common case, unfiled | #181's blast radius understated |
+| 6 | **#217, which I filed hours earlier, is 3-of-4 wrong** — and `/unlock` is blocked by an unrelated `$TROY` defect, so the filed fix would not make it work | Issue must be rewritten before it is actionable |
+
+**Methodological notes worth keeping.** One agent settled #202 offline by **grepping the installed Claude Code binary for the literal zod frontmatter schemas** — converting "needs a live harness probe" into a decidable question, and discovering the skill schema is `.strict()` (unknown keys are *rejected*, not ignored). Another **decompiled the injection extractor and its pre-pass**, then replayed them against every `.md` under `plugins/`; I reproduced its counts independently in Python before building the plan on them (E039 — treat subagent output as a lead, not a conclusion). A third proved #218 from **git history**: commit `1f55dcd` bumped two `Last Verified` dates while the Default Value cells were byte-identical — the column was find-replaced during a docs sweep, never verified.
+
+**Phase 2 structural insight.** Six issues (#183, #192, #197, #199, #201, #202) all land on the **same five generator files**, which propagate every defect into every future skill. That is not one item among 24 — it is the upstream of a quarter of them, and the plan treats it as a single atomic change set (Phase 5) rather than six colliding PRs. One line, `ship/SKILL.md:30`, is owned by two issues and must be edited once to satisfy both (#183 needs it exit-0-safe, #190 needs it numeric).
+
+**Self-correction during planning, recorded because it matters.** My first proposed split put the generator layer and doctrine work in the near-term plan and deferred #193 (silent layout corruption), #195 (both impls broken), and #181 (silent remote clobber) to a follow-on. That is the wrong ordering — a plan should not defer active harm behind multipliers — and I revised it before generating (**D54**). Phases 2-4 now front-load everything producing wrong output today, and are independent of the critical path so they can run in parallel with it.
+
+**Plan generated:** 8 phases / 42 work items / ~70 files, within the template's 8×6 caps. Two new ADRs are Phase deliverables: **ADR-0011** (dynamic-injection doctrine — parse-time expansion, non-zero exit aborts, the inverted escaping rule, and the rule that linters must *replay the pre-pass, not grep*) and **ADR-0012** (documentation of a bundled artifact must be derived from the artifact — the shared root cause of #193, #194, #196, #202, #218). Structural verification: 8 phases, 42 items, 0 missing required fields, 8 Definition-of-Done blocks, all 16 in-scope issues in the traceability appendix, all 8 deferred issues named.
+
+**markdownlint caught three documented traps at commit time, again.** MD018 on two lines opening with `#183` / `#202` at column 1 (the exact trap CLAUDE.md records), MD056 on a table row split by unescaped pipes inside a shell command, and MD049 on the closing italic. Fourth consecutive session in which the standing "lint before you COMMIT" rule has earned its place.
+
+**What worked:** clustering by shared code path rather than by priority label — it let agents catch cross-issue collisions (`ship:30`, `prime:5`, `new-skill.md:293`) that a per-issue investigation would have missed entirely, and it surfaced three unfiled defects. Asking the scoping question *before* dispatching, rather than investigating 27 items and discovering 3 were out of bounds.
+
+**Duration:** ~1 session (Phase 0 → 11-agent fan-out → interaction mapping → design → plan generation).
