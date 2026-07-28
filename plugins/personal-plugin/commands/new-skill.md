@@ -305,7 +305,7 @@ Three mechanisms inject data before Claude reads the skill prompt:
 |--------|-------------|---------|
 | `$ARGUMENTS` | Raw args the user passed | `$ARGUMENTS` resolves to `"my-branch --draft"` |
 | `$CLAUDE_CONTEXT` | Active file/selection in the editor | Populated when user has a file open |
-| `` !`cmd` `` | Runs `cmd` and splices stdout into prompt | `` !`git status -s` `` → current working tree status |
+| `!`cmd`` | Runs `cmd` and splices stdout into prompt | `!`git status -s`` → current working tree status |
 
 **Gotcha — `paths:` loop guard:** If your skill writes to a file that matches its own `paths:` pattern, it will re-trigger itself. Always add an entry-point guard:
 ```text
@@ -313,7 +313,9 @@ Before running: check LAB_NOTEBOOK.md for an entry from this skill within the la
 If found → exit immediately (self-triggered re-entry detected).
 ```
 
-**Gotcha — `context: fork`:** The forked subagent has no access to parent conversation history. Pass all needed context explicitly in the prompt body or via `` !`cmd` `` injection.
+**Gotcha — `context: fork`:** The forked subagent has no access to parent conversation history. Pass all needed context explicitly in the prompt body or via `!`cmd`` injection.
+
+**Gotcha — writing about injections executes them.** The harness blanks an inline-code span *unless* the character immediately before its opening backtick is `` ` `` or `!`. So the tidy-looking double-backtick form is **live** and the nested single-backtick form is **inert** — the opposite of what it looks like. When documenting the syntax, always write `!`cmd`` (nested). Writing the escaped-looking form runs the command at parse time, and a non-zero exit aborts the whole skill rather than degrading to empty output.
 
 See `references/patterns/advanced-features.md` for full syntax and gotchas for each feature.
 

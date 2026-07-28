@@ -37,7 +37,9 @@ description: {{DESCRIPTION}}
 The user may provide optional arguments when invoking this skill. Dynamic context is available via:
 - `$ARGUMENTS` — raw argument string passed by the user
 - `$CLAUDE_CONTEXT` — active file/selection context (if any)
-- `` !`cmd` `` — command output injected before Claude reads the prompt (e.g., `` !`git status -s` ``)
+- `!`cmd`` — command output injected before Claude reads the prompt (e.g., `!`git status -s``)
+  - Injections run at **parse time**, before `$ARGUMENTS` is available — never inject a command containing a placeholder you expect to be substituted.
+  - A non-zero exit **aborts skill load**; it does not degrade to empty output. Guard anything that can fail: `!`git status -s 2>/dev/null || echo "(not a git repository)"``
 
 ## Instructions
 
