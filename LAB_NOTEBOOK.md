@@ -652,3 +652,72 @@ So the clear is `gh api repos/<repo>/issues/<n> -X PATCH -F milestone=null`, whi
 **Backlog reconciled post-merge.** A second `sync --plan` after the merge showed **4 pulls, 0 creates, 0 pushes, 0 conflicts** — #189 transitioning to `done` plus the three new follow-ups adopted. Applied (nothing left the machine, so the public-repo push guardrail did not engage). Final state: **52 tasks / 27 open**, a follow-up plan of all zeros, priority drift re-verified at **0 across all 52**, and #189 still carrying `priority/P0` on the tracker after a full closed-state round-trip — an incidental end-to-end re-confirmation of the #208 fix under the exact condition that used to destroy the label.
 
 **Duration:** ~1 session (load claude-api → map blast radius → fix → negative-test the guard → credential detour → live probe → ship → reconcile backlog).
+
+--- New session: 2026-07-29 — `/ultra-plan` over the 24-item open backlog; two live crashes found during Phase 1 investigation and pulled out for immediate fix ahead of the plan. ---
+
+### Entry 059 — Two shipped components crash on every invocation (live `` !`cmd` `` injections) [skill] [command] [debug]
+**Date:** 2026-07-29
+**Environment:** Linux VM, branch `fix/live-injection-crashes` off `main` `6e5d689`. personal-plugin 11.5.0. Claude Code 2.1.220. Found by an Explore agent during `/ultra-plan` Phase 1; scope pulled forward by user direction ("pull them out").
+**Status:** COMPLETE — shipped as personal-plugin 11.5.1
+
+**Objective:** Fix two components that fail on **every** invocation in **every** directory, neither of which is filed as a crash: `/new-skill` (`commands/new-skill.md:308,316`) and `/leak-risk-audit` (`skills/leak-risk-audit/SKILL.md:57`). Also fix `references/templates/skill.md:40`, which seeds the same defect into every skill `/new-skill` scaffolds.
+
+**How this was missed for so long — the escaping rule is inverted.** An Explore agent decompiled the harness's injection extractor (`Cfo`) and its pre-pass (`Jds`) out of the 2.1.220 binary. `Jds` blanks every inline-code span **unless the character immediately before the opening backtick is `` ` `` or `!`**. The consequence is exactly backwards from intuition:
+
+| Form | Looks like | Reality |
+|---|---|---|
+| `` `` !`cmd` `` `` (double-backtick, space before `!`) | correctly-escaped documentation | **LIVE — executes** |
+| `` `!`cmd`` `` (single-backtick, backtick before `!`) | sloppy nesting | **INERT** |
+
+So the *tidier* form is the dangerous one. Every author who "properly escaped" their example created a live shell execution; every author who nested backticks sloppily created dead text. This is why `prime` (7 sites) and `explain-project` (2) — the two largest blocks cited in **#183** — are completely inert, while a generator and an audit skill nobody suspected were crashing.
+
+**Independently verified, not taken on trust** (E039). I replayed `Jds` + the extractor regex in Python against all 74 textual `` !` `` occurrences under `plugins/`: `prime` 7→**0 live**, `explain-project` 2→**0 live**, `arch-review` 1→**0 live**, versus `ship` 6→**6**, `clear-prep` 3→**3**, `leak-risk-audit` 2→**2**, `new-skill` 3→**3**. Counts match the agent's Node replay exactly.
+
+**Two independent crash causes, both empirically measured:**
+
+| Site | Injected command | Exit | Fails where |
+|---|---|---|---|
+| `commands/new-skill.md:308` | `cmd` (a literal placeholder, not a real binary) | **127** | **every directory** |
+| `commands/new-skill.md:308` | `git status -s` | 128 | non-git only |
+| `commands/new-skill.md:316` | `cmd` | **127** | **every directory** |
+| `skills/leak-risk-audit/SKILL.md:57` | `ls -la <dataset-path>` | **2** (bash syntax error — `<`/`>` are redirects) | **every directory** |
+| `skills/leak-risk-audit/SKILL.md:58` | `find <dataset-path> … \| head -100` | 0 | pipe masks the failure |
+
+A non-zero exit does **not** degrade to empty output — the decompiled handler `throw`s, `Promise.all` rejects, prompt expansion fails, and the skill never reaches the model. `/new-skill` additionally grants no `Bash` at all (`allowed-tools: Read, Write, Edit, Glob, Grep`), so the permission gate would reject the injection even if the command existed: two independent reasons it cannot work.
+
+**The two defects are different in kind, and need different fixes:**
+1. **`new-skill.md` + `templates/skill.md` are documentation** *about* the injection syntax that accidentally executes it. Fix: switch to the inert form. The examples must still *teach* the syntax legibly.
+2. **`leak-risk-audit` intends a real injection that can never work.** `<dataset-path>` is substituted from `$ARGUMENTS` at runtime, but injections expand at **parse time, before arguments exist**, so the literal placeholder always reaches bash. `skills/arch-review/SKILL.md:44` already documents this exact failure — *"that runs at command parse time, before `TARGET_PATH` has been parsed from `$ARGUMENTS`, so the placeholder reaches bash unsubstituted. Always invoke the Bash tool from the model with the resolved path."* Fix: delete the injection framing, per that precedent. A guard would be wrong — there is nothing to guard, the design is impossible.
+
+**Hypothesis:** After the fix, replaying the extractor reports **0 live injections** in all three files, while the documentation still displays the syntax. `ship` (6) and `clear-prep` (3) remain live and unchanged — they are genuine git injections whose non-git guarding belongs to #183/#190 and is deliberately **out of scope here**. Success criteria: live count 3→0 for `new-skill.md`, 2→0 for `leak-risk-audit`, 2→0 for `templates/skill.md`; `ship`/`clear-prep` counts unchanged at 6/3; the replay harness negative-tests green (reintroducing a live form is detected).
+
+**Rollback Plan:** Single-commit revert. All three changes are markdown text edits with no schema, no data, and no code path. `git revert <sha>` restores the previous (crashing) state exactly.
+
+**Deliberately out of scope, recorded so the omissions read as decisions:**
+- **`ship` (6) and `clear-prep` (3)** — real git injections that abort only outside a repo. That is #183 ∩ #190, and `ship:30` is a single line owned by two issues that must be edited once, together. Fixing it here would pre-empt that atomic pair.
+- **`references/{common-patterns,new-skill-examples,patterns/advanced-features}.md` and `deprecated/new-command.md`** (20 live forms) — these are Read as documentation, never expanded as a skill/command body, so nothing executes. They teach the dangerous form and belong to the generator-layer change set (CS-1), not to a crash fix.
+- **`references/patterns/advanced-features.md:132`'s false "failure is silent" claim** — the root-cause doc fix, also CS-1/#183.
+
+**Result:** COMPLETE. Live-injection counts after the fix, measured by replaying the extractor:
+
+| File | Before | After | Note |
+|---|---|---|---|
+| `commands/new-skill.md` | 3 | **0** | `cmd` ×2 (exit 127) + `git status -s` |
+| `references/templates/skill.md` | 2 | **0** | the propagation seed |
+| `skills/leak-risk-audit/SKILL.md` | 2 | **0** | injection framing deleted, not guarded |
+| `skills/ship/SKILL.md` | 6 | **6** | unchanged — #183 ∩ #190, deliberately out of scope |
+| `skills/clear-prep/SKILL.md` | 3 | **3** | unchanged — #183 |
+
+**The checker was negative-tested before its zeros were trusted** (E043). Two one-line fixtures were run through the same replay: the nested form `` `!`cmd`` `` reports **LIVE=0**, the escaped-looking form `` `` !`cmd` `` `` reports **LIVE=1**. Without that, "0 live" is indistinguishable from a broken extractor — which matters more than usual here, because the whole finding rests on a subtlety of the pre-pass.
+
+**Fix shapes differ by defect, deliberately.** The two documentation sites switched to the inert nested form and gained a gotcha naming the inversion, because the examples still have to *teach* the syntax. `leak-risk-audit` had its injection framing **deleted** rather than guarded — a guard would be the wrong fix, since `<dataset-path>` can never be substituted at parse time and there is nothing to guard against. That follows `arch-review/SKILL.md:44`, which had already documented this exact failure for its own `TARGET_PATH`; the knowledge existed in the repo and simply hadn't propagated.
+
+**System insight — the safe-looking form is the dangerous one.** Every other injection defect in this repo's history was an author forgetting a guard. This one is the opposite: authors who *correctly* escaped their documentation examples, by the ordinary markdown convention for showing literal backticks, thereby created live shell executions; the authors who nested backticks sloppily created dead text. Intuition points exactly the wrong way, which is why two shipped components crashed on every invocation without anyone noticing, and why the two largest blocks cited in #183 (`prime`, `explain-project`) turn out to execute nothing at all. **Any future injection linter must replay the pre-pass rather than grep** — a textual search for `` !` `` finds 74 sites under `plugins/`, of which only 14 are live in an executable surface.
+
+**Scope note recorded for #183.** Its location table should be rewritten: drop `prime` (7 inert) and `explain-project` (2 inert), add `commands/new-skill.md` and correct the `leak-risk-audit` framing from "non-git" to "every directory". The mechanism half of #183 — including its critique of `advanced-features.md:132` — is verified correct and still stands.
+
+**Root CHANGELOG gap closed in passing.** 11.5.0 was missing from the root `CHANGELOG.md` — drift introduced by my own PR #215 earlier today, and one of the two reverse-drift cases the #210 investigation surfaced. Added alongside 11.5.1 rather than left for #210, since this PR was editing that file anyway and leaving a known self-inflicted gap would be worse than the small scope bleed.
+
+**Version:** 11.5.0 → **11.5.1** (patch: crash fix, no capability change — E057 precedent).
+
+**Duration:** ~30 min (verify the agent's decompilation independently → fix → negative-test → ship).

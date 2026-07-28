@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.5.1] - 2026-07-29
+
+### Fixed
+- `new-skill` and `leak-risk-audit` failed on **every** invocation in **every** directory. Both carried live `` !`…` `` shell injections: `/new-skill` injected the literal placeholder `cmd` (exit 127) and `/leak-risk-audit` injected `ls -la <dataset-path>`, a bash syntax error (exit 2). A non-zero exit aborts prompt expansion rather than degrading to empty output, so neither skill ever reached the model. `references/templates/skill.md` seeded the same defect into every scaffolded skill.
+
+## [personal-plugin v11.5.0] - 2026-07-29
+
+### Fixed
+- `research-topic`: the Claude leg returned HTTP 400 on every dispatch — `thinking.budget_tokens` is removed from the Messages API across the whole current model family. Replaced with adaptive thinking + `output_config.effort` (closes #189).
+- `research-topic`: a safety refusal (HTTP 200, `stop_reason: "refusal"`, no `error` body) passed every fast-fail check and wrote a silently empty research report. Guard added and mutation-tested.
+
+### Changed
+- `research-topic`: default Claude model `claude-opus-4-8` → `claude-opus-5`; depth ladder re-derived as `low`/8k, `medium`/16k, `high`/32k.
+
 ## [personal-plugin v11.4.1] - 2026-07-29
 
 ### Fixed

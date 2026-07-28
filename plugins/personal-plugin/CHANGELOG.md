@@ -5,6 +5,13 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.5.1] - 2026-07-29
+
+### Fixed
+- `commands/new-skill.md`: `/new-skill` aborted on **every** invocation in **every** directory. Lines 308 and 316 documented the dynamic-injection syntax using the double-backtick form `` `` !`cmd` `` `` — which the harness's pre-pass treats as **live**, not escaped — so invoking the command executed the literal placeholder `cmd` (exit 127). A non-zero exit throws and aborts prompt expansion; it does not degrade to empty output. The command also grants no `Bash`, so the permission gate would have rejected the injection regardless. Rewritten to the inert nested form (`` `!`cmd`` ``) already used by `prime` and `arch-review`, plus a gotcha explaining that the tidier-looking form is the dangerous one.
+- `references/templates/skill.md`: carried the same live form, seeding it into every skill `/new-skill` scaffolds. Now inert, and documents the two rules authors need — injections expand at parse time (before `$ARGUMENTS` exists) and a non-zero exit aborts skill load.
+- `skills/leak-risk-audit/SKILL.md`: aborted on **every** invocation in **every** directory. `` !`ls -la <dataset-path>` `` is a bash syntax error (`<`/`>` are redirects, exit 2), and the placeholder could never have been substituted — injections expand before arguments are parsed. Replaced with a Bash-tool invocation on the resolved path, matching the precedent already documented in `skills/arch-review/SKILL.md:44`.
+
 ## [11.5.0] - 2026-07-29
 
 ### Fixed

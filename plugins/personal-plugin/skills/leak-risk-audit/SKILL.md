@@ -51,14 +51,16 @@ You assess risk across these categories, in order of severity:
 
 1. **Determine the dataset**: If not specified, ask. Accept a file path or directory. Supported formats: CSV, JSON, JSONL, TSV, XLSX.
 
-2. **Read and sample the data**: Use dynamic context injection to build the file inventory (pre-loaded before Claude reads the prompt):
+2. **Read and sample the data**: Build the file inventory by invoking the Bash tool with the resolved dataset path:
 
-   ```
-   Dataset directory listing: !`ls -la <dataset-path>`
-   Dataset files: !`find <dataset-path> -type f \( -name '*.csv' -o -name '*.jsonl' -o -name '*.json' -o -name '*.tsv' -o -name '*.xlsx' \) | head -100`
+   ```bash
+   ls -la "$DATASET_PATH"
+   find "$DATASET_PATH" -type f \( -name '*.csv' -o -name '*.jsonl' -o -name '*.json' -o -name '*.tsv' -o -name '*.xlsx' \) | head -100
    ```
 
-   Replace `<dataset-path>` with the actual path from arguments. For large files (>1000 rows), read a statistically diverse sample (first 50, last 50, and 100 random rows from the middle). For smaller files, read everything.
+   > Do NOT use the `!`...`` shell-injection syntax here — that runs at command parse time, before the dataset path has been parsed from `$ARGUMENTS`, so the placeholder reaches bash unsubstituted and a non-zero exit aborts the whole skill. Always invoke the Bash tool from the model with the resolved path. (Same rule as `arch-review`.)
+
+   For large files (>1000 rows), read a statistically diverse sample (first 50, last 50, and 100 random rows from the middle). For smaller files, read everything.
 
 3. **Parallel severity-tier scanning** (dispatch 4 `context: fork` subagents, one per severity tier):
 
