@@ -5,6 +5,20 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.5.0] - 2026-07-29
+
+### Fixed
+- `skills/research-topic`: the Claude research leg failed on **every** dispatch. Its request body sent `thinking: {"type": "enabled", "budget_tokens": N}`, a parameter **removed** (not deprecated) from the Messages API, which returns HTTP 400 on the entire current model family — `claude-opus-4-8` and `claude-opus-5` alike. Depth is now expressed as `thinking: {"type": "adaptive"}` plus `output_config: {"effort": ...}`. Closes #189.
+- `references/research-provider-protocols.md`: the Claude leg's fast-fail now also catches a **safety refusal**, which arrives as HTTP 200 with `stop_reason: "refusal"`, no `error` body, and empty or partial content. The previous three checks (curl exit, HTTP status, `error` key) all passed it, so a declined request wrote a silently empty research report that then flowed into synthesis. Handling this is part of the Opus 5 move, which is what introduces the path.
+
+### Changed
+- `skills/research-topic`: default Claude model `claude-opus-4-8` → `claude-opus-5` (same pricing tier, drop-in). Updated in all five places it was duplicated — `SKILL.md`, `references/research-models.md` (×3 tables), `references/api-key-setup.md`.
+- `skills/research-topic`: the depth ladder is re-derived, not translated — `budget_tokens` was a thinking-token ceiling while `effort` governs thinking depth *and* total token spend, so there is no 1:1 mapping. brief → `low`/8,000, standard → `medium`/16,000, comprehensive → `high`/32,000. `max_tokens` now scales with depth because it caps thinking **plus** response text.
+- `references/research-provider-protocols.md`: Claude leg `curl --max-time` 600s → 900s, sized against the comprehensive tier's 32,000-token ceiling (~9 min at ~60 tok/s).
+
+### Notes
+- The ladder deliberately stops at `high` rather than `xhigh`/`max`: Anthropic requires `max_tokens` >= 64,000 at those levels, which cannot finish inside a non-streaming request. Converting the leg to streaming is tracked separately.
+
 ## [11.4.1] - 2026-07-29
 
 ### Fixed

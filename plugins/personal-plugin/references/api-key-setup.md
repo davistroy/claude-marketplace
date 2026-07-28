@@ -16,7 +16,7 @@ All API keys must be stored in Bitwarden and loaded via the `/unlock` skill. Thi
 
 | Key | Provider | Purpose | Where to Get |
 |-----|----------|---------|--------------|
-| `ANTHROPIC_API_KEY` | Anthropic | Claude Extended Thinking | https://console.anthropic.com/ |
+| `ANTHROPIC_API_KEY` | Anthropic | Claude adaptive thinking | https://console.anthropic.com/ |
 | `OPENAI_API_KEY` | OpenAI | o3 Deep Research | https://platform.openai.com/ |
 | `GOOGLE_API_KEY` | Google | Gemini Deep Research | https://aistudio.google.com/ |
 
@@ -33,7 +33,7 @@ The following settings ARE safe to put in `.env` files (they are not secrets):
 
 ```bash
 # Model overrides (non-sensitive)
-ANTHROPIC_MODEL=claude-opus-4-8
+ANTHROPIC_MODEL=claude-opus-5
 OPENAI_MODEL=o3-deep-research-2025-06-26
 GEMINI_AGENT=deep-research-pro-preview-12-2025
 

@@ -553,3 +553,71 @@ So the clear is `gh api repos/<repo>/issues/<n> -X PATCH -F milestone=null`, whi
 **Version:** 11.4.0 → **11.4.1** (patch: crash fix, no capability change).
 
 **Duration:** ~1 session (repro → probe → TDD → fix → mutation-test → live verify).
+
+--- New session: 2026-07-29 — fix #189, the only P0 in the E052 audit backlog: `/research-topic`'s Claude leg sends a request shape the current model family rejects. ---
+
+### Entry 058 — Fix #189: research-topic's Claude leg 400s on every dispatch (`thinking.budget_tokens`) [skill] [debug] [decision]
+**Date:** 2026-07-29
+**Environment:** Linux VM, branch `fix/research-topic-adaptive-thinking` off `main` `85ed9d9` (clean, 0/0 vs `origin/main`). personal-plugin 11.4.1, marketplace 3.3.0. Primary source for every API claim: the bundled `claude-api` skill (loaded before opening any target file, per its own TRIGGER rule).
+**Status:** IN PROGRESS
+
+**Objective:** Close #189 — the only P0. The Claude research leg sends `thinking: {"type": "enabled", "budget_tokens": N}`, which is **removed** (not deprecated) across the entire current model family and returns HTTP 400 on `claude-opus-4-8` and `claude-opus-5` alike. Replace it with `thinking: {"type": "adaptive"}` + `output_config: {effort: …}` and bump the default `claude-opus-4-8` → `claude-opus-5` **in the same pass** — a model-ID bump alone does not fix it, and fixing the shape without the bump ships a knowingly-stale default.
+
+**Root cause.** Not a typo or a drift — a *whole parameter family* was removed from the API surface between when this skill was written and now, and nothing in this repo could have noticed. The skill's request body lives in a markdown reference file consumed by a subagent at runtime; there is no test, no schema, and no CI gate that ever renders it, let alone sends it. The `research-models.md` default table even carries a `Last Verified | 2026-07-08` column — a **self-reported** freshness claim with no mechanism behind it. That is the E043 class one layer out: not a guard that cannot fail, but a *freshness annotation* that asserts verification nobody performed. It is why a P0 sat undetected until a read-only audit went looking.
+
+**Blast radius (5 files, 9 sites).** All are prose/markdown that a runtime subagent copies verbatim, which is exactly why they must move together — a half-fix leaves a subagent reading a corrected SKILL.md and then a broken curl body out of `research-provider-protocols.md`:
+
+| File | Sites | What is wrong |
+|---|---|---|
+| `skills/research-topic/SKILL.md` | `:35`, `:153` | `claude-opus-4-8` default (env-var doc + resolve step) |
+| | `:190-196`, `:219`, `:238` | depth ladder + Provider Deltas both name `thinking.budget_tokens` |
+| `references/research-provider-protocols.md` | `:13`, `:27-29` | the copy-pasteable curl body carrying the rejected block |
+| `references/research-models.md` | `:19`, `:33`, `:64` | `claude-opus-4-8` in 3 tables |
+| | `:48-53` | `budget_tokens` depth column |
+| `references/api-key-setup.md` | `:36` | `.env` example |
+
+**Hypothesis:** After the change, a live `POST /v1/messages` carrying the new body against `claude-opus-5` returns **HTTP 200**, and the *old* body against the same model returns **HTTP 400** naming `thinking.budget_tokens` — the negative control that proves the fix addresses the real defect rather than a theory about it (E043's negative-test rule applied to an API contract instead of a CI guard). Secondary: no `budget_tokens` string survives anywhere under `plugins/`.
+
+**Rollback Plan:** Single-commit revert. Every change is to markdown consumed at runtime — no schema, no on-disk format, no user data, no Python. `git revert <sha>` restores the previous (broken) shape exactly. Nothing to migrate in either direction.
+
+**Decision — depth ladder is `low`/`medium`/`high`, not `medium`/`high`/`xhigh` (user-approved).** `budget_tokens` was a thinking-token ceiling; `effort` governs thinking depth *and* overall token spend, so there is no 1:1 mapping and the ladder had to be re-derived rather than translated. The binding constraint is that **this leg is a single non-streaming `curl`**: Anthropic's migration guidance requires `max_tokens ≥ 64000` at `xhigh`/`max` (below that it truncates mid-thought), and 64K output tokens at ~60 tok/s is ~18 minutes — past any defensible `curl --max-time`, and past the ~10-minute point where idle HTTP connections drop. So the top of the ladder is capped by the transport, not by taste.
+
+| Depth | `effort` | `max_tokens` | Est. wall-clock @ ~60 tok/s |
+|---|---|---|---|
+| brief | `low` | 8,000 | ~2 min |
+| standard | `medium` | 16,000 | ~4.5 min |
+| comprehensive | `high` | 32,000 | ~9 min (inside the raised 900s cap) |
+
+*Alternatives considered:* **`medium`/`high`/`xhigh`** — rejected, `xhigh` under 64K `max_tokens` is explicitly against Anthropic's own guidance, so the top tier would ship knowingly-marginal; raising to 64K instead blows the transport budget. **Rewrite the leg to stream (`"stream": true` + SSE accumulation in bash)** — rejected as out of scope for a P0 crash fix and because it means shipping unverified SSE-parsing bash into the one code path that is currently broken; filed as a follow-up instead. `high` is Anthropic's documented *minimum* for intelligence-sensitive work, so the capped ladder still lands the comprehensive tier on a defensible floor rather than a compromise.
+
+**Second defect found while fixing the first — Opus 5 can refuse with HTTP 200.** Opus 5 ships elevated cybersecurity safeguards: a declined request returns a **successful 200** with `stop_reason: "refusal"` and an empty (pre-output) or partial (mid-stream) `content` array — no `error` body, no 4xx. The existing fast-fail checks exactly three things (`curl` exit, `http_code >= 400`, an `error` key), so a refusal passes every one of them and the leg writes a **silently empty research report** that then flows into synthesis as if it were a finding. Migrating to Opus 5 *introduces* this path, so handling it is part of the fix, not a nice-to-have — shipping the model bump without it would trade a loud 400 for a silent empty section.
+
+**Deliberately NOT done (recorded so the omissions read as decisions):**
+- **`thinking.display`** left at its `"omitted"` default. The parse step discards thinking blocks entirely, so `"summarized"` would bill the same and be thrown away.
+- **`fallbacks`** not adopted, despite the `claude-api` skill's opt-in-by-default advice. It is a beta parameter + beta header pair on the one code path this entry exists to un-break; a wrong spelling reintroduces the exact 400 being fixed. Revisit once the leg has a live regression probe.
+- **The three secondary findings on #189** (Claude leg is parametric-only while the other two legs are web-connected; the literal `context: fork` line inside the prompt *text*; stale-suspect OpenAI/Gemini defaults) are separate work — see the follow-ups below.
+
+**The new guard was negative-tested before being trusted (E043 rule), and the extraction was derived, not retyped.** The refusal check was pulled *out of the shipped protocol file by regex* and exercised against crafted response bodies — retyping it into a test would have tested my transcription rather than the file that ships, which is the #212 failure mode exactly:
+
+| Response body | Guard verdict |
+|---|---|
+| `stop_reason: end_turn` + text | passes (correct) |
+| `stop_reason: refusal`, empty content | **caught** — `category=cyber` |
+| `stop_reason: refusal`, partial content, `category: null` | **caught** — no crash on the null |
+| `error` body | caught |
+| `stop_reason: max_tokens` | passes (correct — truncated content is still real) |
+| non-JSON / JSON array | caught as unparseable |
+
+**Mutation test:** deleting the refusal branch made both refusal rows go from *caught* to `<empty>` — i.e. silently passing the fast-fail and writing an empty report. The branch is load-bearing and demonstrably *can* fail, so it is not an E043 guard-that-cannot-fire.
+
+**A third defect, surfaced by the guard test rather than by reading:** `stop_reason: "max_tokens"` correctly passes the fast-fail (a truncated report is still useful, and failing the whole leg would be worse), but nothing marked the result as partial — so synthesis would read a cut-off section as a complete one. Newly plausible *because of this change*: the brief tier's ceiling is now 8,000 tokens. The parse step now appends a truncation note instead of failing. This is the same silent-degradation family as the refusal path — worth noting that **testing the guard found a defect that reading the guard had not.**
+
+**Live probe — written, dry-run clean, blocked on credentials.** `bws secret list` fails `400 invalid_client` (expired token) and `ANTHROPIC_API_KEY` is unset, so the empirical leg is pending. The probe (`probe_189.sh`) is deliberately built so it cannot pass while the shipped files are broken: it **regex-extracts the `-d` body out of `research-provider-protocols.md` and the depth ladder out of `research-models.md`**, then substitutes and sends. Its first dry run caught a flaw in *itself* — it displayed an extracted ladder while sending a hardcoded one, and the extraction was also matching the Cost Estimates table, whose rows carry the identical Brief/Standard/Comprehensive labels. Both fixed; the sends are now driven by the extracted ladder with assertions on every parsed value. Dry run against an invalid key returns 401 on all six calls, which confirms the bodies are well-formed enough to reach auth (JSON parse and substitution succeed) but proves nothing about parameter validity — auth precedes parameter validation.
+
+Pending probe matrix:
+
+| # | Request | Expected |
+|---|---|---|
+| A1/A2 | OLD `budget_tokens` body vs `claude-opus-5` **and** `claude-opus-4-8` | HTTP **400** — the negative control; confirms the reported defect is real on both, not a theory |
+| B1–B3 | Shipped body at `low`/8k, `medium`/16k, `high`/32k | HTTP **200** |
+| C | Bare `claude-opus-5` call | HTTP **200** — the model ID resolves |
