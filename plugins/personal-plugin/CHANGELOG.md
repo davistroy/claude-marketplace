@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.0.0] - 2026-07-16
 
-Architecture-review hardening release (8-phase remediation; LAB_NOTEBOOK Entries 017–024). MAJOR due to interface/capability changes.
+Architecture-review hardening release (8-phase remediation; LAB_NOTEBOOK Entries 017–024 -- archived, see `docs/archive/LAB_NOTEBOOK-E017-E050.md`). MAJOR due to interface/capability changes.
 
 ### Changed (breaking)
 - `tools/visual-explainer`: removed the inert `--concurrency` CLI flag + `GenerationConfig.concurrency` field (dead concurrent path; generation was always serial). *(PERF-01)*

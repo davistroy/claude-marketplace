@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-17
 **Status:** Accepted
-**Deciders:** Troy Davis (proposed via /ultra-plan session on the 2026-07-17 /prime backlog, issue #150, Lab Notebook E040/E043)
+**Deciders:** Troy Davis (proposed via /ultra-plan session on the 2026-07-17 /prime backlog, issue #150, Lab Notebook E040/E043 -- archived, see `docs/archive/LAB_NOTEBOOK-E017-E050.md`)
 
 ## Context
 
