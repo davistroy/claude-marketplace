@@ -76,7 +76,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| — | **No open action items** — the canonical backlog is the GitHub issues list (A2/A12 directive), summarized in Current Baseline above. **#189 (the only P0) was fixed and shipped as 11.5.0 this session** (E058), joining #208/#212 (11.4.0/11.4.1, E056/E057). The **stale `priority: null` on #189's local `tasks.json` record is RESOLVED** — E057's live `sync --apply` healed it; verified across all 49 tracked tasks with zero local-vs-remote priority drift, detector negative-tested. Remaining landing order: #190/#196/#197 (quick P1s) → #191/#192 with #183 (they share fix lines) → #193/#194/#195 → #198–#206, plus **#210** (plugin CHANGELOG missing 11.2.0/11.3.0). Two constraints carry forward from E053: #201 must land before #205's `description-triggers` re-run or the causes conflate, and #197/#204 are an instance-fix + class-close pair (negative-test the guard before wiring it). **New follow-ups from E058:** stream the `/research-topic` Claude leg to unlock `xhigh`/`max`; make `/unlock` source `~/.config/claude-env.sh` (D53); and either back or delete `research-models.md`'s unmechanised `Last Verified` column. **Traps:** `gh issue view <n>` silently resolves PR numbers — derive issue ranges from `gh issue list`; the installed plugin's *active* version lags the cache until a fresh session, so **run bundled tools from the repo source when a fix matters** (the 11.3.0 cache still carries #208/#212 and would have stripped `priority/P0` from #189 itself); and `bws secret list` prints plaintext values — never use it as an auth probe. | — | E043 |
+| — | **No open action items** — the canonical backlog is the GitHub issues list (A2/A12 directive), summarized in Current Baseline above. **#189 (the only P0) was fixed and shipped as 11.5.0 this session** (E058), joining #208/#212 (11.4.0/11.4.1, E056/E057). The **stale `priority: null` on #189's local `tasks.json` record is RESOLVED** — E057's live `sync --apply` healed it; verified across all 49 tracked tasks with zero local-vs-remote priority drift, detector negative-tested. Remaining landing order: #190/#196/#197 (quick P1s) → #191/#192 with #183 (they share fix lines) → #193/#194/#195 → #198–#206, plus **#210** (plugin CHANGELOG missing 11.2.0/11.3.0). Two constraints carry forward from E053: #201 must land before #205's `description-triggers` re-run or the causes conflate, and #197/#204 are an instance-fix + class-close pair (negative-test the guard before wiring it). **New follow-ups from E058, now filed:** **#216** (stream the `/research-topic` Claude leg for `xhigh`/`max`), **#217** (`/unlock` must source `~/.config/claude-env.sh` — D53 — plus the `bws secret list` plaintext-leak fix), **#218** (back or delete `research-models.md`'s unmechanised `Last Verified` column). **Traps:** `gh issue view <n>` silently resolves PR numbers — derive issue ranges from `gh issue list`; the installed plugin's *active* version lags the cache until a fresh session, so **run bundled tools from the repo source when a fix matters** (the 11.3.0 cache still carries #208/#212 and would have stripped `priority/P0` from #189 itself); and `bws secret list` prints plaintext values — never use it as an auth probe. | — | E043 |
 
 ### Completed
 
@@ -103,7 +103,7 @@ Planning pipeline: `/ultra-plan` → `/create-plan` / `/plan-improvements` → `
 
 ## Current Baseline
 
-*Verified 2026-07-29 against `origin/main` @ `85ed9d9`; personal-plugin 11.5.0 pending merge of the #189 fix (E058).*
+*Verified 2026-07-29 against `origin/main` @ `5cd2005`.*
 
 | Item | State |
 |---|---|
@@ -114,7 +114,7 @@ Planning pipeline: `/ultra-plan` → `/create-plan` / `/plan-improvements` → `
 | CI | `test.yml` (pytest ×2 OS, coverage floors in each tool's `[tool.coverage.report]`, pip-audit per lockfile, advisory `Python Compat (3.10)/(3.12)`) · `validate.yml` (plugin/frontmatter/version-sync, README-sync `--check`, eval linter, ruff, markdownlint). **Branch protection on `main`: 21 required checks, PR-required 0-approvals, `enforce_admins=false`** (ADR-0007/D22) |
 | Plugin cache | Auto-propagates from the GitHub marketplace source. **There is no `autoUpdate` key in marketplace.json** — that is Claude Code's install-side default, not a repo-declared flag (D19 correction). Refresh with `claude plugin marketplace update`; `claude plugin update <plugin>` can report "Plugin not found" (E051) |
 | Dependencies | Actions SHA-pinned (checkout/setup-python/setup-node) · google-genai 2.11.0 · pydantic 2.13.4 / pydantic-core 2.46.4 **lockstep — never bump independently** (D25) |
-| Open backlog | **#190–#206** (17 remaining E052-audit issues; **#189, the only P0, is fixed in 11.5.0/E058**) · **#210** (plugin CHANGELOG missing 11.2.0/11.3.0) · **#183** (20 unguarded `` !`git` `` injections across 5 skills) · #181/#182 (task-sync) · #169/#170/#171 (v2 scope-outs, deliberately deferred). **No P0 remains open.** |
+| Open backlog | **#190–#206** (17 remaining E052-audit issues; **#189, the only P0, is CLOSED — fixed in 11.5.0/E058**) · **#216/#217/#218** (E058 follow-ups) · **#210** (plugin CHANGELOG missing 11.2.0/11.3.0) · **#183** (20 unguarded `` !`git` `` injections across 5 skills) · #181/#182 (task-sync) · #169/#170/#171 (v2 scope-outs, deliberately deferred). **No P0 remains open.** |
 | Platform | Linux VM (current sessions); earlier sessions Windows 11 — see root CLAUDE.md "Dual environment" |
 
 ---
@@ -561,7 +561,7 @@ So the clear is `gh api repos/<repo>/issues/<n> -X PATCH -F milestone=null`, whi
 ### Entry 058 — Fix #189: research-topic's Claude leg 400s on every dispatch (`thinking.budget_tokens`) [skill] [debug] [decision]
 **Date:** 2026-07-29
 **Environment:** Linux VM, branch `fix/research-topic-adaptive-thinking` off `main` `85ed9d9` (clean, 0/0 vs `origin/main`). personal-plugin 11.4.1, marketplace 3.3.0. Primary source for every API claim: the bundled `claude-api` skill (loaded before opening any target file, per its own TRIGGER rule).
-**Status:** COMPLETE — shipped as personal-plugin 11.5.0
+**Status:** COMPLETE — shipped as personal-plugin 11.5.0 (PR #215, squash-merged to `main` `5cd2005`; all 22 checks green)
 
 **Objective:** Close #189 — the only P0. The Claude research leg sends `thinking: {"type": "enabled", "budget_tokens": N}`, which is **removed** (not deprecated) across the entire current model family and returns HTTP 400 on `claude-opus-4-8` and `claude-opus-5` alike. Replace it with `thinking: {"type": "adaptive"}` + `output_config: {effort: …}` and bump the default `claude-opus-4-8` → `claude-opus-5` **in the same pass** — a model-ID bump alone does not fix it, and fixing the shape without the bump ships a knowingly-stale default.
 
@@ -642,11 +642,13 @@ So the clear is `gh api repos/<repo>/issues/<n> -X PATCH -F milestone=null`, whi
 **Result:** COMPLETE. #189's request-shape defect, the refusal-path defect it exposed, and the truncation-marking gap the guard test exposed are all fixed across 5 files / 10 sites; live-verified on 6 API calls with a passing negative control on both model IDs. markdownlint, `scripts/pre-commit` (staged), `claude plugin validate --strict`, `update-readme.py --check`, `check_eval_mapping.py` (48 evals / 63 surfaces), and `validate_schema_data.py` all green.
 
 **Follow-ups:**
-- **Stream the Claude leg** to unlock `xhigh`/`max` depth (needs `"stream": true` + SSE accumulation; the current ladder is capped by the non-streaming transport, not by preference). File as an issue.
-- **`/unlock` should source `~/.config/claude-env.sh` rather than trust the inherited `BWS_ACCESS_TOKEN`** — the stale-inherited-token failure will recur in every non-interactive tool shell.
-- **The `Last Verified` column in `research-models.md` is a self-reported claim with no mechanism** — it read `2026-07-08` while the value it annotated had been returning 400 for the entire current model family. Either wire a check behind it or delete it; an unbacked freshness stamp is the E043 class applied to documentation.
+- **#216** — stream the Claude leg to unlock `xhigh`/`max` depth (needs `"stream": true` + SSE accumulation; the current ladder is capped by the non-streaming transport, not by preference).
+- **#217** — `/unlock` and the `~/.claude/scripts/*` helpers should source `~/.config/claude-env.sh` rather than trust the inherited `BWS_ACCESS_TOKEN` (D53); the stale-inherited-token failure recurs in every non-interactive tool shell. Also covers the `bws secret list` plaintext-leak hygiene fix.
+- **#218** — the `Last Verified` column in `research-models.md` is a self-reported claim with no mechanism; it read `2026-07-08` while the value it annotated had been returning 400 for the entire current model family. Either wire a check behind it or delete it; an unbacked freshness stamp is the E043 class applied to documentation. (Note CI has zero secrets per ADR-0009/D32, so a live probe cannot run there.)
 - **#197 overlap:** `api-key-setup.md:19` ("Claude Extended Thinking" → "adaptive thinking") was fixed here because leaving it made the file self-contradictory three lines from an edit already being made. #197 keeps its remaining bullets. The slide-gen `budget_tokens=4096` / `temperature=1.0` docs found while grepping are already covered by #197 — checked before filing, no duplicate created.
 
 **Version:** 11.4.1 → **11.5.0** (minor: the request shape and the default model both change; a pure crash fix would have been patch, per E057's precedent).
 
-**Duration:** ~1 session (load claude-api → map blast radius → fix → negative-test the guard → credential detour → live probe → ship).
+**Backlog reconciled post-merge.** A second `sync --plan` after the merge showed **4 pulls, 0 creates, 0 pushes, 0 conflicts** — #189 transitioning to `done` plus the three new follow-ups adopted. Applied (nothing left the machine, so the public-repo push guardrail did not engage). Final state: **52 tasks / 27 open**, a follow-up plan of all zeros, priority drift re-verified at **0 across all 52**, and #189 still carrying `priority/P0` on the tracker after a full closed-state round-trip — an incidental end-to-end re-confirmation of the #208 fix under the exact condition that used to destroy the label.
+
+**Duration:** ~1 session (load claude-api → map blast radius → fix → negative-test the guard → credential detour → live probe → ship → reconcile backlog).
