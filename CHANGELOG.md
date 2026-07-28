@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.4.0] - 2026-07-29
+
+### Fixed
+- `task-sync`: unrecognized `priority/*` / `status/*` labels are preserved instead of being stripped on pull and `--remove-label`'d from the issue on the next push (closes #208).
+
+### Added
+- `task-sync`: `P0` accepted as a priority value.
+
 ## [personal-plugin v11.3.0] - 2026-07-22
 
 ### Added

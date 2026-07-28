@@ -5,6 +5,14 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.0] - 2026-07-29
+
+### Fixed
+- `tools/task-sync`: a `priority/*` or `status/*` label whose suffix the tool does not recognize is no longer silently discarded on pull and then **deleted from the tracker** on the next push. `is_managed_label` now requires both a managed prefix and a recognized suffix, so an unknown label stays in the user label set and survives the round-trip (closes #208).
+
+### Added
+- `tools/task-sync`: `P0` is now a valid priority (`VALID_PRIORITIES` is `P0`-`P4`). Previously the highest-severity level was the one value the tool could not represent, so a `priority/P0` label mapped to no priority at all.
+
 ## [11.2.1] - 2026-07-18
 
 ### Fixed
