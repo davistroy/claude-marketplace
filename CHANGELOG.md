@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.4.1] - 2026-07-29
+
+### Fixed
+- `task-sync`: `sync --apply` crashed on any push because `--remove-milestone` does not exist in `gh`; milestones are now cleared via the REST API and only when one is set (closes #212).
+
 ## [personal-plugin v11.4.0] - 2026-07-29
 
 ### Fixed
