@@ -5,6 +5,11 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.1] - 2026-07-29
+
+### Fixed
+- `tools/task-sync`: `sync --apply` no longer aborts on every push. `providers/github.py` appended `--remove-milestone`, a flag `gh` does not have (verified against gh 2.45.0), whenever a pushed task had no milestone — which is nearly always, since `task_to_issue_fields` always emits the field. The whole `apply` raised and left the run partially applied. A milestone is now cleared only when one is actually set, and via `gh api ... -X PATCH -F milestone=null` (portable across gh versions; `-F` sends a real JSON null where `-f` would send the string `"null"`). Closes #212.
+
 ## [11.4.0] - 2026-07-29
 
 ### Fixed

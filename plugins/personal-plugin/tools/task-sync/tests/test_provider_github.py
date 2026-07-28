@@ -177,14 +177,61 @@ def test_update_issue_diffs_labels_and_edits(fake_gh: FakeGh) -> None:
 
 
 def test_update_issue_clears_milestone(fake_gh: FakeGh) -> None:
+    # The fixture HAS a milestone, so a clear is genuinely required. `gh issue
+    # edit` has no --remove-milestone flag (#212), so the clear goes through the
+    # REST API, where `-F` sends a real JSON null (`-f` would send the string
+    # "null" and silently set the milestone to a bogus name).
     fake_gh.route(("issue", "view"), lambda args: _json_ok(_ISSUE_FIXTURE))
     fake_gh.route(("issue", "edit"), lambda args: FakeCompletedProcess(stdout=""))
+    fake_gh.route(("api",), lambda args: FakeCompletedProcess(stdout="{}"))
 
     provider = GithubProvider("owner/repo")
     provider.update_issue(42, milestone=None)
 
+    assert not any("--remove-milestone" in c for c in fake_gh.calls), (
+        "--remove-milestone does not exist in gh; it aborts the whole edit"
+    )
+    api_call = next(c for c in fake_gh.calls if c[0] == "api")
+    assert api_call == [
+        "api",
+        "repos/owner/repo/issues/42",
+        "-X",
+        "PATCH",
+        "-F",
+        "milestone=null",
+    ]
+
+
+def test_update_issue_does_not_touch_milestone_when_already_absent(fake_gh: FakeGh) -> None:
+    # #212's actual crash: task_to_issue_fields ALWAYS emits `milestone`, so a
+    # push of a task with no milestone asked gh to clear one that was never set.
+    # Nothing to clear => no API call, and no `gh issue edit` at all.
+    no_milestone = {**_ISSUE_FIXTURE, "milestone": None}
+    fake_gh.route(("issue", "view"), lambda args: _json_ok(no_milestone))
+    fake_gh.route(("issue", "edit"), lambda args: FakeCompletedProcess(stdout=""))
+    fake_gh.route(("api",), lambda args: FakeCompletedProcess(stdout="{}"))
+
+    provider = GithubProvider("owner/repo")
+    provider.update_issue(42, milestone=None)
+
+    assert not any(c[0] == "api" for c in fake_gh.calls), "nothing to clear -> no API call"
+    assert all(c[:2] != ["issue", "edit"] for c in fake_gh.calls), (
+        "a no-op milestone must not trigger an edit (spurious updated_at bump)"
+    )
+
+
+def test_update_issue_no_milestone_key_is_left_alone(fake_gh: FakeGh) -> None:
+    # Omitting the key entirely must never be read as "clear it".
+    fake_gh.route(("issue", "view"), lambda args: _json_ok(_ISSUE_FIXTURE))
+    fake_gh.route(("issue", "edit"), lambda args: FakeCompletedProcess(stdout=""))
+    fake_gh.route(("api",), lambda args: FakeCompletedProcess(stdout="{}"))
+
+    provider = GithubProvider("owner/repo")
+    provider.update_issue(42, title="New title")
+
+    assert not any(c[0] == "api" for c in fake_gh.calls)
     edit_call = next(c for c in fake_gh.calls if c[:2] == ["issue", "edit"])
-    assert "--remove-milestone" in edit_call
+    assert "--milestone" not in edit_call
 
 
 def test_update_issue_no_fields_still_returns_current_issue(fake_gh: FakeGh) -> None:

@@ -509,3 +509,47 @@ Before writing the fix, the new tests were run against the *unfixed* code and 9 
 **Version:** 11.3.0 → **11.4.0** (minor, not patch): `P0` becoming an accepted value is additive user-visible capability, and unknown-label push behavior changes. Under D44 a capability *narrowing* would have been major; this widens.
 
 **Duration:** ~1 session (repro → TDD → fix → mutation-test → release prep).
+
+### Entry 057 — Fix #212: `sync --apply` crashes on every push (`--remove-milestone` does not exist) [debug] [build]
+**Date:** 2026-07-29
+**Environment:** Linux VM, branch `fix/task-sync-milestone-clear` off `main` `9e72747`. personal-plugin 11.4.0. `gh version 2.45.0`.
+**Status:** COMPLETE
+
+**Objective:** Close #212. `providers/github.py` appends `--remove-milestone` whenever a pushed task has no milestone, but `gh` 2.45 has no such flag — so `gh issue edit` exits non-zero and `apply` raises, aborting the run part-way through.
+
+**Root cause.** Two compounding mistakes, the same shape as #208 one layer up:
+1. `task_to_issue_fields` **always** emits `milestone`, so `"milestone" in fields` is always true; when the task has no milestone the provider asks `gh` to clear one — even when the issue has no milestone either and there is nothing to clear.
+2. The flag it uses does not exist. `gh` 2.45 has `--remove-assignee` / `--remove-label` / `--remove-project`, but milestone removal was never in that family.
+
+**Why it survived the test suite — the mock agreed with the bug.** `test_update_issue_clears_milestone` asserted `"--remove-milestone" in edit_call`. Because `subprocess.run` is mocked, the assertion encoded a flag `gh` does not accept and passed happily. Argv-shape tests only catch real defects if the argv is checked against the real CLI's surface; otherwise they pin the mistake in place. Directly analogous to #208, where a hardcoded `["P1".."P4"]` had drifted alongside the enum.
+
+**Hypothesis:** Fixing (1) alone removes the crash for every real-world push, since both sides are almost always `None`. Fixing (2) as well makes a genuine clear work on any `gh`. Success criteria: a test asserting the emitted argv contains **no** `--remove-milestone`; a genuine-clear test asserting the portable call; suite green; mutation-tested.
+
+**Rollback Plan:** Single-commit revert; the change is confined to `providers/github.py` and its tests. No schema or on-disk format changes.
+
+**Portable spelling — verified empirically, not guessed** (guessing a flag is what caused this). `gh api` is already used in this file by `ensure_milestone`, so it is not a new dependency. Probed against a nonexistent issue number so the request 404s and mutates nothing, with `--verbose` to read the outgoing body:
+
+- `-F milestone=null` → `"milestone": null` (JSON null — what the REST API needs to clear)
+- `-f milestone=null` → `"milestone": "null"` (a string — the wrong thing, and the trap)
+
+So the clear is `gh api repos/<repo>/issues/<n> -X PATCH -F milestone=null`, which works on every `gh` version. **No minimum-`gh` floor or preflight version check is needed** — that was the open question in #212, now closed by measurement rather than by declaring a requirement.
+
+**The fix.** `update_issue` now (a) clears a milestone only when `self._view(number)` shows one is actually set, and (b) does the clear via `gh api repos/<repo>/issues/<n> -X PATCH -F milestone=null` after the main edit succeeds, rather than as a flag on it. `changed` is no longer set for a no-op milestone, so a push that changes nothing no longer triggers a spurious `gh issue edit` (which would bump `updated_at` and perturb last-write-wins). Sequencing the API call *after* the edit avoids a partial application where the milestone is cleared but the edit then fails.
+
+**Result:** COMPLETE. 425 → 427 tests; ruff, ruff-format, mypy clean; coverage 96.33% (floor 90).
+
+| Mutation | Expected | Observed |
+|---|---|---|
+| Restore `--remove-milestone` | fail | **2 failed** |
+| Clear unconditionally (drop the has-milestone check) | fail | **1 failed** |
+| Fix in place | pass | **427 passed** |
+
+**End-to-end on live data — the real proof.** Re-ran the exact `sync --apply` that had been raising: `applied 0 create(s), 1 push(es), 3 pull(s); 0 conflict(s)`, and a follow-up plan came back **all zeros**. #189 still carries `["bug","priority/P0"]` after a real push, so this run simultaneously confirms the #208 fix under the condition that used to destroy the label.
+
+**System insight — mocks pin mistakes in place.** `test_update_issue_clears_milestone` asserted `"--remove-milestone" in edit_call` and passed for the tool's whole life, because `subprocess.run` was mocked. An argv-shape assertion is only as good as the argv's agreement with the real CLI. This is the third variant of one pattern in two days: a hardcoded priority list that drifted from its enum (#208), a mock that asserted a nonexistent flag (#212), and E043's guards that could not fail — **all cases where the check agreed with the defect and reported success.** Coverage was 92% on `github.py` throughout.
+
+**Decision closed by measurement, not declaration.** #212 left open whether to declare a minimum `gh` version. Probing `gh api`'s `-F` against a 404 endpoint showed a portable spelling exists, so no version floor and no preflight check are needed — strictly better than pinning a requirement onto every user.
+
+**Version:** 11.4.0 → **11.4.1** (patch: crash fix, no capability change).
+
+**Duration:** ~1 session (repro → probe → TDD → fix → mutation-test → live verify).

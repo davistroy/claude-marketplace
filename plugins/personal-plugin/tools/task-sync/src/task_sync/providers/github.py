@@ -161,20 +161,40 @@ class GithubProvider:
                 args += ["--remove-label", name]
                 changed = True
 
+        # `gh issue edit` has --remove-assignee/-label/-project but NO
+        # --remove-milestone (#212). Clearing therefore goes through the REST
+        # API, and only when there is genuinely something to clear: the caller
+        # always supplies `milestone`, so a task without one used to ask gh to
+        # unset a milestone that was never set — aborting the entire edit.
+        clear_milestone = False
         if "milestone" in fields:
             milestone = fields["milestone"]
             if milestone is None:
-                args += ["--remove-milestone"]
+                clear_milestone = bool(self._view(number).get("milestone"))
             else:
                 self.ensure_milestone(milestone)
                 args += ["--milestone", milestone]
-            changed = True
+                changed = True
 
         if "state" in fields:
             self.set_state(number, fields["state"])
 
         if changed:
             self._run(args)
+
+        if clear_milestone:
+            # `-F` sends a typed JSON null (which clears it); `-f` would send
+            # the *string* "null" and set a bogus milestone name instead.
+            self._run(
+                [
+                    "api",
+                    f"repos/{self._repo}/issues/{number}",
+                    "-X",
+                    "PATCH",
+                    "-F",
+                    "milestone=null",
+                ]
+            )
 
         return self._normalize(self._view(number))
 
