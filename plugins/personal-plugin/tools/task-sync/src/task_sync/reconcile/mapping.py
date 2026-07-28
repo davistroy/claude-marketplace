@@ -17,8 +17,10 @@ changed survives a full round-trip unchanged:
 ``todo`` and ``done`` deliberately carry *no* ``status/*`` label: ``todo`` is
 "open with nothing else said", and a closed issue already encodes ``done``.
 Exactly one ``status/*`` label is ever emitted, and the reverse mapping
-strips every ``status/*`` / ``priority/*`` label back out so the round-trip
-does not accumulate duplicates.
+strips the ``status/*`` / ``priority/*`` labels it *recognizes* back out so the
+round-trip does not accumulate duplicates. A label in one of those namespaces
+whose suffix is unrecognized is left in the user label set rather than claimed
+— see :func:`is_managed_label`.
 
 Creating the labels/milestones this mapping references on the tracker is
 *not* done here — that is deferred to apply-time via ``Provider.ensure_*``.
@@ -29,7 +31,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from task_sync.models import VALID_PRIORITIES, Task
+from task_sync.models import VALID_PRIORITIES, VALID_STATUSES, Task
 from task_sync.providers.base import Issue
 
 STATUS_LABEL_PREFIX = "status/"
@@ -56,8 +58,24 @@ _LABEL_TO_STATUS: dict[str, str] = {
 
 
 def is_managed_label(label: str) -> bool:
-    """True for labels this tool owns (``status/*`` or ``priority/*``)."""
-    return label.startswith(STATUS_LABEL_PREFIX) or label.startswith(PRIORITY_LABEL_PREFIX)
+    """True for labels this tool owns.
+
+    Ownership requires BOTH a managed prefix and a suffix this tool actually
+    recognizes. An unrecognized suffix — ``priority/urgent``, ``status/wontfix``,
+    or a ``priority/P0`` predating its addition to ``VALID_PRIORITIES`` — is
+    deliberately *not* claimed, so it stays in the user label set.
+
+    Claiming it would destroy it (#208): :func:`user_labels` would strip it on
+    pull while the reverse mapping declined to capture it, so on the next push
+    it would be missing from the desired set and the provider's
+    ``current - desired`` diff would emit ``--remove-label`` for it. Never
+    delete a label we could not interpret.
+    """
+    if label.startswith(STATUS_LABEL_PREFIX):
+        return label[len(STATUS_LABEL_PREFIX) :] in VALID_STATUSES
+    if label.startswith(PRIORITY_LABEL_PREFIX):
+        return label[len(PRIORITY_LABEL_PREFIX) :] in VALID_PRIORITIES
+    return False
 
 
 def user_labels(labels: list[str]) -> list[str]:

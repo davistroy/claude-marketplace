@@ -456,3 +456,54 @@ Also fixed: F6 (a comment citing #168 for the #167 bug), F7 (the combined-error 
 **Follow-up:** `rotation.md` should record the digest variant as a sanctioned option, since this is now the second rotation and the two used different shapes.
 
 **Duration:** ~1 session (audit → verify → promote → rotate → condense).
+
+--- New session: 2026-07-29 — fix #208, the task-sync P0 priority round-trip bug found while relabelling the E052 audit backlog. ---
+
+### Entry 056 — Fix #208: task-sync drops and then deletes `priority/P0` [debug] [decision] [build]
+**Date:** 2026-07-29
+**Environment:** Linux VM, branch `fix/task-sync-p0-priority` off `main` `cb6a225`. personal-plugin 11.3.0. Repo source verified byte-identical to the installed 11.3.0 cache before starting.
+**Status:** COMPLETE
+
+**Objective:** Close #208 — `VALID_PRIORITIES` is `("P1","P2","P3","P4")`, so a `priority/P0` label is discarded on pull *and* `--remove-label`'d from the issue on the next push. Fix the enum, fix the silent-discard class the enum gap exposed, and add the regression tests that would have caught it.
+
+**Root cause (two independent defects that compound).** The enum gap alone would only mis-sort. The data loss comes from pairing it with an over-broad ownership predicate:
+
+1. `_priority_from_issue` returns the suffix only `if suffix in VALID_PRIORITIES`, else falls through to `None` — silently.
+2. `is_managed_label` claims **every** `status/*` and `priority/*` label for the tool regardless of whether the suffix is recognized, so `user_labels()` strips it from the user set too.
+
+Together the label is dropped twice on pull; then on push `task_to_issue_fields` omits it from `desired`, and the GitHub provider's `for name in sorted(current - desired): --remove-label` deletes it from the tracker. The tool destroys a label it never understood — the D35 silent-remote-clobber class.
+
+**Hypothesis:** Adding `P0` fixes the reported symptom, but the *class* is fixed only by narrowing `is_managed_label` to recognized suffixes, so any unknown `status/*` or `priority/*` label is preserved as a user label and therefore survives the round-trip. Success criteria: a round-trip property test over every valid suffix **plus unknown suffixes** passes; each new test is mutation-tested (revert the fix, confirm it fails); coverage stays ≥90; full suite green on both OSes.
+
+**Rollback Plan:** Single-commit revert; the change is confined to `models.py`, `reconcile/mapping.py`, and tests. `tasks.json` files are untouched by this change — it alters no on-disk schema, only which label values are recognized. No migration needed either way.
+
+**Deliberate scope decision — `P4` stays.** #208 asked whether it should go, since nothing uses it. Removing it is a **breaking change for data at rest**: `Task.__post_init__` validates `priority` on load, so any existing `tasks.json` carrying `P4` would fail to load with a `ValueError` after the change. task-sync is a general per-repo tool, not private to this marketplace, so the blast radius is unknown. Widening the enum is additive and safe; narrowing it is not. Alternatives: drop `P4` for a clean P0–P3 scale matching this repo's `[Pn]` title convention — rejected on the data-at-rest risk; leave the scale alone and special-case P0 — rejected, it doesn't fix the class.
+
+**The fix (two parts, each mutation-tested independently).**
+
+1. `models.py` — `VALID_PRIORITIES` gains `P0`: `("P0","P1","P2","P3","P4")`.
+2. `reconcile/mapping.py` — `is_managed_label` now requires **both** a managed prefix *and* a recognized suffix (`VALID_STATUSES` / `VALID_PRIORITIES`). An unknown suffix is left in the user label set, so it round-trips instead of being stripped-then-deleted. Module docstring corrected — it claimed the reverse mapping "strips every `status/*` / `priority/*` label", which is exactly the over-broad behavior that caused the bug.
+
+**Result:** COMPLETE. 425 tests pass (was 415); coverage 96.37% (floor 90) with `mapping.py` at **100%**; ruff, ruff-format, and mypy all clean.
+
+| Mutation | Expected | Observed |
+|---|---|---|
+| Drop `P0` from the enum, keep the predicate fix | fail | **1 failed** (`test_p0_is_a_valid_priority`) |
+| Revert the predicate, keep `P0` | fail | **9 failed** |
+| Both fixes in place | pass | **425 passed** |
+
+Before writing the fix, the new tests were run against the *unfixed* code and 9 failed — proving they catch the bug rather than merely covering the line. The control (`test_every_valid_priority_survives_a_full_round_trip`) passed for P1–P4 throughout, confirming the harness itself was sound.
+
+**End-to-end verified**, not just unit-tested (E049): replaying #208's exact repro against the fixed source, `priority/P0` now maps to `P0` and proposes no `--remove-label`; so does `priority/urgent`, an unknown suffix the tool still refuses to delete.
+
+**System insight — the test agreed with the bug.** `test_priority_round_trip` was parametrized over a *hardcoded* `["P1","P2","P3","P4"]` rather than over `VALID_PRIORITIES`. It passed at 100% line coverage on `mapping.py` while the P0 path was broken, because the literal list drifted from the enum in lockstep with the defect. Re-derived it from `VALID_PRIORITIES` so the same drift cannot recur. This is the sharpest instance yet of E051's "coverage is not verification": `mapping.py` was already at 100% *before* the fix.
+
+**Scope decision recorded above:** `P4` stays (removing it would break `tasks.json` files at rest).
+
+**Follow-ups filed / noted:**
+- **#210** — `plugins/personal-plugin/CHANGELOG.md` is missing 11.2.0 and 11.3.0 entirely (found while adding the 11.4.0 entry). Another documented-step-with-no-gate, E043 class.
+- **Local data repair still pending.** The fix prevents recurrence but does not heal the already-corrupted record: this repo's `tasks.json` still holds `priority: null` for #189, and because the remote has not changed since, `sync --plan` reports 0 pulls — the tool considers the wrong value in sync. Repair after the 11.4.0 cache update.
+
+**Version:** 11.3.0 → **11.4.0** (minor, not patch): `P0` becoming an accepted value is additive user-visible capability, and unknown-label push behavior changes. Under D44 a capability *narrowing* would have been major; this widens.
+
+**Duration:** ~1 session (repro → TDD → fix → mutation-test → release prep).

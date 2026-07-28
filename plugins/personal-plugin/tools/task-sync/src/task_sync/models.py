@@ -19,7 +19,7 @@ from typing import Any
 VALID_STATUSES: tuple[str, ...] = ("backlog", "todo", "in-progress", "blocked", "done")
 
 # Priority is optional; when present it must be one of these.
-VALID_PRIORITIES: tuple[str, ...] = ("P1", "P2", "P3", "P4")
+VALID_PRIORITIES: tuple[str, ...] = ("P0", "P1", "P2", "P3", "P4")
 
 
 def new_id() -> str:
