@@ -60,7 +60,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| — | **No open action items.** Canonical backlog is the GitHub issues list (A2/A12 directive). #155/#156 are DONE (E045/E046); task-sync shipped 11.2.0 (E049) and its Gitea path was repaired in 11.2.1 (E050). #167 (adoption window) + #168 (disposition-apply CLI) closed by E051 (11.3.0). Current open backlog: **#181** (orphan/deleted-issue handling) and **#182** (GitHub `list_issues` pagination), both filed from E051; **#183** (unguarded `` !`git ...` `` dynamic injections abort `clear-prep`/`prime`/`explain-project`/`ship` in non-git dirs — root cause is a wrong "failure is silent" claim in `references/patterns/advanced-features.md:132`); plus v2 scope-outs **#169/#170/#171** (deliberately deferred, not work items). | — | E043 |
+| — | **No open action items.** Canonical backlog is the GitHub issues list (A2/A12 directive). #155/#156 are DONE (E045/E046); task-sync shipped 11.2.0 (E049) and its Gitea path was repaired in 11.2.1 (E050). #167 (adoption window) + #168 (disposition-apply CLI) closed by E051 (11.3.0). Current open backlog: **#181** (orphan/deleted-issue handling) and **#182** (GitHub `list_issues` pagination), both filed from E051; **#183** (unguarded `` !`git ...` `` dynamic injections abort `clear-prep`/`prime`/`explain-project`/`ship` in non-git dirs — root cause is a wrong "failure is silent" claim in `references/patterns/advanced-features.md:132`); plus v2 scope-outs **#169/#170/#171** (deliberately deferred, not work items). **E052 audit triage DONE (E053):** the Opus 5/Sonnet 5 optimization audit (`docs/model-optimization-audit-opus5-sonnet5-20260728.md`) is now fully on the tracker as **#189–#206** (18 issues, findings in bodies + recommendations as comments) with #183 extended (20 injections / 5 skills). **The audit set is #189–#206 — NOT #186–#206: #186/#187/#188 are open Dependabot PRs, and `gh issue view <n>` silently resolves a PR number, so they look like issues.** Priority read: **#189 is the only true P0** (research-topic's Claude leg 400s on `thinking.budget_tokens` — independently verified against the `claude-api` skill: the parameter is *removed*, not deprecated, and 400s on Opus 5/4.8/4.7 + Sonnet 5 + Fable 5 alike; fix is `thinking: {type:"adaptive"}` + `output_config.effort`, shipped with the `claude-opus-4-8`→`claude-opus-5` bump). Quick high-value P1s: **#190** (ship's >500-line gate `awk`s the literal string `deletions(-)` — reproduced live, it can never fire), **#196** (nonexistent `$GOOGLE_IMAGE_MODEL`), **#197** (stale IDs in the generator templates, which multiply into every new skill). Structural P1s **#191/#192** overlap #183's injection guarding. Suggested landing order per the report: #189–#196+#183 (P0 fixes) → #197 (model refs) → #198/#199 (tier/effort) → #201/#202/#203 (metadata, after #202's verification probes) → #204/#205/#206 (guard + evals + doc sync). | — | E043 |
 
 ### Completed
 
@@ -1090,3 +1090,122 @@ Also fixed: F6 (a comment citing #168 for the #167 bug), F7 (the combined-error 
 **Result:** Shipped as personal-plugin **11.3.0** via PR #184 (squash-merged to main `1d5eacd`; 2 commits — feature + the Windows fix). All 21 required checks green on both OSes. #167/#168 auto-closed; #181/#182 filed from the investigation. Installed plugin cache updated 11.2.1 → **11.3.0** (`claude plugin marketplace update` — note `claude plugin update personal-plugin` reported "Plugin not found"; the marketplace-level refresh is what pulls a new version). Both features verified live **from the cache**: `scan-apply --help` present, and `sync --plan` against the real tracker prints `pull: 6, skipped (closed outside adopt window): 22 — use --adopt-all to mirror them`.
 
 **Duration:** ~one session (investigate → design → build → measure → redesign → review → remediate → ship).
+
+--- New session: 2026-07-28 — full-marketplace audit: evaluate every plugin, skill, command, agent, and reference for optimization targeting Opus 5 (primary) / Sonnet 5 (secondary); deliverable is a detailed report on branch `claude/opus5-plugin-optimization-mf4ycb`. ---
+
+### Entry 052 — Opus 5 / Sonnet 5 optimization audit across all plugins [plugin] [skill] [command] [docs] [decision]
+**Date:** 2026-07-28
+**Environment:** Linux VM (Claude Code remote), branch `claude/opus5-plugin-optimization-mf4ycb` off main `795f92f` (clean, 0/0 vs `origin/main`). personal-plugin 11.3.0, bpmn-plugin 4.3.1, slide-gen 1.2.0, marketplace 3.3.0.
+**Status:** COMPLETE — audit report on branch; findings await owner triage into GitHub issues
+
+**Objective:** Thoroughly evaluate all three plugins (23 commands, 33 skills, 3 implementer agents, 10 arch-review agents, references/hooks/tools/evals/CI) and determine changes needed to optimize for Claude Opus 5 (`claude-opus-5`, primary) and Sonnet 5 (`claude-sonnet-5`, secondary). Deliverable: a full per-component report in `reports/`, committed to the audit branch. This entry covers the audit itself; any code changes it recommends are follow-up work, not this entry.
+
+**Hypothesis:** (a) Agent frontmatter is already future-proof (ADR-0005 tier aliases) so `model: opus` resolves to Opus 5 with zero changes; (b) the main staleness is in docs/references and Python-tool defaults — initial grep already shows `claude-opus-4-8` in `research-topic`, `research-models.md`, `api-key-setup.md`, plus `claude-opus-4`/`claude-sonnet-4-5`/`claude-haiku-3-5` examples in `new-skill.md`, `common-patterns.md`, `templates/skill.md`, `patterns/advanced-features.md` (visual-explainer tooling already moved to `claude-sonnet-5`); (c) tier-routing guidance (implement-plan D14–D16 escalation, advanced-features model-override advice) will need recalibration because the sonnet tier is now substantially stronger; (d) most prompt bodies will need style-level trims (micro-step scaffolding written for weaker models) rather than structural change. Success criteria: every component gets an explicit verdict (OK / minor / needs-change) with file:line-anchored recommendations.
+
+**Method:** 6 parallel read-only review subagents (commands / personal skills ×2 / bpmn+slide-gen / agents+references+hooks / tools+evals+CI+docs), each with the same rubric: stale model IDs, ADR-0005 compliance, effort calibration, prompt-style anachronisms, harness-feature currency, triggering metadata, context economy, tier-routing logic. Synthesis by orchestrator into `docs/model-optimization-audit-opus5-sonnet5-20260728.md`.
+
+**Rollback Plan:** N/A — audit is read-only over plugin content; the only writes are additive (this entry + the report file) on a feature branch. Undo = delete the branch.
+
+**Result:** COMPLETE — report shipped at `docs/model-optimization-audit-opus5-sonnet5-20260728.md` (924 lines, ~150 files examined, 106 per-component verdicts). **22 components NEEDS-CHANGE, ~44 MINOR, ~85 OK; 21 High / ~92 Med / ~142 Low findings.** Hypothesis outcomes:
+
+- **(a) CONFIRMED, fully:** all 13 agent definitions (3 implementers + 10 architects) are clean tier-alias/`inherit` frontmatter — `/implement-plan` and `/arch-review` pick up Opus 5/Sonnet 5 with zero changes. ADR-0005's structural fix worked exactly as designed.
+- **(b) CONFIRMED with a critical addition:** staleness is concentrated in docs/references/generators as predicted — but the audit found a **live functional break, not just stale IDs**: the research pipeline's Claude leg sends `thinking.budget_tokens`, which returns HTTP 400 on the entire current model family (Opus 4.8 AND Opus 5). `/research-topic`'s Claude dispatch fails on every request today. The fix (adaptive thinking + `output_config.effort`) must ship with the `claude-opus-4-8`→`claude-opus-5` bump (report P0.1).
+- **(c) CONFIRMED:** tier-routing recalibration needed, but surgically — exactly 3 files must move in sync (sonnet-implementer, opus-implementer, plan-template Rule 17: multi-file-with-clear-spec moves from opus to sonnet), plus a one-sentence deliberate `fable` policy so "no escalation above Opus" reads as decision, not staleness.
+- **(d) PARTIALLY confirmed:** style-level trims are needed (ultrathink keywords, 200K-era token budgets, hand-rolled pre-AskUserQuestion menus) but the bigger systematic finds were behavioral: **20 unguarded `` !`git …` `` injections across 5 skills (#183 confirmed in prime/ship/clear-prep/explain-project/leak-risk-audit)**; an 11-skill `disable-model-invocation`-vs-"Suggest when…" contradiction (the flag deletes the very description carrying the triggers — dead metadata); ship's diff-size gate computing the literal string `deletions(-)` so its >500-line gate can never fire (another E043-class guard-that-cannot-fire); prime mandating fork dispatch its allowed-tools doesn't grant; bpmn-to-drawio's SKILL re-teaching the partial-DI bug (#143) its own bundled tool fixed in 4.3.x; and all 3 hook recipe docs shipping a JSON shape that silently fails to load.
+
+**Pattern recognition (E043 class recurs):** four independent guards-that-cannot-fire found in one audit — ship's diff gate, prime's impossible dispatch, the 11 dead trigger descriptions, and the unenforced ADR-0005 rule itself (no CI/pre-commit/schema check stops a pinned ID in agent frontmatter; README.md:179 even says "Model pinned in frontmatter"). Report P6 recommends the tier-alias allowlist gate in BOTH validate.yml and scripts/pre-commit, negative-tested before wiring, per the E043 rule.
+
+**What worked:** the 6-way parallel fan-out with a single shared rubric completed the full ~150-file sweep in one pass with zero scope overlap; grounding the rubric in this repo's own doctrine (ADR-0005/0006, E043, #183, D14-D16) made the subagents find contradictions between the repo's rules and its files (README vs ADR-0005; advanced-features.md's wrong "failure is silent" claim vs #183) rather than generic style nits. Live verification by subagents (e.g. reading visual-explainer's config.py to catch the SKILL.md documenting a nonexistent env var `GOOGLE_IMAGE_MODEL`) caught things a doc-only pass would have missed.
+
+**Follow-up:** report's "Suggested shipping shape" = 5 PRs (P0 functional fixes → P1 model refs → P2+P3 tier/effort → P5 metadata after verify-or-prune probes → P6 CI guard + doc sync), eval re-baseline (description-triggers first) after PR 3. Awaiting owner triage into the GitHub-issues canonical backlog (A2/A12 directive) — no issues filed from this session (not requested).
+
+**Duration:** ~1 hour (6 parallel subagents ~6-7 min each; synthesis + report assembly the remainder).
+
+### Entry 053 — File the E052 audit findings as GitHub issues (canonical backlog sync) [decision] [cleanup]
+**Date:** 2026-07-28
+**Environment:** Same session as E052, branch `claude/opus5-plugin-optimization-mf4ycb` at `95cb0d4`. Filing via GitHub MCP.
+**Status:** COMPLETE
+
+**Objective:** Per user request, convert the E052 audit report (`docs/model-optimization-audit-opus5-sonnet5-20260728.md`) into GitHub issues — the canonical backlog (A2/A12 directive) — with each issue body carrying the findings/evidence and a follow-up comment carrying the corresponding recommendations.
+
+**Plan:** ~18 issues mapped to the report's P0–P6 plan, one per coherent work bundle (not one per finding — 250+ singleton issues would be unusable). Duplicate-avoidance: #183 already covers 18 of the 20 unguarded `` !`git …` `` injections (clear-prep/prime/explain-project/ship) plus the advanced-features.md:132 root-cause fix — it gets an EXTENDING COMMENT (leak-risk-audit's 2 impossible parse-time `<dataset-path>` injections; explain-project's wrong-repo injection in GitHub-URL mode), not a duplicate issue. Conventions followed: `[Pn]` title prefix (per E039/C23); labels restricted to the existing set (`bug`, `enhancement`, `tech-debt`, `docs`, `priority/P2`, `priority/P3` — probed; no P0/P1 labels exist).
+
+**Hypothesis:** 18 create calls + 19 comment calls succeed; tracker open count goes 6 → 24; no duplicates of #169-171/#181-183.
+
+**Rollback Plan:** Issues can be closed (`not_planned`) if the owner rejects the triage; the extending comment on #183 is additive. No repo files are touched beyond this notebook entry.
+
+**Result:** COMPLETE — all 37 API calls succeeded, zero duplicates. **Issues #189–#206 filed** (body = findings/evidence with file:line; first comment = recommendations, per the requested format), plus the extending comment on #183. Mapping:
+
+| # | Title (abridged) | Report section |
+|---|---|---|
+| #189 | [P0] research-topic Claude leg 400s (budget_tokens) + stale claude-opus-4-8 | P0.1 |
+| #190 | [P1] ship diff-size gate computes "deletions(-)" — gate can never fire | P0.4 |
+| #191 | [P1] prime mandates fork dispatch its allowed-tools doesn't grant | P0.5 |
+| #192 | [P1] allowed-tools drift — 8 components | P0.8 |
+| #193 | [P1] bpmn-to-drawio re-teaches the fixed partial-DI bug (#143) | P0.6 |
+| #194 | [P1] hooks recipes ship a JSON shape that silently fails to load | P0.7 |
+| #195 | [P1] build-cfa-deck dead snippet / duplicates / machine paths | P0.9 |
+| #196 | [P1] visual-explainer documents nonexistent $GOOGLE_IMAGE_MODEL | P0.10 |
+| #197 | [P1] stale/pinned model IDs in generator templates + docs | P1 |
+| #198 | [P2] tier-routing recalibration (3-file sync + fable policy + knob split) | P2 |
+| #199 | [P2] effort calibration (ultra-plan ultrathink; ~15 missing effort fields) | P3 |
+| #200 | [P2] 200K-era token thresholds → context-relative | P4 |
+| #201 | [P2] disable-model-invocation deletes 11 skills' trigger descriptions | P5 |
+| #202 | [P2] verify-or-prune unverified harness features + fictional /schedule | P5 |
+| #203 | [P3] AskUserQuestion adoption (4 components) | P5 |
+| #204 | [P3] enforce ADR-0005 in CI + pre-commit (negative-tested) | P6 |
+| #205 | [P3] re-baseline model-sensitive evals under Opus 5 | P6 |
+| #206 | [P3] doc/inventory sync + context-economy cleanup | P6 |
+
+**#183 extension:** 5th affected skill (leak-risk-audit — parse-time `<dataset-path>` placeholders, breaks in EVERY directory) + explain-project's wrong-repo injection in GitHub-URL mode; count 18 → 20 injections. Cross-links recorded: #190/#191 share fix lines with #183; #201 must land before #205's description-triggers re-run; #197 and #204 are instance-fix + class-close pair.
+
+**What worked:** probing label existence before filing (only priority/P2, priority/P3, docs exist — no P0/P1 labels; `[Pn]` title prefix carries priority per E039's convention) avoided create failures; reading #183 first turned a would-be duplicate into a higher-value extending comment.
+
+**Duration:** ~15 min.
+
+--- New session: 2026-07-29 — land the E052/E053 audit work on `main` and priority-pass the resulting backlog. ---
+
+**Landing addendum (2026-07-29).** E052 and E053 were written but never merged — they sat on `claude/opus5-plugin-optimization-mf4ycb`, 3 commits ahead of `main` (`dc4cb97` opens E052 → `95cb0d4` adds the report → `e5e0187` adds E053), so a fresh session reading `main`'s notebook alone saw only "18 issues appeared from nowhere after E051." That is the Rule 6 failure mode the notebook exists to prevent, and it is worth naming: **an entry that is written but unmerged is, from the next session's point of view, an entry that does not exist.** Docs-only branches need to land as promptly as code branches.
+
+**Objective (this session):** merge the branch to `main` so the audit report and E052/E053 enter the permanent record; reconcile the Action Items row; correct E053's `Status`. Scope was deliberately capped at landing — **no issue fixes** (the owner chose "land the branch only"); #189–#206 all stay open.
+
+**Hypothesis:** docs-only PR, all required checks green (the report is new markdown that has never been linted, so markdownlint is the only real risk). No version bump — nothing under `plugins/` changes.
+
+**Rollback Plan:** revert the squash-merge commit on `main`; the branch and all 18 issues are untouched by this PR.
+
+**Corrections applied while landing:**
+
+1. **The audit set is #189–#206 (18 issues), not #186–#206.** #186/#187/#188 are open **Dependabot PRs** (`actions/checkout`, `bpmn2drawio`, `visual-explainer` bumps). `gh issue list` correctly omits them, but `gh issue view <n>` resolves a PR number without complaint — so spot-checking "the range" by number makes three PRs masquerade as audit issues. Recorded in the Action Items row so the next session doesn't repeat it.
+2. **E053's `Status: IN PROGRESS` contradicted its own `Result: COMPLETE`** — corrected to COMPLETE.
+3. **The Action Items row had two competing edits** — one committed on the branch, one uncommitted in the working tree — both rewriting the same line. Merged rather than picking a side: the branch's landing-order guidance plus the working tree's P0/P1 detail.
+
+**Independent verification of the two headline claims** (audit findings were produced by subagents, so the P0 was re-checked against a primary source rather than taken on trust):
+
+- **#189 CONFIRMED against the `claude-api` skill** (authoritative, not the audit's own reasoning): `thinking: {type: "enabled", budget_tokens: N}` is **removed — not merely deprecated** — and returns **400 on Fable 5 / Opus 5 / Opus 4.8 / Opus 4.7 / Sonnet 5**. It survives only on Opus 4.6 / Sonnet 4.6 as a transitional escape hatch. So `/research-topic`'s Claude leg fails on every dispatch today and would still fail after a naive model-ID bump. The fix is `thinking: {type: "adaptive"}` + `output_config: {effort: …}` (`low`|`medium`|`high`|`xhigh`|`max`), shipped together with `claude-opus-4-8` → `claude-opus-5`. Note `claude-opus-4-8` is **not retired** — it is a current model one generation back at identical pricing ($5/$25 per MTok), so the bump is a genuine drop-in, exactly as the issue claims.
+- **#190 CONFIRMED empirically**, not by reading: running the skill's own injection against this repo's working tree returned the literal string `deletion(-)`. `git diff --stat`'s summary line ends in an English word, never a number, so the `> 500` comparison is string-vs-int and the gate cannot fire. Fourth guard-that-cannot-fire in the E043 class.
+
+**Priority pass (no work done, recorded for whoever picks this up):**
+
+| Tier | Issues | Character |
+|---|---|---|
+| **P0 — live breakage** | #189 | The only issue where something is broken *right now*, independent of any model change. Fix first. |
+| **P1 — quick, high-value** | #190, #196, #197 | Small diffs, disproportionate value: a guard that can't fire, a documented env var that does nothing, and stale model IDs sitting in the generator templates — which multiply into every future skill, so they decay fastest if deferred. |
+| **P1 — structural** | #191, #192 | `allowed-tools` grants that can't execute their own documented workflows across 8 components. Overlaps **#183**'s injection guarding in `prime`/`ship` — land them together or they'll conflict. |
+| **P1 — self-contained doc rewrites** | #193, #194, #195 | One component each, no cross-cutting risk. Parallelizable. |
+| **P2/P3 — recalibration** | #198–#206 | Real work, no urgency. Two carry hidden cost: **#202** needs live harness probes to verify-or-prune unverified frontmatter keys, and **#201** is 11 independent per-skill judgment calls, not one mechanical edit. |
+
+**Sequencing constraints** (from E053's cross-links, still binding): #201 must land before #205's `description-triggers` eval re-run, or the two causes conflate. #197 (fix the instances) and #204 (add the CI guard that closes the class) are a pair — guard after instances, and **negative-test the guard before wiring it** (E043).
+
+**Lint findings on landing (the hypothesis's predicted risk, confirmed):** the 924-line report had **never been linted** — it was committed straight to the branch — and failed 14 markdownlint rules, so the branch as it stood would have gone red in CI. Two distinct causes, plus one in the notebook itself:
+
+| Rule | Count | Root cause | Fix |
+|---|---|---|---|
+| MD052 | 12 | The report's finding labels are adjacent tag pairs like `[stale-model][ADR-0005]`. Adjacent brackets are **full-reference-link syntax** in CommonMark, so the linter read every tag pair as a link to an undefined label. | Insert a space (`[stale-model] [ADR-0005]`). Separated brackets are *shortcut* references, which MD052 does not check by default. Verified all 13 `][` occurrences were tag pairs and the file defines no reference links, so the rewrite is meaning-preserving. |
+| MD012 | 1 | Double blank line at `:119`. | `--fix`. |
+| MD018 | 1 | E053's own body opened a line with `` #183 extension: `` — a leading `#` is an ATX heading, so the paragraph parsed as a malformed `h1`. | `**#183 extension:**` — bolds the lead-in and moves `#` off column 1. |
+
+**Generalizable:** writing `#<issue-number>` at the start of a line is an MD018 trap that will recur every time an entry opens a paragraph with an issue reference. Lead with bold or prose.
+
+Per E043, the linter was **negative-tested** rather than trusted: a deliberately-malformed file exits 1, the two real files exit 0.
+
+**Result:** PENDING — see below.
