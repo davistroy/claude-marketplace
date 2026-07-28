@@ -60,4 +60,4 @@
 - D34 / `docs/plans/2026-07-18-task-sync-design.md` — the approved design this ADR formalizes.
 - `IMPLEMENTATION_PLAN.md` (task-sync build, Phases 1–6) — Phase 1 (tool skeleton + model), Phase 2 (provider abstraction), Phase 3 (reconcile engine), Phase 4 (confidentiality scanner).
 - ADR-0002 (Python tools from source) — the bundled-tool pattern this ADR extends to task-sync.
-- LAB_NOTEBOOK.md Entry 049 — build log across all six phases.
+- LAB_NOTEBOOK.md Entry 049 (archived, see `docs/archive/LAB_NOTEBOOK-E017-E050.md`) — build log across all six phases.

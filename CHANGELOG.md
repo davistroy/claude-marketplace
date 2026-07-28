@@ -84,7 +84,7 @@ Integrates external contributor PR #98 (Oleksandr Panasenko / @AlexanderV) into 
 
 ## [personal-plugin v11.0.0] - 2026-07-16
 
-Architecture-review hardening release (8-phase remediation, LAB_NOTEBOOK Entries 017–024). MAJOR: interface/capability changes below.
+Architecture-review hardening release (8-phase remediation, LAB_NOTEBOOK Entries 017–024 -- archived, see `docs/archive/LAB_NOTEBOOK-E017-E050.md`). MAJOR: interface/capability changes below.
 
 ### Changed (breaking)
 - **visual-explainer:** removed the inert `--concurrency` CLI flag + `GenerationConfig.concurrency` field (the concurrent code path was never called; generation was always serial). *(PERF-01)*
