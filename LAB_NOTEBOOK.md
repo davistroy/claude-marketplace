@@ -1090,3 +1090,18 @@ Also fixed: F6 (a comment citing #168 for the #167 bug), F7 (the combined-error 
 **Result:** Shipped as personal-plugin **11.3.0** via PR #184 (squash-merged to main `1d5eacd`; 2 commits — feature + the Windows fix). All 21 required checks green on both OSes. #167/#168 auto-closed; #181/#182 filed from the investigation. Installed plugin cache updated 11.2.1 → **11.3.0** (`claude plugin marketplace update` — note `claude plugin update personal-plugin` reported "Plugin not found"; the marketplace-level refresh is what pulls a new version). Both features verified live **from the cache**: `scan-apply --help` present, and `sync --plan` against the real tracker prints `pull: 6, skipped (closed outside adopt window): 22 — use --adopt-all to mirror them`.
 
 **Duration:** ~one session (investigate → design → build → measure → redesign → review → remediate → ship).
+
+--- New session: 2026-07-28 — full-marketplace audit: evaluate every plugin, skill, command, agent, and reference for optimization targeting Opus 5 (primary) / Sonnet 5 (secondary); deliverable is a detailed report on branch `claude/opus5-plugin-optimization-mf4ycb`. ---
+
+### Entry 052 — Opus 5 / Sonnet 5 optimization audit across all plugins [plugin] [skill] [command] [docs] [decision]
+**Date:** 2026-07-28
+**Environment:** Linux VM (Claude Code remote), branch `claude/opus5-plugin-optimization-mf4ycb` off main `795f92f` (clean, 0/0 vs `origin/main`). personal-plugin 11.3.0, bpmn-plugin 4.3.1, slide-gen 1.2.0, marketplace 3.3.0.
+**Status:** IN PROGRESS
+
+**Objective:** Thoroughly evaluate all three plugins (23 commands, 33 skills, 3 implementer agents, 10 arch-review agents, references/hooks/tools/evals/CI) and determine changes needed to optimize for Claude Opus 5 (`claude-opus-5`, primary) and Sonnet 5 (`claude-sonnet-5`, secondary). Deliverable: a full per-component report in `reports/`, committed to the audit branch. This entry covers the audit itself; any code changes it recommends are follow-up work, not this entry.
+
+**Hypothesis:** (a) Agent frontmatter is already future-proof (ADR-0005 tier aliases) so `model: opus` resolves to Opus 5 with zero changes; (b) the main staleness is in docs/references and Python-tool defaults — initial grep already shows `claude-opus-4-8` in `research-topic`, `research-models.md`, `api-key-setup.md`, plus `claude-opus-4`/`claude-sonnet-4-5`/`claude-haiku-3-5` examples in `new-skill.md`, `common-patterns.md`, `templates/skill.md`, `patterns/advanced-features.md` (visual-explainer tooling already moved to `claude-sonnet-5`); (c) tier-routing guidance (implement-plan D14–D16 escalation, advanced-features model-override advice) will need recalibration because the sonnet tier is now substantially stronger; (d) most prompt bodies will need style-level trims (micro-step scaffolding written for weaker models) rather than structural change. Success criteria: every component gets an explicit verdict (OK / minor / needs-change) with file:line-anchored recommendations.
+
+**Method:** 5 parallel read-only review subagents (commands / personal skills ×2 / bpmn+slide-gen / infra+references+agents+tools+CI docs), each with the same rubric: stale model IDs, ADR-0005 compliance, effort calibration, prompt-style anachronisms, harness-feature currency, triggering metadata, context economy, tier-routing logic. Synthesis by orchestrator into `reports/opus5-sonnet5-optimization-report-*.md`.
+
+**Rollback Plan:** N/A — audit is read-only over plugin content; the only writes are additive (this entry + the report file) on a feature branch. Undo = delete the branch.
