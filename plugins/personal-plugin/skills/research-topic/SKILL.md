@@ -25,14 +25,14 @@ You are orchestrating parallel deep research across three LLM providers (Anthrop
 
 **Environment Requirements:**
 API keys must be loaded into the environment before use. Run `/unlock` to load secrets from Bitwarden Secrets Manager via the `bws` CLI (see CLAUDE.md Secrets Management Policy):
-- `ANTHROPIC_API_KEY` - For Claude with Extended Thinking
+- `ANTHROPIC_API_KEY` - For Claude with adaptive thinking
 - `OPENAI_API_KEY` - For OpenAI Deep Research
 - `GOOGLE_API_KEY` - For Gemini Deep Research
 
 If keys are not in the environment, suggest running `/unlock` before proceeding. Do NOT write API keys to `.env` files.
 
 **Optional Model Configuration (non-sensitive, safe for .env):**
-- `ANTHROPIC_MODEL` - Override Claude model. Default: `claude-opus-4-8`
+- `ANTHROPIC_MODEL` - Override Claude model. Default: `claude-opus-5`
 - `OPENAI_MODEL` - Override OpenAI model. Default: `o3-deep-research-2025-06-26`
 - `GEMINI_AGENT` - Override Gemini agent. Default: `deep-research-pro-preview-12-2025`
 
@@ -150,7 +150,7 @@ Wait for user confirmation.
 
 ```bash
 # Resolve model identifiers (env var override or defaults)
-CLAUDE_MODEL="${ANTHROPIC_MODEL:-claude-opus-4-8}"
+CLAUDE_MODEL="${ANTHROPIC_MODEL:-claude-opus-5}"
 OAI_MODEL="${OPENAI_MODEL:-o3-deep-research-2025-06-26}"
 GEMINI_AGENT_ID="${GEMINI_AGENT:-deep-research-pro-preview-12-2025}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -189,11 +189,16 @@ Structure your response with:
 
 **Depth-to-parameter mapping** (from `references/research-models.md`):
 
-| Depth | Claude budget_tokens | OpenAI effort | Gemini thinking_level |
-|-------|---------------------|---------------|-----------------------|
-| brief | 4,000 | medium | low |
-| standard | 10,000 | high | high |
-| comprehensive | 32,000 | high | high |
+| Depth | Claude effort | Claude max_tokens | OpenAI effort | Gemini thinking_level |
+|-------|---------------|-------------------|---------------|-----------------------|
+| brief | low | 8,000 | medium | low |
+| standard | medium | 16,000 | high | high |
+| comprehensive | high | 32,000 | high | high |
+
+Claude's ladder tops out at `high` — not `xhigh`/`max` — because this leg is a single
+non-streaming request. Anthropic requires `max_tokens` >= 64,000 at those levels, which
+cannot finish inside the curl timeout. `high` is Anthropic's recommended minimum for
+intelligence-sensitive work, so the comprehensive tier still sits on a solid floor.
 
 **Dispatch subagents in parallel** (one Task per available provider, `context: fork`, skip providers with missing keys). Instantiate the template below once per provider, substituting its row from the Provider Deltas table. The dispatched subagent Reads `references/research-provider-protocols.md` (relative to this plugin's directory) for its provider's exact request/response shape, polling mechanics, and parse/output steps.
 
@@ -216,7 +221,7 @@ API Key env var: [API KEY ENV VAR]
 Research prompt to submit:
 [FULL RESEARCH PROMPT FROM PHASE 4]
 
-Depth parameter (`[DEPTH PARAM]`): [value — see Depth Parameter Mapping above, this provider's column, at the selected depth]
+Depth parameters (`[DEPTH PARAM]`): [value(s) — see the Depth-to-parameter mapping above, this provider's column(s), at the selected depth. Claude takes two: `output_config.effort` and `max_tokens`.]
 
 Read `references/research-provider-protocols.md` → "[DISPLAY NAME] Protocol" for the exact endpoint, auth, request body, polling loop (if any), and parse/output steps. Use the Write tool to save findings in the structure shown there.
 
@@ -235,8 +240,9 @@ On final line output exactly: `{"provider":"[SLUG]","status":"success","file":"r
 | Model/Agent field (body) | `model` | `model` | `agent` |
 | Resolved var | `[RESOLVED_CLAUDE_MODEL]` | `[RESOLVED_OAI_MODEL]` | `[RESOLVED_GEMINI_AGENT_ID]` |
 | Mode | Synchronous, single call | Async: submit, poll ≤180× @10s, success = `status=="completed"` | Async: submit, poll ≤180× @10s, success = `state=="SUCCEEDED"` |
-| Depth param | `thinking.budget_tokens` | `reasoning.effort` | `parameters.thinking_level` |
+| Depth param | `output_config.effort` + `max_tokens` | `reasoning.effort` | `parameters.thinking_level` |
 | Parse target | `text` blocks (skip `thinking`) | `text` output | reply text |
+| Silent-failure check | `stop_reason` — `refusal` returns HTTP 200 with empty/partial content | HTTP status + `error` body | HTTP status + `error` body |
 
 Full curl requests, poll loops, and Write-tool output structures for each provider: `references/research-provider-protocols.md`.
 
@@ -356,6 +362,7 @@ Word Count: [N] words
 | Timeout in subagent (>30 min) | Subagent exits; parent proceeds with partial results |
 | Rate limit | Subagent retries with exponential backoff internally |
 | Invalid/empty response | Subagent exits with `"status":"failed"`; parent notes in partial results |
+| Claude safety refusal | HTTP 200 with `stop_reason: "refusal"` and empty/partial content — the subagent treats it as a failure rather than writing an empty report |
 
 ## Performance
 
@@ -363,7 +370,7 @@ Word Count: [N] words
 |-------|-------------------|-------|
 | Brief | 2-5 minutes | Faster Claude call; shorter OpenAI/Gemini jobs |
 | Standard | 5-15 minutes | Deep research polling; subagents run concurrently |
-| Comprehensive | 15-30 minutes | Extended thinking; async deep research; concurrent |
+| Comprehensive | 15-30 minutes | `high`-effort adaptive thinking; async deep research; concurrent |
 
 Duration reflects wall-clock time for the slowest subagent (all three run in parallel).
 

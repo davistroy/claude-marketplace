@@ -10,23 +10,27 @@
 
 ## Anthropic Claude Protocol
 
-Synchronous — a single call, no polling. Extended-thinking requests at higher depths (`budget_tokens` up to 32,000) can legitimately run several minutes, so this leg gets a longer `--max-time` than the other providers' individual calls.
+Synchronous — a single call, no polling. Adaptive-thinking requests at higher depths can legitimately run several minutes, so this leg gets a longer `--max-time` than the other providers' individual calls.
+
+**Thinking configuration — do not reintroduce `budget_tokens`.** `thinking: {"type": "enabled", "budget_tokens": N}` was **removed** from the API (not deprecated) and returns HTTP 400 on every current model, including `claude-opus-5` and `claude-opus-4-8`. Depth is controlled by `output_config.effort` instead. `effort` and `max_tokens` are both substituted from the depth ladder in `research-models.md`; `max_tokens` is a hard ceiling on thinking **plus** response text, so the two move together.
 
 **Request** (use Bash):
 
 ```bash
 HTTP_CODE=$(curl -s -o /tmp/claude-research-response-[TIMESTAMP].json -w '%{http_code}' \
-  --max-time 600 --connect-timeout 10 \
+  --max-time 900 --connect-timeout 10 \
   https://api.anthropic.com/v1/messages \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
   -H "content-type: application/json" \
   -d '{
     "model": "[RESOLVED_CLAUDE_MODEL]",
-    "max_tokens": 16000,
+    "max_tokens": [MAX_TOKENS],
     "thinking": {
-      "type": "enabled",
-      "budget_tokens": [BUDGET_TOKENS]
+      "type": "adaptive"
+    },
+    "output_config": {
+      "effort": "[EFFORT]"
     },
     "messages": [{
       "role": "user",
@@ -35,22 +39,38 @@ HTTP_CODE=$(curl -s -o /tmp/claude-research-response-[TIMESTAMP].json -w '%{http
   }')
 CURL_EXIT=$?
 
-# Fast-fail before parsing: curl-level failure (timeout, DNS, connection reset),
-# an HTTP error status, or an `error` body all mean there is nothing to parse.
-ERROR_MSG=$(python3 -c "import json
+# Fast-fail before parsing. Four distinct failure modes, only three of which are
+# visible in the HTTP status:
+#   1. curl-level failure (timeout, DNS, connection reset)
+#   2. an HTTP error status
+#   3. an `error` body
+#   4. a SAFETY REFUSAL — HTTP 200, no `error` key, `stop_reason: "refusal"`, and
+#      content that is empty (declined before output) or partial (declined mid-stream).
+#      Without this check the leg writes a silently empty research report.
+CHECK=$(python3 -c "import json
 try:
     d = json.load(open('/tmp/claude-research-response-[TIMESTAMP].json'))
-    print(d.get('error', {}).get('message', '') if isinstance(d, dict) else '')
+    if not isinstance(d, dict):
+        print('unparseable response body')
+    elif d.get('error'):
+        print(d['error'].get('message', 'unknown API error'))
+    elif d.get('stop_reason') == 'refusal':
+        det = d.get('stop_details') or {}
+        print('request declined by safety classifiers (category=%s)' % det.get('category'))
+    else:
+        print('')
 except Exception:
     print('unparseable response body')")
 
-if [ "$CURL_EXIT" -ne 0 ] || [ "$HTTP_CODE" -ge 400 ] || [ -n "$ERROR_MSG" ]; then
-  echo "Anthropic request failed: curl_exit=$CURL_EXIT http=$HTTP_CODE${ERROR_MSG:+ error=\"$ERROR_MSG\"}"
+if [ "$CURL_EXIT" -ne 0 ] || [ "$HTTP_CODE" -ge 400 ] || [ -n "$CHECK" ]; then
+  echo "Anthropic request failed: curl_exit=$CURL_EXIT http=$HTTP_CODE${CHECK:+ error=\"$CHECK\"}"
   exit 1
 fi
 ```
 
-**Parse:** Extract the `text` content blocks (skip `thinking` blocks) from `/tmp/claude-research-response-[TIMESTAMP].json`. Write findings to `reports/research-claude-[TIMESTAMP].md` using the Write tool with this structure:
+**Parse:** Extract the `text` content blocks (skip `thinking` blocks) from `/tmp/claude-research-response-[TIMESTAMP].json`. Thinking blocks arrive with empty text by default on current models (`thinking.display` defaults to `"omitted"`), which is fine — this leg discards them either way. Write findings to `reports/research-claude-[TIMESTAMP].md` using the Write tool with this structure.
+
+A `stop_reason` of `"max_tokens"` is **not** a failure — the content is real, just cut short at the depth ceiling. Keep the findings, but append a `> **Note:** response truncated at the depth ceiling (`stop_reason: max_tokens`); consider a deeper `--depth`.` line to the report so synthesis does not read a truncated section as a complete one.
 
 ```markdown
 # Claude Research: [topic]

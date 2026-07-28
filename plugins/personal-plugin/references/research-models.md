@@ -16,7 +16,7 @@ Reference tables for the `/research-topic` skill. Loaded on demand to keep the m
 
 | Provider | Default Model | Endpoint | Mode |
 |----------|---------------|----------|------|
-| Anthropic | claude-opus-4-8 | /v1/messages | Synchronous (extended thinking) |
+| Anthropic | claude-opus-5 | /v1/messages | Synchronous (adaptive thinking) |
 | OpenAI | o3-deep-research-2025-06-26 | /v1/responses | Async (background + web_search_preview) |
 | Google | deep-research-pro-preview-12-2025 | /v1beta/interactions | Async (deep-research agent) |
 
@@ -30,7 +30,7 @@ These are the default model identifiers used when environment variable overrides
 
 | Provider | Env Var Override | Default Value | Last Verified |
 |----------|-----------------|---------------|---------------|
-| Anthropic | `ANTHROPIC_MODEL` | `claude-opus-4-8` | 2026-07-08 |
+| Anthropic | `ANTHROPIC_MODEL` | `claude-opus-5` | 2026-07-29 |
 | OpenAI | `OPENAI_MODEL` | `o3-deep-research-2025-06-26` | 2026-03-31 |
 | Google | `GEMINI_AGENT` | `deep-research-pro-preview-12-2025` | 2026-03-31 |
 
@@ -45,12 +45,25 @@ These are the default model identifiers used when environment variable overrides
 
 ## Depth Parameter Mapping
 
-| User Selection | Anthropic budget_tokens | OpenAI effort | Google thinking_level |
-|----------------|-------------------------|---------------|-----------------------|
-| Brief          | 4,000                   | medium        | low                   |
-| Standard       | 10,000                  | high          | high                  |
-| Comprehensive  | 32,000                  | high          | high                  |
+| User Selection | Anthropic effort | Anthropic max_tokens | OpenAI effort | Google thinking_level |
+|----------------|------------------|----------------------|---------------|-----------------------|
+| Brief          | low              | 8,000                | medium        | low                   |
+| Standard       | medium           | 16,000               | high          | high                  |
+| Comprehensive  | high             | 32,000               | high          | high                  |
 <!-- Note: OpenAI reasoning_effort only supports low/medium/high. "xhigh" was non-standard and has been corrected to "high". -->
+
+**Anthropic depth is `output_config.effort`, never `thinking.budget_tokens`.** The
+`budget_tokens` form was removed from the API — not deprecated — and returns HTTP 400 on
+every current model. `effort` governs thinking depth and overall token spend, so there is
+no 1:1 translation from the old token budgets; the ladder above was re-derived.
+
+The ladder stops at `high` rather than `xhigh`/`max` because the Claude leg is a single
+**non-streaming** request. Anthropic requires `max_tokens` >= 64,000 at those levels or
+output truncates mid-thought, and 64,000 output tokens at roughly 60 tokens/sec is about
+18 minutes — beyond the leg's `curl --max-time 900` and past the point where idle HTTP
+connections drop. Unlocking `xhigh`/`max` requires converting the leg to streaming.
+`max_tokens` is a ceiling on thinking **plus** response text, which is why it scales with
+effort rather than staying fixed.
 
 ---
 
@@ -61,7 +74,7 @@ These are the default model identifiers used when environment variable overrides
 Model Version Check
 ===================
 Current models:
-  Anthropic: claude-opus-4-8
+  Anthropic: claude-opus-5
   OpenAI:    o3-deep-research-2025-06-26
   Gemini:    deep-research-pro-preview-12-2025
 
@@ -145,7 +158,7 @@ Use this structure for the synthesized output report:
 [Actionable next steps based on research]
 
 ## Sources & Attribution
-- **Claude:** Extended thinking analysis (model: [configured model])
+- **Claude:** Adaptive-thinking analysis (model: [configured model])
 - **OpenAI:** o3 Deep research with web search (model: [configured model])
 - **Gemini:** Deep research agent (agent: [configured agent])
 
