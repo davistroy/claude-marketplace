@@ -60,7 +60,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| — | **No open action items.** Canonical backlog is the GitHub issues list (A2/A12 directive). #155/#156 are DONE (E045/E046); task-sync shipped 11.2.0 (E049) and its Gitea path was repaired in 11.2.1 (E050). #167 (adoption window) + #168 (disposition-apply CLI) closed by E051 (11.3.0). Current open backlog: **#181** (orphan/deleted-issue handling) and **#182** (GitHub `list_issues` pagination), both filed from E051; **#183** (unguarded `` !`git ...` `` dynamic injections abort `clear-prep`/`prime`/`explain-project`/`ship` in non-git dirs — root cause is a wrong "failure is silent" claim in `references/patterns/advanced-features.md:132`); plus v2 scope-outs **#169/#170/#171** (deliberately deferred, not work items). **Pending triage (E052):** the Opus 5/Sonnet 5 optimization audit (`docs/model-optimization-audit-opus5-sonnet5-20260728.md`, branch `claude/opus5-plugin-optimization-mf4ycb`) holds 21 High findings incl. a live `/research-topic` API break (P0.1) and confirms/extends #183 (20 injections across 5 skills) — owner to convert its 5-PR plan into issues. | — | E043 |
+| — | **No open action items.** Canonical backlog is the GitHub issues list (A2/A12 directive). #155/#156 are DONE (E045/E046); task-sync shipped 11.2.0 (E049) and its Gitea path was repaired in 11.2.1 (E050). #167 (adoption window) + #168 (disposition-apply CLI) closed by E051 (11.3.0). Current open backlog: **#181** (orphan/deleted-issue handling) and **#182** (GitHub `list_issues` pagination), both filed from E051; **#183** (unguarded `` !`git ...` `` dynamic injections abort `clear-prep`/`prime`/`explain-project`/`ship` in non-git dirs — root cause is a wrong "failure is silent" claim in `references/patterns/advanced-features.md:132`); plus v2 scope-outs **#169/#170/#171** (deliberately deferred, not work items). **E052 audit triage DONE (E053):** the Opus 5/Sonnet 5 optimization audit (`docs/model-optimization-audit-opus5-sonnet5-20260728.md`) is now fully on the tracker as **#189–#206** (18 issues, findings in bodies + recommendations as comments) with #183 extended (20 injections / 5 skills). Suggested landing order per the report: #189–#196+#183 (P0 fixes) → #197 (model refs) → #198/#199 (tier/effort) → #201/#202/#203 (metadata, after #202's verification probes) → #204/#205/#206 (guard + evals + doc sync). | — | E043 |
 
 ### Completed
 
@@ -1120,3 +1120,45 @@ Also fixed: F6 (a comment citing #168 for the #167 bug), F7 (the combined-error 
 **Follow-up:** report's "Suggested shipping shape" = 5 PRs (P0 functional fixes → P1 model refs → P2+P3 tier/effort → P5 metadata after verify-or-prune probes → P6 CI guard + doc sync), eval re-baseline (description-triggers first) after PR 3. Awaiting owner triage into the GitHub-issues canonical backlog (A2/A12 directive) — no issues filed from this session (not requested).
 
 **Duration:** ~1 hour (6 parallel subagents ~6-7 min each; synthesis + report assembly the remainder).
+
+### Entry 053 — File the E052 audit findings as GitHub issues (canonical backlog sync) [decision] [cleanup]
+**Date:** 2026-07-28
+**Environment:** Same session as E052, branch `claude/opus5-plugin-optimization-mf4ycb` at `95cb0d4`. Filing via GitHub MCP.
+**Status:** IN PROGRESS
+
+**Objective:** Per user request, convert the E052 audit report (`docs/model-optimization-audit-opus5-sonnet5-20260728.md`) into GitHub issues — the canonical backlog (A2/A12 directive) — with each issue body carrying the findings/evidence and a follow-up comment carrying the corresponding recommendations.
+
+**Plan:** ~18 issues mapped to the report's P0–P6 plan, one per coherent work bundle (not one per finding — 250+ singleton issues would be unusable). Duplicate-avoidance: #183 already covers 18 of the 20 unguarded `` !`git …` `` injections (clear-prep/prime/explain-project/ship) plus the advanced-features.md:132 root-cause fix — it gets an EXTENDING COMMENT (leak-risk-audit's 2 impossible parse-time `<dataset-path>` injections; explain-project's wrong-repo injection in GitHub-URL mode), not a duplicate issue. Conventions followed: `[Pn]` title prefix (per E039/C23); labels restricted to the existing set (`bug`, `enhancement`, `tech-debt`, `docs`, `priority/P2`, `priority/P3` — probed; no P0/P1 labels exist).
+
+**Hypothesis:** 18 create calls + 19 comment calls succeed; tracker open count goes 6 → 24; no duplicates of #169-171/#181-183.
+
+**Rollback Plan:** Issues can be closed (`not_planned`) if the owner rejects the triage; the extending comment on #183 is additive. No repo files are touched beyond this notebook entry.
+
+**Result:** COMPLETE — all 37 API calls succeeded, zero duplicates. **Issues #189–#206 filed** (body = findings/evidence with file:line; first comment = recommendations, per the requested format), plus the extending comment on #183. Mapping:
+
+| # | Title (abridged) | Report section |
+|---|---|---|
+| #189 | [P0] research-topic Claude leg 400s (budget_tokens) + stale claude-opus-4-8 | P0.1 |
+| #190 | [P1] ship diff-size gate computes "deletions(-)" — gate can never fire | P0.4 |
+| #191 | [P1] prime mandates fork dispatch its allowed-tools doesn't grant | P0.5 |
+| #192 | [P1] allowed-tools drift — 8 components | P0.8 |
+| #193 | [P1] bpmn-to-drawio re-teaches the fixed partial-DI bug (#143) | P0.6 |
+| #194 | [P1] hooks recipes ship a JSON shape that silently fails to load | P0.7 |
+| #195 | [P1] build-cfa-deck dead snippet / duplicates / machine paths | P0.9 |
+| #196 | [P1] visual-explainer documents nonexistent $GOOGLE_IMAGE_MODEL | P0.10 |
+| #197 | [P1] stale/pinned model IDs in generator templates + docs | P1 |
+| #198 | [P2] tier-routing recalibration (3-file sync + fable policy + knob split) | P2 |
+| #199 | [P2] effort calibration (ultra-plan ultrathink; ~15 missing effort fields) | P3 |
+| #200 | [P2] 200K-era token thresholds → context-relative | P4 |
+| #201 | [P2] disable-model-invocation deletes 11 skills' trigger descriptions | P5 |
+| #202 | [P2] verify-or-prune unverified harness features + fictional /schedule | P5 |
+| #203 | [P3] AskUserQuestion adoption (4 components) | P5 |
+| #204 | [P3] enforce ADR-0005 in CI + pre-commit (negative-tested) | P6 |
+| #205 | [P3] re-baseline model-sensitive evals under Opus 5 | P6 |
+| #206 | [P3] doc/inventory sync + context-economy cleanup | P6 |
+
+#183 extension: 5th affected skill (leak-risk-audit — parse-time `<dataset-path>` placeholders, breaks in EVERY directory) + explain-project's wrong-repo injection in GitHub-URL mode; count 18 → 20 injections. Cross-links recorded: #190/#191 share fix lines with #183; #201 must land before #205's description-triggers re-run; #197 and #204 are instance-fix + class-close pair.
+
+**What worked:** probing label existence before filing (only priority/P2, priority/P3, docs exist — no P0/P1 labels; `[Pn]` title prefix carries priority per E039's convention) avoided create failures; reading #183 first turned a would-be duplicate into a higher-value extending comment.
+
+**Duration:** ~15 min.
