@@ -74,7 +74,7 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| — | **No open action items** — the canonical backlog is the GitHub issues list (A2/A12 directive), summarized in Current Baseline above. Landing order for the E052 audit set: #189 (P0) → #190/#196/#197 (quick P1s) → #191/#192 with #183 (they share fix lines) → #193/#194/#195 → #198–#206. Two constraints carry forward from E053: #201 must land before #205's `description-triggers` re-run or the causes conflate, and #197/#204 are an instance-fix + class-close pair (negative-test the guard before wiring it). **Trap:** `gh issue view <n>` silently resolves PR numbers — derive issue ranges from `gh issue list`. | — | E043 |
+| — | **No open action items** — the canonical backlog is the GitHub issues list (A2/A12 directive), summarized in Current Baseline above. **#208 and #212 were fixed and shipped this session** (11.4.0 / 11.4.1, E056/E057); **#210** (plugin CHANGELOG missing 11.2.0/11.3.0) is the only new open item. Landing order for the E052 audit set is unchanged: #189 (P0) → #190/#196/#197 (quick P1s) → #191/#192 with #183 (they share fix lines) → #193/#194/#195 → #198–#206. Two constraints carry forward from E053: #201 must land before #205's `description-triggers` re-run or the causes conflate, and #197/#204 are an instance-fix + class-close pair (negative-test the guard before wiring it). **Traps:** `gh issue view <n>` silently resolves PR numbers — derive issue ranges from `gh issue list`; and the installed plugin's *active* version lags the cache until a fresh session (11.4.1 is downloaded, `claude plugin list` still reports 11.3.0). | — | E043 |
 
 ### Completed
 
@@ -101,18 +101,18 @@ Planning pipeline: `/ultra-plan` → `/create-plan` / `/plan-improvements` → `
 
 ## Current Baseline
 
-*Verified 2026-07-29 against `origin/main` @ `e38a6ea`.*
+*Verified 2026-07-29 against `origin/main` @ `84e031a`.*
 
 | Item | State |
 |---|---|
-| Versions | marketplace **3.3.0** · personal-plugin **11.3.0** (E051) · bpmn-plugin **4.3.1** (E036) · slide-gen **1.2.0** |
+| Versions | marketplace **3.3.0** · personal-plugin **11.4.1** (E057) · bpmn-plugin **4.3.1** (E036) · slide-gen **1.2.0** |
 | Surfaces | 23 commands · 40 skills (personal 29 / slide-gen 9 / bpmn 2) · 3 implementer agents in `.claude/agents/` · 10 arch-review agents in `plugins/personal-plugin/agents/` |
-| Bundled tools | visual-explainer 894 tests / 93% · bpmn2drawio 640 / 92.84% · feedback-docx 69 / 96.95% · **task-sync 409 / 96.36%**. All bare-`mypy` clean (D33) and ruff clean; green on 3.10/3.11/3.12 |
+| Bundled tools | visual-explainer 894 tests / 93% · bpmn2drawio 640 / 92.84% · feedback-docx 69 / 96.95% · **task-sync 427 / 96.33%**. All bare-`mypy` clean (D33) and ruff clean; green on 3.10/3.11/3.12 |
 | Evals | **48** `.eval.md` specs; structural + coverage linter in CI (`check_eval_mapping.py`, ADR-0009/D32); LLM-judge runner deliberately deferred |
 | CI | `test.yml` (pytest ×2 OS, coverage floors in each tool's `[tool.coverage.report]`, pip-audit per lockfile, advisory `Python Compat (3.10)/(3.12)`) · `validate.yml` (plugin/frontmatter/version-sync, README-sync `--check`, eval linter, ruff, markdownlint). **Branch protection on `main`: 21 required checks, PR-required 0-approvals, `enforce_admins=false`** (ADR-0007/D22) |
 | Plugin cache | Auto-propagates from the GitHub marketplace source. **There is no `autoUpdate` key in marketplace.json** — that is Claude Code's install-side default, not a repo-declared flag (D19 correction). Refresh with `claude plugin marketplace update`; `claude plugin update <plugin>` can report "Plugin not found" (E051) |
 | Dependencies | Actions SHA-pinned (checkout/setup-python/setup-node) · google-genai 2.11.0 · pydantic 2.13.4 / pydantic-core 2.46.4 **lockstep — never bump independently** (D25) |
-| Open backlog | **#189–#206** (18 E052-audit issues) · **#208** (task-sync has no `P0` in `VALID_PRIORITIES`) · **#183** (20 unguarded `` !`git` `` injections across 5 skills) · #181/#182 (task-sync) · #169/#170/#171 (v2 scope-outs, deliberately deferred). **#189 is the only P0.** |
+| Open backlog | **#189–#206** (18 E052-audit issues, #189 the only P0) · **#210** (plugin CHANGELOG missing 11.2.0/11.3.0) · **#183** (20 unguarded `` !`git` `` injections across 5 skills) · #181/#182 (task-sync) · #169/#170/#171 (v2 scope-outs, deliberately deferred). **#189 is the only P0.** |
 | Platform | Linux VM (current sessions); earlier sessions Windows 11 — see root CLAUDE.md "Dual environment" |
 
 ---
