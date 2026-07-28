@@ -116,7 +116,6 @@ This is an audit, not a verified patch set. Before applying, confirm against the
 
 # Section A — personal-plugin commands
 
-
 ### analyze-transcript.md
 **Verdict:** MINOR
 - [Med] [hard-coded-sizes] analyze-transcript.md:96,100-102 — Chunking thresholds written for a 200K-context era: "Content exceeds 50K tokens → process in sections", "chunks (~20K tokens each)", two-pass pipeline triggered at 30K tokens → with 1M-context Opus 5/Sonnet 5 primaries, single-pass handles far larger transcripts; raise thresholds (e.g., trigger sectioning only above several hundred K tokens) or express as a fraction of available context.
@@ -200,9 +199,9 @@ This is an audit, not a verified patch set. Before applying, confirm against the
 
 ### new-skill.md
 **Verdict:** NEEDS-CHANGE
-- [High] [stale-model][ADR-0005] new-skill.md:169 — Generated frontmatter template (tool-restrictions variant) emits `# model: claude-opus-4` — pinned ID of a deprecated model, stamped into every future skill this command scaffolds → `# model: opus   # tier alias (haiku/sonnet/opus/fable/inherit) — never pinned IDs (ADR-0005)`.
-- [High] [stale-model][ADR-0005] new-skill.md:198 — Same `# model: claude-opus-4` in the no-restrictions template variant → same fix.
-- [High] [stale-model][ADR-0005] new-skill.md:294 — Field-reference table: "`model` | Optional | `claude-opus-4`, `claude-sonnet-4-5`, etc." → replace with tier aliases and cite ADR-0005.
+- [High] [stale-model] [ADR-0005] new-skill.md:169 — Generated frontmatter template (tool-restrictions variant) emits `# model: claude-opus-4` — pinned ID of a deprecated model, stamped into every future skill this command scaffolds → `# model: opus   # tier alias (haiku/sonnet/opus/fable/inherit) — never pinned IDs (ADR-0005)`.
+- [High] [stale-model] [ADR-0005] new-skill.md:198 — Same `# model: claude-opus-4` in the no-restrictions template variant → same fix.
+- [High] [stale-model] [ADR-0005] new-skill.md:294 — Field-reference table: "`model` | Optional | `claude-opus-4`, `claude-sonnet-4-5`, etc." → replace with tier aliases and cite ADR-0005.
 - [Med] [stale-model] new-skill.md:282 — "All fields supported by Claude Code as of late 2025" — stale currency stamp → remove or update.
 - [Med] [metadata] new-skill.md:98,287 — "under 150 characters ideal" / "Free text ≤ 150 chars" for `description` contradicts the repo's own ≤1024-chars-with-all-trigger-info rule → align; under-sized descriptions harm proactive triggering of generated skills.
 - [Med] [harness] new-skill.md:308 — Dynamic-injection example `` !`git status -s` `` documented without the issue-#183 guard — teaches future authors the unguarded pattern → guarded form (`` !`git status -s 2>/dev/null || true` ``) + gotcha note.
@@ -258,7 +257,7 @@ This is an audit, not a verified patch set. Before applying, confirm against the
 
 ### deprecated/ (skim)
 **Verdict:** MINOR (one actively-harmful item)
-- [Med] [stale-model][ADR-0005] deprecated/new-command.md:193 — `model` | "Override model per subagent" | `claude-opus-4-5` — pinned ID in the direct ancestor of the new-skill templating flow; readers mining the archive will copy it → fix to tier alias, or add a stale-examples banner to deprecated/README.md.
+- [Med] [stale-model] [ADR-0005] deprecated/new-command.md:193 — `model` | "Override model per subagent" | `claude-opus-4-5` — pinned ID in the direct ancestor of the new-skill templating flow; readers mining the archive will copy it → fix to tier alias, or add a stale-examples banner to deprecated/README.md.
 - [Low] deprecated/setup-statusline.md:354 — "e.g., 'Claude Opus'" display-name example — harmless. check-updates.md, convert-hooks.md — no model content.
 
 ## Summary table
@@ -744,28 +743,28 @@ Neither plugin contains a single stale Claude model ID or ADR-0005 violation —
 
 ### references/common-patterns.md
 **Verdict:** NEEDS-CHANGE
-- [High] [stale-model][propagation] line 164 — `model: claude-opus-4-5   # or claude-sonnet-4-5, claude-haiku-3-5, etc.` — pinned IDs, one of which (`claude-haiku-3-5`) is **retired** (Feb 2026). This is the "canonical field catalog" that `/new-skill` links, so it propagates into every new skill → replace with tier aliases: `model: opus   # or sonnet, haiku, fable, inherit`.
+- [High] [stale-model] [propagation] line 164 — `model: claude-opus-4-5   # or claude-sonnet-4-5, claude-haiku-3-5, etc.` — pinned IDs, one of which (`claude-haiku-3-5`) is **retired** (Feb 2026). This is the "canonical field catalog" that `/new-skill` links, so it propagates into every new skill → replace with tier aliases: `model: opus   # or sonnet, haiku, fable, inherit`.
 - [Med] [adr-0005] lines 169-170 — gotcha "Model IDs change with releases; pin to a family name if you want automatic upgrade (check Claude Code docs for alias support)" hedges on the thing ADR-0005 already mandates → state directly: "Always use tier aliases (`haiku`/`sonnet`/`opus`/`fable`/`inherit`), never pinned IDs (ADR-0005)."
 - [Med] [tier-routing] line 167 — "routing cheap triage steps to Haiku and expensive synthesis to Opus" is valid but incomplete → add that sonnet is the default workhorse (Sonnet 5 handles most synthesis) and opus is for judgment-heavy work.
-- [Med] [harness][propagation] lines 176-259 — documents `paths:`, `hooks: pre/post`, `isolation: worktree`, `shell:` as skill frontmatter. Three of these (`paths`, `hooks`, `isolation`) are not in the repo's own CLAUDE.md optional-field list and are not corroborated by current Claude Code docs → verify each against `claude plugin validate --strict` / official docs; prune or clearly mark aspirational. Because this catalog feeds `/new-skill`, unverified fields multiply.
+- [Med] [harness] [propagation] lines 176-259 — documents `paths:`, `hooks: pre/post`, `isolation: worktree`, `shell:` as skill frontmatter. Three of these (`paths`, `hooks`, `isolation`) are not in the repo's own CLAUDE.md optional-field list and are not corroborated by current Claude Code docs → verify each against `claude plugin validate --strict` / official docs; prune or clearly mark aspirational. Because this catalog feeds `/new-skill`, unverified fields multiply.
 - [Low] [prompt-style] line 124 — "Canonical reference for late-2025 Claude Code features" → drop the dated framing.
 
 ### references/patterns/advanced-features.md
 **Verdict:** NEEDS-CHANGE
 - [High] [harness] line 132 — "**Gotcha — failure is silent:** If the command fails (non-zero exit), the output is empty — no error is surfaced to Claude." This is the confirmed wrong claim behind issue #183: unguarded `` !`git …` `` injections actually **abort the skill** in non-git dirs → rewrite the gotcha: dynamic-injection command failure can abort the skill outright; guard with `2>/dev/null || echo "unavailable"` (the `|| echo` advice in the same paragraph is the right fix for the wrong reason — keep the fix, correct the failure-mode description).
-- [High] [stale-model][propagation] lines 51,57-58 — `model: claude-opus-4` example plus recommendations to "override to `claude-opus-4`" / "override to `claude-haiku-4`". `claude-opus-4` is a deprecated form and `claude-haiku-4` **never existed** → replace all three with tier aliases (`opus`, `haiku`); add `fable` to the mentioned set.
+- [High] [stale-model] [propagation] lines 51,57-58 — `model: claude-opus-4` example plus recommendations to "override to `claude-opus-4`" / "override to `claude-haiku-4`". `claude-opus-4` is a deprecated form and `claude-haiku-4` **never existed** → replace all three with tier aliases (`opus`, `haiku`); add `fable` to the mentioned set.
 - [Med] [harness] lines 29,34-41 — `agent: Think | Code` capability profiles are not documented Claude Code agent types (only `Explore` and named custom agents corroborated) → verify or remove the Think/Code rows.
 - [Med] [harness] lines 136-152 — `$CLAUDE_CONTEXT` ("active file/selection in the user's editor") is not a documented substitution variable → verify; if unconfirmed, remove and take the path via `$ARGUMENTS`.
-- [Med] [harness][propagation] lines 64-111,156-171 — `isolation: worktree`, `paths:`, `hooks: pre/post` — same unverified-field concern as common-patterns.md. Verify against the harness before this "canonical reference" mints more copies.
+- [Med] [harness] [propagation] lines 64-111,156-171 — `isolation: worktree`, `paths:`, `hooks: pre/post` — same unverified-field concern as common-patterns.md. Verify against the harness before this "canonical reference" mints more copies.
 - [Low] [prompt-style] line 3 — "added in late 2025" framing → drop the date.
 - [Low] [stale-model] line 37 — "`Think` | Deep reasoning, extended thinking" — extended-thinking framing obsolete (adaptive thinking/effort).
 
 ### references/templates/skill.md
 **Verdict:** NEEDS-CHANGE
-- [High] [stale-model][propagation] line 12 — `# model: claude-opus-4   # override model for this skill…` — pinned, deprecated-model ID in the scaffolding template that every `/new-skill` run copies. **Highest-multiplication stale reference in the repo** → `# model: opus   # tier alias (haiku|sonnet|opus|fable|inherit) — never pinned IDs (ADR-0005)`.
+- [High] [stale-model] [propagation] line 12 — `# model: claude-opus-4   # override model for this skill…` — pinned, deprecated-model ID in the scaffolding template that every `/new-skill` run copies. **Highest-multiplication stale reference in the repo** → `# model: opus   # tier alias (haiku|sonnet|opus|fable|inherit) — never pinned IDs (ADR-0005)`.
 - [Med] [harness] line 7 — comment `# disable-model-invocation: false   # true = no LLM call; pure-tool skill` misdescribes the field. Per CLAUDE.md: it prevents proactive model invocation and removes the description from session context; it does not make the skill "no LLM call" → correct the gloss.
 - [Med] [harness] lines 11,39-40 — `agent: Explore | Think | Code` and `$CLAUDE_CONTEXT` — same unverified items as advanced-features.md, here inside the generated template.
-- [Med] [harness][propagation] lines 15-27 — commented `paths:`/`hooks:`/`isolation:` blocks — verify or prune.
+- [Med] [harness] [propagation] lines 15-27 — commented `paths:`/`hooks:`/`isolation:` blocks — verify or prune.
 - [Low] [effort-enum] line 5 — `# effort: medium   # low | medium | high | max` — if the harness supports an `xhigh` level between high and max (as current API effort enums do), add it after verifying against `claude plugin validate --strict`; otherwise leave the documented four.
 
 ### references/new-skill-examples.md
@@ -778,18 +777,18 @@ Neither plugin contains a single stale Claude model ID or ADR-0005 violation —
 **Verdict:** MINOR
 - [Med] [tier-routing] line 255 — Rule 17 rubric puts "multi-file refactors" categorically under opus. With Sonnet 5, well-specified multi-file work belongs in sonnet; opus reserved for ambiguous requirements, competing designs, cross-cutting debugging → recalibrate in lockstep with the sonnet-/opus-implementer profile edits (**three places must stay in sync: this rubric + the two agent files**).
 - [Low] [tier-routing] line 253 — Execution Hints example shows `opus` for "phases needing a more capable model"; fine, but note that `fable` is intentionally not a plan tier (mirror the opus-implementer note).
-- [Low] [good][adr-0005] lines 46-49,82,253 — Model Tier system uses only tier aliases mapped to the named implementer agents. Fully compliant.
+- [Low] [good] [adr-0005] lines 46-49,82,253 — Model Tier system uses only tier aliases mapped to the named implementer agents. Fully compliant.
 
 ### references/hooks/ (3 recipe files)
 **Verdict:** NEEDS-CHANGE
-- [Med] [harness][propagation] planning-stop-hook.md:13-21, session-start-hook.md:11-19, verification-post-edit-hook.md:11-21 — all three "copy and adapt" snippets use a flat top-level format (`{"Stop": [{"type": "command", …}]}`) that does not match the working format the repo's own `hooks/hooks.json` uses (`{"hooks": {"Event": [{"matcher": …, "hooks": [{…}]}]}}`). Copied verbatim, these recipes silently fail to load → rewrite all three snippets in the nested matcher/hooks format.
+- [Med] [harness] [propagation] planning-stop-hook.md:13-21, session-start-hook.md:11-19, verification-post-edit-hook.md:11-21 — all three "copy and adapt" snippets use a flat top-level format (`{"Stop": [{"type": "command", …}]}`) that does not match the working format the repo's own `hooks/hooks.json` uses (`{"hooks": {"Event": [{"matcher": …, "hooks": [{…}]}]}}`). Copied verbatim, these recipes silently fail to load → rewrite all three snippets in the nested matcher/hooks format.
 - [Med] [harness] verification-post-edit-hook.md:16,34 — relies on `$CLAUDE_TOOL_NAME` / `$CLAUDE_FILE_PATH` env vars; Claude Code delivers tool info as JSON on stdin (as the repo's real PreToolUse hook correctly does with `jq -r .tool_input.command`), and tool filtering belongs in the `matcher` field → replace env-var grep with matcher + stdin parse.
 - [Med] [harness] verification-post-edit-hook.md:17 — `"timeout": 10000` — hook timeouts are in **seconds** (live hooks.json correctly uses 10 and 5); 10000 is a wrong-unit copy-paste hazard.
 - [Low] [harness] planning-stop-hook.md:11 — "Add this to your project's `.claude/hooks.json`" — project hooks live in `.claude/settings.json` under the `hooks` key (plugins use `hooks/hooks.json`); correct the path.
 
 ### references/templates/planning.md
 **Verdict:** MINOR
-- [Med] [prompt-style][stale-model] lines 66-68 — "### Phase 1: Deep Analysis (Ultrathink) / Thoroughly analyze the target scope with extended thinking enabled" — "ultrathink" keyword magic and "extended thinking enabled" are pre-adaptive-thinking anachronisms; the template already sets `effort: high`, which is the current mechanism → drop the label and reword.
+- [Med] [prompt-style] [stale-model] lines 66-68 — "### Phase 1: Deep Analysis (Ultrathink) / Thoroughly analyze the target scope with extended thinking enabled" — "ultrathink" keyword magic and "extended thinking enabled" are pre-adaptive-thinking anachronisms; the template already sets `effort: high`, which is the current mechanism → drop the label and reword.
 
 ### references/templates/read-only.md
 **Verdict:** MINOR
