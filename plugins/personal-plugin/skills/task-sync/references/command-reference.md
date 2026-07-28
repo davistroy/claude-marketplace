@@ -41,7 +41,7 @@ tasks show what they are waiting on if `last_synced.blocked_on` is set).
 
 - `--status` — exact-match filter on one status (`backlog`/`todo`/
   `in-progress`/`blocked`/`done`).
-- `--priority` — exact-match filter on one priority (`P1`-`P4`).
+- `--priority` — exact-match filter on one priority (`P0`-`P4`).
 - `--milestone` — exact-match filter on milestone name.
 - `--sort` — any `Task` field name (e.g. `title`, `priority`, `id`); ties
   break on `id`. Omit for the default status → priority → id ordering.
@@ -61,7 +61,7 @@ add directly into another status — use `edit` afterward if needed), a fresh
 `id` (`t-` + 6 hex chars), `created_at`/`updated_at` stamped now, and prints
 the added task's one-line summary. `--labels` is a single comma-separated
 value; whitespace around each label is stripped and empty entries dropped.
-`--priority`, if given, must be one of `P1`-`P4` or the tool rejects it with a
+`--priority`, if given, must be one of `P0`-`P4` or the tool rejects it with a
 `ValueError`-derived message.
 
 ## `edit <id|#>`

@@ -500,6 +500,8 @@ Before writing the fix, the new tests were run against the *unfixed* code and 9 
 
 **Scope decision recorded above:** `P4` stays (removing it would break `tasks.json` files at rest).
 
+**Doc layer synced in the same PR.** Three sites still documented the scale as `P1`-`P4` and would have contradicted the code: `references/command-reference.md` (×2, the `--priority` filter and the validation rule) and `references/sync-semantics.md`. This is the same drift class the E052 audit kept finding (#193, where the bpmn-to-drawio docs re-taught a bug the bundled tool had already fixed) — a tool change is not done until the layer that documents it moves too.
+
 **Follow-ups filed / noted:**
 - **#210** — `plugins/personal-plugin/CHANGELOG.md` is missing 11.2.0 and 11.3.0 entirely (found while adding the 11.4.0 entry). Another documented-step-with-no-gate, E043 class.
 - **Local data repair still pending.** The fix prevents recurrence but does not heal the already-corrupted record: this repo's `tasks.json` still holds `priority: null` for #189, and because the remote has not changed since, `sync --plan` reports 0 pulls — the tool considers the wrong value in sync. Repair after the 11.4.0 cache update.

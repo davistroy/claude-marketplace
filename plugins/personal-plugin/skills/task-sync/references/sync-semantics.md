@@ -42,7 +42,7 @@ at most one `status/*` label:
 | `blocked` | open | `status/blocked` |
 | `done` | closed | (none — closed already encodes it) |
 
-Priority maps to a `priority/P1`.."`priority/P4"` label the same way.
+Priority maps to a `priority/P0`..`priority/P4` label the same way. A `priority/*` or `status/*` label whose suffix the tool does not recognize is left alone: it stays in the user label set and is never removed from the issue (#208).
 Everything else on `labels` passes through untouched. This mapping is exactly
 invertible on the managed fields, so a value that has not otherwise changed
 survives a full round trip (push then pull, or vice versa) unchanged.
