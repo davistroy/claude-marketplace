@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.6.0] - 2026-07-29
+
+The 16-issue correctness backlog (E060 plan, 8 phases / 42 items, PR #222). Grouped by root cause rather than by issue.
+
+### Added
+- **ADR-0011 — dynamic-injection doctrine**, and `scripts/check_injections.py`, the only linter that can enforce it: it **replays the harness pre-pass** instead of grepping (74 textual matches under `plugins/` vs 14 live sites). Wired as a step in the existing validate job and as pre-commit Check 4.
+- **ADR-0012 — artifact-derived documentation**, correcting `paths:` (a conditional *load gate*, not a save-trigger), `hooks:` (an event record, not `pre:`/`post:`), and `isolation:` (agent frontmatter, not skill).
+- `scripts/check_agent_models.py` + pre-commit Check 5 — ADR-0005 tier aliases are now enforced, not just documented.
+- Phase-0 confirmation gates on `lab-notebook` and `create-wiki`.
+- task-sync: `ORPHAN_LOCAL` classification, `SyncPlan.orphans`, fail-loud saturation guard, and real REST pagination.
+
+### Changed
+- **`Agent` is the single dispatch-tool name in `allowed-tools`** (D56). `Task` is retired from every live component; `TaskCreate`/`TaskUpdate`/`TaskList`/`TaskOutput` remain as the distinct progress-tracking family.
+- **`lab-notebook` and `create-wiki` dropped `disable-model-invocation`** in exchange for their new gates (D57) — they may now be suggested proactively, but write nothing before confirming.
+- Every hand-rolled text menu in `ask-questions`, `finish-document`, `spec-to-prototype`, `visual-explainer`, `summarize-feedback`, and `bpmn-generator` now uses the native `AskUserQuestion` tool.
+- Eleven flagged skills' descriptions rewritten as capability statements — the `disable-model-invocation` flag removes a description from context, so trigger prose on a flagged skill was unreachable metadata.
+- `evals/skills/description-triggers.eval.md`: S11–S14 rewritten. Their `Should` criteria had required the model to suggest a skill *because it matched trigger prose the flag deletes* — the eval encoded the very defect it guarded.
+- `evals/commands/assess-document.eval.md`: absolute score bands replaced with relative assertions.
+
+### Fixed
+- **task-sync `sync --apply` aborted on two of the three documented decisions-file shapes.** `_load_decisions` is called twice on one file, and its "key absent → return the whole dict" fallthrough handed conflict ids to the fail-loud orphan validator. Fail-safe (aborted before mutation), but only the fully-wrapped form worked.
+- `prime` mandated `context: fork` dispatch it did not grant, and claimed in three places that Phase 2 git values were "pre-loaded via dynamic context injection" — they never were; those injections are inert.
+- `ship`'s diff-size gate computed the literal string `deletions(-)`, so the >500-line guard could never fire.
+- The `verification-post-edit` hook recipe registered but could never run its payload: `matcher: "Bash"` guarantees the tool is `Bash`, so its test for `Edit` was unreachable.
+- `visual-explainer`: `$GOOGLE_IMAGE_MODEL` was a phantom variable; the real override is `VISUAL_EXPLAINER_GEMINI_MODEL`. Authoritative 15-variable table added.
+- Stale and never-existent pinned Claude model IDs across the generator templates and docs.
+
+### Notes
+- Behavior changed without an API break, hence a minor bump. **Anyone on 11.5.1 must update** — the 11.5.1 tree published before this release carries different content under the same version.
+
+## [bpmn-plugin v4.4.0] - 2026-07-29
+
+### Changed
+- `bpmn-generator`: the simulated `help`/`status`/`back`/`skip`/`quit` REPL is gone (494 → 442 lines). `skip` and `quit` are native controls; `status` is redundant in a visible transcript. Its Question Format and Auto-Accept blocks now defer to `references/clarification-patterns.md` instead of duplicating them.
+- `references/clarification-patterns.md`: all 22 question blocks plus both normative blocks converted to `AskUserQuestion`. Auto-accept is preserved via the free-text **Other** box — nothing native absorbs the old `E)` slot, so dropping it would have removed a real capability.
+
+### Fixed
+- `bpmn-to-drawio`: the skill's own `HAS_DI` branch re-taught the partial-DI layout bug the tool fixed in 4.3.x, silently corrupting diagram layout. Deleted — the skill now delegates to `--layout auto`.
+- `cli.py --layout` help said `auto` preserves DI "when present"; the resolver gates on *complete* DI (every element positioned).
+
+## [slide-gen v1.3.0] - 2026-07-29
+
+### Fixed
+- `build-cfa-deck`: the primary snippet used `Presentation` before importing it, and two different slide-removal implementations were both broken. One working implementation now lives in the new `references/cfa-deck-helpers.md`.
+- Machine-specific asset paths replaced with a `CFA_ASSETS_DIR` override.
+
 ## [personal-plugin v11.5.1] - 2026-07-29
 
 ### Fixed
