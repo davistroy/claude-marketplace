@@ -9,25 +9,32 @@ You are automating the complete git workflow to ship code changes. After creatin
 
 ## Pre-loaded Context
 
-The following git state is injected before Claude processes this prompt:
+The following git state is injected before Claude processes this prompt. Injection is a
+**load-time precondition** — a non-zero exit aborts prompt expansion and the skill never
+reaches Claude (ADR-0011 F3), so every command below is guarded to exit 0 everywhere and
+reports the sentinel `(not a git repository)` instead of failing.
 
 **Working tree status:**
-!`git status -s`
+!`git status -s 2>/dev/null || echo "(not a git repository)"`
 
-**Diff summary:**
-!`git diff --stat`
+**Diff summary (unstaged):**
+!`git diff --stat 2>/dev/null || echo "(not a git repository)"`
 
 **Staged diff summary:**
-!`git diff --cached --stat`
+!`git diff --cached --stat 2>/dev/null || echo "(not a git repository)"`
 
 **Current branch:**
-!`git branch --show-current`
+!`git branch --show-current 2>/dev/null || echo "(not a git repository)"`
 
 **Remote:**
-!`git remote -v`
+!`git remote -v 2>/dev/null || echo "(not a git repository)"`
 
 **Diff size (lines changed):**
-!`git diff --stat | tail -1 | awk '{print $NF}'`
+!`git diff HEAD --shortstat 2>/dev/null | grep -oE '[0-9]+ (insertions?|deletions?)' | awk '{s+=$1} END {print s+0}'`
+
+The diff-size value is always a bare integer. It counts insertions **plus** deletions, and
+`git diff HEAD` covers staged **and** unstaged changes, so the number is correct in the normal
+pre-ship state where everything is already `git add`-ed. Outside a repository it is `0`.
 
 ## Destructive Action Warning
 
@@ -74,10 +81,11 @@ Example log entries:
 
 Use the pre-loaded context injected above — do NOT re-run these git commands:
 
-1. **Verify git repository** — remote output above will be empty if not a git repo; abort if so
-2. **Confirm uncommitted changes** — check the injected `git status -s` and diff summaries; if both are empty, abort with a clear message
-3. **Confirm current branch** — check the injected branch name; if not `main`, ask the user if they want to proceed from the current branch or abort
-4. **Diff size gate** — check the injected "Diff size (lines changed)" value. If > 500, note this for Phase 6 (will suggest `/code-review ultra` instead of standard review)
+1. **Verify git repository** — if any injected value above is the literal sentinel `(not a git repository)`, abort with: `ship must be run inside a git repository.` Do NOT infer this from empty output: empty is a legitimate result for several of these commands inside a valid repo.
+2. **Verify a remote is configured** — if the injected **Remote** block is empty (and not the sentinel), the repository is valid but has no remote. Abort with: `No git remote configured. Run: git remote add origin <url>` — there is nothing to push to and Phase 0 cannot detect the platform.
+3. **Confirm uncommitted changes** — check the injected `git status -s` and diff summaries; if both are empty, abort with a clear message
+4. **Confirm current branch** — check the injected branch name; if not `main`, ask the user if they want to proceed from the current branch or abort
+5. **Diff size gate** — the injected "Diff size (lines changed)" value is an integer. If it is greater than 500, note this for Phase 6 (will suggest `/code-review ultra` instead of standard review)
 
 ## Phase 0: Platform Detection
 

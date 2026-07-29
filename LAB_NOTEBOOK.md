@@ -787,4 +787,25 @@ Both are forced sequential in `parallelization_map`. Three further cross-phase o
 
 **Note on the Phase 1 and Phase 6 DoD blocks.** Both cite a linter that does not exist yet at phase start (`check_injections.py` is item 1.6's deliverable; `check_agent_models.py` is 6.1's). The gate is therefore only runnable at the *end* of its own phase — a self-referential DoD. Recorded here so a later reader does not mistake an early skip for an unrun check.
 
-**Results:** *(logged per batch below as the loop proceeds)*
+**Results — per batch, logged as each lands:**
+
+| Batch | Items | Tier | Commit | Gates | Outcome |
+|---|---|---|---|---|---|
+| 1 | 1.1 | opus | `71a6ad4` | validate ✔ mdlint ✔ pre-commit ✔ | ADR-0011 Accepted. Doctrine re-derived from the shipped harness, not from E059's summary |
+| 2 | 1.2, 1.4, 1.5 | opus, haiku, haiku | *(this commit)* | validate ✔ mdlint ✔ pre-commit ✔ | 5 ship guards + 3 clear-prep guards live; #183 corrected on GitHub |
+
+**Batch 1 finding — E059 undercounted the live forms.** The 1.1 implementer recovered the harness matchers verbatim from 2.1.220 and found a **fifth** live form E059 never enumerated: a `!`-info-string fenced block matched against the **raw** text, so it is never pre-passed at all. That form cannot be found by grep under any pattern, which is the sharpest available justification for ADR-0011's rule that a linter must replay the pre-pass. Item 1.6 inherits it as a required case.
+
+**Batch 1 flag carried forward.** `IMPLEMENTATION_PLAN.md`'s own executive summary contains 2 live inline forms. They sit outside `plugins/`, so 1.1 correctly left them; item **1.6 needs an explicit scope policy for repo-root docs** or its first run reddens on the plan file itself.
+
+**Batch 2 — the dual-owned line, resolved and independently verified.** `ship/SKILL.md:33` is owned by two issues with opposing pulls: #183 needs it exit-0-safe, #190 needs it numeric. The naive fix for #183 — appending a `|| echo "(sentinel)"` guard — would have regressed #190 straight back to a string comparison. The landed form instead makes the pipeline's exit status `awk`'s, which swallows `git`'s 128 and `grep`'s no-match 1 **without** a sentinel, while `print s+0` coerces the empty accumulator to a bare integer:
+
+```sh
+git diff HEAD --shortstat 2>/dev/null | grep -oE '[0-9]+ (insertions?|deletions?)' | awk '{s+=$1} END {print s+0}'
+```
+
+I re-ran this myself rather than accepting the agent's report (E039). In a scratch non-git directory all five guarded commands exit 0 with the sentinel, and the diff-size line exits 0 yielding `0`; in the real repo with 3 files staged it yields `79`, matching `47 insertions + 32 deletions` from the raw shortstat, and `[ "$v" -gt 500 ]` evaluates without error. Both owners satisfied by one expression.
+
+**Latent defect found while repairing the pre-flight gate (unfiled, fixed in passing).** The dead gate was split into a sentinel-based repository check plus a **new empty-remote check** — because a repo with no remote previously fell through to `PLATFORM=gitea`. That is a wrong-platform dispatch on a condition nobody had filed.
+
+**A guard-design detail worth keeping.** The repository check carries an explicit *do not infer this from empty output* instruction, because empty is a legitimate result for several of these commands inside a perfectly valid repo. Sentinel-vs-empty is the distinction that makes the check correct; conflating them would reintroduce a false abort.

@@ -109,8 +109,8 @@ Evidence is in LAB_NOTEBOOK E059. Do not soften the escaping-rule table — its 
 
 ---
 
-#### 1.2 `ship`: guard the five git injections and repair the diff-size gate
-**Status: PENDING**
+#### 1.2 `ship`: guard the five git injections and repair the diff-size gate ✅ Completed 2026-07-28
+**Status: COMPLETE 2026-07-28**
 **Model Tier: opus**
 **Recommendation Ref:** #183, #190 (atomic)
 **Depends On:** 1.1
@@ -121,19 +121,26 @@ Evidence is in LAB_NOTEBOOK E059. Do not soften the escaping-rule table — its 
 `ship:30` is a single line owned by two issues. #183 needs it exit-0-safe; #190 needs it to compute a number. It currently emits the literal string `deletions(-)` — `$NF` is always the trailing *word* of `git diff --stat`'s summary line, never a number — so the `> 500` comparison is string-vs-int and the gate has never fired. Two further defects the issue misses: the metric needs insertions **plus** deletions summed, and `git diff --stat` covers *unstaged* changes only, so the normal pre-ship state (everything already `git add`-ed) yields empty regardless of size.
 
 **Tasks:**
-1. [ ] Guard `:15, :18, :21, :24, :27` with `2>/dev/null || echo "(not a git repository)"`
-2. [ ] Replace `:30` with `git diff HEAD --shortstat 2>/dev/null | grep -oE '[0-9]+ (insertions?|deletions?)' | awk '{s+=$1} END {print s+0}'` — covers staged+unstaged, sums both, and `s+0` forces numeric `0` rather than empty
-3. [ ] Repair the second dead gate at `:77` ("remote output above will be empty if not a git repo; abort if so") — unreachable today, and a false positive for a valid repo with no remote configured
-4. [ ] Verify `:80` and `:275` need no text change once the injected value is numeric
+1. [x] Guard `:15, :18, :21, :24, :27` with `2>/dev/null || echo "(not a git repository)"`
+2. [x] Replace `:30` with `git diff HEAD --shortstat 2>/dev/null | grep -oE '[0-9]+ (insertions?|deletions?)' | awk '{s+=$1} END {print s+0}'` — covers staged+unstaged, sums both, and `s+0` forces numeric `0` rather than empty
+3. [x] Repair the second dead gate at `:77` ("remote output above will be empty if not a git repo; abort if so") — unreachable today, and a false positive for a valid repo with no remote configured
+4. [x] Verify `:80` and `:275` need no text change once the injected value is numeric
 
 **Acceptance Criteria:**
-- [ ] WHEN `ship` loads in a non-git directory THEN every injection SHALL exit 0 and the pre-flight SHALL abort on the sentinel rather than on expansion failure
-- [ ] WHEN a 550-line change is staged THEN the diff-size gate SHALL evaluate `550 > 500` and route to `/code-review ultra`
-- [ ] WHEN all changes are already staged THEN the gate SHALL still see the full line count
-- [ ] The extractor replay reports 6 live injections in `ship/SKILL.md`, all exiting 0 in a non-git directory
+- [x] WHEN `ship` loads in a non-git directory THEN every injection SHALL exit 0 and the pre-flight SHALL abort on the sentinel rather than on expansion failure
+- [x] WHEN a 550-line change is staged THEN the diff-size gate SHALL evaluate `550 > 500` and route to `/code-review ultra`
+- [x] WHEN all changes are already staged THEN the gate SHALL still see the full line count
+- [x] The extractor replay reports 6 live injections in `ship/SKILL.md`, all exiting 0 in a non-git directory
 
 **Notes:**
 Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'` returns `deletions(-)` on a 550-line change; the replacement returns `550`. Do not split this item — a #183-only fix leaves the gate broken, a #190-only fix leaves it exit-unsafe.
+
+**Completion notes (2026-07-28):**
+- **`:30` was edited once to satisfy both owners simultaneously.** The trailing `| awk '{... print s+0}'` is what makes it *both* exit-0-safe (#183) and numeric (#190): the pipeline's status is `awk`'s, so `git diff`'s 128 and `grep`'s no-match 1 are both swallowed without a `|| true`, while `s+0` coerces the empty accumulator to a bare `0`. A `2>/dev/null || echo "(sentinel)"` guard here would have satisfied #183 and *regressed* #190, since the gate would then compare a string again.
+- **Two defects beyond the issue's headline, both measured.** Old metric on a 550-line **staged** change → empty (`git diff --stat` is unstaged-only, so the normal pre-ship state was invisible); old metric on an unstaged change → `deletions(-)`. New metric: `550` staged, `2484` on `HEAD~5..HEAD`, `0` outside a repo. The `> 500` comparison had therefore never once evaluated as a number.
+- **Task 3 split into two checks rather than reworded.** The dead gate conflated "not a repo" with "remote is empty". Now pre-flight 1 branches on the `(not a git repository)` sentinel with an explicit *do not infer this from empty output* instruction, and a new pre-flight 2 catches the valid-repo-no-remote case with its own `git remote add origin <url>` message. That also closes a latent Phase 0 defect: an empty remote fell through step 3's `Otherwise` and was misclassified as `PLATFORM=gitea`.
+- **Verification, not inspection.** The `Jds`/`Cfo` replay was negative-tested in the same run (tidy fixture → LIVE, nested → INERT) and reports exactly **6 LIVE** in `ship/SKILL.md` — confirming the new prose (which names the sentinel and `git add` in inline spans) added no live site. Each of the 6 extracted commands was then executed verbatim in a scratch non-git directory: all exit 0.
+- **For 1.3:** the binary set of `:30` is now `git`, `grep`, `awk` (plus `echo` in the five guards) — `tail` is no longer invoked by any `ship` injection. `allowed-tools` was deliberately left untouched to avoid colliding with 1.3.
 
 ---
 
@@ -158,8 +165,8 @@ Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'
 
 ---
 
-#### 1.4 `clear-prep`: guard three git injections
-**Status: PENDING**
+#### 1.4 `clear-prep`: guard three git injections ✅ Completed 2026-07-28
+**Status: COMPLETE 2026-07-28**
 **Model Tier: haiku**
 **Recommendation Ref:** #183
 **Depends On:** None
@@ -170,16 +177,16 @@ Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'
 `:27, :28, :29` abort the skill in a non-git directory (`:28` is the originally-reported failure). `clear-prep`'s own Error Handling at `:130-132` promises "Not a git repo: skip git-delta steps" — currently unreachable. Phase 1 step 1 re-runs the same three commands via Bash anyway, so deletion is also a valid fix.
 
 **Tasks:**
-1. [ ] Guard all three with `2>/dev/null || echo "(not a git repository)"`
-2. [ ] Confirm the Error Handling clause at `:130-132` is now reachable
+1. [x] Guard all three with `2>/dev/null || echo "(not a git repository)"`
+2. [x] Confirm the Error Handling clause at `:130-132` is now reachable
 
 **Acceptance Criteria:**
-- [ ] WHEN `clear-prep` loads outside a git repository THEN it SHALL load successfully and skip the git-delta steps per its documented behavior
+- [x] WHEN `clear-prep` loads outside a git repository THEN it SHALL load successfully and skip the git-delta steps per its documented behavior
 
 ---
 
-#### 1.5 Correct #183's location table
-**Status: PENDING**
+#### 1.5 Correct #183's location table ✅ Completed 2026-07-28
+**Status: COMPLETE 2026-07-28**
 **Model Tier: haiku**
 **Recommendation Ref:** #183
 **Depends On:** 1.1
