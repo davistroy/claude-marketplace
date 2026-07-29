@@ -841,3 +841,28 @@ The DoD is executable text, and executing it is how both surfaced. Neither is a 
    This is worth keeping as a near-miss. Had I trusted the naive grep, the "fix" would have been to shrink a correct 15-row table to 5 rows and delete 10 real, user-settable variables from the docs — a documentation regression dressed as a correctness fix, and precisely the failure mode E060 flagged for **#202** ("the issue as filed would delete working features"). The generalizable rule: **an indirection between the accessor and the name literal makes any accessor-shaped grep undercount.** Before concluding a documented set is inflated, check whether the reader is a wrapper.
 
    The corrected parity command now matches on the *name literal* rather than the accessor, and carries a comment recording why the obvious form is wrong.
+
+---
+
+**Phase 7 — a terminal crash mid-item, and what the recovered state did and did not tell me.**
+
+The session died during Phase 7 with nothing committed past `d4cdc3e` (Phase 6 close-out). Recovery came from three sources that agreed only partially, and the disagreement is the useful part:
+
+| Source | Said | True? |
+|--------|------|-------|
+| `.implement-plan-state.json` | `current_item: 7.1`, 32 items complete, Phase 7 contributed **nothing** | Half — the pointer was right, the completion list was stale |
+| `IMPLEMENTATION_PLAN.md` (uncommitted) | 7.1 `IN_PROGRESS`, **7.2 and 7.4 `COMPLETE`** | Yes |
+| `git status` | 4 modified files, matching exactly 7.2 + 7.4 + the plan | Yes |
+
+**The state file lags the plan file, because it is written at the batch-commit boundary and the plan file is written by each item.** Everything Phase 7 had actually produced was invisible to the resume pointer. Recovering from `current_item` alone would have re-run 7.2 and 7.4 over their own output. The generalizable rule: **on resume, reconcile the state file against the plan file and the working tree — treat the state file as the *oldest* of the three, never the authority.** `last_good_sha` remains trustworthy precisely because it is a commit.
+
+**The crash was not the expensive part — a false green in the uncommitted work was.** 7.4 (convert the two shared AskUserQuestion upstreams) had ticked its acceptance criterion *"No hand-rolled option menu remains in either shared upstream"* and recorded in its own completion notes that "no hand-rolled `Your choice (A/B/C/D/E)` prompts remain in either file". A single grep falsified both: `clarification-patterns.md:27` still carried one. It converted the 22 **question** blocks and left the file's two **normative** blocks:
+
+1. `Question Format Template` (`:7-28`) — the block every generated question is told to imitate, and which is *duplicated* into `bpmn-generator/SKILL.md:106-123`. Converting 22 instances while leaving the template that mints instance 23 is the generator-layer failure mode this whole plan exists to fix (E060 finding 3), reproduced inside a fix for it.
+2. `Auto-Accept Mode Behavior` — trigger still read "when user selects **E)**", action still read "automatically select option A". Both are dangling references to letters no question emits any more, so the feature was documented as reachable via a control that no longer exists.
+
+This is a third instance of the standing rule that **a check restating the thing it checks will agree with the bug** — the "verification" line was prose the same agent wrote about work the same agent had just done, never a command. Structural difference from E056/E057: there the check was code that ran and was wrong; here the check was *narrative* and never ran at all. Narrative verification is not weaker evidence than a bad test — it is not evidence.
+
+**Auto-accept preserved, not dropped.** The obvious reading of "the native Skip button and free-text box absorb every `[D] Custom` / `[S] Skip` slot" (plan, 7.4) is that `D` and `E` both vanish. `D` (provide your own) is genuinely absorbed by the free-text `Other` box; **`E` (accept recommended for all remaining) has no native equivalent** and deleting it silently would have been a capability regression — #202's exact failure mode. It is now reached by typing accept-all intent into the `Other` box, which the harness supplies on *every* question and therefore matches the old per-question availability at zero option-slot cost. Alt considered and rejected: a 4th option on Q1 only — it mixes a session-level meta-command into a content question and is unreachable after Q1.
+
+**Re-verification after the fix (commands, not prose):** `grep -rn "Your choice\|option A\b\|\*\*E)\|\*\*D)"` across both upstreams → 0 hits; 22/22 JSON blocks parse, every question 3–4 options, every `header` ≤12 chars; `python3 scripts/check_injections.py` → exit 0 (63 files, 35 live injections); `markdownlint-cli2` → 0 issues; `claude plugin validate --strict` → passed for all three plugins. 7.1 reset `IN_PROGRESS` → `PENDING`: it had produced no edits before the crash.

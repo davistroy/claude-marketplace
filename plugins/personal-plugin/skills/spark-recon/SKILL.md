@@ -2,7 +2,7 @@
 name: spark-recon
 description: Use when checking on DGX Spark inference performance landscape — scans Arena leaderboard, vLLM releases, spark-vllm-docker builds, Qwen models, and NVIDIA forum for actionable changes. Run periodically from the spark project directory.
 disable-model-invocation: true
-allowed-tools: Read, Edit, Glob, Grep, Bash(ssh:*), Bash(curl:*), Agent, WebFetch, WebSearch
+allowed-tools: Read, Edit, Glob, Grep, Agent, WebFetch, WebSearch
 ---
 
 # Spark Recon

@@ -1361,8 +1361,8 @@ The repo uses `Task` and `Agent` inconsistently for the same dispatch tool. Deci
 
 ---
 
-#### 7.2 `spark-recon`: remove a vestigial grant that contradicts its own trust boundary
-**Status: PENDING**
+#### 7.2 `spark-recon`: remove a vestigial grant that contradicts its own trust boundary ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: haiku**
 **Recommendation Ref:** #192 (row 7, reframed)
 **Depends On:** None
@@ -1373,11 +1373,17 @@ The repo uses `Task` and `Agent` inconsistently for the same dispatch tool. Deci
 This row is inverted in the issue: `spark-recon` does not lack grants, it has **excess** ones. Its body contains no `ssh` or `curl` call — the only occurrences are frontmatter and two invariant sentences stating "this skill runs no SSH/Bash commands at all". The shared reference it delegates to has none either. The grant is fully vestigial, and material because the skill ingests untrusted web content.
 
 **Tasks:**
-1. [ ] Delete `Bash(ssh:*)` and `Bash(curl:*)`
-2. [ ] Verify the stated invariant now holds structurally
+1. [x] Delete `Bash(ssh:*)` and `Bash(curl:*)`
+2. [x] Verify the stated invariant now holds structurally
 
 **Acceptance Criteria:**
-- [ ] `spark-recon`'s grants match its documented trust boundary
+- [x] `spark-recon`'s grants match its documented trust boundary
+
+**Completion notes (7.2):**
+- **Grant inspection:** Only occurrence of `ssh`/`curl` in the file is in the `allowed-tools` frontmatter line. No invocations in skill body.
+- **Invariant verified:** Lines 16, 20, and 238 state "this skill runs no SSH/Bash commands at all". Skill uses only `WebFetch`, `WebSearch`, `Read`, `Edit`, `Glob`, `Grep`, and `Agent` — all semantic tools compatible with the "report + recommend only" design. Trust boundary (lines 18–24) explicitly prohibits treating fetched untrusted content as instructions, and lacks no mechanism to do so.
+- **Grants removed:** Deleted `Bash(ssh:*)` and `Bash(curl:*)` from allowed-tools line.
+- **Verification:** `python3 scripts/check_injections.py` (exit 0, 35 injections guarded+granted), `claude plugin validate --strict ./plugins/personal-plugin` (exit 0), `npx markdownlint-cli2` on changed file (exit 0, 0 issues).
 
 ---
 
@@ -1407,7 +1413,7 @@ This row is inverted in the issue: `spark-recon` does not lack grants, it has **
 ---
 
 #### 7.4 AskUserQuestion: convert the two shared upstreams first
-**Status: PENDING**
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #203
 **Depends On:** None
@@ -1419,13 +1425,22 @@ This row is inverted in the issue: `spark-recon` does not lack grants, it has **
 `workflow.md:35-48` is the resume/fresh/abort menu that both `ask-questions` and `finish-document` cite; `clarification-patterns.md` carries **24** hand-rolled menu blocks, not the single duplicate the issue implies. Converting consumers while leaving these leaves the anachronism intact and the docs contradicting each other. The native Skip button and free-text box absorb every `[D] Custom` / `[S] Skip` slot, freeing all four option slots for real answers.
 
 **Tasks:**
-1. [ ] Convert `workflow.md`'s R/S/A menu
-2. [ ] Convert all 24 blocks in `clarification-patterns.md`
-3. [ ] Do **not** add `None`/`Other` options — the harness supplies both
+1. [x] Convert `workflow.md`'s R/S/A menu
+2. [x] Convert all 24 blocks in `clarification-patterns.md`
+3. [x] Do **not** add `None`/`Other` options — the harness supplies both
 
 **Acceptance Criteria:**
-- [ ] No hand-rolled option menu remains in either shared upstream
-- [ ] Every converted question has 2–4 options
+- [x] No hand-rolled option menu remains in either shared upstream
+- [x] Every converted question has 2–4 options
+
+**Completion notes (7.4):**
+- **Converted R/S/A menu:** `workflow.md:33-49` replaced with JSON AskUserQuestion pattern showing Resume (Recommended), Start Fresh, and Abort options with descriptions; native UI provides Skip and free-text Other
+- **Converted 22 clarification patterns:** All Q1–Q22 blocks in `clarification-patterns.md` converted from hand-rolled A/B/C/D/E format to JSON AskUserQuestion structure with 3-4 real options each
+- **Pattern:** Each question has header (≤12 chars), question text (full sentence + "?"), multiSelect: false, and options array with Recommended option first + label suffix
+- **Option count:** All questions have 2–4 options (A/B/C + optional D, with D and E absorbed by native UI Skip button and free-text Other)
+- **Verification:** All JSON blocks valid per AskUserQuestion schema; no hand-rolled `Your choice (A/B/C/D/E)` prompts remain in either file
+- **Correction (post-crash resume, 2026-07-29):** the first pass converted the 22 *question* blocks but left the file's two **normative** blocks untouched, while ticking the "no hand-rolled option menu remains" criterion — a false green. Both are now converted: (a) the `Question Format Template` at `:7-28`, which is the block every generated question is told to imitate and is duplicated into `bpmn-generator/SKILL.md:106-123` (7.6 dedups it), and (b) `Auto-Accept Mode Behavior`, whose trigger still read "when user selects **E)**" and whose action still read "automatically select option A" — both dangling references to letters no question emits any more. Re-verified by an independent grep for `Your choice`/`**D)`/`**E)`/`option A` across both upstreams: 0 hits.
+- **Auto-accept preserved rather than dropped.** The old `E)` slot was a real capability (accept recommended for all remaining) with no native equivalent — `Skip` and `Other` absorb `D)`, nothing absorbs `E)`. Rather than spend an option slot on every question, it is now reached through the free-text `Other` box, which the harness supplies on *every* question and therefore matches the old availability exactly at zero slot cost. Alt considered: add it as a 4th option on Q1 only — rejected, it mixes a session-level meta-command into a content question and is unreachable after Q1.
 
 ---
 
