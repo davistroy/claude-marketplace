@@ -18,7 +18,7 @@ context: fork
 - Any step where you want a "clean slate" context to avoid prior context bias
 - Parallelism: multiple `context: fork` dispatches can run concurrently
 
-**Gotcha:** The forked subagent has no conversation history. Pass all context explicitly in the prompt body or via `` !`cmd` `` injection. The subagent cannot ask clarifying questions — it must be self-contained.
+**Gotcha:** The forked subagent has no conversation history. Pass all context explicitly in the prompt body or via `!`cmd`` injection. The subagent cannot ask clarifying questions — it must be self-contained.
 
 ---
 
@@ -110,15 +110,11 @@ Otherwise: write sentinel `echo $(date +%s) > .tmp/[skill-name].last-run` and pr
 
 ---
 
-## Dynamic Context Injection: `` !`cmd` ``
+## Dynamic Context Injection: `!`cmd``
 
-**Syntax:**
-```
-!`git status -s`
-!`cat config/schema.json | python -m json.tool | head -50`
-```
+> **Read [ADR-0011](../../../../docs/adr/0011-dynamic-injection-doctrine.md) before writing or editing an injection.** Every rule below is derived from the harness internals recorded there, and two of them run opposite to intuition.
 
-Place at the top of the skill body (before any instructions). The output is spliced into the prompt before Claude reads it.
+**Syntax:** an exclamation mark immediately followed by a backtick-delimited command, at the start of a line or after whitespace — written `!`git status -s`` in a real skill body. Place these at the top of the skill body (before any instructions). The output is spliced into the prompt before Claude reads it.
 
 **What it does:** Runs a shell command and injects its stdout directly into the prompt. Claude sees the output as part of the prompt text — it is not a tool call.
 
@@ -127,9 +123,17 @@ Place at the top of the skill body (before any instructions). The output is spli
 - Avoiding redundant tool calls mid-skill (inject once, reference multiple times)
 - Passing structured data to forked subagents without disk roundtrips
 
-**Gotcha — runs before Claude:** `` !`cmd` `` commands execute before any LLM call. They cannot be conditional on Claude's analysis. Put unconditional, fast, read-only commands here. Avoid writes or commands with side effects.
+**Gotcha — runs before Claude:** injections execute before any LLM call. They cannot be conditional on Claude's analysis. Put unconditional, fast, read-only commands here. Avoid writes or commands with side effects.
 
-**Gotcha — failure is silent:** If the command fails (non-zero exit), the output is empty — no error is surfaced to Claude. Wrap with `|| echo "COMMAND FAILED"` if failure matters.
+**Gotcha — a non-zero exit aborts skill load.** It does **not** degrade to empty output, and it is not silent. The shell error is thrown, prompt expansion rejects, and the skill never reaches the model at all. Every injection is therefore a load-time precondition: it must exit 0 in *every* directory the skill can be invoked from. Guard anything that can fail and branch on the sentinel in the body:
+
+- `!`git status -s 2>/dev/null || echo "(not a git repository)"``
+
+**Gotcha — it is permission-checked against `allowed-tools`.** A denied command throws the same way a failing one does, with no prompt to the user. Every binary in the pipeline — `git`, `grep`, `awk`, `tail`, … — must appear in the grant set, not just the first one.
+
+**Gotcha — it expands at parse time, before `$ARGUMENTS` exists.** A placeholder meant to be filled from the user's arguments reaches bash literally, so `!`ls -la <target-path>`` exits 2 (a bash syntax error — the angle brackets parse as redirects) in every directory. There is nothing to guard here: delete the injection and invoke the Bash tool from the model with the resolved path instead. See `skills/arch-review/SKILL.md`.
+
+**Gotcha — writing *about* injections executes them, because the escaping rule is inverted.** The harness blanks an inline-code span *unless* the character immediately before its opening backtick is `` ` `` or `!`. So the tidy-looking double-backtick form — the one ordinary markdown convention produces when you escape an example — is **live**, and the ragged nested form is **inert**. Always document the syntax as `!`cmd`` (single backtick, nested). A fenced block opened with three backticks and `!` is live too, and is never pre-passed at all — quoting one inside an example does not make it safe.
 
 ---
 
@@ -193,7 +197,7 @@ shell: bash    # or: zsh | sh
 | `agent:` | `context: fork` | Standalone (no-op) | Always pair with fork |
 | `isolation: worktree` | `context: fork` | Repos with staged conflicts | Auto-cleanup when no changes |
 | `paths:` | Any | Itself (loop) | Loop guard required |
-| `` !`cmd` `` | Any | Conditional logic | Runs unconditionally |
+| `!`cmd`` | Any | Conditional logic | Runs unconditionally; non-zero exit aborts skill load (ADR-0011) |
 | `model:` | Any | User subscription limits | Graceful fallback recommended |
 
 ---

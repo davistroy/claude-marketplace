@@ -75,8 +75,8 @@ Establish the true semantics of `` !`cmd` `` injection as an ADR, correct the re
 
 ### Work Items
 
-#### 1.1 ADR-0011: dynamic-injection doctrine, and correct the root-cause doc
-**Status: PENDING**
+#### 1.1 ADR-0011: dynamic-injection doctrine, and correct the root-cause doc ✅ Completed 2026-07-28
+**Status: COMPLETE 2026-07-28**
 **Model Tier: opus**
 **Recommendation Ref:** #183 (root cause)
 **Depends On:** None
@@ -88,18 +88,24 @@ Establish the true semantics of `` !`cmd` `` injection as an ADR, correct the re
 `advanced-features.md:132` states that a failed injection produces empty output and surfaces no error. The decompiled handler `throw`s on a `ShellError`: `Promise.all` rejects, prompt expansion fails, and the skill never reaches the model. The doc teaches the opposite of the truth, and every unguarded injection in the repo traces to it. ADR-0011 records four facts: injections expand at **parse time** (before `$ARGUMENTS` exists); a **non-zero exit aborts skill load**; injections are **permission-checked against `allowed-tools`**; and the escaping rule is inverted, so documentation examples must use the nested form.
 
 **Tasks:**
-1. [ ] Write `docs/adr/0011-dynamic-injection-doctrine.md` (status: Accepted) covering all four facts, with the `Jds`/`Cfo` mechanism and the LIVE/INERT table
-2. [ ] Rewrite `advanced-features.md:113-132` to state both rules, replacing the false "failure is silent" sentence
-3. [ ] Convert every example in that file to the inert nested form (6 currently-live forms; documentation-only, so nothing executes today, but they teach the dangerous shape)
-4. [ ] Cross-link ADR-0011 from `CLAUDE.md`'s Verified Operational Rules
+1. [x] Write `docs/adr/0011-dynamic-injection-doctrine.md` (status: Accepted) covering all four facts, with the `Jds`/`Cfo` mechanism and the LIVE/INERT table
+2. [x] Rewrite `advanced-features.md:113-132` to state both rules, replacing the false "failure is silent" sentence
+3. [x] Convert every example in that file to the inert nested form (6 currently-live forms; documentation-only, so nothing executes today, but they teach the dangerous shape)
+4. [x] Cross-link ADR-0011 from `CLAUDE.md`'s Verified Operational Rules
 
 **Acceptance Criteria:**
-- [ ] WHEN a reader follows `advanced-features.md` THEN the guidance SHALL state that a non-zero exit aborts skill load, not that it yields empty output
-- [ ] WHEN the extractor replay is run against `advanced-features.md` THEN it SHALL report 0 live injections
-- [ ] ADR-0011 exists with status Accepted and is referenced from CLAUDE.md
+- [x] WHEN a reader follows `advanced-features.md` THEN the guidance SHALL state that a non-zero exit aborts skill load, not that it yields empty output
+- [x] WHEN the extractor replay is run against `advanced-features.md` THEN it SHALL report 0 live injections
+- [x] ADR-0011 exists with status Accepted and is referenced from CLAUDE.md
 
 **Notes:**
 Evidence is in LAB_NOTEBOOK E059. Do not soften the escaping-rule table — its counterintuitiveness is the entire point.
+
+**Completion notes (2026-07-28):**
+- **Facts re-derived from the binary, not from E059's summary** (E039). `Jds`, `Cfo`, `WFe`, `en_`, and `Aee` were recovered verbatim from `~/.local/share/claude/versions/2.1.220` and are quoted in the ADR. The recovery surfaced a **fifth** live form E059 had not enumerated: `Cfo` unions a second matcher, `soy`, matching a fenced block whose info string is `!`, which runs against the **raw** text — a `!`-fenced block is never pre-passed and is therefore live regardless of context, including inside a quoted example. That is now F1, and it is the specific case R4 cites as invisible to any grep.
+- **The replay was negative-tested before its zeros were trusted** (E043): tidy-form fixture → LIVE=1, nested-form fixture → LIVE=0, in the same run that reported 0 for the edited files. Nine forms were enumerated by replay for the ADR's LIVE/INERT table, not reasoned about.
+- **`advanced-features.md` 6 → 0 live**, and the ADR and `CLAUDE.md` were both replayed to 0 as well. The ADR's first draft was itself **1 LIVE** — the literal `soy` regex contains a `!`-fence — which is why the ADR writes that regex as a string concatenation and why dangerous forms in it use a visible `\!` neutralizer.
+- **Risk-table row deliberately left `Open`.** "Someone 'tidies' `prime`'s backticks…" is scoped to **7.3**, and its mitigation has two halves: ADR-0011 landing first (done here) and 7.3 carrying an explicit do-not instruction (not done). Flipping it to `Mitigated` now would tell Phase 7's implementer the do-not instruction is unnecessary — the precise harm the row describes. It closes when 7.3 closes.
 
 ---
 
