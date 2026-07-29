@@ -33,7 +33,10 @@ from .models import CriteriaScores, EvaluationResult, EvaluationVerdict
 
 logger = logging.getLogger(__name__)
 
-# Default evaluation model - Sonnet is sufficient for vision, 5x cheaper than Opus
+# Default evaluation model - Sonnet is sufficient for this vision task and cheaper
+# than Opus. No multiplier is stated here on purpose: published per-token prices
+# change independently of this file, so a hardcoded ratio silently goes stale
+# (ADR-0012 - do not assert a figure this file cannot derive).
 DEFAULT_MODEL = "claude-sonnet-5"
 
 # Default thresholds for verdict determination

@@ -176,8 +176,9 @@ plugins/
                             # sg-validate-graphics, sg-generate-images, sg-build, sg-full-workflow
 
 .claude/
-  agents/                   # Named implementer agents (haiku/sonnet/opus-implementer)
-                            # Model pinned in frontmatter; referenced by implement-plan
+  agents/              # Named implementer agents for implement-plan model routing
+                       # haiku-implementer, sonnet-implementer, opus-implementer —
+                       # model: tier alias in frontmatter, never pinned IDs (ADR-0005)
 ```
 
 ## CI/CD Pipeline
