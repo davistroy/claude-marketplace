@@ -173,18 +173,41 @@ If validation fails, you'll see a clear error message with troubleshooting sugge
 
 **Note**: High resolution (4K) images take ~60-120 seconds to generate.
 
-### Internal Defaults
+### Environment Variables
 
-These are not exposed via CLI but can be customized in code:
+The tool reads 15 environment variables total: 13 through `config.py`'s `env_str`/`env_int`/`env_float` helpers (`GenerationConfig.from_cli_and_env` and `InternalConfig.from_env`), plus 2 API keys read directly in `image_generator.py`, `concept_analyzer.py`, and `api_setup.py`. **All 13 config variables are env-overridable** — none is "customized in code only." CLI arguments, where one exists, take priority over the environment variable, which takes priority over the default.
 
-**Default Negative Prompt** (always applied unless overridden):
-```
-no text, no words, no letters, no numbers, no watermarks, no logos,
-no stock photo aesthetic, no borders, no frames, no signatures,
-no artificial lighting artifacts, no lens flare
-```
+#### User-Configurable (CLI-overridable)
 
-**Concept Cache Location**: `.cache/visual-explainer/concepts-[content-hash].json`
+| Variable | Default | CLI Equivalent | Code Site |
+|----------|---------|-----------------|-----------|
+| `VISUAL_EXPLAINER_STYLE` | `professional-clean` | `--style` | `config.py:256` |
+| `VISUAL_EXPLAINER_OUTPUT_DIR` | current working directory | `--output-dir` | `config.py:244` |
+| `VISUAL_EXPLAINER_MAX_ITERATIONS` | `5` | `--max-iterations` | `config.py:258` |
+| `VISUAL_EXPLAINER_PASS_THRESHOLD` | `0.85` | `--pass-threshold` | `config.py:259` |
+| `VISUAL_EXPLAINER_RESOLUTION` | `high` | `--resolution` | `config.py:247` |
+| `VISUAL_EXPLAINER_ASPECT_RATIO` | `16:9` | `--aspect-ratio` | `config.py:250` |
+| `VISUAL_EXPLAINER_IMAGE_COUNT` | `0` (auto) | `--image-count` | `config.py:264` |
+
+#### Internal (env-overridable, no CLI flag)
+
+| Variable | Default | Effect | Code Site |
+|----------|---------|--------|-----------|
+| `VISUAL_EXPLAINER_NEGATIVE_PROMPT` | `no text, no words, no letters, no numbers, no watermarks, no logos, no stock photo aesthetic, no borders, no frames, no signatures, no artificial lighting artifacts, no lens flare` | Negative prompt applied to every image generation | `config.py:358-360` |
+| `VISUAL_EXPLAINER_CACHE_DIR` | `.cache/visual-explainer` | Directory for concept analysis cache | `config.py:361` |
+| `VISUAL_EXPLAINER_GEMINI_TIMEOUT` | `300.0` | Timeout in seconds for Gemini API calls | `config.py:362` |
+| `VISUAL_EXPLAINER_CLAUDE_TIMEOUT` | `60.0` | Timeout in seconds for Claude API calls | `config.py:363` |
+| `VISUAL_EXPLAINER_GEMINI_MODEL` | `gemini-3-pro-image-preview` | Gemini model ID used for image generation | `config.py:364` |
+| `VISUAL_EXPLAINER_CLAUDE_MODEL` | `claude-sonnet-5` | Claude model ID used for concept analysis and evaluation | `config.py:365` |
+
+#### API Keys
+
+| Variable | Purpose | Code Site |
+|----------|---------|-----------|
+| `GOOGLE_API_KEY` | Google Gemini image generation | `image_generator.py:140` |
+| `ANTHROPIC_API_KEY` | Claude concept analysis and evaluation | `concept_analyzer.py:896` |
+
+**Concept Cache Location**: `[VISUAL_EXPLAINER_CACHE_DIR]/concepts-[content-hash].json` (default `.cache/visual-explainer/concepts-[content-hash].json`)
 
 **Checkpoint Location**: `[output-dir]/checkpoint.json`
 

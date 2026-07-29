@@ -827,3 +827,17 @@ I did not take the green self-test as proof the gate works. I planted a real `SK
 **One defect I fixed directly.** The linter shipped with a stale annotation — `cases` declared a 6-tuple while every entry, and its own explanatory comment, was a 7-tuple. Runtime was unaffected (hence a green self-test) and `scripts/` is outside CI's ruff/mypy scope, so nothing would have caught it. Corrected to `tuple[str, str, str, str, str, bool, str | None]`. Noted because it is the *third* thing this session that a passing check did not cover.
 
 **Phase 1 verdict:** 6/6 items COMPLETE. Final linter run: 63 files scanned, 35 live injections, all guarded and granted, exit 0.
+
+---
+
+**Phase 2 — two defects in the PLAN's own Definition of Done, found by running it.**
+
+The DoD is executable text, and executing it is how both surfaced. Neither is a code bug; both would have produced a misleading red or a spurious pass.
+
+1. **`python` does not exist on this VM, and bare `python3` cannot run these suites.** Phase 2's DoD says `PYTHONPATH=src python -m pytest tests/ -q`. There is no `python` binary here, and `python3` lacks `pytest-cov`, so the tool's own `addopts` (`--cov=...`) make it abort with *unrecognized arguments*. Only `.venv/bin/python` works. This is the same trap already recorded from E051; the DoD was written without it. All per-tool DoD commands in the state file were rewritten to `.venv/bin/python`.
+
+2. **The env-var parity check counted 5 where the truth is 15 — and the check, not the plan, was wrong.** My first pass grepped `os.getenv("LITERAL")` in `config.py`, found **5**, and briefly looked like evidence that the plan's "15-variable table" was inflated. It was not. `config.py` reads most variables through `env_str` / `env_int` / `env_float` wrappers, so the name literal is the *helper's* argument and `os.getenv`'s argument is the opaque parameter `key`. Counting properly gives **13** `VISUAL_EXPLAINER_*` in `config.py` plus `ANTHROPIC_API_KEY` and `GOOGLE_API_KEY` read elsewhere = **15**, exactly as filed.
+
+   This is worth keeping as a near-miss. Had I trusted the naive grep, the "fix" would have been to shrink a correct 15-row table to 5 rows and delete 10 real, user-settable variables from the docs — a documentation regression dressed as a correctness fix, and precisely the failure mode E060 flagged for **#202** ("the issue as filed would delete working features"). The generalizable rule: **an indirection between the accessor and the name literal makes any accessor-shaped grep undercount.** Before concluding a documented set is inflated, check whether the reader is a wrapper.
+
+   The corrected parity command now matches on the *name literal* rather than the accessor, and carries a comment recording why the obvious form is wrong.

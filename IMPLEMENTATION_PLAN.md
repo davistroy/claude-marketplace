@@ -374,8 +374,8 @@ Both declare `version = "1.0.0"` while the plugin is 4.3.1, so `bpmn2drawio --ve
 
 ---
 
-#### 2.4 visual-explainer SKILL: correct the env var names
-**Status: PENDING**
+#### 2.4 visual-explainer SKILL: correct the env var names ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: haiku**
 **Recommendation Ref:** #196
 **Depends On:** None
@@ -386,17 +386,23 @@ Both declare `version = "1.0.0"` while the plugin is 4.3.1, so `bpmn2drawio --ve
 `$GOOGLE_IMAGE_MODEL` (`:40`, `:116`) appears **zero** times in the tool. It was the name *proposed* in `IMPLEMENTATION_PLAN-v4.md:724`; the implementation used `VISUAL_EXPLAINER_GEMINI_MODEL` (`config.py:364`). Setting the documented variable is a silent no-op.
 
 **Tasks:**
-1. [ ] Rename to `VISUAL_EXPLAINER_GEMINI_MODEL`; add `VISUAL_EXPLAINER_CLAUDE_MODEL`
-2. [ ] Reconcile the "Tested Results" block at `:53-58` — it cites threshold 0.75 while the shipped default is 0.85
+1. [x] Rename to `VISUAL_EXPLAINER_GEMINI_MODEL`; add `VISUAL_EXPLAINER_CLAUDE_MODEL`
+2. [x] Reconcile the "Tested Results" block at `:53-58` — it cites threshold 0.75 while the shipped default is 0.85
 
 **Acceptance Criteria:**
-- [ ] WHEN a user exports the documented model-override variable THEN the tool SHALL use it
-- [ ] `references/api-key-setup.md` is **not** modified — its model vars belong to `/research-topic`
+- [x] WHEN a user exports the documented model-override variable THEN the tool SHALL use it
+- [x] `references/api-key-setup.md` is **not** modified — its model vars belong to `/research-topic`
+
+**Completion notes (2.4):**
+- **Env var sources verified from config.py:354-366 (`from_env()`):** `VISUAL_EXPLAINER_GEMINI_MODEL` (line 364, used for Gemini image generation) and `VISUAL_EXPLAINER_CLAUDE_MODEL` (line 365, used for concept analysis and evaluation). Both read from os.getenv with fallback defaults. The proposed name `GOOGLE_IMAGE_MODEL` does not appear anywhere in the tool.
+- **Pass threshold default verified from config.py:259:** The actual default is `0.85` via `env_float("VISUAL_EXPLAINER_PASS_THRESHOLD", 0.85)`. Updated "Tested Results" section (line 55) from "threshold 0.75" to "default threshold 0.85" and line 58 from a range recommendation to a direct default statement.
+- **Model vars documented at lines 116–117:** `VISUAL_EXPLAINER_GEMINI_MODEL` (Gemini image model override, default `gemini-3-pro-image-preview`) and `VISUAL_EXPLAINER_CLAUDE_MODEL` (Claude model override, default `claude-sonnet-5`). Both linked to the matching defaults in config.py.
+- **API key setup reference untouched:** `references/api-key-setup.md` was not modified — it documents the global `/research-topic` model vars and belongs to a separate workflow.
 
 ---
 
-#### 2.5 visual-explainer README: the authoritative 15-variable table
-**Status: PENDING**
+#### 2.5 visual-explainer README: the authoritative 15-variable table ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #196
 **Depends On:** 2.4
@@ -407,12 +413,14 @@ Both declare `version = "1.0.0"` while the plugin is 4.3.1, so `bpmn2drawio --ve
 Documentation covers 2 of the tool's 15 environment variables (13%). Worse, `:176-190` claims the internal defaults "can be customized **in code**" — false; all six are env-overridable via `InternalConfig.from_env`, and the class docstring says so.
 
 **Tasks:**
-1. [ ] Add the full 15-variable table (name, default, effect, code site)
-2. [ ] Delete the "customized in code" claim
-3. [ ] Do not hand-edit `PKG-INFO` (build artifact)
+1. [x] Add the full 15-variable table (name, default, effect, code site)
+2. [x] Delete the "customized in code" claim
+3. [x] Do not hand-edit `PKG-INFO` (build artifact)
 
 **Acceptance Criteria:**
-- [ ] Documented variable count equals the count read by `config.py` (15)
+- [x] Documented variable count equals the count read by `config.py` (15)
+
+**Completion notes (2.5):** Replaced the "Internal Defaults ... can be customized in code" section with three derived tables (7 CLI-overridable `GenerationConfig` vars, 6 CLI-less `InternalConfig` vars, 2 API keys) — every name, default, and code-site line number read directly from `config.py`'s `from_cli_and_env`/`from_env` classmethods and grep-verified against `image_generator.py`/`concept_analyzer.py`. Confirmed by regex extraction: exactly 13 unique `VISUAL_EXPLAINER_*` names + 2 API keys = 15, matching `config.py`'s actual reads, not the issue text or prior README. `npx markdownlint-cli2` exits 0 on the file.
 
 ---
 
