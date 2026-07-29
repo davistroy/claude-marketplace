@@ -9,7 +9,7 @@ description: {{DESCRIPTION}}
 # --- Modern Dispatch ---
 # context: fork          # spawn isolated subagent context (no shared conversation history)
 # agent: Explore         # subagent type: Explore | Plan | general-purpose | (role-specific strings)
-# model: claude-opus-4   # override model for this skill; omit = inherits caller model
+# model: opus            # override model for this skill (tier alias: haiku|sonnet|opus|fable); omit = inherits caller model (ADR-0005)
 #
 # --- Auto-Activation ---
 # paths:                 # activate skill when user opens matching files

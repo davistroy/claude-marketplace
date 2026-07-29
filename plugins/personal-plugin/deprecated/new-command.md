@@ -190,7 +190,7 @@ If the user selects features, note them for inclusion in the generated frontmatt
 | `allowed-tools` | Restrict tool access | `Read, Glob, Grep, Bash(git:*)` |
 | `context` | Subagent context mode | `fork` (isolated, no history) |
 | `agent` | Subagent role specialization | `Explore` / `Edit` / `Research` |
-| `model` | Override model per subagent | `claude-opus-4-5` |
+| `model` | Override model per subagent | `opus` (tier alias: haiku, sonnet, opus, fable; not pinned ID per ADR-0005) |
 | `isolation` | Filesystem isolation | `worktree` |
 | `when_to_use` | Proactive trigger phrases | `"when X needs to happen"` |
 

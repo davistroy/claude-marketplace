@@ -161,13 +161,13 @@ agent: Explore          # or: software-engineer, solutions-architect, data-archi
 
 **Syntax:**
 ```yaml
-model: claude-opus-4-5   # or claude-sonnet-4-5, claude-haiku-3-5, etc.
+model: opus             # tier alias: haiku | sonnet | opus | fable
 ```
 
 **Use case:** Override the default model for a skill or subagent dispatch. Useful for routing cheap triage steps to Haiku and expensive synthesis to Opus.
 
 **Gotchas:**
-- Model IDs change with releases; pin to a family name if you want automatic upgrade (check Claude Code docs for alias support).
+- Always use tier aliases (`haiku`, `sonnet`, `opus`, `fable`), never pinned model IDs (ADR-0005). Tier aliases resolve at dispatch time, preventing silent staleness when models are retired or upgraded.
 - Overriding in a subagent Task prompt takes precedence over frontmatter.
 
 ---

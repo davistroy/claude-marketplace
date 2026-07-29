@@ -166,7 +166,7 @@ allowed-tools: [tool-restrictions]
 # --- Modern Dispatch ---
 # context: fork
 # agent: Explore
-# model: claude-opus-4
+# model: opus            # tier alias (haiku|sonnet|opus|fable) not pinned ID; see ADR-0005
 #
 # --- Conditional Load (paths:) ---
 # paths:                    # loaded only after Claude touches a matching file this session
@@ -198,7 +198,7 @@ description: [user-provided description]
 # --- Modern Dispatch ---
 # context: fork
 # agent: Explore
-# model: claude-opus-4
+# model: opus            # tier alias (haiku|sonnet|opus|fable) not pinned ID; see ADR-0005
 #
 # --- Conditional Load (paths:) ---
 # paths:                    # loaded only after Claude touches a matching file this session
@@ -297,7 +297,7 @@ All fields supported by Claude Code as of late 2025. Fields marked **Required** 
 | `disable-model-invocation` | Optional | `true` / `false` | `true` = removes LLM call (pure-tool skill); also excludes from proactive triggering |
 | `context` | Optional | `fork` | Spawns an isolated subagent context; no shared conversation history. Use when analysis shouldn't pollute parent context |
 | `agent` | Optional | `Explore`, `Plan`, `general-purpose`, role string | Selects subagent persona/capability profile. `Explore` = broad read-only analysis; `Plan` = planning & synthesis; `general-purpose` = default reasoning |
-| `model` | Optional | `claude-opus-4`, `claude-sonnet-4-5`, etc. | Overrides the model for this skill's execution |
+| `model` | Optional | `opus`, `sonnet`, `haiku`, `fable` (tier aliases; ADR-0005) | Overrides the model for this skill's execution using tier aliases, not pinned IDs |
 | `paths` | Optional | List of glob patterns | Conditional load gate ([ADR-0012](../../../docs/adr/0012-artifact-derived-documentation.md)): the skill is unresolvable by name — to Claude and to a user's slash command alike — until Claude's own Read/Edit/Write tool call touches a matching file this session. Not a save-trigger, no auto-run, **no loop guard needed** — see gotcha below |
 | `hooks` | Optional | `pre:` / `post:` shell commands | Lifecycle hooks run before/after the skill |
 | `shell` | Optional | `bash` / `zsh` / `sh` | Overrides the shell used for Bash tool calls |

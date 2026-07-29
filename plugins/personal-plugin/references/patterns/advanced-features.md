@@ -48,16 +48,16 @@ agent: Explore        # or: Plan | general-purpose | solutions-architect | etc.
 
 **Syntax:**
 ```yaml
-model: claude-opus-4
+model: opus             # tier alias: haiku | sonnet | opus | fable
 ```
 
-**What it does:** Overrides the model used for this skill's execution. Useful for routing expensive skills to more capable models, or cheap/fast skills to smaller models.
+**What it does:** Overrides the model used for this skill's execution using a tier alias. Tier aliases resolve at dispatch time, preventing silent staleness when models are retired.
 
 **When to use:**
-- High-stakes analysis: override to `claude-opus-4`
-- High-volume/fast utility skills: override to `claude-haiku-4`
+- High-stakes analysis: override to `opus`
+- High-volume/fast utility skills: override to `haiku`
 
-**Gotcha:** Model availability depends on the user's subscription. Skills with model overrides may fail for users without access to the specified model. Prefer omitting and letting the user's configured model handle it unless the use case demands a specific model.
+**Gotcha:** Always use tier aliases, never pinned model IDs (ADR-0005). Pinned IDs like `claude-opus-4` become stale when models are retired or upgraded; tier aliases `haiku|sonnet|opus|fable` resolve at dispatch time and stay current.
 
 ---
 
