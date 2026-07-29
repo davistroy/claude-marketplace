@@ -9,9 +9,13 @@ Apply is the only mutating half of the plan/apply split. It:
 3. applies human ``decisions`` to each conflict — ``"local"`` pushes, and
    ``"remote"`` pulls; an undecided conflict is left untouched (never
    clobbered) so it resurfaces next run;
-4. refreshes each affected task's ``last_synced`` base to the post-sync
+4. applies human ``orphan_decisions`` to each orphan — ``"keep"`` retains
+   the task with its link cleared so the next run re-creates via the
+   tested creates path, and ``"drop"`` removes the task; an undecided
+   orphan is left untouched so it resurfaces next run;
+5. refreshes each affected task's ``last_synced`` base to the post-sync
    content hash + the issue's ``updated_at``; and
-5. prunes ``done`` tasks whose issue closed more than ``N`` days ago (``N``
+6. prunes ``done`` tasks whose issue closed more than ``N`` days ago (``N``
    from ``config['prune_closed_after_days']``, default 30), leaving the
    closed issue on the tracker as the archived record.
 
@@ -29,6 +33,11 @@ from task_sync.providers.base import Issue, Provider, parse_aware_datetime
 from task_sync.reconcile.classify import content_hash
 from task_sync.reconcile.plan import SyncPlan
 from task_sync.reconcile.resolve import Conflict
+
+# Orphan dispositions: valid values for human decisions on orphaned tasks.
+ORPHAN_DISPOSITION_KEEP = "keep"
+ORPHAN_DISPOSITION_DROP = "drop"
+ORPHAN_DISPOSITIONS = (ORPHAN_DISPOSITION_KEEP, ORPHAN_DISPOSITION_DROP)
 
 DEFAULT_PRUNE_DAYS = 30
 
@@ -148,12 +157,53 @@ def _should_prune(task: Task, now: datetime, threshold_days: int) -> bool:
     return now - closed > timedelta(days=threshold_days)
 
 
+def _validate_orphan_decisions(plan: SyncPlan, orphan_decisions: dict[str, str]) -> None:
+    """Validate all orphan decision ids and dispositions upfront (D36).
+
+    Raises ``ValueError`` naming the offending id or disposition if any
+    decision is for an unknown orphan or carries an invalid disposition.
+    No mutations occur if validation fails.
+    """
+    orphan_ids = {o.task_id for o in plan.orphans}
+    for task_id, disposition in orphan_decisions.items():
+        if task_id not in orphan_ids:
+            raise ValueError(
+                f"orphan decision for unknown task {task_id!r} "
+                f"(known: {', '.join(sorted(orphan_ids)) or 'none'})"
+            )
+        if disposition not in ORPHAN_DISPOSITIONS:
+            raise ValueError(
+                f"invalid orphan disposition {disposition!r} for task {task_id} "
+                f"(must be one of: {', '.join(ORPHAN_DISPOSITIONS)})"
+            )
+
+
+def _apply_orphan_decision(orphan_task: Task, decision: str | None) -> bool:
+    """Apply an orphan decision and return True if the task was removed.
+
+    ``keep`` clears issue_number and last_synced so the next run re-creates
+    via the tested creates path. ``drop`` returns True so the caller removes
+    the task. Undecided orphans are left untouched and return False.
+    """
+    if decision == ORPHAN_DISPOSITION_KEEP:
+        # Clear the link so next run treats it as NEW_LOCAL and re-creates.
+        orphan_task.issue_number = None
+        orphan_task.last_synced = {}
+        return False
+    if decision == ORPHAN_DISPOSITION_DROP:
+        # Drop the task entirely — return True to signal removal.
+        return True
+    # Any other value (None) -> leave the orphan unresolved.
+    return False
+
+
 def apply(
     plan: SyncPlan,
     decisions: dict[str, str],
     tasklist: TaskList,
     provider: Provider,
     *,
+    orphan_decisions: dict[str, str] | None = None,
     now: datetime | None = None,
 ) -> TaskList:
     """Execute ``plan`` against ``provider`` and return the updated TaskList.
@@ -161,10 +211,19 @@ def apply(
     ``decisions`` maps a conflict's ``task_id`` to ``"local"`` or ``"remote"``.
     Any conflict without such a decision is left exactly as it is.
 
+    ``orphan_decisions`` maps an orphan's ``task_id`` to ``"keep"`` or ``"drop"``.
+    Any orphan without a decision is left untouched. All ids and dispositions
+    are validated upfront (D36) — if validation fails, no mutations occur.
+
     ``now`` (UTC-aware) is injectable for deterministic prune tests; it
     defaults to the current time.
     """
     now = now or datetime.now(timezone.utc)
+    orphan_decisions = orphan_decisions or {}
+
+    # Validate orphan decisions upfront (D36).
+    _validate_orphan_decisions(plan, orphan_decisions)
+
     result = _copy_tasklist(tasklist)
     by_id: dict[str, Task] = {task.id: task for task in result.tasks}
 
@@ -206,7 +265,16 @@ def apply(
 
     result.tasks.extend(adopted)
 
-    # 5. Prune stale done+closed tasks, leaving their issues closed.
+    # 5. Orphans: apply only where a human decision selected a disposition.
+    # Must run AFTER creates/pushes so by_id lookups don't assume dropped tasks survive.
+    tasks_to_drop = set()
+    for orphan in plan.orphans:
+        task = by_id[orphan.task_id]
+        if _apply_orphan_decision(task, orphan_decisions.get(orphan.task_id)):
+            tasks_to_drop.add(orphan.task_id)
+    result.tasks = [t for t in result.tasks if t.id not in tasks_to_drop]
+
+    # 6. Prune stale done+closed tasks, leaving their issues closed.
     threshold = _prune_days(result)
     result.tasks = [t for t in result.tasks if not _should_prune(t, now, threshold)]
 

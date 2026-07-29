@@ -1,8 +1,7 @@
 ---
 name: create-wiki
-description: Set up a persistent, LLM-maintained wiki inside any project. Creates a wiki/ directory with sources, pages, schema, and navigation files, seeds initial pages from project discovery, and injects CLAUDE.md rules that make Claude automatically maintain the wiki during normal work sessions. Suggest (do not auto-run) when — project accumulating complexity, context loss between sessions, multiple contributors, "I keep forgetting", significant domain knowledge, or LAB_NOTEBOOK.md with durable insights.
-disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)
+description: Set up a persistent, LLM-maintained wiki inside any project. Creates a wiki/ directory with sources, pages, schema, and navigation files, seeds initial pages from project discovery, and injects CLAUDE.md rules that make Claude automatically maintain the wiki during normal work sessions. Suggest when — project accumulating complexity, context loss between sessions, multiple contributors, "I keep forgetting", significant domain knowledge, or LAB_NOTEBOOK.md with durable insights. Confirms before writing anything when suggested rather than invoked.
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), AskUserQuestion
 ---
 
 # Create Wiki
@@ -24,6 +23,48 @@ Supported arguments:
 - `status` — Show wiki health (redirects to `/wiki status`)
 - No arguments — Same as `init` if no wiki exists, same as `status` if one does
 
+## Phase 0: Self-Invocation Confirmation
+
+**This skill can be model-invoked, and initialization writes a `wiki/` tree *and* injects
+maintenance rules into `CLAUDE.md`** that change how Claude behaves for the rest of the
+project's life. That must never happen unasked.
+
+**If you are invoking this skill on your own initiative** — because the project is
+accumulating domain knowledge, context keeps getting lost between sessions, or the user said
+"I keep forgetting how this works" — rather than the user typing `/create-wiki`, confirm
+first with `AskUserQuestion`:
+
+```json
+{
+  "questions": [
+    {
+      "question": "Set up an LLM-maintained wiki for this project?",
+      "header": "Wiki",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Yes, initialize it",
+          "description": "Creates wiki/ with sources, pages, schema, and index, seeds pages from project discovery, and adds maintenance rules to CLAUDE.md"
+        },
+        {
+          "label": "No, not now",
+          "description": "Nothing is written; you can run /create-wiki yourself at any time"
+        }
+      ]
+    }
+  ]
+}
+```
+
+- **Confirmed:** proceed to the entry-point check below.
+- **Declined or skipped:** reply "Skipped — run `/create-wiki` whenever you want one." and
+  exit immediately. Create nothing, modify nothing.
+
+**When the user invokes this skill directly, skip this gate entirely** and proceed.
+Maintenance mode on an existing wiki is the wiki working as configured and needs no gate.
+
+---
+
 ## Entry-Point: Init vs Maintenance Mode
 
 **Before doing anything else**, determine which mode to run:
@@ -42,17 +83,26 @@ test -f wiki/index.md && echo "EXISTS" || echo "NOT_FOUND"
 
 ### Maintenance Mode (wiki already exists)
 
-Used when `paths:` auto-activation fires (a source file or CLAUDE.md changed) OR when the user invokes with `status`.
+Used when the user invokes the skill on a project that already has a wiki — with `status`, or with no argument.
 
 **Maintenance mode is idempotent** — running it twice produces the same result. It updates, never re-initializes.
 
 #### Maintenance Step 1: Identify Changed Sources
 
-Determine what triggered the skill (if auto-activated via `paths:`):
-- If triggered by `wiki/sources/**/*` — a source file was added or modified
-- If triggered by `CLAUDE.md` — project rules changed; wiki pages covering architecture or conventions may be stale
-- If triggered by `LAB_NOTEBOOK.md` — new findings may be wiki-worthy; check for extractable durable knowledge
-- If invoked directly — check recent git changes: `git diff --name-only HEAD~1 HEAD`
+Nothing invokes this skill on save. There is no filesystem watcher, and a `paths:`
+declaration would only be a *load gate* — it makes a skill findable after Claude's own
+Read/Edit/Write touches a matching file, and never runs anything on its own
+(see [ADR-0012](../../../../docs/adr/0012-artifact-derived-documentation.md)). So identify
+changed sources from git:
+
+```bash
+git diff --name-only HEAD~1 HEAD
+```
+
+Then interpret what changed:
+- `wiki/sources/**/*` — a source file was added or modified
+- `CLAUDE.md` — project rules changed; wiki pages covering architecture or conventions may be stale
+- `LAB_NOTEBOOK.md` — new findings may be wiki-worthy; check for extractable durable knowledge
 
 #### Maintenance Step 2: Update Relevant Wiki Pages
 

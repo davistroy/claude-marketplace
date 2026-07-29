@@ -9,7 +9,7 @@ description: >
   "create process diagram", "build workflow", or "convert this markdown to BPMN". Do NOT
   use for converting an existing BPMN XML file to Draw.io — use bpmn-to-drawio for that.
 argument-hint: "[<markdown-file>] or process description"
-allowed-tools: Read, Write, Glob, Grep
+allowed-tools: Read, Write, Glob, Grep, AskUserQuestion
 ---
 
 # BPMN 2.0 XML Generator
@@ -82,10 +82,11 @@ When `--preview` is specified:
    Output file: order-fulfillment.bpmn
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-   Save this file? (y/n):
    ```
-4. Wait for user confirmation before saving
-5. On 'n' or 'no': Exit without saving
+4. Confirm with `AskUserQuestion` before writing anything — a single question,
+   `header: "Save"`, options **Save the file** (recommended, states the output path) and
+   **Discard** (exits without writing). Wait for the response.
+5. On **Discard** or a skipped question: exit without saving
 
 ---
 
@@ -101,46 +102,20 @@ Initial process descriptions are rarely sufficient for optimal BPMN generation. 
 
 ### Question Format
 
-For EVERY clarifying question, use this EXACT format:
+Every clarifying question is asked with the native `AskUserQuestion` tool — one question per
+call, 2–4 real options, the recommended one first and labelled `(Recommended)`. Never
+hand-roll a lettered menu, and never add a "provide your own" or "skip" option: the harness
+supplies a free-text **Other** box and a **Skip** control on every question.
 
-```markdown
-## Question [N]: [Topic Category]
-
-[Clear, specific question about the process]
-
-### Options:
-
-**A) [Recommended]**: [Specific answer]
-   *Why*: [2-3 sentence reasoning explaining why this is the best choice]
-
-**B)** [Alternative answer 1]
-**C)** [Alternative answer 2]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions (auto-accept mode)
-
----
-Your choice (A/B/C/D/E):
-```
+The canonical shape, the 22 ready-made question blocks, and the rules that govern them live
+in `references/clarification-patterns.md` (Question Format Template). Read it before asking
+the first question and instantiate its blocks rather than inventing new ones.
 
 ### Auto-Accept Mode
 
-When the user selects option **E**:
-1. Set internal flag: `AUTO_ACCEPT_MODE = true`
-2. For all subsequent questions, automatically use the recommended answer
-3. Log each auto-accepted decision
-4. Before generating XML, present a summary:
-
-```markdown
-## Auto-Accepted Decisions Summary
-
-| Question | Topic | Decision |
-|----------|-------|----------|
-| Q3 | Gateway Type | Exclusive Gateway (XOR) |
-| Q4 | Error Handling | Boundary Error Event |
-| ... | ... | ... |
-
-Proceeding with XML generation using these decisions.
-```
+Reached through the free-text **Other** box at any question — see *Auto-Accept Mode
+Behavior* in `references/clarification-patterns.md`, which owns the trigger, the
+recommended-answer rule, and the decisions-summary table rendered before XML generation.
 
 ### Question Phases
 
@@ -183,40 +158,13 @@ Process questions in this specific order:
 - Final review of proposed structure
 - Opportunity for adjustments
 
-### Session Commands
+### Session Control
 
-Support these standard session commands during Interactive mode:
-
-| Command | Aliases | Action |
-|---------|---------|--------|
-| `help` | `?`, `commands` | Show available session commands |
-| `status` | `progress` | Show current phase and questions completed |
-| `back` | `previous`, `prev` | Return to previous question |
-| `skip` | `next`, `pass` | Skip current question (use recommended) |
-| `quit` | `exit`, `stop` | Exit without generating BPMN |
-
-**When user types `help`:**
-```text
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Session Commands
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  help      Show this help message
-  status    Show current phase and progress
-  back      Return to previous question
-  skip      Skip question (uses recommended answer)
-  quit      Exit without generating BPMN
-
-Press E at any question to accept recommended
-answers for all remaining questions.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-**Implementation notes:**
-- Commands are case-insensitive
-- Check for session commands before processing input as an answer choice
-- Unknown input that is not A/B/C/D/E should trigger the help message
+There is no session-command interpreter. The native UI already provides what the old
+`help`/`status`/`back`/`skip`/`quit` REPL simulated: **Skip** is the `skip` command, closing
+the question is `quit`, and `status` is redundant when the interview is visible in the
+transcript. `back` has no native equivalent — if the user asks to revisit an earlier
+question in free text, re-ask it and overwrite the recorded decision.
 
 ### Adaptive Questioning
 

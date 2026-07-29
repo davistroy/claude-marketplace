@@ -2,7 +2,7 @@
 name: summarize-feedback
 description: Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document. Suggest when — user mentions feedback analysis, performance review, assessment generation, Notion captures, or review preparation.
 effort: high
-allowed-tools: Read, Glob, Grep, Write, Bash(python:*), Bash(pip:*)
+allowed-tools: Read, Glob, Grep, Write, Bash(python:*), Bash(pip:*), AskUserQuestion
 ---
 
 You are generating a professional employee feedback assessment document. You will query Notion for feedback entries, synthesize them with Claude, and produce a formatted `.docx` file. The user may provide arguments: $ARGUMENTS
@@ -100,13 +100,34 @@ Context Size Warning
 ====================
 Found {N} feedback entries totaling approximately {word_count} words.
 This exceeds the recommended processing threshold.
+```
 
-Options:
-1. Process in batches of 25 entries (recommended for accuracy)
-2. Narrow the date range to reduce entry count
-3. Proceed anyway (risk of truncation in synthesis)
+Then ask with `AskUserQuestion`:
 
-Select option [1-3]:
+```json
+{
+  "questions": [
+    {
+      "question": "How should the oversized feedback set be processed?",
+      "header": "Volume",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Batch by 25 (Recommended)",
+          "description": "Synthesize in batches of 25 entries, then a meta-synthesis pass. Most accurate"
+        },
+        {
+          "label": "Narrow the date range",
+          "description": "Re-run entry collection over a shorter window to reduce the entry count"
+        },
+        {
+          "label": "Proceed anyway",
+          "description": "Single synthesis pass over everything; risks silent truncation"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ## Step 4: Synthesize Assessment

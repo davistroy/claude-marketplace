@@ -2,7 +2,7 @@
 description: Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create PR (merge only with --auto-merge)
 argument-hint: "[--coverage <n>] [--auto-merge]"
 effort: high
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(go:*), Bash(cargo:*), Bash(dotnet:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(pytest:*), Bash(python:*), Bash(go:*), Bash(cargo:*), Bash(dotnet:*), Bash(jest:*), Bash(vitest:*), Bash(bun:*), Agent, TaskCreate, TaskUpdate, TaskList, TaskOutput
 ---
 
 # Fully Test Project Command
@@ -153,7 +153,7 @@ Coverage Status:
 ## Phase 3: Parallel Test Execution
 
 ### 3.1 Spawn Test Sub-agents
-Use the Agent tool (with `run_in_background: true`) to launch parallel test sub-agents. Use the Task tool for tracking progress across sub-agents. This matches the pattern used in `/implement-plan`.
+Use the Agent tool (with `run_in_background: true`) to launch parallel test sub-agents. Use the `TaskCreate` / `TaskUpdate` / `TaskList` / `TaskOutput` family for tracking progress across sub-agents. This matches the pattern used in `/implement-plan`.
 
 **Strategy A - By test type:**
 - Sub-agent 1: Unit tests

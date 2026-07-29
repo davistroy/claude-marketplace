@@ -54,7 +54,7 @@ class TestPromptGenerator:
     def test_init_with_custom_model(self):
         """Test initializing with custom model."""
         with patch("visual_explainer.prompt_generator.anthropic.Anthropic"):
-            gen = PromptGenerator(api_key="test-key", model="claude-opus-4-20250514")
+            gen = PromptGenerator(api_key="test-key", model="claude-opus-5")
             assert "opus" in gen.model.lower()
 
     def test_generate_prompts_returns_list(

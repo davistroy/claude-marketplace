@@ -1,7 +1,7 @@
 ---
 description: Extract questions from a document, answer them interactively, and update the document
 argument-hint: "<document-path> [--auto] [--force]"
-allowed-tools: Read, Write, Edit, Glob, Grep
+allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
 # Finish Document
@@ -126,22 +126,9 @@ Before starting the Q&A session, check for an incomplete previous session:
 
 1. Look for existing `reference/answers-[document-name]-*.json` files
 2. If found with `metadata.status: "in_progress"`:
-   ```
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Incomplete session detected
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-   Previous session: reference/answers-PRD-20260114-100000.json
-   Progress: 15 of 47 questions answered (32%)
-   Last activity: 2026-01-14T10:45:00Z
-
-   Options:
-   [R] Resume from question 16
-   [S] Start fresh (overwrites previous progress)
-   [A] Abort
-
-   Your choice (R/S/A):
-   ```
+   Report the previous file, progress (`15 of 47 answered (32%)`), and last activity as
+   prose, then ask with `AskUserQuestion` using the exact three-option shape specified in
+   `references/patterns/workflow.md` (Resume / Start Fresh / Abort, Resume recommended).
 3. On resume: Load existing answers and continue from `last_question_answered + 1`
 4. On start fresh: Backup existing file and start from question 1
 
@@ -149,17 +136,21 @@ See `references/patterns/workflow.md` for full state management specification.
 
 ### 2.1 Question Flow
 
-The interactive session behaves exactly as `/ask-questions` documents: progress header, question presentation (question, location, context, what you're solving), and lettered `[A] Recommended` / `[B]`/`[C] Alternative` / `[D] Custom` / `[S] Skip` options. See `/ask-questions` for the full display format and example interaction.
+The interactive session behaves exactly as `/ask-questions` documents: progress header, question presentation (question, location, context, what you're solving) as prose, then one `AskUserQuestion` call per question carrying the recommended answer plus 1–2 alternatives. The old `[D] Custom` and `[S] Skip` slots are supplied natively by the **Other** box and the **Skip** control and must not be re-added as options. See `/ask-questions` for the full option shape and example interaction.
 
 ### 2.2 Auto Mode Behavior
 If `--auto` flag was provided:
-- Auto-select option A (Recommended) for each question
+- Auto-select the option labelled `(Recommended)` for each question — **issue no
+  `AskUserQuestion` call at all**; the flag exists precisely to skip the prompt
 - Show what was selected but don't wait for input
 - User can interrupt with `pause` to switch to interactive mode
 
 ### 2.3 Session Commands
 
-Session commands, the `help` display, and case-insensitive command handling match `/ask-questions` (see `references/patterns/workflow.md` for full specification), plus two finish-document-specific additions for `--auto` mode:
+Session commands, the `help` display, and case-insensitive command handling match
+`/ask-questions` — a text protocol reached through the **Other** box in interactive mode and
+typed directly in `--auto` mode (see `references/patterns/workflow.md` for the full
+specification), plus two finish-document-specific additions for `--auto` mode:
 
 | Command | Action |
 |---------|--------|

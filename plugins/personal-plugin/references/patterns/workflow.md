@@ -31,21 +31,31 @@ On startup, commands supporting resume MUST:
    - Parse metadata to check status
 
 2. **If found with status "in_progress":**
-   ```
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Incomplete session detected
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-   Previous session: answers-PRD-20260114-100000.json
-   Progress: 15 of 47 questions answered (32%)
-   Last activity: 2026-01-14T10:45:00Z
-
-   Options:
-   [R] Resume from question 16
-   [S] Start fresh (overwrites previous progress)
-   [A] Abort
-
-   Your choice (R/S/A):
+   Use `AskUserQuestion` with:
+   ```json
+   {
+     "questions": [
+       {
+         "question": "How would you like to proceed with the interrupted session?",
+         "header": "Resume",
+         "multiSelect": false,
+         "options": [
+           {
+             "label": "Resume (Recommended)",
+             "description": "Continue from question 16 with all previous answers preserved"
+           },
+           {
+             "label": "Start Fresh",
+             "description": "Begin a new session; previous answers will be backed up to answers-PRD-20260114-100000.backup.json"
+           },
+           {
+             "label": "Abort",
+             "description": "Exit without making changes"
+           }
+         ]
+       }
+     ]
+   }
    ```
 
 3. **If resume selected (R):**

@@ -317,6 +317,29 @@ jobs:
         # `python3 scripts/update-readme.py` and commit (IMPLEMENTATION_PLAN.md 2.3 / #149).
         run: python3 scripts/update-readme.py --check
 
+      - name: Check dynamic injections replay-clean (ADR-0011)
+        # Stdlib-only script -- no Python setup step needed on ubuntu-latest.
+        # Replays the harness's own pre-pass + extractor rather than grepping
+        # for the `!` marker (a grep-based gate would be ~81% false positives
+        # in both directions -- see docs/adr/0011-dynamic-injection-doctrine.md
+        # R4). Fails the build if a skill/command body has a live injection
+        # that is unguarded (can abort skill load, F3) or calls a binary
+        # missing from its `allowed-tools` (F4). IMPLEMENTATION_PLAN.md 1.6.
+        run: python3 scripts/check_injections.py
+
+      - name: Check agent model frontmatter uses tier aliases (ADR-0005)
+        # Stdlib-only script -- no Python setup step needed on ubuntu-latest.
+        # Neither frontmatter validator above walks `agents/` (they enumerate
+        # commands/ and skills/ only), and `.claude/agents/` lives outside
+        # `plugins/` entirely -- that gap is how two agent files silently
+        # drifted to stale pinned model IDs across 9.1.0 -> 9.3.0 with
+        # nothing to catch it. Fails the build if any `.claude/agents/*.md`
+        # or `plugins/*/agents/*.md` file declares a `model:` value that
+        # isn't a tier alias (haiku/sonnet/opus/fable/inherit). Deliberately
+        # does not scan tools/**, where ADR-0005 permits pinned IDs.
+        # IMPLEMENTATION_PLAN.md 6.1.
+        run: python3 scripts/check_agent_models.py
+
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:

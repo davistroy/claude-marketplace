@@ -2,7 +2,7 @@
 name: prime
 description: Evaluate an existing codebase to produce a detailed report on project purpose, health, status, and recommended next steps. Suggest when — new session project questions, encountering repo first time, resuming after break, health/quality/documentation inquiries, architectural decisions, or "overview"/"assess" requests.
 effort: high
-allowed-tools: Read, Glob, Grep, Bash(git:*)
+allowed-tools: Read, Glob, Grep, Agent, Bash(git:*), Bash(head:*), Bash(wc:*)
 ---
 
 # Prime
@@ -23,7 +23,7 @@ If no arguments are provided, evaluate the entire project from the repository ro
 
 ## Instructions
 
-Execute ALL phases below using per-phase dispatch: Phases 1, 3, and 5 run via `context: fork` + `agent: Explore` (read-only analysis, isolated context). Phase 0 (lab notebook) and Phase 6 (recommendations) run inline in the main conversation — they require full prior-phase output visibility. Phase 2 pre-loads git state via dynamic context injection before Claude sees the prompt.
+Execute ALL phases below using per-phase dispatch: Phases 1, 3, and 5 run via `context: fork` + `agent: Explore` (read-only analysis, isolated context). **Dispatch all three simultaneously using the Agent tool — do NOT wait for one to finish before spawning the next.** They are mutually independent; only Phase 6 needs their combined output. Phase 0 (lab notebook) and Phase 6 (recommendations) run inline in the main conversation — they require full prior-phase output visibility. Phase 2 runs its git commands itself (see that phase's note).
 
 ### Phase 0: Lab Notebook (Mandatory First Read)
 
@@ -56,14 +56,14 @@ Determine what this project IS.
 
 Assess the project's current state and activity.
 
-1. **Git history analysis** (pre-loaded via dynamic context injection — values available before this phase runs):
+1. **Git history analysis** — run these yourself with Bash; the values are **not** pre-loaded. The `` `!`cmd`` `` spans below are inert under the harness pre-pass (see [ADR-0011](../../../../docs/adr/0011-dynamic-injection-doctrine.md)), so they render as literal text rather than expanding. They are kept in this inert form deliberately: rewriting them into the *tidy* double-backtick form — the live one, per ADR-0011's escaping table — would turn on seven shell executions that have never run, four of which `Bash(git:*)` alone would reject for piping into `head`/`wc`. Skip this whole item when not in a git repository (see Error Handling).
    - Recent commits: `!`git log --oneline -20``
    - Last commit date: `!`git log --format='%ai' -1``
    - First commit date: `!`git log --format='%ai' --reverse | head -1``
    - Top contributors: `!`git shortlog -sn --no-merges | head -10``
    - Activity last 30 days: `!`git log --since="30 days ago" --oneline | wc -l``
 
-2. **Branch status** (pre-loaded via dynamic context injection):
+2. **Branch status** — likewise run yourself; the spans below are inert:
    - Active branches: `!`git branch -a --sort=-committerdate | head -10``
    - Working tree state: `!`git status -s``
 

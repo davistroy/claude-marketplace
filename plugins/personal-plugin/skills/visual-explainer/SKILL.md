@@ -1,8 +1,8 @@
 ---
 name: visual-explainer
-description: Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation. Suggest when — user has document/report/concept to visualize, after report generation, infographic/visual explanation keywords, improving visual appeal, or whitepaper/guide transformation.
+description: Transform text or documents into AI-generated infographic pages that explain concepts visually, using Gemini Pro 3 for generation and Claude Vision for quality evaluation. Generation is paid and billed per image, so it runs only when invoked explicitly.
 effort: high
-allowed-tools: Read, Write, Bash(python:*), Bash(pip:*), WebSearch, WebFetch
+allowed-tools: Read, Write, Bash(python:*), Bash(pip:*), WebSearch, WebFetch, AskUserQuestion
 disable-model-invocation: true
 ---
 
@@ -37,7 +37,7 @@ The system automatically selects appropriate page types based on content:
 ## Technical Notes
 
 **Image Generation:**
-- Uses `google-genai` SDK with model from `$GOOGLE_IMAGE_MODEL` env var, falling back to `gemini-3-pro-image-preview` (default as of 2026-03-31 — verify with provider if errors occur)
+- Uses `google-genai` SDK with model from `$VISUAL_EXPLAINER_GEMINI_MODEL` env var, falling back to `gemini-3-pro-image-preview` (default as of 2026-03-31 — verify with provider if errors occur)
 - Configuration: `response_modalities=["IMAGE"]` with `ImageConfig` for aspect ratio/size
 - 4K images are approximately 6-7.5MB each (JPEG format)
 
@@ -52,10 +52,10 @@ The system automatically selects appropriate page types based on content:
 
 **Tested Results (4 documents, 17 images):**
 - Formats tested: URL (Substack), Markdown, DOCX
-- Average scores: 0.76-0.88 (all passing with threshold 0.75)
+- Average scores: 0.76-0.88 (all passing with default threshold 0.85)
 - Generation time: 5-10 minutes per document (~2 min/image including analysis)
 - Only 1 retry needed across 17 images (image scored 0.72 → refined to 0.82)
-- Recommended pass threshold: 0.75-0.85 for good quality without excessive refinement
+- Default pass threshold: 0.85 provides good quality without excessive refinement; override via `--pass-threshold`
 
 ## Input Validation
 
@@ -113,7 +113,8 @@ API keys must be loaded into the environment before use. The primary method is t
 - `ANTHROPIC_API_KEY` - For Claude concept analysis and image evaluation
 
 **Optional Model Configuration (non-sensitive, safe for .env):**
-- `GOOGLE_IMAGE_MODEL` - Override Gemini image model (default: `gemini-3-pro-image-preview`, as of 2026-03-31 — verify with provider if errors occur)
+- `VISUAL_EXPLAINER_GEMINI_MODEL` - Override Gemini image model (default: `gemini-3-pro-image-preview`, as of 2026-03-31 — verify with provider if errors occur)
+- `VISUAL_EXPLAINER_CLAUDE_MODEL` - Override Claude model for concept analysis and image evaluation (default: `claude-sonnet-5`)
 
 If keys are not in the environment, suggest running `/unlock` before proceeding. **Secrets policy compliance:**
 - Do NOT write API keys to `.env` files or any configuration files
@@ -232,28 +233,38 @@ Concept Flow:
 
 ### Phase 5: Style Selection (Interactive)
 
-Prompt for style selection:
+Ask with `AskUserQuestion`:
 
-```text
-Visual Style Selection
-======================
-What style would you prefer?
-
-1. Professional Clean (Recommended)
-   - Clean, corporate-ready with warm accents
-   - Best for: Business, presentations, reports
-
-2. Professional Sketch
-   - Hand-drawn sketch aesthetic
-   - Best for: Creative, educational, informal
-
-3. Custom
-   - Provide path to your own style JSON
-
-4. Skip (use Professional Clean default)
-
-Select style [1-4]:
+```json
+{
+  "questions": [
+    {
+      "question": "Which visual style should the images use?",
+      "header": "Style",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Professional Clean (Recommended)",
+          "description": "Clean, corporate-ready with warm accents. Best for business, presentations, reports"
+        },
+        {
+          "label": "Professional Sketch",
+          "description": "Hand-drawn sketch aesthetic. Best for creative, educational, informal material"
+        },
+        {
+          "label": "Custom style JSON",
+          "description": "You supply a path to your own style JSON; the skill asks for it next"
+        }
+      ]
+    }
+  ]
+}
 ```
+
+The old `4. Skip (use Professional Clean default)` slot is the native **Skip** control —
+treat a skipped question as Professional Clean. If the user picks **Custom style JSON**, ask
+for the path in the following turn; a path typed straight into the **Other** box is accepted
+as the custom style too.
 
 ### Phase 6: Image Count Confirmation
 
@@ -274,11 +285,38 @@ Image 3: "Entanglement Synthesis"
   - Covers: Entanglement, applications, future
   - Intent: Tie concepts together
 
-Would you like to:
-1. Proceed with 3 images (Recommended)
-2. Use fewer images (condense concepts)
-3. Use more images (expand detail)
-4. Adjust settings (aspect ratio, iterations)
+```
+
+Display the plan above as text, then confirm with `AskUserQuestion`:
+
+```json
+{
+  "questions": [
+    {
+      "question": "Proceed with this image generation plan?",
+      "header": "Image plan",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Proceed with 3 images (Recommended)",
+          "description": "Generate exactly the plan shown above"
+        },
+        {
+          "label": "Use fewer images",
+          "description": "Condense the concepts into a smaller set and re-present the plan"
+        },
+        {
+          "label": "Use more images",
+          "description": "Expand detail into additional images and re-present the plan"
+        },
+        {
+          "label": "Adjust settings",
+          "description": "Change aspect ratio or iteration count before generating"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Phase 7: Generation Execution

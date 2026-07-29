@@ -24,9 +24,9 @@ Optional:
 - `--no-write` — skip document updates; only generate the resume prompt from current state (dry-run / read-only).
 
 Dynamic context available:
-- `` !`git status -s` `` — uncommitted changes
-- `` !`git log --oneline -8` `` — recent commits
-- `` !`git branch --show-current` `` — active branch
+- `` !`git status -s 2>/dev/null || echo "(not a git repository)"` `` — uncommitted changes
+- `` !`git log --oneline -8 2>/dev/null || echo "(not a git repository)"` `` — recent commits
+- `` !`git branch --show-current 2>/dev/null || echo "(not a git repository)"` `` — active branch
 
 ## Instructions
 

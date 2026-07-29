@@ -3,23 +3,13 @@ name: jetson-audit
 description: SSH into the Jetson Orin Nano and audit the running inference config against known best practices and community optimizations. Reports gaps, misconfigurations, and optimization opportunities. Complements jetson-recon (external landscape) with internal config validation.
 disable-model-invocation: true
 allowed-tools: Read, Edit, Glob, Grep, Bash(ssh:*), Bash(curl:*), Agent
-paths:
-  - "JETSON_BASELINE.md"
-  - "*_CONFIG.md"
 ---
 
 # Jetson Audit
 
-## Loop Guard — Auto-Activation Safety Check
-
-**Run this check before any other step when the skill is triggered automatically via `paths:`.**
-
-1. Read the last 20 lines of `LAB_NOTEBOOK.md` (if it exists).
-2. If any line contains `jetson-audit skill` and a timestamp within the last 5 minutes: **stop immediately** — self-triggered re-entry detected. Output: "Loop guard triggered — jetson-audit ran within last 5 minutes. Skipping." and exit.
-3. If `--force` is present in `$ARGUMENTS`: skip this check and proceed regardless.
-4. Otherwise: proceed normally.
-
----
+<!-- No `paths:` frontmatter: this skill is invoked on demand (see `/schedule Integration` below)
+     and `disable-model-invocation: true`, so gating its visibility behind a file touch would only
+     ever make it *harder* to invoke, never trigger it automatically — see ADR-0012. -->
 
 Live configuration audit of the Jetson Orin Nano Super inference system. SSHes into the device, inspects the running llama.cpp server and system state, compares against documented best practices in JETSON_BASELINE.md, and reports optimization opportunities.
 
@@ -243,15 +233,17 @@ Append using `Edit` tool. Auto-increment entry number by reading the last `## En
 
 Register a recurring audit run:
 
-```bash
-/schedule create --name jetson-audit-weekly --cron "0 2 * * 2" --skill jetson-audit
+```
+/schedule Set up a recurring audit run for jetson-audit every Tuesday at 02:00 UTC
 ```
 
 Recommended: **weekly Tuesday 02:00 UTC.** Pairs with jetson-recon (bi-weekly Sunday 23:00 UTC).
 
-```bash
-/schedule list
-/schedule delete --name jetson-audit-weekly
+To manage scheduled runs:
+
+```
+/schedule List all my scheduled audit runs
+/schedule Remove the jetson-audit Tuesday 02:00 UTC schedule
 ```
 
 ---

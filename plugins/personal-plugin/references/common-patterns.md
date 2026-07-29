@@ -129,7 +129,7 @@ Canonical reference for late-2025 Claude Code features. `new-skill.md` links her
 ```yaml
 context: fork
 ```
-Used inside a Task dispatch block, not in the skill's own frontmatter.
+Used inside an `Agent` dispatch block, not in the skill's own frontmatter.
 
 **Use case:** Spawns an isolated subagent with its own conversation context. The subagent cannot read or write the parent's conversation history. Ideal for analysis phases (read-only exploration), parallel scanning tiers, or any work that doesn't need to report back interactively.
 
@@ -149,11 +149,11 @@ agent: Explore          # or: software-engineer, solutions-architect, data-archi
                         #     security-architect, platform-engineer, risk-compliance
 ```
 
-**Use case:** Selects the subagent persona/specialization for a Task dispatch. Pair with `context: fork` for analysis roles. Use domain-specific types (e.g., `security-architect`) in multi-agent orchestration to improve role separation.
+**Use case:** Selects the subagent persona/specialization for an `Agent` dispatch. Pair with `context: fork` for analysis roles. Use domain-specific types (e.g., `security-architect`) in multi-agent orchestration to improve role separation.
 
 **Gotchas:**
 - `Explore` is the generic read-only agent; use named roles when domain framing matters.
-- Unrecognized agent types fall back silently — verify the type string matches Claude Code's supported list.
+- Unrecognized agent types raise a validation error during skill load — verify the type string is one of `Explore | Plan | general-purpose` or a custom named agent file. See ADR-0005 for custom agent dispatch.
 
 ---
 
@@ -161,14 +161,14 @@ agent: Explore          # or: software-engineer, solutions-architect, data-archi
 
 **Syntax:**
 ```yaml
-model: claude-opus-4-5   # or claude-sonnet-4-5, claude-haiku-3-5, etc.
+model: opus             # tier alias: haiku | sonnet | opus | fable
 ```
 
 **Use case:** Override the default model for a skill or subagent dispatch. Useful for routing cheap triage steps to Haiku and expensive synthesis to Opus.
 
 **Gotchas:**
-- Model IDs change with releases; pin to a family name if you want automatic upgrade (check Claude Code docs for alias support).
-- Overriding in a subagent Task prompt takes precedence over frontmatter.
+- Always use tier aliases (`haiku`, `sonnet`, `opus`, `fable`), never pinned model IDs (ADR-0005). Tier aliases resolve at dispatch time, preventing silent staleness when models are retired or upgraded.
+- Overriding in a subagent `Agent` prompt takes precedence over frontmatter.
 
 ---
 
@@ -183,32 +183,19 @@ paths:
   - "*_BASELINE.md"
 ```
 
-**Use case:** Auto-activates the skill when any listed file pattern changes. Enables event-driven workflows (e.g., run security scan when `package.json` changes, run audit when baseline file changes).
+**Use case:** A conditional **load gate**, not a save-trigger. A skill declaring `paths:` is invisible — to Claude and to a user typing its slash command alike — until Claude's own Read, Edit, or Write tool call touches a file whose relative path matches one of the patterns during that session. From that point on it is loaded like any other skill for the rest of the session. Nothing runs automatically; activation only makes the skill *findable*, it does not invoke it. See [ADR-0012](../../../docs/adr/0012-artifact-derived-documentation.md) for the harness internals this is derived from.
 
 **Gotchas:**
-- **Loop guard required** — if the skill writes a file that matches its own `paths:` pattern, it will re-trigger indefinitely. Always check at skill entry whether this skill ran within the last 5 minutes (e.g., check LAB_NOTEBOOK.md for a recent entry) and exit immediately if re-entry is detected. Provide a `--force` bypass for intentional re-runs.
+- **No loop guard needed.** Activation is one-shot per session — the harness records the skill's name as activated and never re-processes it, so a skill that later writes a file matching its own `paths:` pattern triggers nothing further. A "check if this ran in the last 5 minutes" guard defends against a state transition the harness cannot produce; do not add one.
 - Glob syntax follows `.gitignore` conventions. Double-star `**` matches across directories.
-- `paths:` triggers fire on any matching change, regardless of which branch or worktree — scope globs carefully.
+- Not a filesystem watcher: a file changed by git, another process, or a human editing outside the session activates nothing. Only Claude's own in-session Read/Edit/Write calls count.
+- Pairing `paths:` with `disable-model-invocation: true` is usually wrong: since the skill doesn't exist to the lookup until Claude itself touches a matching file, and `disable-model-invocation: true` means Claude can never invoke it either way, the combination can leave a nominally user-invocable skill unreachable by the user on a fresh session — see ADR-0012 F4.
 
 ---
 
-### `isolation: worktree`
+### `isolation:` — not a skill frontmatter field
 
-**Syntax:**
-```yaml
-isolation: worktree
-# or with a label:
-isolation: worktree phase-2
-```
-
-**Use case:** Creates a temporary git worktree for the subagent's execution scope. Prevents concurrent subagents from conflicting on shared file paths. Worktree is auto-cleaned if no changes are made (read-only skills get cleanup for free).
-
-**When to use:** Any skill that writes files and may run alongside other agents (parallel phase execution in `implement-plan`, `arch-review` multi-agent dispatch, `leak-risk-audit` scanning tiers).
-
-**Gotchas:**
-- Requires a clean working tree to create the worktree — stash or commit first.
-- Write-to-worktree → merge-to-main is manual unless the skill explicitly handles it. Document the merge point (e.g., phase completion gate).
-- Per-phase worktree (one per phase) is simpler than per-item worktree for coordinating parallel work items in the same phase.
+`isolation: worktree` (temporary git worktree) and `isolation: remote` (remote sandbox) are real Claude Code features — but they belong to **agent** frontmatter (`.claude/agents/*.md`) and the `Agent` tool call, never to a `SKILL.md` file. The skill frontmatter schema is `.strict()`: an unrecognized key like `isolation:` fails validation and the skill is silently dropped from the skill list (logged internally as a YAML-frontmatter parse failure — no session crash, the skill just never loads). To isolate a subagent's execution scope from a skill body, dispatch it via the `Agent` tool with `isolation: "worktree"` as a call parameter, or define a custom agent file with `isolation: worktree` in its own frontmatter — do not add `isolation:` to the skill's own frontmatter.
 
 ---
 
@@ -231,16 +218,20 @@ when_to_use: "Use when starting a new project or after a significant architectur
 **Syntax:**
 ```yaml
 hooks:
-  pre: "bash scripts/validate-inputs.sh"
-  post: "bash scripts/cleanup.sh"
+  Stop:
+    - matcher: any
+      hooks:
+        - type: command
+          command: "bash scripts/cleanup.sh"
+          timeout: 5
 ```
 
-**Use case:** Lifecycle hooks that run before/after the skill body. Pre-hook can validate environment; post-hook can clean up temp files.
+**Use case:** Lifecycle hooks that run at Claude Code events (SessionStart, Stop, PreToolUse, etc.). Hooks fire once per session when their matcher conditions are met. See `hooks/hooks.json` for complete event list and the hook-recipe files in `references/hooks/` for worked examples.
 
 **Gotchas:**
-- Hook scripts must be fast (<1s) or they block the skill launch noticeably.
+- Hook commands must be fast (<5s) or they block session flow noticeably.
 - Do NOT re-declare hooks in `plugin.json` — Claude Code auto-loads `hooks/hooks.json`. Duplicate declarations cause errors.
-- Plugin-level hooks (in `hooks/hooks.json`) use a record format, not array format.
+- The `hooks:` shape is an event-record: keyed by event name → array of matcher-group objects, each with `matcher` and `hooks` array. See the working `hooks/hooks.json` as ground truth.
 
 ---
 
@@ -284,7 +275,6 @@ shell: bash   # or: zsh, sh, pwsh
 ```markdown
 $ARGUMENTS          # Full argument string passed to the skill/command
 $CLAUDE_PLUGIN_ROOT # Absolute path to the plugin directory
-$PWD                # Working directory at skill invocation
 ```
 
 **Use case:** `$ARGUMENTS` is the primary input variable — it contains everything the user typed after the skill name. Parse it for flags, paths, or free-form input. `$CLAUDE_PLUGIN_ROOT` is essential for referencing bundled tools or reference files without hardcoded paths.

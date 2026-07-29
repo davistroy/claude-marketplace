@@ -8,14 +8,25 @@ When a session starts, reads IMPLEMENTATION_PLAN.md and displays current plan st
 
 ## hooks.json Snippet
 
+Add this to your project's `.claude/settings.json` under the `hooks` key (or to `hooks/hooks.json` in a plugin):
+
 ```json
 {
-  "SessionStart": [
-    {
-      "type": "command",
-      "command": "bash -c 'if [ -f IMPLEMENTATION_PLAN.md ]; then echo \"📋 Active plan found:\"; grep -c \"Status: COMPLETE\" IMPLEMENTATION_PLAN.md | xargs -I{} echo \"  Completed: {} items\"; grep -c \"Status: PENDING\\|Status: IN_PROGRESS\" IMPLEMENTATION_PLAN.md | xargs -I{} echo \"  Remaining: {} items\"; echo \"  Run /implement-plan to continue.\"; fi'"
-    }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'if [ -f IMPLEMENTATION_PLAN.md ]; then echo \"📋 Active plan found:\"; grep -c \"Status: COMPLETE\" IMPLEMENTATION_PLAN.md | xargs -I{} echo \"  Completed: {} items\"; grep -c \"Status: PENDING\\|Status: IN_PROGRESS\" IMPLEMENTATION_PLAN.md | xargs -I{} echo \"  Remaining: {} items\"; echo \"  Run /implement-plan to continue.\"; fi; exit 0'",
+            "timeout": 5,
+            "statusMessage": "Reading plan status…"
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 

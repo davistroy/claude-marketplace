@@ -335,8 +335,8 @@ professional data visualization aesthetic. No photorealistic elements.
 
 **Stable Diffusion:**
 - Width: 1920, Height: 1080
-- Sampler: DPM++ 2M Karras
-- CFG Scale: 7
+- Sampler: DPM++ 2M Karras or Euler (choose based on quality vs. speed preference)
+- CFG Scale: 7-8 (adjust within this range: lower for creative variation, higher for prompt adherence)
 ```
 
 ## Prompt Construction Guidelines

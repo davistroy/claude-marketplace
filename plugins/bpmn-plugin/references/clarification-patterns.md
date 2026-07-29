@@ -6,26 +6,47 @@ This document contains question templates for gathering process requirements bef
 
 ## Question Format Template
 
-Every question must follow this exact format:
+Every question is asked with the native `AskUserQuestion` tool — never a hand-rolled
+lettered menu. Each question follows this exact shape:
 
+```json
+{
+  "questions": [
+    {
+      "question": "[Clear, specific question text ending in a question mark]",
+      "header": "[≤12 chars]",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "[Best answer] (Recommended)",
+          "description": "[Why this is the best choice for this process, per BPMN practice]"
+        },
+        {
+          "label": "[Alternative 1]",
+          "description": "[What choosing this means]"
+        },
+        {
+          "label": "[Alternative 2]",
+          "description": "[What choosing this means]"
+        }
+      ]
+    }
+  ]
+}
 ```
-## Question [N]: [Topic Category]
 
-[Clear, specific question text]
+**Rules:**
 
-### Options:
+- 2–4 options, real answers only. The recommended option goes first, with `(Recommended)` in its label.
+- Never add a `Provide your own answer` or `None` option — the harness always supplies a free-text
+  **Other** box and a **Skip** control. Adding them wastes a slot.
+- `header` is the chip label, hard-capped at 12 characters.
+- `multiSelect: true` only when the answers are genuinely not mutually exclusive.
 
-**A) [Recommended]**: [Specific answer]
-   *Why*: [2-3 sentence reasoning for why this is the best choice based on the process description and BPMN best practices]
-
-**B)** [Alternative answer 1]
-**C)** [Alternative answer 2]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions (auto-accept mode)
-
----
-Your choice (A/B/C/D/E):
-```
+**Auto-accept:** the old lettered format carried an `E) Accept recommended answers for all
+remaining questions` slot on every question. That is now expressed through the free-text **Other**
+box, which is available on every question and costs no option slot — see
+[Auto-Accept Mode Behavior](#auto-accept-mode-behavior).
 
 ---
 
@@ -33,44 +54,62 @@ Your choice (A/B/C/D/E):
 
 ### Q1: Process Name
 
-```
-## Question 1: Process Name
-
-What should this process be called? This name will be used as the process identifier and displayed in BPMN tools.
-
-### Options:
-
-**A) [Recommended]**: [Inferred name from description]
-   *Why*: This name clearly describes the process purpose and follows the naming convention of [Verb] + [Noun] which is standard for BPMN processes.
-
-**B)** [Shorter alternative]
-**C)** [More detailed alternative]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "What should this process be called? (This name will be used as the process identifier.)",
+      "header": "Process Name",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred name (Recommended)",
+          "description": "Uses the name derived from the description; follows [Verb]+[Noun] BPMN convention"
+        },
+        {
+          "label": "Shorter alternative",
+          "description": "More concise version for simpler displays"
+        },
+        {
+          "label": "More detailed alternative",
+          "description": "Extended name with additional context"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q2: Process Trigger (Start Event)
 
-```
-## Question 2: Process Trigger
-
-What initiates this process? The answer determines what type of start event to use.
-
-### Options:
-
-**A) [Recommended]**: [Event type] - [Description]
-   *Why*: Based on "[trigger phrase from description]", this process appears to be initiated by [reasoning]. A [event type] start event accurately models this trigger.
-
-**B)** None Start Event - Process is started manually or trigger is unspecified
-**C)** Timer Start Event - Process runs on a schedule (daily, weekly, etc.)
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "What initiates this process? The answer determines what type of start event to use.",
+      "header": "Start Event",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred trigger (Recommended)",
+          "description": "Uses the trigger phrase from the description; selects the appropriate start event type"
+        },
+        {
+          "label": "None Start Event",
+          "description": "Process starts manually or trigger is unspecified"
+        },
+        {
+          "label": "Timer Start Event",
+          "description": "Process runs on a schedule (daily, weekly, at midnight, etc.)"
+        },
+        {
+          "label": "Signal Start Event",
+          "description": "Process is triggered by a broadcast or signal"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 **Start Event Recommendations by Context:**
@@ -85,23 +124,34 @@ Your choice (A/B/C/D/E):
 
 ### Q3: Process Completion (End Events)
 
-```
-## Question 3: Process Completion
-
-How does this process end? Processes can have multiple end states (success, failure, cancellation, etc.).
-
-### Options:
-
-**A) [Recommended]**: [Number] end state(s): [List of end states]
-   *Why*: Based on the process flow, [reasoning for end states]. These end events cover the expected outcomes.
-
-**B)** Single end state - [Description]
-**C)** Multiple end states - Success and Error only
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "How does this process end? Processes can have multiple end states (success, failure, cancellation, etc.).",
+      "header": "End Events",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred end states (Recommended)",
+          "description": "Uses the process flow to determine end events; covers all expected outcomes"
+        },
+        {
+          "label": "Single end state",
+          "description": "Process ends in one way with a single None End event"
+        },
+        {
+          "label": "Success and Error",
+          "description": "Two end states: None End (success) and Error End (failure)"
+        },
+        {
+          "label": "Multiple outcomes",
+          "description": "Three+ end states for complex processes (success, error, cancellation, etc.)"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 **End Event Recommendations:**
@@ -119,44 +169,58 @@ Your choice (A/B/C/D/E):
 
 ### Q4: Process Scope
 
-```
-## Question 4: Process Scope
-
-Is this a single-participant process or does it involve multiple organizations/systems communicating?
-
-### Options:
-
-**A) [Recommended]**: Single process (one pool)
-   *Why*: The described process appears to occur within a single organization/system boundary. All activities are performed by internal actors without external message exchanges.
-
-**B)** Collaboration (multiple pools) - [Identified participants]
-**C)** Single process with lanes (multiple roles within one organization)
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Is this a single-participant process or does it involve multiple organizations/systems communicating?",
+      "header": "Scope",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Single process (Recommended)",
+          "description": "One pool; process occurs within a single organization/system boundary without external message exchanges"
+        },
+        {
+          "label": "Collaboration",
+          "description": "Multiple pools for different organizations/systems that exchange messages"
+        },
+        {
+          "label": "Single with lanes",
+          "description": "One pool with multiple lanes representing different roles/departments within one organization"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q5: Roles/Lanes
 
-```
-## Question 5: Roles and Responsibilities
-
-Should the process be divided into lanes representing different roles or departments?
-
-### Options:
-
-**A) [Recommended]**: [Yes/No] - [Reasoning]
-   *Why*: [Explanation based on whether distinct roles were mentioned]
-
-**B)** No lanes - All tasks performed by same role/system
-**C)** [Number] lanes: [List of identified roles]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Should the process be divided into lanes representing different roles or departments?",
+      "header": "Lanes",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred lanes (Recommended)",
+          "description": "Based on distinct roles mentioned; organizes tasks by performer"
+        },
+        {
+          "label": "No lanes",
+          "description": "All tasks performed by the same role or system; flat structure"
+        },
+        {
+          "label": "Multiple lanes",
+          "description": "Divide process into separate lanes for identified roles or departments"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ---
@@ -165,47 +229,58 @@ Your choice (A/B/C/D/E):
 
 ### Q6: Main Activities
 
-```
-## Question 6: Main Activities
-
-What are the primary steps/tasks in this process? List them in sequential order.
-
-### Options:
-
-**A) [Recommended]**: [Numbered list of activities]
-   *Why*: These activities represent the core workflow extracted from the description. Each step is atomic and represents a distinct unit of work.
-
-**B)** Simplified: [Fewer, more consolidated activities]
-**C)** Detailed: [More granular activities]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "What are the primary steps/tasks in this process? List them in sequential order.",
+      "header": "Activities",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Extracted activities (Recommended)",
+          "description": "Core workflow from description; each step is atomic and distinct"
+        },
+        {
+          "label": "Simplified",
+          "description": "Fewer, consolidated activities for a higher-level view"
+        },
+        {
+          "label": "Detailed",
+          "description": "More granular activities for comprehensive documentation"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q7: Task Types
 
-```
-## Question 7: Task Types
-
-For each activity, what type of task best represents how the work is performed?
-
-### Options:
-
-**A) [Recommended]**:
-   - [Task 1]: [Task Type] - [Reason]
-   - [Task 2]: [Task Type] - [Reason]
-   - [etc.]
-   *Why*: Task types are assigned based on who/what performs the work and how it's executed.
-
-**B)** All User Tasks (human-performed)
-**C)** All Service Tasks (system-automated)
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "For each activity, what type of task best represents how the work is performed?",
+      "header": "Task Types",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Mixed task types (Recommended)",
+          "description": "Assigns each task its appropriate type based on who performs it and how (User, Service, Script, Send, etc.)"
+        },
+        {
+          "label": "All User Tasks",
+          "description": "Every task is human-performed"
+        },
+        {
+          "label": "All Service Tasks",
+          "description": "Every task is system-automated"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 **Task Type Assignment Guide:**
@@ -222,59 +297,60 @@ Your choice (A/B/C/D/E):
 
 ### Q8: Task Sequencing
 
-```
-## Question 8: Task Sequencing
-
-Are there any activities that can happen in parallel, or must all tasks be sequential?
-
-### Options:
-
-**A) [Recommended]**: [Sequential/Parallel description]
-   *Why*: [Reasoning based on task dependencies]
-
-**B)** Strictly sequential - each task depends on the previous
-**C)** Multiple parallel branches: [Description]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Are there any activities that can happen in parallel, or must all tasks be sequential?",
+      "header": "Sequencing",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred sequencing (Recommended)",
+          "description": "Based on task dependencies; identifies parallel branches where tasks can run simultaneously"
+        },
+        {
+          "label": "Strictly sequential",
+          "description": "Each task depends on the previous; no parallel execution"
+        },
+        {
+          "label": "Multiple parallel branches",
+          "description": "Several independent branches that can execute concurrently"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q9: Task Descriptions (CRITICAL FOR POWERPOINT)
 
 **This question is essential for generating rich content in PowerPoint presentations.**
 
-```
-## Question 9: Task Descriptions
-
-For each task, I'll generate a detailed description explaining what happens during this step. These descriptions will be used for:
-- PowerPoint presentation bullet points (Level 3 detail)
-- Process documentation
-- Training materials
-
-Here are the proposed descriptions. Would you like to modify any?
-
-### Proposed Task Descriptions:
-
-| Task | Description |
-|------|-------------|
-| [Task 1 Name] | [2-3 sentence description covering purpose, actions, actor, and completion criteria] |
-| [Task 2 Name] | [2-3 sentence description covering purpose, actions, actor, and completion criteria] |
-| ... | ... |
-
-### Options:
-
-**A) [Recommended]**: Use these descriptions as-is
-   *Why*: These descriptions capture the essential information needed for documentation and provide appropriate detail for presentations.
-
-**B)** More concise - reduce to 1 sentence each
-**C)** More detailed - expand to 4-5 sentences each
-**D)** Let me provide custom descriptions for specific tasks
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "For each task, here are proposed descriptions (2-3 sentences each, covering purpose, actions, actor, and completion criteria). Would you like to modify any?",
+      "header": "Descriptions",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Use as-is (Recommended)",
+          "description": "Descriptions provide appropriate detail for both documentation and presentations"
+        },
+        {
+          "label": "More concise",
+          "description": "Reduce to 1 sentence per task for brevity"
+        },
+        {
+          "label": "More detailed",
+          "description": "Expand to 4-5 sentences for comprehensive documentation"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 **Description Generation Guidelines:**
@@ -299,23 +375,30 @@ When generating task descriptions, include:
 
 ### Q10: Subprocesses
 
-```
-## Question 10: Subprocess Candidates
-
-Should any group of activities be encapsulated as a subprocess?
-
-### Options:
-
-**A) [Recommended]**: [Yes/No] - [Reasoning]
-   *Why*: [Explanation of subprocess benefits or why not needed]
-
-**B)** No subprocesses - keep flat structure
-**C)** Create subprocess for: [Group of activities]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Should any group of activities be encapsulated as a subprocess?",
+      "header": "Subprocesses",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred subprocesses (Recommended)",
+          "description": "Groups logically-related tasks that benefit from encapsulation or reuse"
+        },
+        {
+          "label": "No subprocesses",
+          "description": "Keep a flat structure; no grouping needed"
+        },
+        {
+          "label": "Multiple subprocesses",
+          "description": "Create subprocesses for several distinct process segments"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 **Subprocess Indicators:**
@@ -330,90 +413,114 @@ Your choice (A/B/C/D/E):
 
 ### Q11: Decision Points
 
-```
-## Question 10: Decision Points
-
-Are there points in the process where different paths are taken based on conditions?
-
-### Options:
-
-**A) [Recommended]**: Yes - [Number] decision point(s):
-   - [Decision 1]: [Condition description]
-   - [Decision 2]: [Condition description]
-   *Why*: These decision points represent where the process flow diverges based on data or outcomes.
-
-**B)** No decision points - linear flow
-**C)** Single decision point: [Description]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Are there points in the process where different paths are taken based on conditions?",
+      "header": "Decisions",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Identified decision points (Recommended)",
+          "description": "Process diverges based on data or outcomes; includes all decision branches"
+        },
+        {
+          "label": "No decision points",
+          "description": "Process flows linearly in one direction"
+        },
+        {
+          "label": "Single decision point",
+          "description": "One branch point where the process splits into multiple paths"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q12: Gateway Types
 
-```
-## Question 11: Gateway Types
-
-For each decision point, what type of gateway should be used?
-
-### Options:
-
-**A) [Recommended]**:
-   - [Decision 1]: Exclusive Gateway (XOR) - only one path taken
-   - [Decision 2]: Parallel Gateway (AND) - all paths taken
-   *Why*: Gateway types are selected based on how many outgoing paths are activated.
-
-**B)** All Exclusive Gateways (one path based on condition)
-**C)** Mix of gateway types: [Specific assignments]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "For each decision point, what type of gateway should be used?",
+      "header": "Gateways",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Mixed gateway types (Recommended)",
+          "description": "Selects each gateway type based on how many outgoing paths are activated (Exclusive, Parallel, Inclusive)"
+        },
+        {
+          "label": "All Exclusive Gateways",
+          "description": "Only one path taken at each decision point based on conditions"
+        },
+        {
+          "label": "Mixed with specification",
+          "description": "Combination of gateway types; user specifies which for each decision"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q13: Default Flows
 
-```
-## Question 12: Default Flows
-
-For exclusive/inclusive gateways, which path should be the default (taken when no conditions match)?
-
-### Options:
-
-**A) [Recommended]**: [Default path description]
-   *Why*: This path represents the most common or safest outcome when no explicit condition is matched.
-
-**B)** [Alternative default]
-**C)** No default - all paths have explicit conditions
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "For exclusive/inclusive gateways, which path should be the default (taken when no conditions match)?",
+      "header": "Defaults",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred default (Recommended)",
+          "description": "Most common or safest outcome when no explicit condition matches"
+        },
+        {
+          "label": "Alternative default",
+          "description": "Specify a different default path"
+        },
+        {
+          "label": "No default needed",
+          "description": "All paths have explicit conditions; no default required"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q14: Loops/Cycles
 
-```
-## Question 13: Loops and Cycles
-
-Are there any repeating patterns or loops in this process?
-
-### Options:
-
-**A) [Recommended]**: [Yes/No] - [Description]
-   *Why*: [Reasoning based on process description]
-
-**B)** No loops - process flows in one direction
-**C)** Loop: [Description of repeating section]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Are there any repeating patterns or loops in this process?",
+      "header": "Loops",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred loops (Recommended)",
+          "description": "Based on process description; identifies repeating sections that need loop constructs"
+        },
+        {
+          "label": "No loops",
+          "description": "Process flows in one direction without repetition"
+        },
+        {
+          "label": "Multiple loops",
+          "description": "Several repeating patterns at different points"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ---
@@ -422,44 +529,58 @@ Your choice (A/B/C/D/E):
 
 ### Q15: Intermediate Events
 
-```
-## Question 14: Intermediate Events
-
-Are there any waiting points, messages sent/received, or time delays during the process?
-
-### Options:
-
-**A) [Recommended]**: [Yes/No] - [List of intermediate events]
-   *Why*: [Reasoning based on process description]
-
-**B)** No intermediate events
-**C)** Timer events only: [Wait periods]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Are there any waiting points, messages sent/received, or time delays during the process?",
+      "header": "Int Events",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Identified events (Recommended)",
+          "description": "Based on process description; includes all intermediate events (timer, message, signal)"
+        },
+        {
+          "label": "No intermediate events",
+          "description": "Process has no waiting points or event handling"
+        },
+        {
+          "label": "Timer events only",
+          "description": "Only time delays; no message or signal events"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q16: Boundary Events
 
-```
-## Question 15: Boundary Events
-
-Should any tasks have boundary events for timeouts, errors, or external interrupts?
-
-### Options:
-
-**A) [Recommended]**: [Yes/No] - [List of boundary events]
-   *Why*: [Reasoning for timeout/error handling needs]
-
-**B)** No boundary events needed
-**C)** Timeout boundaries on: [Tasks]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Should any tasks have boundary events for timeouts, errors, or external interrupts?",
+      "header": "Boundary",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Identified boundaries (Recommended)",
+          "description": "Tasks with timeout/error/signal handling needs based on process requirements"
+        },
+        {
+          "label": "No boundary events",
+          "description": "No special error or timeout handling needed"
+        },
+        {
+          "label": "Timeout only",
+          "description": "Add timer boundary events for SLA enforcement"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 **Boundary Event Recommendations:**
@@ -474,44 +595,58 @@ Your choice (A/B/C/D/E):
 
 ### Q17: Error Handling
 
-```
-## Question 16: Error Handling
-
-How should errors be handled in this process?
-
-### Options:
-
-**A) [Recommended]**: [Error handling strategy]
-   *Why*: [Reasoning based on process criticality and error scenarios]
-
-**B)** Simple - end process on error
-**C)** Retry logic with eventual failure path
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "How should errors be handled in this process?",
+      "header": "Errors",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Appropriate strategy (Recommended)",
+          "description": "Based on process criticality; includes recovery, retry, or escalation paths"
+        },
+        {
+          "label": "Simple - end on error",
+          "description": "Process terminates when an error occurs"
+        },
+        {
+          "label": "Retry with fallback",
+          "description": "Attempt retries before falling back to error path"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q18: Compensation
 
-```
-## Question 17: Compensation
-
-If the process fails partway through, should previous steps be undone (compensation)?
-
-### Options:
-
-**A) [Recommended]**: [Yes/No] - [Reasoning]
-   *Why*: [Explanation based on process nature]
-
-**B)** No compensation needed
-**C)** Compensation required for: [Specific tasks]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "If the process fails partway through, should previous steps be undone (compensation)?",
+      "header": "Compensation",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Inferred policy (Recommended)",
+          "description": "Based on process nature; identifies tasks requiring compensation/rollback"
+        },
+        {
+          "label": "No compensation",
+          "description": "Partial completion is acceptable; no undo logic needed"
+        },
+        {
+          "label": "Full compensation",
+          "description": "All successfully-completed tasks must be undone on failure"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ---
@@ -520,67 +655,86 @@ Your choice (A/B/C/D/E):
 
 ### Q19: Data Objects
 
-```
-## Question 18: Data Objects
-
-What data is passed between activities in this process?
-
-### Options:
-
-**A) [Recommended]**: [List of data objects]
-   *Why*: These data objects represent the key information flowing through the process.
-
-**B)** No explicit data objects needed
-**C)** Single data object: [Primary entity]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "What data is passed between activities in this process?",
+      "header": "Data Objects",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Identified data (Recommended)",
+          "description": "Key information flowing through process; represents primary entities and documents"
+        },
+        {
+          "label": "No explicit objects",
+          "description": "Data flow is implicit; no formal data object diagram needed"
+        },
+        {
+          "label": "Single primary entity",
+          "description": "One main data object flows through entire process"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q20: External Systems
 
-```
-## Question 19: External Systems
-
-Does this process integrate with external systems or services?
-
-### Options:
-
-**A) [Recommended]**: [Yes/No] - [List of integrations]
-   *Why*: [Reasoning based on process description]
-
-**B)** No external integrations
-**C)** [Specific integrations]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Does this process integrate with external systems or services?",
+      "header": "Integrations",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Identified systems (Recommended)",
+          "description": "Based on process description; lists all external integrations"
+        },
+        {
+          "label": "No external integration",
+          "description": "Process is entirely internal; no external system calls"
+        },
+        {
+          "label": "Multiple integrations",
+          "description": "Several external systems to be modeled"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Q21: Message Flows (for Collaborations)
 
-```
-## Question 20: Message Flows
-
-[Only if collaboration was selected in Q4]
-
-What messages are exchanged between participants?
-
-### Options:
-
-**A) [Recommended]**: [List of message flows]
-   *Why*: These messages represent the communication between pools.
-
-**B)** [Alternative message structure]
-**C)** [Simplified message flows]
-**D)** Provide your own answer
-**E)** Accept recommended answers for all remaining questions
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "What messages are exchanged between participants? (Only applies if collaboration was selected in Q4.)",
+      "header": "Messages",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Identified messages (Recommended)",
+          "description": "All communication between pools; includes message names and sequence"
+        },
+        {
+          "label": "Simplified flows",
+          "description": "High-level message structure; fewer details"
+        },
+        {
+          "label": "Detailed specification",
+          "description": "Comprehensive message definitions with data types and timing"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ---
@@ -589,34 +743,30 @@ Your choice (A/B/C/D/E):
 
 ### Q22: Final Structure Review
 
-```
-## Question 21: Final Structure Review
-
-Based on your answers, here is the proposed process structure. Would you like to make any adjustments?
-
-**Proposed Structure:**
-```
-[ASCII diagram or structured summary of process]
-```
-
-**Elements:**
-- Start: [Start event type]
-- Tasks: [Count] ([types])
-- Gateways: [Count] ([types])
-- End: [End event types]
-
-### Options:
-
-**A) [Recommended]**: Proceed with this structure
-   *Why*: This structure accurately represents the described process with appropriate BPMN elements.
-
-**B)** Simplify - reduce number of elements
-**C)** Add more detail - [Specific additions]
-**D)** Provide your own answer
-**E)** Accept recommended answer and generate XML
-
----
-Your choice (A/B/C/D/E):
+```json
+{
+  "questions": [
+    {
+      "question": "Based on your answers, here is the proposed process structure. Would you like to make any adjustments?",
+      "header": "Final Review",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Proceed as-is (Recommended)",
+          "description": "Structure accurately represents the process with appropriate BPMN elements"
+        },
+        {
+          "label": "Simplify",
+          "description": "Reduce number of elements for a higher-level view"
+        },
+        {
+          "label": "Add more detail",
+          "description": "Expand structure with additional elements or refinements"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ---
@@ -663,11 +813,18 @@ These questions should always be asked:
 
 ## Auto-Accept Mode Behavior
 
-When user selects **E) Accept recommended answers**:
+There is no auto-accept *option* — offering one on every question would consume a slot on every
+question. Instead, the user reaches it through the free-text **Other** box that `AskUserQuestion`
+always supplies, at any point in the interview.
+
+**Trigger:** an `Other` response expressing accept-all intent — "accept all", "use the recommended
+answers", "auto-accept the rest", or similar. Treat the answer to the *current* question as the
+recommended option as well, then:
 
 1. Store flag: `AUTO_ACCEPT_MODE = true`
 2. For each remaining question:
-   - Automatically select option A
+   - Automatically select the option labelled `(Recommended)` — do **not** issue an
+     `AskUserQuestion` call for it
    - Log the decision: `Q[N]: [Topic] → [Recommended Answer]`
 3. Continue to next question without prompting
 4. Before generating XML, display summary:

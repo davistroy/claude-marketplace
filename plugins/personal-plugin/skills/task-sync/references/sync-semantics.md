@@ -20,14 +20,12 @@ task's syncable fields plus the issue's `updated_at` at that moment):
 | n/a (no `issue_number`) | n/a | `NEW_LOCAL` | create (new issue) |
 | n/a | issue with no matching task | `NEW_REMOTE` | pull (adopt: create a new task, subject to the adoption window — see Prune below) |
 
-A `CHANGED_LOCAL` task whose issue has vanished from the tracker's returned
-issue list is still **pushed** to its recorded `issue_number`, not
-re-created. `resolve()`'s create-vs-push branch for `CHANGED_LOCAL` keys off
-`task.issue_number is None` — but `classify()` only ever produces
-`CHANGED_LOCAL` for a task that already has a non-`None` `issue_number`
-(a task with no `issue_number` at all is always `NEW_LOCAL` instead), so that
-branch is never true for an orphaned task. There is no automatic "issue
-vanished, re-create it" path today.
+An orphaned task (a local task whose issue no longer appears in the tracker's
+returned issue list, though its `issue_number` is still recorded) is classified
+as `ORPHAN_LOCAL`. `resolve()` does not convert it to a push or a create; instead,
+it is surfaced as an `Orphan` record in the plan for human inspection. The user
+must then decide whether to re-create the issue, re-adopt a different one, or
+delete the local task (#181).
 
 ## Field mapping (task ↔ issue)
 
@@ -100,12 +98,13 @@ below), and `--dry-run` surfaces a count with the same `--adopt-all` pointer.
   "pulls": [{"issue_number": 15, "task_id": null, "fields": {"title": "...", "body": "...", "status": "todo", "priority": null, "labels": [...], "milestone": null}, "issue_updated_at": "...", "issue_closed_at": null}],
   "conflicts": [{"task_id": "t-ij56kl", "issue_number": 9, "local": {...}, "remote": {...}, "recommendation": "remote", "local_updated_at": "...", "remote_updated_at": "...", "remote_closed_at": null}],
   "skipped_adopts": [174, 173, 172, 156],
+  "orphans": [{"task_id": "t-mn78op", "issue_number": 42, "local_changed": true}],
   "confidentiality_findings": []
 }
 ```
 
 The key order is fixed: `creates`, `pushes`, `pulls`, `conflicts`,
-`skipped_adopts`, `confidentiality_findings`.
+`skipped_adopts`, `orphans`, `confidentiality_findings`.
 
 A `pulls` entry with `task_id: null` is an **adopt** (a brand-new task will be
 created from the issue); a non-null `task_id` is an update to an existing
@@ -121,8 +120,52 @@ outstanding work is N unadoptable issues does not read as "already in sync."
 Act on it by re-running with `sync --adopt-all` to mirror every one of them
 regardless of the window, or leave them unadopted if that is the intent.
 
+`orphans` is a JSON array of local tasks whose linked issue disappeared from
+the fetched tracker list (pagination/saturation, deletion, or archive). Each
+carries the task id, the missing issue number (still recorded on the task),
+and a `local_changed` boolean indicating whether the task has drifted locally
+since the last sync. It is not an action list — nothing in it is ever applied
+automatically — it exists purely to surface the fact that something needs human
+attention. Act on it by either (1) running `sync --plan` again (if the issue
+reappears in the fetched list, the task will be reclassified and treated normally),
+(2) deciding to "keep" the link and re-run next sync (the issue may yet appear
+in pagination), or (3) deciding to "drop" the link and delete the local task.
+The keep/drop disposition is applied by passing `--decisions` with an
+`orphan_decisions` section (see below).
+
 `confidentiality_findings` is populated by `sync --plan`/`--dry-run`
 itself: the tool scans every `creates` + `pushes` task's current content
 before printing the plan (skipping tasks whose prior review still covers
 their content) and is empty only when nothing outbound is flagged. See
 `confidentiality-flow.md` for the field shapes and detector details.
+
+## Orphan decisions and apply
+
+When a plan contains orphans, apply requires explicit `orphan_decisions` to
+handle them (all ids and dispositions are validated upfront before any mutations).
+The `--decisions` file can carry both conflict and orphan decisions in one of
+two formats:
+
+```json
+{
+  "decisions": {"t-ab12cd": "local", "t-ef34gh": "remote"},
+  "orphan_decisions": {"t-orphan-1": "keep", "t-orphan-2": "drop"}
+}
+```
+
+Or flat (decisions and orphan_decisions can coexist in the same object):
+
+```json
+{"t-ab12cd": "local", "t-orphan-1": "keep"}
+```
+
+Valid orphan dispositions:
+
+| Disposition | Effect |
+|---|---|
+| `keep` | Clears the task's `issue_number` and `last_synced` base so the next `sync --plan` treats it as a NEW_LOCAL task and re-creates a fresh issue |
+| `drop` | Removes the local task from `tasks.json` entirely |
+
+An undecided orphan (no entry in `orphan_decisions`) is left untouched and
+will resurface unchanged on the next `sync --plan`, so it is always safe to
+defer a decision the user is unsure about.

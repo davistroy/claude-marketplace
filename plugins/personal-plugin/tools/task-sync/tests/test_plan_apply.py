@@ -145,20 +145,22 @@ def test_plan_json_writes_nothing_and_emits_valid_plan(
     assert tasks_path.read_bytes() == before
     assert _git_status(tmp_path) == ""
     payload = json.loads(capsys.readouterr().out)
-    # `skipped_adopts` is part of the documented --plan --json shape: without
-    # it a consumer cannot tell "nothing to pull" from "N issues were left
-    # unadopted by the window".
+    # `skipped_adopts` and `orphans` are part of the documented --plan --json shape:
+    # without them a consumer cannot tell "nothing to pull" from "N issues were left
+    # unadopted by the window" or "N tasks have missing issue links".
     assert set(payload) == {
         "creates",
         "pushes",
         "pulls",
         "conflicts",
         "skipped_adopts",
+        "orphans",
         "confidentiality_findings",
     }
     assert len(payload["creates"]) == 1  # the local task
     assert len(payload["pulls"]) == 1  # the NEW_REMOTE issue
     assert payload["skipped_adopts"] == []  # the issue is open -> adopted
+    assert payload["orphans"] == []  # no orphaned tasks in this scenario
     assert payload["confidentiality_findings"] == []
 
 
@@ -648,6 +650,65 @@ def test_load_decisions_variants(tmp_path: Path) -> None:
     assert _load_decisions(str(wrapped)) == {"t-2": "remote"}
 
 
+def test_load_decisions_wrapped_missing_section_yields_empty_not_outer_dict(
+    tmp_path: Path,
+) -> None:
+    """A wrapped file lacking the requested section means "none of this kind".
+
+    Regression: the fallthrough used to return the OUTER dict, so a wrapped
+    conflicts-only file (the documented backward-compat shape) handed
+    ``{"decisions": "..."}`` to orphan validation and aborted every
+    ``sync --apply`` before any mutation.
+    """
+    conflicts_only = tmp_path / "conflicts_only.json"
+    conflicts_only.write_text(json.dumps({"decisions": {"t-1": "local"}}))
+    assert _load_decisions(str(conflicts_only)) == {"t-1": "local"}
+    assert _load_decisions(str(conflicts_only), key="orphan_decisions") == {}
+
+    orphans_only = tmp_path / "orphans_only.json"
+    orphans_only.write_text(json.dumps({"orphan_decisions": {"t-o": "keep"}}))
+    assert _load_decisions(str(orphans_only), key="orphan_decisions") == {"t-o": "keep"}
+    assert _load_decisions(str(orphans_only)) == {}
+
+    both = tmp_path / "both.json"
+    both.write_text(
+        json.dumps({"decisions": {"t-1": "local"}, "orphan_decisions": {"t-o": "drop"}})
+    )
+    assert _load_decisions(str(both)) == {"t-1": "local"}
+    assert _load_decisions(str(both), key="orphan_decisions") == {"t-o": "drop"}
+
+
+def test_split_flat_decisions_routes_by_plan_membership() -> None:
+    """The flat shape lets both kinds coexist in one object, so each consumer
+    must receive only its own ids — and an id in NEITHER set must still reach
+    the fail-loud orphan validation rather than being silently dropped."""
+    from task_sync.__main__ import _split_flat_decisions
+    from task_sync.reconcile.resolve import Conflict, Orphan
+
+    plan = SyncPlan(
+        conflicts=[
+            Conflict(
+                task_id="t-conf",
+                issue_number=1,
+                local={},
+                remote={},
+                recommendation="local",
+                local_updated_at=None,
+                remote_updated_at="2026-01-01T00:00:00Z",
+            )
+        ],
+        orphans=[Orphan(task_id="t-orph", issue_number=2, local_changed=False)],
+    )
+    conflicts, orphans = _split_flat_decisions(
+        {"t-conf": "local", "t-orph": "keep", "t-typo": "keep"}, plan
+    )
+    assert conflicts == {"t-conf": "local", "t-typo": "keep"}
+    # the unknown id lands in the orphan map ON PURPOSE: that is the only
+    # fail-loud consumer, so a mistyped id raises instead of being ignored.
+    assert orphans == {"t-orph": "keep", "t-typo": "keep"}
+    assert "t-conf" not in orphans
+
+
 def test_load_decisions_rejects_non_object(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps(["not", "a", "map"]))
@@ -846,3 +907,168 @@ def test_apply_ensures_milestone_and_labels_on_create() -> None:
     assert "v2.0" in provider.ensured_milestones
     assert "status/in-progress" in provider.ensured_labels
     assert "priority/P1" in provider.ensured_labels
+
+
+# -- Orphan decisions: keep/drop, validated up front (4.3) ----
+
+
+ORPHAN_DISPOSITION_KEEP = "keep"
+ORPHAN_DISPOSITION_DROP = "drop"
+ORPHAN_DISPOSITIONS_PARAMETRIZE = list((ORPHAN_DISPOSITION_KEEP, ORPHAN_DISPOSITION_DROP)) + [
+    "invalid"  # out-of-set value for mutation testing
+]
+
+
+def test_orphan_decision_keep_clears_issue_number_and_link() -> None:
+    """WHEN an orphan is kept THEN its issue_number and last_synced are cleared
+    so the next run re-creates via the tested creates path."""
+    from task_sync.reconcile.resolve import Orphan
+
+    orphan_task = Task(
+        id="t-orphan",
+        title="orphaned task",
+        issue_number=42,
+        last_synced={"hash": "abc123", "at": "2026-07-10T00:00:00Z"},
+    )
+    tl = TaskList(tasks=[orphan_task])
+    orphan = Orphan(task_id="t-orphan", issue_number=42, local_changed=True)
+    plan = SyncPlan(orphans=[orphan])
+
+    updated = apply(plan, {}, tl, MockProvider(), orphan_decisions={"t-orphan": "keep"})
+
+    kept_task = next(t for t in updated.tasks if t.id == "t-orphan")
+    assert kept_task.issue_number is None  # Link cleared
+    assert kept_task.last_synced == {}  # Base cleared
+
+
+def test_orphan_decision_drop_removes_the_task() -> None:
+    """WHEN an orphan is dropped THEN the task is removed from the tasklist."""
+    from task_sync.reconcile.resolve import Orphan
+
+    orphan_task = Task(
+        id="t-orphan",
+        title="orphaned task",
+        issue_number=42,
+    )
+    tl = TaskList(tasks=[orphan_task])
+    orphan = Orphan(task_id="t-orphan", issue_number=42, local_changed=False)
+    plan = SyncPlan(orphans=[orphan])
+
+    updated = apply(plan, {}, tl, MockProvider(), orphan_decisions={"t-orphan": "drop"})
+
+    assert len(updated.tasks) == 0
+
+
+def test_orphan_decision_undecided_leaves_orphan_untouched() -> None:
+    """WHEN an orphan has no decision THEN it is left untouched and will
+    resurface in the next run."""
+    from task_sync.reconcile.resolve import Orphan
+
+    orphan_task = Task(
+        id="t-orphan",
+        title="orphaned task",
+        issue_number=42,
+        last_synced={"hash": "abc123", "at": "2026-07-10T00:00:00Z"},
+    )
+    tl = TaskList(tasks=[orphan_task])
+    orphan = Orphan(task_id="t-orphan", issue_number=42, local_changed=True)
+    plan = SyncPlan(orphans=[orphan])
+
+    # No orphan_decisions passed, or empty dict
+    updated = apply(plan, {}, tl, MockProvider(), orphan_decisions={})
+
+    kept_task = next(t for t in updated.tasks if t.id == "t-orphan")
+    assert kept_task.issue_number == 42  # Untouched
+    assert kept_task.last_synced == {"hash": "abc123", "at": "2026-07-10T00:00:00Z"}  # Untouched
+
+
+@pytest.mark.parametrize("disposition", ORPHAN_DISPOSITIONS_PARAMETRIZE)
+def test_orphan_decision_validates_disposition_upfront(disposition: str) -> None:
+    """Parametrized over the real constant + out-of-set value. WHEN an orphan
+    decision contains an invalid disposition THEN apply raises ValueError
+    without mutating anything."""
+    from task_sync.reconcile.resolve import Orphan
+
+    orphan_task = Task(id="t-orphan", title="x", issue_number=42)
+    tl = TaskList(tasks=[orphan_task])
+    orphan = Orphan(task_id="t-orphan", issue_number=42, local_changed=True)
+    plan = SyncPlan(orphans=[orphan])
+
+    if disposition not in ("keep", "drop"):
+        # Out-of-set value: should raise
+        with pytest.raises(ValueError, match="invalid orphan disposition"):
+            apply(plan, {}, tl, MockProvider(), orphan_decisions={"t-orphan": disposition})
+        # Verify no mutations occurred (task still exists with original state)
+        assert tl.tasks[0].issue_number == 42
+    else:
+        # Valid disposition: should succeed without raising
+        result = apply(plan, {}, tl, MockProvider(), orphan_decisions={"t-orphan": disposition})
+        # The mutation happens; outcome depends on disposition
+        if disposition == "keep":
+            assert result.tasks[0].issue_number is None
+        elif disposition == "drop":
+            assert len(result.tasks) == 0
+
+
+def test_orphan_decision_validates_unknown_task_upfront() -> None:
+    """WHEN an orphan decision names an unknown task THEN apply raises
+    ValueError without mutating anything (validation happens upfront)."""
+    tl = TaskList(tasks=[Task(id="t-real", title="x")])
+    plan = SyncPlan(orphans=[])  # No orphans in plan
+
+    with pytest.raises(ValueError, match="orphan decision for unknown task"):
+        apply(plan, {}, tl, MockProvider(), orphan_decisions={"t-unknown": "keep"})
+    # Verify no mutations occurred
+    assert tl.tasks[0].id == "t-real"
+
+
+def test_orphan_decision_validates_all_ids_and_dispositions_before_any_mutation() -> None:
+    """Mutation test: all validations happen upfront (D36). WHEN the decisions
+    contain one good and one bad entry THEN nothing is applied."""
+    from task_sync.reconcile.resolve import Orphan
+
+    orphan1 = Task(id="t-orphan-1", title="first", issue_number=1)
+    orphan2 = Task(id="t-orphan-2", title="second", issue_number=2)
+    tl = TaskList(tasks=[orphan1, orphan2])
+    orphans = [
+        Orphan(task_id="t-orphan-1", issue_number=1, local_changed=True),
+        Orphan(task_id="t-orphan-2", issue_number=2, local_changed=True),
+    ]
+    plan = SyncPlan(orphans=orphans)
+
+    # One valid decision, one invalid — validation should fail before any mutations
+    bad_decisions = {"t-orphan-1": "keep", "t-orphan-2": "invalid"}
+
+    with pytest.raises(ValueError, match="invalid orphan disposition"):
+        apply(plan, {}, tl, MockProvider(), orphan_decisions=bad_decisions)
+
+    # Verify neither task was mutated
+    assert tl.tasks[0].issue_number == 1
+    assert tl.tasks[1].issue_number == 2
+
+
+def test_plan_with_only_orphans_is_not_empty() -> None:
+    """WHEN a plan contains only orphans (no creates/pushes/pulls/conflicts)
+    THEN is_empty() returns False so a report claims 'something needs
+    attention', not 'already in sync'."""
+    from task_sync.reconcile.resolve import Orphan
+
+    orphan = Orphan(task_id="t-orphan", issue_number=42, local_changed=True)
+    plan = SyncPlan(orphans=[orphan])
+
+    assert not plan.is_empty()
+
+
+def test_plan_json_includes_orphans_section() -> None:
+    """The machine-readable plan includes orphans in its JSON output."""
+    from task_sync.reconcile.resolve import Orphan
+
+    orphan = Orphan(task_id="t-orphan", issue_number=42, local_changed=True)
+    plan = SyncPlan(orphans=[orphan])
+
+    payload = json.loads(plan.to_json())
+    assert "orphans" in payload
+    assert len(payload["orphans"]) == 1
+    assert payload["orphans"][0]["task_id"] == "t-orphan"
+    assert payload["orphans"][0]["issue_number"] == 42
+    assert payload["orphans"][0]["local_changed"] is True

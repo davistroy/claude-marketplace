@@ -10,7 +10,10 @@
 #      - name: FORBIDDEN for commands, REQUIRED for skills (and must match dir name)
 #   2. Code block closure validation
 #   3. Timestamp format validation (YYYYMMDD-HHMMSS)
-#   4. Python lint/format check with ruff
+#   4. Injection linter (ADR-0011) -- replays the harness pre-pass to find
+#      unguarded or ungranted live dynamic injections in staged skill/command
+#      bodies (scripts/check_injections.py)
+#   5. Python lint/format check with ruff
 #
 # Target: < 5 seconds execution time
 #
@@ -181,10 +184,45 @@ done
 echo -e "  ${GREEN}[PASS]${NC} Timestamp format check complete"
 echo ""
 
+# ============================================
+# Check 4: Injection Linter (ADR-0011 replay)
+# ============================================
+echo "Checking dynamic injections replay-clean (ADR-0011)..."
+if python3 scripts/check_injections.py; then
+    echo -e "  ${GREEN}[PASS]${NC} No unguarded/ungranted live injections"
+else
+    echo -e "  ${RED}[FAIL]${NC} Injection linter found issues (see above)"
+    ERRORS=$((ERRORS + 1))
+fi
+echo ""
+
 fi  # End of markdown file checks (STAGED_FILES non-empty)
 
 # ============================================
-# Check 4: Python File Lint/Format with ruff
+# Check 5: Agent Model-Alias Enforcement (ADR-0005)
+# ============================================
+echo "Checking agent model aliases (ADR-0005)..."
+AGENT_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^\.claude/agents/.*\.md$|^plugins/[^/]+/agents/.*\.md$' || true)
+
+if [ -n "$AGENT_FILES" ]; then
+    echo "Staged agent file(s):"
+    echo "$AGENT_FILES" | while read -r file; do
+        echo "  - $file"
+    done
+    echo ""
+    if python3 scripts/check_agent_models.py; then
+        echo -e "  ${GREEN}[PASS]${NC} Agent model aliases compliant (ADR-0005)"
+    else
+        echo -e "  ${RED}[FAIL]${NC} Agent model-alias check found issues (see above)"
+        ERRORS=$((ERRORS + 1))
+    fi
+else
+    echo -e "  ${GREEN}[SKIP]${NC} No agent files staged"
+fi
+echo ""
+
+# ============================================
+# Check 6: Python File Lint/Format with ruff
 # ============================================
 PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
 if [ -n "$PYTHON_FILES" ]; then
@@ -226,6 +264,11 @@ if [ $ERRORS -gt 0 ]; then
     echo "  - Skills: MUST include 'name' field matching the directory name (required for skill registration)"
     echo "  - Ensure all code blocks are closed with \`\`\`"
     echo "  - Use YYYYMMDD-HHMMSS format for timestamps (e.g., 20260114-143052)"
+    echo "  - Live dynamic injections (!\`cmd\`) must be exit-0-guarded and every"
+    echo "    binary they call must be in allowed-tools (ADR-0011) -- see"
+    echo "    python3 scripts/check_injections.py for details on a failure"
+    echo "  - Agent model: must use tier aliases (haiku|sonnet|opus|fable|inherit), never"
+    echo "    pinned model IDs (ADR-0005) -- see docs/adr/0005-model-aliases-in-agent-definitions.md"
     echo "  - Python files must pass ruff check and ruff format"
     echo "    Fix with: ruff check --fix . && ruff format ."
     echo ""

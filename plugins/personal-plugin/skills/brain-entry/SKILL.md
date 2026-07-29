@@ -1,8 +1,8 @@
 ---
 name: brain-entry
-description: Send a capture to Open Brain. Takes any instruction as an argument — summarize a session, log a decision, capture an idea — processes it, and POSTs to the captures API. Use when the user says "/brain-entry <instruction>". Suggest (do not auto-run) when — user says "log/capture/remember/brain entry", end of session, decision to record, or explicit invocation.
+description: Send a capture to Open Brain. Takes any instruction as an argument — summarize a session, log a decision, capture an idea — processes it, and POSTs it to the captures API. Posts to an external service with no further gate, so it runs only when invoked explicitly as /brain-entry <instruction>.
 disable-model-invocation: true
-allowed-tools: Bash(curl:*)
+allowed-tools: Bash(curl:*), Bash(echo:*), Bash(tail:*), Bash(sed:*), Bash(python3:*)
 ---
 
 # Brain Entry

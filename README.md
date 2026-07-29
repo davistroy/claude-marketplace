@@ -80,24 +80,24 @@ You can install to different scopes:
 | [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate a comprehensive, annotated technical overview document for any project/repo, written for... |
 | [`/fleet-health`](plugins/personal-plugin/skills/fleet-health/SKILL.md) | One-shot, read-only health snapshot across the personal fleet (DGX Spark, Jetson Orin Nano, homes... |
 | [`/jetson-audit`](plugins/personal-plugin/skills/jetson-audit/SKILL.md) | SSH into the Jetson Orin Nano and audit the running inference config against known best practices... |
-| [`/jetson-recon`](plugins/personal-plugin/skills/jetson-recon/SKILL.md) | Use when checking on Jetson Orin Nano inference performance landscape — scans JetPack updates, ll... |
+| [`/jetson-recon`](plugins/personal-plugin/skills/jetson-recon/SKILL.md) | Recon of the Jetson Orin Nano inference-performance landscape — scans JetPack updates, llama.cpp... |
 | [`/lab-notebook`](plugins/personal-plugin/skills/lab-notebook/SKILL.md) | Initialize mandatory experiment logging using scientific notebook, ADR, and postmortem patterns. |
 | [`/leak-risk-audit`](plugins/personal-plugin/skills/leak-risk-audit/SKILL.md) | Audit a dataset for proprietary information leaks before sharing with public/cloud services. |
 | [`/new-project`](plugins/personal-plugin/skills/new-project/SKILL.md) | Scaffold a brand-new project directory end-to-end — git init, remote repository (GitHub by defaul... |
 | [`/plan-gate`](plugins/personal-plugin/skills/plan-gate/SKILL.md) | Before starting complex multi-step implementation tasks, assess scope and route to the right plan... |
 | [`/prime`](plugins/personal-plugin/skills/prime/SKILL.md) | Evaluate an existing codebase to produce a detailed report on project purpose, health, status, an... |
-| [`/release-plugin`](plugins/personal-plugin/skills/release-plugin/SKILL.md) | Validate plugins, clean repository, and ship plugin releases in one automated workflow. |
+| [`/release-plugin`](plugins/personal-plugin/skills/release-plugin/SKILL.md) | Validate plugins, clean the repository, and ship plugin releases in one automated workflow. |
 | [`/research-topic`](plugins/personal-plugin/skills/research-topic/SKILL.md) | Orchestrate parallel deep research across multiple LLM providers using native context:fork subage... |
 | [`/security-analysis`](plugins/personal-plugin/skills/security-analysis/SKILL.md) | Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediatio... |
 | [`/ship`](plugins/personal-plugin/skills/ship/SKILL.md) | Create branch, commit, push, open PR, auto-review, fix issues, and merge — the full ship workflow. |
 | [`/spark-audit`](plugins/personal-plugin/skills/spark-audit/SKILL.md) | SSH into the DGX Spark and audit all running containers against known best practices and communit... |
-| [`/spark-recon`](plugins/personal-plugin/skills/spark-recon/SKILL.md) | Use when checking on DGX Spark inference performance landscape — scans Arena leaderboard, vLLM re... |
+| [`/spark-recon`](plugins/personal-plugin/skills/spark-recon/SKILL.md) | Recon of the DGX Spark inference-performance landscape — scans the Arena leaderboard, vLLM releas... |
 | [`/spec-to-prototype`](plugins/personal-plugin/skills/spec-to-prototype/SKILL.md) | Use when the user has a spec document, design system reference, component library doc, wireframe... |
 | [`/summarize-feedback`](plugins/personal-plugin/skills/summarize-feedback/SKILL.md) | Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment docu... |
 | [`/task-sync`](plugins/personal-plugin/skills/task-sync/SKILL.md) | Manage a local task/backlog list (tasks.json + a generated TASKS.md) for the current repo and rec... |
 | [`/ultra-plan`](plugins/personal-plugin/skills/ultra-plan/SKILL.md) | "Structured implementation planning for bug lists, feature requests, or change sets. |
-| [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into environment using bws CLI. |
-| [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated infographic pages that explain concepts visually us... |
+| [`/unlock`](plugins/personal-plugin/skills/unlock/SKILL.md) | Load secrets from Bitwarden Secrets Manager into the environment using the bws CLI. |
+| [`/visual-explainer`](plugins/personal-plugin/skills/visual-explainer/SKILL.md) | Transform text or documents into AI-generated infographic pages that explain concepts visually, u... |
 | [`/wiki`](plugins/personal-plugin/skills/wiki/SKILL.md) | "Wiki operations: ingest source documents into wiki pages, lint for health issues, query the wiki... |
 
 ### slide-gen
@@ -176,8 +176,9 @@ plugins/
                             # sg-validate-graphics, sg-generate-images, sg-build, sg-full-workflow
 
 .claude/
-  agents/                   # Named implementer agents (haiku/sonnet/opus-implementer)
-                            # Model pinned in frontmatter; referenced by implement-plan
+  agents/              # Named implementer agents for implement-plan model routing
+                       # haiku-implementer, sonnet-implementer, opus-implementer —
+                       # model: tier alias in frontmatter, never pinned IDs (ADR-0005)
 ```
 
 ## CI/CD Pipeline

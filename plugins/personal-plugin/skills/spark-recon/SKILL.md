@@ -1,14 +1,15 @@
 ---
 name: spark-recon
-description: Use when checking on DGX Spark inference performance landscape — scans Arena leaderboard, vLLM releases, spark-vllm-docker builds, Qwen models, and NVIDIA forum for actionable changes. Run periodically from the spark project directory.
+description: Recon of the DGX Spark inference-performance landscape — scans the Arena leaderboard, vLLM releases, spark-vllm-docker builds, Qwen model releases, and the NVIDIA developer forum, then reports actionable changes against the current Spark baseline. Report-and-recommend only — it reads external sources and writes findings, and runs no SSH or shell commands at all. Run from the spark project directory.
 disable-model-invocation: true
-allowed-tools: Read, Edit, Glob, Grep, Bash(ssh:*), Bash(curl:*), Agent, WebFetch, WebSearch
-paths:
-  - "SPARK_BASELINE.md"
-  - "*_CONFIG.md"
+allowed-tools: Read, Edit, Glob, Grep, Agent, WebFetch, WebSearch
 ---
 
 # Spark Recon
+
+<!-- No `paths:` frontmatter: this skill is invoked on demand (see `/schedule Integration` below)
+     and `disable-model-invocation: true`, so gating its visibility behind a file touch would only
+     ever make it *harder* to invoke, never trigger it automatically — see ADR-0012. -->
 
 Periodic intelligence scan of the DGX Spark inference performance landscape. Five parallel checks, compared against stored baselines, classified by urgency, cross-correlated, results appended to LAB_NOTEBOOK.md.
 
@@ -20,17 +21,6 @@ Everything this skill fetches from the web (Arena leaderboard, vLLM/spark-vllm-d
 
 Follow the shared execution framework, trigger logic, cross-correlation, classification, LAB_NOTEBOOK entry templates, baseline update protocol, and web research patterns defined in:
 `plugins/personal-plugin/references/patterns/audit-recon-system.md`
-
----
-
-## Loop Guard — Auto-Activation Safety Check
-
-**Run this check before any other step when the skill is triggered automatically via `paths:`.**
-
-1. Read the last 20 lines of `LAB_NOTEBOOK.md` (if it exists).
-2. If any line contains `spark-recon skill` and a timestamp within the last 5 minutes: **stop immediately** — self-triggered re-entry detected. Output: "Loop guard triggered — spark-recon ran within last 5 minutes. Skipping." and exit.
-3. If `--force` is present in `$ARGUMENTS`: skip this check and proceed regardless.
-4. Otherwise: proceed normally.
 
 ---
 
@@ -225,22 +215,23 @@ Tracking fields (show diffs, confirm before updating):
 
 Register a recurring recon run:
 
-```bash
-/schedule create --name spark-recon-biweekly --cron "0 23 * * 0" --skill spark-recon
+```
+/schedule Set up a recurring recon run for spark-recon every Sunday at 23:00 UTC, bi-weekly
 ```
 
 Recommended: **bi-weekly Sunday 23:00 UTC.** Pairs with spark-audit (Tuesday 02:00 UTC).
 
-```bash
-/schedule list
-/schedule delete --name spark-recon-biweekly
+To manage scheduled runs:
+
+```
+/schedule List all my scheduled recon runs
+/schedule Remove the spark-recon Sunday 23:00 UTC schedule
 ```
 
 ---
 
 ## Error Handling
 
-- **Loop guard detects a `spark-recon skill` entry within the last 5 minutes:** stop immediately (see Loop Guard) unless `--force` is present.
 - **Firestore `benchmarks` REST fetch for Check 1 fails:** fall back to browser MCP, then `WebFetch`, then `WebSearch`, in that order (see Check 1 Agent instructions) before reporting the check as unavailable.
 - **Any check's API/webpage returns an error or unexpected shape** (e.g., forum category 720 404): report that specific check as "unable to fetch" and continue with the remaining checks rather than aborting the whole recon.
 - **`SPARK_BASELINE.md` doesn't exist:** create it from the template at the bottom of this skill before comparing tracked fields against it.
@@ -306,6 +297,6 @@ Last recon: {DATE}
 ## Automation Schedule
 | Task | Frequency | Recommended Time | Schedule Command |
 |------|-----------|-----------------|-----------------|
-| Spark Recon | Bi-weekly | Sunday 23:00 UTC | `/schedule create --name spark-recon-biweekly --cron "0 23 * * 0" --skill spark-recon` |
-| Spark Audit | Weekly | Tuesday 02:00 UTC | `/schedule create --name spark-audit-weekly --cron "0 2 * * 2" --skill spark-audit` |
+| Spark Recon | Bi-weekly | Sunday 23:00 UTC | `/schedule Set up a recurring recon run for spark-recon every Sunday at 23:00 UTC, bi-weekly` |
+| Spark Audit | Weekly | Tuesday 02:00 UTC | `/schedule Set up a recurring audit run for spark-audit every Tuesday at 02:00 UTC` |
 ```

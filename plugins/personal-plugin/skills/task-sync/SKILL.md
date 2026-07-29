@@ -113,9 +113,11 @@ and never calls the tracker's write API. If the repo has no tracker remote,
 the tool prints "local-only mode" and exits 0; there is nothing to plan.
 
 Parse the JSON: `creates`, `pushes`, `pulls`, `conflicts`, `skipped_adopts`,
-`confidentiality_findings`. `skipped_adopts` is a list of tracker issue
-numbers left unadopted by the adopt window — not an action, but always worth
-surfacing (see step 2). Field shapes: `references/sync-semantics.md`.
+`orphans`, and `confidentiality_findings`. `skipped_adopts` is a list of tracker
+issue numbers left unadopted by the adopt window — not an action, but always
+worth surfacing (see step 2). `orphans` is a list of local tasks whose linked
+issues are missing from the fetched list (pagination, saturation, or deletion),
+surfaced for human review (see step 4). Field shapes: `references/sync-semantics.md`.
 
 By default, a remote-only issue (`NEW_REMOTE` — no local task references it
 yet) is only adopted into `pulls` if it is still open, or closed within
@@ -143,6 +145,13 @@ decision:
 - **Conflicts** — both sides changed since the last sync; render as a
   side-by-side table (`local` vs `remote`, each field) with the tool's
   `recommendation` (last-write-wins) called out, but never pre-select it.
+- **Orphans** — local tasks whose linked issues are missing from the fetched
+  list (the issue may still exist remotely and simply wasn't fetched, or it
+  may have been deleted): render as a table (`task id`, `linked issue #`,
+  `local edits since last sync?`) and prompt per orphan for `keep` (clears the
+  link so the next run re-creates via the normal creates path) or `drop`
+  (removes the local task). An undecided orphan is left untouched and resurfaces
+  on the next sync.
 - **Skipped adoptions** — if `skipped_adopts` is non-empty, always call it out
   even though it needs no decision: "N issue(s) closed outside the adopt
   window were not adopted: #174, #173, …" plus a pointer to `--adopt-all`.
@@ -150,11 +159,11 @@ decision:
   who expects a closed issue to show up as a task would see nothing without
   this line.
 
-If `creates`, `pushes`, `pulls`, `conflicts`, and `skipped_adopts` are all
-empty, report "already in sync" and stop — there is nothing to decide or
-apply. If only `skipped_adopts` is non-empty, do not report "already in
-sync" — surface the skipped count and stop; there is nothing to decide, but
-it is not nothing to report.
+If `creates`, `pushes`, `pulls`, `conflicts`, `orphans`, and `skipped_adopts`
+are all empty, report "already in sync" and stop — there is nothing to decide
+or apply. If only `skipped_adopts` and/or `orphans` are non-empty, do not
+report "already in sync" — surface the counts and stop; there is nothing to
+apply immediately, but it is not nothing to report.
 
 ### 3. Confidentiality scan
 
@@ -175,17 +184,30 @@ push proceed past them silently.
 ### 4. Prompt for every decision
 
 For each conflict, ask the user to pick `local` or `remote` (showing the
-recommendation as a hint, not a default). For each confidentiality finding,
-ask for `keep`, `redact`, `remove`, or `anonymize`. Do not guess — an
-unanswered conflict is left untouched by `apply` and simply resurfaces next
-sync, so it is always safe to defer one the user is unsure about.
+recommendation as a hint, not a default). For each orphan, ask for `keep`
+(clears the link, next run re-creates) or `drop` (removes the task). For each
+confidentiality finding, ask for `keep`, `redact`, `remove`, or `anonymize`.
+Do not guess — unanswered conflicts/orphans are left untouched by `apply` and
+simply resurface next sync, so it is always safe to defer one the user is
+unsure about.
 
-Write the conflict decisions to a JSON file (flat `{task_id: "local"|"remote"}`,
-or `{"decisions": {...}}`):
+Write the decisions to a JSON file (conflict and orphan decisions can coexist
+in one file):
 
 ```bash
 cat > /tmp/task-sync-decisions.json <<'JSON'
-{"t-ab12cd": "local", "t-ef34gh": "remote"}
+{
+  "decisions": {"t-ab12cd": "local", "t-ef34gh": "remote"},
+  "orphan_decisions": {"t-orphan-1": "keep", "t-orphan-2": "drop"}
+}
+JSON
+```
+
+Or flat form for either or both:
+
+```bash
+cat > /tmp/task-sync-decisions.json <<'JSON'
+{"t-ab12cd": "local", "t-orphan-1": "keep"}
 JSON
 ```
 
@@ -235,12 +257,13 @@ PYTHONPATH="$TOOL_SRC" python3 -m task_sync sync --apply --decisions /tmp/task-s
 ```
 
 This executes creates/pushes/pulls, applies only the decided conflicts
-(undecided ones are left exactly as-is), prunes `done` tasks whose issue
-closed more than `prune_closed_after_days` ago, refreshes `last_sync_at`, and
-saves `tasks.json` + regenerates `TASKS.md` — all inside the tool, atomically.
-Report the printed summary (counts of creates/pushes/pulls, conflicts
-surfaced, and — only when `skipped_adopts` was non-empty — the trailing
-"N issue(s) closed outside the adopt window were not adopted" sentence) to
+(undecided ones are left exactly as-is), applies only the decided orphans
+(undecided orphans are left untouched and resurface next sync), prunes `done`
+tasks whose issue closed more than `prune_closed_after_days` ago, refreshes
+`last_sync_at`, and saves `tasks.json` + regenerates `TASKS.md` — all inside
+the tool, atomically. Report the printed summary (counts of creates/pushes/pulls,
+conflicts surfaced, and — only when `skipped_adopts` and/or `orphans` were
+non-empty — the trailing sentences about skipped adoptions and orphans) to
 the user.
 
 ### `--dry-run`

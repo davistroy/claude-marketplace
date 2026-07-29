@@ -94,14 +94,14 @@ Structured report written to `reports/code-health-YYYYMMDD.md`. Summary in conve
 
 ---
 
-## Example C — Paths-Activated Skill with Loop Guard
+## Example C — Conditionally-Loaded Skill (`paths:`)
 
-Suitable for: skills that should auto-run when specific files change (e.g., dependency manifests, config files, baseline docs).
+Suitable for: skills whose relevance only becomes apparent once Claude has touched specific files this session (dependency manifests, config files, baseline docs). Not for skills that should run automatically — `paths:` only controls whether the skill is *findable*; it never invokes anything on its own. See [ADR-0012](../../../docs/adr/0012-artifact-derived-documentation.md).
 
 ```yaml
 ---
 name: validate-config
-description: Validate app config schema whenever config files change
+description: Validate app config schema, required keys, and type correctness
 allowed-tools: Read, Bash
 paths:
   - "config/**/*.json"
@@ -111,26 +111,17 @@ paths:
 
 # Config Validator
 
-Auto-activates when a config file changes. Validates schema, required keys, and type correctness.
+Conditionally loaded: invisible to Claude's own Skill tool and to a user typing `/validate-config` alike until Claude's own Read, Edit, or Write tool call touches a file matching one of the `paths:` globs during this session. From that point it is loaded like any other skill for the rest of the session — nothing runs automatically, and activation is one-shot (never re-evaluated, so no loop guard is needed even if this skill later writes a matching config file itself).
 
 ## Instructions
 
-### Entry guard (REQUIRED for paths-activated skills)
+### Phase 1: Identify files to validate
 
-Check: has this skill run in the last 5 minutes (look for a recent entry in LAB_NOTEBOOK.md
-or a sentinel file `.tmp/validate-config.last-run`)? If yes → exit immediately.
-This prevents infinite re-entry if the skill itself writes to a config path.
-
-Write sentinel: `echo $(date +%s) > .tmp/validate-config.last-run`
-
-### Phase 1: Detect changed files
-
-Identify which config file triggered activation from `$CLAUDE_CONTEXT`.
-If no context: scan `config/` for recently modified files (`find config/ -newer .tmp/validate-config.last-run`).
+There is no signal for which specific file caused this skill to load — `paths:` is a load gate, not an event payload. Validate every file matching the `paths:` globs: `config/**/*.json`, `config/**/*.yaml`, `.env.example`.
 
 ### Phase 2: Validate schema
 
-Read the changed file. Compare against the schema definition in `config/schema.json`.
+Read each file. Compare against the schema definition in `config/schema.json`.
 Report: PASS / FAIL with specific field-level errors.
 
 ### Phase 3: Check required keys
@@ -145,6 +136,6 @@ In-conversation validation report. Does NOT modify the config file (read-only).
 
 **Key patterns demonstrated:**
 
-- `paths:` frontmatter for auto-activation
-- Loop guard at skill entry (mandatory for any paths-activated skill)
-- `$CLAUDE_CONTEXT` to identify which file triggered the activation
+- `paths:` as a conditional load gate — the skill is invisible until Claude's own Read/Edit/Write touches a matching file this session (ADR-0012)
+- No loop guard — activation is one-shot per session and is never re-evaluated, so a skill cannot re-trigger itself
+- No triggering-file variable exists (there is no `$CLAUDE_CONTEXT`) — validate against the full `paths:` glob set rather than trying to detect "the" file that caused activation

@@ -179,19 +179,18 @@ No starter help skill is generated. Native `/help` and `/skills` commands fully 
 
 Skills are the default, primary way to add functionality to a scaffolded plugin (ADR-0006: skills-first authoring policy). The legacy `commands/` format is generated only when `--with-commands` is explicitly requested (see Phase 3) and should be treated as a frozen, maintained-not-extended surface.
 
-To add your first skill after scaffolding, run `/new-skill`. It will generate a skill with modern frontmatter fields including `context`, `agent`, `model`, `paths`, `isolation`, `when_to_use`, and `allowed-tools`. See `plugins/personal-plugin/references/common-patterns.md` (Advanced Features section) for field documentation and worked examples.
+To add your first skill after scaffolding, run `/new-skill`. It will generate a skill with modern frontmatter fields including `context`, `agent`, `model`, `paths`, `when_to_use`, and `allowed-tools`. See `plugins/personal-plugin/references/common-patterns.md` (Advanced Features section) for field documentation and worked examples.
 
 **Skill frontmatter quick reference (primary authoring format):**
 ```yaml
 ---
 name: my-skill             # REQUIRED — must match directory name
 description: What it does  # REQUIRED
-effort: medium             # low/medium/high/max
+effort: medium             # low | medium | high | xhigh | max
 allowed-tools: Read, Glob, Grep, Bash
 # context: fork            # Dispatch to isolated subagent context
-# isolation: worktree      # Give subagent its own git worktree
-# paths: ["**/*.ts"]       # Auto-trigger on file changes (add loop guard in body!)
-# agent: explorer          # Agent type for context:fork dispatch
+# paths: ["**/*.ts"]       # Load gate: makes the skill findable once you touch a match
+# agent: Explore           # Agent type for context:fork dispatch
 # when_to_use: "..."       # Routing hint shown in /skills list
 ---
 ```

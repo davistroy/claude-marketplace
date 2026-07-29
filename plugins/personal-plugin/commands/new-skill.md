@@ -163,20 +163,23 @@ description: [user-provided description]
 allowed-tools: [tool-restrictions]
 # disable-model-invocation: false
 #
-# --- Modern Dispatch & Isolation ---
+# --- Modern Dispatch ---
 # context: fork
 # agent: Explore
-# model: claude-opus-4
-# isolation: worktree
+# model: opus            # tier alias (haiku|sonnet|opus|fable) not pinned ID; see ADR-0005
 #
-# --- Auto-Activation ---
-# paths:
-#   - "**/*.ext"
+# --- Conditional Load (paths:) ---
+# paths:                    # loaded only after Claude touches a matching file this session
+#   - "**/*.ext"             # do not pair with disable-model-invocation: true (ADR-0012)
 #
 # --- Lifecycle Hooks ---
 # hooks:
-#   pre:  "echo 'before'"
-#   post: "echo 'after'"
+#   Stop:
+#     - matcher: any
+#       hooks:
+#         - type: command
+#           command: "echo 'cleanup'"
+#           timeout: 5
 #
 # shell: bash
 ---
@@ -192,20 +195,23 @@ description: [user-provided description]
 # allowed-tools: Read, Glob, Grep, Bash
 # disable-model-invocation: false
 #
-# --- Modern Dispatch & Isolation ---
+# --- Modern Dispatch ---
 # context: fork
 # agent: Explore
-# model: claude-opus-4
-# isolation: worktree
+# model: opus            # tier alias (haiku|sonnet|opus|fable) not pinned ID; see ADR-0005
 #
-# --- Auto-Activation ---
-# paths:
-#   - "**/*.ext"
+# --- Conditional Load (paths:) ---
+# paths:                    # loaded only after Claude touches a matching file this session
+#   - "**/*.ext"             # do not pair with disable-model-invocation: true (ADR-0012)
 #
 # --- Lifecycle Hooks ---
 # hooks:
-#   pre:  "echo 'before'"
-#   post: "echo 'after'"
+#   Stop:
+#     - matcher: any
+#       hooks:
+#         - type: command
+#           command: "echo 'cleanup'"
+#           timeout: 5
 #
 # shell: bash
 ---
@@ -262,8 +268,8 @@ Structure verified:
    - [ ] Customize phases/instructions
    - [ ] Add specific examples
    - [ ] Define error handling
-   - [ ] Uncomment modern frontmatter fields that apply (context, isolation, paths, etc.)
-   - [ ] Add loop guard if using `paths:` auto-activation
+   - [ ] Uncomment modern frontmatter fields that apply (context, paths, etc.)
+   - [ ] If using `paths:`, do not pair it with `disable-model-invocation: true` (see Frontmatter Field Reference) — no loop guard is needed either way
 
 2. Validate:
    - [ ] Run: /validate-plugin [plugin-name]
@@ -286,32 +292,28 @@ All fields supported by Claude Code as of late 2025. Fields marked **Required** 
 | `name` | **Required** | `kebab-case` string | Identifies the skill; must match directory name |
 | `description` | **Required** | Free text ≤ 150 chars | Shown in `/skills` list; used for proactive triggering |
 | `argument-hint` | Optional | `"<req> [opt]"` | Displayed in completions UI |
-| `effort` | Optional | `low` / `medium` / `high` / `max` | Controls token budget allocation |
+| `effort` | Optional | `low` / `medium` / `high` / `xhigh` / `max` | Controls token budget allocation |
 | `allowed-tools` | Optional | `Read, Glob, Bash(git:*)` | Restricts tool access for this skill |
-| `disable-model-invocation` | Optional | `true` / `false` | `true` = run tools only, no LLM call |
+| `disable-model-invocation` | Optional | `true` / `false` | `true` = removes LLM call (pure-tool skill); also excludes from proactive triggering |
 | `context` | Optional | `fork` | Spawns an isolated subagent context; no shared conversation history. Use when analysis shouldn't pollute parent context |
-| `agent` | Optional | `Explore`, `Think`, `Code`, role string | Selects subagent persona/capability profile. `Explore` = broad read-only analysis; `Think` = deep reasoning; `Code` = implementation |
-| `model` | Optional | `claude-opus-4`, `claude-sonnet-4-5`, etc. | Overrides the model for this skill's execution |
-| `isolation` | Optional | `worktree` | Creates a git worktree for the run; auto-cleans up when no file changes occur. Use for skills that write to disk to prevent conflicts |
-| `paths` | Optional | List of glob patterns | Auto-activates skill when user opens a matching file. **Requires loop guard in skill body** — see gotcha below |
+| `agent` | Optional | `Explore`, `Plan`, `general-purpose`, role string | Selects subagent persona/capability profile. `Explore` = broad read-only analysis; `Plan` = planning & synthesis; `general-purpose` = default reasoning |
+| `model` | Optional | `opus`, `sonnet`, `haiku`, `fable` (tier aliases; ADR-0005) | Overrides the model for this skill's execution using tier aliases, not pinned IDs |
+| `paths` | Optional | List of glob patterns | Conditional load gate ([ADR-0012](../../../docs/adr/0012-artifact-derived-documentation.md)): the skill is unresolvable by name — to Claude and to a user's slash command alike — until Claude's own Read/Edit/Write tool call touches a matching file this session. Not a save-trigger, no auto-run, **no loop guard needed** — see gotcha below |
 | `hooks` | Optional | `pre:` / `post:` shell commands | Lifecycle hooks run before/after the skill |
 | `shell` | Optional | `bash` / `zsh` / `sh` | Overrides the shell used for Bash tool calls |
 
 ### Dynamic Context Injection
 
-Three mechanisms inject data before Claude reads the skill prompt:
+Two mechanisms inject data before Claude reads the skill prompt (there is no `$CLAUDE_CONTEXT` variable — it does not exist in the harness):
 
 | Syntax | What it does | Example |
 |--------|-------------|---------|
 | `$ARGUMENTS` | Raw args the user passed | `$ARGUMENTS` resolves to `"my-branch --draft"` |
-| `$CLAUDE_CONTEXT` | Active file/selection in the editor | Populated when user has a file open |
 | `!`cmd`` | Runs `cmd` and splices stdout into prompt | `!`git status -s`` → current working tree status |
 
-**Gotcha — `paths:` loop guard:** If your skill writes to a file that matches its own `paths:` pattern, it will re-trigger itself. Always add an entry-point guard:
-```text
-Before running: check LAB_NOTEBOOK.md for an entry from this skill within the last 5 minutes.
-If found → exit immediately (self-triggered re-entry detected).
-```
+**Gotcha — `paths:` is a load gate, not an auto-run trigger.** The skill does not exist in Claude's or the user's invocable skill list until Claude's own Read, Edit, or Write tool call touches a file matching one of the patterns during the session — no filesystem watcher is involved, and a file changed outside Claude's own tool calls (git, another process, an external editor) activates nothing. Once activated it stays available for the rest of the session; it is never re-evaluated and no loop guard is needed — a skill that later writes a file matching its own `paths:` pattern triggers nothing further.
+
+**Gotcha — don't pair `paths:` with `disable-model-invocation: true`.** `disable-model-invocation: true` blocks Claude from ever invoking the skill; `paths:` means the skill doesn't exist to the lookup until Claude itself touches a matching file — which Claude has no reason to go looking for on a skill it's barred from invoking. The combination can leave a nominally user-invocable skill unreachable on a fresh session. If the skill is meant to be run on demand by a human, omit `paths:`. See [ADR-0012](../../../docs/adr/0012-artifact-derived-documentation.md).
 
 **Gotcha — `context: fork`:** The forked subagent has no access to parent conversation history. Pass all needed context explicitly in the prompt body or via `!`cmd`` injection.
 
@@ -321,7 +323,7 @@ See `references/patterns/advanced-features.md` for full syntax and gotchas for e
 
 ---
 
-See `references/new-skill-examples.md` for three worked examples of generated `SKILL.md` output: a basic skill with no modern features, a fork-to-explore skill with dynamic injection, and a paths-activated skill with a loop guard.
+See `references/new-skill-examples.md` for three worked examples of generated `SKILL.md` output: a basic skill with no modern features, a fork-to-explore skill with dynamic injection, and a conditionally-loaded skill using `paths:`.
 
 ---
 

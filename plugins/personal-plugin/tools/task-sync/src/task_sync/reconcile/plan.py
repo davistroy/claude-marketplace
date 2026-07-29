@@ -27,6 +27,7 @@ from task_sync.reconcile.classify import Classification
 from task_sync.reconcile.resolve import (
     Conflict,
     CreateAction,
+    Orphan,
     PullAction,
     PushAction,
     ResolveResult,
@@ -39,9 +40,10 @@ class SyncPlan:
     """The full set of pending sync actions, ready to serialize or apply.
 
     ``skipped_adopts`` carries the issue numbers the adopt window rejected.
-    It is *not* an action — nothing is applied for it — but it is part of the
-    plan because leaving it out makes an otherwise-empty plan claim the repo
-    is already in sync while N issues sit unmirrored.
+    ``orphans`` carries tasks whose linked issue is missing from the fetched
+    list (#181). Both are *not* actions — nothing is applied for them — but
+    are part of the plan because leaving them out makes an otherwise-empty
+    plan claim the repo is already in sync while N issues need human review.
     """
 
     creates: list[CreateAction] = field(default_factory=list)
@@ -49,17 +51,23 @@ class SyncPlan:
     pulls: list[PullAction] = field(default_factory=list)
     conflicts: list[Conflict] = field(default_factory=list)
     skipped_adopts: list[int] = field(default_factory=list)
+    orphans: list[Orphan] = field(default_factory=list)
     confidentiality_findings: list[dict[str, Any]] = field(default_factory=list)
 
     def is_empty(self) -> bool:
         """True when the plan has nothing at all to report.
 
-        Skipped adoptions count even though they are not actions: a plan
-        holding them is *not* "already in sync", and reporting it as such is
-        exactly the silent-data-loss story this field exists to prevent.
+        Skipped adoptions and orphans count even though they are not actions:
+        a plan holding them is *not* "already in sync", and reporting it as
+        such is exactly the silent-data-loss story these fields exist to prevent.
         """
         return not (
-            self.creates or self.pushes or self.pulls or self.conflicts or self.skipped_adopts
+            self.creates
+            or self.pushes
+            or self.pulls
+            or self.conflicts
+            or self.skipped_adopts
+            or self.orphans
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,6 +78,7 @@ class SyncPlan:
             "pulls": [asdict(a) for a in self.pulls],
             "conflicts": [asdict(c) for c in self.conflicts],
             "skipped_adopts": list(self.skipped_adopts),
+            "orphans": [asdict(o) for o in self.orphans],
             "confidentiality_findings": list(self.confidentiality_findings),
         }
 
@@ -99,6 +108,7 @@ def build_plan(
         pulls=resolved.pulls,
         conflicts=resolved.conflicts,
         skipped_adopts=list(resolved.skipped_adopts),
+        orphans=list(resolved.orphans),
         confidentiality_findings=list(confidentiality_findings or []),
     )
 
@@ -115,6 +125,14 @@ def summarize_plan(plan: SyncPlan) -> str:
         lines.append(
             f"  skipped (closed outside adopt window): {len(plan.skipped_adopts)} "
             "— use --adopt-all to mirror them"
+        )
+    if plan.orphans:
+        # Placed directly after skipped adoptions because they share the same
+        # nature: issues that exist but need human review before any action.
+        orphan_ids = ", ".join(f"#{o.issue_number}" for o in plan.orphans)
+        lines.append(
+            f"  orphans (links missing from fetch): {len(plan.orphans)} "
+            f"({orphan_ids}) — decide keep/drop"
         )
     lines.append(f"  conflicts (need decision): {len(plan.conflicts)}")
     lines.append(f"  confidentiality findings:  {len(plan.confidentiality_findings)}")

@@ -25,4 +25,4 @@ MIT — see [LICENSE](LICENSE)
 
 ## Version
 
-4.2.0
+4.3.1

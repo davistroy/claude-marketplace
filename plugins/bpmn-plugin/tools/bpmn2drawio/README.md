@@ -1,7 +1,7 @@
 # bpmn2drawio
 
 [![Test Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](htmlcov/index.html)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Python library and CLI tool for converting BPMN 2.0 XML files to Draw.io diagram format.
@@ -9,7 +9,7 @@ A Python library and CLI tool for converting BPMN 2.0 XML files to Draw.io diagr
 ## Features
 
 - **Full BPMN 2.0 Support**: All element types including events, tasks, gateways, pools, lanes
-- **Automatic Layout**: Graphviz-based layout engine for BPMN files without DI coordinates
+- **Automatic Layout**: Smart default (`auto`) preserves BPMN DI coordinates when complete, falls back to Graphviz layout for partial or missing coordinates
 - **Visual Markers**: Gateway symbols (X, +, O), task icons, event icons
 - **Theming System**: 4 built-in themes with YAML brand configuration support
 - **Swimlanes**: Full pool and lane support with proper hierarchy
@@ -80,7 +80,7 @@ print(f"Converted {result.element_count} elements, {result.flow_count} flows")
 converter = Converter(
     theme="blueprint",
     direction="TB",
-    layout="graphviz"
+    layout="auto"  # default: preserves complete DI, else graphviz
 )
 result = converter.convert("input.bpmn", "output.drawio")
 

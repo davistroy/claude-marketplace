@@ -67,6 +67,8 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D53 | **A bundled skill that needs a Bitwarden secret must `eval "$(grep -m1 '^export BWS_ACCESS_TOKEN=' ~/.config/claude-env.sh)"` before calling `bws`, never trust the inherited env var** — `~/.bashrc:167` loads that file behind `case $- in *i*)`, so a non-interactive tool shell keeps whatever stale token it inherited | 2026-07-29 | ACTIVE | E058 | Treat `400 invalid_client` as a revoked token and rotate — rejected, the token was valid; the shell was loading a retired machine account (`da8557b9…`) while the file held the current one (`f283b1a6…`). Treat it as a region mismatch — rejected by measurement, US *and* EU identity endpoints both rejected the stale token |
 | D54 | **The new plan's scope is "actively wrong or actively multiplying" (16 issues), not "everything open" (24)** — 8 calibration/hygiene issues (#198, #199-sweep, #200, #206, #210, #216, #217, #218) are deferred to a follow-on plan. Ordering within the plan puts silent-corruption and data-loss fixes (Phases 2-4) *ahead* of documentation multipliers | 2026-07-29 | ACTIVE | E060 | All 24 in one plan — rejected: ~60 work items, and it would have deferred #193 (silent layout corruption) and #181 (silent remote clobber) behind doc work. My own first split did exactly that and was corrected before generation. Ship only the 8 P1s — rejected: leaves the generator layer, which propagates six issues' defects into every future skill, untouched |
 | D55 | **#204 (the ADR-0005 CI gate) lands BEFORE #197 (the stale-ID instances), reversing E053's recorded instance-then-class order** — all 13 agent files already comply, so a correctly-scoped gate is green on day one and has no dependency on #197 | 2026-07-29 | ACTIVE | E060 | E053's "guard after instances" order — rejected on evidence: it assumes the gate would fail on existing violations, and there are none. The real hazard runs the other way: if #204's scope creeps to a repo-wide pinned-ID grep it fires on the 8 `claude-sonnet-5` Python defaults that **ADR-0005 line 24 explicitly permits**, reddening `main`'s own push build and deadlocking every subsequent PR until #197 lands |
+| D56 | **`Agent` is the repo's one name for the subagent-dispatch tool in `allowed-tools`; `Task` is retired from every live component** — `Task*` survives only as the distinct `TaskCreate`/`TaskUpdate`/`TaskList`/`TaskOutput` progress-tracking family, which is a different tool and is granted alongside `Agent` where a component tracks sub-agent progress (`implement-plan`'s precedent, now matched by `test-project`) | 2026-07-29 | ACTIVE | E061 | `Task` as the canonical name — rejected: `arch-review` and `implement-plan`, the two components that actually dispatch at scale, already use `Agent`, and `Agent` is the first name in the harness's own identity check. Fix only the 6 files the issue names — rejected: it would leave `Task` in `research-topic` **and in `references/templates/synthesis.md`, a generator template that mints the defect into every skill built from it** — the exact propagation E060 finding 3 is about. Both were pulled in |
+| D57 | **`lab-notebook` and `create-wiki` trade `disable-model-invocation: true` for a Phase-0 confirmation gate** — they may now be model-invoked, but must confirm before creating or modifying any file. The gate is conditional on invocation source (`security-analysis`'s house pattern): it fires only on self-initiative and is skipped when the user types the slash command, and it is scoped per mode (`lab-notebook status` and `create-wiki` maintenance mode are exempt as read-only / already-configured) | 2026-07-29 | ACTIVE | E061 | Keep the flag and strip the trigger prose, as with the other seven (8.2) — rejected: these two have the highest proactive value in the set, and their triggers ("benchmark work starting", "I keep forgetting…") are exactly the ones a user provably cannot self-serve. Drop the flag as a one-line edit — rejected as the dangerous option: both skills *inject binding rules into `CLAUDE.md`*, so without a gate the model could unilaterally change how it behaves for the rest of the project's life. The gate had to land in the same change, which is why 8.3 is one item and not two |
 
 Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#)
 
@@ -78,7 +80,9 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| — | **No open action items** — the canonical backlog is the GitHub issues list (A2/A12). **`IMPLEMENTATION_PLAN.md` (8 phases / 42 items, E060) is now the execution blueprint for 16 of the 24 open issues**; run `/implement-plan` to execute, one branch+PR per phase. Deferred to a follow-on plan (D54): #198, #199 (the 31-component `effort:` sweep; the enum half lands in Phase 5), #200, #206, #210, #216, #217, #218. **#217 must be REWRITTEN before implementation** — 3 of its 4 claims are wrong and `/unlock` is blocked by an unrelated `$TROY` defect. **#183's location table must be corrected** (Phase 1.5) — `prime`/`explain-project` are inert. **Traps:** `gh issue view <n>` silently resolves PR numbers; the installed plugin's active version lags the cache, so run bundled tools from the repo source when a fix matters; `bws secret list` prints plaintext — never use it as an auth probe; and any injection linter must **replay the pre-pass, not grep** (74 textual sites, 14 live). | — | E043 |
+| A21 | **Run the 14 `description-triggers` eval scenarios under Opus 5 and record the results** (#205 stays open for this). Each scenario measures whether a *fresh* session auto-invokes a skill from conversational context, so it cannot be run from a session that just edited those skills — the answer is known in advance and a green result would be contamination, not evidence. Needs one clean session per scenario; human-run per ADR-0009/D32 (CI has zero secrets). **S13/S14 now test the opposite contract from before** (gate-before-write, not never-invoke), so the pre-Phase-8 results are not a valid baseline | 2026-07-29 | E061 |
+| A22 | **`security-analysis`'s conditional-load gate is still a hand-rolled `(y/n)` prose prompt** while the two gates added in 8.3 use `AskUserQuestion`. It was outside 7.5's six consumers so it was correctly not converted, but the inconsistency is real and now documented rather than silent. Convert it, or record why the prose form is deliberate | 2026-07-29 | E061 |
+| — | **No other open action items** — the canonical backlog is the GitHub issues list (A2/A12). **`IMPLEMENTATION_PLAN.md` (8 phases / 42 items, E060) is now the execution blueprint for 16 of the 24 open issues**; run `/implement-plan` to execute, one branch+PR per phase. Deferred to a follow-on plan (D54): #198, #199 (the 31-component `effort:` sweep; the enum half lands in Phase 5), #200, #206, #210, #216, #217, #218. **#217 must be REWRITTEN before implementation** — 3 of its 4 claims are wrong and `/unlock` is blocked by an unrelated `$TROY` defect. **#183's location table must be corrected** (Phase 1.5) — `prime`/`explain-project` are inert. **Traps:** `gh issue view <n>` silently resolves PR numbers; the installed plugin's active version lags the cache, so run bundled tools from the repo source when a fix matters; `bws secret list` prints plaintext — never use it as an auth probe; and any injection linter must **replay the pre-pass, not grep** (74 textual sites, 14 live). | — | E043 |
 
 ### Completed
 
@@ -759,3 +763,158 @@ A non-zero exit does **not** degrade to empty output — the decompiled handler 
 **What worked:** clustering by shared code path rather than by priority label — it let agents catch cross-issue collisions (`ship:30`, `prime:5`, `new-skill.md:293`) that a per-issue investigation would have missed entirely, and it surfaced three unfiled defects. Asking the scoping question *before* dispatching, rather than investigating 27 items and discovering 3 were out of bounds.
 
 **Duration:** ~1 session (Phase 0 → 11-agent fan-out → interaction mapping → design → plan generation).
+
+--- New session: 2026-07-28 — execute the E060 plan via `/implement-plan`: 8 phases / 42 items off `main` `88d8600`. ---
+
+### Entry 061 — Executing the 16-issue correctness backlog (8 phases / 42 items) [plan] [build] [ci]
+
+**Date:** 2026-07-28
+**Environment:** Linux VM, branch `feature/correctness-backlog` off `main` `88d8600` (verified 0/0 divergence from `origin/main` per D17). personal-plugin 11.5.1, marketplace 3.3.0. Orchestrator on Opus 5 (1M).
+**Status:** IN PROGRESS
+
+**Objective:** Execute `IMPLEMENTATION_PLAN.md` (generated in E060) end-to-end with `/implement-plan` in default mode — PR at the end, no auto-merge, no phase pauses. All 42 items across 8 phases start `PENDING`.
+
+**Hypothesis:** The orchestrated loop lands all 42 items with per-phase Definition-of-Done gates green, producing one PR. Measurable success criteria: (a) every item's `**Status:**` reaches `COMPLETE`; (b) each phase's DoD block exits 0 before the phase boundary is crossed; (c) the two gates this plan *creates* — `scripts/check_injections.py` (1.6) and `scripts/check_agent_models.py` (6.1) — each pass a `--self-test` that proves they exit 1 on deliberately-bad input, per the standing negative-test rule; (d) `main` is never red, since all work lands on the feature branch behind one PR.
+
+**Rollback Plan:** Every batch is its own commit on `feature/correctness-backlog`, and `last_good_sha` in `.implement-plan-state.json` tracks the most recent all-gates-green commit. A failed item is never committed — `git checkout -- .` returns the tree to `last_good_sha`. Whole-run abort: `git checkout main && git branch -D feature/correctness-backlog` discards everything; `main` is untouched until the PR merges. `IMPLEMENTATION_PLAN.md` itself is git-tracked, so its Status-field edits revert with the branch.
+
+**Execution shape (from the plan scan).** Critical path is **1 → 5 → 7 → 8**, strictly sequential. Phases 2, 3, 4 share zero files with it and with each other. Per-item model tiers are fully specified (42/42), so dispatch never falls back to the phase default. Phase overrides: 1, 4, 5 on `opus`.
+
+**Two file-overlap hazards the scan caught that `Depends On` alone would have missed** — both would have produced concurrent writes to one file:
+
+| Items | Shared file | Why `Depends On` missed it |
+|---|---|---|
+| 1.2 + 1.3 | `skills/ship/SKILL.md` | Both declare `Depends On: None`; they touch different concerns (git-injection guards vs the `--audit` tool grant) in the same file |
+| 3.2 + 3.3 + 3.4 | `slide-gen/skills/build-cfa-deck/SKILL.md` | 3.4 declares no dependency but lands in the same file as its two predecessors |
+
+Both are forced sequential in `parallelization_map`. Three further cross-phase overlaps are recorded there as ordering constraints (6.1/6.2 vs 1.6 on `validate.yml` + `scripts/pre-commit`; 7.2/8.1 vs 5.1/5.5 on `spark-recon`; 7.5/8.2 vs 2.4 on `visual-explainer`) — these are why the critical path forbids inter-phase parallelism rather than merely discouraging it.
+
+**Note on the Phase 1 and Phase 6 DoD blocks.** Both cite a linter that does not exist yet at phase start (`check_injections.py` is item 1.6's deliverable; `check_agent_models.py` is 6.1's). The gate is therefore only runnable at the *end* of its own phase — a self-referential DoD. Recorded here so a later reader does not mistake an early skip for an unrun check.
+
+**Results — per batch, logged as each lands:**
+
+| Batch | Items | Tier | Commit | Gates | Outcome |
+|---|---|---|---|---|---|
+| 1 | 1.1 | opus | `71a6ad4` | validate ✔ mdlint ✔ pre-commit ✔ | ADR-0011 Accepted. Doctrine re-derived from the shipped harness, not from E059's summary |
+| 2 | 1.2, 1.4, 1.5 | opus, haiku, haiku | `bcc1c52` | validate ✔ mdlint ✔ pre-commit ✔ | 5 ship guards + 3 clear-prep guards live; #183 corrected on GitHub |
+| 3 | 1.3 | haiku | `ca8e6e4` | validate ✔ mdlint ✔ pre-commit ✔ | `ship` grant set derived from the body, not the item title |
+| 4 | 1.6 | sonnet | *(this commit)* | linter ✔ self-test ✔ validate ✔ mdlint ✔ pre-commit ✔ | **Phase 1 COMPLETE (6/6)** — linter live, 63 files / 35 live injections, all guarded and granted |
+
+**Batch 1 finding — E059 undercounted the live forms.** The 1.1 implementer recovered the harness matchers verbatim from 2.1.220 and found a **fifth** live form E059 never enumerated: a `!`-info-string fenced block matched against the **raw** text, so it is never pre-passed at all. That form cannot be found by grep under any pattern, which is the sharpest available justification for ADR-0011's rule that a linter must replay the pre-pass. Item 1.6 inherits it as a required case.
+
+**Batch 1 flag carried forward.** `IMPLEMENTATION_PLAN.md`'s own executive summary contains 2 live inline forms. They sit outside `plugins/`, so 1.1 correctly left them; item **1.6 needs an explicit scope policy for repo-root docs** or its first run reddens on the plan file itself.
+
+**Batch 2 — the dual-owned line, resolved and independently verified.** `ship/SKILL.md:33` is owned by two issues with opposing pulls: #183 needs it exit-0-safe, #190 needs it numeric. The naive fix for #183 — appending a `|| echo "(sentinel)"` guard — would have regressed #190 straight back to a string comparison. The landed form instead makes the pipeline's exit status `awk`'s, which swallows `git`'s 128 and `grep`'s no-match 1 **without** a sentinel, while `print s+0` coerces the empty accumulator to a bare integer:
+
+```sh
+git diff HEAD --shortstat 2>/dev/null | grep -oE '[0-9]+ (insertions?|deletions?)' | awk '{s+=$1} END {print s+0}'
+```
+
+I re-ran this myself rather than accepting the agent's report (E039). In a scratch non-git directory all five guarded commands exit 0 with the sentinel, and the diff-size line exits 0 yielding `0`; in the real repo with 3 files staged it yields `79`, matching `47 insertions + 32 deletions` from the raw shortstat, and `[ "$v" -gt 500 ]` evaluates without error. Both owners satisfied by one expression.
+
+**Latent defect found while repairing the pre-flight gate (unfiled, fixed in passing).** The dead gate was split into a sentinel-based repository check plus a **new empty-remote check** — because a repo with no remote previously fell through to `PLATFORM=gitea`. That is a wrong-platform dispatch on a condition nobody had filed.
+
+**A guard-design detail worth keeping.** The repository check carries an explicit *do not infer this from empty output* instruction, because empty is a legitimate result for several of these commands inside a perfectly valid repo. Sentinel-vs-empty is the distinction that makes the check correct; conflating them would reintroduce a false abort.
+
+**Batch 3 — deriving a grant set beats copying one.** Item 1.3's own title names five tools (`Write`/`mkdir`/`tail`/`awk`/`grep`), but the implementer read the skill body and granted only four: batch 2's rewrite of line 33 had removed the sole `tail` invocation. Granting `tail` would have restated the issue text rather than the artifact — precisely the drift class CLAUDE.md warns about, and a live demonstration that the rule bites on *grants*, not just on tests. Confirmed independently: `tail` appears nowhere in the body, and the item's whole diff is one frontmatter line, leaving batch 2's dual-owned expression byte-identical.
+
+**Batch 4 — the injection linter, and how it was proven rather than asserted.** `scripts/check_injections.py` ports the harness's pre-pass and extractor **verbatim** (including the raw-text `!`-fence form, and a manual preceding-character test standing in for the variable-width lookbehind Python will not compile). Its `--self-test` parses ADR-0011's own LIVE/INERT table **at runtime** to derive its nine expected verdicts, rather than hard-coding a copy — the direct application of the "parametrize from the constant, never a copy of it" rule, and the thing that keeps the fixture set from drifting away from the ADR the way `test_priority_round_trip` drifted from `VALID_PRIORITIES` in E056.
+
+I did not take the green self-test as proof the gate works. I planted a real `SKILL.md` in the actual repo tree carrying an unguarded, ungranted injection; the linter exited **1** naming both violations separately (`unguarded` per F3, `ungranted` per F4), and returned to **0** once removed. A gate that has never been observed failing is indistinguishable from a gate that cannot fail.
+
+**Scope decision (linter): stop at the loader boundary, not the text-match boundary.** Scanning is restricted to `plugins/*/skills/*/SKILL.md` and `plugins/*/commands/*.md`. Repo-root prose — including the 2 live-looking sites in this plan's own executive summary that batch 1 flagged — plus `references/**` and `deprecated/**` are excluded, on the same "never expanded by the loader" reasoning ADR-0011 already applies. The rationale is worth preserving: widening the file glob to catch text that the loader never expands would reproduce the rejected grep-gate failure mode at the *file-selection* layer instead of the regex layer. The flag batch 1 raised is therefore resolved by scope, not by editing the plan file.
+
+**CI wiring honors D28.** The check landed as a step inside the existing `plugin-validate` job, and `scripts/pre-commit` gained a staged-file-gated Check 4 matching Checks 1-3. Verified against `origin/main`: zero new job keys, so no new required status check and no branch-protection coordination needed.
+
+**Two risk rows deliberately left `Open`.** The "new CI job instead of a step deadlocks merges" row is scoped jointly to `1.6, 6.1`; 6.1 has not run, so marking it Mitigated now would misreport it as retired. The `prime` backtick-tidying row is scoped to 7.3. Both stay Open by design — a half-satisfied mitigation marked green is worse than one marked red, because Phase 6 and Phase 7 implementers read these rows as instructions.
+
+**One defect I fixed directly.** The linter shipped with a stale annotation — `cases` declared a 6-tuple while every entry, and its own explanatory comment, was a 7-tuple. Runtime was unaffected (hence a green self-test) and `scripts/` is outside CI's ruff/mypy scope, so nothing would have caught it. Corrected to `tuple[str, str, str, str, str, bool, str | None]`. Noted because it is the *third* thing this session that a passing check did not cover.
+
+**Phase 1 verdict:** 6/6 items COMPLETE. Final linter run: 63 files scanned, 35 live injections, all guarded and granted, exit 0.
+
+---
+
+**Phase 2 — two defects in the PLAN's own Definition of Done, found by running it.**
+
+The DoD is executable text, and executing it is how both surfaced. Neither is a code bug; both would have produced a misleading red or a spurious pass.
+
+1. **`python` does not exist on this VM, and bare `python3` cannot run these suites.** Phase 2's DoD says `PYTHONPATH=src python -m pytest tests/ -q`. There is no `python` binary here, and `python3` lacks `pytest-cov`, so the tool's own `addopts` (`--cov=...`) make it abort with *unrecognized arguments*. Only `.venv/bin/python` works. This is the same trap already recorded from E051; the DoD was written without it. All per-tool DoD commands in the state file were rewritten to `.venv/bin/python`.
+
+2. **The env-var parity check counted 5 where the truth is 15 — and the check, not the plan, was wrong.** My first pass grepped `os.getenv("LITERAL")` in `config.py`, found **5**, and briefly looked like evidence that the plan's "15-variable table" was inflated. It was not. `config.py` reads most variables through `env_str` / `env_int` / `env_float` wrappers, so the name literal is the *helper's* argument and `os.getenv`'s argument is the opaque parameter `key`. Counting properly gives **13** `VISUAL_EXPLAINER_*` in `config.py` plus `ANTHROPIC_API_KEY` and `GOOGLE_API_KEY` read elsewhere = **15**, exactly as filed.
+
+   This is worth keeping as a near-miss. Had I trusted the naive grep, the "fix" would have been to shrink a correct 15-row table to 5 rows and delete 10 real, user-settable variables from the docs — a documentation regression dressed as a correctness fix, and precisely the failure mode E060 flagged for **#202** ("the issue as filed would delete working features"). The generalizable rule: **an indirection between the accessor and the name literal makes any accessor-shaped grep undercount.** Before concluding a documented set is inflated, check whether the reader is a wrapper.
+
+   The corrected parity command now matches on the *name literal* rather than the accessor, and carries a comment recording why the obvious form is wrong.
+
+---
+
+**Phase 7 — a terminal crash mid-item, and what the recovered state did and did not tell me.**
+
+The session died during Phase 7 with nothing committed past `d4cdc3e` (Phase 6 close-out). Recovery came from three sources that agreed only partially, and the disagreement is the useful part:
+
+| Source | Said | True? |
+|--------|------|-------|
+| `.implement-plan-state.json` | `current_item: 7.1`, 32 items complete, Phase 7 contributed **nothing** | Half — the pointer was right, the completion list was stale |
+| `IMPLEMENTATION_PLAN.md` (uncommitted) | 7.1 `IN_PROGRESS`, **7.2 and 7.4 `COMPLETE`** | Yes |
+| `git status` | 4 modified files, matching exactly 7.2 + 7.4 + the plan | Yes |
+
+**The state file lags the plan file, because it is written at the batch-commit boundary and the plan file is written by each item.** Everything Phase 7 had actually produced was invisible to the resume pointer. Recovering from `current_item` alone would have re-run 7.2 and 7.4 over their own output. The generalizable rule: **on resume, reconcile the state file against the plan file and the working tree — treat the state file as the *oldest* of the three, never the authority.** `last_good_sha` remains trustworthy precisely because it is a commit.
+
+**The crash was not the expensive part — a false green in the uncommitted work was.** 7.4 (convert the two shared AskUserQuestion upstreams) had ticked its acceptance criterion *"No hand-rolled option menu remains in either shared upstream"* and recorded in its own completion notes that "no hand-rolled `Your choice (A/B/C/D/E)` prompts remain in either file". A single grep falsified both: `clarification-patterns.md:27` still carried one. It converted the 22 **question** blocks and left the file's two **normative** blocks:
+
+1. `Question Format Template` (`:7-28`) — the block every generated question is told to imitate, and which is *duplicated* into `bpmn-generator/SKILL.md:106-123`. Converting 22 instances while leaving the template that mints instance 23 is the generator-layer failure mode this whole plan exists to fix (E060 finding 3), reproduced inside a fix for it.
+2. `Auto-Accept Mode Behavior` — trigger still read "when user selects **E)**", action still read "automatically select option A". Both are dangling references to letters no question emits any more, so the feature was documented as reachable via a control that no longer exists.
+
+This is a third instance of the standing rule that **a check restating the thing it checks will agree with the bug** — the "verification" line was prose the same agent wrote about work the same agent had just done, never a command. Structural difference from E056/E057: there the check was code that ran and was wrong; here the check was *narrative* and never ran at all. Narrative verification is not weaker evidence than a bad test — it is not evidence.
+
+**Auto-accept preserved, not dropped.** The obvious reading of "the native Skip button and free-text box absorb every `[D] Custom` / `[S] Skip` slot" (plan, 7.4) is that `D` and `E` both vanish. `D` (provide your own) is genuinely absorbed by the free-text `Other` box; **`E` (accept recommended for all remaining) has no native equivalent** and deleting it silently would have been a capability regression — #202's exact failure mode. It is now reached by typing accept-all intent into the `Other` box, which the harness supplies on *every* question and therefore matches the old per-question availability at zero option-slot cost. Alt considered and rejected: a 4th option on Q1 only — it mixes a session-level meta-command into a content question and is unreachable after Q1.
+
+**Re-verification after the fix (commands, not prose):** `grep -rn "Your choice\|option A\b\|\*\*E)\|\*\*D)"` across both upstreams → 0 hits; 22/22 JSON blocks parse, every question 3–4 options, every `header` ≤12 chars; `python3 scripts/check_injections.py` → exit 0 (63 files, 35 live injections); `markdownlint-cli2` → 0 issues; `claude plugin validate --strict` → passed for all three plugins. 7.1 reset `IN_PROGRESS` → `PENDING`: it had produced no edits before the crash.
+
+---
+
+**Phases 7 and 8 — three findings, each of which changed the shape of the fix.**
+
+**1. Two items' declared scope was smaller than the defect.** 7.1 named 6 components carrying `Task` in `allowed-tools`; a repo-wide grep found **8**. The two extras were `research-topic` (dispatches one `context: fork` subagent per provider) and **`references/templates/synthesis.md` — a generator template**. Fixing only the named 6 would have retired `Task` from the instances while leaving the mould that stamps out new ones, which is E060 finding 3 verbatim. Same shape in 7.3: `prime`'s "pre-loaded via dynamic context injection" claim was filed as one line (`:59`) and was actually in **three** (`:26`, `:59`, `:66`). **Generalizable: verify a filed count against the tree before treating it as scope. An issue's line reference is where the reporter noticed the defect, not where it ends.**
+
+**2. The Phase 1 injection gate fired on real, unplanted work — mine.** Drafting 7.3's explanation of why `prime`'s injections must stay inert, I described the live form by *showing* it. Showing it made it live: a `` `` !`cmd` `` `` span inside a skill body, calling a nonexistent `cmd`, which per ADR-0011 F3 aborts skill load on a non-zero exit. `check_injections.py` exited 1 naming both violations (`unguarded`, `ungranted`) at `:59`. Rewritten to *name* the form in prose rather than render it.
+
+This is the strongest possible evidence for the gate, and it is worth being precise about why: the author of the doctrine, editing the file the doctrine is about, with the inverted-escaping rule in working memory, still wrote the trap. The rule is not hard to understand — it is hard to *apply while writing prose about it*, because prose about syntax naturally wants to display the syntax. **Any documentation of an injection form must name it, never render it.**
+
+**3. A `: ` in an unquoted YAML description silently deletes the whole frontmatter.** 8.1's first `spark-recon` rewrite read `Report-and-recommend only: reads external sources…`. In YAML a colon-space inside a plain scalar is a mapping indicator, so the frontmatter did not parse. The failure mode is the dangerous one: not a crash, but **silent metadata loss** — `name`, `allowed-tools`, and `disable-model-invocation` all dropped at load time. On this specific file that means a **D40-protected skill quietly loses its protection flag** while continuing to load and run.
+
+`claude plugin validate --strict` caught it and reported it precisely ("At runtime this skill loads with empty metadata (all frontmatter fields silently dropped)"). Nothing else in the toolchain would have: markdownlint passed, the injection linter passed, and the file reads correctly to a human. Swept all 63 SKILL.md/command files with `yaml.safe_load` afterward — 0 other instances, so this was self-inflicted and is now closed. **The em dash is the safe punctuation for these descriptions; the house style already used it everywhere, which is why the corpus was clean.**
+
+**What worked.** Three gates built earlier in this same plan each caught something real in the phases that followed: `check_injections.py` (built in 1.6) caught finding 2; `claude plugin validate --strict` caught finding 3; `check_eval_mapping.py` stayed green across every eval edit in 8.3/8.4, confirming the structural contract held while the semantic content was rewritten underneath it. The negative-test discipline from E043 is what makes those green results mean anything.
+
+**One task is deliberately not done.** 8.4 task 3 — run the 14 `description-triggers` scenarios under Opus 5 — is deferred to A21, and #205 stays open for it. Each scenario measures whether a *fresh* session auto-invokes a skill given conversational context; run from the session that just rewrote those skills, the outcome is known in advance and a pass would be an artifact of contamination rather than evidence. Marking it green would have been the cheapest possible lie and would have retired the one open question about whether Phase 8's contract actually holds in practice. It needs one clean session per scenario, human-run per ADR-0009/D32.
+
+---
+
+**Ultrareview on PR #222 — 5 findings, 5 confirmed, 0 false positives.**
+
+Every finding was independently verified against the tree before any fix. None was rejected, which is itself the notable result: this is the first review pass on this branch where the *reviewer* was not the author, and it found two live defects that four phases of self-verification had certified green.
+
+| # | Sev | Finding | Verdict |
+|---|-----|---------|---------|
+| bug_001 | normal | `_load_decisions` called twice on one file; a wrapped conflicts-only file returns the OUTER dict for `key="orphan_decisions"` | **Confirmed** — aborts `sync --apply` |
+| bug_003 | normal | `verification-post-edit-hook.md` matcher/target mismatch; payload structurally unreachable | **Confirmed** — plus 3 stale prose lines |
+| merged_bug_004 | nit | 4 generator-layer sites missed by the Phase 5/7 sweeps | **Confirmed** — all sites |
+| bug_009 | nit | `cli.py --layout` help says "when present"; resolver gates on *complete* DI | **Confirmed** |
+| bug_011 | pre-existing | `create-wiki` maintenance mode branches on a `paths:` the frontmatter never declared | **Confirmed** — 0 `paths:` keys in file |
+
+**bug_001 is the one that mattered, and its shape is instructive.** `_load_decisions(path, key=...)` falls through to returning the whole top-level dict when `key` is absent — correct in the single-key world (an absent `"decisions"` key legitimately meant "this file is flat"). Phase 4 added a *second* call on the *same file* with `key="orphan_decisions"`, and the fallthrough silently changed meaning: for a wrapped conflicts-only file it hands `{"decisions": "{'t-1': 'local'}"}` to `_validate_orphan_decisions`, which is fail-loud by design (D36) and raises on the unrecognized id `'decisions'`. `sync --apply` then aborts with `orphan decision for unknown task 'decisions'` — an error message that names the wrong thing entirely.
+
+Two of the three decisions-file shapes `sync-semantics.md` documents were broken: the backward-compat wrapped conflicts-only form, and the flat mixed form the same PR advertises at `:158-160`. Only the fully-wrapped both-keys form worked. **Fail-safe, not fail-dangerous** — it aborts before any mutation, so no data was at risk.
+
+**Why 96% coverage did not catch it.** `test_load_decisions_variants` exercises the loader in isolation with **one key per file**; the apply-level orphan tests construct `orphan_decisions` dicts directly and hand them to `apply()`. Neither reproduces the CLI's *double call on a single file*. The defect lives entirely in the interaction between two call sites, and no unit test of either site can see it. This is the E049 lesson again in a new costume: **"both units tested" is not "the call sequence tested."** Coverage measured lines; the bug was in an ordering.
+
+**The fix, and why the flat form needed more than a loader patch.** The loader now treats a file as *wrapped* if it carries **any** section key, in which case a missing section yields `{}`. That alone fixes the wrapped case but not the flat one: a flat mixed object still hands conflict ids to orphan validation. So `_split_flat_decisions` partitions a flat map by plan membership — and routes ids in **neither** set into the *orphan* map on purpose, because that is the only fail-loud consumer. Silently dropping an unrecognized id would convert a user's typo into a decision they believe they made. D36's fail-loud property is preserved exactly, and the flat form works.
+
+**Negative-tested before trusting it** (E043 rule): reverted the loader to its old behavior and confirmed the new regression test goes red with `assert {'decisions': "{'t-1': 'local'}"} == {}` — the exact corruption predicted — then restored and confirmed green. 480 tests pass, coverage 96.30%.
+
+**bug_003 is a false green in item 3.1's own acceptance criterion.** That criterion reads "WHEN a recipe is copied into `.claude/settings.json` THEN the hook SHALL register and fire". The recipe registers and validates — and never fires its payload. 3.1 copied the working `hooks.json` pattern (`matcher: "Bash"` + `jq` on `.tool_input.command`) but kept the old semantic of grepping a *tool name*, producing `matcher: "Bash"` + a test for `"Edit"` that can never be true. It also silently changed the event from `PostToolUse` to `PreToolUse`, which is wrong for a recipe whose entire purpose is *post*-edit verification, while three prose sections still described the old behavior — including a Customization tip pointing at `$CLAUDE_FILE_PATH`, the exact non-existent variable 3.1 was fixing.
+
+Rewritten as `PostToolUse` + `matcher: "Edit|Write"`, letting the matcher do the filtering so no tool-name check is needed at all. The generalizable rule, now stated in the recipe itself: **a hook's matcher must name the tool whose fields the body inspects.** The working `hooks.json` is correct precisely because `.tool_input.command` belongs to the `Bash` tool it matched.
+
+**What this says about the plan's self-verification.** Every phase verified its own work and every phase's gates were green. Three of these five findings are in files a phase explicitly edited, and two are inside acceptance criteria a phase marked satisfied. The gates were not wrong — they were checking structure (JSON parses, frontmatter validates, injections are guarded), and all five defects are *semantic*. **A green structural gate is evidence about structure and nothing else**; on a branch that is mostly behavior-surfaces, that leaves most of the surface unverified. An independent reader was the only thing that could have found these.
