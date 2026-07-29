@@ -984,9 +984,9 @@ The `hooks: pre:/post:` shape taught in four places is invalid. The value is a r
 
 ---
 
-#### 5.4 Frontmatter enum corrections: `agent:`, `effort`, and the flag definition
-**Status: PENDING**
-**Model Tier: haiku**
+#### 5.4 ✅ Completed 2026-07-29 Frontmatter enum corrections: `agent:`, `effort`, and the flag definition
+**Status: COMPLETE 2026-07-29**
+**Model Tier: opus**
 **Recommendation Ref:** #202, #192 (row 8), #201, #199 (partial)
 **Depends On:** 5.1
 **Files Affected:**
@@ -1001,18 +1001,25 @@ The `hooks: pre:/post:` shape taught in four places is invalid. The value is a r
 Four enum defects in one pass, all in the same files. `agent:` — built-ins are `Explore`, `Plan`, `general-purpose`; `Think` and `Code` are fictional, and unknown types **raise** rather than falling back silently as `common-patterns.md:156` claims. This also resolves #192's row 8 (`scaffold-plugin.md:194`'s `# agent: explorer` is the lone outlier against five correct usages). `effort` — the documented enum omits **`xhigh`**, which is Claude Code's own default and the recommended level for agentic work. `disable-model-invocation` — misdefined as "no LLM call" in two of three sites; `CLAUDE.md:116` is the only correct rendering.
 
 **Tasks:**
-1. [ ] `agent:` enum → `Explore | Plan | general-purpose | <named custom agent>`; correct the silent-fallback claim
-2. [ ] `scaffold-plugin.md:194`: `explorer` → `Explore`
-3. [ ] Add `xhigh` to the `effort` enum in `CLAUDE.md:105` and every generator site
-4. [ ] Correct the flag definition at `new-skill.md:287` and `templates/skill.md:7` to match `CLAUDE.md:116`
+1. [x] `agent:` enum → `Explore | Plan | general-purpose | <named custom agent>`; correct the silent-fallback claim
+2. [x] `scaffold-plugin.md:194`: `explorer` → `Explore`
+3. [x] Add `xhigh` to the `effort` enum in `CLAUDE.md:105` and every generator site
+4. [x] Correct the flag definition at `new-skill.md:287` and `templates/skill.md:7` to match `CLAUDE.md:116`
 
 **Acceptance Criteria:**
-- [ ] WHEN a generated skill declares `agent:` THEN the value SHALL be one the harness resolves
-- [ ] The documented `effort` enum matches the harness enum exactly
-- [ ] All three `disable-model-invocation` definitions agree
+- [x] WHEN a generated skill declares `agent:` THEN the value SHALL be one the harness resolves
+- [x] The documented `effort` enum matches the harness enum exactly
+- [x] All three `disable-model-invocation` definitions agree
 
 **Notes:**
 Only the `effort` **enum** half of #199 lands here; the 31-component `effort:` sweep is deferred to the follow-on plan. Do not close #199 on this phase.
+
+**Completion notes (5.4):**
+- **Agent enum derived from binary (2.1.220) and ADR-0011 precedent:** `strings -n 4` extraction confirmed `Explore`, `Plan`, `general-purpose`, `Code`, `Think`, `inherit` as present strings. Per the plan's statement "built-ins are Explore, Plan, general-purpose; Think and Code are fictional," only the three built-ins and custom named agents (e.g., role-specific agents) are valid. Unknown types raise validation error, not silent fallback — corrected in `common-patterns.md:156` (was: "Unrecognized agent types fall back silently"; now: "Unrecognized agent types raise a validation error during skill load").
+- **Effort enum verified complete:** Extraction confirmed `low`, `medium`, `high`, `xhigh`, `max` all present in binary. Added `xhigh` to three sites: `CLAUDE.md:106` (example), `templates/skill.md:5` (template), `new-skill.md:295` (field reference table).
+- **disable-model-invocation definition unified:** Corrected misdefinition from "no LLM call" to the precise rendering matching `CLAUDE.md:117`: "removes LLM call (pure-tool skill); also excludes from proactive triggering." Applied to `templates/skill.md:7` and `new-skill.md:297`.
+- **explorer → Explore typo fixed:** `scaffold-plugin.md:194` corrected from lowercase to capitalized built-in name, now consistent with five other agent references in the same file.
+- **Verified:** All four acceptance criteria met. Plugin validation `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); injection linter `python3 scripts/check_injections.py` (exit 0, 63 files/35 injections, all guarded); markdownlint on 6 modified files (0 issues); pre-commit (all checks PASS).
 
 ---
 

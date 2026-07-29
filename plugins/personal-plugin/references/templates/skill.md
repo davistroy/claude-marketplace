@@ -2,13 +2,13 @@
 name: {{SKILL_NAME}}
 description: {{DESCRIPTION}}
 # argument-hint: "<required-arg> [--optional-flag]"
-# effort: medium                    # low | medium | high | max
+# effort: medium                    # low | medium | high | xhigh | max
 # allowed-tools: {{ALLOWED_TOOLS}}  # e.g., Read, Glob, Grep, Bash, Task
-# disable-model-invocation: false   # true = no LLM call; pure-tool skill
+# disable-model-invocation: false   # true = removes LLM call; pure-tool skill (also excludes from proactive triggering)
 #
 # --- Modern Dispatch ---
 # context: fork          # spawn isolated subagent context (no shared conversation history)
-# agent: Explore         # subagent type: Explore | Think | Code | (role-specific strings)
+# agent: Explore         # subagent type: Explore | Plan | general-purpose | (role-specific strings)
 # model: claude-opus-4   # override model for this skill; omit = inherits caller model
 #
 # --- Auto-Activation ---

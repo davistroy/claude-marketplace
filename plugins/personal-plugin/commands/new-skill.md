@@ -292,11 +292,11 @@ All fields supported by Claude Code as of late 2025. Fields marked **Required** 
 | `name` | **Required** | `kebab-case` string | Identifies the skill; must match directory name |
 | `description` | **Required** | Free text ≤ 150 chars | Shown in `/skills` list; used for proactive triggering |
 | `argument-hint` | Optional | `"<req> [opt]"` | Displayed in completions UI |
-| `effort` | Optional | `low` / `medium` / `high` / `max` | Controls token budget allocation |
+| `effort` | Optional | `low` / `medium` / `high` / `xhigh` / `max` | Controls token budget allocation |
 | `allowed-tools` | Optional | `Read, Glob, Bash(git:*)` | Restricts tool access for this skill |
-| `disable-model-invocation` | Optional | `true` / `false` | `true` = run tools only, no LLM call |
+| `disable-model-invocation` | Optional | `true` / `false` | `true` = removes LLM call (pure-tool skill); also excludes from proactive triggering |
 | `context` | Optional | `fork` | Spawns an isolated subagent context; no shared conversation history. Use when analysis shouldn't pollute parent context |
-| `agent` | Optional | `Explore`, `Think`, `Code`, role string | Selects subagent persona/capability profile. `Explore` = broad read-only analysis; `Think` = deep reasoning; `Code` = implementation |
+| `agent` | Optional | `Explore`, `Plan`, `general-purpose`, role string | Selects subagent persona/capability profile. `Explore` = broad read-only analysis; `Plan` = planning & synthesis; `general-purpose` = default reasoning |
 | `model` | Optional | `claude-opus-4`, `claude-sonnet-4-5`, etc. | Overrides the model for this skill's execution |
 | `paths` | Optional | List of glob patterns | Conditional load gate ([ADR-0012](../../../docs/adr/0012-artifact-derived-documentation.md)): the skill is unresolvable by name — to Claude and to a user's slash command alike — until Claude's own Read/Edit/Write tool call touches a matching file this session. Not a save-trigger, no auto-run, **no loop guard needed** — see gotcha below |
 | `hooks` | Optional | `pre:` / `post:` shell commands | Lifecycle hooks run before/after the skill |

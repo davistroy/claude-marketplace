@@ -26,7 +26,7 @@ context: fork
 
 **Syntax:**
 ```yaml
-agent: Explore        # or: Think | Code | solutions-architect | etc.
+agent: Explore        # or: Plan | general-purpose | solutions-architect | etc.
 ```
 
 **What it does:** Selects the subagent capability profile. Only meaningful with `context: fork`.
@@ -34,13 +34,13 @@ agent: Explore        # or: Think | Code | solutions-architect | etc.
 | Value | Profile | Best for |
 |-------|---------|---------|
 | `Explore` | Broad read-only analysis | Codebase surveys, architecture review, recon |
-| `Think` | Deep reasoning, extended thinking | Trade-off analysis, design decisions |
-| `Code` | Implementation focus | Writing/editing code, refactoring |
+| `Plan` | Structured planning & synthesis | Architecture, design, multi-step reasoning |
+| `general-purpose` | Default reasoning | General-purpose tasks, fallback option |
 | Role strings | Domain-specific (e.g., `security-architect`) | Specialized review roles |
 
-**When to use:** Match the agent to the phase. Analysis phases → `Explore`. Generation phases → `Code`. Decision phases → `Think`.
+**When to use:** Match the agent to the phase. Analysis phases → `Explore`. Planning phases → `Plan`. General tasks → `general-purpose` or a custom role.
 
-**Gotcha:** `agent:` without `context: fork` is a no-op.
+**Gotcha:** `agent:` without `context: fork` is a no-op. Unknown agent types raise a validation error — use a built-in type or define a custom agent file.
 
 ---
 

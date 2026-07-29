@@ -191,7 +191,7 @@ allowed-tools: Read, Glob, Grep, Bash
 # context: fork            # Dispatch to isolated subagent context
 # isolation: worktree      # Give subagent its own git worktree
 # paths: ["**/*.ts"]       # Auto-trigger on file changes (add loop guard in body!)
-# agent: explorer          # Agent type for context:fork dispatch
+# agent: Explore           # Agent type for context:fork dispatch
 # when_to_use: "..."       # Routing hint shown in /skills list
 ---
 ```

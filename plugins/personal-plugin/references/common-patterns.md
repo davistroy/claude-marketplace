@@ -153,7 +153,7 @@ agent: Explore          # or: software-engineer, solutions-architect, data-archi
 
 **Gotchas:**
 - `Explore` is the generic read-only agent; use named roles when domain framing matters.
-- Unrecognized agent types fall back silently — verify the type string matches Claude Code's supported list.
+- Unrecognized agent types raise a validation error during skill load — verify the type string is one of `Explore | Plan | general-purpose` or a custom named agent file. See ADR-0005 for custom agent dispatch.
 
 ---
 

@@ -103,7 +103,7 @@ plugins/
 name: ship                    # REQUIRED: Must match directory name
 description: Brief description
 argument-hint: "<branch-name> [draft]"
-effort: high                  # low/medium/high/max
+effort: high                  # low | medium | high | xhigh | max
 disable-model-invocation: true
 allowed-tools: Bash(git:*)
 ---
