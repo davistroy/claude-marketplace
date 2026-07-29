@@ -759,3 +759,32 @@ A non-zero exit does **not** degrade to empty output — the decompiled handler 
 **What worked:** clustering by shared code path rather than by priority label — it let agents catch cross-issue collisions (`ship:30`, `prime:5`, `new-skill.md:293`) that a per-issue investigation would have missed entirely, and it surfaced three unfiled defects. Asking the scoping question *before* dispatching, rather than investigating 27 items and discovering 3 were out of bounds.
 
 **Duration:** ~1 session (Phase 0 → 11-agent fan-out → interaction mapping → design → plan generation).
+
+--- New session: 2026-07-28 — execute the E060 plan via `/implement-plan`: 8 phases / 42 items off `main` `88d8600`. ---
+
+### Entry 061 — Executing the 16-issue correctness backlog (8 phases / 42 items) [plan] [build] [ci]
+
+**Date:** 2026-07-28
+**Environment:** Linux VM, branch `feature/correctness-backlog` off `main` `88d8600` (verified 0/0 divergence from `origin/main` per D17). personal-plugin 11.5.1, marketplace 3.3.0. Orchestrator on Opus 5 (1M).
+**Status:** IN PROGRESS
+
+**Objective:** Execute `IMPLEMENTATION_PLAN.md` (generated in E060) end-to-end with `/implement-plan` in default mode — PR at the end, no auto-merge, no phase pauses. All 42 items across 8 phases start `PENDING`.
+
+**Hypothesis:** The orchestrated loop lands all 42 items with per-phase Definition-of-Done gates green, producing one PR. Measurable success criteria: (a) every item's `**Status:**` reaches `COMPLETE`; (b) each phase's DoD block exits 0 before the phase boundary is crossed; (c) the two gates this plan *creates* — `scripts/check_injections.py` (1.6) and `scripts/check_agent_models.py` (6.1) — each pass a `--self-test` that proves they exit 1 on deliberately-bad input, per the standing negative-test rule; (d) `main` is never red, since all work lands on the feature branch behind one PR.
+
+**Rollback Plan:** Every batch is its own commit on `feature/correctness-backlog`, and `last_good_sha` in `.implement-plan-state.json` tracks the most recent all-gates-green commit. A failed item is never committed — `git checkout -- .` returns the tree to `last_good_sha`. Whole-run abort: `git checkout main && git branch -D feature/correctness-backlog` discards everything; `main` is untouched until the PR merges. `IMPLEMENTATION_PLAN.md` itself is git-tracked, so its Status-field edits revert with the branch.
+
+**Execution shape (from the plan scan).** Critical path is **1 → 5 → 7 → 8**, strictly sequential. Phases 2, 3, 4 share zero files with it and with each other. Per-item model tiers are fully specified (42/42), so dispatch never falls back to the phase default. Phase overrides: 1, 4, 5 on `opus`.
+
+**Two file-overlap hazards the scan caught that `Depends On` alone would have missed** — both would have produced concurrent writes to one file:
+
+| Items | Shared file | Why `Depends On` missed it |
+|---|---|---|
+| 1.2 + 1.3 | `skills/ship/SKILL.md` | Both declare `Depends On: None`; they touch different concerns (git-injection guards vs the `--audit` tool grant) in the same file |
+| 3.2 + 3.3 + 3.4 | `slide-gen/skills/build-cfa-deck/SKILL.md` | 3.4 declares no dependency but lands in the same file as its two predecessors |
+
+Both are forced sequential in `parallelization_map`. Three further cross-phase overlaps are recorded there as ordering constraints (6.1/6.2 vs 1.6 on `validate.yml` + `scripts/pre-commit`; 7.2/8.1 vs 5.1/5.5 on `spark-recon`; 7.5/8.2 vs 2.4 on `visual-explainer`) — these are why the critical path forbids inter-phase parallelism rather than merely discouraging it.
+
+**Note on the Phase 1 and Phase 6 DoD blocks.** Both cite a linter that does not exist yet at phase start (`check_injections.py` is item 1.6's deliverable; `check_agent_models.py` is 6.1's). The gate is therefore only runnable at the *end* of its own phase — a self-referential DoD. Recorded here so a later reader does not mistake an early skip for an unrun check.
+
+**Results:** *(logged per batch below as the loop proceeds)*
