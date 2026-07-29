@@ -157,9 +157,7 @@ def _should_prune(task: Task, now: datetime, threshold_days: int) -> bool:
     return now - closed > timedelta(days=threshold_days)
 
 
-def _validate_orphan_decisions(
-    plan: SyncPlan, orphan_decisions: dict[str, str]
-) -> None:
+def _validate_orphan_decisions(plan: SyncPlan, orphan_decisions: dict[str, str]) -> None:
     """Validate all orphan decision ids and dispositions upfront (D36).
 
     Raises ``ValueError`` naming the offending id or disposition if any
@@ -180,9 +178,7 @@ def _validate_orphan_decisions(
             )
 
 
-def _apply_orphan_decision(
-    orphan_task: Task, decision: str | None
-) -> bool:
+def _apply_orphan_decision(orphan_task: Task, decision: str | None) -> bool:
     """Apply an orphan decision and return True if the task was removed.
 
     ``keep`` clears issue_number and last_synced so the next run re-creates

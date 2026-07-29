@@ -154,9 +154,7 @@ def classify(tasklist: TaskList, issues: list[Issue]) -> list[Classification]:
             # which sub-case this is, for surfacing only. classify() does not
             # mutate `task` -- `task.issue_number` is left as-is.
             local = _local_changed(task)
-            results.append(
-                Classification(ClassKind.ORPHAN_LOCAL, task, None, local_changed=local)
-            )
+            results.append(Classification(ClassKind.ORPHAN_LOCAL, task, None, local_changed=local))
             continue
 
         matched_numbers.add(issue.number)

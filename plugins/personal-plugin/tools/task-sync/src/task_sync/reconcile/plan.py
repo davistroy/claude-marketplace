@@ -62,8 +62,12 @@ class SyncPlan:
         such is exactly the silent-data-loss story these fields exist to prevent.
         """
         return not (
-            self.creates or self.pushes or self.pulls or self.conflicts
-            or self.skipped_adopts or self.orphans
+            self.creates
+            or self.pushes
+            or self.pulls
+            or self.conflicts
+            or self.skipped_adopts
+            or self.orphans
         )
 
     def to_dict(self) -> dict[str, Any]:

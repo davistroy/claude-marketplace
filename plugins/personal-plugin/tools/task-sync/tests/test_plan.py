@@ -135,10 +135,7 @@ def test_summarize_plan_names_orphan_issue_numbers() -> None:
 
 
 def test_summarize_plan_with_multiple_orphans_shows_count() -> None:
-    orphans = [
-        Orphan(task_id=f"t-{i}", issue_number=40 + i, local_changed=True)
-        for i in range(3)
-    ]
+    orphans = [Orphan(task_id=f"t-{i}", issue_number=40 + i, local_changed=True) for i in range(3)]
     plan = SyncPlan(orphans=orphans)
     summary = summarize_plan(plan)
     assert "3" in summary
@@ -220,9 +217,7 @@ def test_is_empty_checks_all_fields(field_name: str) -> None:
     # Set only this field; all others are empty
     plan_kwargs = {k: (v if k == field_name else []) for k, v in all_fields.items()}
     plan = SyncPlan(**plan_kwargs)  # type: ignore[arg-type]
-    assert (
-        plan.is_empty() is False
-    ), f"Plan with only {field_name} should not be empty"
+    assert plan.is_empty() is False, f"Plan with only {field_name} should not be empty"
 
 
 # -- consistent SKILL parsing of all plan sections ----------
