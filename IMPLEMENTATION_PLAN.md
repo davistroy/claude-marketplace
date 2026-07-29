@@ -201,11 +201,13 @@ Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'
 **#183's table is 50% wrong by site.** `prime` (7) and `explain-project` (2) are **inert** and must be removed; `commands/new-skill.md` must be added (fixed in 11.5.1); `leak-risk-audit` must be recharacterized from "non-git" to "every directory" (also fixed in 11.5.1). The mechanism half of the issue is verified correct and stands.
 
 **Tasks:**
-1. [ ] Post a correcting comment on #183 with the replay-verified live/inert table
-2. [ ] Note that `references/**` and `deprecated/**` sites are never expanded
+1. [x] Post a correcting comment on #183 with the replay-verified live/inert table
+2. [x] Note that `references/**` and `deprecated/**` sites are never expanded
 
 **Acceptance Criteria:**
-- [ ] #183's scope reflects the 14 live sites in executable surfaces, not the 74 textual matches
+- [x] #183's scope reflects the 14 live sites in executable surfaces, not the 74 textual matches
+
+**Completion notes (1.5):** Comment posted 2026-07-29T01:00:20Z — [issues/183#issuecomment-5111509718](https://github.com/davistroy/claude-marketplace/issues/183#issuecomment-5111509718). Carries the corrected six-row LIVE/INERT table (`prime` and `explain-project` recharacterized as inert; `commands/new-skill.md` added; `leak-risk-audit` recharacterized to "every directory"), states the 14-live-site scope against 74 textual matches, and records the `references/**` / `deprecated/**` never-expanded exclusion. Verified via the GitHub API, not from the agent's report.
 
 ---
 
@@ -250,17 +252,17 @@ This is the E043 rule applied to itself: the guard must be shown to fail against
 
 ### Phase 1 Testing Requirements
 
-- [ ] Extractor replay reports the expected live counts per file before and after
-- [ ] Every `ship`/`clear-prep` injection exits 0 in a scratch non-git directory
-- [ ] The diff-size gate returns a number on a >500-line staged change
-- [ ] Linter negative-tested in both directions
+- [x] Extractor replay reports the expected live counts per file before and after
+- [x] Every `ship`/`clear-prep` injection exits 0 in a scratch non-git directory
+- [x] The diff-size gate returns a number on a >500-line staged change
+- [x] Linter negative-tested in both directions
 
 ### Phase 1 Completion Checklist
 
-- [ ] All work items complete
-- [ ] ADR-0011 Accepted and cross-linked
-- [ ] markdownlint clean on every touched file
-- [ ] No regressions to `prime`, `explain-project`, or the 24 correctly-guarded slide-gen injections
+- [x] All work items complete
+- [x] ADR-0011 Accepted and cross-linked
+- [x] markdownlint clean on every touched file
+- [x] No regressions to `prime`, `explain-project`, or the 24 correctly-guarded slide-gen injections
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
