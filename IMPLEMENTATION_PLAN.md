@@ -702,8 +702,8 @@ Additive key in `to_dict()`, a summary line, and inclusion in `is_empty()`. Omit
 
 ---
 
-#### 4.3 Orphan decisions: keep or drop, validated up front
-**Status: PENDING**
+#### 4.3 Orphan decisions: keep or drop, validated up front ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #181
 **Depends On:** 4.2
@@ -717,14 +717,24 @@ Additive key in `to_dict()`, a summary line, and inclusion in `is_empty()`. Omit
 Orphan ids and conflict ids are disjoint by construction (a conflict requires `issue is not None`), so the existing flat decisions map can carry both. `keep` clears `issue_number` and the synced base so the next run re-creates via the tested `creates` path; `drop` removes the task. Validate every id and value **before** mutating anything (D36).
 
 **Tasks:**
-1. [ ] Extend the decision handling for `keep`/`drop`, validated up front
-2. [ ] Ensure a `drop` cannot run before the create/push loops (`by_id` lookups assume the task survives)
-3. [ ] Render an Orphans section in the SKILL, prompting per orphan; undecided orphans resurface next run
-4. [ ] Derive tests from the real disposition constant and include an out-of-set value
+1. [x] Extend the decision handling for `keep`/`drop`, validated up front
+2. [x] Ensure a `drop` cannot run before the create/push loops (`by_id` lookups assume the task survives)
+3. [x] Render an Orphans section in the SKILL, prompting per orphan; undecided orphans resurface next run
+4. [x] Derive tests from the real disposition constant and include an out-of-set value
 
 **Acceptance Criteria:**
-- [ ] WHEN an orphan decision file contains an unknown id or value THEN the whole batch SHALL be rejected with nothing written
-- [ ] WHEN an orphan is left undecided THEN it SHALL remain untouched and reappear in the next plan
+- [x] WHEN an orphan decision file contains an unknown id or value THEN the whole batch SHALL be rejected with nothing written
+- [x] WHEN an orphan is left undecided THEN it SHALL remain untouched and reappear in the next plan
+
+**Completion notes (4.3):**
+- **Constants and validation:** Added `ORPHAN_DISPOSITION_KEEP`, `ORPHAN_DISPOSITION_DROP`, and `ORPHAN_DISPOSITIONS` tuple to `apply.py`. Implemented `_validate_orphan_decisions()` function that validates every orphan id and disposition upfront before any mutations (D36 compliance).
+- **Keep/Drop implementation:** Added `_apply_orphan_decision()` that handles `keep` (clears `issue_number` and `last_synced` so next run re-creates) and `drop` (returns True to signal removal). Orphans are processed AFTER creates/pushes (step 5) so `by_id` lookups don't assume dropped tasks survive.
+- **CLI integration:** Extended `_load_decisions()` to accept an optional `key` parameter (default `"decisions"`), enabling it to load both conflict and orphan decisions from the same file or separate keys. Updated `run_sync()` to load and pass `orphan_decisions` to `apply()`.
+- **SKILL.md documentation:** Added orphans to the plan rendering section (step 2), with explanation of why they're surfaced. Updated decision prompt section (step 4) to show how to specify both conflict and orphan decisions in one file. Updated apply section to mention orphan disposition application and updated "already in sync" logic.
+- **sync-semantics.md documentation:** Updated JSON schema to include `orphans` array, added comprehensive "Orphan decisions and apply" section explaining the two dispositions and valid formats for decisions files. Documented that undecided orphans resurface on next sync.
+- **Testing:** Added 10 new parametrized tests derived from the real `ORPHAN_DISPOSITIONS` constant + an out-of-set `"invalid"` value. Tests cover: keep (clears link), drop (removes), undecided (untouched), validation of dispositions, validation of unknown ids, upfront batch validation (D36). Mutation tests confirm both the validation guard and keep/drop logic are active.
+- **Coverage and linting:** 478 tests pass (up from 468), 96.38% coverage (above 90% floor). Injection linter, ruff, mypy, and markdownlint all pass.
+- **Mutation test result:** Confirmed validation guard catches unknown ids/dispositions (test fails without guard). Confirmed keep/drop logic is tested (test fails when inverted). Both mutations were caught as expected.
 
 ---
 

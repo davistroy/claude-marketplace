@@ -96,11 +96,13 @@ def _build_provider(name: str, repo: str | None, config: dict[str, Any]) -> Prov
     raise ValueError(f"unknown provider {name!r}")
 
 
-def _load_decisions(path: str | None) -> dict[str, str]:
-    """Load a conflict-decisions file: `{task_id: "local"|"remote"}`.
+def _load_decisions(path: str | None, *, key: str = "decisions") -> dict[str, str]:
+    """Load a decisions file: `{task_id: "local"|"remote"}` for conflicts or
+    `{task_id: "keep"|"drop"}` for orphans.
 
-    Accepts either a flat mapping or one wrapped under a `"decisions"` key.
-    A `None`/empty `path` yields an empty mapping (every conflict left
+    Accepts either a flat mapping or one wrapped under a `key` (default
+    `"decisions"` for backward compat; `key="orphan_decisions"` for orphans).
+    A `None`/empty `path` yields an empty mapping (every decision left
     unresolved) — that is "no decisions file was requested", not "the
     requested file was missing".
 
@@ -121,8 +123,8 @@ def _load_decisions(path: str | None) -> dict[str, str]:
         raise ValueError(f"cannot read decisions file {path}: {exc.strerror or exc}") from exc
     except json.JSONDecodeError as exc:
         raise ValueError(f"malformed JSON in decisions file {path}: {exc}") from exc
-    if isinstance(data, dict) and "decisions" in data:
-        data = data["decisions"]
+    if isinstance(data, dict) and key in data:
+        data = data[key]
     if not isinstance(data, dict):
         raise ValueError(f"decisions file {path} must be a JSON object of task_id -> decision")
     return {str(k): str(v) for k, v in data.items()}
@@ -241,7 +243,12 @@ def run_sync(args: argparse.Namespace, provider: Provider | None = None) -> int:
             # a missing file) into a ValueError carrying the path.
             print(f"task-sync sync: {exc}", file=sys.stderr)
             return 1
-        updated = apply(plan, decisions, tasklist, provider)
+        try:
+            orphan_decisions = _load_decisions(args.decisions, key="orphan_decisions")
+        except ValueError as exc:
+            print(f"task-sync sync: {exc}", file=sys.stderr)
+            return 1
+        updated = apply(plan, decisions, tasklist, provider, orphan_decisions=orphan_decisions)
         store.save(updated, tasks_path)
         commands.regenerate_tasks_md(updated, tasks_path)
         print(_apply_summary(plan))
