@@ -22,7 +22,7 @@ from .position_resolver import PositionResolver, resolve_positions
 from .recovery import RecoveryStrategy, recover_model
 from .validation import ModelValidator, ValidationWarning, validate_model
 
-__version__ = "4.3.1"
+__version__ = "4.4.0"
 __all__ = [
     "BPMNElement",
     "BPMNFlow",

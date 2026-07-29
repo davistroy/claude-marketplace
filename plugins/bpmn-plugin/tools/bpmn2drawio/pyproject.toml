@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bpmn2drawio"
-version = "4.3.1"
+version = "4.4.0"
 description = "Convert BPMN 2.0 XML to Draw.io diagrams"
 readme = "README.md"
 license = {text = "MIT"}
