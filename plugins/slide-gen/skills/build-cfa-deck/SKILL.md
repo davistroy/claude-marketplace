@@ -14,14 +14,16 @@ No API key needed — content generation happens in this Claude Code session usi
 
 ## Pre-loaded Context
 
+**Asset root:** `${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}`
+
 **Brand assets location:**
-!`ls -d ~/dev/stratfield/slide-generator/examples/cfa-brand-assets/ 2>/dev/null && echo "Assets: OK" || echo "Assets: MISSING — run asset extraction first"`
+!`CFA_ASSETS_DIR=${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}; [ -d "$CFA_ASSETS_DIR/cfa-brand-assets/" ] && echo "Assets: OK" || echo "Assets: MISSING at $CFA_ASSETS_DIR/cfa-brand-assets/ — run asset extraction first or set CFA_ASSETS_DIR"`
 
 **CFA template:**
-!`ls -lh ~/dev/stratfield/slide-generator/examples/CFA\ PPT\ Template2.pptx 2>/dev/null && echo "Template: OK" || echo "Template: MISSING"`
+!`CFA_ASSETS_DIR=${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}; ls -lh "$CFA_ASSETS_DIR/CFA PPT Template2.pptx" 2>/dev/null && echo "Template: OK" || echo "Template: MISSING at $CFA_ASSETS_DIR/CFA PPT Template2.pptx"`
 
 **Brand guidelines:**
-!`wc -l ~/dev/stratfield/slide-generator/examples/cfa-brand-guidelines-for-ppt.md 2>/dev/null || echo "Guidelines: MISSING"`
+!`CFA_ASSETS_DIR=${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}; [ -f "$CFA_ASSETS_DIR/cfa-brand-guidelines-for-ppt.md" ] && wc -l "$CFA_ASSETS_DIR/cfa-brand-guidelines-for-ppt.md" || echo "Guidelines: MISSING at $CFA_ASSETS_DIR/cfa-brand-guidelines-for-ppt.md"`
 
 **python-pptx:**
 !`python3 -c "import pptx; print('python-pptx: OK')" 2>/dev/null || echo "python-pptx: NOT INSTALLED — run: pip install python-pptx --break-system-packages"`
@@ -29,9 +31,16 @@ No API key needed — content generation happens in this Claude Code session usi
 ## Prerequisites
 
 - `python-pptx` installed (`pip install python-pptx --break-system-packages`)
-- CFA PPTX template at `~/dev/stratfield/slide-generator/examples/CFA PPT Template2.pptx`
-- Brand guidelines at `~/dev/stratfield/slide-generator/examples/cfa-brand-guidelines-for-ppt.md`
-- Brand assets extracted to `~/dev/stratfield/slide-generator/examples/cfa-brand-assets/`
+- **python-pptx 1.0.2 is the verified version.** Slide removal (`references/cfa-deck-helpers.md`)
+  relies on `Presentation.slides._sldIdLst` and `PresentationPart.drop_rel()`. `_sldIdLst` is a
+  private (leading-underscore) attribute with no documented public equivalent — if a different
+  python-pptx version is installed, re-verify both calls against a scratch copy of the template
+  before trusting the build script (see the "Removing Sample Slides" section of the helpers
+  reference for what to check).
+- CFA PPTX template at `${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}/CFA PPT Template2.pptx`
+- Brand guidelines at `${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}/cfa-brand-guidelines-for-ppt.md`
+- Brand assets extracted to `${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}/cfa-brand-assets/`
+- **All assets must exist before proceeding.** If the Pre-loaded Context preflights above report MISSING for any asset, stop immediately and ask the user to either set `CFA_ASSETS_DIR` to the correct path or run the asset extraction first.
 
 ## Input Validation
 
@@ -46,6 +55,14 @@ No API key needed — content generation happens in this Claude Code session usi
 
 If no topic is provided, ask the user for one. Do not proceed without a topic.
 
+## Asset Preflight Check
+
+**CRITICAL:** Before proceeding with any other steps, verify that all CFA assets are present:
+
+1. Check the Pre-loaded Context section above. If any preflight reports MISSING, **stop immediately**.
+2. Ask the user: "One or more CFA assets are missing. Set `CFA_ASSETS_DIR` to the path containing the assets, or run the asset extraction first."
+3. Do not proceed until all preflights report OK.
+
 ## Instructions
 
 Follow these steps exactly. Do not skip or reorder.
@@ -55,7 +72,7 @@ Follow these steps exactly. Do not skip or reorder.
 Read the brand guidelines file. You need sections 1 (Color System), 5 (Layout System), 7 (Content Density Standards), and 8 (Deck Composition) to generate compliant content.
 
 ```
-Read: ~/dev/stratfield/slide-generator/examples/cfa-brand-guidelines-for-ppt.md
+Read: ${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}/cfa-brand-guidelines-for-ppt.md
 ```
 
 Internalize these critical rules before generating content:
@@ -72,7 +89,8 @@ Run this to get the exact layout names from the template:
 python3 -c "
 import os
 from pptx import Presentation
-prs = Presentation(os.path.expanduser('~/dev/stratfield/slide-generator/examples/CFA PPT Template2.pptx'))
+cfa_dir = os.path.expanduser(os.environ.get('CFA_ASSETS_DIR', '~/dev/stratfield/slide-generator/examples'))
+prs = Presentation(os.path.join(cfa_dir, 'CFA PPT Template2.pptx'))
 for i, layout in enumerate(prs.slide_layouts):
     phs = ', '.join([f'idx={p.placeholder_format.idx}:{p.placeholder_format.type}' for p in layout.placeholders])
     print(f'{i:2d}. {layout.name} [{phs}]')
@@ -133,7 +151,7 @@ For each slide, produce this structure:
 
 ### Step 4: Write the Build Script
 
-Write a Python script to `/tmp/build_cfa_deck.py` that:
+Write a Python script to `.tmp/build_cfa_deck.py` that:
 
 1. Opens the CFA template
 2. Removes all 28 sample slides (preserve layouts and masters)
@@ -147,124 +165,23 @@ Write a Python script to `/tmp/build_cfa_deck.py` that:
    g. Adds the CFA Script Logo where appropriate (red on light backgrounds from `cfa-brand-assets/logos/`)
 4. Saves the .pptx
 
-**Critical python-pptx patterns:**
+**python-pptx helper functions:**
 
-```python
-from pptx import Presentation
-from pptx.util import Inches, Pt, Emu
-from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
-import os, json
+Read `${CLAUDE_PLUGIN_ROOT}/references/cfa-deck-helpers.md` (fall back to
+`plugins/slide-gen/references/cfa-deck-helpers.md` if `CLAUDE_PLUGIN_ROOT` is unset). It
+contains the imports, `COLORS` palette, and four helper functions to compose into
+`.tmp/build_cfa_deck.py`: `remove_all_slides` (the single, verified slide-removal
+implementation — see Prerequisites), `find_layout`, `set_placeholder`, and `add_textbox`.
 
-EXAMPLES = os.path.expanduser("~/dev/stratfield/slide-generator/examples")
-TEMPLATE = os.path.join(EXAMPLES, "CFA PPT Template2.pptx")
-ASSETS = os.path.join(EXAMPLES, "cfa-brand-assets")
-
-COLORS = {
-    "cfa_red": RGBColor(0xDD, 0x00, 0x31),
-    "white": RGBColor(0xFF, 0xFF, 0xFF),
-    "navy": RGBColor(0x00, 0x4F, 0x71),
-    "teal": RGBColor(0x3E, 0xB1, 0xC8),
-    "slate": RGBColor(0x5B, 0x67, 0x70),
-    "green": RGBColor(0x24, 0x9D, 0x6A),
-    "dark_red": RGBColor(0xAF, 0x27, 0x2F),
-    "gold": RGBColor(0xFF, 0xB5, 0x49),
-    "warm_gray": RGBColor(0xEE, 0xED, 0xEB),
-    "coral": RGBColor(0xF2, 0x6B, 0x43),
-    "deep_navy": RGBColor(0x0A, 0x3C, 0x60),
-    "light_blue": RGBColor(0xA7, 0xCE, 0xD8),
-    "light_green": RGBColor(0xB2, 0xCF, 0xAE),
-}
-
-# Remove sample slides (reverse order to preserve indices)
-def remove_samples(prs):
-    slide_ids = [slide.slide_id for slide in prs.slides]
-    for slide_id in reversed(slide_ids):
-        rId = None
-        for rel in prs.part.rels.values():
-            if hasattr(rel, 'target_part') and hasattr(rel.target_part, 'slide_id'):
-                if rel.target_part.slide_id == slide_id:
-                    rId = rel.rId
-                    break
-        if rId:
-            # Remove from slide list and relationships
-            sldIdLst = prs.presentation.sldIdLst
-            for sldId in sldIdLst:
-                if sldId.get('id') == str(slide_id):
-                    sldIdLst.remove(sldId)
-                    break
-            del prs.part.rels[rId]
-
-# Find layout by name (fuzzy match)
-def find_layout(prs, name):
-    for layout in prs.slide_layouts:
-        if layout.name.lower().strip() == name.lower().strip():
-            return layout
-    # Fuzzy: check if name is substring
-    for layout in prs.slide_layouts:
-        if name.lower() in layout.name.lower():
-            return layout
-    # Fallback to blank
-    for layout in prs.slide_layouts:
-        if "blank" in layout.name.lower() and "white" in layout.name.lower():
-            return layout
-    return prs.slide_layouts[-1]
-
-# Populate placeholders
-def set_placeholder(slide, idx, text, font_size=None, font_color=None, bold=None):
-    for ph in slide.placeholders:
-        if ph.placeholder_format.idx == idx:
-            ph.text = text
-            if font_size or font_color or bold is not None:
-                for para in ph.text_frame.paragraphs:
-                    for run in para.runs:
-                        if font_size: run.font.size = Pt(font_size)
-                        if font_color: run.font.color.rgb = font_color
-                        if bold is not None: run.font.bold = bold
-            return True
-    return False
-
-# Add text box when no placeholder available
-def add_textbox(slide, left, top, width, height, text, font_name="Apercu",
-                font_size=14, font_color=None, bold=False, alignment=PP_ALIGN.LEFT):
-    txBox = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = text
-    p.alignment = alignment
-    run = p.runs[0]
-    run.font.name = font_name
-    run.font.size = Pt(font_size)
-    run.font.bold = bold
-    if font_color:
-        run.font.color.rgb = font_color
-    return txBox
-```
-
-**Removing sample slides — use this reliable approach:**
-```python
-import copy
-from lxml import etree
-
-def remove_all_slides(prs):
-    """Remove all existing slides while preserving layouts and masters."""
-    sldIdLst = prs.presentation.sldIdLst
-    rIds_to_remove = []
-    for sldId in list(sldIdLst):
-        rId = sldId.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
-        if rId:
-            rIds_to_remove.append(rId)
-        sldIdLst.remove(sldId)
-    for rId in rIds_to_remove:
-        if rId in prs.part.rels:
-            del prs.part.rels[rId]
-```
+**Template path in the script:**
+The script must read the template from `${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}/CFA PPT Template2.pptx`.
+Use `os.path.join(os.path.expanduser(os.environ.get('CFA_ASSETS_DIR', '~/dev/stratfield/slide-generator/examples')), 'CFA PPT Template2.pptx')`
+to construct the path dynamically, so the script respects the environment variable.
 
 ### Step 5: Run the Build Script
 
 ```bash
-python3 /tmp/build_cfa_deck.py
+python3 .tmp/build_cfa_deck.py
 ```
 
 Verify the output:
@@ -292,11 +209,12 @@ Tell the user:
 
 | Error | Cause | Fix |
 |-------|-------|-----|
+| `CFA_ASSETS_DIR not set and default path missing` | Assets not found at default location | Set `CFA_ASSETS_DIR` environment variable to the correct path, or run asset extraction to the default `~/dev/stratfield/slide-generator/examples` |
 | `python-pptx not installed` | Missing dependency | `pip install python-pptx --break-system-packages` |
-| `Template not found` | Wrong path | Verify `CFA PPT Template2.pptx` exists in examples/ |
-| `Guidelines not found` | Wrong path | Verify `cfa-brand-guidelines-for-ppt.md` exists in examples/ |
+| `Template not found` | Wrong path or `CFA_ASSETS_DIR` incorrect | Verify `CFA PPT Template2.pptx` exists at `${CFA_ASSETS_DIR}/`; check `CFA_ASSETS_DIR` environment variable |
+| `Guidelines not found` | Wrong path or `CFA_ASSETS_DIR` incorrect | Verify `cfa-brand-guidelines-for-ppt.md` exists at `${CFA_ASSETS_DIR}/`; check `CFA_ASSETS_DIR` environment variable |
 | `Layout not found` | Layout name mismatch | Script falls back to blank layout — check template layout names |
-| `Slide removal fails` | python-pptx internal | Use the lxml-based removal approach |
+| `Slide removal fails` | python-pptx version mismatch — `_sldIdLst`/`drop_rel` are private APIs verified only on 1.0.2 | Confirm installed version (`python3 -c "import pptx; print(pptx.__version__)"`); if it differs from 1.0.2, re-verify the two calls in `references/cfa-deck-helpers.md` against a scratch copy of the template before proceeding |
 | `Font not rendering` | Apercu not installed locally | Template embeds fonts — they render on open in PowerPoint |
 | `Output too small (< 30KB)` | Slides not built properly | Check for python-pptx errors in script output |
 

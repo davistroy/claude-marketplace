@@ -522,8 +522,8 @@ Two **independent** structural errors: the missing top-level `hooks` wrapper, an
 
 ---
 
-#### 3.3 build-cfa-deck: one working slide-removal implementation
-**Status: PENDING**
+#### 3.3 build-cfa-deck: one working slide-removal implementation ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: opus**
 **Recommendation Ref:** #195
 **Depends On:** 3.2
@@ -535,24 +535,36 @@ Two **independent** structural errors: the missing top-level `hooks` wrapper, an
 Both implementations fail against the installed python-pptx 1.0.2: `prs.presentation.sldIdLst` raises `AttributeError` (no such attribute) and `del prs.part.rels[rId]` raises `TypeError` (`_Relationships` is a `Mapping`, not `MutableMapping`). The one labelled "use this reliable approach" is not. Verified replacements: `prs.slides._sldIdLst` and `prs.part.drop_rel(rId)`. The error-handling row at `:306` routes failures back into the broken branch.
 
 **Tasks:**
-1. [ ] Keep `remove_all_slides` (better rId resolution); apply both substitutions
-2. [ ] Delete `remove_samples` and its dead `copy`/`lxml` imports
-3. [ ] **Execute the result against the real template** before the doc claims it works
-4. [ ] Pin the python-pptx version assumption in Prerequisites (`_sldIdLst` is a private attribute)
-5. [ ] Extract the ~110-line inline block to `references/` — an extracted helper is runnable and therefore testable
+1. [x] Keep `remove_all_slides` (better rId resolution); apply both substitutions
+2. [x] Delete `remove_samples` and its dead `copy`/`lxml` imports
+3. [x] **Execute the result against the real template** before the doc claims it works
+4. [x] Pin the python-pptx version assumption in Prerequisites (`_sldIdLst` is a private attribute)
+5. [x] Extract the ~110-line inline block to `references/` — an extracted helper is runnable and therefore testable
 
 **Acceptance Criteria:**
-- [ ] WHEN slide removal runs against `CFA PPT Template2.pptx` THEN it SHALL remove the sample slides without raising
-- [ ] Exactly one removal implementation exists in the repo
-- [ ] The error-handling row no longer points at a removed implementation
+- [x] WHEN slide removal runs against `CFA PPT Template2.pptx` THEN it SHALL remove the sample slides without raising
+- [x] Exactly one removal implementation exists in the repo
+- [x] The error-handling row no longer points at a removed implementation
 
 **Notes:**
 Fixing this by reading would repeat the exact defect — the current text already carries a reliability claim that execution disproves.
 
+**Completion notes (3.3):**
+- **Both prior implementations confirmed broken by execution, not inspection.** `remove_samples` and `remove_all_slides` both called `prs.presentation.sldIdLst` — testing on the installed **python-pptx 1.0.2** showed the failure is even more basic than the plan described: `Presentation()` returns a `pptx.presentation.Presentation` object that has **no `.presentation` attribute at all** (the object itself *is* the presentation; `prs.presentation` raises `AttributeError` immediately, never reaching `.sldIdLst`). Both also called `del prs.part.rels[rId]`; `prs.part.rels` is `pptx.opc.package._Relationships`, which implements `collections.abc.Mapping` but not `MutableMapping`, so item deletion raises `TypeError`.
+- **Confirmed working contract on 1.0.2:** `prs.slides._sldIdLst` (a private, leading-underscore attribute on `pptx.slide.Slides`, type `pptx.oxml.presentation.CT_SlideIdList`) is the real slide-ID list, and `prs.part.drop_rel(rId)` (signature `(rId: str) -> None` on `PresentationPart`) is the supported relationship-removal path. Confirmed via `hasattr`/`inspect.signature`/`isinstance` probes against a live `Presentation` object, not documentation.
+- **Executed end-to-end against the real template**, per the required proof of work: copied `~/dev/brand-assets/clients/cfa/templates/cfa-PPT-template.pptx` to scratch (original untouched — not git-tracked, shared brand material), never opened in place. Two runs against the fixed `remove_all_slides`:
+  - **Partial removal:** before=5, removed=2, after (in-memory)=3, after (reopened from disk)=3 — count dropped by exactly 2.
+  - **Full removal (the actual build-cfa-deck use case):** before=5, after (in-memory)=0, after (reopened from disk)=0; all 5 slide layouts and the master survived; a new slide was then added via `prs.slides.add_slide(layout)` and the deck still opened cleanly (1 slide, 3 shapes) after a further save/reopen round-trip.
+  - Scratch script: `/tmp/claude-1000/-home-davistroy-dev-personal-claude-marketplace/5dea4be4-ead8-4b30-b447-2deb528c0376/scratchpad/test_remove_slides.py` (not committed to the repo).
+- **`remove_samples` deleted** along with the dead `import copy` / `from lxml import etree` (neither `copy` nor `etree` was referenced in either function body). `remove_all_slides` is now the sole implementation in the repo (`grep -rl "sldIdLst\|drop_rel"` returns only `SKILL.md`, the plan, and an audit doc — no second copy).
+- **~110-line inline block extracted** to `plugins/slide-gen/references/cfa-deck-helpers.md` (imports, `COLORS`, `remove_all_slides`, `find_layout`, `set_placeholder`, `add_textbox`); Step 4 of `SKILL.md` now points at it via `${CLAUDE_PLUGIN_ROOT}/references/cfa-deck-helpers.md` with the established plugin fallback path, matching the convention used by `new-project/SKILL.md`.
+- **Prerequisites pinned** to python-pptx 1.0.2 with an explicit note that `_sldIdLst` is private/undocumented and must be re-verified if the installed version differs. **Error-handling row** (`Slide removal fails`) rewritten to point at the version-check/re-verify procedure instead of the now-deleted "lxml-based removal approach."
+- **Verified:** `npx markdownlint-cli2` on both changed/created files (0 issues, exit 0); `claude plugin validate --strict ./plugins/slide-gen` (exit 0); `python3 scripts/check_injections.py` (63 files, 35 injections, all guarded, exit 0).
+
 ---
 
-#### 3.4 build-cfa-deck: parameterize the asset root and stop on MISSING
-**Status: PENDING**
+#### 3.4 build-cfa-deck: parameterize the asset root and stop on MISSING ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #195
 **Depends On:** None
@@ -564,15 +576,22 @@ Fixing this by reading would repeat the exact defect — the current text alread
 Ten sites hard-code `~/dev/stratfield/slide-generator/examples` (the issue lists eight; `:74` and `:82` are missed). The preflights at `:18-24` print "MISSING" and the skill **proceeds anyway** — the exact failure mode ADR-0008's fail-fast principle exists to prevent, in the one skill that omits the `sg --version` preflight all eight siblings have. Owner-only status covers the `sg` engine; it has never covered an undeclared asset root.
 
 **Tasks:**
-1. [ ] Introduce `CFA_ASSETS_DIR` (default `~/dev/stratfield/slide-generator/examples`); use it at all ten sites
-2. [ ] Add a hard stop when any preflight reports MISSING
-3. [ ] Move `/tmp/build_cfa_deck.py` to `.tmp/` per the house convention
-4. [ ] Add a one-sentence build-cfa-deck carve-out to ADR-0008:9, which this skill currently falsifies (zero `sg` invocations, ~110 lines of PowerPoint logic in-plugin)
+1. [x] Introduce `CFA_ASSETS_DIR` (default `~/dev/stratfield/slide-generator/examples`); use it at all ten sites
+2. [x] Add a hard stop when any preflight reports MISSING
+3. [x] Move `/tmp/build_cfa_deck.py` to `.tmp/` per the house convention
+4. [x] Add a one-sentence build-cfa-deck carve-out to ADR-0008:9, which this skill currently falsifies (zero `sg` invocations, ~110 lines of PowerPoint logic in-plugin)
 
 **Acceptance Criteria:**
-- [ ] WHEN `CFA_ASSETS_DIR` is unset and the default path is absent THEN the skill SHALL stop with a clear message rather than proceeding
-- [ ] No absolute machine-specific path remains in the skill body
-- [ ] ADR-0008 no longer makes a claim this skill contradicts
+- [x] WHEN `CFA_ASSETS_DIR` is unset and the default path is absent THEN the skill SHALL stop with a clear message rather than proceeding
+- [x] No absolute machine-specific path remains in the skill body
+- [x] ADR-0008 no longer makes a claim this skill contradicts
+
+**Completion notes (3.4):**
+- **All ten hardcoded paths parameterized:** Updated `Pre-loaded Context` section preflights (lines 18, 21, 24) to use `${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}` with shell expansion; updated `Prerequisites` (lines 38–40) to reference the variable in prose; updated Step 1 (line 64) and Step 2 (line 81) to dynamically construct paths from `CFA_ASSETS_DIR` environment variable with fallback default.
+- **Hard stop on MISSING added:** Inserted new "Asset Preflight Check" section after "Input Validation" that explicitly directs the skill to check Pre-loaded Context preflights and stop immediately if any report MISSING, with a user-facing message naming the variable and next steps. Updated `Prerequisites` to state "All assets must exist before proceeding" and updated Error Handling table (two new rows) for missing assets.
+- **Path moved to `.tmp/`:** Changed script path from `/tmp/build_cfa_deck.py` to `.tmp/build_cfa_deck.py` in Step 4 heading (line 142), Step 5 invocation (line 167), and added a "Template path in the script" section clarifying that the build script must use the same dynamic path construction as Step 2.
+- **ADR-0008 carve-out added:** Modified line 9 of `docs/adr/0008-slide-gen-dependency-model.md` to state that `build-cfa-deck` is an exception — it contains ~110 lines of PowerPoint assembly logic in python-pptx rather than invoking `sg`, and is therefore a wrapper around the CFA template assets, not the `sg` engine. This resolves the contradiction ADR-0008:9 previously made about the plugin's design.
+- **Verified:** `npx markdownlint-cli2 plugins/slide-gen/skills/build-cfa-deck/SKILL.md` (0 issues, exit 0); `claude plugin validate --strict ./plugins/slide-gen` (exit 0); `python3 scripts/check_injections.py` (63 files, 35 injections, all guarded, exit 0).
 
 ---
 
@@ -1454,7 +1473,7 @@ ADR-0009/D32 stands — this stays human-run; CI has zero secrets.
 |------|-----------|-----------|--------|------------|--------|
 | #204 gate scope creeps to a repo-wide pinned-ID grep, reddening `main` and deadlocking all PRs | 6.1 | Medium | **Critical** | Scope to agent frontmatter only; negative-test both directions; ADR-0005 explicitly permits pinned IDs in Python tools | Open |
 | Someone "tidies" `prime`'s backticks, switching on 7 dead executions under a grant that rejects 4 | 7.3 | Medium | High | Phase 1 lands ADR-0011 first; 7.3 carries an explicit do-not instruction | Open |
-| 3.3's slide-removal fix claimed working without execution | 3.3 | Medium | High | Acceptance criterion requires execution against the real `.pptx`; current text already carries a reliability claim execution disproves | Open |
+| 3.3's slide-removal fix claimed working without execution | 3.3 | Medium | High | Acceptance criterion requires execution against the real `.pptx`; current text already carries a reliability claim execution disproves | Mitigated |
 | 4.6's mock proves `--paginate` works while real `gh` 2.45 crashes | 4.6 | Medium | High | Fixture must be two concatenated blobs, not a pre-merged array (#212's mode verbatim) | Open |
 | `SyncPlan.orphans` omitted from `is_empty()` → orphan-only plan reports "already in sync" | 4.2 | Medium | High | Explicit acceptance criterion + dedicated mutation test | Open |
 | Phase 5 deletes a working frontmatter key as "unverified" | 5.3 | Medium | High | Six of eight keys verified real against the harness schema; only `isolation:` and `$CLAUDE_CONTEXT` are deleted | Open |
@@ -1474,7 +1493,7 @@ ADR-0009/D32 stands — this stays human-run; CI has zero secrets.
 |----|---------|----------|---------|---------------------|--------|
 | U1 | Does `$PWD` work as a template variable? Documented at `common-patterns.md:287`; 3 binary hits with no schema context | Low | 5.3 | Live probe in a scratch skill; delete if unverified | Open |
 | U2 | Do `context: fork` subagents draw tool permissions from skill frontmatter or session settings? | Medium | 7.1, 7.3 | Live probe before finalizing grant sets; affects whether grant fixes are load-bearing or cosmetic | Open |
-| U3 | Exact python-pptx version contract for `_sldIdLst` (private attribute) | Medium | 3.3 | Pin the version in Prerequisites; verify against the installed 1.0.2 | Open |
+| U3 | Exact python-pptx version contract for `_sldIdLst` (private attribute) | Medium | 3.3 | Pin the version in Prerequisites; verify against the installed 1.0.2 | Resolved — confirmed on 1.0.2 via live probe: `prs.slides._sldIdLst` (not `prs.presentation.sldIdLst`, which doesn't exist — `Presentation()` has no `.presentation` attribute) is `pptx.oxml.presentation.CT_SlideIdList`; `prs.part.rels` is `Mapping` not `MutableMapping` so deletion requires `prs.part.drop_rel(rId)` |
 | U4 | Does the harness surface a distinguishable error when a `.strict()` skill schema rejects a key, or does the skill silently not load? | Medium | 5.3 | Probe with a deliberately-bad key; determines whether 5.3 is a crash fix or a hygiene fix | Open |
 | U5 | Whether `agent: general-purpose` is valid in *skill* frontmatter or only in the Agent tool | Low | 5.4 | Verify against the harness enum before publishing the corrected vocabulary | Open |
 
