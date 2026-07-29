@@ -1,6 +1,6 @@
 ---
 name: visual-explainer
-description: Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation. Suggest when — user has document/report/concept to visualize, after report generation, infographic/visual explanation keywords, improving visual appeal, or whitepaper/guide transformation.
+description: Transform text or documents into AI-generated infographic pages that explain concepts visually, using Gemini Pro 3 for generation and Claude Vision for quality evaluation. Generation is paid and billed per image, so it runs only when invoked explicitly.
 effort: high
 allowed-tools: Read, Write, Bash(python:*), Bash(pip:*), WebSearch, WebFetch, AskUserQuestion
 disable-model-invocation: true

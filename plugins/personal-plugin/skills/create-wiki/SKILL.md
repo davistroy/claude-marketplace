@@ -1,8 +1,7 @@
 ---
 name: create-wiki
-description: Set up a persistent, LLM-maintained wiki inside any project. Creates a wiki/ directory with sources, pages, schema, and navigation files, seeds initial pages from project discovery, and injects CLAUDE.md rules that make Claude automatically maintain the wiki during normal work sessions. Suggest (do not auto-run) when — project accumulating complexity, context loss between sessions, multiple contributors, "I keep forgetting", significant domain knowledge, or LAB_NOTEBOOK.md with durable insights.
-disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)
+description: Set up a persistent, LLM-maintained wiki inside any project. Creates a wiki/ directory with sources, pages, schema, and navigation files, seeds initial pages from project discovery, and injects CLAUDE.md rules that make Claude automatically maintain the wiki during normal work sessions. Suggest when — project accumulating complexity, context loss between sessions, multiple contributors, "I keep forgetting", significant domain knowledge, or LAB_NOTEBOOK.md with durable insights. Confirms before writing anything when suggested rather than invoked.
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), AskUserQuestion
 ---
 
 # Create Wiki
@@ -23,6 +22,48 @@ Supported arguments:
 - `init` — Full initialization: discover project context, create wiki structure, seed pages, inject CLAUDE.md rules
 - `status` — Show wiki health (redirects to `/wiki status`)
 - No arguments — Same as `init` if no wiki exists, same as `status` if one does
+
+## Phase 0: Self-Invocation Confirmation
+
+**This skill can be model-invoked, and initialization writes a `wiki/` tree *and* injects
+maintenance rules into `CLAUDE.md`** that change how Claude behaves for the rest of the
+project's life. That must never happen unasked.
+
+**If you are invoking this skill on your own initiative** — because the project is
+accumulating domain knowledge, context keeps getting lost between sessions, or the user said
+"I keep forgetting how this works" — rather than the user typing `/create-wiki`, confirm
+first with `AskUserQuestion`:
+
+```json
+{
+  "questions": [
+    {
+      "question": "Set up an LLM-maintained wiki for this project?",
+      "header": "Wiki",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Yes, initialize it",
+          "description": "Creates wiki/ with sources, pages, schema, and index, seeds pages from project discovery, and adds maintenance rules to CLAUDE.md"
+        },
+        {
+          "label": "No, not now",
+          "description": "Nothing is written; you can run /create-wiki yourself at any time"
+        }
+      ]
+    }
+  ]
+}
+```
+
+- **Confirmed:** proceed to the entry-point check below.
+- **Declined or skipped:** reply "Skipped — run `/create-wiki` whenever you want one." and
+  exit immediately. Create nothing, modify nothing.
+
+**When the user invokes this skill directly, skip this gate entirely** and proceed.
+Maintenance mode on an existing wiki is the wiki working as configured and needs no gate.
+
+---
 
 ## Entry-Point: Init vs Maintenance Mode
 

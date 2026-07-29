@@ -1,6 +1,6 @@
 ---
 name: new-project
-description: Scaffold a brand-new project directory end-to-end — git init, remote repository (GitHub by default, Gitea with --gitea), CLAUDE.md, .gitignore, placeholder .env, lab notebook, kill-criteria BRIEF.md, and the initial commit/push. Suggest (do not auto-run) when the user says new project, scaffold project, start a project, or asks to set up a fresh repo under ~/dev.
+description: Scaffold a brand-new project directory end-to-end — git init, remote repository (GitHub by default, Gitea with --gitea), CLAUDE.md, .gitignore, placeholder .env, lab notebook, kill-criteria BRIEF.md, and the initial commit/push. Creates a remote repo, so it runs only when invoked explicitly.
 argument-hint: "<org>/<name> [--type python|node|docs] [--gitea]"
 disable-model-invocation: true
 allowed-tools: Bash(mkdir:*), Bash(cd:*), Bash(git:*), Bash(gh:*), Bash(bws:*), Bash(python3:*), Bash(curl:*), Bash(unset:*), Bash(date:*), Bash(echo:*), Read, Write, Edit, Glob

@@ -14,8 +14,15 @@ Reads a document and produces a scored quality assessment report across six dime
 
 | Fixture | Purpose |
 |---------|---------|
-| `docs/sample-prd.md` | Well-formed PRD; expect score 3.5–4.5, few critical issues |
-| `docs/draft-prd.md` | Incomplete PRD; expect score 2–3, multiple critical issues |
+| `docs/sample-prd.md` | Well-formed PRD; expect the higher of the two scores, few critical issues |
+| `docs/draft-prd.md` | Incomplete PRD; expect the lower of the two scores, multiple critical issues |
+
+**Scoring is asserted relatively, never as an absolute band.** A score is a model judgment,
+so an absolute floor/ceiling re-baselines with every model change and turns a calibration
+shift into a red build. What must hold across models is the *ordering* — the well-formed
+document scores materially higher than the draft, and the draft's weakest dimension is the
+one the fixture actually degrades. Run both fixtures in the same session so the comparison is
+apples-to-apples.
 
 ## Test Scenarios
 
@@ -26,7 +33,7 @@ Reads a document and produces a scored quality assessment report across six dime
 **Must:**
 - [ ] Creates `reports/assessment-sample-prd-*.md` (timestamp-named file)
 - [ ] Report contains a score table with all 6 dimensions
-- [ ] Overall score is between 3.5 and 4.5
+- [ ] Overall score is materially higher than the score this same session gives `draft-prd.md` (S2) — at least a full point apart
 - [ ] At least 2 issues identified (even a good doc has improvements)
 - [ ] Executive summary section is present
 - [ ] "Saved to" path is reported to user in final summary
@@ -49,7 +56,7 @@ Reads a document and produces a scored quality assessment report across six dime
 
 **Must:**
 - [ ] Creates `reports/assessment-draft-prd-*.md`
-- [ ] Overall score is between 2.0 and 3.0
+- [ ] Overall score is materially lower than S1's score for `sample-prd.md` — at least a full point apart
 - [ ] At least 2 CRITICAL issues identified (TBDs, missing success criteria, vague requirements)
 - [ ] "Completeness" dimension is scored lower than "Clarity"
 
@@ -58,7 +65,7 @@ Reads a document and produces a scored quality assessment report across six dime
 - [ ] Notes missing success criteria in Section 6
 
 **Must NOT:**
-- [ ] Score overall above 3.5 for this clearly incomplete document
+- [ ] Score this clearly incomplete document at or above its own `sample-prd.md` score
 
 ---
 

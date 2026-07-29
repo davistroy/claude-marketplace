@@ -1560,8 +1560,8 @@ Resolve the contradiction between `disable-model-invocation` and eleven skills' 
 
 ### Work Items
 
-#### 8.1 D40-protected skills: rewrite descriptions, keep the flag
-**Status: PENDING**
+#### 8.1 D40-protected skills: rewrite descriptions, keep the flag ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #201
 **Depends On:** Phase 5
@@ -1573,17 +1573,22 @@ Resolve the contradiction between `disable-model-invocation` and eleven skills' 
 `disable-model-invocation: true` removes the description from session context, so trigger prose in these descriptions is unreachable. Both are D40-protected (`jetson-recon` combines untrusted WebFetch/WebSearch with a live SSH read into a passwordless-sudo account) and the flag must stay. Their descriptions are *entirely* trigger prose, so stripping leaves nothing — they need rewriting as capability statements, using `arch-review` as the model.
 
 **Tasks:**
-1. [ ] Rewrite both descriptions as capability statements
-2. [ ] Preserve the Trust Boundary sections verbatim
+1. [x] Rewrite both descriptions as capability statements
+2. [x] Preserve the Trust Boundary sections verbatim
 
 **Acceptance Criteria:**
-- [ ] WHEN either skill's frontmatter is read THEN the description SHALL state capability, not triggers
-- [ ] Both retain `disable-model-invocation: true`
+- [x] WHEN either skill's frontmatter is read THEN the description SHALL state capability, not triggers
+- [x] Both retain `disable-model-invocation: true`
+
+**Completion notes (8.1):**
+- Both rewritten on the `arch-review` model: what the skill scans, what it produces, and — because these two are the D40 pair — what its trust boundary is. `spark-recon` states it runs no SSH or shell commands at all (true since 7.2 removed the vestigial grants); `jetson-recon` states that Check 5's SSH allowlist is never derived from what Checks 1–4 fetch, pointing at the Trust Boundary section.
+- Trust Boundary sections untouched by construction — only the `description:` line changed in each file.
+- **A YAML trap surfaced and is worth recording.** The first `spark-recon` rewrite contained `Report-and-recommend only: reads external sources…`. A `: ` inside an unquoted YAML scalar is a mapping indicator, so **the entire frontmatter failed to parse** — and the failure mode is not a crash but *silent metadata loss*: `name`, `allowed-tools`, and the flag itself would all have been dropped at load time, quietly un-protecting a D40 skill. `claude plugin validate --strict` caught it (`YAML Parse error`); nothing else in the toolchain would have. Rephrased with an em dash, then swept all 63 SKILL.md/command files with `yaml.safe_load` — 0 other instances.
 
 ---
 
-#### 8.2 Six skills: keep the flag, strip the dead prose
-**Status: PENDING**
+#### 8.2 Six skills: keep the flag, strip the dead prose ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: haiku**
 **Recommendation Ref:** #201
 **Depends On:** Phase 5
@@ -1595,17 +1600,23 @@ Resolve the contradiction between `disable-model-invocation` and eleven skills' 
 Seven skills (including `ship`, per the approved decision to keep its flag) keep `disable-model-invocation: true` for sound reasons — secrets loading, paid image generation, remote repo creation, irreversible publishing, destructive-adjacent moves, external POST with no gate, and push/merge respectively — and simply lose the unreachable trigger prose. `new-project` also resolves a self-contradiction: `:13` already declares it never runs proactively while `:3` says "Suggest…".
 
 **Tasks:**
-1. [ ] Strip "Suggest when…" prose from all seven descriptions, leaving capability statements
-2. [ ] Fix `unlock/SKILL.md:169-176`, which shows Claude running `/unlock` automatically — teaching exactly what the flag forbids
+1. [x] Strip "Suggest when…" prose from all seven descriptions, leaving capability statements
+2. [x] Fix `unlock/SKILL.md:169-176`, which shows Claude running `/unlock` automatically — teaching exactly what the flag forbids
 
 **Acceptance Criteria:**
-- [ ] No skill carrying the flag also carries trigger prose in its description
-- [ ] All seven retain the flag
+- [x] No skill carrying the flag also carries trigger prose in its description
+- [x] All seven retain the flag
+
+**Completion notes (8.2):**
+- All seven descriptions now end with the *reason* the skill is explicit-only rather than a trigger list — "Publishing is irreversible once tagged and pushed", "Posts to an external service with no further gate", "Generation is paid and billed per image". The dead prose is replaced with something a reader can act on, instead of just deleted.
+- **`unlock`'s worked example was worse than the description.** `:169-176` showed a transcript of Claude deciding it needed keys and "→ Runs `/unlock` automatically" — a demonstration of the exact behavior the flag forbids, which survives in context even though the description does not. Rewritten as a two-turn exchange where Claude asks and the user runs it, with an explicit "Claude never invokes `/unlock` on its own" note.
+- **`new-project`'s self-contradiction resolved by deletion:** `:13` already said "it never runs proactively" while `:3` said "Suggest (do not auto-run) when…". Stripping `:3` leaves `:13` as the single statement.
+- **Verified against the flag, not the list:** re-grepped every skill carrying `disable-model-invocation: true` for residual trigger prose. Only `lab-notebook` and `create-wiki` matched, which is correct — 8.3 removes their flag and *keeps* their prose. `spark-audit`/`jetson-audit` carry the flag and were already capability statements; correctly out of scope.
 
 ---
 
-#### 8.3 Two skills: drop the flag, but add a Phase-0 gate first
-**Status: PENDING**
+#### 8.3 Two skills: drop the flag, but add a Phase-0 gate first ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: opus**
 **Recommendation Ref:** #201
 **Depends On:** 8.2
@@ -1618,18 +1629,25 @@ Seven skills (including `ship`, per the approved decision to keep its flag) keep
 Both have the highest proactive-suggestion value in the set — their triggers ("benchmark work starting", "I keep forgetting…") are ones the user provably cannot self-serve. **But neither has a pre-action confirmation gate**; their "Confirm" steps are post-creation verification. Dropping the flag as a one-line edit would let the model unilaterally create files and inject CLAUDE.md rules. The gate must land in the same change.
 
 **Tasks:**
-1. [ ] Add a Phase-0 confirmation gate to each, before any file creation
-2. [ ] Remove `disable-model-invocation: true`
-3. [ ] Update `description-triggers.eval.md` S13/S14, which currently assert the opposite
+1. [x] Add a Phase-0 confirmation gate to each, before any file creation
+2. [x] Remove `disable-model-invocation: true`
+3. [x] Update `description-triggers.eval.md` S13/S14, which currently assert the opposite
 
 **Acceptance Criteria:**
-- [ ] WHEN either skill is model-invoked THEN it SHALL confirm before creating any file
-- [ ] S13/S14 assert the new contract
+- [x] WHEN either skill is model-invoked THEN it SHALL confirm before creating any file
+- [x] S13/S14 assert the new contract
+
+**Completion notes (8.3):**
+- **The gate is conditional on invocation source, following `security-analysis`'s house pattern:** it fires only when Claude invokes the skill on its own initiative, and is explicitly skipped when the user types the slash command. A gate that also interrogates the user who just asked for the thing is friction that gets removed by the next editor.
+- **Both gates use `AskUserQuestion`**, consistent with what Phase 7 just established, and both skills were granted it. Note the divergence this creates: `security-analysis`'s equivalent gate is still a hand-rolled `(y/n)` prose prompt. It was not in 7.5's six and is out of scope here — **filed as follow-up**, not silently left inconsistent.
+- **Scope of each gate reasoned per mode, not blanket-applied.** `lab-notebook`: `init` (creates the notebook *and* injects binding CLAUDE.md rules), `entry`, and `rotate` all write, so all are gated; `status` is read-only and exempt. `create-wiki`: initialization is gated; maintenance mode on an existing wiki is the wiki working as the user already configured it, and is exempt.
+- **The descriptions keep their trigger prose** — deliberately the opposite of 8.2. That prose is now reachable, which is the entire point of dropping the flag; each gained a closing sentence stating that the skill confirms before writing when suggested rather than invoked.
+- S13/S14 rewritten from "must not auto-invoke" to "may be invoked, must gate before writing", with a `Must NOT` on reporting the artifact as set up when only the gate was reached.
 
 ---
 
-#### 8.4 Re-baseline the model-sensitive evals
-**Status: PENDING**
+#### 8.4 Re-baseline the model-sensitive evals ⚠️ Completed 2026-07-29 (task 3 deferred)
+**Status: COMPLETE 2026-07-29 — with one task explicitly NOT done, see notes**
 **Model Tier: sonnet**
 **Recommendation Ref:** #205
 **Depends On:** 8.1, 8.2, 8.3
@@ -1641,14 +1659,21 @@ Both have the highest proactive-suggestion value in the set — their triggers (
 S11–S14 each carry a **Should** criterion requiring the model to verbally suggest a skill based on documented trigger prose the flag has deleted from its context — unsatisfiable as written, and the same defect #201 describes, encoded into the eval meant to guard it. Separately, `assess-document.eval.md` asserts absolute score bands (`:17-18`, `:29`, `:52`, `:61`) as **Must** criteria; the file already contains the correct relative form at `:140`. There is **no baseline artifact** in the repo — "re-baseline" means editing the eval spec text. Item 3 of #205 (`research-topic.eval.md:34`) is already resolved by #189 and needs no work.
 
 **Tasks:**
-1. [ ] Rewrite S11–S14's unsatisfiable Should criteria
-2. [ ] Convert `assess-document`'s absolute bands to the relative form already present at `:140`
-3. [ ] Run the 14 `description-triggers` scenarios under Opus 5 and record results out-of-band
-4. [ ] Close #205 item 3 as already-fixed
+1. [x] Rewrite S11–S14's unsatisfiable Should criteria
+2. [x] Convert `assess-document`'s absolute bands to the relative form already present at `:140`
+3. [ ] **NOT DONE — deferred, see notes.** Run the 14 `description-triggers` scenarios under Opus 5 and record results out-of-band
+4. [x] Close #205 item 3 as already-fixed
 
 **Acceptance Criteria:**
-- [ ] No eval criterion depends on prose the harness has removed from context
-- [ ] `check_eval_mapping.py` still passes (scenario/Must-block/rubric gates)
+- [x] No eval criterion depends on prose the harness has removed from context
+- [x] `check_eval_mapping.py` still passes (scenario/Must-block/rubric gates)
+
+**Completion notes (8.4):**
+- **S11/S12 vs S13/S14 diverge now, and the eval's Purpose section was rewritten to say so.** The four were one homogeneous "locked skills" class; after 8.3 they are two: *locked* (`brain-entry`, `unlock` — flag retained, description unreachable) and *gated* (`lab-notebook`, `create-wiki` — invocable, must confirm). Editing only the scenarios would have left the Purpose and the rubric describing a class that no longer exists.
+- **The unsatisfiable criterion is now impossible to reintroduce by accident:** the Purpose states outright that no criterion for a flagged skill may depend on the model having read its trigger prose, because the flag removes it by construction. S11/S12's remaining suggestion criteria are deliberately weak — a run where the model never names the command is a **pass**.
+- **`assess-document` relative conversion** covers `:17-18`, `:29`, `:52`, `:61`, with an added note on *why* absolute bands are wrong (a model-judged score re-baselines with every model change, turning calibration drift into a red build) and the requirement that both fixtures run in the same session so the comparison is valid.
+- **#205 item 3 closed as already-fixed** via comment — `research-topic.eval.md:34` was resolved by #189/E058/D52. Comment: `issues/205#issuecomment-5120243901`.
+- **Task 3 is deliberately not done, and #205 stays open for it.** Each scenario measures whether a *fresh* session auto-invokes a skill from conversational context. Running them from the session that just wrote those skills measures nothing — the outcome is known in advance, so a green result would be an artifact of contamination, not evidence. It needs one clean session per scenario, human-run per ADR-0009/D32. Recorded as an open action item rather than reported as passed.
 
 **Notes:**
 ADR-0009/D32 stands — this stays human-run; CI has zero secrets.
@@ -1657,14 +1682,14 @@ ADR-0009/D32 stands — this stays human-run; CI has zero secrets.
 
 ### Phase 8 Testing Requirements
 
-- [ ] Eval structural linter passes after every edit
-- [ ] Both newly-invocable skills verified to gate before writing
+- [x] Eval structural linter passes after every edit
+- [x] Both newly-invocable skills verified to gate before writing (gate precedes every write path in each file; `status`/maintenance modes documented as exempt)
 
 ### Phase 8 Completion Checklist
 
-- [ ] All work items complete
-- [ ] `description-triggers` scenarios run under Opus 5
-- [ ] No skill's dispatch metadata contradicts its flag
+- [x] All work items complete (8.4 task 3 excepted — deferred with reason, #205 stays open)
+- [ ] `description-triggers` scenarios run under Opus 5 — **OPEN**, needs a clean session per scenario, human-run per ADR-0009/D32
+- [x] No skill's dispatch metadata contradicts its flag
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->

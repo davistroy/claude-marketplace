@@ -1,6 +1,6 @@
 ---
 name: unlock
-description: Load secrets from Bitwarden Secrets Manager into environment using bws CLI. Fully stateless — no vault unlock or session tokens required. Suggest (do not auto-run) when — session start with API keys needed, before skills requiring keys (research-topic, visual-explainer, summarize-feedback), Bitwarden/secrets/API key mentions, or auth errors.
+description: Load secrets from Bitwarden Secrets Manager into the environment using the bws CLI. Fully stateless — no vault unlock or session tokens required. Invoke explicitly with /unlock; it never runs on its own.
 disable-model-invocation: true
 allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(powershell:*), Bash(python:*)
 ---
@@ -166,14 +166,19 @@ Loaded 8 secret(s) from Bitwarden Secrets Manager:
   NOTION_WEEKLY_SUMMARIES_DB_ID
 ```
 
-**Proactive trigger before research:**
+**Before a skill that needs keys:**
 ```text
 User: /research-topic "RAG system best practices"
-Claude: I need API keys to run multi-provider research. Let me load them first.
-  → Runs /unlock automatically
+Claude: This needs provider API keys and none are loaded. Run /unlock first,
+        then re-run the command.
+User: /unlock
   → Loaded 8 secret(s) from Bitwarden Secrets Manager
-  → Proceeds with research-topic
+User: /research-topic "RAG system best practices"
 ```
+
+Claude never invokes `/unlock` on its own — the skill carries
+`disable-model-invocation: true` precisely so that loading credentials is always a
+deliberate user action. Ask for it; don't run it.
 
 **When bws CLI is not installed:**
 ```text

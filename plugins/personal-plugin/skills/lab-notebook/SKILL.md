@@ -1,9 +1,8 @@
 ---
 name: lab-notebook
-description: Initialize mandatory experiment logging using scientific notebook, ADR, and postmortem patterns. For projects involving system changes, benchmarks, debugging, or exploratory work. Creates LAB_NOTEBOOK.md with living decision/action tracking and injects iron-clad CLAUDE.md rules that make logging a PRECONDITION for every action. Suggest (do not auto-run) when — infrastructure/experimental/expensive-failure projects, multi-session work, or keywords like optimize/benchmark/debug/configure.
+description: Initialize mandatory experiment logging using scientific notebook, ADR, and postmortem patterns. For projects involving system changes, benchmarks, debugging, or exploratory work. Creates LAB_NOTEBOOK.md with living decision/action tracking and injects iron-clad CLAUDE.md rules that make logging a PRECONDITION for every action. Suggest when — infrastructure/experimental/expensive-failure projects, multi-session work, or keywords like optimize/benchmark/debug/configure. Confirms before writing anything when suggested rather than invoked.
 effort: medium
-disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), AskUserQuestion
 ---
 
 # Lab Notebook
@@ -25,6 +24,48 @@ Supported arguments:
 - `status` — Show notebook health: entries, staleness, open action items, active decisions
 - `rotate` — Archive the oldest experiment entries to `docs/archive/` once the log grows large, keeping the living sections and recent entries. Preserves every decision (a move, never a delete).
 - No arguments — Same as `init` if no notebook exists, same as `status` if one does
+
+## Phase 0: Self-Invocation Confirmation
+
+**This skill can be model-invoked, and every mode except `status` writes to the project** —
+`init` creates `LAB_NOTEBOOK.md` *and* injects binding rules into `CLAUDE.md`; `entry`
+appends; `rotate` moves entries into `docs/archive/`. None of that may happen unasked.
+
+**If you are invoking this skill on your own initiative** — because the work looks
+experimental, a benchmark is starting, or the user said something like "I keep losing track
+of what I tried" — rather than the user typing `/lab-notebook`, confirm first with
+`AskUserQuestion`:
+
+```json
+{
+  "questions": [
+    {
+      "question": "Set up a lab notebook for this project?",
+      "header": "Notebook",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Yes, initialize it",
+          "description": "Creates LAB_NOTEBOOK.md and adds logging rules to CLAUDE.md that make an entry a precondition for every system-modifying action"
+        },
+        {
+          "label": "No, not now",
+          "description": "Nothing is written; you can run /lab-notebook yourself at any time"
+        }
+      ]
+    }
+  ]
+}
+```
+
+- **Confirmed:** proceed with the instructions below.
+- **Declined or skipped:** reply "Skipped — run `/lab-notebook` whenever you want one." and
+  exit immediately. Create nothing, modify nothing.
+
+**When the user invokes this skill directly, skip this gate entirely** and proceed. `status`
+is read-only and never needs the gate.
+
+---
 
 ## Instructions
 

@@ -1,7 +1,7 @@
 ---
 name: release-plugin
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Glob, Grep, Read, Edit, Write
-description: Validate plugins, clean repository, and ship plugin releases in one automated workflow. Suggest when — plugin changes complete and ready to ship, after validate-plugin succeeds, before releases to ensure quality, "validate and ship" keywords, or batch improvements done.
+description: Validate plugins, clean the repository, and ship plugin releases in one automated workflow. Publishing is irreversible once tagged and pushed, so it runs only when invoked explicitly.
 disable-model-invocation: true
 ---
 
