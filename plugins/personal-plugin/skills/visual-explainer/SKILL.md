@@ -2,7 +2,7 @@
 name: visual-explainer
 description: Transform text or documents into AI-generated infographic pages that explain concepts visually using Gemini Pro 3 for generation and Claude Vision for quality evaluation. Suggest when — user has document/report/concept to visualize, after report generation, infographic/visual explanation keywords, improving visual appeal, or whitepaper/guide transformation.
 effort: high
-allowed-tools: Read, Write, Bash(python:*), Bash(pip:*), WebSearch, WebFetch
+allowed-tools: Read, Write, Bash(python:*), Bash(pip:*), WebSearch, WebFetch, AskUserQuestion
 disable-model-invocation: true
 ---
 
@@ -233,28 +233,38 @@ Concept Flow:
 
 ### Phase 5: Style Selection (Interactive)
 
-Prompt for style selection:
+Ask with `AskUserQuestion`:
 
-```text
-Visual Style Selection
-======================
-What style would you prefer?
-
-1. Professional Clean (Recommended)
-   - Clean, corporate-ready with warm accents
-   - Best for: Business, presentations, reports
-
-2. Professional Sketch
-   - Hand-drawn sketch aesthetic
-   - Best for: Creative, educational, informal
-
-3. Custom
-   - Provide path to your own style JSON
-
-4. Skip (use Professional Clean default)
-
-Select style [1-4]:
+```json
+{
+  "questions": [
+    {
+      "question": "Which visual style should the images use?",
+      "header": "Style",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Professional Clean (Recommended)",
+          "description": "Clean, corporate-ready with warm accents. Best for business, presentations, reports"
+        },
+        {
+          "label": "Professional Sketch",
+          "description": "Hand-drawn sketch aesthetic. Best for creative, educational, informal material"
+        },
+        {
+          "label": "Custom style JSON",
+          "description": "You supply a path to your own style JSON; the skill asks for it next"
+        }
+      ]
+    }
+  ]
+}
 ```
+
+The old `4. Skip (use Professional Clean default)` slot is the native **Skip** control —
+treat a skipped question as Professional Clean. If the user picks **Custom style JSON**, ask
+for the path in the following turn; a path typed straight into the **Other** box is accepted
+as the custom style too.
 
 ### Phase 6: Image Count Confirmation
 
@@ -275,11 +285,38 @@ Image 3: "Entanglement Synthesis"
   - Covers: Entanglement, applications, future
   - Intent: Tie concepts together
 
-Would you like to:
-1. Proceed with 3 images (Recommended)
-2. Use fewer images (condense concepts)
-3. Use more images (expand detail)
-4. Adjust settings (aspect ratio, iterations)
+```
+
+Display the plan above as text, then confirm with `AskUserQuestion`:
+
+```json
+{
+  "questions": [
+    {
+      "question": "Proceed with this image generation plan?",
+      "header": "Image plan",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Proceed with 3 images (Recommended)",
+          "description": "Generate exactly the plan shown above"
+        },
+        {
+          "label": "Use fewer images",
+          "description": "Condense the concepts into a smaller set and re-present the plan"
+        },
+        {
+          "label": "Use more images",
+          "description": "Expand detail into additional images and re-present the plan"
+        },
+        {
+          "label": "Adjust settings",
+          "description": "Change aspect ratio or iteration count before generating"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Phase 7: Generation Execution

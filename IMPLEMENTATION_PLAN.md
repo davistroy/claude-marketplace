@@ -1461,8 +1461,8 @@ This row is inverted in the issue: `spark-recon` does not lack grants, it has **
 
 ---
 
-#### 7.5 AskUserQuestion: convert the six consumers
-**Status: PENDING**
+#### 7.5 AskUserQuestion: convert the six consumers ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #203
 **Depends On:** 7.4
@@ -1478,19 +1478,27 @@ This row is inverted in the issue: `spark-recon` does not lack grants, it has **
 None of the six currently grants `AskUserQuestion`. `spec-to-prototype` is the best fit (its `:62` "one at a time" contradicts `:68`'s "3-5 questions is typical" in the same section); `visual-explainer`'s two menus are already exactly AskUserQuestion-shaped. `finish-document`'s `--auto` mode and its own Session Commands are local and must survive.
 
 **Tasks:**
-1. [ ] Add `AskUserQuestion` to all six `allowed-tools`
-2. [ ] Convert each menu, keeping the text protocol as a documented fallback where session commands (`save`, `go to N`) can't be expressed
-3. [ ] `spec-to-prototype`: batch Q1–4 in one call; edit the diagram label at `:30` in lockstep
-4. [ ] Leave `references/templates/interactive.md` as-is — its ONE-AT-A-TIME rule is a deliberate interview contract
+1. [x] Add `AskUserQuestion` to all six `allowed-tools`
+2. [x] Convert each menu, keeping the text protocol as a documented fallback where session commands (`save`, `go to N`) can't be expressed
+3. [x] `spec-to-prototype`: batch Q1–4 in one call; edit the diagram label at `:30` in lockstep
+4. [x] Leave `references/templates/interactive.md` as-is — its ONE-AT-A-TIME rule is a deliberate interview contract
 
 **Acceptance Criteria:**
-- [ ] WHEN a converted component asks a multiple-choice question THEN it SHALL use the native tool
-- [ ] `--auto` mode still auto-selects without prompting
+- [x] WHEN a converted component asks a multiple-choice question THEN it SHALL use the native tool
+- [x] `--auto` mode still auto-selects without prompting
+
+**Completion notes (7.5):**
+- **Menus converted:** `ask-questions` ×3 (resume R/S/A, the per-question `[A]…[S]` block, the skipped-questions menu), `finish-document` ×2 (resume, plus the `:151` cross-reference that described the lettered format), `spec-to-prototype` (Q1–4 batched into one call), `visual-explainer` ×2 (style `[1-4]`, image-plan `[1-4]`), `summarize-feedback` (context-size `[1-3]`), `bpmn-generator` ×2 (save confirmation, question format).
+- **The `[D] Custom` / `[S] Skip` slots are now explicitly forbidden as options**, not merely omitted — every converted site says why (the harness supplies both), so a future editor doesn't "helpfully" re-add them and burn two of four slots.
+- **The text protocol survives where the native tool cannot express it.** `ask-questions`' `help`/`status`/`back`/`skip`/`quit`/`go to N`/`save` table is kept and reframed: it is reached by typing into the **Other** box, and free text is checked against the command table *before* being treated as an answer. `go to N` and `save` have no native equivalent, which is the whole reason the protocol stays.
+- **`--auto` strengthened, not just preserved:** `finish-document:155` now says to issue **no `AskUserQuestion` call at all** in auto mode. The pre-existing wording ("auto-select option A… don't wait for input") would have been satisfiable by calling the tool and ignoring it, which blocks on the user.
+- **`spec-to-prototype`'s `:62`/`:68` contradiction resolved in favor of batching** — it is a pre-build scoping exchange, not an interview — and the Graphviz node label at `:30` was edited in lockstep so the diagram no longer says "one at a time". `references/templates/interactive.md` untouched, per task 4: its ONE-AT-A-TIME rule governs interviews, which is why `ask-questions` keeps one question per call while `spec-to-prototype` batches.
+- **Verification:** all six carry `AskUserQuestion` in `allowed-tools`; `claude plugin validate --strict` passed for all three plugins; `check_injections.py` exit 0; `markdownlint-cli2` 0 issues over the changed set; `interactive.md` absent from the diff.
 
 ---
 
-#### 7.6 `bpmn-generator`: drop the simulated REPL
-**Status: PENDING**
+#### 7.6 `bpmn-generator`: drop the simulated REPL ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #203
 **Depends On:** 7.5
@@ -1501,26 +1509,32 @@ None of the six currently grants `AskUserQuestion`. `spec-to-prototype` is the b
 `:186-219` hand-rolls a REPL (`help`/`status`/`back`/`skip`/`quit`). `skip` and `quit` are native; `status` is redundant under a native UI; `back` has no equivalent and is not worth 34 lines of interpreter. The file is **494/500 lines** — deleting this block plus deduplicating `:106-123` against `clarification-patterns.md` creates the headroom the conversion needs. Net negative diff.
 
 **Tasks:**
-1. [ ] Delete `:186-219`
-2. [ ] Deduplicate `:106-123` against the shared reference
-3. [ ] Confirm the body is comfortably under 500 lines
+1. [x] Delete `:186-219`
+2. [x] Deduplicate `:106-123` against the shared reference
+3. [x] Confirm the body is comfortably under 500 lines
 
 **Acceptance Criteria:**
-- [ ] No simulated command interpreter remains
-- [ ] `bpmn-generator/SKILL.md` is under the 500-line budget
+- [x] No simulated command interpreter remains
+- [x] `bpmn-generator/SKILL.md` is under the 500-line budget
+
+**Completion notes (7.6):**
+- **REPL deleted** (command table, `help` display, and implementation notes) and replaced by a five-line *Session Control* note that maps each old command to its native equivalent: `skip` → **Skip**, `quit` → closing the question, `status` → redundant when the interview is in the transcript. `back` is called out as having **no** native equivalent, with the fallback stated (re-ask and overwrite the recorded decision) — the one command whose loss is real.
+- **Deduplicated against the shared reference, not just deleted:** the Question Format block and the Auto-Accept block were verbatim-ish copies of `references/clarification-patterns.md`, the file 7.4 had just corrected. Leaving them would have re-created the drift the whole phase is closing — the skill would teach the lettered format while its own reference taught the native one. Both now point at the reference, which is stated to own the canonical shape.
+- **The deleted `help` text was itself already stale:** it read "Press E at any question to accept recommended answers", a control that stopped existing when 7.4 converted the questions. It would have shipped as a live instruction to press a key that does nothing.
+- **Budget:** 494 → **442 lines**, a net −52. Under the 500-line budget with real headroom, as the item predicted.
 
 ---
 
 ### Phase 7 Testing Requirements
 
-- [ ] Each converted component's documented workflow executes without a permission prompt
-- [ ] D39 carve-outs untouched
+- [x] Each converted component's documented workflow executes without a permission prompt
+- [x] D39 carve-outs untouched
 
 ### Phase 7 Completion Checklist
 
-- [ ] All work items complete
-- [ ] `Agent`/`Task` decision recorded in the Decision Log
-- [ ] All three plugins validate `--strict`
+- [x] All work items complete
+- [x] `Agent`/`Task` decision recorded in the Decision Log (**D56**)
+- [x] All three plugins validate `--strict`
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->

@@ -1,7 +1,7 @@
 ---
 description: Interactive Q&A session from questions JSON file
 argument-hint: "<questions-file> [--force]"
-allowed-tools: Read, Write, Edit, Glob, Grep
+allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
 # Ask Questions Command
@@ -47,21 +47,34 @@ Before starting the Q&A session, check for an incomplete previous session:
 
 1. Use the Glob tool to find existing `answers-[source-document]-*.json` files in the same directory as the questions file
 2. If found, read the file and check `metadata.status`. If status is `"in_progress"`:
-   ```text
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Incomplete session detected
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Report the session state as prose — previous file, progress (`15 of 47 answered (32%)`),
+   and last activity — then ask with `AskUserQuestion`, exactly as specified in
+   `references/patterns/workflow.md`:
 
-   Previous session: answers-PRD-20260114-100000.json
-   Progress: 15 of 47 questions answered (32%)
-   Last activity: 2026-01-14T10:45:00Z
-
-   Options:
-   [R] Resume from question 16
-   [S] Start fresh (overwrites previous progress)
-   [A] Abort
-
-   Your choice (R/S/A):
+   ```json
+   {
+     "questions": [
+       {
+         "question": "How would you like to proceed with the interrupted session?",
+         "header": "Resume",
+         "multiSelect": false,
+         "options": [
+           {
+             "label": "Resume (Recommended)",
+             "description": "Continue from question 16 with all previous answers preserved"
+           },
+           {
+             "label": "Start Fresh",
+             "description": "Begin a new session; previous answers are backed up to a .bak file first"
+           },
+           {
+             "label": "Abort",
+             "description": "Exit without making changes"
+           }
+         ]
+       }
+     ]
+   }
    ```
 3. On resume: Load existing answers and continue from `metadata.last_question_answered + 1`. Each answer entry has an `answered: true/false` field to identify which questions have responses.
 4. On start fresh: Backup existing file (rename with `.bak` suffix) and start from question 1
@@ -129,24 +142,38 @@ Display:
 
 #### C. Provide Answer Options in Multiple-Choice Format
 
-Always present options in this structure:
+Ask with `AskUserQuestion` — **one question object per call**, never a batch (see Rule 1
+below). Present the enriched context from step B as prose immediately before the call, then:
 
-```text
-**[A] Recommended:** [Your best answer]
-    Why this is best: [Clear rationale - 1-2 sentences]
-
-**[B] Alternative:** [Viable alternative answer]
-    Trade-off: [What you gain/lose with this choice]
-
-**[C] Alternative:** [Another option if applicable]
-    Trade-off: [What you gain/lose with this choice]
-
-**[D] Custom:** Provide your own answer
-
-**[S] Skip:** Skip this question for now (can return later)
-
-Your choice (A/B/C/D/S):
+```json
+{
+  "questions": [
+    {
+      "question": "[The original question text, ending in a question mark]",
+      "header": "[≤12 chars]",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "[Your best answer] (Recommended)",
+          "description": "Why this is best: [clear rationale, 1-2 sentences]"
+        },
+        {
+          "label": "[Viable alternative]",
+          "description": "Trade-off: [what you gain/lose with this choice]"
+        },
+        {
+          "label": "[Another option if applicable]",
+          "description": "Trade-off: [what you gain/lose with this choice]"
+        }
+      ]
+    }
+  ]
+}
 ```
+
+**Do not add `Custom` or `Skip` options.** The harness supplies a free-text **Other** box
+(the old `[D] Custom`) and a **Skip** control (the old `[S] Skip`) on every question, so
+spending option slots on them wastes two of the four.
 
 Guidelines for generating answers:
 - Make answers **specific and actionable**, not generic
@@ -157,11 +184,11 @@ Guidelines for generating answers:
 
 #### D. Wait for User Response
 
-- Do not proceed until the user provides input
-- Accept: A, B, C, D, S, or the full answer text
-- If user selects D (Custom), prompt them to type their answer
-- If user selects S (Skip), mark as skipped and continue
-- If user wants to revisit a previous question, allow it (e.g., "go back to question 5")
+- Do not proceed until the user responds
+- A selected option is that option's answer; **Skip** marks the question skipped and continues
+- Free text in the **Other** box is the answer verbatim — *unless* it is a session command
+  (see step 3), which is checked first
+- If the user asks to revisit a previous question, allow it (e.g., "go back to question 5")
 
 #### E. Confirm and Record
 
@@ -170,7 +197,11 @@ Guidelines for generating answers:
 
 ### 3. Handle Session Commands
 
-During the session, support these standard session commands (see `references/patterns/workflow.md` for full specification):
+Session commands are a text protocol, not a menu — `go to N` and `save` have no
+`AskUserQuestion` equivalent, so the protocol survives the conversion intact. The user
+reaches it by typing into the **Other** box on any question. Check every free-text response
+against this table **before** treating it as an answer (see `references/patterns/workflow.md`
+for the full specification):
 
 | Command | Aliases | Action |
 |---------|---------|--------|
@@ -203,19 +234,39 @@ Additional commands:
 
 **Implementation notes:**
 - Commands are case-insensitive
-- Check for session commands before processing input as an answer choice
-- Unknown input that is not A/B/C/D/S should trigger the help message
+- Check for session commands before processing free text as an answer
+- Free text that is neither a session command nor a plausible answer should trigger the help message
 
 ### 4. After All Questions Are Answered
 
 #### A. Handle Skipped Questions
 
-If any questions were skipped:
-```text
-You skipped 3 questions. Would you like to:
-[A] Answer them now
-[B] Leave them unanswered
-[C] Review the list first
+If any questions were skipped, ask with `AskUserQuestion`:
+
+```json
+{
+  "questions": [
+    {
+      "question": "You skipped 3 questions. How would you like to handle them?",
+      "header": "Skipped",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Answer them now (Recommended)",
+          "description": "Return to each skipped question in order before the file is written"
+        },
+        {
+          "label": "Review the list first",
+          "description": "Show the skipped questions, then ask again"
+        },
+        {
+          "label": "Leave them unanswered",
+          "description": "Write the file now; skipped questions keep answered: false"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 #### B. Generate Output JSON

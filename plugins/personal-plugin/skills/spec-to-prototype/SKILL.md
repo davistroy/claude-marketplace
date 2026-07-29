@@ -2,7 +2,7 @@
 name: spec-to-prototype
 description: Use when the user has a spec document, design system reference, component library doc, wireframe description, or similar specification and wants a visual HTML/CSS dummy prototype built from it. Triggers on "build a prototype", "create a mockup from this spec", "prototype this design", "make a visual demo". Also use when converting technical documentation into stakeholder-ready visual demos. Do NOT use for production frontend implementation — this produces visual HTML/CSS dummies only, not shippable code.
 effort: high
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(python:*), Agent, Skill
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(python:*), Agent, Skill, AskUserQuestion
 ---
 
 # Spec-to-Prototype Builder
@@ -27,7 +27,7 @@ digraph prototype_flow {
 
   read [label="1. Read & analyze spec"];
   identify [label="2. Identify prototypable views"];
-  ask [label="3. Ask clarifying questions\n(one at a time, multiple choice)"];
+  ask [label="3. Ask clarifying questions\n(batched, one AskUserQuestion call)"];
   design [label="4. Invoke frontend-design skill"];
   build [label="5. Build single HTML file"];
   test [label="6. Test in browser"];
@@ -59,15 +59,26 @@ Determine what can be shown as static views. Propose 2-3 options to the user:
 
 ### Step 3 — Ask Clarifying Questions
 
-Ask questions **one at a time, multiple choice preferred**. Essential questions:
+Ask the four essential questions in **one `AskUserQuestion` call** — this is a short
+scoping exchange before a build, not an interview, and batching costs the user one
+interaction instead of four:
 
-1. **Which scenario/views to show?** Propose options based on spec analysis. Recommend the option that covers the most components.
-2. **Visual fidelity?** (A) Pixel-accurate recreation of existing system, (B) Recognizably accurate but not pixel-perfect, (C) Wireframe/blueprint style. Recommend B unless user specifies.
-3. **Data source?** Ask if the user has sample data (CSV, JSON, etc.) to populate the prototype. If not, derive realistic data from the spec.
-4. **Single page or multi-page?** Recommend single self-contained HTML file for shareability. If multiple views, use CSS class toggling with minimal JS for navigation.
-5. **Any specific persona, branding, or scenario context?** (agent name, company, use case)
+1. **Which scenario/views to show?** Options derived from the Step 2 analysis; recommend the
+   one covering the most components.
+2. **Visual fidelity?** Pixel-accurate recreation of the existing system / recognizably
+   accurate but not pixel-perfect (recommend) / wireframe-blueprint style.
+3. **Data source?** User-supplied sample data (CSV, JSON) / derive realistic data from the
+   spec (recommend when no data was mentioned).
+4. **Single page or multi-page?** Single self-contained HTML file (recommend, for
+   shareability) / multiple views via CSS class toggling with minimal JS.
 
-Stop asking when you have enough to build. Don't over-question — 3-5 questions is typical.
+Each gets a `header` of ≤12 chars, `multiSelect: false`, and 2–4 real options with the
+recommended one first. Do not add a "let me type my own" option — the **Other** box is
+always there.
+
+**Persona, branding, or scenario context** (agent name, company, use case) is free-form, not
+multiple choice: ask it as prose in the same turn, or skip it when the spec already supplies
+one. Stop when you have enough to build.
 
 ### Step 4 — Design Direction
 
