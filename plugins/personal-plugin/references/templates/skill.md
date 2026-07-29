@@ -3,7 +3,7 @@ name: {{SKILL_NAME}}
 description: {{DESCRIPTION}}
 # argument-hint: "<required-arg> [--optional-flag]"
 # effort: medium                    # low | medium | high | xhigh | max
-# allowed-tools: {{ALLOWED_TOOLS}}  # e.g., Read, Glob, Grep, Bash, Task
+# allowed-tools: {{ALLOWED_TOOLS}}  # e.g., Read, Glob, Grep, Bash, Agent
 # disable-model-invocation: false   # true = removes LLM call; pure-tool skill (also excludes from proactive triggering)
 #
 # --- Modern Dispatch ---

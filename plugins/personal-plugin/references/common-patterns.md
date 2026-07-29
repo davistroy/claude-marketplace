@@ -129,7 +129,7 @@ Canonical reference for late-2025 Claude Code features. `new-skill.md` links her
 ```yaml
 context: fork
 ```
-Used inside a Task dispatch block, not in the skill's own frontmatter.
+Used inside an `Agent` dispatch block, not in the skill's own frontmatter.
 
 **Use case:** Spawns an isolated subagent with its own conversation context. The subagent cannot read or write the parent's conversation history. Ideal for analysis phases (read-only exploration), parallel scanning tiers, or any work that doesn't need to report back interactively.
 
@@ -149,7 +149,7 @@ agent: Explore          # or: software-engineer, solutions-architect, data-archi
                         #     security-architect, platform-engineer, risk-compliance
 ```
 
-**Use case:** Selects the subagent persona/specialization for a Task dispatch. Pair with `context: fork` for analysis roles. Use domain-specific types (e.g., `security-architect`) in multi-agent orchestration to improve role separation.
+**Use case:** Selects the subagent persona/specialization for an `Agent` dispatch. Pair with `context: fork` for analysis roles. Use domain-specific types (e.g., `security-architect`) in multi-agent orchestration to improve role separation.
 
 **Gotchas:**
 - `Explore` is the generic read-only agent; use named roles when domain framing matters.
@@ -168,7 +168,7 @@ model: opus             # tier alias: haiku | sonnet | opus | fable
 
 **Gotchas:**
 - Always use tier aliases (`haiku`, `sonnet`, `opus`, `fable`), never pinned model IDs (ADR-0005). Tier aliases resolve at dispatch time, preventing silent staleness when models are retired or upgraded.
-- Overriding in a subagent Task prompt takes precedence over frontmatter.
+- Overriding in a subagent `Agent` prompt takes precedence over frontmatter.
 
 ---
 

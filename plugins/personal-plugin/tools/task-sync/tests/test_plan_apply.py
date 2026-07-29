@@ -650,6 +650,65 @@ def test_load_decisions_variants(tmp_path: Path) -> None:
     assert _load_decisions(str(wrapped)) == {"t-2": "remote"}
 
 
+def test_load_decisions_wrapped_missing_section_yields_empty_not_outer_dict(
+    tmp_path: Path,
+) -> None:
+    """A wrapped file lacking the requested section means "none of this kind".
+
+    Regression: the fallthrough used to return the OUTER dict, so a wrapped
+    conflicts-only file (the documented backward-compat shape) handed
+    ``{"decisions": "..."}`` to orphan validation and aborted every
+    ``sync --apply`` before any mutation.
+    """
+    conflicts_only = tmp_path / "conflicts_only.json"
+    conflicts_only.write_text(json.dumps({"decisions": {"t-1": "local"}}))
+    assert _load_decisions(str(conflicts_only)) == {"t-1": "local"}
+    assert _load_decisions(str(conflicts_only), key="orphan_decisions") == {}
+
+    orphans_only = tmp_path / "orphans_only.json"
+    orphans_only.write_text(json.dumps({"orphan_decisions": {"t-o": "keep"}}))
+    assert _load_decisions(str(orphans_only), key="orphan_decisions") == {"t-o": "keep"}
+    assert _load_decisions(str(orphans_only)) == {}
+
+    both = tmp_path / "both.json"
+    both.write_text(
+        json.dumps({"decisions": {"t-1": "local"}, "orphan_decisions": {"t-o": "drop"}})
+    )
+    assert _load_decisions(str(both)) == {"t-1": "local"}
+    assert _load_decisions(str(both), key="orphan_decisions") == {"t-o": "drop"}
+
+
+def test_split_flat_decisions_routes_by_plan_membership() -> None:
+    """The flat shape lets both kinds coexist in one object, so each consumer
+    must receive only its own ids — and an id in NEITHER set must still reach
+    the fail-loud orphan validation rather than being silently dropped."""
+    from task_sync.__main__ import _split_flat_decisions
+    from task_sync.reconcile.resolve import Conflict, Orphan
+
+    plan = SyncPlan(
+        conflicts=[
+            Conflict(
+                task_id="t-conf",
+                issue_number=1,
+                local={},
+                remote={},
+                recommendation="local",
+                local_updated_at=None,
+                remote_updated_at="2026-01-01T00:00:00Z",
+            )
+        ],
+        orphans=[Orphan(task_id="t-orph", issue_number=2, local_changed=False)],
+    )
+    conflicts, orphans = _split_flat_decisions(
+        {"t-conf": "local", "t-orph": "keep", "t-typo": "keep"}, plan
+    )
+    assert conflicts == {"t-conf": "local", "t-typo": "keep"}
+    # the unknown id lands in the orphan map ON PURPOSE: that is the only
+    # fail-loud consumer, so a mistyped id raises instead of being ignored.
+    assert orphans == {"t-orph": "keep", "t-typo": "keep"}
+    assert "t-conf" not in orphans
+
+
 def test_load_decisions_rejects_non_object(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps(["not", "a", "map"]))

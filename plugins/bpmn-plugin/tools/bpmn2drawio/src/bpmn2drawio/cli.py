@@ -55,7 +55,7 @@ Examples:
         choices=["auto", "graphviz", "preserve"],
         default="auto",
         help="Layout algorithm: auto preserves BPMN DI coordinates when "
-        "present, else graphviz (default: auto)",
+        "complete (every element positioned), else graphviz (default: auto)",
     )
 
     parser.add_argument(

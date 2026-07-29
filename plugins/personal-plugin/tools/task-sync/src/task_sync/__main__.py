@@ -96,12 +96,45 @@ def _build_provider(name: str, repo: str | None, config: dict[str, Any]) -> Prov
     raise ValueError(f"unknown provider {name!r}")
 
 
+#: Top-level section keys that mark a decisions file as *wrapped* rather than flat.
+_DECISION_SECTIONS = ("decisions", "orphan_decisions")
+
+
+def _split_flat_decisions(
+    flat: dict[str, str], plan: SyncPlan
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Partition a *flat* decisions mapping into (conflict, orphan) maps by plan membership.
+
+    The flat shape lets conflict and orphan decisions coexist in one object
+    (`sync-semantics.md`), so neither consumer may receive the other's ids:
+    `_validate_orphan_decisions` is deliberately fail-loud (D36) and aborts on
+    an id it does not recognize.
+
+    An id in *neither* set is a typo, and is routed to the orphan map precisely
+    so that fail-loud check still reports it. Silently dropping it would turn a
+    mistyped id into a decision the user believes they made.
+    """
+    conflict_ids = {c.task_id for c in plan.conflicts}
+    orphan_ids = {o.task_id for o in plan.orphans}
+    conflicts = {k: v for k, v in flat.items() if k not in orphan_ids}
+    orphans = {k: v for k, v in flat.items() if k not in conflict_ids}
+    return conflicts, orphans
+
+
 def _load_decisions(path: str | None, *, key: str = "decisions") -> dict[str, str]:
     """Load a decisions file: `{task_id: "local"|"remote"}` for conflicts or
     `{task_id: "keep"|"drop"}` for orphans.
 
     Accepts either a flat mapping or one wrapped under a `key` (default
     `"decisions"` for backward compat; `key="orphan_decisions"` for orphans).
+
+    A file is *wrapped* if it carries **any** section key at top level. In that
+    case a missing requested section means "no decisions of this kind" and
+    yields `{}` — it must NOT fall through to returning the outer dict. That
+    fallthrough made a wrapped conflicts-only file (the documented backward-compat
+    shape) hand `{"decisions": "..."}` to orphan validation, which aborted every
+    `sync --apply` before any mutation. Flat files are returned whole and are
+    partitioned by plan membership at the call site.
     A `None`/empty `path` yields an empty mapping (every decision left
     unresolved) — that is "no decisions file was requested", not "the
     requested file was missing".
@@ -123,8 +156,8 @@ def _load_decisions(path: str | None, *, key: str = "decisions") -> dict[str, st
         raise ValueError(f"cannot read decisions file {path}: {exc.strerror or exc}") from exc
     except json.JSONDecodeError as exc:
         raise ValueError(f"malformed JSON in decisions file {path}: {exc}") from exc
-    if isinstance(data, dict) and key in data:
-        data = data[key]
+    if isinstance(data, dict) and any(k in data for k in _DECISION_SECTIONS):
+        data = data.get(key, {})
     if not isinstance(data, dict):
         raise ValueError(f"decisions file {path} must be a JSON object of task_id -> decision")
     return {str(k): str(v) for k, v in data.items()}
@@ -248,6 +281,11 @@ def run_sync(args: argparse.Namespace, provider: Provider | None = None) -> int:
         except ValueError as exc:
             print(f"task-sync sync: {exc}", file=sys.stderr)
             return 1
+        if decisions and decisions == orphan_decisions:
+            # Both loads returned the same mapping, so the file was flat: one
+            # object carrying conflict and orphan decisions together. Route each
+            # id to the consumer that owns it.
+            decisions, orphan_decisions = _split_flat_decisions(decisions, plan)
         updated = apply(plan, decisions, tasklist, provider, orphan_decisions=orphan_decisions)
         store.save(updated, tasks_path)
         commands.regenerate_tasks_md(updated, tasks_path)

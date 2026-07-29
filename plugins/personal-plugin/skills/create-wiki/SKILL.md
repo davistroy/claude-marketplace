@@ -83,17 +83,26 @@ test -f wiki/index.md && echo "EXISTS" || echo "NOT_FOUND"
 
 ### Maintenance Mode (wiki already exists)
 
-Used when `paths:` auto-activation fires (a source file or CLAUDE.md changed) OR when the user invokes with `status`.
+Used when the user invokes the skill on a project that already has a wiki — with `status`, or with no argument.
 
 **Maintenance mode is idempotent** — running it twice produces the same result. It updates, never re-initializes.
 
 #### Maintenance Step 1: Identify Changed Sources
 
-Determine what triggered the skill (if auto-activated via `paths:`):
-- If triggered by `wiki/sources/**/*` — a source file was added or modified
-- If triggered by `CLAUDE.md` — project rules changed; wiki pages covering architecture or conventions may be stale
-- If triggered by `LAB_NOTEBOOK.md` — new findings may be wiki-worthy; check for extractable durable knowledge
-- If invoked directly — check recent git changes: `git diff --name-only HEAD~1 HEAD`
+Nothing invokes this skill on save. There is no filesystem watcher, and a `paths:`
+declaration would only be a *load gate* — it makes a skill findable after Claude's own
+Read/Edit/Write touches a matching file, and never runs anything on its own
+(see [ADR-0012](../../../../docs/adr/0012-artifact-derived-documentation.md)). So identify
+changed sources from git:
+
+```bash
+git diff --name-only HEAD~1 HEAD
+```
+
+Then interpret what changed:
+- `wiki/sources/**/*` — a source file was added or modified
+- `CLAUDE.md` — project rules changed; wiki pages covering architecture or conventions may be stale
+- `LAB_NOTEBOOK.md` — new findings may be wiki-worthy; check for extractable durable knowledge
 
 #### Maintenance Step 2: Update Relevant Wiki Pages
 
