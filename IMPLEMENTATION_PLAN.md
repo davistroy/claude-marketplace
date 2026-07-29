@@ -1395,8 +1395,8 @@ This row is inverted in the issue: `spark-recon` does not lack grants, it has **
 
 ---
 
-#### 7.3 `prime`: grant the dispatch it mandates
-**Status: PENDING**
+#### 7.3 `prime`: grant the dispatch it mandates ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #191
 **Depends On:** 7.1, Phase 1
@@ -1407,16 +1407,25 @@ This row is inverted in the issue: `spark-recon` does not lack grants, it has **
 `prime` mandates `context: fork` / `agent: Explore` dispatch in Phases 1/3/5 while granting neither `Agent` nor `Task`. A second, unfiled gap on the same line: `Bash(git:*)` cannot match its own Phase 2 compounds (`:62,:63,:64,:67` all pipe into `head`/`wc`). Since prime's injections are **inert**, Bash is the only way those values can be obtained.
 
 **Tasks:**
-1. [ ] Add `Agent` (the token decided in 7.1)
-2. [ ] Add `Bash(head:*)`, `Bash(wc:*)` — do **not** grant unscoped `Bash`, which would void the read-only guarantee at `:13`
-3. [ ] Correct `:59`'s false claim that Phase 2 values are "pre-loaded via dynamic context injection"
-4. [ ] State that Phases 1/3/5 dispatch **concurrently**, using `arch-review:89`'s house wording
-5. [ ] Do **not** convert `:60-68` to the live injection form — that would switch on 7 dead executions (ADR-0011)
+1. [x] Add `Agent` (the token decided in 7.1)
+2. [x] Add `Bash(head:*)`, `Bash(wc:*)` — do **not** grant unscoped `Bash`, which would void the read-only guarantee at `:13`
+3. [x] Correct `:59`'s false claim that Phase 2 values are "pre-loaded via dynamic context injection"
+4. [x] State that Phases 1/3/5 dispatch **concurrently**, using `arch-review:89`'s house wording
+5. [x] Do **not** convert `:60-68` to the live injection form — that would switch on 7 dead executions (ADR-0011)
 
 **Acceptance Criteria:**
-- [ ] WHEN `prime` reaches Phase 1 THEN it SHALL be able to dispatch `agent: Explore` without a denial
-- [ ] `prime` remains read-only
-- [ ] `:343`'s non-git path, which currently works, still works
+- [x] WHEN `prime` reaches Phase 1 THEN it SHALL be able to dispatch `agent: Explore` without a denial
+- [x] `prime` remains read-only
+- [x] `:343`'s non-git path, which currently works, still works
+
+**Completion notes (7.3):**
+- **Grants:** `Agent, Bash(head:*), Bash(wc:*)` added; `Bash` left scoped, no write tool added, so the `:13` read-only guarantee holds by construction.
+- **The false claim was corrected in three places, not one.** `:26` also asserted "Phase 2 pre-loads git state via dynamic context injection before Claude sees the prompt", and `:66` repeated "(pre-loaded via dynamic context injection)" for the branch-status block. Fixing only `:59` would have left two copies of the same lie.
+- **Count verified against the file, not the issue:** 7 inert `` `!`git …`` `` spans, of which 4 pipe into `head`/`wc` — which is why the "just tidy the backticks" edit is dangerous and why `Bash(git:*)` alone would have rejected them.
+- **Concurrency wording lifted from `arch-review:89`** verbatim in shape: "Dispatch all three simultaneously using the Agent tool — do NOT wait for one to finish before spawning the next."
+- **Non-git path preserved** by adding an explicit "Skip this whole item when not in a git repository (see Error Handling)" to the Phase 2 git block, tying it to the existing `:343` clause.
+- **The linter caught me writing a live injection into this very edit.** My first draft described the live form by *showing* it — which made it live, in a skill body, calling a nonexistent `cmd`. `check_injections.py` exited 1 naming both violations (`unguarded`, `ungranted`) at `:59`. Rewritten to name the form in prose instead. This is the first time the 1.6 gate fired on unplanted, real work, and it fired on the author of the ADR it enforces.
+- **Verification:** `check_injections.py` exit 0 (63 files, 35 live injections); `claude plugin validate --strict ./plugins/personal-plugin` passed; `markdownlint-cli2` 0 issues; body 356 lines (budget 500).
 
 ---
 
