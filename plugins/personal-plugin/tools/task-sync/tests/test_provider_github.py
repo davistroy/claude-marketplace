@@ -37,6 +37,49 @@ _CLOSED_ISSUE_FIXTURE = {
     "milestone": None,
 }
 
+# REST `/repos/{repo}/issues` shapes (snake_case timestamps, no PR key for a
+# plain issue) used by the 4.6 pagination tests below. Distinct from
+# `_ISSUE_FIXTURE`/`_CLOSED_ISSUE_FIXTURE` above, which are `gh issue view
+# --json`-shaped (camelCase) and still exercise `_view`-backed paths
+# (create/update) untouched by 4.6.
+_REST_ISSUE_ITEM_1 = {
+    "number": 42,
+    "title": "Fix the thing",
+    "body": "Some body text",
+    "state": "open",
+    "updated_at": "2026-07-10T12:00:00Z",
+    "closed_at": None,
+    "labels": [{"name": "bug"}, {"name": "status/todo"}],
+    "milestone": {"title": "v1.0"},
+}
+
+_REST_ISSUE_ITEM_2 = {
+    "number": 43,
+    "title": "Old bug",
+    "body": "",
+    "state": "closed",
+    "updated_at": "2026-06-01T00:00:00Z",
+    "closed_at": "2026-06-15T00:00:00Z",
+    "labels": [],
+    "milestone": None,
+}
+
+# A pull request as the REST `/issues` endpoint returns it: same shape as a
+# plain issue plus a `pull_request` key. Must never be adopted as a task.
+_REST_PR_ITEM = {
+    "number": 99,
+    "title": "Some PR",
+    "body": "",
+    "state": "open",
+    "updated_at": "2026-07-01T00:00:00Z",
+    "closed_at": None,
+    "labels": [],
+    "milestone": None,
+    "pull_request": {"url": "https://api.github.com/repos/owner/repo/pulls/99"},
+}
+
+_ISSUES_API_URL = "repos/owner/repo/issues?state=all&per_page=100"
+
 
 class FakeCompletedProcess:
     def __init__(self, stdout: str = "", stderr: str = "", returncode: int = 0) -> None:
@@ -80,10 +123,13 @@ def _json_ok(data: Any) -> FakeCompletedProcess:
 
 
 def test_list_issues_returns_normalized_issues(fake_gh: FakeGh) -> None:
-    fake_gh.route(
-        ("issue", "list"),
-        lambda args: _json_ok([_ISSUE_FIXTURE, _CLOSED_ISSUE_FIXTURE]),
-    )
+    """Normal case: real gh 2.45.0 (confirmed 2026-07-29 against the live
+    API, `gh api "repos/{repo}/issues?...&per_page=N" --paginate`) merges
+    every page into one array by the time it hits stdout -- this is that
+    shape.
+    """
+    blob = json.dumps([_REST_ISSUE_ITEM_1, _REST_ISSUE_ITEM_2])
+    fake_gh.route(("api", _ISSUES_API_URL), lambda args: FakeCompletedProcess(stdout=blob))
 
     provider = GithubProvider("owner/repo")
     issues = provider.list_issues(state="all")
@@ -98,32 +144,99 @@ def test_list_issues_returns_normalized_issues(fake_gh: FakeGh) -> None:
     assert issues[1].closed_at is not None
     assert issues[1].milestone is None
 
-    list_call = next(c for c in fake_gh.calls if c[:2] == ["issue", "list"])
-    assert "--repo" in list_call and "owner/repo" in list_call
-    assert "--state" in list_call and "all" in list_call
+    list_call = next(c for c in fake_gh.calls if c[:2] == ["api", _ISSUES_API_URL])
+    assert "--paginate" in list_call
 
 
-def test_list_issues_saturated_raises(fake_gh: FakeGh) -> None:
-    """Mutation test: if the saturation guard is removed, this test fails."""
-    # Generate exactly 1000 issues to simulate hitting the fetch limit
-    saturated_data = [
-        {
-            "number": i,
-            "title": f"Issue {i}",
-            "body": "",
-            "state": "OPEN",
-            "updatedAt": "2026-07-10T12:00:00Z",
-            "closedAt": None,
-            "labels": [],
-            "milestone": None,
-        }
-        for i in range(1000)
-    ]
-    fake_gh.route(("issue", "list"), lambda args: _json_ok(saturated_data))
+def test_list_issues_paginates_across_concatenated_blobs(fake_gh: FakeGh) -> None:
+    """Fixture is two `[...]` blobs concatenated with NO separator -- the
+    real `gh api --paginate` failure mode a plain `json.loads` cannot
+    survive (#212's mode verbatim). A pre-merged array would pass even a
+    naive `json.loads` and prove nothing about the fix.
+    """
+    blob = json.dumps([_REST_ISSUE_ITEM_1]) + json.dumps([_REST_ISSUE_ITEM_2])
+    assert "][" in blob, "fixture must be two concatenated blobs, not a merged array"
+    fake_gh.route(("api", _ISSUES_API_URL), lambda args: FakeCompletedProcess(stdout=blob))
 
     provider = GithubProvider("owner/repo")
+    issues = provider.list_issues(state="all")
+
+    assert [i.number for i in issues] == [42, 43]
+    assert issues[0].milestone == "v1.0"
+    assert issues[1].state == "closed"
+
+
+def test_list_issues_filters_pull_requests(fake_gh: FakeGh) -> None:
+    """REST `/issues` includes PRs (marked by a `pull_request` key); none
+    may be adopted as a task. Mutation test: delete the `"pull_request" not
+    in item` filter in `list_issues` and this goes red (3 issues instead of
+    2, #99 included).
+    """
+    blob = json.dumps([_REST_ISSUE_ITEM_1, _REST_PR_ITEM, _REST_ISSUE_ITEM_2])
+    fake_gh.route(("api", _ISSUES_API_URL), lambda args: FakeCompletedProcess(stdout=blob))
+
+    provider = GithubProvider("owner/repo")
+    issues = provider.list_issues(state="all")
+
+    assert [i.number for i in issues] == [42, 43]
+
+
+def test_list_issues_empty_repo_returns_empty_list(fake_gh: FakeGh) -> None:
+    fake_gh.route(("api", _ISSUES_API_URL), lambda args: FakeCompletedProcess(stdout="[]"))
+    provider = GithubProvider("owner/repo")
+    assert provider.list_issues(state="all") == []
+
+
+def test_raise_if_issue_fetch_saturated_still_raises() -> None:
+    """4.5's guard, retained per 4.6 rather than deleted (see its
+    docstring in github.py) -- no longer wired into `list_issues` since
+    unbounded REST pagination has no fixed cap to saturate, but still
+    covered and mutation-testable directly. Mutation test: comment out the
+    `raise` in `_raise_if_issue_fetch_saturated` and this goes red.
+    """
+    saturated = [{"number": i} for i in range(1000)]
     with pytest.raises(RuntimeError, match="returned exactly the limit"):
-        provider.list_issues()
+        GithubProvider._raise_if_issue_fetch_saturated(saturated)
+
+
+def test_raise_if_issue_fetch_saturated_noop_under_limit() -> None:
+    GithubProvider._raise_if_issue_fetch_saturated([{"number": i} for i in range(999)])
+
+
+def test_alias_rest_fields_maps_snake_case_to_camel_case() -> None:
+    aliased = GithubProvider._alias_rest_fields(
+        {"updated_at": "2026-01-01T00:00:00Z", "closed_at": None}
+    )
+    assert aliased["updatedAt"] == "2026-01-01T00:00:00Z"
+    assert aliased["closedAt"] is None
+
+
+def test_alias_rest_fields_is_noop_for_already_gh_cli_shaped_data() -> None:
+    data = {"updatedAt": "x", "closedAt": None}
+    assert GithubProvider._alias_rest_fields(data) is data
+
+
+def test_parse_paginated_json_arrays_rejects_non_array_top_level() -> None:
+    with pytest.raises(ValueError, match="expected a JSON array"):
+        GithubProvider._parse_paginated_json_arrays(json.dumps({"not": "a list"}))
+
+
+def test_parse_paginated_json_arrays_empty_text_returns_empty_list() -> None:
+    assert GithubProvider._parse_paginated_json_arrays("") == []
+
+
+def test_parse_paginated_json_arrays_whitespace_between_blobs() -> None:
+    blob = json.dumps([_REST_ISSUE_ITEM_1]) + "\n" + json.dumps([_REST_ISSUE_ITEM_2])
+    result = GithubProvider._parse_paginated_json_arrays(blob)
+    assert len(result) == 2
+
+
+def test_parse_paginated_json_arrays_trailing_whitespace_only() -> None:
+    """Trailing whitespace after the last blob (e.g. gh's own newline)
+    must not be mistaken for a third value to decode."""
+    blob = json.dumps([_REST_ISSUE_ITEM_1]) + "\n"
+    result = GithubProvider._parse_paginated_json_arrays(blob)
+    assert len(result) == 1
 
 
 def test_visibility_public(fake_gh: FakeGh) -> None:
@@ -353,7 +466,9 @@ def test_ensure_milestone_noop_when_present(fake_gh: FakeGh) -> None:
 
 
 def test_run_raises_on_nonzero_exit(fake_gh: FakeGh) -> None:
-    fake_gh.route(("issue", "list"), lambda args: FakeCompletedProcess(stderr="boom", returncode=1))
+    fake_gh.route(
+        ("api", _ISSUES_API_URL), lambda args: FakeCompletedProcess(stderr="boom", returncode=1)
+    )
     provider = GithubProvider("owner/repo")
     with pytest.raises(RuntimeError, match="boom"):
         provider.list_issues()

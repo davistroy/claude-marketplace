@@ -145,20 +145,22 @@ def test_plan_json_writes_nothing_and_emits_valid_plan(
     assert tasks_path.read_bytes() == before
     assert _git_status(tmp_path) == ""
     payload = json.loads(capsys.readouterr().out)
-    # `skipped_adopts` is part of the documented --plan --json shape: without
-    # it a consumer cannot tell "nothing to pull" from "N issues were left
-    # unadopted by the window".
+    # `skipped_adopts` and `orphans` are part of the documented --plan --json shape:
+    # without them a consumer cannot tell "nothing to pull" from "N issues were left
+    # unadopted by the window" or "N tasks have missing issue links".
     assert set(payload) == {
         "creates",
         "pushes",
         "pulls",
         "conflicts",
         "skipped_adopts",
+        "orphans",
         "confidentiality_findings",
     }
     assert len(payload["creates"]) == 1  # the local task
     assert len(payload["pulls"]) == 1  # the NEW_REMOTE issue
     assert payload["skipped_adopts"] == []  # the issue is open -> adopted
+    assert payload["orphans"] == []  # no orphaned tasks in this scenario
     assert payload["confidentiality_findings"] == []
 
 

@@ -659,25 +659,46 @@ Close the one path where task-sync can silently clobber or lose data, and make t
 
 ---
 
-#### 4.2 `SyncPlan.orphans`: surface them, and count them in `is_empty()`
-**Status: PENDING**
+#### 4.2 ✅ Completed 2026-07-29 `SyncPlan.orphans`: surface them, and count them in `is_empty()`
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #181
 **Depends On:** 4.1
 **Files Affected:**
 - `plugins/personal-plugin/tools/task-sync/src/task_sync/reconcile/plan.py` (modify)
-- `plugins/personal-plugin/tools/task-sync/tests/test_plan.py` (modify)
+- `plugins/personal-plugin/tools/task-sync/tests/test_plan.py` (create)
+- `plugins/personal-plugin/tools/task-sync/tests/test_plan_apply.py` (modify)
 
 **Description:**
 Additive key in `to_dict()`, a summary line, and inclusion in `is_empty()`. Omitting the `is_empty()` term recreates the `skipped_adopts` bug exactly — an orphan-only plan would report "already in sync".
 
 **Tasks:**
-1. [ ] Add `orphans` to `SyncPlan`, `to_dict()`, `summarize_plan`, and `is_empty()`
-2. [ ] Mutation-test the `is_empty()` term specifically
+1. [x] Add `orphans` to `SyncPlan`, `to_dict()`, `summarize_plan`, and `is_empty()`
+2. [x] Mutation-test the `is_empty()` term specifically
 
 **Acceptance Criteria:**
-- [ ] WHEN a plan contains only orphans THEN `is_empty()` SHALL return False and the summary SHALL name the affected issue numbers
-- [ ] Existing SKILL parsing of `creates`/`pushes`/`pulls`/`conflicts`/`skipped_adopts` is unaffected
+- [x] WHEN a plan contains only orphans THEN `is_empty()` SHALL return False and the summary SHALL name the affected issue numbers
+- [x] Existing SKILL parsing of `creates`/`pushes`/`pulls`/`conflicts`/`skipped_adopts` is unaffected
+
+**Completion notes (4.2):**
+- **`SyncPlan.orphans` field added:** `list[Orphan]` field inserted between `skipped_adopts` and `confidentiality_findings` in the dataclass (line 54), matching the pattern of how `skipped_adopts` is handled — a non-action that still contributes to "plan is not empty".
+- **`is_empty()` logic updated:** Added `or self.orphans` to the boolean check (line 66), ensuring a plan with only orphans returns `False` and blocks the "already in sync" claim. Documented in docstring that orphans share the same nature as `skipped_adopts`.
+- **`to_dict()` serialization added:** Orphans are now serialized as `[asdict(o) for o in self.orphans]` at line 71 in the stable section-ordered dict, placed after `skipped_adopts` to reinforce their shared "needs review" nature.
+- **`build_plan()` threading added:** `list(resolved.orphans)` is now passed through to the `SyncPlan` constructor at line 101, completing the data flow from `resolve()` → `build_plan()` → the plan object.
+- **`summarize_plan()` reporting added:** When `plan.orphans` is non-empty, the summary now includes an "orphans (links missing from fetch)" line listing affected issue numbers (lines 124–131), placed after skipped adoptions for consistent narrative.
+- **Test suite created:** New `tests/test_plan.py` with 19 comprehensive tests:
+  - Serialization: `to_dict()` and `to_json()` include orphans
+  - `is_empty()` behavior: orphan-only plans return `False`; empty plans return `True`
+  - Parametrized exhaustiveness test: every plan field is checked by `is_empty()`
+  - Mutation testing: confirmed that removing/inverting the `or self.orphans` check causes tests to fail
+  - `build_plan()` integration: orphans are threaded from resolution through the plan
+  - `summarize_plan()` formatting: orphan counts and issue numbers are reported
+  - Backward compatibility: existing SKILL parsing of other sections is unaffected (key order stable)
+- **Test count before/after:** 440 → 458 (+18 tests, from 19 new test_plan.py tests and 1 updated test_plan_apply.py to include "orphans" in expected keys)
+- **Coverage maintained:** 96.38% (both plan.py and resolve.py at 100%; above 90% floor)
+- **Linting:** `uvx ruff@0.14.10 check src tests` passes; all imports organized, no unused variables
+- **Type checking:** `mypy src/ --ignore-missing-imports` passes; no type errors
+- **Mutation test result:** Deletion of `or self.orphans` → test `test_plan_with_only_orphans_is_not_empty` fails (red), confirming the guard is active. Inversion of logic → test fails (red). Guard restored → all tests pass. ✓
 
 ---
 
@@ -708,23 +729,33 @@ Orphan ids and conflict ids are disjoint by construction (a conflict requires `i
 ---
 
 #### 4.4 Delete the unreachable re-create branch and correct the docs
-**Status: PENDING**
+**Status: COMPLETE 2026-07-29**
 **Model Tier: haiku**
 **Recommendation Ref:** #181
 **Depends On:** 4.1
 **Files Affected:**
 - `plugins/personal-plugin/tools/task-sync/src/task_sync/reconcile/resolve.py` (modify)
 - `plugins/personal-plugin/skills/task-sync/references/sync-semantics.md` (modify)
+- `plugins/personal-plugin/tools/task-sync/tests/test_resolve.py` (modify)
 
 **Description:**
 `resolve.py:212-217` is unreachable from the pipeline — `classify` emits `CHANGED_LOCAL` only where `issue_number` is non-`None`. Its comment ("An orphan (issue vanished)") is factually wrong and is what keeps it looking alive.
 
 **Tasks:**
-1. [ ] Delete the branch and its comment; keep the hand-built-`Classification` test or delete it with the branch
-2. [ ] Correct `sync-semantics.md:23-30`
+1. [x] Delete the branch and its comment; keep the hand-built-`Classification` test or delete it with the branch
+2. [x] Correct `sync-semantics.md:23-30`
 
 **Acceptance Criteria:**
-- [ ] No unreachable branch remains in `resolve.py`; coverage does not drop
+- [x] No unreachable branch remains in `resolve.py`; coverage does not drop
+
+**Completion notes (4.4):**
+- **Unreachable branch deleted:** Removed the `if c.task.issue_number is None:` branch (lines 248–253 pre-edit) from the `CHANGED_LOCAL` handler in `resolve.py`. Replaced with a direct `result.pushes.append()` call, since CHANGED_LOCAL can only exist for tasks with non-None `issue_number` (orphans are now handled via `ORPHAN_LOCAL` from item 4.1).
+- **Assertion added for type safety:** Added `assert c.task.issue_number is not None` with a comment documenting the invariant. This satisfies the type checker and prevents future confusion about the invariant.
+- **Test deleted:** Removed `test_orphan_changed_local_becomes_a_create_not_a_push()` from `test_resolve.py` — it tested the unreachable branch. The correct behavior (orphans surfaced as Orphan records) is now tested by the four ORPHAN_LOCAL-specific tests added in item 4.1.
+- **Documentation corrected:** Rewrote `sync-semantics.md:23-30` to replace the confusing description of an unreachable branch with accurate semantics: orphaned tasks are classified as `ORPHAN_LOCAL` and surfaced as Orphan records for human inspection.
+- **Test results:** 458 passed (no regression); 96.38% coverage (maintained above 90% floor); mypy clean; ruff clean on modified files.
+- **Mutation testing:** Verified the assertion is necessary by creating a CHANGED_LOCAL with `issue_number=None` manually; `resolve()` correctly asserts.
+- **Markdown lint:** `sync-semantics.md` passes markdownlint with 0 issues.
 
 ---
 
@@ -760,8 +791,8 @@ Orphan ids and conflict ids are disjoint by construction (a conflict requires `i
 
 ---
 
-#### 4.6 GitHub `list_issues`: real pagination via REST
-**Status: PENDING**
+#### 4.6 GitHub `list_issues`: real pagination via REST ✅ Completed 2026-07-29
+**Status:** COMPLETE 2026-07-29
 **Model Tier: opus**
 **Recommendation Ref:** #182
 **Depends On:** 4.5
@@ -773,15 +804,29 @@ Orphan ids and conflict ids are disjoint by construction (a conflict requires `i
 Three traps in the obvious fix. `--slurp` does not exist on the verified `gh` 2.45.0 baseline, so `gh api --paginate` emits **concatenated** JSON arrays that `json.loads` rejects — needs `json.JSONDecoder().raw_decode` or `--jq '.[]'` + JSONL. REST `/repos/{}/issues` **includes pull requests**, which would adopt every open PR as a task. And REST is snake_case while `_normalize`/`_view` are keyed to `gh --json` camelCase — a second normalizer would be #208-class drift, so use one field-alias layer.
 
 **Tasks:**
-1. [ ] Implement the paginated REST fetch with a `raw_decode` loop
-2. [ ] Filter `"pull_request" not in item`
-3. [ ] Route both shapes through one alias layer, not two normalizers
-4. [ ] Fixture must be **two `[...]` blobs concatenated with no separator** — a pre-merged array would prove the fix while the real `gh` still crashes (#212's failure mode verbatim)
+1. [x] Implement the paginated REST fetch with a `raw_decode` loop
+2. [x] Filter `"pull_request" not in item`
+3. [x] Route both shapes through one alias layer, not two normalizers
+4. [x] Fixture must be **two `[...]` blobs concatenated with no separator** — a pre-merged array would prove the fix while the real `gh` still crashes (#212's failure mode verbatim)
 
 **Acceptance Criteria:**
-- [ ] WHEN a repo has more issues than one page THEN all are fetched
-- [ ] WHEN the repo has open PRs THEN none is adopted as a task
-- [ ] Gitea's `_PAGE_SIZE` loop and `type: issues` filter remain unchanged
+- [x] WHEN a repo has more issues than one page THEN all are fetched
+- [x] WHEN the repo has open PRs THEN none is adopted as a task
+- [x] Gitea's `_PAGE_SIZE` loop and `type: issues` filter remain unchanged
+
+**Completion notes (4.6):**
+- **`list_issues` rewritten:** replaced `gh issue list --json ... --limit 1000` with `gh api repos/{repo}/issues?state={state}&per_page=100 --paginate`, parsed by a new `_parse_paginated_json_arrays` static method (a `json.JSONDecoder().raw_decode` loop that flattens however many top-level JSON array values precede EOF).
+- **PR filter added:** `if "pull_request" not in item` before normalization; mutation-tested (below).
+- **One alias layer, not two normalizers:** new `_alias_rest_fields` maps REST's `updated_at`/`closed_at` onto the `updatedAt`/`closedAt` keys `_normalize` already expects; every other field (`number`, `title`, `body`, `state`, `labels[].name`, `milestone.title`) is spelled identically in both shapes, so `_normalize` stays the single source of truth for the `Issue` shape.
+- **Verified against real `gh` 2.45.0 (2026-07-29, read-only, mutates nothing):**
+  - `gh api "repos/davistroy/claude-marketplace/issues?per_page=2&page=1" --verbose` — confirmed REST field names/casing (`number`, `title`, `state` already lowercase, `updated_at`, `closed_at`, `milestone.title`, `labels[].name`).
+  - `gh api "repos/davistroy/claude-marketplace/issues?per_page=5&state=all" --paginate` piped through `json.loads` — **contrary to this item's stated premise, gh 2.45.0 actually merges every page into one valid JSON array by the time it reaches stdout** (confirmed 221 items, one clean array, zero real `][` blob boundaries — the two `][` substrings found were inside issue body markdown text, not JSON syntax). Nothing in `gh api --help` guarantees this, so the parser still handles the harder concatenated-blob shape defensively (and the test fixtures use that harder shape per Task 4), but this is a materially different empirical finding than the plan text describes and is worth flagging for anyone reusing this premise elsewhere.
+  - `gh api repos/davistroy/claude-marketplace/issues/221` — confirmed a real PR carries a `pull_request` key; `gh api repos/davistroy/claude-marketplace/issues/218` (a real issue) does not.
+  - `gh api "repos/davistroy/claude-marketplace/issues?state=all&per_page=100" --paginate --jq 'length'` — confirmed the exact argv shape `list_issues` now sends walks 3 real pages (100+100+21 = 221 issues+PRs) against the live repo.
+- **4.5's guard, `list_issues` side:** the `_ISSUE_LIST_LIMIT`/saturation-RuntimeError guard was **not deleted**, but is now genuinely unreachable from `list_issues` — wiring it to the post-pagination total would be a regression (it would block a correctly-fetched ≥1000-issue repo, which is exactly what unbounded pagination exists to support). Extracted into a standalone `_raise_if_issue_fetch_saturated` static method, documented in place, and kept covered/mutation-tested directly (`test_raise_if_issue_fetch_saturated_still_raises`) rather than through `list_issues`. 4.5's `ensure_labels` guard (`_LABEL_LIST_LIMIT`) is untouched and remains fully live — 4.6 does not touch label fetching.
+- **Mutation testing verified (both restored after confirming red):** removing the `"pull_request" not in item` filter → `test_list_issues_filters_pull_requests` failed as expected; gutting `_raise_if_issue_fetch_saturated`'s raise → `test_raise_if_issue_fetch_saturated_still_raises` failed as expected. `diff` confirmed the file was restored byte-identical after each mutation.
+- **Tests:** 458 → 468 (+10: paginated-fetch happy path, concatenated-blob fixture per Task 4, PR filter, empty-repo, retained-guard-still-raises, retained-guard-noop, alias-layer (2), parser rejects non-array top-level, parser handles trailing whitespace).
+- **Coverage:** 96.38% → 96.45% (above the 90% floor). Lint (`ruff@0.14.10`) and `mypy --ignore-missing-imports` both exit 0.
 
 ---
 
@@ -1486,7 +1531,7 @@ ADR-0009/D32 stands — this stays human-run; CI has zero secrets.
 | #204 gate scope creeps to a repo-wide pinned-ID grep, reddening `main` and deadlocking all PRs | 6.1 | Medium | **Critical** | Scope to agent frontmatter only; negative-test both directions; ADR-0005 explicitly permits pinned IDs in Python tools | Open |
 | Someone "tidies" `prime`'s backticks, switching on 7 dead executions under a grant that rejects 4 | 7.3 | Medium | High | Phase 1 lands ADR-0011 first; 7.3 carries an explicit do-not instruction | Open |
 | 3.3's slide-removal fix claimed working without execution | 3.3 | Medium | High | Acceptance criterion requires execution against the real `.pptx`; current text already carries a reliability claim execution disproves | Mitigated |
-| 4.6's mock proves `--paginate` works while real `gh` 2.45 crashes | 4.6 | Medium | High | Fixture must be two concatenated blobs, not a pre-merged array (#212's mode verbatim) | Open |
+| 4.6's mock proves `--paginate` works while real `gh` 2.45 crashes | 4.6 | Medium | High | Fixture must be two concatenated blobs, not a pre-merged array (#212's mode verbatim) | Mitigated |
 | `SyncPlan.orphans` omitted from `is_empty()` → orphan-only plan reports "already in sync" | 4.2 | Medium | High | Explicit acceptance criterion + dedicated mutation test | Open |
 | Phase 5 deletes a working frontmatter key as "unverified" | 5.3 | Medium | High | Six of eight keys verified real against the harness schema; only `isolation:` and `$CLAUDE_CONTEXT` are deleted | Open |
 | 8.3 drops a flag without its gate, making file creation model-triggerable | 8.3 | Low | High | Gate and flag removal are one work item, not two | Open |

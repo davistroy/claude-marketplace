@@ -70,14 +70,6 @@ def test_changed_local_becomes_a_push() -> None:
     assert r.pushes[0].issue_number == 7
 
 
-def test_orphan_changed_local_becomes_a_create_not_a_push() -> None:
-    # issue_number is None (the issue vanished) but the local task changed:
-    # there is nothing to push to, so re-create it.
-    c = Classification(ClassKind.CHANGED_LOCAL, _task(issue_number=None), None, local_changed=True)
-    r = resolve([c])
-    assert len(r.creates) == 1 and not r.pushes
-
-
 # -- ORPHAN_LOCAL -> an Orphan record, never a push/create (#181) ----------
 
 

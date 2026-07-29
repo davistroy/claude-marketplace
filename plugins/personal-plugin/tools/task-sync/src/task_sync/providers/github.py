@@ -14,16 +14,29 @@ from typing import Any
 
 from task_sync.providers.base import Issue, parse_aware_datetime
 
-# Fields requested from `gh issue list`/`gh issue view`. Keep the two calls
-# symmetric so `create_issue`/`update_issue` can reuse the same normalizer
-# after re-fetching the issue.
+# Fields requested from `gh issue view` (re-used by `create_issue`/
+# `update_issue`, which re-fetch through `_view` after writing so they can
+# reuse the same normalizer). `list_issues` no longer uses `gh issue list
+# --json` (4.6) -- it fetches the REST `/issues` endpoint directly, whose
+# snake_case shape is routed through `_alias_rest_fields` before hitting the
+# same `_normalize` both paths share.
 _JSON_FIELDS = "number,title,body,state,updatedAt,closedAt,labels,milestone"
 
 _ISSUE_URL_NUMBER_RE = re.compile(r"/issues/(\d+)\s*$")
 
-# Fetch limits for pagination detection
-_ISSUE_LIST_LIMIT = 1000
+# Still guards `ensure_labels`'s bounded `gh label list --limit` fetch (4.5);
+# unchanged by 4.6.
 _LABEL_LIST_LIMIT = 1000
+
+# Guarded the old bounded `gh issue list --limit 1000` fetch (4.5). 4.6
+# replaced that fetch with unbounded REST pagination (`list_issues` now
+# walks every page via `gh api ... --paginate`), so the single-fetch-
+# saturates-at-N truncation this constant detected can no longer happen
+# there -- wiring it to the *paginated* total would be a regression (it
+# would block a correctly-fetched >=1000-issue repo, which is exactly what
+# unbounded pagination exists to support). Kept, not deleted, as
+# `_raise_if_issue_fetch_saturated` below: see that method's docstring.
+_ISSUE_LIST_LIMIT = 1000
 
 
 class GithubProvider:
@@ -56,6 +69,26 @@ class GithubProvider:
     def _run_json(self, args: list[str]) -> Any:
         return json.loads(self._run(args))
 
+    @staticmethod
+    def _raise_if_issue_fetch_saturated(data: list[Any]) -> None:
+        """4.5's saturation guard for a single bounded `gh issue list` fetch.
+
+        No longer called by `list_issues` -- 4.6 replaced that call with
+        unbounded REST pagination, which has no fixed cap to saturate.
+        Retained (not deleted) per 4.6's instruction to keep 4.5's guards as
+        a backstop, in case a single `--limit`-bounded fetch is ever
+        reintroduced. Exercised directly by
+        `test_raise_if_issue_fetch_saturated_still_raises` so it stays
+        covered and mutation-testable even while unreachable from
+        `list_issues`.
+        """
+        if len(data) >= _ISSUE_LIST_LIMIT:
+            raise RuntimeError(
+                f"GitHub issue list fetch returned exactly the limit ({_ISSUE_LIST_LIMIT}); "
+                "the query may have more results that were not fetched. "
+                "This repository needs pagination support (phase 4.6)."
+            )
+
     def _view(self, number: int) -> dict[str, Any]:
         data = self._run_json(
             [
@@ -72,6 +105,27 @@ class GithubProvider:
         return data
 
     # -- normalization ------------------------------------------------
+
+    @staticmethod
+    def _alias_rest_fields(data: dict[str, Any]) -> dict[str, Any]:
+        """Map REST `/issues` snake_case keys onto `_normalize`'s camelCase.
+
+        `gh issue view --json` (and the old `gh issue list --json`) return
+        `updatedAt`/`closedAt`. The REST `/repos/{repo}/issues` endpoint
+        `list_issues` now paginates over returns `updated_at`/`closed_at`
+        instead -- everything else `_normalize` reads (`number`, `title`,
+        `body`, `state`, `labels[].name`, `milestone.title`) is spelled
+        identically in both shapes. This is the one alias layer both shapes
+        route through before `_normalize`; a second normalizer duplicating
+        `_normalize`'s validation for the REST shape would be exactly the
+        kind of two-sources-of-truth drift that produced #208/#212.
+        """
+        if "updatedAt" in data or "closedAt" in data:
+            return data  # already gh-CLI-shaped (or already aliased)
+        aliased = dict(data)
+        aliased["updatedAt"] = data.get("updated_at")
+        aliased["closedAt"] = data.get("closed_at")
+        return aliased
 
     @staticmethod
     def _normalize(data: dict[str, Any]) -> Issue:
@@ -94,31 +148,68 @@ class GithubProvider:
             closed_at=parse_aware_datetime(data.get("closedAt")),
         )
 
+    @staticmethod
+    def _parse_paginated_json_arrays(text: str) -> list[Any]:
+        """Flatten one or more top-level JSON array values from `gh api --paginate`.
+
+        `--slurp` does not exist on the gh 2.45.0 baseline this tool
+        targets, so a plain `json.loads` is not safe here in general: older
+        gh behavior (and #212's actual failure mode) is to write each
+        page's response to stdout back-to-back with no separator --
+        `[...][...]` -- which `json.loads` rejects outright. Parse
+        defensively with `raw_decode` instead, walking however many
+        top-level JSON array values precede EOF. Verified 2026-07-29
+        against the live API on this exact gh version: `gh api
+        "repos/{repo}/issues?...&per_page=N" --paginate` actually returns
+        pages *already merged* into one array (`json.loads` happens to
+        succeed on it) -- but nothing in `gh api --help` guarantees that,
+        so this still parses the harder, non-merged shape. The test suite's
+        fixtures use two concatenated blobs with no separator specifically
+        to prove that case, not the pre-merged one.
+        """
+        decoder = json.JSONDecoder()
+        items: list[Any] = []
+        pos = 0
+        length = len(text)
+        while pos < length:
+            while pos < length and text[pos].isspace():
+                pos += 1
+            if pos >= length:
+                break
+            value, end = decoder.raw_decode(text, pos)
+            if not isinstance(value, list):
+                raise ValueError(
+                    "expected a JSON array from paginated `gh api` output, "
+                    f"got {type(value).__name__} at offset {pos}"
+                )
+            items.extend(value)
+            pos = end
+        return items
+
     # -- Provider interface --------------------------------------------
 
     def list_issues(self, state: str = "all") -> list[Issue]:
-        data = self._run_json(
+        # REST `/issues` (unlike `gh issue list`) has no `--limit`-style
+        # cap to saturate -- `--paginate` walks every page via the
+        # response's `Link` header until there isn't a next one. It also
+        # includes pull requests, which must never be adopted as tasks
+        # (they carry a `pull_request` key issues never do), and returns
+        # snake_case timestamp keys that `_alias_rest_fields` maps onto the
+        # camelCase `_normalize` expects -- one alias layer, not a second
+        # normalizer.
+        output = self._run(
             [
-                "issue",
-                "list",
-                "--repo",
-                self._repo,
-                "--state",
-                state,
-                "--json",
-                _JSON_FIELDS,
-                "--limit",
-                str(_ISSUE_LIST_LIMIT),
+                "api",
+                f"repos/{self._repo}/issues?state={state}&per_page=100",
+                "--paginate",
             ]
         )
-        assert isinstance(data, list)
-        if len(data) >= _ISSUE_LIST_LIMIT:
-            raise RuntimeError(
-                f"GitHub issue list fetch returned exactly the limit ({_ISSUE_LIST_LIMIT}); "
-                "the query may have more results that were not fetched. "
-                "This repository needs pagination support (phase 4.6)."
-            )
-        return [self._normalize(item) for item in data]
+        items = self._parse_paginated_json_arrays(output)
+        return [
+            self._normalize(self._alias_rest_fields(item))
+            for item in items
+            if "pull_request" not in item
+        ]
 
     def create_issue(
         self,

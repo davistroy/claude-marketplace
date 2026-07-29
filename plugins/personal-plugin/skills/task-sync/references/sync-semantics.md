@@ -20,14 +20,12 @@ task's syncable fields plus the issue's `updated_at` at that moment):
 | n/a (no `issue_number`) | n/a | `NEW_LOCAL` | create (new issue) |
 | n/a | issue with no matching task | `NEW_REMOTE` | pull (adopt: create a new task, subject to the adoption window — see Prune below) |
 
-A `CHANGED_LOCAL` task whose issue has vanished from the tracker's returned
-issue list is still **pushed** to its recorded `issue_number`, not
-re-created. `resolve()`'s create-vs-push branch for `CHANGED_LOCAL` keys off
-`task.issue_number is None` — but `classify()` only ever produces
-`CHANGED_LOCAL` for a task that already has a non-`None` `issue_number`
-(a task with no `issue_number` at all is always `NEW_LOCAL` instead), so that
-branch is never true for an orphaned task. There is no automatic "issue
-vanished, re-create it" path today.
+An orphaned task (a local task whose issue no longer appears in the tracker's
+returned issue list, though its `issue_number` is still recorded) is classified
+as `ORPHAN_LOCAL`. `resolve()` does not convert it to a push or a create; instead,
+it is surfaced as an `Orphan` record in the plan for human inspection. The user
+must then decide whether to re-create the issue, re-adopt a different one, or
+delete the local task (#181).
 
 ## Field mapping (task ↔ issue)
 

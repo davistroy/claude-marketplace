@@ -245,20 +245,14 @@ def resolve(
 
         elif c.kind is ClassKind.CHANGED_LOCAL:
             assert c.task is not None
-            if c.task.issue_number is None:
-                # An orphan (issue vanished) that changed locally: there is
-                # no live issue to push to, so re-create it instead.
-                result.creates.append(
-                    CreateAction(task_id=c.task.id, fields=task_to_issue_fields(c.task))
+            assert c.task.issue_number is not None  # orphans are ORPHAN_LOCAL, not CHANGED_LOCAL
+            result.pushes.append(
+                PushAction(
+                    task_id=c.task.id,
+                    issue_number=c.task.issue_number,
+                    fields=task_to_issue_fields(c.task),
                 )
-            else:
-                result.pushes.append(
-                    PushAction(
-                        task_id=c.task.id,
-                        issue_number=c.task.issue_number,
-                        fields=task_to_issue_fields(c.task),
-                    )
-                )
+            )
 
         elif c.kind is ClassKind.NEW_REMOTE:
             assert c.issue is not None
