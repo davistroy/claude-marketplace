@@ -19,8 +19,12 @@ description: {{DESCRIPTION}}
 #
 # --- Lifecycle Hooks ---
 # hooks:
-#   pre:  "echo 'before skill runs'"
-#   post: "echo 'after skill completes'"
+#   Stop:
+#     - matcher: any
+#       hooks:
+#         - type: command
+#           command: "echo 'after skill completes'"
+#           timeout: 5
 #
 # --- Shell Override ---
 # shell: bash            # bash | zsh | sh

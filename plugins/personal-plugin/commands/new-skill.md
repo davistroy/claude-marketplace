@@ -175,8 +175,12 @@ allowed-tools: [tool-restrictions]
 #
 # --- Lifecycle Hooks ---
 # hooks:
-#   pre:  "echo 'before'"
-#   post: "echo 'after'"
+#   Stop:
+#     - matcher: any
+#       hooks:
+#         - type: command
+#           command: "echo 'cleanup'"
+#           timeout: 5
 #
 # shell: bash
 ---
@@ -204,8 +208,12 @@ description: [user-provided description]
 #
 # --- Lifecycle Hooks ---
 # hooks:
-#   pre:  "echo 'before'"
-#   post: "echo 'after'"
+#   Stop:
+#     - matcher: any
+#       hooks:
+#         - type: command
+#           command: "echo 'cleanup'"
+#           timeout: 5
 #
 # shell: bash
 ---

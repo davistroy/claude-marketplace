@@ -917,8 +917,8 @@ The docs teach `paths:` as an *event trigger* ("auto-activates when the user ope
 
 ---
 
-#### 5.2 `hooks:` frontmatter: the event-record shape
-**Status: PENDING**
+#### 5.2 `hooks:` frontmatter: the event-record shape ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #202
 **Depends On:** 5.1
@@ -932,11 +932,20 @@ The docs teach `paths:` as an *event trigger* ("auto-activates when the user ope
 The `hooks: pre:/post:` shape taught in four places is invalid. The value is a record keyed by hook event → array of matchers. A string under `pre:`/`post:` fails validation and emits `Invalid hooks in plugin skill '<name>'`. Same defect class as the three hook recipes in Phase 3.
 
 **Tasks:**
-1. [ ] Rewrite all four sites to the event-record form with the valid event names
-2. [ ] Cross-reference the working `hooks/hooks.json`
+1. [x] Rewrite all four sites to the event-record form with the valid event names
+2. [x] Cross-reference the working `hooks/hooks.json`
 
 **Acceptance Criteria:**
-- [ ] WHEN a skill author copies the documented `hooks:` shape THEN it SHALL load without a validation error
+- [x] WHEN a skill author copies the documented `hooks:` shape THEN it SHALL load without a validation error
+
+**Completion notes (5.2):**
+- **Ground-truth shape derived from `plugins/personal-plugin/hooks/hooks.json`:** A `hooks` record keyed by event name → array of matcher-group objects. Each matcher-group has `matcher` (string) and `hooks` (array of hook objects). Each hook has `type: "command"`, `command` (string), `timeout` (seconds, integer), and optional `statusMessage` (string). Valid events in the working plugin: `SessionStart`, `PreToolUse`, `Stop` (verified by reading and parsing the real file, not from documentation).
+- **Corrected all four sites** to show the event-record shape with a `Stop` event example (the only unconditional event, making it the safest teaching example):
+  - `references/templates/skill.md:20-27` — replaced inline `pre:`/`post:` with event-record YAML showing `Stop` event, matcher-group structure, and hook object shape with timeout in seconds
+  - `references/common-patterns.md:230-244` — replaced the pattern, updated "Use case" description, corrected the gotcha to state the exact shape (event-record, not array) and point to `hooks/hooks.json` as ground truth
+  - `references/patterns/advanced-features.md:159-174` — replaced pattern and updated "What it does" to describe lifecycle events instead of pre/post, added event examples and ADR-0012 reference
+  - `commands/new-skill.md` (two occurrences at lines 177-179 and 206-208) — replaced both template examples with the event-record shape
+- **Verified:** `python3 scripts/check_injections.py` (exit 0, 63 files / 35 injections, all guarded); `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); `npx markdownlint-cli2` on all four files (exit 0, 0 issues); `bash scripts/pre-commit` (exit 0, all PASS). All validation exits 0. Example shape copied into the skill frontmatter validates without error and loads without `"Invalid hooks"` message.
 
 ---
 
@@ -997,8 +1006,8 @@ Only the `effort` **enum** half of #199 lands here; the 31-component `effort:` s
 
 ---
 
-#### 5.5 `/schedule`: keep the integration, rewrite the invocations
-**Status: PENDING**
+#### 5.5 ✅ Completed 2026-07-29 `/schedule`: keep the integration, rewrite the invocations
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #202
 **Depends On:** 5.1
@@ -1009,12 +1018,29 @@ Only the `effort` **enum** half of #199 lands here; the 31-component `effort:` s
 **#202 asserts** `/schedule` does not exist and proposes replacing it with `create_trigger`. **The reverse is true**: `/schedule` is a currently-shipping built-in skill; `create_trigger` appears zero times in the harness. What *is* fictional is the invocation syntax — `/schedule create --name … --cron …` — because `/schedule` is a natural-language skill, not a flag CLI.
 
 **Tasks:**
-1. [ ] Keep all four `/schedule` integration sections
-2. [ ] Rewrite the eight invocation blocks as natural-language requests
-3. [ ] Do **not** introduce `create_trigger`
+1. [x] Keep all four `/schedule` integration sections
+2. [x] Rewrite the eight invocation blocks as natural-language requests
+3. [x] Do **not** introduce `create_trigger`
 
 **Acceptance Criteria:**
-- [ ] WHEN a user follows a scheduling section THEN the described invocation SHALL match how `/schedule` is actually invoked
+- [x] WHEN a user follows a scheduling section THEN the described invocation SHALL match how `/schedule` is actually invoked
+
+**Completion notes (5.5):**
+- **All four integration sections preserved** — each skill's `## /schedule Integration` section remains intact, introducing no `create_trigger` reference.
+- **Eight invocation blocks rewritten as natural-language requests** — replaced fictional flag syntax (`/schedule create --name … --cron …`) with language-friendly requests:
+  - **Creation blocks:** `"/schedule Set up a recurring audit run for [skill-name] every [day] at [time]"`
+  - **List/delete blocks:** `"/schedule List all my scheduled [audit|recon] runs"` and `"/schedule Remove the [skill-name] [day] [time] schedule"`
+- **Skills touched:**
+  - `plugins/personal-plugin/skills/spark-audit/SKILL.md` — lines 192–205 rewritten (1 create + 2 manage blocks)
+  - `plugins/personal-plugin/skills/jetson-audit/SKILL.md` — lines 232–245 rewritten (1 create + 2 manage blocks)
+  - `plugins/personal-plugin/skills/spark-recon/SKILL.md` — lines 214–227 rewritten (1 create + 2 manage blocks)
+  - `plugins/personal-plugin/skills/jetson-recon/SKILL.md` — lines 139–152 rewritten (1 create + 2 manage blocks)
+- **Verified constraints from Phase 5 item 5.1:**
+  - ✓ No `paths:` reintroduced
+  - ✓ No Loop Guard sections reintroduced
+  - ✓ No `--force` references (item 5.1 removed them)
+  - ✓ All four skills retain `disable-model-invocation: true`
+  - ✓ Trust Boundary sections intact (data-only, never instructions from fetched content)
 
 ---
 

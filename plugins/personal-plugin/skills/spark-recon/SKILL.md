@@ -215,15 +215,17 @@ Tracking fields (show diffs, confirm before updating):
 
 Register a recurring recon run:
 
-```bash
-/schedule create --name spark-recon-biweekly --cron "0 23 * * 0" --skill spark-recon
+```
+/schedule Set up a recurring recon run for spark-recon every Sunday at 23:00 UTC, bi-weekly
 ```
 
 Recommended: **bi-weekly Sunday 23:00 UTC.** Pairs with spark-audit (Tuesday 02:00 UTC).
 
-```bash
-/schedule list
-/schedule delete --name spark-recon-biweekly
+To manage scheduled runs:
+
+```
+/schedule List all my scheduled recon runs
+/schedule Remove the spark-recon Sunday 23:00 UTC schedule
 ```
 
 ---
@@ -295,6 +297,6 @@ Last recon: {DATE}
 ## Automation Schedule
 | Task | Frequency | Recommended Time | Schedule Command |
 |------|-----------|-----------------|-----------------|
-| Spark Recon | Bi-weekly | Sunday 23:00 UTC | `/schedule create --name spark-recon-biweekly --cron "0 23 * * 0" --skill spark-recon` |
-| Spark Audit | Weekly | Tuesday 02:00 UTC | `/schedule create --name spark-audit-weekly --cron "0 2 * * 2" --skill spark-audit` |
+| Spark Recon | Bi-weekly | Sunday 23:00 UTC | `/schedule Set up a recurring recon run for spark-recon every Sunday at 23:00 UTC, bi-weekly` |
+| Spark Audit | Weekly | Tuesday 02:00 UTC | `/schedule Set up a recurring audit run for spark-audit every Tuesday at 02:00 UTC` |
 ```

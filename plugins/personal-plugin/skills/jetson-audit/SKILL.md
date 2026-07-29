@@ -233,15 +233,17 @@ Append using `Edit` tool. Auto-increment entry number by reading the last `## En
 
 Register a recurring audit run:
 
-```bash
-/schedule create --name jetson-audit-weekly --cron "0 2 * * 2" --skill jetson-audit
+```
+/schedule Set up a recurring audit run for jetson-audit every Tuesday at 02:00 UTC
 ```
 
 Recommended: **weekly Tuesday 02:00 UTC.** Pairs with jetson-recon (bi-weekly Sunday 23:00 UTC).
 
-```bash
-/schedule list
-/schedule delete --name jetson-audit-weekly
+To manage scheduled runs:
+
+```
+/schedule List all my scheduled audit runs
+/schedule Remove the jetson-audit Tuesday 02:00 UTC schedule
 ```
 
 ---

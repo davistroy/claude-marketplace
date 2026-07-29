@@ -161,17 +161,22 @@ Active file: $CLAUDE_CONTEXT
 **Syntax:**
 ```yaml
 hooks:
-  pre:  "npm run build"
-  post: "rm -rf .tmp/skill-scratch/"
+  Stop:
+    - matcher: any
+      hooks:
+        - type: command
+          command: "rm -rf .tmp/skill-scratch/"
+          timeout: 5
 ```
 
-**What it does:** Runs shell commands before (`pre`) or after (`post`) the skill executes.
+**What it does:** Registers shell-command hooks that fire at Claude Code lifecycle events (SessionStart, Stop, PreToolUse, etc.). Matchers determine when each hook fires.
 
 **When to use:**
-- `pre`: ensure prerequisites (build, compile, fetch data)
-- `post`: cleanup (temp files, worktrees, sentinels)
+- `Stop`: cleanup (temp files, worktrees, sentinels) before session ends
+- `SessionStart`: initialize session-level state, check prerequisites
+- `PreToolUse`: validate tool input, log usage, enforce policy
 
-**Gotcha:** Hook failures block the skill (for `pre`) or are logged silently (for `post`). Keep hooks fast and idempotent.
+**Gotcha:** Hook commands must complete within their timeout or they block session flow. Keep hooks fast and idempotent. See the working `hooks/hooks.json` and recipe files in `references/hooks/` for shape and event-name reference (ADR-0012).
 
 ---
 

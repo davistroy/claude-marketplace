@@ -232,16 +232,20 @@ when_to_use: "Use when starting a new project or after a significant architectur
 **Syntax:**
 ```yaml
 hooks:
-  pre: "bash scripts/validate-inputs.sh"
-  post: "bash scripts/cleanup.sh"
+  Stop:
+    - matcher: any
+      hooks:
+        - type: command
+          command: "bash scripts/cleanup.sh"
+          timeout: 5
 ```
 
-**Use case:** Lifecycle hooks that run before/after the skill body. Pre-hook can validate environment; post-hook can clean up temp files.
+**Use case:** Lifecycle hooks that run at Claude Code events (SessionStart, Stop, PreToolUse, etc.). Hooks fire once per session when their matcher conditions are met. See `hooks/hooks.json` for complete event list and the hook-recipe files in `references/hooks/` for worked examples.
 
 **Gotchas:**
-- Hook scripts must be fast (<1s) or they block the skill launch noticeably.
+- Hook commands must be fast (<5s) or they block session flow noticeably.
 - Do NOT re-declare hooks in `plugin.json` — Claude Code auto-loads `hooks/hooks.json`. Duplicate declarations cause errors.
-- Plugin-level hooks (in `hooks/hooks.json`) use a record format, not array format.
+- The `hooks:` shape is an event-record: keyed by event name → array of matcher-group objects, each with `matcher` and `hooks` array. See the working `hooks/hooks.json` as ground truth.
 
 ---
 
