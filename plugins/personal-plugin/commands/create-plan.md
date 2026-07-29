@@ -2,7 +2,7 @@
 description: Generate detailed IMPLEMENTATION_PLAN.md from requirements documents (BRD, PRD, TDD, design specs)
 argument-hint: "[<document-paths>...] [--output <path>] [--phases <n>]"
 effort: max
-allowed-tools: Read, Glob, Grep, Write, Edit, Agent, Bash(git:*)
+allowed-tools: Read, Glob, Grep, Write, Edit, Agent, Bash(git:*), Bash(find:*), Bash(head:*)
 ---
 
 # Create Plan Command

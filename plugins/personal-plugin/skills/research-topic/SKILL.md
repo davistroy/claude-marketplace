@@ -2,7 +2,7 @@
 name: research-topic
 description: Orchestrate parallel deep research across multiple LLM providers using native context:fork subagents and synthesize results. Suggest when — in-depth topic research, multi-provider perspective comparison, well-sourced analysis needed, "deep research"/"research report" keywords, or thorough technical/strategic/emerging topic investigation.
 effort: high
-allowed-tools: Read, Write, Bash(echo:*), Bash(date:*), Bash(command:*), Bash(pandoc:*), Bash(curl:*), WebSearch, WebFetch, Task
+allowed-tools: Read, Write, Bash(echo:*), Bash(date:*), Bash(command:*), Bash(pandoc:*), Bash(curl:*), WebSearch, WebFetch, Agent
 ---
 
 # Multi-Source Deep Research
@@ -200,7 +200,7 @@ non-streaming request. Anthropic requires `max_tokens` >= 64,000 at those levels
 cannot finish inside the curl timeout. `high` is Anthropic's recommended minimum for
 intelligence-sensitive work, so the comprehensive tier still sits on a solid floor.
 
-**Dispatch subagents in parallel** (one Task per available provider, `context: fork`, skip providers with missing keys). Instantiate the template below once per provider, substituting its row from the Provider Deltas table. The dispatched subagent Reads `references/research-provider-protocols.md` (relative to this plugin's directory) for its provider's exact request/response shape, polling mechanics, and parse/output steps.
+**Dispatch subagents in parallel** (one `Agent` call per available provider, `context: fork`, skip providers with missing keys). Instantiate the template below once per provider, substituting its row from the Provider Deltas table. The dispatched subagent Reads `references/research-provider-protocols.md` (relative to this plugin's directory) for its provider's exact request/response shape, polling mechanics, and parse/output steps.
 
 #### Subagent Prompt Template
 
@@ -410,7 +410,7 @@ Follow these steps in order:
 4. **Pre-Execution Gate** — Check API key availability for selected providers; show PASSED/PARTIAL/FAILED; skip providers with missing keys
 5. **Confirmation** — Present research brief (with audience summary and skip list) and wait for user approval
 6. **Resolve Models** — Read env vars; fall back to defaults from `references/research-models.md`
-7. **Parallel Dispatch** — Dispatch one `context: fork` Task subagent per available provider simultaneously; each subagent calls its provider API, polls if async, writes `reports/research-[provider]-[TIMESTAMP].md`
+7. **Parallel Dispatch** — Dispatch one `context: fork` `Agent` subagent per available provider simultaneously; each subagent calls its provider API, polls if async, writes `reports/research-[provider]-[TIMESTAMP].md`
 8. **Collect Results** — After all subagents complete, note each provider's success/failure status
 9. **Read Provider Files** — Use Read tool to read each successful provider output file
 10. **Synthesize** — Merge provider outputs into unified report following the Report Structure template in `references/research-models.md`

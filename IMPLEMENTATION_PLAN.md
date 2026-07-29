@@ -1330,8 +1330,8 @@ Make every component's tool grant match the workflow its body documents — incl
 
 ### Work Items
 
-#### 7.1 Resolve `Agent` vs `Task` and correct eight components
-**Status: PENDING**
+#### 7.1 Resolve `Agent` vs `Task` and correct eight components ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: opus**
 **Recommendation Ref:** #192
 **Depends On:** Phase 5
@@ -1347,17 +1347,25 @@ Make every component's tool grant match the workflow its body documents — incl
 The repo uses `Task` and `Agent` inconsistently for the same dispatch tool. Decide once (`Agent` — `arch-review`'s precedent and the first name in the harness's identity check) and apply. Note row 1's compound sub-claim is **wrong**: `Bash(head:*)` *is* granted to `explain-project` (added in `c093904` for that exact pipe) — only the `Write` gap at `:369` and an unreported `Agent` gap are real.
 
 **Tasks:**
-1. [ ] Record the `Agent` decision in the Decision Log
-2. [ ] `explain-project`: add `Write` and `Agent` (two `context: fork` blocks at `:135-139`, `:328-332`)
-3. [ ] `accessibility-annotator`: add `Glob`, `Grep`
-4. [ ] `test-project`: `Task` → `Agent` plus the `TaskCreate/Update/List/Output` family, matching `implement-plan.md:5`
-5. [ ] `create-plan`: add `Bash(find:*)`, `Bash(head:*)`
-6. [ ] `brain-entry`: add `Bash(tail/sed/echo/python3:*)`; `fleet-health`: shell job control
-7. [ ] Exclude D39's three carve-outs entirely
+1. [x] Record the `Agent` decision in the Decision Log
+2. [x] `explain-project`: add `Write` and `Agent` (two `context: fork` blocks at `:135-139`, `:328-332`)
+3. [x] `accessibility-annotator`: add `Glob`, `Grep`
+4. [x] `test-project`: `Task` → `Agent` plus the `TaskCreate/Update/List/Output` family, matching `implement-plan.md:5`
+5. [x] `create-plan`: add `Bash(find:*)`, `Bash(head:*)`
+6. [x] `brain-entry`: add `Bash(tail/sed/echo/python3:*)`; `fleet-health`: shell job control
+7. [x] Exclude D39's three carve-outs entirely
 
 **Acceptance Criteria:**
-- [ ] WHEN any component executes its documented workflow THEN every tool it uses SHALL be granted
-- [ ] `security-analysis`, `leak-risk-audit`, and `arch-review` retain unscoped `Bash` with their justification comments
+- [x] WHEN any component executes its documented workflow THEN every tool it uses SHALL be granted
+- [x] `security-analysis`, `leak-risk-audit`, and `arch-review` retain unscoped `Bash` with their justification comments
+
+**Completion notes (7.1):**
+- **Decision recorded as D56** — `Agent` is the one dispatch-tool name; `Task*` survives only as the distinct `TaskCreate`/`TaskUpdate`/`TaskList`/`TaskOutput` progress family.
+- **Scope widened by two files, deliberately.** A repo-wide `grep '^allowed-tools:.*\bTask\b'` found **8** hits, not the 6 the item names: the 6 listed plus `skills/research-topic/SKILL.md` (dispatches one `context: fork` subagent per provider) and **`references/templates/synthesis.md`** — a generator template, i.e. the propagation surface E060 finding 3 is about. Fixing only the named 6 would have left the template minting `Task` into every skill built from it. `deprecated/new-command.md` (3 hits) left alone per ADR-0006 frozen-legacy.
+- **Grants added, each derived from a body invocation, not from the item title:** `explain-project` `Write` (`:369` writes the doc-builder JSON) + `Agent` (forks at `:135`, `:328`); `accessibility-annotator` `Glob`/`Grep` (Step 2 surveys the project directory) + `Agent`; `brain-entry` `Bash(echo/tail/sed/python3:*)` (its Step-3 pipeline at `:68-87` is a compound, so every member needs a grant, and only `curl` was granted — the skill could not complete its own documented error check); `fleet-health` `Bash(wait:*)` (`:67` mandates backgrounding each host with `&` then `wait`); `create-plan` `Bash(find:*)`/`Bash(head:*)` (`:107`'s pipeline); `test-project` `Agent` + the four `Task*` tools, matching `implement-plan.md:5`.
+- **Body prose aligned in lockstep** so the docs cannot re-seed the inconsistency: `test-project:156` ("use the Task tool for tracking") now names the `Task*` family; `research-topic:203,:413` now say `Agent`.
+- **D39 carve-outs verified untouched:** `security-analysis`, `leak-risk-audit`, `arch-review` retain unscoped `Bash` and their inline justification comments — none appears in the diff.
+- **Verification:** repo-wide `grep '^allowed-tools:.*\bTask\b'` outside `deprecated/` → 0 hits; `claude plugin validate --strict` passed for all three plugins; `check_injections.py` exit 0; `markdownlint-cli2` over the 9 changed files → 0 issues.
 
 ---
 
