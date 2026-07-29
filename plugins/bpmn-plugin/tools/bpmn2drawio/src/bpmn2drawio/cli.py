@@ -23,7 +23,7 @@ def create_parser() -> argparse.ArgumentParser:
 Examples:
   bpmn2drawio input.bpmn output.drawio
   bpmn2drawio input.bpmn output.drawio --theme blueprint
-  bpmn2drawio input.bpmn output.drawio --layout graphviz --direction TB
+  bpmn2drawio input.bpmn output.drawio --layout auto --direction TB
   bpmn2drawio input.bpmn output.drawio --config brand-config.yaml
         """,
     )

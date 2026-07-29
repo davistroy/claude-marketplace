@@ -6,9 +6,15 @@ from pathlib import Path
 
 import pytest
 
+from bpmn2drawio import __version__
 from bpmn2drawio.cli import create_parser, main
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+# Repo root, reached from tests/ -> bpmn2drawio/ -> tools/ -> bpmn-plugin/ -> plugins/ -> root
+_REPO_ROOT = Path(__file__).resolve().parents[5]
+_PLUGIN_JSON = _REPO_ROOT / "plugins" / "bpmn-plugin" / ".claude-plugin" / "plugin.json"
+_PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
 
 class TestCLIParser:
@@ -35,7 +41,39 @@ class TestCLIParser:
 
         assert exc_info.value.code == 0
         captured = capsys.readouterr()
-        assert "1.0.0" in captured.out
+        # Derived from the package constant, never a copy of it: a literal here
+        # would drift alongside a version bug instead of catching it.
+        assert __version__ in captured.out
+
+    def test_version_agrees_with_plugin_manifest(self):
+        """`__version__` must match the version this plugin actually ships.
+
+        This is the invariant that broke: `--version` reported 1.0.0 while the
+        plugin shipped 4.3.1, because the two literals live in different files
+        with nothing tying them together. Asserting the CLI echoes
+        `__version__` only proves the CLI is self-consistent -- it would still
+        have passed while reporting the wrong version to users.
+        """
+        import json
+
+        shipped = json.loads(_PLUGIN_JSON.read_text())["version"]
+        assert __version__ == shipped, (
+            f"bpmn2drawio.__version__ is {__version__!r} but "
+            f"plugins/bpmn-plugin/.claude-plugin/plugin.json ships {shipped!r}. "
+            "Bump both together."
+        )
+
+    def test_version_agrees_with_pyproject(self):
+        """`pyproject.toml` and `__init__.py` must not drift apart."""
+        import re
+
+        text = _PYPROJECT.read_text()
+        match = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
+        assert match is not None, "no version field found in pyproject.toml"
+        assert __version__ == match.group(1), (
+            f"bpmn2drawio.__version__ is {__version__!r} but "
+            f"pyproject.toml declares {match.group(1)!r}. Bump both together."
+        )
 
     def test_parse_basic_args(self):
         """Test parsing basic arguments."""

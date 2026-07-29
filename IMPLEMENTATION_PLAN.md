@@ -289,8 +289,8 @@ Stop a SKILL.md from instructing Claude to override a correct tool default with 
 
 ### Work Items
 
-#### 2.1 bpmn-to-drawio: delete the `HAS_DI` decision, let `auto` decide
-**Status: PENDING**
+#### 2.1 bpmn-to-drawio: delete the `HAS_DI` decision, let `auto` decide ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #193
 **Depends On:** None
@@ -301,23 +301,25 @@ Stop a SKILL.md from instructing Claude to override a correct tool default with 
 The skill greps for `bpmndi:BPMNDiagram` — an **any-DI** test — concludes `HAS_DI=true`, and instructs `--layout=preserve`. That is the pre-4.3.1 `has_di_coordinates` semantics reimplemented in bash, and it overrides the tool's `auto`, which resolves to `preserve` only on **complete** DI (`converter.py:73-75`). On a partially-DI file the DI-less shapes are stranded at (0,0) — issue #143 verbatim, re-issued as an instruction. The output is valid XML with exit 0 and no warning, so it presents as a tool bug.
 
 **Tasks:**
-1. [ ] Delete the `HAS_DI` grep and branch (`:96`, `:123`, `:131-132`)
-2. [ ] Rewrite `:136-148` so bare invocation is described as `--layout auto`, not "graphviz auto-layout"
-3. [ ] Correct `:65` (Graphviz is not required for complete-DI files), `:89-90`, `:192`, `:230` (troubleshooting row diagnoses the wrong cause), and `:332` (recommends the bug-triggering flag as a *performance optimization*)
-4. [ ] Keep the `--layout=preserve`/`--layout=graphviz` flags documented — only the recommendation to hand-select them is removed
+1. [x] Delete the `HAS_DI` grep and branch (`:96`, `:123`, `:131-132`)
+2. [x] Rewrite `:136-148` so bare invocation is described as `--layout auto`, not "graphviz auto-layout"
+3. [x] Correct `:65` (Graphviz is not required for complete-DI files), `:89-90`, `:192`, `:230` (troubleshooting row diagnoses the wrong cause), and `:332` (recommends the bug-triggering flag as a *performance optimization*)
+4. [x] Keep the `--layout=preserve`/`--layout=graphviz` flags documented — only the recommendation to hand-select them is removed
 
 **Acceptance Criteria:**
-- [ ] WHEN a partially-DI BPMN file is converted THEN the skill SHALL NOT instruct `--layout=preserve`
-- [ ] WHEN a file has no DI THEN `auto` SHALL resolve to graphviz without the skill special-casing it
-- [ ] All 9 contradicting sites reconciled against `converter.py` / `models.py`
+- [x] WHEN a partially-DI BPMN file is converted THEN the skill SHALL NOT instruct `--layout=preserve`
+- [x] WHEN a file has no DI THEN `auto` SHALL resolve to graphviz without the skill special-casing it
+- [x] All 9 contradicting sites reconciled against `converter.py` / `models.py`
 
 **Notes:**
 D30 records the tool-side fix. Do not widen `converter.py:101-105`'s warning as part of a docs fix — that would be a behavior change to a released tool.
 
+**Completion notes (2.1):** Read `converter.py:59-75` directly (`Converter.__init__` defaults `layout="auto"`; `_effective_layout` resolves `auto` → `preserve` only when `model.has_complete_di_coordinates`, else `graphviz`) and `cli.py:53-59` (`--layout` choices `auto|graphviz|preserve`, default `auto`) to confirm the exact behavior being delegated to, per D30 — none of that resolution logic was reimplemented in the skill. All 9 sites in `plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md` were reconciled: the `HAS_DI` grep/branch and the "Important Decision Point" were deleted from Steps 3–4, Step 5's bare invocation is now documented as the default `--layout auto` with `--layout=preserve`/`--layout=graphviz` kept as explicit, clearly-labeled overrides, and the Dependencies/Troubleshooting/Performance sites (`:192`, `:230`, `:332` pre-edit line numbers) no longer instruct or recommend forcing `--layout=preserve`. Verified: `python3 scripts/check_injections.py` (exit 0, 63 files/35 injections), `claude plugin validate --strict ./plugins/bpmn-plugin` (exit 0), `cd plugins/bpmn-plugin/tools/bpmn2drawio && PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` (642 passed, exit 0), `npx markdownlint-cli2 "plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md"` (exit 0, 0 issues).
+
 ---
 
-#### 2.2 bpmn2drawio reference and README: `auto` exists and is the default
-**Status: PENDING**
+#### 2.2 bpmn2drawio reference and README: `auto` exists and is the default ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: haiku**
 **Recommendation Ref:** #193
 **Depends On:** None
@@ -327,35 +329,48 @@ D30 records the tool-side fix. Do not widen `converter.py:101-105`'s warning as 
 - `plugins/bpmn-plugin/README.md` (modify)
 
 **Tasks:**
-1. [ ] `reference.md:30`: choices are `auto|graphviz|preserve`, default `auto`
-2. [ ] `reference.md:129`: drop the pinned `layout="graphviz"` from the Python example
-3. [ ] Tool README: document `auto`; correct the "Python 3.9+" badge to 3.10+ (`pyproject.toml:11`)
-4. [ ] `plugins/bpmn-plugin/README.md:28`: `4.2.0` → `4.3.1`
-5. [ ] `cli.py:23-28`: the `--help` epilog example never mentions `auto`
+1. [x] `reference.md:30`: choices are `auto|graphviz|preserve`, default `auto`
+2. [x] `reference.md:129`: drop the pinned `layout="graphviz"` from the Python example
+3. [x] Tool README: document `auto`; correct the "Python 3.9+" badge to 3.10+ (`pyproject.toml:11`)
+4. [x] `plugins/bpmn-plugin/README.md:28`: `4.2.0` → `4.3.1`
+5. [x] `cli.py:23-28`: the `--help` epilog example mentions `auto`
 
 **Acceptance Criteria:**
-- [ ] WHEN a reader consults any bpmn2drawio doc THEN the documented `--layout` default SHALL match `cli.py:55-56`
+- [x] WHEN a reader consults any bpmn2drawio doc THEN the documented `--layout` default SHALL match `cli.py:55-56`
+
+**Completion notes (2.2):**
+- **Default verified from cli.py:55-56:** `default="auto"`. Help text at `:57-58` states "auto preserves BPMN DI coordinates when present, else graphviz".
+- **Complete DI logic verified from converter.py:59-75:** The `_effective_layout()` method shows `auto` resolves to `preserve` only when `model.has_complete_di_coordinates` is True (line 74), falling back to `graphviz` otherwise.
+- **Complete DI definition verified from models.py:112-122:** `has_complete_di_coordinates` is a property that checks `has_di_coordinates and all(e.has_coordinates() for e in self.elements)` — meaning all elements must have x/y coordinates, not just any element. This confirms D30's statement: `auto` resolves to `preserve` only on **complete** DI (every element positioned), not partial DI.
+- **Updated all five locations:** reference.md line 30 updated to show `auto|graphviz|preserve` with default `auto` and expanded description; reference.md line 129 changed `layout="graphviz"` to `layout="auto"`; tool README line 4 badge updated to 3.10+; tool README line 12 feature description updated to explain the auto default; tool README line 83 example changed to show `layout="auto"` with explanatory comment; plugin README line 28 version bumped to 4.3.1; cli.py line 26 epilog example updated to show `--layout auto` instead of `--layout graphviz`.
 
 ---
 
-#### 2.3 bpmn2drawio: make `--version` tell the truth
-**Status: PENDING**
+#### 2.3 bpmn2drawio: make `--version` tell the truth ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: haiku**
 **Recommendation Ref:** #193 (unfiled)
 **Depends On:** None
 **Files Affected:**
 - `plugins/bpmn-plugin/tools/bpmn2drawio/pyproject.toml` (modify)
 - `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/__init__.py` (modify)
+- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_cli.py` (modify)
 
 **Description:**
 Both declare `version = "1.0.0"` while the plugin is 4.3.1, so `bpmn2drawio --version` prints `1.0.0`. A user told to "verify you're on 4.3.1" — the release that fixed the very bug 2.1 is about — cannot do so from the tool.
 
 **Tasks:**
-1. [ ] Set both to `4.3.1`; add a note tying tool version to plugin version
-2. [ ] Confirm no test asserts `1.0.0`
+1. [x] Set both to `4.3.1`; add a note tying tool version to plugin version
+2. [x] Confirm no test asserts `1.0.0`
 
 **Acceptance Criteria:**
-- [ ] WHEN `bpmn2drawio --version` runs THEN it SHALL report the plugin version
+- [x] WHEN `bpmn2drawio --version` runs THEN it SHALL report the plugin version
+
+**Completion notes (2.3):**
+- **Version source of truth:** `plugins/bpmn-plugin/.claude-plugin/plugin.json` (line 4) and `.claude-plugin/marketplace.json` (line 30) both declare `version: 4.3.1`. CHANGELOG.md confirms this as the released version ([bpmn-plugin v4.3.1] - 2026-07-16).
+- **Changes made:** Set `pyproject.toml:7` from `version = "1.0.0"` to `version = "4.3.1"`; set `__init__.py:25` from `__version__ = "1.0.0"` to `__version__ = "4.3.1"`. House pattern (task-sync, visual-explainer) is to hardcode the same literal in both locations.
+- **Test verification:** `test_cli.py:38` was the only assertion referencing the version. Updated from `assert "1.0.0" in captured.out` to `assert "4.3.1" in captured.out`. No other hardcoded version assertions exist in the test suite.
+- **CLI mechanics verified:** `cli.py:7` imports `__version__` and line 91 uses it in the argparse version format string: `version=f"%(prog)s {__version__}"`, which will output `bpmn2drawio 4.3.1` when `bpmn2drawio --version` is run.
 
 ---
 

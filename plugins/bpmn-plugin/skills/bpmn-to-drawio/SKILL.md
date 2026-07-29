@@ -62,7 +62,7 @@ pip install lxml networkx pyyaml
 
 ### Step 3: Check Graphviz and pygraphviz
 
-**CRITICAL:** Graphviz is required for automatic layout. Check BEFORE any processing:
+The tool's default `--layout auto` resolves to `preserve` — using the file's own BPMN DI coordinates — only when every element in the file already has a position, and falls back to Graphviz-based layout otherwise. Graphviz is therefore not required for files with complete DI coordinates, but you can't know in advance which files those are, so check availability up front:
 
 ```bash
 # Check for Graphviz
@@ -74,7 +74,9 @@ dot -V 2>/dev/null && echo "Graphviz: OK" || echo "Graphviz: MISSING"
 ```text
 Error: Required dependency 'graphviz' not found
 
-/bpmn-to-drawio requires Graphviz for automatic diagram layout.
+/bpmn-to-drawio requires Graphviz when a BPMN file's DI coordinates are
+missing or incomplete (the default --layout auto falls back to Graphviz
+in that case).
 
 Installation instructions:
   Windows: choco install graphviz
@@ -86,15 +88,12 @@ After installing Graphviz, also install the Python bindings:
 
 After installing, run the command again.
 
-Note: If your BPMN file already has layout coordinates, you can skip
-Graphviz and use: /bpmn-to-drawio input.bpmn output.drawio --layout=preserve
+Note: If your BPMN file already has COMPLETE layout coordinates (every
+element positioned), --layout auto will use them and Graphviz is not
+needed. Do not force --layout=preserve as a workaround unless you have
+verified the file's DI is complete — on a partially-positioned file it
+strands the unpositioned elements at (0,0) instead of laying them out.
 ```
-
-**Important Decision Point:**
-
-Before showing the error, check if the BPMN file has DI coordinates (Step 4):
-- If `HAS_DI=true`: Offer the `--layout=preserve` alternative
-- If `HAS_DI=false`: Graphviz is required, display the full error
 
 **If user wants to install Graphviz**, guide them through:
 
@@ -116,31 +115,29 @@ pip install pygraphviz
 
 ### Step 4: Analyze Source BPMN
 
-Check if the BPMN file has existing layout coordinates:
-
-```bash
-# Check for DI coordinates
-grep -q "bpmndi:BPMNDiagram" input.bpmn && echo "HAS_DI=true" || echo "HAS_DI=false"
-```
-
-Also check for complexity:
+Check for structural complexity — used later to populate the conversion summary:
 - `<bpmn:participant>` - Multiple pools
 - `<bpmn:lane>` - Swimlanes present
 
-**Layout decision:**
-- If `HAS_DI=true`: Can use `--layout=preserve` (Graphviz optional)
-- If `HAS_DI=false`: Must use `--layout=graphviz` (Graphviz required)
+The tool's `--layout auto` (the default; see Step 5) inspects the parsed model and resolves the layout mode itself. Do not grep the file for DI coordinates here to pre-select a `--layout` flag — that duplicates a decision the tool already makes correctly.
 
 ### Step 5: Run Conversion
 
-**With Graphviz available (auto-layout):**
+**Default (`--layout auto`) — let the tool decide:**
 ```bash
 PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio
 ```
+This is the recommended invocation for nearly all conversions. `auto` is the default when `--layout` is omitted; the tool inspects the parsed model and resolves `preserve` or `graphviz` itself — no pre-check of the file's DI content required.
 
-**Without Graphviz (preserve existing layout):**
+**Explicit override — only after verifying the file's DI is complete:**
 ```bash
 PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --layout=preserve
+```
+Forcing `preserve` on a file whose DI is missing or incomplete strands the unpositioned elements at (0,0). Prefer the default `auto` unless you have specifically verified every element already has a position.
+
+**Explicit override — force Graphviz even if DI coordinates exist:**
+```bash
+PYTHONPATH="$TOOL_SRC" python -m bpmn2drawio input.bpmn output.drawio --layout=graphviz
 ```
 
 **With theme:**
@@ -189,7 +186,7 @@ Dependencies are checked and installed automatically during the conversion workf
 
 ### System Dependencies
 - **Graphviz** - Required for automatic layout generation
-  - Not needed if BPMN file already has DI coordinates (use `--layout=preserve`)
+  - Not required when the file has complete DI coordinates — the default `--layout auto` resolves to `preserve` automatically in that case
 
 ### Manual Installation (if needed)
 
@@ -227,7 +224,7 @@ Full tables of supported Events, Activities, Gateways, Flows, and Containers (po
 | `ModuleNotFoundError: lxml` | Missing dependency | Run `pip install lxml` |
 | `ModuleNotFoundError: pygraphviz` | Graphviz not installed | Install Graphviz first, then `pip install pygraphviz` |
 | Empty output file | Invalid BPMN input | Check BPMN file validity |
-| Overlapping elements | No DI coordinates | Use `--layout=graphviz` (requires Graphviz) |
+| Elements overlapping / stranded at (0,0) | `--layout=preserve` forced on a file with incomplete DI | Don't force `--layout=preserve` — use the default `--layout auto`, which already falls back to Graphviz for incomplete DI |
 | Wrong flow direction | Default is LR | Use `--direction=TB` for vertical |
 
 ### Validation Errors
@@ -329,7 +326,7 @@ If the `bpmn2drawio` tool is unavailable and cannot be installed, fall back to m
 | Large | 50-100 | 30-90 seconds | Multiple pools, complex routing |
 | Very large | 100+ | 1-3 minutes | Graphviz layout dominates at scale |
 
-Duration is dominated by Graphviz layout computation for files without DI coordinates. Using `--layout=preserve` (when DI coordinates exist) reduces conversion to under 5 seconds regardless of size. Dependency installation (first run only) may add 30-60 seconds.
+Duration is dominated by Graphviz layout computation for files whose DI coordinates are missing or incomplete. When a file's DI coordinates are complete, the default `--layout auto` resolves to `preserve` automatically and conversion finishes in under 5 seconds regardless of size — no flag needed. Do not force `--layout=preserve` on a file with incomplete DI as a speed optimization: unpositioned elements are stranded at (0,0) instead of being laid out. Dependency installation (first run only) may add 30-60 seconds.
 
 ## References
 

@@ -27,7 +27,7 @@ bpmn2drawio <input.bpmn> <output.drawio> [options]
 |--------|--------|---------|-------------|
 | `--theme` | `default`, `blueprint`, `monochrome`, `high_contrast` | `default` | Color theme |
 | `--config` | file path | — | Custom brand configuration YAML |
-| `--layout` | `graphviz`, `preserve` | `graphviz` | Layout algorithm |
+| `--layout` | `auto`, `graphviz`, `preserve` | `auto` | Layout algorithm: `auto` preserves BPMN DI coordinates when complete (every element positioned), else graphviz |
 | `--direction` | `LR`, `TB`, `RL`, `BT` | `LR` | Flow direction |
 | `--no-grid` | flag | — | Disable grid in output |
 | `--page-size` | `A4`, `letter`, `auto` | `auto` | Page size |
@@ -126,7 +126,7 @@ print(f"Converted {result.element_count} elements, {result.flow_count} flows")
 converter = Converter(
     theme="blueprint",
     direction="TB",
-    layout="graphviz"
+    layout="auto"
 )
 result = converter.convert("input.bpmn", "output.drawio")
 
