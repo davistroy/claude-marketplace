@@ -1,7 +1,7 @@
 {
   "name": "slide-gen",
   "description": "AI-assisted presentation generation pipeline: research, outline, draft, optimize, validate graphics, generate images, and build PowerPoint files",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": {
     "name": "Troy Davis",
     "email": "troy.e.davis@gmail.com"
@@ -9,5 +9,13 @@
   "homepage": "https://github.com/davistroy/claude-marketplace",
   "repository": "https://github.com/davistroy/claude-marketplace",
   "license": "MIT",
-  "keywords": ["presentation", "powerpoint", "slides", "ai", "claude", "gemini", "pipeline"]
+  "keywords": [
+    "presentation",
+    "powerpoint",
+    "slides",
+    "ai",
+    "claude",
+    "gemini",
+    "pipeline"
+  ]
 }

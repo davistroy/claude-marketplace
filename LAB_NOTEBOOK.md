@@ -918,3 +918,19 @@ Two of the three decisions-file shapes `sync-semantics.md` documents were broken
 Rewritten as `PostToolUse` + `matcher: "Edit|Write"`, letting the matcher do the filtering so no tool-name check is needed at all. The generalizable rule, now stated in the recipe itself: **a hook's matcher must name the tool whose fields the body inspects.** The working `hooks.json` is correct precisely because `.tool_input.command` belongs to the `Bash` tool it matched.
 
 **What this says about the plan's self-verification.** Every phase verified its own work and every phase's gates were green. Three of these five findings are in files a phase explicitly edited, and two are inside acceptance criteria a phase marked satisfied. The gates were not wrong — they were checking structure (JSON parses, frontmatter validates, injections are guarded), and all five defects are *semantic*. **A green structural gate is evidence about structure and nothing else**; on a branch that is mostly behavior-surfaces, that leaves most of the surface unverified. An independent reader was the only thing that could have found these.
+
+---
+
+**Post-merge: 42 items of behavior change shipped at an unchanged version.**
+
+PR #222 merged as `1382a8a`. Immediately after, a check that should have run *before* the merge: the plan touched all three plugins and bumped none of them. `personal-plugin` stayed `11.5.1`, `bpmn-plugin` `4.3.1`, `slide-gen` `1.2.0`.
+
+**Two different trees now both claim `11.5.1`.** The installed cache at `~/.claude/plugins/cache/troys-plugins/personal-plugin/11.5.1/` still carries `disable-model-invocation: true` on `lab-notebook` and `create-wiki`; `main`'s `11.5.1` has the flag removed and the Phase-0 gates in its place. Same version string, materially different dispatch behavior.
+
+**This blocked the very next task.** A21 is the run of the 14 `description-triggers` scenarios, and S13/S14 were rewritten in 8.3 to assert the *new* contract ("may be invoked, must gate before writing"). Running them against the installed plugin would have exercised pre-Phase-8 skills that still carry the flag — every S13/S14 result would have been a guaranteed failure attributable to nothing but a stale cache. Worse, the failure would have looked like a real finding about Phase 8.
+
+**Why no gate caught it.** Version bumping is a `/bump-version` step, not a CI check: nothing compares "did `plugins/**` change?" against "did `plugin.json.version` change?". `claude plugin validate --strict` validates the manifest's *shape*, not its *currency*. `update-readme.py --check` regenerates tables from the tree and is version-blind. So every gate on PR #222 was green and correct, and the release was still unshippable — the same lesson as the ultrareview findings, one layer up: **the gates check artifacts, not the process that publishes them.**
+
+**Fix:** minor bumps across all three (behavior changed, no API break) — `personal-plugin 11.6.0`, `bpmn-plugin 4.4.0`, `slide-gen 1.3.0` — with CHANGELOG entries grouped by root cause rather than by issue number, plus an explicit note that anyone already on `11.5.1` must update because the tree changed underneath the version.
+
+**Follow-up worth filing:** a CI check that fails when files under `plugins/<name>/` change in a PR without `plugins/<name>/.claude-plugin/plugin.json` version changing. It is derivable from the diff (never a restated constant), it can be negative-tested trivially, and it is the exact gate whose absence let this through. Per D28 it must land as a *step* in the existing validate job, not a new job.
