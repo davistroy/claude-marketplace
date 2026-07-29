@@ -949,8 +949,8 @@ The `hooks: pre:/post:` shape taught in four places is invalid. The value is a r
 
 ---
 
-#### 5.3 Delete the two fictional keys
-**Status: PENDING**
+#### 5.3 ✅ Completed 2026-07-29 Delete the two fictional keys
+**Status:** COMPLETE 2026-07-29
 **Model Tier: sonnet**
 **Recommendation Ref:** #202
 **Depends On:** 5.1
@@ -965,12 +965,22 @@ The `hooks: pre:/post:` shape taught in four places is invalid. The value is a r
 `isolation: worktree` is **agent** frontmatter, not skill — and the skill schema is `.strict()`, so an unknown key is **rejected**, not ignored. `$CLAUDE_CONTEXT` does not exist as a template variable (only the unrelated `CLAUDE_CONTEXT_COLLAPSE` env vars do); `new-skill-examples.md:128` is a worked example that silently degrades.
 
 **Tasks:**
-1. [ ] Remove `isolation:` from skill-frontmatter documentation; relocate to an agent-frontmatter note if kept at all
-2. [ ] Delete `$CLAUDE_CONTEXT` and its worked example from all five sites
+1. [x] Remove `isolation:` from skill-frontmatter documentation; relocate to an agent-frontmatter note if kept at all
+2. [x] Delete `$CLAUDE_CONTEXT` and its worked example from all five sites
 
 **Acceptance Criteria:**
-- [ ] WHEN a generated skill's frontmatter is validated THEN it SHALL contain no key the strict schema rejects
-- [ ] No documented template variable expands to nothing
+- [x] WHEN a generated skill's frontmatter is validated THEN it SHALL contain no key the strict schema rejects
+- [x] No documented template variable expands to nothing
+
+**Completion notes (5.3):**
+- **Proof method identical to 5.1/5.2** — `strings -n 6` over the pinned `~/.local/share/claude/versions/2.1.220` binary, targeted `grep`, no behavioral inference. Two artifacts examined: (1) a contiguous run of skill-frontmatter field descriptions immediately followed by a contiguous run of agent-frontmatter field descriptions (`common-patterns.md`'s and `advanced-features.md`'s existing `paths:`/`hooks:` proofs came from the same region); (2) the literal skill/agent-frontmatter key-name arrays adjacent to those descriptions.
+- **`isolation:` verdict: REAL, but exclusively agent frontmatter — fictional in skill-frontmatter context, deleted from all skill-frontmatter teaching sites.** The skill-frontmatter description block (`name` → `description` → `model` → `allowed-tools` → `disallowed-tools` → `argument-hint` → `disable-model-invocation` → `user-invocable` → `effort` → `shell` → `when_to_use` → `paths` → `hooks` → `context` → `agent` → `background`[fork-only]) contains no `isolation` entry. `isolation`'s only description string — `"Filesystem isolation: \`worktree\` runs in a temporary git worktree."` — sits inside the immediately-following agent-frontmatter block (`memory` → `background` → `isolation` → `observer` → `observerMessage` → `observeSubagents`), alongside `"Agent file … has invalid isolation value '"` and `"agent({isolation:'remote', schema})"` / `"agent({isolation:'remote'}) is not available in this build"` (Agent-tool call parameter, matching this session's own Agent tool schema: `isolation: "worktree" | "remote"`). Zero occurrences of `isolation` inside the skill-schema description run. Not simply deleted outright — each site now carries a short corrective note (no copyable YAML) stating it belongs to `.claude/agents/*.md` frontmatter and the `Agent` tool call, consistent with "relocate to an agent-frontmatter note if kept at all."
+- **`$CLAUDE_CONTEXT` verdict: FICTIONAL, deleted outright.** Zero occurrences of the bare string `CLAUDE_CONTEXT` in the binary as a template/substitution variable. The only two hits anywhere are `CLAUDE_CONTEXT_COLLAPSE` and `CLAUDE_CONTEXT_COLLAPSE_MODEL` — unrelated context-management env vars, confirming the plan's Description text. Cross-checked against the confirmed-real variable set (`$ARGUMENTS`, `$1`/`$2`/`$3`, `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, `${CLAUDE_PROJECT_DIR}`), each of which has an explicit description string in the binary; `$CLAUDE_CONTEXT` has none.
+- **U1 resolved (Unknowns Register): `$PWD` is FICTIONAL, deleted from `common-patterns.md:292`.** Matches the Unknown's own premise exactly — 3 short-line binary hits for `PWD`, none with schema context: `d=$PWD; while :; do` and `local working_dir="${PWD}";` are ordinary bundled bash-script fragments (not a Claude Code substitution feature), plus the bash builtin `OLDPWD` and one unrelated noise string. No description string, no schema key, unlike the three confirmed-real variables in the same list. Single occurrence in the plugin (`common-patterns.md:292`); removed per the Unknown's own resolution strategy ("delete if unverified").
+- **U4 resolved (Unknowns Register): a `.strict()` skill-schema rejection is a hygiene fix, not a crash.** Located the actual failure path: `"[skills] YAML frontmatter in " + path + " failed to parse and was ignored: " + error`, telemetry events `skill_load_yaml_failed` / `skill_load_parse_failed`, alongside `"Failed to load skill from "` and `"[skills] skipping "`. The skill is silently dropped from the skill list — no session crash, no user-facing error banner in normal operation — with a diagnostic log line as the only signal. This confirms the deletions above are closing a silent-capability-loss defect, not a crash defect, and that the corrective notes' "silently dropped... no session crash" wording is derived from this trace rather than assumed.
+- **`new-skill-examples.md` Example C rewritten, not just stripped of `$CLAUDE_CONTEXT`** — per 5.1's completion notes ("`new-skill-examples.md` deliberately left untouched… its paths-related wording… would have pre-empted [5.3] mid-file"), this file's paths-semantics correction was explicitly deferred here, not assigned to any other item (verified: it appears in no other item's Files Affected list). Corrected in place: title/intro no longer say "auto-run" or "auto-activates"; the "Entry guard (REQUIRED for paths-activated skills)" loop-guard section is removed (same defect class 5.1 removed from the five skills — activation is one-shot, so no guard is needed); Phase 1 no longer claims a triggering-file can be identified (there is no `$CLAUDE_CONTEXT` and no other payload — `paths:` gates existence only, per ADR-0012 F4) and instead validates the full `paths:` glob set. `new-skill.md`'s own forward reference to this example ("a paths-activated skill with a loop guard") updated to match ("a conditionally-loaded skill using `paths:`") — this is the site 5.1 flagged at `new-skill.md:324` (now `:330` after 5.2's edits shifted line numbers) as left unedited "to avoid asserting something inconsistent with content 5.3 hasn't corrected yet."
+- **Left untouched (explicitly out of scope, assigned to later items):** `agent:` enum (`Explore | Think | Code`) and pinned `model:` IDs (`claude-opus-4`) inside the same commented blocks I edited in `templates/skill.md` and `new-skill.md` — 5.4 and 5.6 respectively. `context: fork` framing in `advanced-features.md`/`common-patterns.md` and the `disable-model-invocation` definition — neither is an isolation/`$CLAUDE_CONTEXT`/`$PWD` defect and both are unassigned or assigned elsewhere (5.4).
+- **Verified:** `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); `python3 scripts/check_injections.py` (exit 0, 63 files / 35 injections, all guarded, none touched); `npx markdownlint-cli2` on all 5 modified files (exit 0, 0 issues); `bash scripts/pre-commit` with the 5 files staged (exit 0, all PASS).
 
 ---
 
@@ -1581,7 +1591,7 @@ ADR-0009/D32 stands — this stays human-run; CI has zero secrets.
 | 3.3's slide-removal fix claimed working without execution | 3.3 | Medium | High | Acceptance criterion requires execution against the real `.pptx`; current text already carries a reliability claim execution disproves | Mitigated |
 | 4.6's mock proves `--paginate` works while real `gh` 2.45 crashes | 4.6 | Medium | High | Fixture must be two concatenated blobs, not a pre-merged array (#212's mode verbatim) | Mitigated |
 | `SyncPlan.orphans` omitted from `is_empty()` → orphan-only plan reports "already in sync" | 4.2 | Medium | High | Explicit acceptance criterion + dedicated mutation test | Open |
-| Phase 5 deletes a working frontmatter key as "unverified" | 5.3 | Medium | High | Six of eight keys verified real against the harness schema; only `isolation:` and `$CLAUDE_CONTEXT` are deleted | Open |
+| Phase 5 deletes a working frontmatter key as "unverified" | 5.3 | Medium | High | Six of eight keys verified real against the harness schema; only `isolation:` and `$CLAUDE_CONTEXT` are deleted | Mitigated |
 | 8.3 drops a flag without its gate, making file creation model-triggerable | 8.3 | Low | High | Gate and flag removal are one work item, not two | Open |
 | A new CI **job** instead of a step deadlocks merges | 1.6, 6.1 | Low | Critical | Both items specify "step"; D28 cited inline | Open |
 | Rewording plan-template Rule 17 breaks `/validate-plugin`'s literal keyword check | Deferred (#198) | — | — | Not in this plan; recorded for the follow-on | Deferred |
@@ -1596,10 +1606,10 @@ ADR-0009/D32 stands — this stays human-run; CI has zero secrets.
 
 | ID | Unknown | Severity | Affects | Resolution Strategy | Status |
 |----|---------|----------|---------|---------------------|--------|
-| U1 | Does `$PWD` work as a template variable? Documented at `common-patterns.md:287`; 3 binary hits with no schema context | Low | 5.3 | Live probe in a scratch skill; delete if unverified | Open |
+| U1 | Does `$PWD` work as a template variable? Documented at `common-patterns.md:287`; 3 binary hits with no schema context | Low | 5.3 | Live probe in a scratch skill; delete if unverified | Resolved — static probe (`strings`/`grep` over 2.1.220, same method as U4) found no schema/description context for `PWD`; the 3 hits are ordinary bundled bash-script fragments (`d=$PWD; while :; do`, `local working_dir="${PWD}";`) plus the bash builtin `OLDPWD`, none tied to a Claude Code substitution feature. Deleted from `common-patterns.md:292` (5.3) |
 | U2 | Do `context: fork` subagents draw tool permissions from skill frontmatter or session settings? | Medium | 7.1, 7.3 | Live probe before finalizing grant sets; affects whether grant fixes are load-bearing or cosmetic | Open |
 | U3 | Exact python-pptx version contract for `_sldIdLst` (private attribute) | Medium | 3.3 | Pin the version in Prerequisites; verify against the installed 1.0.2 | Resolved — confirmed on 1.0.2 via live probe: `prs.slides._sldIdLst` (not `prs.presentation.sldIdLst`, which doesn't exist — `Presentation()` has no `.presentation` attribute) is `pptx.oxml.presentation.CT_SlideIdList`; `prs.part.rels` is `Mapping` not `MutableMapping` so deletion requires `prs.part.drop_rel(rId)` |
-| U4 | Does the harness surface a distinguishable error when a `.strict()` skill schema rejects a key, or does the skill silently not load? | Medium | 5.3 | Probe with a deliberately-bad key; determines whether 5.3 is a crash fix or a hygiene fix | Open |
+| U4 | Does the harness surface a distinguishable error when a `.strict()` skill schema rejects a key, or does the skill silently not load? | Medium | 5.3 | Probe with a deliberately-bad key; determines whether 5.3 is a crash fix or a hygiene fix | Resolved — static probe located the failure path: `"[skills] YAML frontmatter in " + path + " failed to parse and was ignored: " + error`, telemetry `skill_load_yaml_failed`/`skill_load_parse_failed`. The skill is silently dropped from the skill list — no session crash, no user-facing error banner — with only a diagnostic log line as signal. 5.3 is a hygiene fix (silent capability loss), not a crash fix |
 | U5 | Whether `agent: general-purpose` is valid in *skill* frontmatter or only in the Agent tool | Low | 5.4 | Verify against the harness enum before publishing the corrected vocabulary | Open |
 
 <!-- END TABLES -->

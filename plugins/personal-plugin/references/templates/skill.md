@@ -6,11 +6,10 @@ description: {{DESCRIPTION}}
 # allowed-tools: {{ALLOWED_TOOLS}}  # e.g., Read, Glob, Grep, Bash, Task
 # disable-model-invocation: false   # true = no LLM call; pure-tool skill
 #
-# --- Modern Dispatch & Isolation ---
+# --- Modern Dispatch ---
 # context: fork          # spawn isolated subagent context (no shared conversation history)
 # agent: Explore         # subagent type: Explore | Think | Code | (role-specific strings)
 # model: claude-opus-4   # override model for this skill; omit = inherits caller model
-# isolation: worktree    # create git worktree for run; auto-cleanup when no changes
 #
 # --- Auto-Activation ---
 # paths:                 # activate skill when user opens matching files
@@ -40,7 +39,6 @@ description: {{DESCRIPTION}}
 
 The user may provide optional arguments when invoking this skill. Dynamic context is available via:
 - `$ARGUMENTS` — raw argument string passed by the user
-- `$CLAUDE_CONTEXT` — active file/selection context (if any)
 - `!`cmd`` — command output injected before Claude reads the prompt (e.g., `!`git status -s``)
   - Injections run at **parse time**, before `$ARGUMENTS` is available — never inject a command containing a placeholder you expect to be substituted.
   - A non-zero exit **aborts skill load**; it does not degrade to empty output. Guard anything that can fail: `!`git status -s 2>/dev/null || echo "(not a git repository)"``

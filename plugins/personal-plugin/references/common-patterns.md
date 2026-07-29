@@ -193,23 +193,9 @@ paths:
 
 ---
 
-### `isolation: worktree`
+### `isolation:` — not a skill frontmatter field
 
-**Syntax:**
-```yaml
-isolation: worktree
-# or with a label:
-isolation: worktree phase-2
-```
-
-**Use case:** Creates a temporary git worktree for the subagent's execution scope. Prevents concurrent subagents from conflicting on shared file paths. Worktree is auto-cleaned if no changes are made (read-only skills get cleanup for free).
-
-**When to use:** Any skill that writes files and may run alongside other agents (parallel phase execution in `implement-plan`, `arch-review` multi-agent dispatch, `leak-risk-audit` scanning tiers).
-
-**Gotchas:**
-- Requires a clean working tree to create the worktree — stash or commit first.
-- Write-to-worktree → merge-to-main is manual unless the skill explicitly handles it. Document the merge point (e.g., phase completion gate).
-- Per-phase worktree (one per phase) is simpler than per-item worktree for coordinating parallel work items in the same phase.
+`isolation: worktree` (temporary git worktree) and `isolation: remote` (remote sandbox) are real Claude Code features — but they belong to **agent** frontmatter (`.claude/agents/*.md`) and the `Agent` tool call, never to a `SKILL.md` file. The skill frontmatter schema is `.strict()`: an unrecognized key like `isolation:` fails validation and the skill is silently dropped from the skill list (logged internally as a YAML-frontmatter parse failure — no session crash, the skill just never loads). To isolate a subagent's execution scope from a skill body, dispatch it via the `Agent` tool with `isolation: "worktree"` as a call parameter, or define a custom agent file with `isolation: worktree` in its own frontmatter — do not add `isolation:` to the skill's own frontmatter.
 
 ---
 
@@ -289,7 +275,6 @@ shell: bash   # or: zsh, sh, pwsh
 ```markdown
 $ARGUMENTS          # Full argument string passed to the skill/command
 $CLAUDE_PLUGIN_ROOT # Absolute path to the plugin directory
-$PWD                # Working directory at skill invocation
 ```
 
 **Use case:** `$ARGUMENTS` is the primary input variable — it contains everything the user typed after the skill name. Parse it for flags, paths, or free-form input. `$CLAUDE_PLUGIN_ROOT` is essential for referencing bundled tools or reference files without hardcoded paths.

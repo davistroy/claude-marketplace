@@ -61,23 +61,9 @@ model: claude-opus-4
 
 ---
 
-## `isolation: worktree`
+## `isolation:` — not a skill frontmatter field
 
-**Syntax:**
-```yaml
-isolation: worktree
-```
-
-**What it does:** Creates a git worktree for the skill run. All file writes happen in the worktree. If the skill exits without changes, the worktree is auto-cleaned up. If changes were made, the worktree is available for review/merge.
-
-**When to use:**
-- Skills that write files where concurrent runs would conflict
-- Multi-agent parallel dispatch where each subagent needs its own working tree
-- Skills that should stage changes for review rather than writing directly to the working copy
-
-**Gotcha:** Worktrees require a clean-ish HEAD. Skills invoking `isolation: worktree` will fail in repos with staged conflicts. Document this precondition in the skill body.
-
-**Worktree naming:** Claude Code generates a name from the skill name + run timestamp. To use a specific name (e.g., per-phase worktrees in implement-plan): `isolation: worktree phase-2`.
+`isolation: worktree` (temporary git worktree) and `isolation: remote` (remote sandbox) are real Claude Code features, verified against the 2.1.220 binary — but as **agent** frontmatter (`.claude/agents/*.md`) and an `Agent` tool call parameter, never as a `SKILL.md` field. The skill frontmatter schema is `.strict()`; adding `isolation:` to a skill's own frontmatter causes that YAML block to fail parsing and the skill to be silently dropped from the skill list (no crash — it just never loads). To isolate a subagent's execution scope from within a skill body, dispatch via the `Agent` tool with `isolation: "worktree"` as a call parameter, or point at a custom agent file that declares `isolation: worktree` in its own frontmatter.
 
 ---
 
@@ -136,23 +122,21 @@ paths:
 
 ---
 
-## `$ARGUMENTS` and `$CLAUDE_CONTEXT`
+## `$ARGUMENTS`
 
 **Syntax:** Use directly in skill body text.
 
 ```
 User provided: $ARGUMENTS
-Active file: $CLAUDE_CONTEXT
 ```
 
 | Variable | Contains |
 |----------|---------|
 | `$ARGUMENTS` | Raw string the user passed when invoking the skill |
-| `$CLAUDE_CONTEXT` | The file path or selected text in the user's editor (if any) |
 
-**When to use:** Any skill that should behave differently based on user arguments or the currently active file.
+**When to use:** Any skill that should behave differently based on user arguments.
 
-**Gotcha:** `$CLAUDE_CONTEXT` is empty when the skill is invoked from the terminal without an active editor context. Skills relying on it should have a fallback prompt asking the user for the file path.
+**Note:** There is no `$CLAUDE_CONTEXT` template variable — it does not exist in the harness (only the unrelated `CLAUDE_CONTEXT_COLLAPSE` env vars do). A skill that needs to know which file is relevant should ask the user or discover it via Read/Glob/Grep, not assume an editor-context variable is populated.
 
 ---
 
@@ -197,9 +181,8 @@ shell: bash    # or: zsh | sh
 
 | Feature | Works with | Incompatible with | Notes |
 |---------|------------|-------------------|-------|
-| `context: fork` | `agent:`, `isolation: worktree` | — | Core parallelism primitive |
+| `context: fork` | `agent:` | — | Core parallelism primitive |
 | `agent:` | `context: fork` | Standalone (no-op) | Always pair with fork |
-| `isolation: worktree` | `context: fork` | Repos with staged conflicts | Auto-cleanup when no changes |
 | `paths:` | Model-invocable skills | `disable-model-invocation: true` (self-cancelling — ADR-0012) | Conditional load gate; no loop guard needed |
 | `!`cmd`` | Any | Conditional logic | Runs unconditionally; non-zero exit aborts skill load (ADR-0011) |
 | `model:` | Any | User subscription limits | Graceful fallback recommended |
