@@ -792,7 +792,9 @@ Both are forced sequential in `parallelization_map`. Three further cross-phase o
 | Batch | Items | Tier | Commit | Gates | Outcome |
 |---|---|---|---|---|---|
 | 1 | 1.1 | opus | `71a6ad4` | validate ✔ mdlint ✔ pre-commit ✔ | ADR-0011 Accepted. Doctrine re-derived from the shipped harness, not from E059's summary |
-| 2 | 1.2, 1.4, 1.5 | opus, haiku, haiku | *(this commit)* | validate ✔ mdlint ✔ pre-commit ✔ | 5 ship guards + 3 clear-prep guards live; #183 corrected on GitHub |
+| 2 | 1.2, 1.4, 1.5 | opus, haiku, haiku | `bcc1c52` | validate ✔ mdlint ✔ pre-commit ✔ | 5 ship guards + 3 clear-prep guards live; #183 corrected on GitHub |
+| 3 | 1.3 | haiku | `ca8e6e4` | validate ✔ mdlint ✔ pre-commit ✔ | `ship` grant set derived from the body, not the item title |
+| 4 | 1.6 | sonnet | *(this commit)* | linter ✔ self-test ✔ validate ✔ mdlint ✔ pre-commit ✔ | **Phase 1 COMPLETE (6/6)** — linter live, 63 files / 35 live injections, all guarded and granted |
 
 **Batch 1 finding — E059 undercounted the live forms.** The 1.1 implementer recovered the harness matchers verbatim from 2.1.220 and found a **fifth** live form E059 never enumerated: a `!`-info-string fenced block matched against the **raw** text, so it is never pre-passed at all. That form cannot be found by grep under any pattern, which is the sharpest available justification for ADR-0011's rule that a linter must replay the pre-pass. Item 1.6 inherits it as a required case.
 
@@ -809,3 +811,19 @@ I re-ran this myself rather than accepting the agent's report (E039). In a scrat
 **Latent defect found while repairing the pre-flight gate (unfiled, fixed in passing).** The dead gate was split into a sentinel-based repository check plus a **new empty-remote check** — because a repo with no remote previously fell through to `PLATFORM=gitea`. That is a wrong-platform dispatch on a condition nobody had filed.
 
 **A guard-design detail worth keeping.** The repository check carries an explicit *do not infer this from empty output* instruction, because empty is a legitimate result for several of these commands inside a perfectly valid repo. Sentinel-vs-empty is the distinction that makes the check correct; conflating them would reintroduce a false abort.
+
+**Batch 3 — deriving a grant set beats copying one.** Item 1.3's own title names five tools (`Write`/`mkdir`/`tail`/`awk`/`grep`), but the implementer read the skill body and granted only four: batch 2's rewrite of line 33 had removed the sole `tail` invocation. Granting `tail` would have restated the issue text rather than the artifact — precisely the drift class CLAUDE.md warns about, and a live demonstration that the rule bites on *grants*, not just on tests. Confirmed independently: `tail` appears nowhere in the body, and the item's whole diff is one frontmatter line, leaving batch 2's dual-owned expression byte-identical.
+
+**Batch 4 — the injection linter, and how it was proven rather than asserted.** `scripts/check_injections.py` ports the harness's pre-pass and extractor **verbatim** (including the raw-text `!`-fence form, and a manual preceding-character test standing in for the variable-width lookbehind Python will not compile). Its `--self-test` parses ADR-0011's own LIVE/INERT table **at runtime** to derive its nine expected verdicts, rather than hard-coding a copy — the direct application of the "parametrize from the constant, never a copy of it" rule, and the thing that keeps the fixture set from drifting away from the ADR the way `test_priority_round_trip` drifted from `VALID_PRIORITIES` in E056.
+
+I did not take the green self-test as proof the gate works. I planted a real `SKILL.md` in the actual repo tree carrying an unguarded, ungranted injection; the linter exited **1** naming both violations separately (`unguarded` per F3, `ungranted` per F4), and returned to **0** once removed. A gate that has never been observed failing is indistinguishable from a gate that cannot fail.
+
+**Scope decision (linter): stop at the loader boundary, not the text-match boundary.** Scanning is restricted to `plugins/*/skills/*/SKILL.md` and `plugins/*/commands/*.md`. Repo-root prose — including the 2 live-looking sites in this plan's own executive summary that batch 1 flagged — plus `references/**` and `deprecated/**` are excluded, on the same "never expanded by the loader" reasoning ADR-0011 already applies. The rationale is worth preserving: widening the file glob to catch text that the loader never expands would reproduce the rejected grep-gate failure mode at the *file-selection* layer instead of the regex layer. The flag batch 1 raised is therefore resolved by scope, not by editing the plan file.
+
+**CI wiring honors D28.** The check landed as a step inside the existing `plugin-validate` job, and `scripts/pre-commit` gained a staged-file-gated Check 4 matching Checks 1-3. Verified against `origin/main`: zero new job keys, so no new required status check and no branch-protection coordination needed.
+
+**Two risk rows deliberately left `Open`.** The "new CI job instead of a step deadlocks merges" row is scoped jointly to `1.6, 6.1`; 6.1 has not run, so marking it Mitigated now would misreport it as retired. The `prime` backtick-tidying row is scoped to 7.3. Both stay Open by design — a half-satisfied mitigation marked green is worse than one marked red, because Phase 6 and Phase 7 implementers read these rows as instructions.
+
+**One defect I fixed directly.** The linter shipped with a stale annotation — `cases` declared a 6-tuple while every entry, and its own explanatory comment, was a 7-tuple. Runtime was unaffected (hence a green self-test) and `scripts/` is outside CI's ruff/mypy scope, so nothing would have caught it. Corrected to `tuple[str, str, str, str, str, bool, str | None]`. Noted because it is the *third* thing this session that a passing check did not cover.
+
+**Phase 1 verdict:** 6/6 items COMPLETE. Final linter run: 63 files scanned, 35 live injections, all guarded and granted, exit 0.

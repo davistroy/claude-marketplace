@@ -209,8 +209,8 @@ Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'
 
 ---
 
-#### 1.6 Injection linter that replays the pre-pass
-**Status: PENDING**
+#### 1.6 Injection linter that replays the pre-pass ✅ Completed 2026-07-28
+**Status: COMPLETE 2026-07-28**
 **Model Tier: sonnet**
 **Recommendation Ref:** #183 (class closure)
 **Depends On:** 1.1, 1.2, 1.4
@@ -223,19 +223,28 @@ Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'
 A textual grep for `` !` `` finds 74 sites under `plugins/`, only 14 of which are live in an executable surface — a grep-based linter would be 81% false positives and would still miss the blanking rule. The linter must replay `Jds` + the extractor regex, then assert that every live injection in a skill or command body is exit-0-safe (guarded, or a pipe-terminated form) and that every binary it invokes appears in that component's `allowed-tools`.
 
 **Tasks:**
-1. [ ] Implement `scripts/check_injections.py` (stdlib only — the `plugin-validate` job installs no Python)
-2. [ ] Restrict scanning to `plugins/*/skills/*/SKILL.md` and `plugins/*/commands/*.md`; exclude `references/**` and `deprecated/**`
-3. [ ] **Negative-test before wiring**: a fixture with an unguarded live injection must exit 1; the current tree must exit 0
-4. [ ] Wire as a step in the existing `Validate Plugins (official CLI)` job and as a block in `scripts/pre-commit`
+1. [x] Implement `scripts/check_injections.py` (stdlib only — the `plugin-validate` job installs no Python)
+2. [x] Restrict scanning to `plugins/*/skills/*/SKILL.md` and `plugins/*/commands/*.md`; exclude `references/**` and `deprecated/**`
+3. [x] **Negative-test before wiring**: a fixture with an unguarded live injection must exit 1; the current tree must exit 0
+4. [x] Wire as a step in the existing `Validate Plugins (official CLI)` job and as a block in `scripts/pre-commit`
 
 **Acceptance Criteria:**
-- [ ] WHEN an unguarded live injection is added to any skill body THEN the linter SHALL exit 1 naming the file, line, and command
-- [ ] WHEN the inert nested form is used in documentation THEN the linter SHALL NOT flag it
-- [ ] WHEN run against the current tree THEN the linter SHALL exit 0
-- [ ] The linter is added as a **step**; the required-check name is unchanged (D28)
+- [x] WHEN an unguarded live injection is added to any skill body THEN the linter SHALL exit 1 naming the file, line, and command
+- [x] WHEN the inert nested form is used in documentation THEN the linter SHALL NOT flag it
+- [x] WHEN run against the current tree THEN the linter SHALL exit 0
+- [x] The linter is added as a **step**; the required-check name is unchanged (D28)
 
 **Notes:**
 This is the E043 rule applied to itself: the guard must be shown to fail against deliberately-bad input before it is trusted.
+
+**Completion notes (2026-07-28):**
+- **Replay, not grep** — `jds()`/`cfo()` port the harness's `Jds` pre-pass and `Cfo` extractor (soy raw-fence + aoy inline, including the `!`-fence form matched against RAW text per F1, never pre-passed). Python's `re` can't express the harness's variable-width lookbehind `(?<=^|\s)`, so it's replicated as an explicit preceding-character check (`_preceded_by_bol_or_ws`) instead of approximated.
+- **Guard/grant heuristics are scoped, not a general shell prover**: "guarded" = an explicit top-level `\|\|` fallback, or a pipeline/statement whose final stage is in a small always-exits-0 allowlist (`awk`, `head`, `wc`, `cat`, `true`, `:`, `pwd`, `echo`) — covers both ship's `\|\| echo` idiom and its unguarded-looking `\| awk` diff-size line, and slide-gen's bare `!\`pwd\``. "granted" excludes shell builtins that spawn no subprocess (echo, true, cd, pwd, ...), matching that `ship`/`clear-prep` never grant `Bash(echo:*)`.
+- **`--self-test` derives verdicts from the ADR, not a hand-copied table**: `_adr_table_verdicts()` parses the 9 LIVE/INERT rows directly out of `docs/adr/0011-dynamic-injection-doctrine.md`'s F2 table at self-test time, so a future edit to a verdict is caught as drift rather than silently agreed with. Fixture *text* per row is hand-built from the row's plain-English label (reconstructing exact bytes from the ADR's own `\!`-neutralized, nested-code-span display form was intractable/unnecessary). Also covers 7 file-level fixture cases (unguarded+granted, guarded+ungranted, 3 good variants including wildcard `Bash`, inert-not-flagged, unguarded raw-fence) and a final pass against the real repo tree.
+- **Verified the guard can fail, twice**: (1) planted a real unguarded/ungranted `SKILL.md` under `plugins/personal-plugin/skills/`, confirmed `check_injections.py` exits 1 naming both violations, removed it, confirmed exit 0 again; (2) temporarily corrupted one `_ADR_ROW_FIXTURES` entry, confirmed `--self-test` exits 1 and names the mismatched row, then restored it.
+- **Scope decision**: scanning is restricted to `plugins/*/skills/*/SKILL.md` and `plugins/*/commands/*.md` only (per Task 2) — `references/**`, `deprecated/**`, and repo-root prose docs (e.g. `IMPLEMENTATION_PLAN.md`'s 2 live-looking sites in its executive summary) are all out of scope, on the same "never expanded by the loader" reasoning ADR-0011 already applies to references/deprecated. Scanning repo-root docs would reproduce R4's rejected grep-gate failure mode one layer up (flagging text that is never loaded as a prompt body), so this repo's linter scope stops at the loader boundary, not the text-match boundary.
+- **CI wiring**: added as a step ("Check dynamic injections replay-clean (ADR-0011)") inside the existing `plugin-validate` job (`Validate Plugins (official CLI)`), immediately after the README-sync step — no new job, no new required-check name (D28).
+- **pre-commit wiring**: added as Check 4 (renumbering the ruff check to Check 5), gated on the same `STAGED_FILES` (skill/command markdown staged) condition as Checks 1–3, consistent with how ruff is gated on staged Python files.
 
 ---
 
