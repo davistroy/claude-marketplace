@@ -144,8 +144,8 @@ Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'
 
 ---
 
-#### 1.3 `ship`: grant the tools `--audit` needs
-**Status: PENDING**
+#### 1.3 `ship`: grant the tools `--audit` needs ✅ Completed 2026-07-28
+**Status: COMPLETE 2026-07-28**
 **Model Tier: haiku**
 **Recommendation Ref:** #190
 **Depends On:** None
@@ -156,12 +156,16 @@ Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'
 `:57-62` requires creating `.claude-plugin/` and appending `.claude-plugin/audit.log`, but `allowed-tools` grants no `Write` and no `Bash(mkdir:*)`. `Edit` cannot create a file. `commands/clean-repo.md:4` grants `Write` for the identical audit-log pattern.
 
 **Tasks:**
-1. [ ] Add `Write` and `Bash(mkdir:*)` to `ship`'s `allowed-tools`
-2. [ ] Add `Bash(tail:*)`, `Bash(awk:*)`, `Bash(grep:*)` for the injection pipes in `:30`
+1. [x] Add `Write` and `Bash(mkdir:*)` to `ship`'s `allowed-tools`
+2. [x] Add `Bash(awk:*)`, `Bash(grep:*)` for the injection pipes in `:33` (`:30` in 1.2 completion; `tail` removed in 1.2)
 
 **Acceptance Criteria:**
-- [ ] WHEN `ship --audit` runs THEN it SHALL create the audit directory and append the log without a permission prompt
-- [ ] Every binary invoked by a `ship` injection appears in its `allowed-tools`
+- [x] WHEN `ship --audit` runs THEN it SHALL create the audit directory and append the log without a permission prompt
+- [x] Every binary invoked by a `ship` injection appears in its `allowed-tools`
+
+**Completion notes (2026-07-28):**
+- **Derived from body, not task description.** Line 33's injection uses `git | grep | awk`, not tail; 1.2's completion note confirms tail was removed. Audit mode (lines 64-77) requires Write (tool grant) + Bash(mkdir:*) (new) to create directory and log file.
+- **Final grants added:** Bash(mkdir:*) for `.claude-plugin/` directory creation, Bash(grep:*) for grep in line 33's injection pipeline, Bash(awk:*) for awk in line 33's injection pipeline, Write for `.claude-plugin/audit.log` append.
 
 ---
 

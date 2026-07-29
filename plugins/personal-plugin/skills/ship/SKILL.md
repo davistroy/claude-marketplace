@@ -1,6 +1,6 @@
 ---
 name: ship
-allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Read, Edit, Glob, Grep
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(tea:*), Bash(mkdir:*), Bash(grep:*), Bash(awk:*), Read, Edit, Glob, Grep, Write
 description: Create branch, commit, push, open PR, auto-review, fix issues, and merge — the full ship workflow. Suggest when the user signals completion (done, ready to ship, push this, let's ship it, or similar), after a work item from an implementation plan finishes, after all tests pass and changes are ready, when the user asks to create a PR or push changes, or after a code review cycle completes and changes are approved.
 disable-model-invocation: true
 ---
