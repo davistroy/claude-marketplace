@@ -8,16 +8,25 @@ Warns when a session ends and IMPLEMENTATION_PLAN.md has unchecked work items. P
 
 ## hooks.json Snippet
 
-Add this to your project's `.claude/hooks.json` (or `hooks/hooks.json` in a plugin):
+Add this to your project's `.claude/settings.json` under the `hooks` key (or to `hooks/hooks.json` in a plugin):
 
 ```json
 {
-  "Stop": [
-    {
-      "type": "command",
-      "command": "bash -c 'if [ -f IMPLEMENTATION_PLAN.md ] && grep -q \"Status: PENDING\\|Status: IN_PROGRESS\" IMPLEMENTATION_PLAN.md; then echo \"⚠️  IMPLEMENTATION_PLAN.md has incomplete work items. Run /implement-plan to continue.\"; fi'"
-    }
-  ]
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "any",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'if [ -f IMPLEMENTATION_PLAN.md ] && grep -q \"Status: PENDING\\|Status: IN_PROGRESS\" IMPLEMENTATION_PLAN.md; then echo \"⚠️  IMPLEMENTATION_PLAN.md has incomplete work items. Run /implement-plan to continue.\"; fi; exit 0'",
+            "timeout": 5,
+            "statusMessage": "Checking for incomplete plan items…"
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 

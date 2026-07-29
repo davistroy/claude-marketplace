@@ -8,15 +8,25 @@ Runs verification commands (lint, typecheck) after Edit operations on source fil
 
 ## hooks.json Snippet
 
+Add this to your project's `.claude/settings.json` under the `hooks` key (or to `hooks/hooks.json` in a plugin):
+
 ```json
 {
-  "PostToolUse": [
-    {
-      "type": "command",
-      "command": "bash -c 'if echo \"$CLAUDE_TOOL_NAME\" | grep -q \"Edit\"; then ruff check --fix . 2>/dev/null; fi'",
-      "timeout": 10000
-    }
-  ]
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'INPUT=$(cat); if command -v jq >/dev/null 2>&1; then TOOL=$(echo \"$INPUT\" | jq -r \".tool_name // empty\" 2>/dev/null); else TOOL=\"$INPUT\"; fi; if echo \"$TOOL\" | grep -q \"Edit\"; then ruff check --fix . 2>/dev/null; exit 0; fi; exit 0'",
+            "timeout": 10,
+            "statusMessage": "Running verification checks…"
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 

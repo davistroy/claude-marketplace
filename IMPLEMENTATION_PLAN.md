@@ -426,15 +426,15 @@ Documentation covers 2 of the tool's 15 environment variables (13%). Worse, `:17
 
 ### Phase 2 Testing Requirements
 
-- [ ] A partial-DI fixture converts without stranded shapes when following the skill
-- [ ] `bpmn2drawio --version` matches `plugin.json`
-- [ ] Each documented env var is greppable in `config.py`
+- [x] A partial-DI fixture converts without stranded shapes when following the skill
+- [x] `bpmn2drawio --version` matches `plugin.json`
+- [x] Each documented env var is greppable in `config.py`
 
 ### Phase 2 Completion Checklist
 
-- [ ] All work items complete
-- [ ] bpmn2drawio suite still green (640 tests / 92.84%)
-- [ ] markdownlint clean
+- [x] All work items complete
+- [x] bpmn2drawio suite still green (640 tests / 92.84%)
+- [x] markdownlint clean
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
@@ -460,8 +460,8 @@ Make the three hook recipes loadable, and make `build-cfa-deck`'s documented pro
 
 ### Work Items
 
-#### 3.1 Hook recipes: fix both structural levels
-**Status: PENDING**
+#### 3.1 Hook recipes: fix both structural levels ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #194
 **Depends On:** None
@@ -485,10 +485,18 @@ Two **independent** structural errors: the missing top-level `hooks` wrapper, an
 - [ ] Each corrected JSON block validates against the same shape as the working `hooks/hooks.json`
 - [ ] `common-patterns.md:243` (already correct) and the recipes no longer contradict each other
 
+**Completion notes (3.1):**
+- **Structural fixes applied to all three recipes:** Added top-level `hooks` wrapper and matcher-group level (`{ "matcher": ..., "hooks": [ ... ] }`) to planning-stop-hook.md, session-start-hook.md, and verification-post-edit-hook.md. Each recipe now matches the ground-truth structure in `hooks/hooks.json`.
+- **Timeouts corrected to seconds:** planning-stop-hook (timeout 5), session-start-hook (timeout 5), verification-post-edit-hook (timeout 10 — converted from 10000 milliseconds).
+- **File path corrected:** planning-stop-hook.md line 11 now references `.claude/settings.json` (or `hooks/hooks.json` in plugin) instead of `.claude/hooks.json` (which is not a loader input).
+- **Environment variables replaced:** verification-post-edit-hook.md no longer uses non-existent `$CLAUDE_TOOL_NAME` and `$CLAUDE_FILE_PATH`; uses stdin JSON parsing with `jq` pattern (consistent with real PreToolUse hook at hooks.json:23).
+- **Banners and filenames preserved:** "NOT auto-installed" banners retained; filenames match `validate-plugin.md:314` requirements.
+- **Verification passed:** All JSON blocks validate via `python3 -c` check (PASS); markdownlint clean (0 issues); `claude plugin validate --strict` passes; injection linter: 63 files/35 injections all guarded.
+
 ---
 
-#### 3.2 build-cfa-deck: fix the dead primary snippet
-**Status: PENDING**
+#### 3.2 build-cfa-deck: fix the dead primary snippet ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #195
 **Depends On:** None
@@ -499,12 +507,18 @@ Two **independent** structural errors: the missing top-level `hooks` wrapper, an
 `os` is referenced at `:74` and imported at `:78`, so the snippet raises `NameError` before reaching the import. `2>/dev/null` swallows the traceback and `||` triggers the fallback — **100% of the time, on every machine**. The fallback prints only placeholder indices, dropping the placeholder *type* that step 4 (`:150`) depends on.
 
 **Tasks:**
-1. [ ] Move `import os` above `:74`
-2. [ ] Delete the now-redundant fallback at `:79-86` and the `2>/dev/null` mask
-3. [ ] Verify step 4's idx/type mapping instructions are satisfiable from the primary output
+1. [x] Move `import os` above `:74`
+2. [x] Delete the now-redundant fallback at `:79-86` and the `2>/dev/null` mask
+3. [x] Verify step 4's idx/type mapping instructions are satisfiable from the primary output
 
 **Acceptance Criteria:**
-- [ ] WHEN step 2 runs THEN it SHALL emit placeholder index **and** type on the first attempt
+- [x] WHEN step 2 runs THEN it SHALL emit placeholder index **and** type on the first attempt
+
+**Completion notes (3.2):**
+- **Root cause verified:** `os` module was referenced at line 74 (`os.path.expanduser()`) but not imported until line 78, causing a NameError on every invocation. The `2>/dev/null || …` fallback masked this and triggered 100% of the time.
+- **Primary snippet fixed:** Moved `import os` to the top of the snippet (line 73 post-edit), before any usage. The fallback branch (lines 79–86 pre-edit) was deleted entirely.
+- **Output correctness verified:** The corrected snippet now emits placeholder index **and** type on the first attempt: `idx={idx}:{type}` format. Step 4's instruction at line 150 ("Populates placeholders (idx 0=title, 1=body, 10=footer, 12=slide number)") is now satisfiable from the primary output, which includes both idx and type for every placeholder in every layout.
+- **Markdown and plugin validation:** `npx markdownlint-cli2 plugins/slide-gen/skills/build-cfa-deck/SKILL.md` and `claude plugin validate --strict ./plugins/slide-gen` both exit 0.
 
 ---
 

@@ -70,18 +70,11 @@ Run this to get the exact layout names from the template:
 
 ```bash
 python3 -c "
+import os
 from pptx import Presentation
 prs = Presentation(os.path.expanduser('~/dev/stratfield/slide-generator/examples/CFA PPT Template2.pptx'))
 for i, layout in enumerate(prs.slide_layouts):
     phs = ', '.join([f'idx={p.placeholder_format.idx}:{p.placeholder_format.type}' for p in layout.placeholders])
-    print(f'{i:2d}. {layout.name} [{phs}]')
-import os
-" 2>/dev/null || python3 -c "
-import os
-from pptx import Presentation
-prs = Presentation(os.path.expanduser(os.path.join('~', 'dev', 'stratfield', 'slide-generator', 'examples', 'CFA PPT Template2.pptx')))
-for i, layout in enumerate(prs.slide_layouts):
-    phs = ', '.join([f'idx={p.placeholder_format.idx}' for p in layout.placeholders])
     print(f'{i:2d}. {layout.name} [{phs}]')
 "
 ```
