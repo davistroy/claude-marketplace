@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from task_sync.models import Task
 from task_sync.providers.base import Issue, parse_aware_datetime
 from task_sync.reconcile.classify import Classification, ClassKind
-from task_sync.reconcile.resolve import resolve
+from task_sync.reconcile.resolve import Orphan, resolve
 
 BASE_AT = "2026-07-10T00:00:00Z"
 LATER = "2026-07-15T00:00:00Z"
@@ -74,6 +76,88 @@ def test_orphan_changed_local_becomes_a_create_not_a_push() -> None:
     c = Classification(ClassKind.CHANGED_LOCAL, _task(issue_number=None), None, local_changed=True)
     r = resolve([c])
     assert len(r.creates) == 1 and not r.pushes
+
+
+# -- ORPHAN_LOCAL -> an Orphan record, never a push/create (#181) ----------
+
+
+def test_orphan_local_changed_is_surfaced_as_orphan_not_a_push_or_create() -> None:
+    task = _task(issue_number=42)
+    c = Classification(ClassKind.ORPHAN_LOCAL, task, None, local_changed=True)
+    r = resolve([c])
+    assert not r.pushes and not r.creates and not r.pulls and not r.conflicts
+    assert len(r.orphans) == 1
+    assert isinstance(r.orphans[0], Orphan)
+    assert r.orphans[0].task_id == "t-1"
+    assert r.orphans[0].issue_number == 42
+    assert r.orphans[0].local_changed is True
+
+
+def test_orphan_local_unchanged_is_still_surfaced_not_dropped() -> None:
+    """WHEN an orphaned task has no local edit THEN it SHALL still be
+    surfaced, not silently omitted (4.1 acceptance criterion)."""
+    task = _task(issue_number=42)
+    c = Classification(ClassKind.ORPHAN_LOCAL, task, None, local_changed=False)
+    r = resolve([c])
+    assert len(r.orphans) == 1
+    assert r.orphans[0].local_changed is False
+
+
+def test_orphan_local_never_produces_a_push_even_though_issue_number_is_set() -> None:
+    """The #181 regression this whole item exists to close: `task.issue_number`
+    is still populated (it's the vanished number, classify never nulls it),
+    so `resolve` must route on `kind`, never re-derive "is this an orphan"
+    from `issue_number is None` -- that reasoning is exactly what let a
+    CHANGED_BOTH-shaped clobber (including reopening a closed issue) slip
+    through as a one-sided push before ORPHAN_LOCAL existed."""
+    task = _task(issue_number=42)
+    assert task.issue_number == 42  # sanity: NOT nulled anywhere upstream
+    c = Classification(ClassKind.ORPHAN_LOCAL, task, None, local_changed=True)
+    r = resolve([c])
+    assert r.pushes == []
+    assert r.creates == []
+    assert r.orphans[0].issue_number == 42
+
+
+def _classification_for(kind: ClassKind) -> Classification:
+    """Build a realistically-shaped Classification for every current
+    ClassKind member, keyed on the enum itself (never a hand-copied list of
+    member names) so a future member is forced through this fixture -- and
+    therefore through the parametrized exhaustiveness test below -- instead
+    of silently falling through resolve()'s if/elif chain with no action."""
+    if kind is ClassKind.NEW_LOCAL:
+        return Classification(kind, _task("nl", issue_number=None), None)
+    if kind is ClassKind.CHANGED_LOCAL:
+        return Classification(kind, _task("cl", issue_number=7), _issue(7), local_changed=True)
+    if kind is ClassKind.NEW_REMOTE:
+        return Classification(kind, None, _issue(3), remote_changed=True)
+    if kind is ClassKind.CHANGED_REMOTE:
+        return Classification(kind, _task("cr", issue_number=4), _issue(4), remote_changed=True)
+    if kind is ClassKind.CHANGED_BOTH:
+        return Classification(
+            kind, _task("cb", issue_number=8), _issue(8), local_changed=True, remote_changed=True
+        )
+    if kind is ClassKind.UNCHANGED:
+        return Classification(kind, _task("un", issue_number=5), _issue(5))
+    if kind is ClassKind.ORPHAN_LOCAL:
+        return Classification(kind, _task("or", issue_number=42), None, local_changed=True)
+    raise AssertionError(f"unhandled ClassKind member in test fixture: {kind!r}")
+
+
+@pytest.mark.parametrize("kind", list(ClassKind))
+def test_only_orphan_local_ever_produces_an_orphan_record(kind: ClassKind) -> None:
+    """Parametrized directly over `list(ClassKind)` -- the real enum, not a
+    copy -- so this is the guard the #181 fix depends on: no matter what
+    members ClassKind grows in the future, exactly one of them (ORPHAN_LOCAL)
+    may ever populate `ResolveResult.orphans`, and it never also produces a
+    push or a create."""
+    c = _classification_for(kind)
+    r = resolve([c])
+    if kind is ClassKind.ORPHAN_LOCAL:
+        assert len(r.orphans) == 1
+        assert not r.pushes and not r.creates
+    else:
+        assert r.orphans == []
 
 
 def test_new_remote_becomes_an_adopt_pull() -> None:
@@ -326,9 +410,14 @@ def test_mixed_batch_splits_into_all_buckets() -> None:
             remote_changed=True,
         ),
         Classification(ClassKind.UNCHANGED, _task("e", issue_number=5), _issue(5)),
+        Classification(
+            ClassKind.ORPHAN_LOCAL, _task("f", issue_number=42), None, local_changed=True
+        ),
     ]
     r = resolve(classifications)
     assert len(r.creates) == 1
     assert len(r.pushes) == 1
     assert len(r.pulls) == 1
     assert len(r.conflicts) == 1
+    assert len(r.orphans) == 1
+    assert r.orphans[0].task_id == "f"

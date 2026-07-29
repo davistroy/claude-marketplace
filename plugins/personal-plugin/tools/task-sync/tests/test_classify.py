@@ -155,21 +155,46 @@ def test_changed_both_is_conflict_candidate() -> None:
 
 
 # -- orphan (task's issue vanished from the tracker) -----------------------
+#
+# ClassKind.ORPHAN_LOCAL is its own kind, never CHANGED_LOCAL/UNCHANGED (#181).
+# The fetched issue list is treated as authoritative everywhere else in this
+# module, but it can be incomplete (pagination/saturation, #182) -- so a task
+# whose issue_number matches nothing in `issues` must never be classified in
+# a way `resolve()` would turn into a push (which could clobber a real,
+# merely-unfetched issue, including reopening a closed one) or silently drop.
 
 
-def test_orphan_unchanged_is_unchanged() -> None:
+def test_orphan_unchanged_is_orphan_local_not_unchanged() -> None:
     task = _task(issue_number=42)
     (c,) = _one([task], [])  # no issue #42 present
-    assert c.kind is ClassKind.UNCHANGED
+    assert c.kind is ClassKind.ORPHAN_LOCAL
     assert c.issue is None
+    assert c.local_changed is False
+    assert c.task is task
+    assert c.task.issue_number == 42  # classify never mutates the task
 
 
-def test_orphan_changed_is_changed_local() -> None:
+def test_orphan_changed_is_orphan_local_with_local_changed_true() -> None:
     task = _task(issue_number=42)
     task.title = "edited"
     (c,) = _one([task], [])
-    assert c.kind is ClassKind.CHANGED_LOCAL
-    assert c.issue is None and c.local_changed
+    assert c.kind is ClassKind.ORPHAN_LOCAL
+    assert c.issue is None and c.local_changed is True
+    assert c.task.issue_number == 42  # classify never mutates the task
+
+
+def test_orphan_never_classified_as_changed_local_or_unchanged() -> None:
+    """Direct guard against the #181 regression: neither orphan sub-case may
+    land on CHANGED_LOCAL or UNCHANGED, which `resolve()` maps to a push or
+    a silent no-op respectively."""
+    changed = _task(id="t-changed", issue_number=42)
+    changed.title = "edited"
+    (c_changed,) = _one([changed], [])
+    assert c_changed.kind not in (ClassKind.CHANGED_LOCAL, ClassKind.UNCHANGED)
+
+    unchanged = _task(id="t-unchanged", issue_number=43)
+    (c_unchanged,) = _one([unchanged], [])
+    assert c_unchanged.kind not in (ClassKind.CHANGED_LOCAL, ClassKind.UNCHANGED)
 
 
 # -- conservative missing-base behaviour -----------------------------------

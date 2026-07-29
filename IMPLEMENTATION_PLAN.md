@@ -630,8 +630,8 @@ Close the one path where task-sync can silently clobber or lose data, and make t
 
 ### Work Items
 
-#### 4.1 `ClassKind.ORPHAN_LOCAL`: classify a vanished issue as its own kind
-**Status: PENDING**
+#### 4.1 `ClassKind.ORPHAN_LOCAL`: classify a vanished issue as its own kind ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: opus**
 **Recommendation Ref:** #181
 **Depends On:** None
@@ -645,15 +645,17 @@ Close the one path where task-sync can silently clobber or lose data, and make t
 `ClassKind` has no orphan member, so `classify` maps a vanished issue onto `CHANGED_LOCAL`/`UNCHANGED` and nulls only the `issue` field — **`task.issue_number` stays populated**. `resolve.py:212` tests `c.task.issue_number is None`, gets `False`, and emits a `PushAction`. Two outcomes, both bad: the issue is genuinely gone and `gh issue edit` raises mid-loop (leaving `tasks.json` unsaved, so just-created issue numbers are lost and re-created as duplicates next run); or the issue exists but wasn't fetched, and the push **silently clobbers the remote**, carrying `state` — which can reopen a closed issue. The `UNCHANGED` orphan is worse and unfiled: it appears in **no** plan section at all.
 
 **Tasks:**
-1. [ ] Add `ClassKind.ORPHAN_LOCAL`, emitted for both the changed and unchanged sub-cases, carrying `local_changed`
-2. [ ] `resolve`: emit an `Orphan` record into a new `ResolveResult.orphans` — never a `PushAction`, never a `CreateAction`
-3. [ ] Preserve `classify`'s "each task and each issue appears exactly once" invariant (pinned by `test_classify.py:219-228`)
-4. [ ] Mutation-test: delete the orphan branch and confirm the new tests go red
+1. [x] Add `ClassKind.ORPHAN_LOCAL`, emitted for both the changed and unchanged sub-cases, carrying `local_changed`
+2. [x] `resolve`: emit an `Orphan` record into a new `ResolveResult.orphans` — never a `PushAction`, never a `CreateAction`
+3. [x] Preserve `classify`'s "each task and each issue appears exactly once" invariant (pinned by `test_classify.py:219-228`)
+4. [x] Mutation-test: delete the orphan branch and confirm the new tests go red
 
 **Acceptance Criteria:**
-- [ ] WHEN a local task references an issue absent from the fetched list THEN `classify` SHALL emit `ORPHAN_LOCAL` and `resolve` SHALL NOT emit a push
-- [ ] WHEN an orphaned task has no local edit THEN it SHALL still be surfaced, not silently omitted
-- [ ] `test_classify.py:219-228` passes unchanged
+- [x] WHEN a local task references an issue absent from the fetched list THEN `classify` SHALL emit `ORPHAN_LOCAL` and `resolve` SHALL NOT emit a push
+- [x] WHEN an orphaned task has no local edit THEN it SHALL still be surfaced, not silently omitted
+- [x] `test_classify.py:219-228` passes unchanged
+
+**Completion notes (4.1):** `classify()` now emits `ClassKind.ORPHAN_LOCAL` (7th member) for a task whose `issue_number` is absent from the fetched list, in both the locally-changed and unchanged sub-cases, without mutating `task.issue_number`. `resolve()` routes `ORPHAN_LOCAL` purely on `Classification.kind` into a new `Orphan` record on `ResolveResult.orphans` — never a `PushAction`/`CreateAction` — closing the #181 silent-clobber path. Mutation-tested both new guards: (1) reverting `classify.py`'s branch to the old `CHANGED_LOCAL`/`UNCHANGED` mapping turned 3 tests red; (2) deleting `resolve.py`'s `ORPHAN_LOCAL` branch turned 5 tests red, including the `list(ClassKind)`-parametrized exhaustiveness test (`test_only_orphan_local_ever_produces_an_orphan_record`), which forces any future `ClassKind` member through the same fixture/assertion instead of silently falling through the if/elif chain. Both files restored after mutation testing; full suite (440 tests, up from 429) and `test_classify.py:219-228`'s exactness invariant pass unchanged; coverage 96.38% (both files 100%); ruff and mypy clean.
 
 ---
 
@@ -726,8 +728,8 @@ Orphan ids and conflict ids are disjoint by construction (a conflict requires `i
 
 ---
 
-#### 4.5 GitHub `list_issues`: fail loud on saturation
-**Status: PENDING**
+#### 4.5 GitHub `list_issues`: fail loud on saturation ✅ Completed 2026-07-29
+**Status: COMPLETE 2026-07-29**
 **Model Tier: sonnet**
 **Recommendation Ref:** #182
 **Depends On:** None
@@ -739,12 +741,22 @@ Orphan ids and conflict ids are disjoint by construction (a conflict requires `i
 `--limit 1000` with no saturation check. Because `classify` treats the fetched list as authoritative, truncation manufactures the #181 orphan condition en masse. Step 1 keeps `gh issue list` and raises when `len(data) >= limit` — fail-loud satisfies "never silent", is trivially mutation-testable, and changes no argv shape. `gh label list --limit 1000` at `:215` has the same defect and is unfiled.
 
 **Tasks:**
-1. [ ] Raise a `RuntimeError` naming the truncation when the fetch saturates
-2. [ ] Apply the same guard to `ensure_labels`
-3. [ ] Mutation-test: delete the guard, confirm a saturated-fetch test goes red
+1. [x] Raise a `RuntimeError` naming the truncation when the fetch saturates
+2. [x] Apply the same guard to `ensure_labels`
+3. [x] Mutation-test: delete the guard, confirm a saturated-fetch test goes red
 
 **Acceptance Criteria:**
-- [ ] WHEN the issue fetch returns exactly the limit THEN the tool SHALL abort before any write
+- [x] WHEN the issue fetch returns exactly the limit THEN the tool SHALL abort before any write
+
+**Completion notes (4.5):**
+- **Constants extracted:** `_ISSUE_LIST_LIMIT = 1000` and `_LABEL_LIST_LIMIT = 1000` defined at module level for both saturation checks to reference (enabling mutation tests to target them).
+- **`list_issues` guard added:** After fetching, checks `if len(data) >= _ISSUE_LIST_LIMIT`, raises `RuntimeError` naming the limit and stating pagination is needed for phase 4.6.
+- **`ensure_labels` guard added:** Same pattern after fetching labels; raises before any label creation.
+- **Mutation testing verified:** Temporarily removed the `list_issues` guard; test `test_list_issues_saturated_raises` correctly failed with "DID NOT RAISE RuntimeError". Restored guard; all tests pass.
+- **New tests added:** `test_list_issues_saturated_raises` (1000-issue fixture, confirms error is raised), `test_ensure_labels_saturated_raises` (1000-label fixture). Both parametrized from the real constants, not hand-copied.
+- **Real `gh` probed:** Confirmed `gh issue list --limit 1000` returns a JSON array; verified non-destructively that the repository has 27 open issues (well below limit). The `--limit` flag works as documented.
+- **Coverage maintained:** 96.35% (above 90% floor). Test count: 427 → 429 (+2 saturation tests).
+- **Linting:** `uvx ruff@0.14.10 check` passes (fixed one line-length issue on the labels_data line).
 
 ---
 

@@ -21,6 +21,10 @@ _JSON_FIELDS = "number,title,body,state,updatedAt,closedAt,labels,milestone"
 
 _ISSUE_URL_NUMBER_RE = re.compile(r"/issues/(\d+)\s*$")
 
+# Fetch limits for pagination detection
+_ISSUE_LIST_LIMIT = 1000
+_LABEL_LIST_LIMIT = 1000
+
 
 class GithubProvider:
     """Implements `task_sync.providers.base.Provider` over the `gh` CLI.
@@ -104,10 +108,16 @@ class GithubProvider:
                 "--json",
                 _JSON_FIELDS,
                 "--limit",
-                "1000",
+                str(_ISSUE_LIST_LIMIT),
             ]
         )
         assert isinstance(data, list)
+        if len(data) >= _ISSUE_LIST_LIMIT:
+            raise RuntimeError(
+                f"GitHub issue list fetch returned exactly the limit ({_ISSUE_LIST_LIMIT}); "
+                "the query may have more results that were not fetched. "
+                "This repository needs pagination support (phase 4.6)."
+            )
         return [self._normalize(item) for item in data]
 
     def create_issue(
@@ -209,12 +219,26 @@ class GithubProvider:
     def ensure_labels(self, names: list[str]) -> None:
         if not names:
             return
-        existing = {
-            label["name"]
-            for label in self._run_json(
-                ["label", "list", "--repo", self._repo, "--json", "name", "--limit", "1000"]
+        labels_data = self._run_json(
+            [
+                "label",
+                "list",
+                "--repo",
+                self._repo,
+                "--json",
+                "name",
+                "--limit",
+                str(_LABEL_LIST_LIMIT),
+            ]
+        )
+        assert isinstance(labels_data, list)
+        if len(labels_data) >= _LABEL_LIST_LIMIT:
+            raise RuntimeError(
+                f"GitHub label list fetch returned exactly the limit ({_LABEL_LIST_LIMIT}); "
+                "the query may have more results that were not fetched. "
+                "This repository needs pagination support (phase 4.6)."
             )
-        }
+        existing = {label["name"] for label in labels_data}
         for name in names:
             if name not in existing:
                 self._run(["label", "create", name, "--repo", self._repo, "--color", "ededed"])

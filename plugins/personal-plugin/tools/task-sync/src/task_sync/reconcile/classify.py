@@ -36,7 +36,7 @@ from task_sync.providers.base import Issue, parse_aware_datetime
 
 
 class ClassKind(str, Enum):
-    """The six mutually exclusive outcomes of a three-way comparison."""
+    """The seven mutually exclusive outcomes of a three-way comparison."""
 
     NEW_LOCAL = "new_local"
     NEW_REMOTE = "new_remote"
@@ -44,6 +44,7 @@ class ClassKind(str, Enum):
     CHANGED_REMOTE = "changed_remote"
     CHANGED_BOTH = "changed_both"
     UNCHANGED = "unchanged"
+    ORPHAN_LOCAL = "orphan_local"
 
 
 # Fields that participate in the content hash. These are exactly the fields
@@ -78,9 +79,10 @@ class Classification:
 
     * ``NEW_LOCAL`` — ``task`` set, ``issue`` None.
     * ``NEW_REMOTE`` — ``task`` None, ``issue`` set.
-    * everything else — both set (except an orphaned task whose issue has
-      vanished from the tracker: ``issue`` is None and the verdict is
-      ``CHANGED_LOCAL`` or ``UNCHANGED``).
+    * ``ORPHAN_LOCAL`` — a task whose issue has vanished from the fetched
+      tracker list: ``task`` set, ``issue`` None. Its own kind, never
+      ``CHANGED_LOCAL``/``UNCHANGED`` — see :func:`classify`.
+    * everything else — both ``task`` and ``issue`` set.
 
     ``local_changed`` / ``remote_changed`` are the raw per-side signals the
     verdict was derived from; resolution uses them, and they make the reason
@@ -141,13 +143,20 @@ def classify(tasklist: TaskList, issues: list[Issue]) -> list[Classification]:
         issue = issues_by_number.get(task.issue_number)
         if issue is None:
             # The task points at an issue the tracker no longer returns.
-            # Outside the normal invariants (the fetched issue list is
-            # assumed authoritative), so we fall back to the local side only:
-            # push it if it changed, otherwise leave it alone. We never
-            # invent a remote change we cannot see.
+            # This is NOT proof the issue was deleted -- the fetched list can
+            # be incomplete (pagination/saturation, #182) -- so it must never
+            # be classified as CHANGED_LOCAL or UNCHANGED: `resolve` maps
+            # CHANGED_LOCAL to a PushAction (a silent clobber of a merely-
+            # unfetched issue, which can even reopen one that is actually
+            # closed) and UNCHANGED to nothing at all (silently dropped, and
+            # unfiled in every plan section). ORPHAN_LOCAL is its own kind
+            # precisely so neither can happen; `local_changed` still records
+            # which sub-case this is, for surfacing only. classify() does not
+            # mutate `task` -- `task.issue_number` is left as-is.
             local = _local_changed(task)
-            kind = ClassKind.CHANGED_LOCAL if local else ClassKind.UNCHANGED
-            results.append(Classification(kind, task, None, local_changed=local))
+            results.append(
+                Classification(ClassKind.ORPHAN_LOCAL, task, None, local_changed=local)
+            )
             continue
 
         matched_numbers.add(issue.number)

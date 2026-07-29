@@ -103,6 +103,29 @@ def test_list_issues_returns_normalized_issues(fake_gh: FakeGh) -> None:
     assert "--state" in list_call and "all" in list_call
 
 
+def test_list_issues_saturated_raises(fake_gh: FakeGh) -> None:
+    """Mutation test: if the saturation guard is removed, this test fails."""
+    # Generate exactly 1000 issues to simulate hitting the fetch limit
+    saturated_data = [
+        {
+            "number": i,
+            "title": f"Issue {i}",
+            "body": "",
+            "state": "OPEN",
+            "updatedAt": "2026-07-10T12:00:00Z",
+            "closedAt": None,
+            "labels": [],
+            "milestone": None,
+        }
+        for i in range(1000)
+    ]
+    fake_gh.route(("issue", "list"), lambda args: _json_ok(saturated_data))
+
+    provider = GithubProvider("owner/repo")
+    with pytest.raises(RuntimeError, match="returned exactly the limit"):
+        provider.list_issues()
+
+
 def test_visibility_public(fake_gh: FakeGh) -> None:
     fake_gh.route(("repo", "view"), lambda args: _json_ok({"visibility": "PUBLIC"}))
     provider = GithubProvider("owner/repo")
@@ -291,6 +314,17 @@ def test_ensure_labels_empty_is_noop(fake_gh: FakeGh) -> None:
     provider = GithubProvider("owner/repo")
     provider.ensure_labels([])
     assert fake_gh.calls == []
+
+
+def test_ensure_labels_saturated_raises(fake_gh: FakeGh) -> None:
+    """Mutation test: if the saturation guard is removed, this test fails."""
+    # Generate exactly 1000 labels to simulate hitting the fetch limit
+    saturated_data = [{"name": f"label-{i}"} for i in range(1000)]
+    fake_gh.route(("label", "list"), lambda args: _json_ok(saturated_data))
+
+    provider = GithubProvider("owner/repo")
+    with pytest.raises(RuntimeError, match="returned exactly the limit"):
+        provider.ensure_labels(["new-label"])
 
 
 def test_ensure_milestone_creates_when_missing(fake_gh: FakeGh) -> None:

@@ -12,11 +12,19 @@ Directionality:
 * ``NEW_REMOTE``     -> a :class:`PullAction`     (adopt: create the task)
 * ``CHANGED_REMOTE`` -> a :class:`PullAction`     (update the task)
 * ``CHANGED_BOTH``   -> a :class:`Conflict`       (surfaced, never applied)
+* ``ORPHAN_LOCAL``   -> an :class:`Orphan`        (surfaced, never pushed/created)
 * ``UNCHANGED``      -> nothing
 
 A remotely-closed issue needs no special case: its pull carries
 ``status="done"`` straight out of :func:`issue_to_task_fields`, so adopting
 or updating from a closed issue lands the task in ``done`` automatically.
+
+``ORPHAN_LOCAL`` gets the same never-clobber treatment as ``CHANGED_BOTH``:
+the task's issue is missing from the fetched list, which is not proof it was
+deleted (the fetch can be incomplete), so it is routed purely on
+``Classification.kind`` -- never re-derived from ``task.issue_number is
+None`` (which stays populated; see ``classify.py``). Resolving an orphan
+into keep/drop is a policy decision left to a human, applied elsewhere.
 """
 
 from __future__ import annotations
@@ -87,6 +95,28 @@ class Conflict:
 
 
 @dataclass
+class Orphan:
+    """A local task whose linked issue is missing from the fetched list (#181).
+
+    Never a :class:`PushAction` or a :class:`CreateAction`: the issue may
+    still exist remotely and simply wasn't fetched (pagination/saturation,
+    #182), so pushing would risk clobbering it — including reopening it, if
+    it is actually closed — and re-creating would risk a duplicate. This is
+    purely a surfaced fact for a human to resolve (keep the link and hope it
+    reappears, or drop it and let a future run re-create); no policy is
+    applied here.
+
+    ``local_changed`` distinguishes the two sub-cases classify() can produce:
+    the task may have drifted locally since the last sync, or it may be
+    untouched — either way it is surfaced, never silently dropped.
+    """
+
+    task_id: str
+    issue_number: int
+    local_changed: bool
+
+
+@dataclass
 class ResolveResult:
     """The fully-split set of actions produced from a classification list.
 
@@ -94,6 +124,11 @@ class ResolveResult:
     the adopt window rejected — not just a count. The numbers are what makes
     the outcome actionable ("#12, #14 and 18 more were left unadopted"); a
     bare count is recoverable from them via ``len()``, the reverse is not.
+
+    ``orphans`` holds one :class:`Orphan` per ORPHAN_LOCAL classification.
+    Like ``skipped_adopts``, these are recorded rather than dropped: an
+    orphan-only result must still register as "something needs attention",
+    not "nothing to do".
     """
 
     creates: list[CreateAction] = field(default_factory=list)
@@ -101,6 +136,7 @@ class ResolveResult:
     pulls: list[PullAction] = field(default_factory=list)
     conflicts: list[Conflict] = field(default_factory=list)
     skipped_adopts: list[int] = field(default_factory=list)
+    orphans: list[Orphan] = field(default_factory=list)
 
 
 def _recommend(local_updated_at: str | None, remote_updated_at: str) -> str:
@@ -269,6 +305,20 @@ def resolve(
                     local_updated_at=c.task.updated_at,
                     remote_updated_at=remote_updated,
                     remote_closed_at=(c.issue.closed_at.isoformat() if c.issue.closed_at else None),
+                )
+            )
+
+        elif c.kind is ClassKind.ORPHAN_LOCAL:
+            assert c.task is not None
+            assert c.task.issue_number is not None
+            # Routed purely on `kind` -- never re-derived from
+            # `issue_number is None`, which is what let this regress into a
+            # silent push before ORPHAN_LOCAL existed as its own kind (#181).
+            result.orphans.append(
+                Orphan(
+                    task_id=c.task.id,
+                    issue_number=c.task.issue_number,
+                    local_changed=c.local_changed,
                 )
             )
 
