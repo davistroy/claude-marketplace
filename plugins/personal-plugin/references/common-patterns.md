@@ -183,12 +183,13 @@ paths:
   - "*_BASELINE.md"
 ```
 
-**Use case:** Auto-activates the skill when any listed file pattern changes. Enables event-driven workflows (e.g., run security scan when `package.json` changes, run audit when baseline file changes).
+**Use case:** A conditional **load gate**, not a save-trigger. A skill declaring `paths:` is invisible — to Claude and to a user typing its slash command alike — until Claude's own Read, Edit, or Write tool call touches a file whose relative path matches one of the patterns during that session. From that point on it is loaded like any other skill for the rest of the session. Nothing runs automatically; activation only makes the skill *findable*, it does not invoke it. See [ADR-0012](../../../docs/adr/0012-artifact-derived-documentation.md) for the harness internals this is derived from.
 
 **Gotchas:**
-- **Loop guard required** — if the skill writes a file that matches its own `paths:` pattern, it will re-trigger indefinitely. Always check at skill entry whether this skill ran within the last 5 minutes (e.g., check LAB_NOTEBOOK.md for a recent entry) and exit immediately if re-entry is detected. Provide a `--force` bypass for intentional re-runs.
+- **No loop guard needed.** Activation is one-shot per session — the harness records the skill's name as activated and never re-processes it, so a skill that later writes a file matching its own `paths:` pattern triggers nothing further. A "check if this ran in the last 5 minutes" guard defends against a state transition the harness cannot produce; do not add one.
 - Glob syntax follows `.gitignore` conventions. Double-star `**` matches across directories.
-- `paths:` triggers fire on any matching change, regardless of which branch or worktree — scope globs carefully.
+- Not a filesystem watcher: a file changed by git, another process, or a human editing outside the session activates nothing. Only Claude's own in-session Read/Edit/Write calls count.
+- Pairing `paths:` with `disable-model-invocation: true` is usually wrong: since the skill doesn't exist to the lookup until Claude itself touches a matching file, and `disable-model-invocation: true` means Claude can never invoke it either way, the combination can leave a nominally user-invocable skill unreachable by the user on a fresh session — see ADR-0012 F4.
 
 ---
 

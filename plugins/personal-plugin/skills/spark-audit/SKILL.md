@@ -3,23 +3,13 @@ name: spark-audit
 description: SSH into the DGX Spark and audit all running containers against known best practices and community optimizations. Reports gaps, misconfigurations, and optimization opportunities. Complements spark-recon (external landscape) with internal config validation.
 disable-model-invocation: true
 allowed-tools: Read, Edit, Glob, Grep, Bash(ssh:*), Bash(curl:*), Agent
-paths:
-  - "SPARK_BASELINE.md"
-  - "*_CONFIG.md"
 ---
 
 # Spark Audit
 
-## Loop Guard — Auto-Activation Safety Check
-
-**Run this check before any other step when the skill is triggered automatically via `paths:`.**
-
-1. Read the last 20 lines of `LAB_NOTEBOOK.md` (if it exists).
-2. If any line contains `spark-audit skill` and a timestamp within the last 5 minutes: **stop immediately** — self-triggered re-entry detected. Output: "Loop guard triggered — spark-audit ran within last 5 minutes. Skipping." and exit.
-3. If `--force` is present in `$ARGUMENTS`: skip this check and proceed regardless.
-4. Otherwise: proceed normally.
-
----
+<!-- No `paths:` frontmatter: this skill is invoked on demand (see `/schedule Integration` below)
+     and `disable-model-invocation: true`, so gating its visibility behind a file touch would only
+     ever make it *harder* to invoke, never trigger it automatically — see ADR-0012. -->
 
 Live configuration audit of the DGX Spark inference system. SSHes into the device, inspects running containers, compares against documented best practices and community benchmarks in SPARK_BASELINE.md, and reports optimization opportunities.
 
@@ -218,7 +208,6 @@ Recommended: **weekly Tuesday 02:00 UTC.** Pairs with spark-recon (bi-weekly Sun
 
 ## Error Handling
 
-- **Loop guard detects a `spark-audit skill` entry within the last 5 minutes:** stop immediately (see Loop Guard) unless `--force` is present.
 - **SSH to `claude@spark.k4jda.net` fails or times out:** report the connection failure explicitly — do not fabricate check results.
 - **A configured container (`qwen35`, `qwen3-embed`, `gliner`) is not running or `docker inspect` errors for it:** report that container as down/misconfigured rather than skipping it silently.
 - **`SPARK_BASELINE.md` or `SPARK_CONFIG.md` doesn't exist:** initialize `SPARK_BASELINE.md` from the template (see SPARK_BASELINE.md Initialization) and note that drift/version comparisons are unavailable until config exists.

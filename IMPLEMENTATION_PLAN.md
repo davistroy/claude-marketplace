@@ -877,8 +877,8 @@ Make the documentation layer that teaches skill authoring describe the harness t
 
 ### Work Items
 
-#### 5.1 ADR-0012 and the `paths:` semantics inversion
-**Status: PENDING**
+#### 5.1 ADR-0012 and the `paths:` semantics inversion ✅ Completed 2026-07-29
+**Status:** COMPLETE 2026-07-29
 **Model Tier: opus**
 **Recommendation Ref:** #202
 **Depends On:** None
@@ -893,15 +893,27 @@ Make the documentation layer that teaches skill authoring describe the harness t
 The docs teach `paths:` as an *event trigger* ("auto-activates when the user opens or saves a matching file"). The harness implements a *load gate*: "the skill only loads when **the model** touches matching files." Every loop guard built on the doc's reading is dead code. Worse and unfiled: all four fleet skills pair `paths:` with `disable-model-invocation: true` — since `paths:` gates on model file access and the flag forbids model invocation entirely, **the pairing is self-cancelling**. ADR-0012 generalizes the root cause shared by #193, #194, #196, #202 and #218: documentation of a bundled artifact must be derived from or verified against the artifact.
 
 **Tasks:**
-1. [ ] Write ADR-0012 (Accepted), including the rule that a freshness claim requires a mechanism or must be deleted
-2. [ ] Correct `paths:` semantics in all three teaching sites
-3. [ ] Remove the dead loop guards from the five skills carrying them
-4. [ ] Record the self-cancelling `paths:` + `disable-model-invocation` pairing and resolve it per skill
+1. [x] Write ADR-0012 (Accepted), including the rule that a freshness claim requires a mechanism or must be deleted
+2. [x] Correct `paths:` semantics in all three teaching sites
+3. [x] Remove the dead loop guards from the five skills carrying them
+4. [x] Record the self-cancelling `paths:` + `disable-model-invocation` pairing and resolve it per skill
 
 **Acceptance Criteria:**
-- [ ] WHEN a reader consults any `paths:` documentation THEN it SHALL describe a model-access load gate
-- [ ] No skill retains a loop guard for an event that cannot occur
-- [ ] ADR-0012 exists with status Accepted
+- [x] WHEN a reader consults any `paths:` documentation THEN it SHALL describe a model-access load gate
+- [x] No skill retains a loop guard for an event that cannot occur
+- [x] ADR-0012 exists with status Accepted
+
+**Completion notes (5.1):**
+- **Probe, not conclusion — `paths:` semantics recovered from Claude Code 2.1.220 (`~/.local/share/claude/versions/2.1.220`), same pinned build ADR-0011 used.** `strings -n 6` over the binary (a Bun single-file executable; bundled JS is plaintext, not obfuscated at the identifier level) into a scratch file, then targeted `grep` for the literal frontmatter keys and their handling functions — not behavioral inference, not a subagent summary. Recovered verbatim and cross-checked against each other:
+  - `sn_(e)` — the `paths:` normalizer, called once per skill file at load time; returns `undefined` (no restriction) for an empty or all-`"**"` pattern list.
+  - The top-level skill loader: after building the full skill list `g`, any `A` with `A.type==="prompt"&&A.paths&&A.paths.length>0&&!activatedConditionalSkillNames.has(A.name)` is diverted into a separate `conditionalSkills` map and **excluded from the loader's return value**; logs `"[skills] N conditional skills stored (activated when matching files are touched)"`.
+  - `gn_(e,t)` — the activator: for each stored conditional skill, builds an `ignore`-package matcher (`.add()`/`.ignores()`, confirming the `.gitignore`-style glob claim was already correct) from its `paths`, and on a match moves it into `dynamicSkills`, deletes it from `conditionalSkills`, and adds its name to `activatedConditionalSkillNames` — a set the match loop skips on every subsequent call, i.e. **one-shot per session, never re-processed**.
+  - `tur(e,t)` — the sole caller of `gn_`. Grepped its three call sites directly inside the tool-handler bodies: the **Read** tool's `call()` (`await tur(f,o.dynamicSkillDirTriggers)`), the **Edit** tool's `call()` (`await tur(y,u)`), and the **Write** tool's `call()` (`await tur(p,d)`) — confirming activation fires on Claude's own file-touching tool calls and nothing else (no filesystem watcher, no external-process hook).
+  - `nw()`/`tRs()`/`Cv()` — traced the assembly chain the SkillTool's own `validateInput` uses (`let s=await tRs(t),a=Cv(o,s)`, `Unknown skill` if `a` is undefined) and confirmed `tRs`'s sources (`nw()` = unconditional loader output ∪ `ATo()` = **activated** conditional skills only) never include a not-yet-activated conditional skill. This is the evidence for F4: `paths:` gates lookup for **both** the model and a user typing the slash command, not just the model's own proactive menu — sharper than the plan text implied, and recorded in ADR-0012 accordingly.
+- **`paths:` verdict: REAL, but a conditional-load gate, not an event trigger — corrected in all three teaching sites** (`common-patterns.md:175-192`, `advanced-features.md:84-113` + Feature Interaction Matrix row, `new-skill.md` table row / gotcha / checklist bullet / `# --- Auto-Activation ---` → `# --- Conditional Load ---` headers). No change to the `.gitignore`-glob-syntax claim — independently confirmed correct via the `ignore`-package call.
+- **Resolved per skill (Task 4), not uniformly:** `spark-audit`, `jetson-audit`, `spark-recon`, `jetson-recon` all carry `disable-model-invocation: true` (verified by re-reading each frontmatter block directly) and their own descriptions say "run periodically" — on-demand human invocation, which F4 shows `paths:` can only ever obstruct for a model-invocation-disabled skill (it gates lookup for the user too, with no path to ever satisfy the gate if Claude has no reason to touch the trigger file). `paths:` and the matching "Loop Guard — Auto-Activation Safety Check" section were removed from all four (plus the two dangling Error-Handling bullets in `spark-recon`/`jetson-recon` and one in `spark-audit` that referenced the deleted guard's `--force` flag); `disable-model-invocation: true` was kept, and each now carries an explanatory comment pointing at ADR-0012. `security-analysis` carries no `disable-model-invocation`, so the pairing defect does not apply — `paths:` was kept (it legitimately expands what Claude can discover mid-session) and only the "Auto-Activation Confirmation" section's wording was corrected (renamed "Conditional-Load Confirmation"; "triggered automatically via `paths:`" → explicit conditional-load explanation with an ADR-0012 link) without touching its confirm-before-scanning behavior. Note: only 4 of the 5 skills literally carried a "Loop Guard" heading; `security-analysis`'s equivalent wrong assumption lived in its "Auto-Activation Confirmation" section, corrected in place rather than deleted since the underlying confirm-before-scan behavior is legitimate.
+- **`new-skill-examples.md` deliberately left untouched** — it is in item 5.3's Files Affected list (fictional-key deletion), not 5.1's, and its `$CLAUDE_CONTEXT` worked example is 5.3's defect to fix; touching its paths-related wording here would have pre-empted that item mid-file. `new-skill.md:324`'s reference to it was likewise left unedited to avoid asserting something inconsistent with content 5.3 hasn't corrected yet.
+- **Verified:** `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); `python3 scripts/check_injections.py` (exit 0, 63 files / 35 injections, all guarded — unaffected, no injections added or touched); `npx markdownlint-cli2` over all 9 created/modified files (exit 0, 0 issues); `bash scripts/pre-commit` with the 6 in-scope files staged (`commands/new-skill.md` + 5 `SKILL.md`s — `references/**` and `docs/**` are outside the hook's staged-file filter by design) (exit 0, all PASS).
 
 ---
 

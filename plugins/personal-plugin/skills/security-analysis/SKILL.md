@@ -16,16 +16,16 @@ paths:
 
 Perform a comprehensive security vulnerability scan and analysis of the current project. Identifies the technology stack, scans for vulnerabilities in source code and dependencies, assesses real-world risk with context-aware analysis, and produces an actionable remediation roadmap.
 
-## Auto-Activation Confirmation
+## Conditional-Load Confirmation
 
-When triggered automatically via `paths:` (i.e., a dependency manifest was modified), ask the user before proceeding:
+`paths:` does not auto-run this skill — it only makes the skill loadable once you (Claude) have touched one of the listed manifest files with a Read, Edit, or Write tool call this session (see [ADR-0012](../../../../docs/adr/0012-artifact-derived-documentation.md)). If you then choose to invoke this skill on your own initiative because you noticed such a manifest was touched — rather than the user directly asking for `/security-analysis` — ask the user before proceeding:
 
 > A dependency manifest file was changed (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `requirements.txt`, or `Gemfile`). Would you like to run a full security scan now? This will audit your dependencies for known CVEs and may take 1–15 minutes depending on project size. (y/n)
 
-- **If the user confirms (y / yes):** proceed with the full scan using the instructions below. Default scan mode is `--dependencies-only` when auto-triggered (faster; targets the changed manifests). User may override with `--quick` or no flag for full scan.
+- **If the user confirms (y / yes):** proceed with the full scan using the instructions below. Default scan mode is `--dependencies-only` in this case (faster; targets the changed manifests). User may override with `--quick` or no flag for full scan.
 - **If the user declines (n / no / anything other than y/yes):** respond with "Security scan skipped. You can run `/security-analysis` manually at any time." and exit immediately — do not perform any scanning.
 
-When invoked directly by the user (not via paths auto-trigger), skip this prompt and proceed immediately.
+When invoked directly by the user, skip this prompt and proceed immediately.
 
 ---
 

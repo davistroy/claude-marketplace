@@ -83,6 +83,8 @@ isolation: worktree
 
 ## `paths:`
 
+> **Read [ADR-0012](../../../../docs/adr/0012-artifact-derived-documentation.md) before relying on `paths:` semantics.** The facts below are recovered from the harness's loader and tool-call handlers, not inferred from the key's name.
+
 **Syntax:**
 ```yaml
 paths:
@@ -91,22 +93,19 @@ paths:
   - "config/**/*.yaml"
 ```
 
-**What it does:** Auto-activates the skill when the user opens or saves a file matching one of the glob patterns. No manual invocation needed.
+**What it does:** Gates the skill's *existence*, not its execution. A skill declaring `paths:` is held out of the normal skill list at load time and is unresolvable by name — to Claude's own Skill tool and to a user typing the slash command alike — until Claude's Read, Edit, or Write tool call touches a file matching one of the patterns in that session. At that point it is added to the available skill set for the rest of the session, exactly as if it had loaded unconditionally from the start. Nothing about the skill's body ever runs automatically; activation only changes whether the skill can be *found*.
 
 **When to use:**
-- Validation skills that should run whenever a schema/config changes
-- Audit skills triggered by baseline file modifications
-- Auto-documentation that updates when source files change
+- A model-invocable skill (no `disable-model-invocation: true`) whose relevance only becomes apparent once Claude has touched a specific kind of file this session — e.g., surfacing a dependency-audit skill once Claude has read or edited a manifest (`security-analysis`)
+- Not a substitute for direct invocation: a skill meant to be run on demand by a human at any point in a session (including turn one) should omit `paths:` — see the next gotcha
 
-**Gotcha — infinite loop:** If the skill writes to a file that matches its own `paths:` pattern, it re-triggers itself. **Always add a loop guard at skill entry:**
+**Gotcha — do not pair with `disable-model-invocation: true`.** `disable-model-invocation: true` means Claude itself can never invoke the skill, only a user can, via its slash command. But `paths:` means the skill does not exist to that same lookup until Claude has already touched a matching file — and a skill Claude is barred from invoking gives Claude no reason to go looking. The combination can make a nominally user-invocable skill unreachable by the user on a fresh session where the trigger file hasn't been touched yet. If the skill is meant for on-demand human invocation, drop `paths:` entirely.
 
-```
-Entry guard: Check for a sentinel file at `.tmp/[skill-name].last-run`.
-If it was written within the last 5 minutes → exit immediately (self-triggered re-entry).
-Otherwise: write sentinel `echo $(date +%s) > .tmp/[skill-name].last-run` and proceed.
-```
+**Gotcha — no loop guard, because there is no re-triggering.** Activation is one-shot per session: once a skill's name is recorded as activated it is never re-evaluated against `paths:` again, so a skill that later writes a file matching its own pattern triggers nothing further. A "have I run in the last 5 minutes" entry guard is defending against a state transition the harness structurally cannot produce — do not add one.
 
-**Gotcha — breadth:** Broad globs like `**/*.md` will fire frequently. Scope patterns tightly to the specific files that require the skill's response. Consider a user-confirmation prompt for expensive skills.
+**Gotcha — not a filesystem watcher.** Only Claude's own in-session Read/Edit/Write tool calls feed the gate. A file changed by git, an external editor, or another process activates nothing.
+
+**Gotcha — breadth:** Broad globs like `**/*.md` will match more file touches, activating (making visible) the skill sooner and more often. Scope patterns tightly to the specific files that make the skill relevant.
 
 ---
 
@@ -196,7 +195,7 @@ shell: bash    # or: zsh | sh
 | `context: fork` | `agent:`, `isolation: worktree` | — | Core parallelism primitive |
 | `agent:` | `context: fork` | Standalone (no-op) | Always pair with fork |
 | `isolation: worktree` | `context: fork` | Repos with staged conflicts | Auto-cleanup when no changes |
-| `paths:` | Any | Itself (loop) | Loop guard required |
+| `paths:` | Model-invocable skills | `disable-model-invocation: true` (self-cancelling — ADR-0012) | Conditional load gate; no loop guard needed |
 | `!`cmd`` | Any | Conditional logic | Runs unconditionally; non-zero exit aborts skill load (ADR-0011) |
 | `model:` | Any | User subscription limits | Graceful fallback recommended |
 
