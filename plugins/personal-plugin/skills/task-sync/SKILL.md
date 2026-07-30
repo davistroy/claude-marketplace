@@ -13,7 +13,7 @@ description: >
   task list, backlog, sync issues, task-sync, todo list, reconcile issues.
 argument-hint: "[sync|list|add|edit|done|remove|status|init|scan-apply] [args...] [--dry-run]"
 effort: medium
-allowed-tools: Read, Write, Edit, Glob, Bash
+allowed-tools: Read, Write, Edit, Glob, Bash, AskUserQuestion
 ---
 
 # Task Sync
@@ -239,15 +239,41 @@ gh repo view --json visibility --jq .visibility 2>/dev/null
 `$GITEA_TOKEN` if set, else the token from `~/.config/tea/config.yml` — the
 same order the tool's own Gitea adapter uses.)
 
-If the result is `PUBLIC` (GitHub) or `private: false` (Gitea), show:
+If the result is `PUBLIC` (GitHub) or `private: false` (Gitea), show the
+warning text below, then confirm with `AskUserQuestion`:
 
 ```text
 Warning: <owner>/<repo> is a PUBLIC repository.
 Creating/updating N issue(s) will publish this content publicly.
-Continue? (yes / no / show plan again)
 ```
 
-Do not proceed to apply without an explicit "yes". A private repo needs no
+```json
+{
+  "questions": [
+    {
+      "question": "<owner>/<repo> is a PUBLIC repository. Creating/updating N issue(s) will publish this content publicly. Continue?",
+      "header": "Public Repo",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Yes",
+          "description": "Proceed with applying the planned creates/pushes/pulls to the public repo"
+        },
+        {
+          "label": "No",
+          "description": "Abort — nothing is applied"
+        },
+        {
+          "label": "Show plan again",
+          "description": "Re-print the full sync plan (creates/pushes/pulls/conflicts) before deciding"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Do not proceed to apply without an explicit "Yes". A private repo needs no
 extra confirmation beyond the normal plan review.
 
 ### 6. Apply

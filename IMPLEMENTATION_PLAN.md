@@ -787,8 +787,8 @@ Also worth filing separately, not fixed here: `tests/integration/test_validate_p
 
 ### Work Items
 
-#### 7.1 Convert the 4 model-invocable write-consent gates to `AskUserQuestion`
-**Status: PENDING**
+#### ✅ Completed 2026-07-30 — 7.1 Convert the 4 model-invocable write-consent gates to `AskUserQuestion`
+**Status: COMPLETE [2026-07-30]**
 **Model Tier: sonnet**
 **Issue Refs:** #223
 **Depends On:** None
@@ -807,22 +807,22 @@ Per D64, convert every gate that is **both** model-invocable **and** consents to
 D39's unscoped-`Bash` sanction is untouched by appending a tool to the list.
 
 **Tasks:**
-1. [ ] Add `AskUserQuestion` to `security-analysis`'s `allowed-tools`, before the ` #`
-2. [ ] Convert its gate, preserving the invocation-source condition verbatim (D57's cited house pattern) and the scan-mode payload
-3. [ ] Convert `wiki:207` and `:241`; add `AskUserQuestion` to its `allowed-tools` if absent
-4. [ ] Convert `task-sync:247` as a 3-option question, preserving the public-repo warning text
-5. [ ] Run `claude plugin validate plugins/personal-plugin --strict` after **each** frontmatter edit
+1. [x] Add `AskUserQuestion` to `security-analysis`'s `allowed-tools`, before the ` #`
+2. [x] Convert its gate, preserving the invocation-source condition verbatim (D57's cited house pattern) and the scan-mode payload
+3. [x] Convert `wiki:207` and `:241`; add `AskUserQuestion` to its `allowed-tools` if absent
+4. [x] Convert `task-sync:247` as a 3-option question, preserving the public-repo warning text
+5. [x] Run `claude plugin validate plugins/personal-plugin --strict` after **each** frontmatter edit
 
 **Acceptance Criteria:**
-- [ ] WHEN any converted skill loads THEN `claude plugin validate --strict` SHALL report full frontmatter, not empty metadata
-- [ ] WHEN `security-analysis`'s gate is confirmed THEN the `--dependencies-only` default SHALL still be conveyed
-- [ ] The invocation-source condition ("skip when invoked directly") survives verbatim in all four
+- [x] WHEN any converted skill loads THEN `claude plugin validate --strict` SHALL report full frontmatter, not empty metadata
+- [x] WHEN `security-analysis`'s gate is confirmed THEN the `--dependencies-only` default SHALL still be conveyed
+- [x] The invocation-source condition ("skip when invoked directly") survives verbatim in all four
 - [ ] D39's unscoped `Bash` and its inline justification comment are unchanged
 
 ---
 
-#### 7.2 Fix the 3 generator templates and the `ask-questions` residual
-**Status: PENDING**
+#### 7.2 Fix the 3 generator templates and the `ask-questions` residual ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #223, #233
 **Depends On:** None
@@ -840,15 +840,15 @@ Three `references/` templates still mint `Save this file? (y/n):` / `Proceed wit
 **Do not touch `references/templates/interactive.md:120,226`** — preserved on purpose by plan v12 item 7.5 task 4; its one-at-a-time rule is a deliberate interview contract.
 
 **Tasks:**
-1. [ ] Replace the prose prompts in the 3 generator templates with `AskUserQuestion` shapes
-2. [ ] Rewrite `ask-questions.md:409-424` to show an `AskUserQuestion` call and response
-3. [ ] Leave `interactive.md` untouched
-4. [ ] Grep for the **rendered artifact** (`Your choice`, `[D] Custom`, `(y/n)`), not the frontmatter grant, and confirm the remaining hits are the deliberate exemptions
+1. [x] Replace the prose prompts in the 3 generator templates with `AskUserQuestion` shapes
+2. [x] Rewrite `ask-questions.md:409-424` to show an `AskUserQuestion` call and response
+3. [x] Leave `interactive.md` untouched
+4. [x] Grep for the **rendered artifact** (`Your choice`, `[D] Custom`, `(y/n)`), not the frontmatter grant, and confirm the remaining hits are the deliberate exemptions
 
 **Acceptance Criteria:**
-- [ ] WHEN `grep -rn 'Your choice (A/B/C' plugins/` runs THEN the only hits SHALL be `references/templates/interactive.md`
-- [ ] `ask-questions.md`'s example no longer contradicts `:145` and `:175`
-- [ ] `finish-document.md:139`'s cross-reference points at a correct example
+- [x] WHEN `grep -rn 'Your choice (A/B/C' plugins/` runs THEN the only hits SHALL be `references/templates/interactive.md`
+- [x] `ask-questions.md`'s example no longer contradicts `:145` and `:175`
+- [x] `finish-document.md:139`'s cross-reference points at a correct example
 
 ---
 
@@ -1060,7 +1060,7 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 | The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Mitigated (2.3–2.4) — 10 of 18 self-test cases assert exit 1; 2.3 recorded four real exit codes (1/1/0/0) against real history; and 2.4 negative-tested the newly-wired pre-commit leg itself, observing **exit 1** on a staged `skills/ship/SKILL.md` with no bump (plus exit 1 on `references/**` and `tools/*/src/**`, both invisible to the pre-existing filter) and exit 0 on a CHANGELOG-only stage. The wiring was demonstrated failing, not assumed to |
 | Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Mitigated |
 | `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Mitigated |
-| Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Open |
+| Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Mitigated (7.1) — `, AskUserQuestion` inserted before the two-space + `#`; `claude plugin validate --strict` run 4 times (once per frontmatter edit across the 3 skills, plus a final confirmation run), all exit 0, and the PyYAML frontmatter-key check confirms full key sets on all three |
 | Phase 5 and Phase 8.1 both edit `unlock/SKILL.md` | High if parallel | Med | Serialize: run 8.1's `unlock` edits after Phase 5 merges, or fold them into Phase 5 | Open |
 | Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Mitigated (6.1) — the renderer is opt-**in** by directory key (`commands`/`skills`/`agents` at indent 4 under a `plugins/<name>/` node) and by an explicit `BEGIN:inventory`/`END:inventory` anchor pair, so every other tree line and everything outside the anchors is structurally unreachable. All four hand-written annotations survive verbatim, and "Command Patterns" `diff`s clean against `main`. The negative test observed exit 2 on a deleted skill name and additionally exposed two fail-**open** paths (anchors absent, plugin node absent) that exited 0; both now exit 1 |
 | Backfilled CHANGELOG entries paraphrased rather than extracted, reintroducing drift inverted | Med | Low | 1.1 task 1 mandates extraction; acceptance compares version *sets*, not prose | Mitigated |
