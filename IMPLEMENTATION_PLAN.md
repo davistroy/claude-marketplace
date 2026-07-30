@@ -464,8 +464,8 @@ The user-facing dead-end is only fixable upstream. `brainstorming/SKILL.md:61` m
 
 ### Work Items
 
-#### 4.1 Repair the phase numbering across all 29 sites, atomically with its eval
-**Status: PENDING**
+#### 4.1 Repair the phase numbering across all 29 sites, atomically with its eval ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #231
 **Depends On:** None
@@ -503,8 +503,8 @@ A single 1–6 → 0–5 renumbering touched the `##` headings and a few body li
 
 ---
 
-#### 4.2 Delete the phantom L0–L4 taxonomy at all 10 sites, including the generator template
-**Status: PENDING**
+#### 4.2 Delete the phantom L0–L4 taxonomy at all 10 sites, including the generator template ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #231
 **Depends On:** 4.1
@@ -1053,8 +1053,8 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 | Phase 2's gate reddens the required `Validate Plugins (official CLI)` check on `main`'s push leg | Med | **High** — a red required context on main | Explicit event-leg branch (2.2 task 4) with the push leg exiting 0; 2.3's negative test must assert the **PR leg still fails**, not merely that push passes | Mitigated (2.2–2.4) — `resolve_leg` branches explicitly on `GITHUB_EVENT_NAME`, and self-test case `push-leg-noop` runs the **same violating tree** as case 1 through the push leg and asserts exit 0 while the PR leg asserts exit 1. Wired as a **step** in the existing `plugin-validate` job (D28), so no new required context: job set still `['validate', 'python-lint', 'lint-markdown', 'plugin-validate']`, the four `name:` values `diff` clean against `main`, and the live required-context count is still 16 |
 | Phase 2's gate blocks Phase 1's own CHANGELOG-only PR | High if mis-ordered | Med | Phase 1 lands first; `CHANGELOG.md` is explicitly exempt from Rule 1 | Mitigated (2.2) — `CHANGELOG.md` is in `EXEMPT_EXACT`; self-test case `rule1-exempt-changelog-only` asserts exit 0, and the script run against this very branch (`main...HEAD` = three CHANGELOG-only files, Phase 1's exact shape) exits 0 |
 | The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Mitigated (2.3–2.4) — 10 of 18 self-test cases assert exit 1; 2.3 recorded four real exit codes (1/1/0/0) against real history; and 2.4 negative-tested the newly-wired pre-commit leg itself, observing **exit 1** on a staged `skills/ship/SKILL.md` with no bump (plus exit 1 on `references/**` and `tools/*/src/**`, both invisible to the pre-existing filter) and exit 0 on a CHANGELOG-only stage. The wiring was demonstrated failing, not assumed to |
-| Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Open |
-| `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Open |
+| Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Mitigated |
+| `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Mitigated |
 | Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Open |
 | Phase 5 and Phase 8.1 both edit `unlock/SKILL.md` | High if parallel | Med | Serialize: run 8.1's `unlock` edits after Phase 5 merges, or fold them into Phase 5 | Open |
 | Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Open |

@@ -5,6 +5,16 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.7.0] - 2026-07-30
+
+Close-the-loop correctness backlog (Phase 4 of the E062 plan, #231). Repairs a scarred `/ultra-plan` skill left behind by a prior 1–6 → 0–5 phase renumbering.
+
+### Fixed
+- **`ultra-plan/SKILL.md` phase numbering** — 29 sites (8 `###` sub-headings, 18 cross-reference lines, 2 anchors, plus a `Phase 1-4` → `Phase 0-3` range) still named the old 1–6 phase scheme after only the `##` headings were renumbered to 0–5. `evals/skills/ultra-plan.eval.md:43` copied the same defect and is fixed atomically with the skill so a passing eval doesn't regress. `:350` ("Change sets (Phase 2c)") was the one reference that had survived correctly and is untouched, along with the rest of its mapping table.
+- **Phantom L0–L4 scope taxonomy removed** — `ultra-plan` gated the Phase 0 constitution check, ADR generation, and creative branching on an "L-level per plan-gate classification" that `plan-gate` never defines (it emits Path recommendations, not scope levels). Deleted at all 8 `SKILL.md` sites and both `references/adr-template.md` sites; the existing trigger questions (already equivalent to the L3+/L4+ tests) now gate alone, and the unreachable Phase-0 skip condition (b) is removed outright since ultra-plan is only reached via plan-gate's Path D.5.
+
+<!-- Later phases of the E062 backlog append here -->
+
 ## [11.6.0] - 2026-07-29
 
 The 16-issue correctness backlog (E060 plan, 8 phases / 42 items, PR #222). Grouped by root cause rather than by issue.
