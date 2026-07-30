@@ -124,7 +124,7 @@ Planning pipeline: `/ultra-plan` → `/create-plan` / `/plan-improvements` → `
 
 | Item | State |
 |---|---|
-| Versions | marketplace **3.3.0** · personal-plugin **11.6.0** (E061) · bpmn-plugin **4.4.0** (E061) · slide-gen **1.3.0** (E061). All three bumped together in #225 — #222 shipped 42 items of behavior change at an *unchanged* version, leaving two trees both claiming 11.5.1 |
+| Versions | marketplace **3.3.0** · personal-plugin **11.7.0** (E063) · bpmn-plugin **4.4.0** · slide-gen **1.4.0** (E063). Bumped mid-plan because the #226 gate landed in Phase 2 and then policed every later phase touching `plugins/**` — the fix enforcing itself on the change set that introduced it |
 | Surfaces | 23 commands · 40 skills (personal 29 / slide-gen 9 / bpmn 2) · 3 implementer agents in `.claude/agents/` · 10 agents in `plugins/personal-plugin/agents/` (9 arch-review domain + `sre-operator`, fleet ops) |
 | Bundled tools | visual-explainer 894 tests / 93% · **bpmn2drawio 642 / 92.79%** · feedback-docx 69 / 96.95% · **task-sync 480 / 96.30%**. All bare-`mypy` clean (D33) and ruff clean; green on 3.10/3.11/3.12. `bpmn2drawio` is the only tool whose version tracks its plugin's, enforced by a cross-file guard that caught real drift during #225 |
 | Evals | **48** `.eval.md` specs; structural + coverage linter in CI (`check_eval_mapping.py`, ADR-0009/D32); LLM-judge runner deliberately deferred. **`description-triggers` run under Opus 5 on 2026-07-30: 13/14 pass** (S4 fails to cross-plugin preemption, #227). The eval defines no harness — see #228 |
@@ -1130,7 +1130,7 @@ That last one is the most useful data point in the entry. **I filed #231 after v
 
 **Date:** 2026-07-30
 **Environment:** Linux VM, branch `feature/close-the-loop-backlog` off `main` `b4d576c` (E062's PR #234 squash-merged; 0/0 divergence from `origin/main` per D17). personal-plugin 11.6.0 / bpmn-plugin 4.4.0 / slide-gen 1.3.0 / marketplace 3.3.0. Orchestrator on Opus 5 (1M). Default mode — PR at the end, no auto-merge, no phase pauses.
-**Status:** IN PROGRESS
+**Status:** COMPLETE — 18/19 items, 1 descoped; merged via PR #236
 
 **Objective:** Execute `IMPLEMENTATION_PLAN.md` (generated in E062) end-to-end, closing 12 issues across 8 phases. All 19 items start `PENDING`.
 

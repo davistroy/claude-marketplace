@@ -1,6 +1,7 @@
 # Implementation Plan
 
 **Generated:** 2026-07-30
+**Completed:** 2026-07-30 — 18/19 items COMPLETE, 1 DESCOPED (3.3, upstream report declined by owner)
 **Based On:** `/ultra-plan` over the 13-item close-the-loop + hygiene backlog (LAB_NOTEBOOK E062). Phase 1 dispatched **6 parallel Explore agents** clustered by shared code path; **every cluster returned corrections**, including two to issues filed earlier in the same session. This plan encodes the *investigated* shape of each item, not the filed text. Prior plan (16-issue correctness backlog, 42/42 COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v12.md`.
 **Total Phases:** 8
 **Estimated Total Effort:** ~85 work sites across ~35 files — predominantly markdown behavior-surfaces, plus one new CI gate script, one generator extension, and one Python test module
