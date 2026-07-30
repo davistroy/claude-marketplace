@@ -70,7 +70,11 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D56 | **`Agent` is the repo's one name for the subagent-dispatch tool in `allowed-tools`; `Task` is retired from every live component** — `Task*` survives only as the distinct `TaskCreate`/`TaskUpdate`/`TaskList`/`TaskOutput` progress-tracking family, which is a different tool and is granted alongside `Agent` where a component tracks sub-agent progress (`implement-plan`'s precedent, now matched by `test-project`) | 2026-07-29 | ACTIVE | E061 | `Task` as the canonical name — rejected: `arch-review` and `implement-plan`, the two components that actually dispatch at scale, already use `Agent`, and `Agent` is the first name in the harness's own identity check. Fix only the 6 files the issue names — rejected: it would leave `Task` in `research-topic` **and in `references/templates/synthesis.md`, a generator template that mints the defect into every skill built from it** — the exact propagation E060 finding 3 is about. Both were pulled in |
 | D57 | **`lab-notebook` and `create-wiki` trade `disable-model-invocation: true` for a Phase-0 confirmation gate** — they may now be model-invoked, but must confirm before creating or modifying any file. The gate is conditional on invocation source (`security-analysis`'s house pattern): it fires only on self-initiative and is skipped when the user types the slash command, and it is scoped per mode (`lab-notebook status` and `create-wiki` maintenance mode are exempt as read-only / already-configured) | 2026-07-29 | ACTIVE | E061 | Keep the flag and strip the trigger prose, as with the other seven (8.2) — rejected: these two have the highest proactive value in the set, and their triggers ("benchmark work starting", "I keep forgetting…") are exactly the ones a user provably cannot self-serve. Drop the flag as a one-line edit — rejected as the dangerous option: both skills *inject binding rules into `CLAUDE.md`*, so without a gate the model could unilaterally change how it behaves for the rest of the project's life. The gate had to land in the same change, which is why 8.3 is one item and not two |
 
-Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#)
+| D58 | **The remaining backlog is scoped and sequenced by ROOT-CAUSE CLASS, not by issue number or priority label** — 11 of 18 items in scope, ordered so the one gate that closes #226+#210+#218 (class ①, "a documented step with no gate behind it") lands before the individual instances it prevents. Deferred: #198/#200/#199-remainder (calibration), #206's context-economy half, #216, #169/#170/#171 | 2026-07-30 | ACTIVE | E062 | Sequence by `priority/P*` label — rejected: it splits #226/#210/#218 (P2/P3/P3) across the plan even though they are one missing gate, and it promotes #217, which is 3-of-4 wrong as filed. Take everything open — rejected: class ④ has no evidence of being mis-set (13/14 eval) and class ⑥ items are projects, not items. Take only the 4 close-the-loop items — rejected by the user, who added the hygiene half, #217's rewrite, and #230 |
+| D59 | **Plan generation runs the FULL `/ultra-plan` including the Phase 1 verification fan-out, never a direct write-up from issue text** — audit-derived issues must be re-verified against the tree before being planned | 2026-07-30 | ACTIVE | E062 | Light plan from the filed bodies — rejected on the measured base rate: E060 found **22 of 24** issues from this same audit wrong as filed, and E062 reconfirmed it three more times before planning even started (#227's mechanism inverted, #199's defect at 8 sites not 3, #230 surfaced only because a rollback plan asserted something false). Verify only the near-term scope — rejected by the user in favour of the full pass |
+| D60 | **`tasks.json`'s git status is an OPEN design question (#230), not a settled one** — `.gitignore` ignores it while D34 and `docs/plans/2026-07-18-task-sync-design.md:64,100,129` all specify it committed "so the base travels between the user's two machines" | 2026-07-30 | **OPEN — pending #230** | E062 | Fix inline by un-ignoring it — rejected: PR #175's public-repo reasoning is defensible even though the confidentiality subsystem already answers it, so this is a design call needing an explicit decision + alternatives, which is precisely what its absence cost the first time. Leave it undocumented — rejected: three sources currently disagree and each reads as authoritative alone |
+
+Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#) · OPEN (undecided, tracked)
 
 ## Action Items
 
@@ -80,14 +84,15 @@ Track follow-ups that emerge from experiments. Move to Completed when done.
 
 | # | Action | Created | Source Entry |
 |---|--------|---------|-------------|
-| A21 | **Run the 14 `description-triggers` eval scenarios under Opus 5 and record the results** (#205 stays open for this). Each scenario measures whether a *fresh* session auto-invokes a skill from conversational context, so it cannot be run from a session that just edited those skills — the answer is known in advance and a green result would be contamination, not evidence. Needs one clean session per scenario; human-run per ADR-0009/D32 (CI has zero secrets). **S13/S14 now test the opposite contract from before** (gate-before-write, not never-invoke), so the pre-Phase-8 results are not a valid baseline | 2026-07-29 | E061 |
-| A22 | **`security-analysis`'s conditional-load gate is still a hand-rolled `(y/n)` prose prompt** while the two gates added in 8.3 use `AskUserQuestion`. It was outside 7.5's six consumers so it was correctly not converted, but the inconsistency is real and now documented rather than silent. Convert it, or record why the prose form is deliberate | 2026-07-29 | E061 |
-| — | **No other open action items** — the canonical backlog is the GitHub issues list (A2/A12). **`IMPLEMENTATION_PLAN.md` (8 phases / 42 items, E060) is now the execution blueprint for 16 of the 24 open issues**; run `/implement-plan` to execute, one branch+PR per phase. Deferred to a follow-on plan (D54): #198, #199 (the 31-component `effort:` sweep; the enum half lands in Phase 5), #200, #206, #210, #216, #217, #218. **#217 must be REWRITTEN before implementation** — 3 of its 4 claims are wrong and `/unlock` is blocked by an unrelated `$TROY` defect. **#183's location table must be corrected** (Phase 1.5) — `prime`/`explain-project` are inert. **Traps:** `gh issue view <n>` silently resolves PR numbers; the installed plugin's active version lags the cache, so run bundled tools from the repo source when a fix matters; `bws secret list` prints plaintext — never use it as an auth probe; and any injection linter must **replay the pre-pass, not grep** (74 textual sites, 14 live). | — | E043 |
+| A22 | **`security-analysis`'s conditional-load gate is still a hand-rolled `(y/n)` prose prompt** while the two gates added in 8.3 use `AskUserQuestion`. It was outside 7.5's six consumers so it was correctly not converted, but the inconsistency is real and now documented rather than silent. Convert it, or record why the prose form is deliberate. **Tracked as #223 and now in the E062 plan scope** | 2026-07-29 | E061 |
+| — | **No other open action items** — the canonical backlog is the GitHub issues list (A2/A12), now **18 open**. `IMPLEMENTATION_PLAN.md` is 42/42 COMPLETE (see A23). **Traps that recur:** `gh issue view <n>` silently resolves PR numbers; the installed plugin cache can hold *different content under the same version*, so run bundled tools from repo source when a fix matters and bump the version whenever `plugins/**` changes (#226); `bws secret list` prints plaintext — never use it as an auth probe; any injection linter must **replay the pre-pass, not grep** (74 textual sites, 14 live). | — | E043 |
 
 ### Completed
 
 | # | Action | Created | Completed | Source Entry |
 |---|--------|---------|-----------|-------------|
+| C26 | **A23 CLOSED — `IMPLEMENTATION_PLAN.md` archived to `docs/archive/IMPLEMENTATION_PLAN-v12.md`** (D46), force-added past the global `archive/` ignore, with a Completed banner citing `1382a8a`/`49face4` and pointing at E061. Clears the precondition for the E062 plan | 2026-07-30 | 2026-07-30 | E062 |
+| C25 | **A21 CLOSED — the 14 `description-triggers` scenarios run under Opus 5, 13/14 pass** (#205 closed). First non-self-assessed evidence that Phase 8's contract holds: both gated skills were model-invoked and stopped at their Phase-0 gate having written nothing; both locked skills stayed locked. S4 failed to cross-plugin preemption (#227); harness gaps filed (#228). **Reusable method:** fresh `claude -p` per scenario, isolated empty dir, explicit `--allowed-tools Skill Read Write Edit Glob Grep AskUserQuestion`, **`Bash` disallowed** (S13's prompt names a live host), score at first dispatch, and never treat `api_error_status: 529` as a negative — the first batch 529'd on 8 of 13 | 2026-07-29 | 2026-07-30 | E061 |
 | C1–C17 | Pre-2026-07-16 follow-ups: v8.0.0 modernization, research-orchestrator removal, plan-template refinements, gap-analysis execution, validate-plugin update, the cache-sync corrections later superseded by D19, the 9.0.0/10.0.0/10.3.0 releases, R1–R13 execution, lockfile CVE regeneration, `dependabot.yml`, and clear-prep. All closed — full narrative in [`docs/archive/LAB_NOTEBOOK-E001-E016.md`](docs/archive/LAB_NOTEBOOK-E001-E016.md). | 2026-04-21 → 07-16 | 2026-07-16 | E001–E016 |
 | C18 | Author `clear-prep` skill (context-clear handoff) + refresh 4-version-stale Current Baseline (prime finding); `claude plugin validate --strict` passed | 2026-07-16 | 2026-07-16 | E015 |
 | C19 | Ship personal-plugin 10.3.0 (clear-prep) via PR #108 — squash-merged `df33eef`, all 25 checks green both OSes, cache updated 10.2.0→10.3.0; folded a one-line setuptools-CVE (PYSEC-2026-3447) CI hygiene fix to unblock the audit gate | 2026-07-16 | 2026-07-16 | E016 |
@@ -109,18 +114,18 @@ Planning pipeline: `/ultra-plan` → `/create-plan` / `/plan-improvements` → `
 
 ## Current Baseline
 
-*Verified 2026-07-29 against `origin/main` @ `264f082`.*
+*Verified 2026-07-30 against `origin/main` @ `7d5ae1f`.*
 
 | Item | State |
 |---|---|
-| Versions | marketplace **3.3.0** · personal-plugin **11.5.1** (E059) · bpmn-plugin **4.3.1** (E036) · slide-gen **1.2.0** |
+| Versions | marketplace **3.3.0** · personal-plugin **11.6.0** (E061) · bpmn-plugin **4.4.0** (E061) · slide-gen **1.3.0** (E061). All three bumped together in #225 — #222 shipped 42 items of behavior change at an *unchanged* version, leaving two trees both claiming 11.5.1 |
 | Surfaces | 23 commands · 40 skills (personal 29 / slide-gen 9 / bpmn 2) · 3 implementer agents in `.claude/agents/` · 10 arch-review agents in `plugins/personal-plugin/agents/` |
-| Bundled tools | visual-explainer 894 tests / 93% · bpmn2drawio 640 / 92.84% · feedback-docx 69 / 96.95% · **task-sync 427 / 96.33%**. All bare-`mypy` clean (D33) and ruff clean; green on 3.10/3.11/3.12 |
-| Evals | **48** `.eval.md` specs; structural + coverage linter in CI (`check_eval_mapping.py`, ADR-0009/D32); LLM-judge runner deliberately deferred |
+| Bundled tools | visual-explainer 894 tests / 93% · **bpmn2drawio 642 / 92.79%** · feedback-docx 69 / 96.95% · **task-sync 480 / 96.30%**. All bare-`mypy` clean (D33) and ruff clean; green on 3.10/3.11/3.12. `bpmn2drawio` is the only tool whose version tracks its plugin's, enforced by a cross-file guard that caught real drift during #225 |
+| Evals | **48** `.eval.md` specs; structural + coverage linter in CI (`check_eval_mapping.py`, ADR-0009/D32); LLM-judge runner deliberately deferred. **`description-triggers` run under Opus 5 on 2026-07-30: 13/14 pass** (S4 fails to cross-plugin preemption, #227). The eval defines no harness — see #228 |
 | CI | `test.yml` (pytest ×2 OS, coverage floors in each tool's `[tool.coverage.report]`, pip-audit per lockfile, advisory `Python Compat (3.10)/(3.12)`) · `validate.yml` (plugin/frontmatter/version-sync, README-sync `--check`, eval linter, ruff, markdownlint). **Branch protection on `main`: 21 required checks, PR-required 0-approvals, `enforce_admins=false`** (ADR-0007/D22) |
 | Plugin cache | Auto-propagates from the GitHub marketplace source. **There is no `autoUpdate` key in marketplace.json** — that is Claude Code's install-side default, not a repo-declared flag (D19 correction). Refresh with `claude plugin marketplace update`; `claude plugin update <plugin>` can report "Plugin not found" (E051) |
 | Dependencies | Actions SHA-pinned (checkout/setup-python/setup-node) · google-genai 2.11.0 · pydantic 2.13.4 / pydantic-core 2.46.4 **lockstep — never bump independently** (D25) |
-| Open backlog | **#190–#206** (17 remaining E052-audit issues; **#189, the only P0, is CLOSED — fixed in 11.5.0/E058**) · **#216/#217/#218** (E058 follow-ups) · **#210** (plugin CHANGELOG missing 11.2.0/11.3.0) · **#183** (20 unguarded `` !`git` `` injections across 5 skills) · #181/#182 (task-sync) · #169/#170/#171 (v2 scope-outs, deliberately deferred). **No P0 remains open.** |
+| Open backlog | **18 open** (16 + #230/#231 filed in E062). Reconciled 2026-07-30: local `tasks.json`, GitHub, and this row describe the same set; `sync --plan` is all-zero. Grouped by root cause, not issue number (E062): **① documented step with no gate** #226/#210/#218 — one gate, the repo's most-repeated defect · **② call-sequence untested** #224 · **③ eval untrustworthy** #228/#227 · **④ calibration, DEFERRED** #198/#200/#199-remainder · **⑤ not schedulable until re-derived** #217 (3-of-4 wrong), #230 (`tasks.json` gitignored vs D34) · **⑥ own plan each** #216, #206-context-economy-half, #171, #169/#170. #231 (ultra-plan phase numbering + phantom L0-L4 taxonomy) extracted from #199. **No P0 or P1 remains open.** |
 | Platform | Linux VM (current sessions); earlier sessions Windows 11 — see root CLAUDE.md "Dual environment" |
 
 ---
@@ -768,9 +773,10 @@ A non-zero exit does **not** degrade to empty output — the decompiled handler 
 
 ### Entry 061 — Executing the 16-issue correctness backlog (8 phases / 42 items) [plan] [build] [ci]
 
-**Date:** 2026-07-28
-**Environment:** Linux VM, branch `feature/correctness-backlog` off `main` `88d8600` (verified 0/0 divergence from `origin/main` per D17). personal-plugin 11.5.1, marketplace 3.3.0. Orchestrator on Opus 5 (1M).
-**Status:** IN PROGRESS
+**Date:** 2026-07-28 → 2026-07-30
+**Environment:** Linux VM, branch `feature/correctness-backlog` off `main` `88d8600` (verified 0/0 divergence from `origin/main` per D17). Started at personal-plugin 11.5.1 / marketplace 3.3.0; ended at **11.6.0 / 4.4.0 / 1.3.0**. Orchestrator on Opus 5 (1M).
+**Status:** COMPLETE — 42/42 items, merged `1382a8a` (#222); release `49face4` (#225); eval results `7d5ae1f` (#229)
+**Duration:** 3 sessions (one lost to a terminal crash mid-Phase-7)
 
 **Objective:** Execute `IMPLEMENTATION_PLAN.md` (generated in E060) end-to-end with `/implement-plan` in default mode — PR at the end, no auto-merge, no phase pauses. All 42 items across 8 phases start `PENDING`.
 
@@ -974,3 +980,70 @@ The mechanism is not a defect in this repo's descriptions. `superpowers:brainsto
 Also worth recording: `AskUserQuestion` is **not available** in headless `-p` sessions. S13 tried it, found it missing, and fell back to asking in prose — the gate held either way, which is a good robustness property of how 8.3 was written, but any future harness must not treat "no AskUserQuestion call" as a gate failure.
 
 **On the eval's own reliability:** the first batch returned `API 529 Overloaded` on 8 of 13 scenarios. Those are infrastructure, not findings, and a naive scorer would have recorded 8 failures. The re-run with backoff passed all 8 on the first attempt. **Any automated runner for this eval must distinguish `api_error_status` from a real negative result** — otherwise it will manufacture findings on a bad afternoon.
+
+--- New session: 2026-07-30 — step back from the close-the-loop set: reconcile the whole open backlog against ground truth, then plan the remaining 16 items as classes rather than issues. ---
+
+### Entry 062 — Backlog reconciliation + #227 mechanism correction [decision] [plan]
+
+**Date:** 2026-07-30
+**Environment:** Linux VM, `main` @ `7d5ae1f`, 0/0 divergence from `origin/main` (D17 check run). personal-plugin 11.6.0 / bpmn-plugin 4.4.0 / slide-gen 1.3.0 / marketplace 3.3.0. Working tree carried 2 uncommitted doc files from the prior session's clear-prep flush (CLAUDE.md version-bump rule + LAB_NOTEBOOK living sections) — not lost work, just uncommitted.
+**Status:** IN PROGRESS
+
+**Objective:** Before executing any more of the close-the-loop set, establish that the local task list, the GitHub issue list, and the notebook's Open-Backlog row all describe the same 16 items; then group those items by root cause rather than by issue number and sequence them so the highest-leverage debt is eliminated first.
+
+**Hypothesis:** (a) `task_sync sync --plan` shows near-zero drift, because #229 synced hours ago — expect only bookkeeping deltas, no creates and no pushes; (b) the 16 issues collapse into a small number of *classes*, so a plan organized by class will be materially shorter than one organized by issue; (c) at least one issue is wrong as filed, because E060 measured a **22-of-24** wrong-as-filed base rate on this same audit-derived backlog and these 16 have not been through that verification. Measurable: local open-task issue numbers == `gh issue list --state open` numbers, exactly.
+
+**Rollback Plan:** Read-only through the reconciliation except for one `task_sync sync --apply`, which writes `tasks.json` + regenerates `TASKS.md`. ~~`tasks.json` is git-tracked ⇒ `git checkout -- tasks.json` reverts it~~ — **this premise was wrong and is corrected below: `tasks.json` is gitignored, so there is no git undo for it.** The applied delta was one pull of #228's body, re-fetchable from the tracker at any time, so the practical rollback is "re-run `sync`". `TASKS.md` is gitignored and regenerated by the next mutating command. The plan proposed at the end of this entry modifies nothing until approved. No GitHub writes: the plan carries `creates: 0` and `pushes: 0`, so `--apply` cannot mutate the tracker.
+
+**Reconciliation result — the three lists agree exactly.** 16 open locally, 16 open on GitHub, same numbers: `169, 170, 171, 198, 199, 200, 206, 210, 216, 217, 218, 223, 224, 226, 227, 228`. Zero local-only tasks, zero orphans, `creates: 0`, `pushes: 0`, `skipped_adopts: 0`, `confidentiality_findings: 0`. Hypothesis (a) confirmed. The prior session's stale-`priority` repair note (memory `github-issues-workflow`) is discharged — #189 is closed and no priority field is null on any open task except #169/#170/#171, which correctly carry no priority label on GitHub either.
+
+Two bookkeeping deltas only:
+
+| Delta | Item | Substance |
+|---|---|---|
+| `pulls: 1` | #228 | Body/label refresh — the issue was edited after the last sync. No decision needed |
+| `conflicts: 1` | #205 (`t-2e37ad`) | **Representational, not substantive.** Local holds `state: closed` + raw label `priority/P3`; remote holds the normalized `status: done` + `priority: P3`. Both sides say *done, P3*. Recommendation is `local` (last-write-wins), but `local` implies a `gh issue edit` on an already-closed issue for zero content change, so `remote` is the cheaper resolution with identical meaning |
+
+Applied pull-only (`sync --apply` with **no** `--decisions` file): `0 create(s), 0 push(es), 1 pull(s); 1 conflict(s) surfaced`. The #205 conflict was deliberately left undecided — per the skill's own rule an undecided conflict is untouched and simply resurfaces, which is the safe default when the resolution is a user call rather than a mechanical one.
+
+**Unfiled finding, surfaced by the rollback plan being wrong: `tasks.json` is gitignored, which silently reversed D34 and disabled the cross-machine merge base.**
+
+Writing the rollback plan asserted "`tasks.json` is git-tracked." It is not — `.gitignore:241-242` ignores both `TASKS.md` **and** `tasks.json`, added by PR #175 (`3c47f68`, 2026-07-18, four days after the design landed). The design is unambiguous in the other direction (`docs/plans/2026-07-18-task-sync-design.md`):
+
+- `:64` — "**`tasks.json`** — repo root, **committed**. The list plus the `last_synced` merge base. **Committed so the base travels between the user's two machines via git.**"
+- `:65` — `TASKS.md` … **gitignored** — the *only* file the design says to ignore.
+- `:100` — "One list, always the safe version — so **`tasks.json` is fine to commit (even in a public repo)** and fine to sync."
+- `:129` — "Two machines → `git pull` before syncing so you reconcile against the latest base; the committed `last_synced` makes it safe."
+
+**PR #175's stated rationale** — "in this public repo the shared/canonical backlog is the GitHub issues, not a committed personal task list … prevents accidentally publishing the task list" — is a defensible *position*, but it is the exact concern `:100` had already answered, and the confidentiality subsystem (D34's one-list model, D36's `scan-apply`, the keep/redact/remove/anonymize dispositions remembered by content hash) exists for no other purpose than making the list safe to commit. So #175 re-solved a solved problem and paid for it with the merge base.
+
+**What it actually costs.** The 3-way classification that D34/D35/D37 spent three decisions tuning is defined against a *shared* `last_synced` base. With the file machine-local, the owner's second machine (Windows laptop — see the global CLAUDE.md dual-environment section) holds its own base, so on that machine every issue classifies as `NEW_REMOTE` and adopts fresh: no `CHANGED_BOTH`, no conflict surfacing, no last-write-wins. Not data loss (the tracker is canonical and permanent by D34), but the conflict-detection half of the engine is inert across exactly the two-machine topology it was designed for. It also strands the confidentiality machinery, which now sanitizes a file that never leaves the machine.
+
+**No Decision Log entry records the reversal** — which is why it stayed invisible for 12 days and why the notebook, the design doc, and `.gitignore` currently disagree with each other. This is D34's own failure mode one level up: the rule that "every decision must be logged with alternatives" (Rule 4) is what would have caught it. Filed as **#230** rather than fixed inline — the right resolution (commit it, or amend D34 to bless local-only and delete the orphaned rationale) is a design call, not a chore.
+
+---
+
+**The 16 items are 6 classes, not 16 problems.** Hypothesis (b) confirmed. Grouping by root cause rather than by issue number collapses the backlog and, more usefully, shows that three separate issues are one missing gate:
+
+| Class | Items | Root cause |
+|---|---|---|
+| ① A documented step with no gate behind it | #226, #210, #218 | The repo's most-repeated defect (E043, E056, E057). #226 = version bump, #210 = CHANGELOG in both files, #218 = a `Last Verified` stamp nobody backs. **One gate closes all three** |
+| ② "Both units tested" ≠ "the call sequence tested" | #224 | E049, and E061's `bug_001` surviving at 96% line coverage |
+| ③ Eval results are not trustworthy | #228, #227 | The eval defines no harness, and the harness decides the outcome |
+| ④ Model calibration | #198, #200, #199-remainder | Deferred — the 13/14 result gives no evidence the dials are mis-set |
+| ⑤ Not schedulable until re-derived | #217, #230 | Filed claims that verification has already falsified, or that were never verified |
+| ⑥ Real projects, own plan each | #216, #206-context-economy-half, #171, #169/#170 | Mislabeled as hygiene by their `P3` tags |
+
+**Three framing corrections, each verified against the tree before being acted on.**
+
+1. **#227's two leading options are both blocked, and its supporting evidence is wrong.** `superpowers/skills/brainstorming/SKILL.md:61` — "The terminal state is invoking writing-plans. Do NOT invoke frontend-design, mcp-builder, or **any other implementation skill**" (byte-identical in cached 6.1.1 and 6.2.0). So brainstorming is not *failing* to hand off to `bpmn-generator`; it is **forbidden** to, and `bpmn-generator` is unreachable in that session by any sanctioned route. Option 1 (strengthen the description) cannot win either: `using-superpowers` states a priority *ordering*, not a similarity contest, and `bpmn-generator` already lists "build workflow" verbatim as a trigger and still lost. **E061 and the issue both cite S7 as proof the chain works — brainstorming never fired in S7.** S7 is evidence that skill *chaining* works; no scenario in the run tested brainstorming's handoff. What we own is the eval: S4's `Must` asserts an outcome owned by another marketplace's doctrine, which is this repo's own "a check restating an external truth will agree with the bug" rule pointed outward. Both `Must NOT` criteria — the ones that *are* about our descriptions — passed. Correction posted to #227.
+
+2. **#199 was two issues.** Its phase-numbering and phantom-taxonomy defects are not calibration; they are wrong documentation in the deepest planning skill, about to be exercised by the planning pass that schedules this backlog. Extracted to **#231**; #199 keeps the calibration half and stays deferred. Verification while extracting found the phantom-taxonomy defect at **eight** sites, not the three (`:89,236,244`) filed — E061 finding 1 again, third occurrence.
+
+3. **#206 is inventory drift (minutes) plus ~7 oversized SKILL bodies (a refactor)** wearing one `P3` label. Only the first half is hygiene; the second belongs to class ⑥.
+
+**Verification found the phantom-taxonomy defect is load-bearing, not cosmetic.** `ultra-plan` conditions three behaviours on the undefined scale — whether to run the Phase 0 constitution check (`:89`), whether to emit an ADR (`:222,236,315`), and whether to generate a creative-branching comparison (`:238,240,242,244`). `plan-gate` defines Paths A/B/B.5/C/D/D.5/E/F and **no L-levels at all**, and no mapping exists anywhere in the repo. The skill still produces output; it just makes every skip/no-skip call on an invented value, which is indistinguishable from working. The phase numbering has the same property: `:350` cites "Change sets (Phase 2c)" — the correct logical name — while the heading it points at reads `3c`, so the file contradicts itself in both directions and a reader cannot recover intent from context.
+
+**Scope decision (D58).** User approved classes ①②③⑤ plus the hygiene half of ⑤/E and the two new issues: **#206 (inventory half), #210, #217, #218, #223, #224, #226, #227, #228, #230, #231** — 11 items. Deferred: #198/#200/#199-remainder (④), #206's context-economy half, #216, #169/#170/#171 (⑥).
+
+**Planning depth decision (D59).** Full `/ultra-plan` with the Phase 1 verification fan-out, not a direct write-up. Basis: E060 measured a **22-of-24 wrong-as-filed** rate on this same audit-derived backlog, and these items have not been through that verification — a fact this session has already reconfirmed three times unprompted (#227's mechanism, #199's eight-vs-three sites, #230 found only because a rollback plan asserted something false). Planning from the filed text would encode at least #217's three known-wrong claims.

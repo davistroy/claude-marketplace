@@ -1,6 +1,7 @@
 # Implementation Plan
 
 **Generated:** 2026-07-29
+**Completed:** 2026-07-30 — 42/42 items, merged `1382a8a` (#222); released 11.6.0 / 4.4.0 / 1.3.0 in `49face4` (#225). Execution narrative: LAB_NOTEBOOK Entry 061.
 **Based On:** `/ultra-plan` over the 24-item open backlog (LAB_NOTEBOOK E060). Phase 1 investigation ran 11 parallel Explore agents; **22 of 24 issues required correction**, so this plan encodes the *investigated* shape of each item, not the filed text. Prior plan (task-sync build, COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v11.md`.
 **Total Phases:** 8
 **Estimated Total Effort:** ~42 work items across ~70 files (predominantly markdown behavior-surfaces; one Python change set, one CI gate, two ADRs)
