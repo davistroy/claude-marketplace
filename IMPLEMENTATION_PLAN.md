@@ -402,8 +402,8 @@ Rubric rows `:226` and `:228` restate the same unowned assertion at file level. 
 
 ---
 
-#### 3.3 File the upstream report against superpowers
-**Status: PENDING**
+#### 3.3 File the upstream report against superpowers — DESCOPED 2026-07-30
+**Status: DESCOPED 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #227
 **Depends On:** 3.2
@@ -419,8 +419,10 @@ The user-facing dead-end is only fixable upstream. `brainstorming/SKILL.md:61` m
 3. [ ] Link it from #227 and close #227
 
 **Acceptance Criteria:**
-- [ ] WHEN #227 is closed THEN it SHALL link both the eval re-scope commit and the upstream issue
-- [ ] The report makes no claim about this repo's descriptions being at fault
+- [x] WHEN #227 is closed THEN it SHALL link the eval re-scope commit (the upstream-issue half is descoped)
+- [x] ~~The report makes no claim about this repo's descriptions being at fault~~ — moot; no report filed
+
+**DESCOPED by owner decision, 2026-07-30.** The upstream half — a public bug report on `obra/superpowers` — was declined. #227 closes on the eval re-scope alone (items 3.1/3.2), which is the part this repo owns and controls. **Consequence, recorded rather than left implicit:** the user-facing dead-end is unreported to the only party who can fix it. `brainstorming/SKILL.md:61` still makes `writing-plans` the sole permitted successor, so for any request phrased with a creation verb the domain skill remains unreachable by a sanctioned route, for every domain skill in this marketplace — not just `bpmn-generator`. Our evals no longer *fail* on it because they no longer assert it; the behaviour itself is unchanged.
 
 ---
 
