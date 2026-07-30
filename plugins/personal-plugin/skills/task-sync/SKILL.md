@@ -43,6 +43,46 @@ PYTHONPATH="$TOOL_SRC" python3 -m task_sync status
 resolved relative to the working directory). Pass `--tasks <path>` for any
 other location.
 
+### Version-skew preflight
+
+Run this once, before the first subcommand, and report the result if it warns:
+
+```bash
+python3 - "$PLUGIN_DIR" <<'PY'
+import json, os, re, sys
+served = re.search(r"/personal-plugin/(\d+\.\d+\.\d+)(?:/|$)", sys.argv[1])
+served = served.group(1) if served else None
+reg = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
+try:
+    entries = json.load(open(reg))["plugins"]["personal-plugin@troys-plugins"]
+    installed = entries[0]["version"]
+except Exception:
+    installed = None
+if served and installed and served != installed:
+    print(f"WARNING: this session is serving personal-plugin {served}; "
+          f"{installed} is installed. Run /reload-plugins to pick it up "
+          f"(a full restart also works). "
+          f"Until then this skill body may be older than the bundled tool.")
+else:
+    print(f"version-skew: none ({served or 'unknown'})")
+PY
+```
+
+**Why this exists.** A running Claude Code session serves the plugin version it
+resolved at start-up. `claude plugin update` writes `installed_plugins.json` and
+prints "Restart to apply changes", but it does **not** change what the current
+session is already serving. So a long-lived session can run the **current**
+bundled tool from repo source while reading a **stale** skill body — a current
+tool against an old contract, with no error anywhere. That is #232: a session
+served an 11.3.0 body whose plan-JSON key list predated `orphans`, so the orphan
+findings the tool emitted were never read.
+
+**The remedy is `/reload-plugins`, not necessarily a restart** — measured, not
+assumed: a `/reload-plugins` re-resolved all three troys-plugins in place and
+brought a session that had been serving 11.3.0 since the previous day up to the
+installed 11.7.0. The preflight is a warning, not a gate: an older body is
+usually still usable, and the caller should know rather than be blocked.
+
 ## First Run: Auto-Init
 
 Before any subcommand, check whether `tasks.json` exists at the target repo
@@ -112,12 +152,27 @@ This is **strictly read-only** — it never writes `tasks.json` or `TASKS.md`
 and never calls the tracker's write API. If the repo has no tracker remote,
 the tool prints "local-only mode" and exits 0; there is nothing to plan.
 
-Parse the JSON: `creates`, `pushes`, `pulls`, `conflicts`, `skipped_adopts`,
-`orphans`, and `confidentiality_findings`. `skipped_adopts` is a list of tracker
-issue numbers left unadopted by the adopt window — not an action, but always
-worth surfacing (see step 2). `orphans` is a list of local tasks whose linked
-issues are missing from the fetched list (pagination, saturation, or deletion),
-surfaced for human review (see step 4). Field shapes: `references/sync-semantics.md`.
+**Enumerate the top-level keys the tool actually emitted — do not parse for a
+remembered list.** Read every key present in the JSON, then map each to its
+handling below. Any key you do not recognize is a finding: **surface it to the
+user by name and do not proceed to `apply`** until they say whether it matters.
+
+The keys known at the time this body was written are `creates`, `pushes`,
+`pulls`, `conflicts`, `skipped_adopts`, `orphans`, and
+`confidentiality_findings`. `skipped_adopts` is a list of tracker issue numbers
+left unadopted by the adopt window — not an action, but always worth surfacing
+(see step 2). `orphans` is a list of local tasks whose linked issues are missing
+from the fetched list (pagination, saturation, or deletion), surfaced for human
+review (see step 4). Field shapes: `references/sync-semantics.md`.
+
+**That list is a convenience, not the contract — the tool's output is the
+contract.** This inversion is the whole point: a session can serve a skill body
+older than the bundled tool (see the version-skew preflight in Setup), and when
+that happened in #232 a body predating `orphans` parsed for six keys and
+silently dropped the seventh. It reported the backlog fully reconciled while
+discarding the exact finding `orphans` was added to surface. Enumerating what is
+there cannot fail that way: an unrecognized key stops the run instead of
+vanishing. A missing key is the benign direction — treat it as empty.
 
 By default, a remote-only issue (`NEW_REMOTE` — no local task references it
 yet) is only adopted into `pulls` if it is still open, or closed within

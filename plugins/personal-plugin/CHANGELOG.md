@@ -5,6 +5,20 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.9.0] - 2026-07-30
+
+Mitigations for #232 — a session serving a stale skill body against a current bundled tool. Characterized in LAB_NOTEBOOK Entry 066; the root cause is **not** an upstream loader bug.
+
+### Added
+- **`task-sync`: version-skew preflight.** Compares the version segment of `$CLAUDE_PLUGIN_ROOT` (the path the session is actually being served from) against `installed_plugins.json`, and warns when they differ. A warning, not a gate — an older body is usually still usable and the caller should know rather than be blocked. Only warns on a segment that parses as a version, so a repo-source `PLUGIN_DIR` reports "unknown" instead of a false positive.
+
+### Changed
+- **`task-sync` parses the keys the tool emits, instead of a key list restated in prose.** The skill now enumerates the plan JSON's actual top-level keys, maps each to its handling, and **halts on an unrecognized key** rather than ignoring it. The known-key list is documented as a convenience and explicitly not the contract. This is what failed in #232: a body predating `orphans` parsed for six keys, silently dropped the seventh, and reported the backlog fully reconciled while discarding the exact finding `orphans` was added to surface. Enumerating what is present cannot fail that way, and a *missing* key is the benign direction (treat as empty).
+
+### Notes
+- Evidence for the mechanism is on disk: Claude Code writes `.in_use/<pid>` refcount markers into each served cache version directory, and the count a live process holds scales with its age (a session from 2026-07-15 pinned four personal-plugin versions; one from 2026-07-30 pinned one). `claude plugin update` prints "Restart to apply changes" — it provisions the next process, not the running one. The remedy is **`/reload-plugins`**, which was measured to re-resolve all three plugins in place; a full restart is not required. Markers are additive and never cleaned up, which is why the count tracks process age.
+- **Pruning old cache version directories is now documented as unsafe** and was rejected as a candidate fix. The `.in_use` markers exist to stop the cache GC deleting a tree a live process is still serving; pruning would break running sessions.
+
 ## [11.8.0] - 2026-07-30
 
 Plan identity for `/implement-plan`'s state file (#235). A completed run's state was inherited by a different plan written to the same path, and the run reported success having implemented nothing.
