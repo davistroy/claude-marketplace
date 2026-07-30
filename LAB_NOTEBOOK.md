@@ -1312,3 +1312,51 @@ This is the "derive it, don't restate it" rule again, at one more remove: I deri
 - Moving `references/implement-plan-state-schema.md` in the same commit. `implement-plan.md:90` tells the orchestrator to read that file for the exact shape, so shipping the guard without it would have reproduced #232's stale-contract shape inside the fix for #235.
 
 **Not done, deliberately.** The two prefix-decorated headings in the live `IMPLEMENTATION_PLAN.md` were left as-is. That plan is complete and awaiting archival to v13 (D46); the new `awk` derivation handles both forms, so normalizing them would edit an execution record to satisfy a regex that no longer needs it — the same mis-scoping E063's Phase 8 DoD made against a historical audit report.
+
+### Entry 066 — Characterize #232: the loader served a version the manifest does not name [debug] [plugin]
+
+**Date:** 2026-07-30
+**Environment:** Linux VM, branch `investigate/232-loader-version-resolution` off `main` `40eebd8` (PR #237 merged). Repo personal-plugin **11.8.0**; installed cache **11.7.0**; cache holds 14 version directories, `10.0.0` through `11.7.0`.
+**Status:** COMPLETE — mechanism identified from on-disk evidence; #232's upstream premise refuted; two mitigations shipped in 11.9.0
+
+**Objective:** Characterize #232 before proposing any fix — the Skill tool served `personal-plugin/11.3.0/skills/task-sync` while `installed_plugins.json` named 11.6.0 as its single installed entry, and the *content* served was genuinely 11.3.0 (no `orphans` section). Determine what the loader actually resolves on, whether it reproduces, and what the repo can defend against. Per #232 item 3 the root cause is expected to be upstream in Claude Code, so the deliverable here is evidence and a repo-side mitigation decision, not a loader patch.
+
+**What makes this hard, and it is recorded in the issue:** the resolution is **not uniformly stale**. E061's A21 eval run demonstrably saw 11.6.0 bodies — both `lab-notebook` and `create-wiki` were model-invoked, which 11.3.0 forbids via `disable-model-invocation: true`. So a single observation of "correct" proves nothing, and any mitigation that checks once is inadequate by construction.
+
+**Hypotheses, in the order they will be tested:**
+
+- **H1 — `.in_use/<pid>` markers pin a version.** The bpmn-plugin cache carries `.in_use/3585179` and `.in_use/1870618`, which look like per-process refcount markers. If the loader prefers a version some live process has marked in use over the one the manifest names, a long-running session that once loaded 11.3.0 would keep serving it. This is the strongest candidate because it also explains the non-uniformity.
+- **H2 — resolution is by directory sort order.** Lexicographic max over 14 dirs gives `11.7.0` today and would silently pick wrong the moment an `11.10.0` exists, but it does not explain 11.3.0.
+- **H3 — resolution is by mtime.** Would explain an arbitrary version being served.
+- **H4 — a second index disagrees with `installed_plugins.json`.** `plugin-catalog-cache.json` and `known_marketplaces.json` both sit beside it and are candidates for naming a different version.
+
+**Hypothesis:** exactly one of H1–H4 accounts for the observation, and it is discoverable from on-disk state without instrumenting Claude Code. Measurable success criteria: (a) the mechanism is identified by *evidence on disk* rather than inferred from the symptom; (b) whatever is concluded, it explains **both** the 11.3.0 observation and E061's correct 11.6.0 observation — an explanation that only covers the failure is incomplete and this notebook has a standing record of those being wrong; (c) if no mechanism is identifiable, that is reported as such rather than dressed up as a finding.
+
+**Rollback Plan:** N/A — read-only. Every probe in this entry reads files under `~/.claude/plugins/` and runs `claude plugin` subcommands that report rather than mutate. The one exception is a deliberate `claude plugin update personal-plugin@troys-plugins` to 11.8.0, which is a normal, repeatable operation whose undo is another `claude plugin update`; no repo file and no version directory is deleted. **Nothing is pruned from the cache during characterization** — the 14 retained version directories are the evidence, and deleting them would destroy the ability to reproduce.
+
+**Results.**
+
+**H1 is the mechanism, and the evidence is a dose-response curve rather than a single observation.** Claude Code writes `.in_use/<pid>` refcount markers — `{"pid":N,"procStart":"..."}` — into each cache version directory a process serves. The count a *live* process holds scales with its age:
+
+| PID | started | personal-plugin versions pinned |
+|---|---|---|
+| 1329493 | 2026-07-15 11:43 | **4** — 10.2.0, 10.3.0, 11.0.0, 11.2.0 |
+| 193416 | 2026-07-29 09:55 | **2** — 11.3.0, 11.5.1 |
+| 2482964 | 2026-07-28 15:22 | 1 — 11.3.0 |
+| 242509 | 2026-07-30 14:41 | 1 — 11.7.0 |
+
+**The session that filed #232 is the one I am writing this in, and it is still reproducing.** PID 193416 holds `personal-plugin/11.3.0`, `bpmn-plugin/4.3.1` and `slide-gen/1.2.0` — exactly the versions current on 2026-07-29, the day it started — while `installed_plugins.json` names 11.7.0 / 4.4.0 / 1.4.0 after three `claude plugin update` runs I performed *from inside this same session* earlier today. The staleness is systematic across all three plugins and keyed to process start time, not to any particular skill.
+
+**#232's item 3 is refuted: there is nothing to report upstream for the main effect.** `claude plugin update` prints **"Restart to apply changes."** — I have that string in this session's own transcript from today's updates. A running process serving what it resolved at start-up is the documented contract, not a loader bug. The issue reasoned from the symptom (manifest says X, loader serves Y) to an upstream defect without checking what the update command says it does. Ruled out along the way: project/local scope pinning (no `.claude/settings*.json` in the repo), and a competing index (`plugin-catalog-cache.json` names no plugin version; `known_marketplaces.json` carries only marketplace-level `lastUpdated`).
+
+**This also explains the non-uniformity that the issue correctly flagged as making it dangerous.** E061's A21 eval saw *correct* 11.6.0 bodies because it ran `claude -p` — a fresh process per scenario, resolving at its own start-up. Same machine, same day, opposite answer, purely as a function of process age. Any mitigation that checks once is inadequate for exactly this reason, and the issue was right to say so.
+
+**One thing is NOT explained, and it is the part #232 actually observed.** PID 193416 pinned **two** personal-plugin versions three seconds apart at start-up — 11.5.1 at 09:58:45 and 11.3.0 at 09:58:48 — and the body served for `task-sync` was the **older** of the two. Why one process resolves two versions of one plugin, and why the older wins, is not determinable from on-disk state. Recording it as unexplained rather than folding it into the tidy story: the age correlation above is solid, this is not, and it is the narrow piece that would be worth an upstream report if it recurs.
+
+**Mitigations shipped (11.9.0), and the choice between them matters more than either.**
+
+- **Durable — `task-sync` now enumerates the keys the tool emitted and halts on an unrecognized one**, with the known list documented as a convenience and explicitly not the contract. This makes staleness *harmless* rather than merely detectable: a body predating `orphans` would surface it as an unknown key instead of dropping it. It is the "derive it, don't restate it" rule applied to a skill body reading a tool's output.
+- **Detective — a version-skew preflight** comparing `$CLAUDE_PLUGIN_ROOT`'s version segment against `installed_plugins.json`. Negative-tested 7 ways, including against this session's **live** skew, where it correctly emits `serving 11.3.0; 11.7.0 is installed`. The test extracts the script from the shipped `SKILL.md` text rather than a copy, so it cannot drift from what ships. Tightened mid-test from `([^/]+)` to `(\d+\.\d+\.\d+)` after noticing the loose form would warn spuriously on any non-root `PLUGIN_DIR`; it now reports `unknown` and stays silent unless it can positively identify a version.
+- **Rejected — pruning old cache versions**, which #232 listed as a candidate. It is actively unsafe: the `.in_use` markers exist precisely to stop the cache GC removing a tree a live process is still serving, and this session is *currently serving* 11.3.0. Pruning would have broken running sessions to fix a staleness that a restart resolves.
+
+**Scope was checked, not assumed.** Four components invoke a bundled tool (`task-sync`, `visual-explainer`, `summarize-feedback`, `bpmn-to-drawio`); only `task-sync` restates a structured-output key contract in prose, so only it needed the parsing change. That is why this is not a repo-wide sweep — measured, not guessed.

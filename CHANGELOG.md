@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.9.0] - 2026-07-30
+
+Mitigations for #232 — a long-lived session serves the plugin version it resolved at start-up, so a current bundled tool can be read against a stale skill-body contract.
+
+### Added
+- `task-sync` version-skew preflight: warns when the served `$CLAUDE_PLUGIN_ROOT` version differs from `installed_plugins.json`.
+
+### Changed
+- `task-sync` enumerates the plan JSON's actual keys and halts on an unrecognized one, rather than parsing for a list restated in prose.
+
 ## [personal-plugin v11.8.0] - 2026-07-30
 
 Plan identity for `/implement-plan`'s state file (#235) — a completed run's state was inherited by a different plan at the same path and reported success having done nothing.
