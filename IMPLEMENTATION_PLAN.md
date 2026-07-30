@@ -1,1807 +1,1050 @@
 # Implementation Plan
 
-**Generated:** 2026-07-29
-**Based On:** `/ultra-plan` over the 24-item open backlog (LAB_NOTEBOOK E060). Phase 1 investigation ran 11 parallel Explore agents; **22 of 24 issues required correction**, so this plan encodes the *investigated* shape of each item, not the filed text. Prior plan (task-sync build, COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v11.md`.
+**Generated:** 2026-07-30
+**Based On:** `/ultra-plan` over the 13-item close-the-loop + hygiene backlog (LAB_NOTEBOOK E062). Phase 1 dispatched **6 parallel Explore agents** clustered by shared code path; **every cluster returned corrections**, including two to issues filed earlier in the same session. This plan encodes the *investigated* shape of each item, not the filed text. Prior plan (16-issue correctness backlog, 42/42 COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v12.md`.
 **Total Phases:** 8
-**Estimated Total Effort:** ~42 work items across ~70 files (predominantly markdown behavior-surfaces; one Python change set, one CI gate, two ADRs)
+**Estimated Total Effort:** ~85 work sites across ~35 files — predominantly markdown behavior-surfaces, plus one new CI gate script, one generator extension, and one Python test module
 
 ---
 
 ## Executive Summary
 
-This plan fixes **16 issues that are either producing wrong output today or actively multiplying defects into future work**. It deliberately defers 8 calibration and hygiene issues to a later plan — none of those is currently wrong, and front-loading them behind silent-corruption bugs would be the wrong ordering.
+This plan closes 13 open issues that share three root causes, none of which is "a bug in a feature." The first is **a documented step with no gate behind it** — the repo's most-repeated defect (E043, E056, E057), now instantiated as a missing version-bump check (#226), 28 missing CHANGELOG entries (#210), and 12 freshness stamps that assert a verification nobody performed (#218). The second is **a check that restates an external truth and therefore drifts into agreeing with the bug** — eval scenario S4 asserting dispatch behavior another marketplace owns (#227), and `ultra-plan.eval.md:43` having copied the very phase-numbering defect it should catch (#231). The third is **fixing instances while leaving the mould** — the generator layer that mints defects into every future artifact (#218's two document templates, #223's three interaction templates, #206's under-scoped inventory generator).
 
-Three findings from investigation reshaped the work and are load-bearing throughout:
+Phase 1 investigation changed the plan's shape four times. My own opening hypothesis — that #226, #210 and #218 were one gate — was **refuted on evidence** (D61): the three differ on input, offline-decidability, CI-runnability and event-leg sensitivity, and #218's ground truth lives behind an API key doctrine forbids CI from holding. The honest decomposition is 2 + 1. Worse, #226 and #210 turned out to be in **direct tension** on `plugins/*/CHANGELOG.md` — #210's own remediation is a CHANGELOG-only PR with no version bump, which #226's gate would hard-block, while #210's enforcement half wants that path mandatory on a bump. That forces the backfill ahead of the gate and the gate into two conditional rules rather than one.
 
-1. **The dynamic-injection escaping rule is inverted.** The harness blanks an inline-code span unless the character before its opening backtick is `` ` `` or `!`, so the *tidy* `` `` !`cmd` `` `` form is **live** and the *sloppy* `` `!`cmd`` `` form is **inert**. This is why `prime` (7 sites) and `explain-project` (2) — the two largest blocks cited in #183 — execute nothing, while two components crashed on every invocation (already fixed, 11.5.1). Phase 1 codifies the rule as ADR-0011 and builds the only linter that can enforce it: one that **replays the pre-pass rather than grepping**.
-
-2. **#202 as filed would delete working features.** Six of the eight "unverified" frontmatter keys are real. The actual defect is *correct keys documented with wrong semantics* — `paths:` is a load-gate, not a save-trigger; `hooks:` takes an event-record, not `pre:`/`post:`; `isolation:` is agent frontmatter, not skill. Phase 5 inverts the remedy accordingly.
-
-3. **The generator layer is the highest-leverage surface in the repo.** Five files (`commands/new-skill.md`, `references/templates/skill.md`, `common-patterns.md`, `patterns/advanced-features.md`, `new-skill-examples.md`) are implicated by six separate issues and propagate every defect into every future skill. Phase 5 treats them as one atomic change set rather than six colliding PRs.
-
-The plan groups by **root cause, not by issue number**. Four issues (#183, #192, #197, #201) are split across phases where their sub-defects belong to different causes; two (#183/#190) share a single line and are fixed in one edit.
+Interrelated issues are grouped into integrated change sets rather than isolated patches: #228 and #227 are one item because they edit the same file and two PRs would revert each other's line context; #231 is atomic across three files because fixing the skill without its eval converts a passing check into a false failure; #223 and #233 are one set because they are the same defect class. Four design forks were resolved by the user with explicit alternatives recorded as D62–D65.
 
 ---
 
 ## Plan Overview
 
-Ordering is driven by three constraints established in Phase 2 interaction mapping:
+Phases are ordered by **dependency, not priority label**. The critical path is **1 → 2** (CHANGELOG truth must land before the gate that would block it). Phases 3–8 share no files with each other or with the critical path and are fully parallelizable.
 
-- **Active harm first.** Phases 2–4 fix things producing wrong output now: bpmn-to-drawio silently corrupts diagram layout, `build-cfa-deck`'s two slide-removal implementations both fail, and task-sync can silently clobber a remote issue. These precede the documentation multipliers.
-- **Doctrine before its dependents.** Phase 1 must land before Phase 7 touches `prime`: without the corrected injection rule, a well-meaning "tidy the backticks" edit would **switch on 7 shell executions that have never run**, four of which `Bash(git:*)` rejects for containing pipes — breaking a skill that currently works.
-- **Enumerations before enforcement.** Phase 5 corrects the `agent:` vocabulary that Phase 7 then applies; Phase 5 corrects the `disable-model-invocation` definition that Phase 8 then acts on.
+Two phases carry a trap that `Depends On` alone would miss, so both are marked Sequential internally: Phase 4 (`ultra-plan`) must edit `SKILL.md`, its eval, and `adr-template.md` in one commit; Phase 3 (evals) must apply #228's section and #227's re-scope to one file in one pass.
 
-The critical path is **1 → 5 → 7 → 8**. Phases 2, 3, and 4 are independent of it and of each other, and can run in parallel with anything.
+Phase 2 is the highest-risk item in the plan and the only one that can redden `main`. It is the sole `opus`-tier phase for that reason, and it carries a mandatory negative test before wiring.
 
 ### Phase Summary Table
 
 | Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies | Execution Mode |
 |-------|------------|------------------|-----------------|--------------|----------------|
-| 1 | Injection doctrine + `ship`/`clear-prep` | ADR-0011; corrected root-cause doc; guarded injections; two dead gates repaired; a pre-pass-replaying linter | M (~7 files, ~250 LOC) | None | Sequential |
-| 2 | bpmn silent corruption + visual-explainer env vars | `HAS_DI` branch deleted; 15-var table; tool version truth | M (~8 files, ~200 LOC) | None | Parallel |
-| 3 | Hook recipes + build-cfa-deck | 3 recipes structurally correct; one working slide-removal impl; `CFA_ASSETS_DIR` | M (~7 files, ~250 LOC) | None | Parallel |
-| 4 | task-sync orphan handling + pagination | `ORPHAN_LOCAL` class; `SyncPlan.orphans`; fail-loud saturation; REST pagination | L (~10 files, ~600 LOC) | None | Sequential |
-| 5 | Generator / harness-feature catalog | ADR-0012; `paths:`/`hooks:`/`agent:`/`effort` corrected; fictional keys removed; tier aliases | L (~8 files, ~450 LOC) | Phase 1 (doctrine) | Sequential |
-| 6 | ADR-0005 enforcement + model-ID instances | CI gate (step), pre-commit Check 5, README fix, remaining stale IDs | M (~9 files, ~200 LOC) | None | Sequential |
-| 7 | `allowed-tools` grant sets | `Agent`/`Task` resolved; 10 components corrected; AskUserQuestion adopted | M (~16 files, ~250 LOC) | Phases 1, 5 | Sequential |
-| 8 | Trigger metadata + eval re-baseline | 11 skills resolved 3 ways; 2 new Phase-0 gates; evals re-baselined | M (~15 files, ~250 LOC) | Phase 5 | Sequential |
+| 1 | CHANGELOG truth (#210) | 28 backfilled entries across 3 plugin CHANGELOGs | M (~3 files, ~200 lines) | None | Sequential |
+| 2 | Release-integrity gate (#226 + #210 enforcement) | `scripts/check_version_bump.py`, deepened checkout, CI step, pre-commit check | L (~4 files, ~250 LOC) | Phase 1 | Sequential |
+| 3 | Eval trustworthiness (#228 + #227) | Harness section, 6 re-scoped scenarios, 2 rubric rows, upstream report | M (~3 files) | None | Sequential |
+| 4 | ultra-plan correctness (#231) | 29 sites across SKILL.md + eval + adr-template | M (~3 files) | None | Sequential |
+| 5 | `/unlock` actually works (#217) | `$TROY`→`BWS_ACCESS_TOKEN`, `allowed-tools`, probe leak | S (~3 files) | None | Sequential |
+| 6 | Inventory generator (#206) | `update-readme.py` target list, CLAUDE.md block, 6 deprecated sites | M (~10 files, ~80 LOC) | None | Sequential |
+| 7 | Consent-gate consistency (#223 + #233) | 4 gates converted, 3 generator templates | M (~8 files) | None | Parallel |
+| 8 | Freshness stamps + task-sync (#218 + #230 + #224) | 12 stamps deleted, D34 superseded, CLI-level decisions test | M (~13 files, ~150 LOC) | None | Parallel |
 
 ### Execution Hints
 
 | Phase | Model Tier | Context Budget | Notes |
 |-------|------------|----------------|-------|
-| All (default) | `sonnet` | Standard | Per-item Model Tier takes precedence |
-| 1 | `opus` | Extended | One line (`ship:30`) is owned by two issues and must satisfy both; the linter must be negative-tested before wiring |
-| 4 | `opus` | Extended | Reconcile-engine change with a documented never-clobber invariant (ADR-0010, D35) |
-| 5 | `opus` | Extended | Inverted remedy — the risk is deleting working capability, not missing a fix |
+| All (default) | `sonnet` | Standard | Predominantly markdown edits against fully-specified site lists |
+| Phase 2 | `opus` | Extended | The only phase that can redden a required check on `main`. Event-leg branching, shallow-clone semantics, and two conditional rules in tension — judgment work, not mechanical |
+| Phase 6 | `opus` | Extended | Mechanically edits an always-loaded file; the generator extension must preserve hand-written annotation prose while regenerating name lists |
 
 ### Milestones
 
 | Milestone | Phases | Description |
 |-----------|--------|-------------|
-| Correctness | 1–4 | Nothing in the repo silently produces wrong output. Shippable on its own. |
-| Class-closed | 1–6 | The defect *classes* are gated: injections linted, ADR-0005 enforced, catalog verified against the harness. |
-| Complete | 1–8 | Grant sets and dispatch metadata consistent; evals re-baselined under Opus 5. |
+| Gate restored | 1–2 | The repo can no longer ship a plugin change without a version bump or a CHANGELOG entry. Closes the defect that invalidated the last task's eval run |
+| Evidence trustworthy | 1–4 | Eval results mean something; the planning skill no longer routes on an invented variable |
+| Complete | 1–8 | All 13 issues closed; every generator that mints a defect is fixed alongside its instances |
+
+<!-- BEGIN PHASES -->
 
 ---
 
-## Phase 1: Injection Doctrine and the Guards Built On It
+## Phase 1: CHANGELOG Truth
 
+**Estimated Complexity:** M (~3 files, ~200 lines)
+**Dependencies:** None
 **Execution Mode:** Sequential
 
 ### Goals
 
-Establish the true semantics of `` !`cmd` `` injection as an ADR, correct the reference doc that taught the opposite, guard the injections that legitimately fail outside a git repo, repair two gates that cannot fire, and build a linter that can actually detect the defect class.
+- Restore all three per-plugin CHANGELOGs to agreement with the root CHANGELOG
+- Land before Phase 2's gate, which would otherwise block this very change
 
 ### Work Items
 
-#### 1.1 ADR-0011: dynamic-injection doctrine, and correct the root-cause doc ✅ Completed 2026-07-28
-**Status: COMPLETE 2026-07-28**
-**Model Tier: opus**
-**Recommendation Ref:** #183 (root cause)
-**Depends On:** None
-**Files Affected:**
-- `docs/adr/0011-dynamic-injection-doctrine.md` (create)
-- `plugins/personal-plugin/references/patterns/advanced-features.md` (modify)
-
-**Description:**
-`advanced-features.md:132` states that a failed injection produces empty output and surfaces no error. The decompiled handler `throw`s on a `ShellError`: `Promise.all` rejects, prompt expansion fails, and the skill never reaches the model. The doc teaches the opposite of the truth, and every unguarded injection in the repo traces to it. ADR-0011 records four facts: injections expand at **parse time** (before `$ARGUMENTS` exists); a **non-zero exit aborts skill load**; injections are **permission-checked against `allowed-tools`**; and the escaping rule is inverted, so documentation examples must use the nested form.
-
-**Tasks:**
-1. [x] Write `docs/adr/0011-dynamic-injection-doctrine.md` (status: Accepted) covering all four facts, with the `Jds`/`Cfo` mechanism and the LIVE/INERT table
-2. [x] Rewrite `advanced-features.md:113-132` to state both rules, replacing the false "failure is silent" sentence
-3. [x] Convert every example in that file to the inert nested form (6 currently-live forms; documentation-only, so nothing executes today, but they teach the dangerous shape)
-4. [x] Cross-link ADR-0011 from `CLAUDE.md`'s Verified Operational Rules
-
-**Acceptance Criteria:**
-- [x] WHEN a reader follows `advanced-features.md` THEN the guidance SHALL state that a non-zero exit aborts skill load, not that it yields empty output
-- [x] WHEN the extractor replay is run against `advanced-features.md` THEN it SHALL report 0 live injections
-- [x] ADR-0011 exists with status Accepted and is referenced from CLAUDE.md
-
-**Notes:**
-Evidence is in LAB_NOTEBOOK E059. Do not soften the escaping-rule table — its counterintuitiveness is the entire point.
-
-**Completion notes (2026-07-28):**
-- **Facts re-derived from the binary, not from E059's summary** (E039). `Jds`, `Cfo`, `WFe`, `en_`, and `Aee` were recovered verbatim from `~/.local/share/claude/versions/2.1.220` and are quoted in the ADR. The recovery surfaced a **fifth** live form E059 had not enumerated: `Cfo` unions a second matcher, `soy`, matching a fenced block whose info string is `!`, which runs against the **raw** text — a `!`-fenced block is never pre-passed and is therefore live regardless of context, including inside a quoted example. That is now F1, and it is the specific case R4 cites as invisible to any grep.
-- **The replay was negative-tested before its zeros were trusted** (E043): tidy-form fixture → LIVE=1, nested-form fixture → LIVE=0, in the same run that reported 0 for the edited files. Nine forms were enumerated by replay for the ADR's LIVE/INERT table, not reasoned about.
-- **`advanced-features.md` 6 → 0 live**, and the ADR and `CLAUDE.md` were both replayed to 0 as well. The ADR's first draft was itself **1 LIVE** — the literal `soy` regex contains a `!`-fence — which is why the ADR writes that regex as a string concatenation and why dangerous forms in it use a visible `\!` neutralizer.
-- **Risk-table row deliberately left `Open`.** "Someone 'tidies' `prime`'s backticks…" is scoped to **7.3**, and its mitigation has two halves: ADR-0011 landing first (done here) and 7.3 carrying an explicit do-not instruction (not done). Flipping it to `Mitigated` now would tell Phase 7's implementer the do-not instruction is unnecessary — the precise harm the row describes. It closes when 7.3 closes.
-
----
-
-#### 1.2 `ship`: guard the five git injections and repair the diff-size gate ✅ Completed 2026-07-28
-**Status: COMPLETE 2026-07-28**
-**Model Tier: opus**
-**Recommendation Ref:** #183, #190 (atomic)
-**Depends On:** 1.1
-**Files Affected:**
-- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
-
-**Description:**
-`ship:30` is a single line owned by two issues. #183 needs it exit-0-safe; #190 needs it to compute a number. It currently emits the literal string `deletions(-)` — `$NF` is always the trailing *word* of `git diff --stat`'s summary line, never a number — so the `> 500` comparison is string-vs-int and the gate has never fired. Two further defects the issue misses: the metric needs insertions **plus** deletions summed, and `git diff --stat` covers *unstaged* changes only, so the normal pre-ship state (everything already `git add`-ed) yields empty regardless of size.
-
-**Tasks:**
-1. [x] Guard `:15, :18, :21, :24, :27` with `2>/dev/null || echo "(not a git repository)"`
-2. [x] Replace `:30` with `git diff HEAD --shortstat 2>/dev/null | grep -oE '[0-9]+ (insertions?|deletions?)' | awk '{s+=$1} END {print s+0}'` — covers staged+unstaged, sums both, and `s+0` forces numeric `0` rather than empty
-3. [x] Repair the second dead gate at `:77` ("remote output above will be empty if not a git repo; abort if so") — unreachable today, and a false positive for a valid repo with no remote configured
-4. [x] Verify `:80` and `:275` need no text change once the injected value is numeric
-
-**Acceptance Criteria:**
-- [x] WHEN `ship` loads in a non-git directory THEN every injection SHALL exit 0 and the pre-flight SHALL abort on the sentinel rather than on expansion failure
-- [x] WHEN a 550-line change is staged THEN the diff-size gate SHALL evaluate `550 > 500` and route to `/code-review ultra`
-- [x] WHEN all changes are already staged THEN the gate SHALL still see the full line count
-- [x] The extractor replay reports 6 live injections in `ship/SKILL.md`, all exiting 0 in a non-git directory
-
-**Notes:**
-Verified empirically: `git diff HEAD~5 HEAD --stat | tail -1 | awk '{print $NF}'` returns `deletions(-)` on a 550-line change; the replacement returns `550`. Do not split this item — a #183-only fix leaves the gate broken, a #190-only fix leaves it exit-unsafe.
-
-**Completion notes (2026-07-28):**
-- **`:30` was edited once to satisfy both owners simultaneously.** The trailing `| awk '{... print s+0}'` is what makes it *both* exit-0-safe (#183) and numeric (#190): the pipeline's status is `awk`'s, so `git diff`'s 128 and `grep`'s no-match 1 are both swallowed without a `|| true`, while `s+0` coerces the empty accumulator to a bare `0`. A `2>/dev/null || echo "(sentinel)"` guard here would have satisfied #183 and *regressed* #190, since the gate would then compare a string again.
-- **Two defects beyond the issue's headline, both measured.** Old metric on a 550-line **staged** change → empty (`git diff --stat` is unstaged-only, so the normal pre-ship state was invisible); old metric on an unstaged change → `deletions(-)`. New metric: `550` staged, `2484` on `HEAD~5..HEAD`, `0` outside a repo. The `> 500` comparison had therefore never once evaluated as a number.
-- **Task 3 split into two checks rather than reworded.** The dead gate conflated "not a repo" with "remote is empty". Now pre-flight 1 branches on the `(not a git repository)` sentinel with an explicit *do not infer this from empty output* instruction, and a new pre-flight 2 catches the valid-repo-no-remote case with its own `git remote add origin <url>` message. That also closes a latent Phase 0 defect: an empty remote fell through step 3's `Otherwise` and was misclassified as `PLATFORM=gitea`.
-- **Verification, not inspection.** The `Jds`/`Cfo` replay was negative-tested in the same run (tidy fixture → LIVE, nested → INERT) and reports exactly **6 LIVE** in `ship/SKILL.md` — confirming the new prose (which names the sentinel and `git add` in inline spans) added no live site. Each of the 6 extracted commands was then executed verbatim in a scratch non-git directory: all exit 0.
-- **For 1.3:** the binary set of `:30` is now `git`, `grep`, `awk` (plus `echo` in the five guards) — `tail` is no longer invoked by any `ship` injection. `allowed-tools` was deliberately left untouched to avoid colliding with 1.3.
-
----
-
-#### 1.3 `ship`: grant the tools `--audit` needs ✅ Completed 2026-07-28
-**Status: COMPLETE 2026-07-28**
-**Model Tier: haiku**
-**Recommendation Ref:** #190
-**Depends On:** None
-**Files Affected:**
-- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
-
-**Description:**
-`:57-62` requires creating `.claude-plugin/` and appending `.claude-plugin/audit.log`, but `allowed-tools` grants no `Write` and no `Bash(mkdir:*)`. `Edit` cannot create a file. `commands/clean-repo.md:4` grants `Write` for the identical audit-log pattern.
-
-**Tasks:**
-1. [x] Add `Write` and `Bash(mkdir:*)` to `ship`'s `allowed-tools`
-2. [x] Add `Bash(awk:*)`, `Bash(grep:*)` for the injection pipes in `:33` (`:30` in 1.2 completion; `tail` removed in 1.2)
-
-**Acceptance Criteria:**
-- [x] WHEN `ship --audit` runs THEN it SHALL create the audit directory and append the log without a permission prompt
-- [x] Every binary invoked by a `ship` injection appears in its `allowed-tools`
-
-**Completion notes (2026-07-28):**
-- **Derived from body, not task description.** Line 33's injection uses `git | grep | awk`, not tail; 1.2's completion note confirms tail was removed. Audit mode (lines 64-77) requires Write (tool grant) + Bash(mkdir:*) (new) to create directory and log file.
-- **Final grants added:** Bash(mkdir:*) for `.claude-plugin/` directory creation, Bash(grep:*) for grep in line 33's injection pipeline, Bash(awk:*) for awk in line 33's injection pipeline, Write for `.claude-plugin/audit.log` append.
-
----
-
-#### 1.4 `clear-prep`: guard three git injections ✅ Completed 2026-07-28
-**Status: COMPLETE 2026-07-28**
-**Model Tier: haiku**
-**Recommendation Ref:** #183
-**Depends On:** None
-**Files Affected:**
-- `plugins/personal-plugin/skills/clear-prep/SKILL.md` (modify)
-
-**Description:**
-`:27, :28, :29` abort the skill in a non-git directory (`:28` is the originally-reported failure). `clear-prep`'s own Error Handling at `:130-132` promises "Not a git repo: skip git-delta steps" — currently unreachable. Phase 1 step 1 re-runs the same three commands via Bash anyway, so deletion is also a valid fix.
-
-**Tasks:**
-1. [x] Guard all three with `2>/dev/null || echo "(not a git repository)"`
-2. [x] Confirm the Error Handling clause at `:130-132` is now reachable
-
-**Acceptance Criteria:**
-- [x] WHEN `clear-prep` loads outside a git repository THEN it SHALL load successfully and skip the git-delta steps per its documented behavior
-
----
-
-#### 1.5 Correct #183's location table ✅ Completed 2026-07-28
-**Status: COMPLETE 2026-07-28**
-**Model Tier: haiku**
-**Recommendation Ref:** #183
-**Depends On:** 1.1
-**Files Affected:**
-- (GitHub issue #183 — no repo file)
-
-**Description:**
-**#183's table is 50% wrong by site.** `prime` (7) and `explain-project` (2) are **inert** and must be removed; `commands/new-skill.md` must be added (fixed in 11.5.1); `leak-risk-audit` must be recharacterized from "non-git" to "every directory" (also fixed in 11.5.1). The mechanism half of the issue is verified correct and stands.
-
-**Tasks:**
-1. [x] Post a correcting comment on #183 with the replay-verified live/inert table
-2. [x] Note that `references/**` and `deprecated/**` sites are never expanded
-
-**Acceptance Criteria:**
-- [x] #183's scope reflects the 14 live sites in executable surfaces, not the 74 textual matches
-
-**Completion notes (1.5):** Comment posted 2026-07-29T01:00:20Z — [issues/183#issuecomment-5111509718](https://github.com/davistroy/claude-marketplace/issues/183#issuecomment-5111509718). Carries the corrected six-row LIVE/INERT table (`prime` and `explain-project` recharacterized as inert; `commands/new-skill.md` added; `leak-risk-audit` recharacterized to "every directory"), states the 14-live-site scope against 74 textual matches, and records the `references/**` / `deprecated/**` never-expanded exclusion. Verified via the GitHub API, not from the agent's report.
-
----
-
-#### 1.6 Injection linter that replays the pre-pass ✅ Completed 2026-07-28
-**Status: COMPLETE 2026-07-28**
+#### 1.1 Backfill the 28 missing per-plugin CHANGELOG entries
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #183 (class closure)
-**Depends On:** 1.1, 1.2, 1.4
+**Issue Refs:** #210
+**Depends On:** None
 **Files Affected:**
-- `scripts/check_injections.py` (create)
-- `.github/workflows/validate.yml` (modify — **step**, not job)
-- `scripts/pre-commit` (modify)
+- `plugins/personal-plugin/CHANGELOG.md` (modify)
+- `plugins/bpmn-plugin/CHANGELOG.md` (modify)
+- `plugins/slide-gen/CHANGELOG.md` (modify)
 
 **Description:**
-A textual grep for `` !` `` finds 74 sites under `plugins/`, only 14 of which are live in an executable surface — a grep-based linter would be 81% false positives and would still miss the blanking rule. The linter must replay `Jds` + the extractor regex, then assert that every live injection in a skill or command body is exit-0-safe (guarded, or a pipe-terminated form) and that every binary it invokes appears in that component's `allowed-tools`.
+The issue names 2 missing versions. Verification found **24** missing from personal-plugin, **3** from bpmn-plugin (`4.4.0`, `2.1.0`, `2.0.0`), and **1** from slide-gen (`1.3.0`) — and **all three plugins are missing their current shipped version**. Backfill by *extraction* from the root `CHANGELOG.md`, never by paraphrase, or drift is reintroduced in the opposite direction.
+
+personal-plugin's 24, newest first: `11.6.0, 11.3.0, 11.2.0, 11.1.0, 9.2.0, 9.1.0, 9.0.0, 7.0.1, 6.8.0, 6.7.2, 6.4.0, 6.3.0, 4.0.0, 3.14.0, 3.12.0, 3.11.1, 3.11.0, 3.7.2, 3.7.1, 3.6.1, 3.3.0, 3.2.0, 3.1.0, 3.0.0`.
+
+The root CHANGELOG uses at least four heading grammars (`[plugin vX.Y.Z]`, `[plugin X.Y.Z]`, a combined `[marketplace vA, plugin vB, …]`, and bare `[X.Y.Z]`). Parse all four when locating source sections, or entries will be silently under-extracted.
 
 **Tasks:**
-1. [x] Implement `scripts/check_injections.py` (stdlib only — the `plugin-validate` job installs no Python)
-2. [x] Restrict scanning to `plugins/*/skills/*/SKILL.md` and `plugins/*/commands/*.md`; exclude `references/**` and `deprecated/**`
-3. [x] **Negative-test before wiring**: a fixture with an unguarded live injection must exit 1; the current tree must exit 0
-4. [x] Wire as a step in the existing `Validate Plugins (official CLI)` job and as a block in `scripts/pre-commit`
+1. [ ] Extract each missing version's section from root `CHANGELOG.md`, handling all four heading grammars
+2. [ ] Insert into the correct per-plugin file in descending version order, preserving Keep-a-Changelog format (declared at each file's `:5-6`)
+3. [ ] Verify no version present in a plugin file but absent from root is disturbed — 9 personal-plugin and 10 bpmn-plugin versions are pre-consolidation history, not defects
+4. [ ] Run `markdownlint-cli2` over all three files before committing
 
 **Acceptance Criteria:**
-- [x] WHEN an unguarded live injection is added to any skill body THEN the linter SHALL exit 1 naming the file, line, and command
-- [x] WHEN the inert nested form is used in documentation THEN the linter SHALL NOT flag it
-- [x] WHEN run against the current tree THEN the linter SHALL exit 0
-- [x] The linter is added as a **step**; the required-check name is unchanged (D28)
+- [ ] WHEN the version set of each `plugins/*/CHANGELOG.md` is compared against the versions attributed to that plugin in the root CHANGELOG THEN every root-attributed version SHALL be present in the plugin file
+- [ ] WHEN each plugin's `plugin.json` version is read THEN that exact version SHALL have an entry in its plugin CHANGELOG
+- [ ] No version bump in this change set — backfilling history is not a release (D45)
+- [ ] `markdownlint-cli2` exits 0
 
 **Notes:**
-This is the E043 rule applied to itself: the guard must be shown to fail against deliberately-bad input before it is trusted.
-
-**Completion notes (2026-07-28):**
-- **Replay, not grep** — `jds()`/`cfo()` port the harness's `Jds` pre-pass and `Cfo` extractor (soy raw-fence + aoy inline, including the `!`-fence form matched against RAW text per F1, never pre-passed). Python's `re` can't express the harness's variable-width lookbehind `(?<=^|\s)`, so it's replicated as an explicit preceding-character check (`_preceded_by_bol_or_ws`) instead of approximated.
-- **Guard/grant heuristics are scoped, not a general shell prover**: "guarded" = an explicit top-level `\|\|` fallback, or a pipeline/statement whose final stage is in a small always-exits-0 allowlist (`awk`, `head`, `wc`, `cat`, `true`, `:`, `pwd`, `echo`) — covers both ship's `\|\| echo` idiom and its unguarded-looking `\| awk` diff-size line, and slide-gen's bare `!\`pwd\``. "granted" excludes shell builtins that spawn no subprocess (echo, true, cd, pwd, ...), matching that `ship`/`clear-prep` never grant `Bash(echo:*)`.
-- **`--self-test` derives verdicts from the ADR, not a hand-copied table**: `_adr_table_verdicts()` parses the 9 LIVE/INERT rows directly out of `docs/adr/0011-dynamic-injection-doctrine.md`'s F2 table at self-test time, so a future edit to a verdict is caught as drift rather than silently agreed with. Fixture *text* per row is hand-built from the row's plain-English label (reconstructing exact bytes from the ADR's own `\!`-neutralized, nested-code-span display form was intractable/unnecessary). Also covers 7 file-level fixture cases (unguarded+granted, guarded+ungranted, 3 good variants including wildcard `Bash`, inert-not-flagged, unguarded raw-fence) and a final pass against the real repo tree.
-- **Verified the guard can fail, twice**: (1) planted a real unguarded/ungranted `SKILL.md` under `plugins/personal-plugin/skills/`, confirmed `check_injections.py` exits 1 naming both violations, removed it, confirmed exit 0 again; (2) temporarily corrupted one `_ADR_ROW_FIXTURES` entry, confirmed `--self-test` exits 1 and names the mismatched row, then restored it.
-- **Scope decision**: scanning is restricted to `plugins/*/skills/*/SKILL.md` and `plugins/*/commands/*.md` only (per Task 2) — `references/**`, `deprecated/**`, and repo-root prose docs (e.g. `IMPLEMENTATION_PLAN.md`'s 2 live-looking sites in its executive summary) are all out of scope, on the same "never expanded by the loader" reasoning ADR-0011 already applies to references/deprecated. Scanning repo-root docs would reproduce R4's rejected grep-gate failure mode one layer up (flagging text that is never loaded as a prompt body), so this repo's linter scope stops at the loader boundary, not the text-match boundary.
-- **CI wiring**: added as a step ("Check dynamic injections replay-clean (ADR-0011)") inside the existing `plugin-validate` job (`Validate Plugins (official CLI)`), immediately after the README-sync step — no new job, no new required-check name (D28).
-- **pre-commit wiring**: added as Check 4 (renumbering the ruff check to Check 5), gated on the same `STAGED_FILES` (skill/command markdown staged) condition as Checks 1–3, consistent with how ruff is gated on staged Python files.
+This must land **before** Phase 2. A CHANGELOG-only PR bumps nothing, which Phase 2's gate would reject unless the exemption is already in place. Landing the data fix first removes the ordering hazard entirely.
 
 ---
 
 ### Phase 1 Testing Requirements
 
-- [x] Extractor replay reports the expected live counts per file before and after
-- [x] Every `ship`/`clear-prep` injection exits 0 in a scratch non-git directory
-- [x] The diff-size gate returns a number on a >500-line staged change
-- [x] Linter negative-tested in both directions
+- [ ] No automated tests — documentation-only change
+- [ ] Manual verification: version-set diff between root and each plugin file is empty in the root→plugin direction
 
 ### Phase 1 Completion Checklist
 
-- [x] All work items complete
-- [x] ADR-0011 Accepted and cross-linked
-- [x] markdownlint clean on every touched file
-- [x] No regressions to `prime`, `explain-project`, or the 24 correctly-guarded slide-gen injections
+- [ ] All work items complete
+- [ ] `markdownlint-cli2` clean
+- [ ] No `plugin.json` modified
+- [ ] LAB_NOTEBOOK entry updated
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Injection linter | `python3 scripts/check_injections.py` | Exit code 0 |
-| Linter negative test | `python3 scripts/check_injections.py --self-test` | Exit code 0 (asserts a bad fixture exits 1) |
-| Markdown lint | `npx markdownlint-cli2 "plugins/**/*.md" "docs/**/*.md"` | Exit code 0 |
-| Plugin validation | `claude plugin validate --strict ./plugins/personal-plugin` | Exit code 0 |
-| Pre-commit | `bash scripts/pre-commit` | Exit code 0 |
+| Lint | `npx markdownlint-cli2 "plugins/*/CHANGELOG.md"` | Exit code 0 |
+| Version presence | `for p in personal-plugin bpmn-plugin slide-gen; do v=$(python3 -c "import json;print(json.load(open('plugins/$p/.claude-plugin/plugin.json'))['version'])"); grep -q "\[$v\]" plugins/$p/CHANGELOG.md \|\| echo "MISSING $p $v"; done` | No output |
+| Plugin validation | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 2: bpmn-to-drawio Silent Corruption and visual-explainer Env Vars
+## Phase 2: Release-Integrity Gate
 
-**Execution Mode:** Parallel
+**Estimated Complexity:** L (~4 files, ~250 LOC)
+**Dependencies:** Phase 1
+**Execution Mode:** Sequential
 
 ### Goals
 
-Stop a SKILL.md from instructing Claude to override a correct tool default with the exact value that shipped as a P1 regression, and make the visual-explainer documentation describe the env vars the tool actually reads.
+- Make "content changed ⇒ version changed" and "version changed ⇒ CHANGELOG entry added" machine-checkable
+- Land it without reddening a required check on `main`
 
 ### Work Items
 
-#### 2.1 bpmn-to-drawio: delete the `HAS_DI` decision, let `auto` decide ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #193
+#### 2.1 Deepen the checkout in the `plugin-validate` job
+**Status: PENDING**
+**Model Tier: opus**
+**Issue Refs:** #226
 **Depends On:** None
 **Files Affected:**
-- `plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md` (modify)
+- `.github/workflows/validate.yml` (modify)
 
 **Description:**
-The skill greps for `bpmndi:BPMNDiagram` — an **any-DI** test — concludes `HAS_DI=true`, and instructs `--layout=preserve`. That is the pre-4.3.1 `has_di_coordinates` semantics reimplemented in bash, and it overrides the tool's `auto`, which resolves to `preserve` only on **complete** DI (`converter.py:73-75`). On a partially-DI file the DI-less shapes are stranded at (0,0) — issue #143 verbatim, re-issued as an instruction. The output is valid XML with exit 0 and no warning, so it presents as a tool bug.
+`validate.yml:304-305` checks out with **no `with:` block**, so `actions/checkout` defaults to `fetch-depth: 1` — a single-commit shallow clone with no base commit and no merge-base. `grep -rn "fetch-depth" .github/ scripts/` returns **zero** hits repo-wide, so there is no precedent to copy. Any diff-derived gate is impossible until this changes.
 
 **Tasks:**
-1. [x] Delete the `HAS_DI` grep and branch (`:96`, `:123`, `:131-132`)
-2. [x] Rewrite `:136-148` so bare invocation is described as `--layout auto`, not "graphviz auto-layout"
-3. [x] Correct `:65` (Graphviz is not required for complete-DI files), `:89-90`, `:192`, `:230` (troubleshooting row diagnoses the wrong cause), and `:332` (recommends the bug-triggering flag as a *performance optimization*)
-4. [x] Keep the `--layout=preserve`/`--layout=graphviz` flags documented — only the recommendation to hand-select them is removed
+1. [ ] Add `with: fetch-depth: 0` to the `Checkout repository` step in the `plugin-validate` job only
+2. [ ] Confirm the job name string `Validate Plugins (official CLI)` is byte-identical after the edit — it is one of 16 required contexts
 
 **Acceptance Criteria:**
-- [x] WHEN a partially-DI BPMN file is converted THEN the skill SHALL NOT instruct `--layout=preserve`
-- [x] WHEN a file has no DI THEN `auto` SHALL resolve to graphviz without the skill special-casing it
-- [x] All 9 contradicting sites reconciled against `converter.py` / `models.py`
+- [ ] WHEN the `plugin-validate` job runs THEN `git merge-base` between the PR base and head SHALL resolve without error
+- [ ] The `name:` value of every job in `validate.yml` is unchanged (D22 — required-check names are load-bearing)
 
 **Notes:**
-D30 records the tool-side fix. Do not widen `converter.py:101-105`'s warning as part of a docs fix — that would be a behavior change to a released tool.
-
-**Completion notes (2.1):** Read `converter.py:59-75` directly (`Converter.__init__` defaults `layout="auto"`; `_effective_layout` resolves `auto` → `preserve` only when `model.has_complete_di_coordinates`, else `graphviz`) and `cli.py:53-59` (`--layout` choices `auto|graphviz|preserve`, default `auto`) to confirm the exact behavior being delegated to, per D30 — none of that resolution logic was reimplemented in the skill. All 9 sites in `plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md` were reconciled: the `HAS_DI` grep/branch and the "Important Decision Point" were deleted from Steps 3–4, Step 5's bare invocation is now documented as the default `--layout auto` with `--layout=preserve`/`--layout=graphviz` kept as explicit, clearly-labeled overrides, and the Dependencies/Troubleshooting/Performance sites (`:192`, `:230`, `:332` pre-edit line numbers) no longer instruct or recommend forcing `--layout=preserve`. Verified: `python3 scripts/check_injections.py` (exit 0, 63 files/35 injections), `claude plugin validate --strict ./plugins/bpmn-plugin` (exit 0), `cd plugins/bpmn-plugin/tools/bpmn2drawio && PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` (642 passed, exit 0), `npx markdownlint-cli2 "plugins/bpmn-plugin/skills/bpmn-to-drawio/SKILL.md"` (exit 0, 0 issues).
+Full history on this repo is small; `fetch-depth: 0` is cheaper than the fragility of a computed depth.
 
 ---
 
-#### 2.2 bpmn2drawio reference and README: `auto` exists and is the default ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #193
-**Depends On:** None
+#### 2.2 Write `scripts/check_version_bump.py` with two conditional rules
+**Status: PENDING**
+**Model Tier: opus**
+**Issue Refs:** #226, #210
+**Depends On:** 2.1
 **Files Affected:**
-- `plugins/bpmn-plugin/references/bpmn2drawio-reference.md` (modify)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/README.md` (modify)
-- `plugins/bpmn-plugin/README.md` (modify)
-
-**Tasks:**
-1. [x] `reference.md:30`: choices are `auto|graphviz|preserve`, default `auto`
-2. [x] `reference.md:129`: drop the pinned `layout="graphviz"` from the Python example
-3. [x] Tool README: document `auto`; correct the "Python 3.9+" badge to 3.10+ (`pyproject.toml:11`)
-4. [x] `plugins/bpmn-plugin/README.md:28`: `4.2.0` → `4.3.1`
-5. [x] `cli.py:23-28`: the `--help` epilog example mentions `auto`
-
-**Acceptance Criteria:**
-- [x] WHEN a reader consults any bpmn2drawio doc THEN the documented `--layout` default SHALL match `cli.py:55-56`
-
-**Completion notes (2.2):**
-- **Default verified from cli.py:55-56:** `default="auto"`. Help text at `:57-58` states "auto preserves BPMN DI coordinates when present, else graphviz".
-- **Complete DI logic verified from converter.py:59-75:** The `_effective_layout()` method shows `auto` resolves to `preserve` only when `model.has_complete_di_coordinates` is True (line 74), falling back to `graphviz` otherwise.
-- **Complete DI definition verified from models.py:112-122:** `has_complete_di_coordinates` is a property that checks `has_di_coordinates and all(e.has_coordinates() for e in self.elements)` — meaning all elements must have x/y coordinates, not just any element. This confirms D30's statement: `auto` resolves to `preserve` only on **complete** DI (every element positioned), not partial DI.
-- **Updated all five locations:** reference.md line 30 updated to show `auto|graphviz|preserve` with default `auto` and expanded description; reference.md line 129 changed `layout="graphviz"` to `layout="auto"`; tool README line 4 badge updated to 3.10+; tool README line 12 feature description updated to explain the auto default; tool README line 83 example changed to show `layout="auto"` with explanatory comment; plugin README line 28 version bumped to 4.3.1; cli.py line 26 epilog example updated to show `--layout auto` instead of `--layout graphviz`.
-
----
-
-#### 2.3 bpmn2drawio: make `--version` tell the truth ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #193 (unfiled)
-**Depends On:** None
-**Files Affected:**
-- `plugins/bpmn-plugin/tools/bpmn2drawio/pyproject.toml` (modify)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/src/bpmn2drawio/__init__.py` (modify)
-- `plugins/bpmn-plugin/tools/bpmn2drawio/tests/test_cli.py` (modify)
+- `scripts/check_version_bump.py` (create)
 
 **Description:**
-Both declare `version = "1.0.0"` while the plugin is 4.3.1, so `bpmn2drawio --version` prints `1.0.0`. A user told to "verify you're on 4.3.1" — the release that fixed the very bug 2.1 is about — cannot do so from the tool.
+One stdlib-only script (the `plugin-validate` job has no `setup-python` step and all four existing script steps are stdlib-only — adding a dependency would force a new step). It implements **two conditional rules**, not one, because #226 and #210 are in direct tension on `plugins/*/CHANGELOG.md`:
+
+- **Rule 1 (bump-required):** if any *bump-worthy* path under `plugins/<name>/` changed, then `plugins/<name>/.claude-plugin/plugin.json`'s `version` must have changed.
+- **Rule 2 (changelog-required):** if `plugins/<name>/.claude-plugin/plugin.json`'s `version` changed, then `plugins/<name>/CHANGELOG.md` must contain an entry for the new version.
+
+`CHANGELOG.md` is **exempt from Rule 1 and mandatory under Rule 2** — that conditional is the whole reason this is one script rather than two gates.
+
+Bump-worthy paths, derived from the 375-file census: everything under `plugins/<name>/` **except** `CHANGELOG.md`, `LICENSE`, `README.md`, `tools/*/tests/**`, and `examples/**`. Per-plugin, never "any plugin changed ⇒ all three bump" (D45 forbids empty coordinated bumps).
 
 **Tasks:**
-1. [x] Set both to `4.3.1`; add a note tying tool version to plugin version
-2. [x] Confirm no test asserts `1.0.0`
+1. [ ] Implement per-plugin diff classification from `git diff --name-only <base>...<head>`
+2. [ ] Read both old and new `plugin.json` via `git show <ref>:<path>` — derive both sides, never restate a constant
+3. [ ] Implement Rule 1 with the exemption list, and Rule 2 keyed on the *new* version string
+4. [ ] Branch explicitly on event leg: on `pull_request` use base↔head; on `push` to main **exit 0 with an explanatory message** — there is no meaningful base and the PR leg already gated the content
+5. [ ] Add `--self-test` that constructs synthetic diffs and asserts exit 1 on each violation and exit 0 on each exemption
+6. [ ] Emit the offending plugin, rule, and remediation command (`/bump-version <plugin> <level>`) on failure
 
 **Acceptance Criteria:**
-- [x] WHEN `bpmn2drawio --version` runs THEN it SHALL report the plugin version
+- [ ] WHEN a PR modifies `plugins/<name>/skills/**` without changing that plugin's `version` THEN the script SHALL exit non-zero naming the plugin and Rule 1
+- [ ] WHEN a PR modifies only `plugins/<name>/CHANGELOG.md` THEN the script SHALL exit 0 (Rule 1 exemption — this is Phase 1's own shape)
+- [ ] WHEN a PR bumps `version` without adding a matching `CHANGELOG.md` entry THEN the script SHALL exit non-zero naming Rule 2
+- [ ] WHEN the script runs on the `push`-to-`main` leg THEN it SHALL exit 0 and print why, never attempting a base diff
+- [ ] WHEN a PR modifies only `plugins/bpmn-plugin/tools/bpmn2drawio/tests/**` THEN the script SHALL exit 0
+- [ ] `python3 scripts/check_version_bump.py --self-test` exits 0, and each synthetic violation within it is asserted to exit 1
+- [ ] Script imports only stdlib
 
-**Completion notes (2.3):**
-- **Version source of truth:** `plugins/bpmn-plugin/.claude-plugin/plugin.json` (line 4) and `.claude-plugin/marketplace.json` (line 30) both declare `version: 4.3.1`. CHANGELOG.md confirms this as the released version ([bpmn-plugin v4.3.1] - 2026-07-16).
-- **Changes made:** Set `pyproject.toml:7` from `version = "1.0.0"` to `version = "4.3.1"`; set `__init__.py:25` from `__version__ = "1.0.0"` to `__version__ = "4.3.1"`. House pattern (task-sync, visual-explainer) is to hardcode the same literal in both locations.
-- **Test verification:** `test_cli.py:38` was the only assertion referencing the version. Updated from `assert "1.0.0" in captured.out` to `assert "4.3.1" in captured.out`. No other hardcoded version assertions exist in the test suite.
-- **CLI mechanics verified:** `cli.py:7` imports `__version__` and line 91 uses it in the argparse version format string: `version=f"%(prog)s {__version__}"`, which will output `bpmn2drawio 4.3.1` when `bpmn2drawio --version` is run.
+**Notes:**
+The push-leg branch is itself the E043 hazard: a condition written wrong no-ops on *both* legs and converts "unchecked" into a false "checked". Task 5's self-test must assert the PR leg still fails, not merely that the push leg passes.
 
 ---
 
-#### 2.4 visual-explainer SKILL: correct the env var names ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #196
-**Depends On:** None
+#### 2.3 Negative-test the gate against a deliberately-bad branch before wiring it
+**Status: PENDING**
+**Model Tier: opus**
+**Issue Refs:** #226
+**Depends On:** 2.2
 **Files Affected:**
-- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
+- (none — verification only)
 
 **Description:**
-`$GOOGLE_IMAGE_MODEL` (`:40`, `:116`) appears **zero** times in the tool. It was the name *proposed* in `IMPLEMENTATION_PLAN-v4.md:724`; the implementation used `VISUAL_EXPLAINER_GEMINI_MODEL` (`config.py:364`). Setting the documented variable is a silent no-op.
+CLAUDE.md's standing rule: a verification guard that cannot fail is worse than none, and this repo has shipped three of them. Before the script is referenced from CI, prove it fails on real input, not only on synthetic fixtures.
 
 **Tasks:**
-1. [x] Rename to `VISUAL_EXPLAINER_GEMINI_MODEL`; add `VISUAL_EXPLAINER_CLAUDE_MODEL`
-2. [x] Reconcile the "Tested Results" block at `:53-58` — it cites threshold 0.75 while the shipped default is 0.85
+1. [ ] Create a scratch branch; edit one file under `plugins/personal-plugin/skills/` without bumping; run the script against `main...HEAD`; confirm **exit 1**
+2. [ ] Bump the version but add no CHANGELOG entry; confirm **exit 1** citing Rule 2
+3. [ ] Add the CHANGELOG entry; confirm **exit 0**
+4. [ ] Edit only `plugins/personal-plugin/CHANGELOG.md`; confirm **exit 0**
+5. [ ] Record all four observed exit codes in the LAB_NOTEBOOK entry
+6. [ ] Delete the scratch branch
 
 **Acceptance Criteria:**
-- [x] WHEN a user exports the documented model-override variable THEN the tool SHALL use it
-- [x] `references/api-key-setup.md` is **not** modified — its model vars belong to `/research-topic`
-
-**Completion notes (2.4):**
-- **Env var sources verified from config.py:354-366 (`from_env()`):** `VISUAL_EXPLAINER_GEMINI_MODEL` (line 364, used for Gemini image generation) and `VISUAL_EXPLAINER_CLAUDE_MODEL` (line 365, used for concept analysis and evaluation). Both read from os.getenv with fallback defaults. The proposed name `GOOGLE_IMAGE_MODEL` does not appear anywhere in the tool.
-- **Pass threshold default verified from config.py:259:** The actual default is `0.85` via `env_float("VISUAL_EXPLAINER_PASS_THRESHOLD", 0.85)`. Updated "Tested Results" section (line 55) from "threshold 0.75" to "default threshold 0.85" and line 58 from a range recommendation to a direct default statement.
-- **Model vars documented at lines 116–117:** `VISUAL_EXPLAINER_GEMINI_MODEL` (Gemini image model override, default `gemini-3-pro-image-preview`) and `VISUAL_EXPLAINER_CLAUDE_MODEL` (Claude model override, default `claude-sonnet-5`). Both linked to the matching defaults in config.py.
-- **API key setup reference untouched:** `references/api-key-setup.md` was not modified — it documents the global `/research-topic` model vars and belongs to a separate workflow.
+- [ ] All four scenarios produce the documented exit code, observed and recorded — not asserted in prose
+- [ ] WHEN the guard is wired into CI THEN its failing behavior SHALL already have been demonstrated on a real branch
 
 ---
 
-#### 2.5 visual-explainer README: the authoritative 15-variable table ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #196
-**Depends On:** 2.4
+#### 2.4 Wire the gate as a step in `plugin-validate` and a pre-commit check
+**Status: PENDING**
+**Model Tier: opus**
+**Issue Refs:** #226
+**Depends On:** 2.3
 **Files Affected:**
-- `plugins/personal-plugin/tools/visual-explainer/README.md` (modify)
+- `.github/workflows/validate.yml` (modify)
+- `scripts/pre-commit` (modify)
 
 **Description:**
-Documentation covers 2 of the tool's 15 environment variables (13%). Worse, `:176-190` claims the internal defaults "can be customized **in code**" — false; all six are env-overridable via `InternalConfig.from_env`, and the class docstring says so.
+A **step**, never a job (D28) — a new job creates a new required check that must be coordinated with branch protection or it deadlocks merges. This mirrors `check_agent_models.py`'s dual wiring (CI step at `validate.yml:341` + pre-commit Check 5 at `scripts/pre-commit:202-221`), which is the house shape precisely because it adds zero job keys.
+
+The pre-commit leg needs a **new staged-file filter**: the existing one at `scripts/pre-commit:36` matches only `commands/*.md` and `skills/*/SKILL.md`, so it cannot see `tools/`, `references/`, `agents/`, or `hooks/`.
 
 **Tasks:**
-1. [x] Add the full 15-variable table (name, default, effect, code site)
-2. [x] Delete the "customized in code" claim
-3. [x] Do not hand-edit `PKG-INFO` (build artifact)
+1. [ ] Add the step to the `plugin-validate` job, after `check_agent_models.py`, with a comment noting stdlib-only
+2. [ ] Add pre-commit Check 7 with a filter covering all bump-worthy paths
+3. [ ] Verify the 16 required contexts are unchanged: `gh api repos/davistroy/claude-marketplace/branches/main/protection --jq '.required_status_checks.contexts | length'` returns 16
 
 **Acceptance Criteria:**
-- [x] Documented variable count equals the count read by `config.py` (15)
-
-**Completion notes (2.5):** Replaced the "Internal Defaults ... can be customized in code" section with three derived tables (7 CLI-overridable `GenerationConfig` vars, 6 CLI-less `InternalConfig` vars, 2 API keys) — every name, default, and code-site line number read directly from `config.py`'s `from_cli_and_env`/`from_env` classmethods and grep-verified against `image_generator.py`/`concept_analyzer.py`. Confirmed by regex extraction: exactly 13 unique `VISUAL_EXPLAINER_*` names + 2 API keys = 15, matching `config.py`'s actual reads, not the issue text or prior README. `npx markdownlint-cli2` exits 0 on the file.
+- [ ] WHEN `validate.yml` is parsed THEN the set of `name:` values SHALL be identical to before this change
+- [ ] The live required-context count remains 16
+- [ ] WHEN a plugin file is staged without a version bump THEN `scripts/pre-commit` SHALL exit non-zero
 
 ---
 
 ### Phase 2 Testing Requirements
 
-- [x] A partial-DI fixture converts without stranded shapes when following the skill
-- [x] `bpmn2drawio --version` matches `plugin.json`
-- [x] Each documented env var is greppable in `config.py`
+- [ ] `--self-test` passes and internally asserts non-zero exits on bad input
+- [ ] All four negative-test scenarios from 2.3 observed and recorded
+- [ ] No new required status check introduced
 
 ### Phase 2 Completion Checklist
 
-- [x] All work items complete
-- [x] bpmn2drawio suite still green (640 tests / 92.84%)
-- [x] markdownlint clean
+- [ ] All work items complete
+- [ ] Required-context count verified at 16
+- [ ] Negative-test results recorded in LAB_NOTEBOOK
+- [ ] `main`'s push build green after merge
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| bpmn tests | `cd plugins/bpmn-plugin/tools/bpmn2drawio && PYTHONPATH=src python -m pytest tests/ -q` | Exit code 0 |
-| visual-explainer tests | `cd plugins/personal-plugin/tools/visual-explainer && PYTHONPATH=src python -m pytest tests/ -q` | Exit code 0 |
-| Env-var doc parity | `python3 -c "import re,pathlib; s=pathlib.Path('plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/config.py').read_text(); print(len(set(re.findall(r'os.getenv\(\"([A-Z_]+)\"', s))))"` | Matches documented count |
-| Markdown lint | `npx markdownlint-cli2 "plugins/**/*.md"` | Exit code 0 |
+| Self-test | `python3 scripts/check_version_bump.py --self-test` | Exit code 0 |
+| Stdlib-only | `python3 -c "import ast,sys; t=ast.parse(open('scripts/check_version_bump.py').read()); mods={n.module or '' for n in ast.walk(t) if isinstance(n,ast.ImportFrom)}\|{a.name.split('.')[0] for n in ast.walk(t) if isinstance(n,ast.Import) for a in n.names}; print(sorted(mods))"` | No third-party modules |
+| Required checks | `gh api repos/davistroy/claude-marketplace/branches/main/protection --jq '.required_status_checks.contexts \| length'` | Returns `16` |
+| Pre-commit | `bash scripts/pre-commit` | Exit code 0 on a clean tree |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 3: Hook Recipes and build-cfa-deck
+## Phase 3: Eval Trustworthiness
 
-**Execution Mode:** Parallel
+**Estimated Complexity:** M (~3 files)
+**Dependencies:** None
+**Execution Mode:** Sequential
 
 ### Goals
 
-Make the three hook recipes loadable, and make `build-cfa-deck`'s documented procedure actually execute.
+- Make the `description-triggers` results reproducible by a cold runner
+- Stop asserting outcomes another marketplace owns — in all 6 fragile scenarios, not just the one that failed
 
 ### Work Items
 
-#### 3.1 Hook recipes: fix both structural levels ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
+#### 3.1 Add harness documentation — generalizable facts to `evals/README.md`, the Bash prohibition to the eval
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #194
+**Issue Refs:** #228
 **Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/references/hooks/planning-stop-hook.md` (modify)
-- `plugins/personal-plugin/references/hooks/session-start-hook.md` (modify)
-- `plugins/personal-plugin/references/hooks/verification-post-edit-hook.md` (modify)
+- `evals/README.md` (modify)
+- `evals/skills/description-triggers.eval.md` (modify)
 
 **Description:**
-Two **independent** structural errors: the missing top-level `hooks` wrapper, and the missing matcher-group level (`{ "matcher": …, "hooks": [ … ] }`). A partial fix that adds only the wrapper swaps a silent no-op for a schema error. Also: `timeout: 10000` is milliseconds where the schema takes seconds; `$CLAUDE_TOOL_NAME` / `$CLAUDE_FILE_PATH` do not exist (the working hook parses stdin JSON via `jq`); and `.claude/hooks.json` is not a loader input at all — project hooks live under the `hooks` key of `.claude/settings.json`. Failure is **silent**, which is why this survived.
+Four of the five harness facts are not eval-specific and belong in `evals/README.md` under "Running Evals" (`:89`), where ADR-0009 and D32 already point readers: the `Skill` tool is auto-denied headless without explicit `--allowed-tools`; `AskUserQuestion` is unavailable in `-p` sessions and its absence must not score as a gate failure; `api_error_status: 529` is not a result (8 of 13 in the first batch); score at first dispatch rather than budgeting five minutes.
+
+The fifth — **`Bash` must be disallowed** — is scenario-specific and belongs in the eval file with its justification: S13's prompt names the Jetson, and **three installed skills in this same plugin grant `Bash(ssh:*)` to that host** (`jetson-audit/SKILL.md:5`, `fleet-health/SKILL.md:4`, `jetson-recon`). This is a live-fire safety control, not tidiness.
+
+**Three linter traps, reproduced against `validate_structure`:**
+- Heading the section `### S0: Harness` makes it a **scenario** and fails the build.
+- A file-level `## Harness` carrying `**Invocation:**` does **not** satisfy the per-file invocation requirement — `seen_invocation` is computed inside scenario bodies only. **All 14 `**Context:**` lines must stay where they are.**
+- A plain `## Harness` heading is *ignored* by the linter, which is why it is safe.
 
 **Tasks:**
-1. [ ] Rewrite all three JSON blocks against `plugins/personal-plugin/hooks/hooks.json` as ground truth
-2. [ ] Correct timeouts to seconds; replace env-var access with `matcher` or stdin `jq`
-3. [ ] Correct the target path in `planning-stop-hook.md:11`
-4. [ ] Fix `hooks/scripts/lab-notebook-gate.sh:7,52` — the `--no-verify` bypass claim is false (the gate is PreToolUse-only)
-5. [ ] Keep the "NOT auto-installed" banners and the filenames (referenced by `validate-plugin.md:314`)
+1. [ ] Add a "Headless Execution" subsection to `evals/README.md` covering the four generalizable facts
+2. [ ] Add a `## Harness` section (not `### S0:`) to `description-triggers.eval.md` with the invocation, the `Bash` prohibition, and its rationale
+3. [ ] Record `claude plugin eval`'s existence and its **deferral** with an explicit ADR-0009 pointer — it exits 1 ("early access"), and adopting it would mean porting 255 scenarios and 1,091 criteria, ~4.6× the diff ADR-0009 already rejected
+4. [ ] Do **not** move any `**Context:**` line
+5. [ ] Run `python3 scripts/check_eval_mapping.py` and confirm exit 0
 
 **Acceptance Criteria:**
-- [ ] WHEN a recipe is copied into `.claude/settings.json` THEN the hook SHALL register and fire
-- [ ] Each corrected JSON block validates against the same shape as the working `hooks/hooks.json`
-- [ ] `common-patterns.md:243` (already correct) and the recipes no longer contradict each other
-
-**Completion notes (3.1):**
-- **Structural fixes applied to all three recipes:** Added top-level `hooks` wrapper and matcher-group level (`{ "matcher": ..., "hooks": [ ... ] }`) to planning-stop-hook.md, session-start-hook.md, and verification-post-edit-hook.md. Each recipe now matches the ground-truth structure in `hooks/hooks.json`.
-- **Timeouts corrected to seconds:** planning-stop-hook (timeout 5), session-start-hook (timeout 5), verification-post-edit-hook (timeout 10 — converted from 10000 milliseconds).
-- **File path corrected:** planning-stop-hook.md line 11 now references `.claude/settings.json` (or `hooks/hooks.json` in plugin) instead of `.claude/hooks.json` (which is not a loader input).
-- **Environment variables replaced:** verification-post-edit-hook.md no longer uses non-existent `$CLAUDE_TOOL_NAME` and `$CLAUDE_FILE_PATH`; uses stdin JSON parsing with `jq` pattern (consistent with real PreToolUse hook at hooks.json:23).
-- **Banners and filenames preserved:** "NOT auto-installed" banners retained; filenames match `validate-plugin.md:314` requirements.
-- **Verification passed:** All JSON blocks validate via `python3 -c` check (PASS); markdownlint clean (0 issues); `claude plugin validate --strict` passes; injection linter: 63 files/35 injections all guarded.
+- [ ] WHEN `check_eval_mapping.py` runs after the edit THEN it SHALL exit 0
+- [ ] WHEN a cold runner follows the Harness section THEN the invocation SHALL include `--allowed-tools Skill Read Write Edit Glob Grep AskUserQuestion` and exclude `Bash`
+- [ ] All 14 `**Context:**` lines remain inside their scenario bodies
+- [ ] The section heading is not of the form `### S<n>`
 
 ---
 
-#### 3.2 build-cfa-deck: fix the dead primary snippet ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
+#### 3.2 Re-scope all 6 preemption-fragile scenarios and both rubric rows
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #195
-**Depends On:** None
+**Issue Refs:** #227
+**Depends On:** 3.1
 **Files Affected:**
-- `plugins/slide-gen/skills/build-cfa-deck/SKILL.md` (modify)
+- `evals/skills/description-triggers.eval.md` (modify)
 
 **Description:**
-`os` is referenced at `:74` and imported at `:78`, so the snippet raises `NameError` before reaching the import. `2>/dev/null` swallows the traceback and `||` triggers the fallback — **100% of the time, on every machine**. The fallback prints only placeholder indices, dropping the placeholder *type* that step 4 (`:150`) depends on.
+The issue scopes this to S4. Verification found **9 scenarios carry a positive-dispatch `Must` naming a specific skill, 6 of them behind creation verbs**: S1 ("model"), S4 ("build"), S5 ("generate"), S6 ("add"), S7 ("build"), S9 ("add"). **S7 is a false green** — its `:119` is structurally identical to S4's failing `:82` and passed only because brainstorming did not fire that run, yet it is cited as *proof the handoff works* in both #227's body and E061.
+
+**The S8 template is the fix shape.** S8 fired brainstorming and passed because it names no skill it must dispatch to (only what must **not** be used), its positive `Must` is a **recognition** assertion satisfiable from stated reasoning, and its behavioral clause is hedged with `optionally` plus a disjunction. S4 already contains its own fix: its recognition `Must` at `:81` **passed** on the live run — only `:82` must change.
+
+Rubric rows `:226` and `:228` restate the same unowned assertion at file level. The linter validates only that `## Rubric` exists as a substring, so a rubric contradicting its own scenarios passes CI silently.
 
 **Tasks:**
-1. [x] Move `import os` above `:74`
-2. [x] Delete the now-redundant fallback at `:79-86` and the `2>/dev/null` mask
-3. [x] Verify step 4's idx/type mapping instructions are satisfiable from the primary output
+1. [ ] Rewrite each of the 6 positive-dispatch `Must` criteria on the S8 pattern: keep recognition assertions as `Must`, demote first-dispatch ordering to `Should` or a harness-logged observation
+2. [ ] Keep every `Must NOT` — they are ours and they all passed
+3. [ ] Reword rubric rows `:226` and `:228` to match
+4. [ ] Add a note that a process skill firing first is an **environment-dependent observation the harness logs**, not a failure — and that the runner must record which competing plugins were installed
+5. [ ] Verify at least one literal `**Must:**` or `**Must NOT:**` marker survives in every touched scenario
+6. [ ] Run `check_eval_mapping.py`; confirm exit 0
 
 **Acceptance Criteria:**
-- [x] WHEN step 2 runs THEN it SHALL emit placeholder index **and** type on the first attempt
-
-**Completion notes (3.2):**
-- **Root cause verified:** `os` module was referenced at line 74 (`os.path.expanduser()`) but not imported until line 78, causing a NameError on every invocation. The `2>/dev/null || …` fallback masked this and triggered 100% of the time.
-- **Primary snippet fixed:** Moved `import os` to the top of the snippet (line 73 post-edit), before any usage. The fallback branch (lines 79–86 pre-edit) was deleted entirely.
-- **Output correctness verified:** The corrected snippet now emits placeholder index **and** type on the first attempt: `idx={idx}:{type}` format. Step 4's instruction at line 150 ("Populates placeholders (idx 0=title, 1=body, 10=footer, 12=slide number)") is now satisfiable from the primary output, which includes both idx and type for every placeholder in every layout.
-- **Markdown and plugin validation:** `npx markdownlint-cli2 plugins/slide-gen/skills/build-cfa-deck/SKILL.md` and `claude plugin validate --strict ./plugins/slide-gen` both exit 0.
-
----
-
-#### 3.3 build-cfa-deck: one working slide-removal implementation ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: opus**
-**Recommendation Ref:** #195
-**Depends On:** 3.2
-**Files Affected:**
-- `plugins/slide-gen/skills/build-cfa-deck/SKILL.md` (modify)
-- `plugins/slide-gen/references/cfa-deck-helpers.md` (create)
-
-**Description:**
-Both implementations fail against the installed python-pptx 1.0.2: `prs.presentation.sldIdLst` raises `AttributeError` (no such attribute) and `del prs.part.rels[rId]` raises `TypeError` (`_Relationships` is a `Mapping`, not `MutableMapping`). The one labelled "use this reliable approach" is not. Verified replacements: `prs.slides._sldIdLst` and `prs.part.drop_rel(rId)`. The error-handling row at `:306` routes failures back into the broken branch.
-
-**Tasks:**
-1. [x] Keep `remove_all_slides` (better rId resolution); apply both substitutions
-2. [x] Delete `remove_samples` and its dead `copy`/`lxml` imports
-3. [x] **Execute the result against the real template** before the doc claims it works
-4. [x] Pin the python-pptx version assumption in Prerequisites (`_sldIdLst` is a private attribute)
-5. [x] Extract the ~110-line inline block to `references/` — an extracted helper is runnable and therefore testable
-
-**Acceptance Criteria:**
-- [x] WHEN slide removal runs against `CFA PPT Template2.pptx` THEN it SHALL remove the sample slides without raising
-- [x] Exactly one removal implementation exists in the repo
-- [x] The error-handling row no longer points at a removed implementation
+- [ ] WHEN any scenario in this file is scored THEN no `Must` criterion SHALL assert which skill is dispatched first
+- [ ] WHEN `check_eval_mapping.py` runs THEN it SHALL exit 0 (downgrading both `Must` and `Must NOT` in one scenario fails structure validation)
+- [ ] Every touched scenario retains ≥1 literal `**Must:**`/`**Must NOT:**` marker
+- [ ] Rubric rows no longer assert cross-marketplace dispatch order
 
 **Notes:**
-Fixing this by reading would repeat the exact defect — the current text already carries a reliability claim that execution disproves.
-
-**Completion notes (3.3):**
-- **Both prior implementations confirmed broken by execution, not inspection.** `remove_samples` and `remove_all_slides` both called `prs.presentation.sldIdLst` — testing on the installed **python-pptx 1.0.2** showed the failure is even more basic than the plan described: `Presentation()` returns a `pptx.presentation.Presentation` object that has **no `.presentation` attribute at all** (the object itself *is* the presentation; `prs.presentation` raises `AttributeError` immediately, never reaching `.sldIdLst`). Both also called `del prs.part.rels[rId]`; `prs.part.rels` is `pptx.opc.package._Relationships`, which implements `collections.abc.Mapping` but not `MutableMapping`, so item deletion raises `TypeError`.
-- **Confirmed working contract on 1.0.2:** `prs.slides._sldIdLst` (a private, leading-underscore attribute on `pptx.slide.Slides`, type `pptx.oxml.presentation.CT_SlideIdList`) is the real slide-ID list, and `prs.part.drop_rel(rId)` (signature `(rId: str) -> None` on `PresentationPart`) is the supported relationship-removal path. Confirmed via `hasattr`/`inspect.signature`/`isinstance` probes against a live `Presentation` object, not documentation.
-- **Executed end-to-end against the real template**, per the required proof of work: copied `~/dev/brand-assets/clients/cfa/templates/cfa-PPT-template.pptx` to scratch (original untouched — not git-tracked, shared brand material), never opened in place. Two runs against the fixed `remove_all_slides`:
-  - **Partial removal:** before=5, removed=2, after (in-memory)=3, after (reopened from disk)=3 — count dropped by exactly 2.
-  - **Full removal (the actual build-cfa-deck use case):** before=5, after (in-memory)=0, after (reopened from disk)=0; all 5 slide layouts and the master survived; a new slide was then added via `prs.slides.add_slide(layout)` and the deck still opened cleanly (1 slide, 3 shapes) after a further save/reopen round-trip.
-  - Scratch script: `/tmp/claude-1000/-home-davistroy-dev-personal-claude-marketplace/5dea4be4-ead8-4b30-b447-2deb528c0376/scratchpad/test_remove_slides.py` (not committed to the repo).
-- **`remove_samples` deleted** along with the dead `import copy` / `from lxml import etree` (neither `copy` nor `etree` was referenced in either function body). `remove_all_slides` is now the sole implementation in the repo (`grep -rl "sldIdLst\|drop_rel"` returns only `SKILL.md`, the plan, and an audit doc — no second copy).
-- **~110-line inline block extracted** to `plugins/slide-gen/references/cfa-deck-helpers.md` (imports, `COLORS`, `remove_all_slides`, `find_layout`, `set_placeholder`, `add_textbox`); Step 4 of `SKILL.md` now points at it via `${CLAUDE_PLUGIN_ROOT}/references/cfa-deck-helpers.md` with the established plugin fallback path, matching the convention used by `new-project/SKILL.md`.
-- **Prerequisites pinned** to python-pptx 1.0.2 with an explicit note that `_sldIdLst` is private/undocumented and must be re-verified if the installed version differs. **Error-handling row** (`Slide removal fails`) rewritten to point at the version-check/re-verify procedure instead of the now-deleted "lxml-based removal approach."
-- **Verified:** `npx markdownlint-cli2` on both changed/created files (0 issues, exit 0); `claude plugin validate --strict ./plugins/slide-gen` (exit 0); `python3 scripts/check_injections.py` (63 files, 35 injections, all guarded, exit 0).
+`evals/skills/plan-gate.eval.md` is an unrun second instance with 4 positive-routing `Must` criteria and an `S5: Proactive trigger` colliding head-on with `brainstorming → writing-plans`. **Out of scope here** — file as a follow-up rather than expanding this phase.
 
 ---
 
-#### 3.4 build-cfa-deck: parameterize the asset root and stop on MISSING ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
+#### 3.3 File the upstream report against superpowers
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #195
-**Depends On:** None
+**Issue Refs:** #227
+**Depends On:** 3.2
 **Files Affected:**
-- `plugins/slide-gen/skills/build-cfa-deck/SKILL.md` (modify)
-- `docs/adr/0008-slide-gen-dependency-model.md` (modify)
+- (none in-repo — external issue)
 
 **Description:**
-Ten sites hard-code `~/dev/stratfield/slide-generator/examples` (the issue lists eight; `:74` and `:82` are missed). The preflights at `:18-24` print "MISSING" and the skill **proceeds anyway** — the exact failure mode ADR-0008's fail-fast principle exists to prevent, in the one skill that omits the `sg --version` preflight all eight siblings have. Owner-only status covers the `sg` engine; it has never covered an undeclared asset root.
+The user-facing dead-end is only fixable upstream. `brainstorming/SKILL.md:61` makes `writing-plans` the sole permitted successor, so for a request like "build me a workflow diagram", the domain skill is unreachable by any sanctioned route. Report it factually: the mechanism, the observed session, and the blast radius (every domain skill whose realistic trigger phrasing contains a creation verb).
 
 **Tasks:**
-1. [x] Introduce `CFA_ASSETS_DIR` (default `~/dev/stratfield/slide-generator/examples`); use it at all ten sites
-2. [x] Add a hard stop when any preflight reports MISSING
-3. [x] Move `/tmp/build_cfa_deck.py` to `.tmp/` per the house convention
-4. [x] Add a one-sentence build-cfa-deck carve-out to ADR-0008:9, which this skill currently falsifies (zero `sg` invocations, ~110 lines of PowerPoint logic in-plugin)
+1. [ ] Draft the report with the verbatim `:61` quote and the S4 transcript summary
+2. [ ] Confirm the destination repo and open the issue
+3. [ ] Link it from #227 and close #227
 
 **Acceptance Criteria:**
-- [x] WHEN `CFA_ASSETS_DIR` is unset and the default path is absent THEN the skill SHALL stop with a clear message rather than proceeding
-- [x] No absolute machine-specific path remains in the skill body
-- [x] ADR-0008 no longer makes a claim this skill contradicts
-
-**Completion notes (3.4):**
-- **All ten hardcoded paths parameterized:** Updated `Pre-loaded Context` section preflights (lines 18, 21, 24) to use `${CFA_ASSETS_DIR:-~/dev/stratfield/slide-generator/examples}` with shell expansion; updated `Prerequisites` (lines 38–40) to reference the variable in prose; updated Step 1 (line 64) and Step 2 (line 81) to dynamically construct paths from `CFA_ASSETS_DIR` environment variable with fallback default.
-- **Hard stop on MISSING added:** Inserted new "Asset Preflight Check" section after "Input Validation" that explicitly directs the skill to check Pre-loaded Context preflights and stop immediately if any report MISSING, with a user-facing message naming the variable and next steps. Updated `Prerequisites` to state "All assets must exist before proceeding" and updated Error Handling table (two new rows) for missing assets.
-- **Path moved to `.tmp/`:** Changed script path from `/tmp/build_cfa_deck.py` to `.tmp/build_cfa_deck.py` in Step 4 heading (line 142), Step 5 invocation (line 167), and added a "Template path in the script" section clarifying that the build script must use the same dynamic path construction as Step 2.
-- **ADR-0008 carve-out added:** Modified line 9 of `docs/adr/0008-slide-gen-dependency-model.md` to state that `build-cfa-deck` is an exception — it contains ~110 lines of PowerPoint assembly logic in python-pptx rather than invoking `sg`, and is therefore a wrapper around the CFA template assets, not the `sg` engine. This resolves the contradiction ADR-0008:9 previously made about the plugin's design.
-- **Verified:** `npx markdownlint-cli2 plugins/slide-gen/skills/build-cfa-deck/SKILL.md` (0 issues, exit 0); `claude plugin validate --strict ./plugins/slide-gen` (exit 0); `python3 scripts/check_injections.py` (63 files, 35 injections, all guarded, exit 0).
+- [ ] WHEN #227 is closed THEN it SHALL link both the eval re-scope commit and the upstream issue
+- [ ] The report makes no claim about this repo's descriptions being at fault
 
 ---
 
 ### Phase 3 Testing Requirements
 
-- [ ] Each corrected hook recipe parses against the working `hooks.json` shape
-- [ ] Slide removal executed against the real `.pptx`, not reviewed
-- [ ] Preflight stop verified with `CFA_ASSETS_DIR` pointed at a nonexistent path
+- [ ] `check_eval_mapping.py` exits 0 after each item
+- [ ] Manual read-through confirming no `Must` asserts cross-marketplace behavior
 
 ### Phase 3 Completion Checklist
 
 - [ ] All work items complete
-- [ ] markdownlint clean
-- [ ] `claude plugin validate --strict ./plugins/slide-gen` passes
+- [ ] Eval linter green
+- [ ] #227 and #228 closed with links
+- [ ] Follow-up filed for `plan-gate.eval.md`
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Hook JSON shape | `python3 -c "import json,glob,re,pathlib; [json.loads(re.search(r'\`\`\`json\n(.*?)\n\`\`\`', pathlib.Path(f).read_text(), re.S).group(1)) for f in glob.glob('plugins/personal-plugin/references/hooks/*.md')]"` | Exit code 0 |
-| slide-gen validation | `claude plugin validate --strict ./plugins/slide-gen` | Exit code 0 |
-| Markdown lint | `npx markdownlint-cli2 "plugins/**/*.md" "docs/**/*.md"` | Exit code 0 |
+| Eval structure | `python3 scripts/check_eval_mapping.py` | Exit code 0 |
+| Lint | `npx markdownlint-cli2 "evals/**/*.md"` | Exit code 0 |
+| No dispatch-order Musts | `awk '/^\*\*Must:\*\*/,/^$/' evals/skills/description-triggers.eval.md \| grep -niE '(routes to\|activates).*(first\|instead)'` | No output |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 4: task-sync Orphan Handling and Pagination
+## Phase 4: ultra-plan Correctness
 
+**Estimated Complexity:** M (~3 files)
+**Dependencies:** None
 **Execution Mode:** Sequential
 
 ### Goals
 
-Close the one path where task-sync can silently clobber or lose data, and make the fetched issue list — which `classify` treats as authoritative — actually complete.
+- Make every `Phase N` reference name the phase it describes
+- Stop gating three behaviors on a taxonomy no file defines
 
 ### Work Items
 
-#### 4.1 `ClassKind.ORPHAN_LOCAL`: classify a vanished issue as its own kind ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: opus**
-**Recommendation Ref:** #181
+#### 4.1 Repair the phase numbering across all 29 sites, atomically with its eval
+**Status: PENDING**
+**Model Tier: sonnet**
+**Issue Refs:** #231
 **Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/tools/task-sync/src/task_sync/reconcile/classify.py` (modify)
-- `plugins/personal-plugin/tools/task-sync/src/task_sync/reconcile/resolve.py` (modify)
-- `plugins/personal-plugin/tools/task-sync/tests/test_classify.py` (modify)
-- `plugins/personal-plugin/tools/task-sync/tests/test_resolve.py` (modify)
+- `plugins/personal-plugin/skills/ultra-plan/SKILL.md` (modify)
+- `evals/skills/ultra-plan.eval.md` (modify)
 
 **Description:**
-`ClassKind` has no orphan member, so `classify` maps a vanished issue onto `CHANGED_LOCAL`/`UNCHANGED` and nulls only the `issue` field — **`task.issue_number` stays populated**. `resolve.py:212` tests `c.task.issue_number is None`, gets `False`, and emits a `PushAction`. Two outcomes, both bad: the issue is genuinely gone and `gh issue edit` raises mid-loop (leaving `tasks.json` unsaved, so just-created issue numbers are lost and re-created as duplicates next run); or the issue exists but wasn't fetched, and the push **silently clobbers the remote**, carrying `state` — which can reopen a closed issue. The `UNCHANGED` orphan is worse and unfiled: it appears in **no** plan section at all.
+A single 1–6 → 0–5 renumbering touched the `##` headings and a few body lines but missed the `###` sub-headings and 18 cross-references. Every defect is explained by one transform: **old N → new N−1**.
+
+**8 sub-headings:** `:175`, `:182`, `:189` (`3a/3b/3c` → `2a/2b/2c`); `:327`, `:336`, `:344`, `:360`, `:370` (`6a-6e` → `5a-5e`).
+
+**18 cross-reference lines:** `:116`, `:117`, `:142`, `:167` (two wrong tokens), `:169`, `:196`, `:230`, `:231`, `:234`, `:270`, `:308`, `:313`, `:340`, `:341`, `:346`, `:363`, `:365`, `:382` (only its "Phase 2 output" clause).
+
+**2 anchors that must move in lockstep:** `:384` ("see 6b routing table") and `:385` ("see 6d") — correct today, dangling the moment the headings renumber.
+
+**1 site outside the file:** `evals/skills/ultra-plan.eval.md:43` copied the defect verbatim from `SKILL.md:167`. **Fixing the skill without the eval converts a passing eval into a false failure against a now-correct skill.**
+
+**DO NOT TOUCH `:350`.** "Change sets (Phase 2c)" is *correct* — it is the one reference that survived the renumbering and the diagnostic tell. Renumbering it to `3c` propagates the bug into the only place that escaped it. The whole `:349-356` table is correct in all 8 rows.
 
 **Tasks:**
-1. [x] Add `ClassKind.ORPHAN_LOCAL`, emitted for both the changed and unchanged sub-cases, carrying `local_changed`
-2. [x] `resolve`: emit an `Orphan` record into a new `ResolveResult.orphans` — never a `PushAction`, never a `CreateAction`
-3. [x] Preserve `classify`'s "each task and each issue appears exactly once" invariant (pinned by `test_classify.py:219-228`)
-4. [x] Mutation-test: delete the orphan branch and confirm the new tests go red
+1. [ ] Apply the 8 sub-heading renumberings
+2. [ ] Apply the 18 cross-reference corrections
+3. [ ] Update the 2 anchors at `:384`/`:385`
+4. [ ] Update `evals/skills/ultra-plan.eval.md:43` in the **same commit**
+5. [ ] Leave `:350` and the entire `:349-356` table unchanged
+6. [ ] Grep `Phase [0-9]` across the file and read every hit against its containing phase — a partial fix is worse than none
 
 **Acceptance Criteria:**
-- [x] WHEN a local task references an issue absent from the fetched list THEN `classify` SHALL emit `ORPHAN_LOCAL` and `resolve` SHALL NOT emit a push
-- [x] WHEN an orphaned task has no local edit THEN it SHALL still be surfaced, not silently omitted
-- [x] `test_classify.py:219-228` passes unchanged
-
-**Completion notes (4.1):** `classify()` now emits `ClassKind.ORPHAN_LOCAL` (7th member) for a task whose `issue_number` is absent from the fetched list, in both the locally-changed and unchanged sub-cases, without mutating `task.issue_number`. `resolve()` routes `ORPHAN_LOCAL` purely on `Classification.kind` into a new `Orphan` record on `ResolveResult.orphans` — never a `PushAction`/`CreateAction` — closing the #181 silent-clobber path. Mutation-tested both new guards: (1) reverting `classify.py`'s branch to the old `CHANGED_LOCAL`/`UNCHANGED` mapping turned 3 tests red; (2) deleting `resolve.py`'s `ORPHAN_LOCAL` branch turned 5 tests red, including the `list(ClassKind)`-parametrized exhaustiveness test (`test_only_orphan_local_ever_produces_an_orphan_record`), which forces any future `ClassKind` member through the same fixture/assertion instead of silently falling through the if/elif chain. Both files restored after mutation testing; full suite (440 tests, up from 429) and `test_classify.py:219-228`'s exactness invariant pass unchanged; coverage 96.38% (both files 100%); ruff and mypy clean.
+- [ ] WHEN any `Phase N` reference in `ultra-plan/SKILL.md` is read THEN it SHALL name the phase it describes
+- [ ] WHEN a `###` sub-heading is read THEN its leading digit SHALL equal its parent phase number
+- [ ] `:350` still reads "Change sets (Phase 2c)"
+- [ ] `evals/skills/ultra-plan.eval.md:43` reads "Phase 1 deliverable" and is in the same commit as `SKILL.md:167`
+- [ ] No self-contradiction remains: `:363` and `:385` refer to the same artifact by the same phase number
 
 ---
 
-#### 4.2 ✅ Completed 2026-07-29 `SyncPlan.orphans`: surface them, and count them in `is_empty()`
-**Status: COMPLETE 2026-07-29**
+#### 4.2 Delete the phantom L0–L4 taxonomy at all 10 sites, including the generator template
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #181
+**Issue Refs:** #231
 **Depends On:** 4.1
 **Files Affected:**
-- `plugins/personal-plugin/tools/task-sync/src/task_sync/reconcile/plan.py` (modify)
-- `plugins/personal-plugin/tools/task-sync/tests/test_plan.py` (create)
-- `plugins/personal-plugin/tools/task-sync/tests/test_plan_apply.py` (modify)
+- `plugins/personal-plugin/skills/ultra-plan/SKILL.md` (modify)
+- `plugins/personal-plugin/references/adr-template.md` (modify)
 
 **Description:**
-Additive key in `to_dict()`, a summary line, and inclusion in `is_empty()`. Omitting the `is_empty()` term recreates the `skipped_adopts` bug exactly — an orphan-only plan would report "already in sync".
+Eight sites in `SKILL.md` (`:89`, `:222`, `:236`, `:238`, `:240`, `:242`, `:244`, `:315`) plus **two in `references/adr-template.md` (`:7`, `:58`)** — the file `SKILL.md:229` instructs the model to load when writing an ADR, so the phantom scale is restated in the shipped template the skill consumes at runtime. A fix scoped to the skill body leaves the mould minting the defect.
+
+`plan-gate` defines Paths A/B/B.5/C/D/D.5/E/F and **no L-levels**; a repo-wide sweep found no definition anywhere. It cannot emit a scope level even in principle — its output is a *Path recommendation*, so "per plan-gate classification" requests a kind of value the cited skill does not produce.
+
+**Delete, don't define** (D62-adjacent reasoning): at `:236`/`:242`/`:244` the L-clause is ANDed onto a trigger question that is already sufficient and answerable — `:226` *"Does this change set involve an architectural decision that should outlive the plan?"* **is** the L3+ test; `:242` *"Are there 2+ fundamentally different architectures…?"* **is** the L4+ test. `:89`(b) should be deleted outright: ultra-plan is reached only as Path D.5, so anything plan-gate would call "L0-L1" routes to Path A or B and never arrives.
 
 **Tasks:**
-1. [x] Add `orphans` to `SyncPlan`, `to_dict()`, `summarize_plan`, and `is_empty()`
-2. [x] Mutation-test the `is_empty()` term specifically
+1. [ ] Delete the L-clause and the "per plan-gate classification" attribution at all 8 `SKILL.md` sites
+2. [ ] Retitle `:222` and `:238` to "(conditional)" and let the existing trigger questions gate
+3. [ ] Delete `:89`'s condition (b) entirely
+4. [ ] Remove both `adr-template.md` L3+ references
+5. [ ] Confirm body stays under 500 lines (currently 385, 115 headroom)
 
 **Acceptance Criteria:**
-- [x] WHEN a plan contains only orphans THEN `is_empty()` SHALL return False and the summary SHALL name the affected issue numbers
-- [x] Existing SKILL parsing of `creates`/`pushes`/`pulls`/`conflicts`/`skipped_adopts` is unaffected
-
-**Completion notes (4.2):**
-- **`SyncPlan.orphans` field added:** `list[Orphan]` field inserted between `skipped_adopts` and `confidentiality_findings` in the dataclass (line 54), matching the pattern of how `skipped_adopts` is handled — a non-action that still contributes to "plan is not empty".
-- **`is_empty()` logic updated:** Added `or self.orphans` to the boolean check (line 66), ensuring a plan with only orphans returns `False` and blocks the "already in sync" claim. Documented in docstring that orphans share the same nature as `skipped_adopts`.
-- **`to_dict()` serialization added:** Orphans are now serialized as `[asdict(o) for o in self.orphans]` at line 71 in the stable section-ordered dict, placed after `skipped_adopts` to reinforce their shared "needs review" nature.
-- **`build_plan()` threading added:** `list(resolved.orphans)` is now passed through to the `SyncPlan` constructor at line 101, completing the data flow from `resolve()` → `build_plan()` → the plan object.
-- **`summarize_plan()` reporting added:** When `plan.orphans` is non-empty, the summary now includes an "orphans (links missing from fetch)" line listing affected issue numbers (lines 124–131), placed after skipped adoptions for consistent narrative.
-- **Test suite created:** New `tests/test_plan.py` with 19 comprehensive tests:
-  - Serialization: `to_dict()` and `to_json()` include orphans
-  - `is_empty()` behavior: orphan-only plans return `False`; empty plans return `True`
-  - Parametrized exhaustiveness test: every plan field is checked by `is_empty()`
-  - Mutation testing: confirmed that removing/inverting the `or self.orphans` check causes tests to fail
-  - `build_plan()` integration: orphans are threaded from resolution through the plan
-  - `summarize_plan()` formatting: orphan counts and issue numbers are reported
-  - Backward compatibility: existing SKILL parsing of other sections is unaffected (key order stable)
-- **Test count before/after:** 440 → 458 (+18 tests, from 19 new test_plan.py tests and 1 updated test_plan_apply.py to include "orphans" in expected keys)
-- **Coverage maintained:** 96.38% (both plan.py and resolve.py at 100%; above 90% floor)
-- **Linting:** `uvx ruff@0.14.10 check src tests` passes; all imports organized, no unused variables
-- **Type checking:** `mypy src/ --ignore-missing-imports` passes; no type errors
-- **Mutation test result:** Deletion of `or self.orphans` → test `test_plan_with_only_orphans_is_not_empty` fails (red), confirming the guard is active. Inversion of logic → test fails (red). Guard restored → all tests pass. ✓
-
----
-
-#### 4.3 Orphan decisions: keep or drop, validated up front ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #181
-**Depends On:** 4.2
-**Files Affected:**
-- `plugins/personal-plugin/tools/task-sync/src/task_sync/reconcile/apply.py` (modify)
-- `plugins/personal-plugin/tools/task-sync/src/task_sync/__main__.py` (modify)
-- `plugins/personal-plugin/skills/task-sync/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/task-sync/references/sync-semantics.md` (modify)
-
-**Description:**
-Orphan ids and conflict ids are disjoint by construction (a conflict requires `issue is not None`), so the existing flat decisions map can carry both. `keep` clears `issue_number` and the synced base so the next run re-creates via the tested `creates` path; `drop` removes the task. Validate every id and value **before** mutating anything (D36).
-
-**Tasks:**
-1. [x] Extend the decision handling for `keep`/`drop`, validated up front
-2. [x] Ensure a `drop` cannot run before the create/push loops (`by_id` lookups assume the task survives)
-3. [x] Render an Orphans section in the SKILL, prompting per orphan; undecided orphans resurface next run
-4. [x] Derive tests from the real disposition constant and include an out-of-set value
-
-**Acceptance Criteria:**
-- [x] WHEN an orphan decision file contains an unknown id or value THEN the whole batch SHALL be rejected with nothing written
-- [x] WHEN an orphan is left undecided THEN it SHALL remain untouched and reappear in the next plan
-
-**Completion notes (4.3):**
-- **Constants and validation:** Added `ORPHAN_DISPOSITION_KEEP`, `ORPHAN_DISPOSITION_DROP`, and `ORPHAN_DISPOSITIONS` tuple to `apply.py`. Implemented `_validate_orphan_decisions()` function that validates every orphan id and disposition upfront before any mutations (D36 compliance).
-- **Keep/Drop implementation:** Added `_apply_orphan_decision()` that handles `keep` (clears `issue_number` and `last_synced` so next run re-creates) and `drop` (returns True to signal removal). Orphans are processed AFTER creates/pushes (step 5) so `by_id` lookups don't assume dropped tasks survive.
-- **CLI integration:** Extended `_load_decisions()` to accept an optional `key` parameter (default `"decisions"`), enabling it to load both conflict and orphan decisions from the same file or separate keys. Updated `run_sync()` to load and pass `orphan_decisions` to `apply()`.
-- **SKILL.md documentation:** Added orphans to the plan rendering section (step 2), with explanation of why they're surfaced. Updated decision prompt section (step 4) to show how to specify both conflict and orphan decisions in one file. Updated apply section to mention orphan disposition application and updated "already in sync" logic.
-- **sync-semantics.md documentation:** Updated JSON schema to include `orphans` array, added comprehensive "Orphan decisions and apply" section explaining the two dispositions and valid formats for decisions files. Documented that undecided orphans resurface on next sync.
-- **Testing:** Added 10 new parametrized tests derived from the real `ORPHAN_DISPOSITIONS` constant + an out-of-set `"invalid"` value. Tests cover: keep (clears link), drop (removes), undecided (untouched), validation of dispositions, validation of unknown ids, upfront batch validation (D36). Mutation tests confirm both the validation guard and keep/drop logic are active.
-- **Coverage and linting:** 478 tests pass (up from 468), 96.38% coverage (above 90% floor). Injection linter, ruff, mypy, and markdownlint all pass.
-- **Mutation test result:** Confirmed validation guard catches unknown ids/dispositions (test fails without guard). Confirmed keep/drop logic is tested (test fails when inverted). Both mutations were caught as expected.
-
----
-
-#### 4.4 Delete the unreachable re-create branch and correct the docs
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #181
-**Depends On:** 4.1
-**Files Affected:**
-- `plugins/personal-plugin/tools/task-sync/src/task_sync/reconcile/resolve.py` (modify)
-- `plugins/personal-plugin/skills/task-sync/references/sync-semantics.md` (modify)
-- `plugins/personal-plugin/tools/task-sync/tests/test_resolve.py` (modify)
-
-**Description:**
-`resolve.py:212-217` is unreachable from the pipeline — `classify` emits `CHANGED_LOCAL` only where `issue_number` is non-`None`. Its comment ("An orphan (issue vanished)") is factually wrong and is what keeps it looking alive.
-
-**Tasks:**
-1. [x] Delete the branch and its comment; keep the hand-built-`Classification` test or delete it with the branch
-2. [x] Correct `sync-semantics.md:23-30`
-
-**Acceptance Criteria:**
-- [x] No unreachable branch remains in `resolve.py`; coverage does not drop
-
-**Completion notes (4.4):**
-- **Unreachable branch deleted:** Removed the `if c.task.issue_number is None:` branch (lines 248–253 pre-edit) from the `CHANGED_LOCAL` handler in `resolve.py`. Replaced with a direct `result.pushes.append()` call, since CHANGED_LOCAL can only exist for tasks with non-None `issue_number` (orphans are now handled via `ORPHAN_LOCAL` from item 4.1).
-- **Assertion added for type safety:** Added `assert c.task.issue_number is not None` with a comment documenting the invariant. This satisfies the type checker and prevents future confusion about the invariant.
-- **Test deleted:** Removed `test_orphan_changed_local_becomes_a_create_not_a_push()` from `test_resolve.py` — it tested the unreachable branch. The correct behavior (orphans surfaced as Orphan records) is now tested by the four ORPHAN_LOCAL-specific tests added in item 4.1.
-- **Documentation corrected:** Rewrote `sync-semantics.md:23-30` to replace the confusing description of an unreachable branch with accurate semantics: orphaned tasks are classified as `ORPHAN_LOCAL` and surfaced as Orphan records for human inspection.
-- **Test results:** 458 passed (no regression); 96.38% coverage (maintained above 90% floor); mypy clean; ruff clean on modified files.
-- **Mutation testing:** Verified the assertion is necessary by creating a CHANGED_LOCAL with `issue_number=None` manually; `resolve()` correctly asserts.
-- **Markdown lint:** `sync-semantics.md` passes markdownlint with 0 issues.
-
----
-
-#### 4.5 GitHub `list_issues`: fail loud on saturation ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #182
-**Depends On:** None
-**Files Affected:**
-- `plugins/personal-plugin/tools/task-sync/src/task_sync/providers/github.py` (modify)
-- `plugins/personal-plugin/tools/task-sync/tests/test_provider_github.py` (modify)
-
-**Description:**
-`--limit 1000` with no saturation check. Because `classify` treats the fetched list as authoritative, truncation manufactures the #181 orphan condition en masse. Step 1 keeps `gh issue list` and raises when `len(data) >= limit` — fail-loud satisfies "never silent", is trivially mutation-testable, and changes no argv shape. `gh label list --limit 1000` at `:215` has the same defect and is unfiled.
-
-**Tasks:**
-1. [x] Raise a `RuntimeError` naming the truncation when the fetch saturates
-2. [x] Apply the same guard to `ensure_labels`
-3. [x] Mutation-test: delete the guard, confirm a saturated-fetch test goes red
-
-**Acceptance Criteria:**
-- [x] WHEN the issue fetch returns exactly the limit THEN the tool SHALL abort before any write
-
-**Completion notes (4.5):**
-- **Constants extracted:** `_ISSUE_LIST_LIMIT = 1000` and `_LABEL_LIST_LIMIT = 1000` defined at module level for both saturation checks to reference (enabling mutation tests to target them).
-- **`list_issues` guard added:** After fetching, checks `if len(data) >= _ISSUE_LIST_LIMIT`, raises `RuntimeError` naming the limit and stating pagination is needed for phase 4.6.
-- **`ensure_labels` guard added:** Same pattern after fetching labels; raises before any label creation.
-- **Mutation testing verified:** Temporarily removed the `list_issues` guard; test `test_list_issues_saturated_raises` correctly failed with "DID NOT RAISE RuntimeError". Restored guard; all tests pass.
-- **New tests added:** `test_list_issues_saturated_raises` (1000-issue fixture, confirms error is raised), `test_ensure_labels_saturated_raises` (1000-label fixture). Both parametrized from the real constants, not hand-copied.
-- **Real `gh` probed:** Confirmed `gh issue list --limit 1000` returns a JSON array; verified non-destructively that the repository has 27 open issues (well below limit). The `--limit` flag works as documented.
-- **Coverage maintained:** 96.35% (above 90% floor). Test count: 427 → 429 (+2 saturation tests).
-- **Linting:** `uvx ruff@0.14.10 check` passes (fixed one line-length issue on the labels_data line).
-
----
-
-#### 4.6 GitHub `list_issues`: real pagination via REST ✅ Completed 2026-07-29
-**Status:** COMPLETE 2026-07-29
-**Model Tier: opus**
-**Recommendation Ref:** #182
-**Depends On:** 4.5
-**Files Affected:**
-- `plugins/personal-plugin/tools/task-sync/src/task_sync/providers/github.py` (modify)
-- `plugins/personal-plugin/tools/task-sync/tests/test_provider_github.py` (modify)
-
-**Description:**
-Three traps in the obvious fix. `--slurp` does not exist on the verified `gh` 2.45.0 baseline, so `gh api --paginate` emits **concatenated** JSON arrays that `json.loads` rejects — needs `json.JSONDecoder().raw_decode` or `--jq '.[]'` + JSONL. REST `/repos/{}/issues` **includes pull requests**, which would adopt every open PR as a task. And REST is snake_case while `_normalize`/`_view` are keyed to `gh --json` camelCase — a second normalizer would be #208-class drift, so use one field-alias layer.
-
-**Tasks:**
-1. [x] Implement the paginated REST fetch with a `raw_decode` loop
-2. [x] Filter `"pull_request" not in item`
-3. [x] Route both shapes through one alias layer, not two normalizers
-4. [x] Fixture must be **two `[...]` blobs concatenated with no separator** — a pre-merged array would prove the fix while the real `gh` still crashes (#212's failure mode verbatim)
-
-**Acceptance Criteria:**
-- [x] WHEN a repo has more issues than one page THEN all are fetched
-- [x] WHEN the repo has open PRs THEN none is adopted as a task
-- [x] Gitea's `_PAGE_SIZE` loop and `type: issues` filter remain unchanged
-
-**Completion notes (4.6):**
-- **`list_issues` rewritten:** replaced `gh issue list --json ... --limit 1000` with `gh api repos/{repo}/issues?state={state}&per_page=100 --paginate`, parsed by a new `_parse_paginated_json_arrays` static method (a `json.JSONDecoder().raw_decode` loop that flattens however many top-level JSON array values precede EOF).
-- **PR filter added:** `if "pull_request" not in item` before normalization; mutation-tested (below).
-- **One alias layer, not two normalizers:** new `_alias_rest_fields` maps REST's `updated_at`/`closed_at` onto the `updatedAt`/`closedAt` keys `_normalize` already expects; every other field (`number`, `title`, `body`, `state`, `labels[].name`, `milestone.title`) is spelled identically in both shapes, so `_normalize` stays the single source of truth for the `Issue` shape.
-- **Verified against real `gh` 2.45.0 (2026-07-29, read-only, mutates nothing):**
-  - `gh api "repos/davistroy/claude-marketplace/issues?per_page=2&page=1" --verbose` — confirmed REST field names/casing (`number`, `title`, `state` already lowercase, `updated_at`, `closed_at`, `milestone.title`, `labels[].name`).
-  - `gh api "repos/davistroy/claude-marketplace/issues?per_page=5&state=all" --paginate` piped through `json.loads` — **contrary to this item's stated premise, gh 2.45.0 actually merges every page into one valid JSON array by the time it reaches stdout** (confirmed 221 items, one clean array, zero real `][` blob boundaries — the two `][` substrings found were inside issue body markdown text, not JSON syntax). Nothing in `gh api --help` guarantees this, so the parser still handles the harder concatenated-blob shape defensively (and the test fixtures use that harder shape per Task 4), but this is a materially different empirical finding than the plan text describes and is worth flagging for anyone reusing this premise elsewhere.
-  - `gh api repos/davistroy/claude-marketplace/issues/221` — confirmed a real PR carries a `pull_request` key; `gh api repos/davistroy/claude-marketplace/issues/218` (a real issue) does not.
-  - `gh api "repos/davistroy/claude-marketplace/issues?state=all&per_page=100" --paginate --jq 'length'` — confirmed the exact argv shape `list_issues` now sends walks 3 real pages (100+100+21 = 221 issues+PRs) against the live repo.
-- **4.5's guard, `list_issues` side:** the `_ISSUE_LIST_LIMIT`/saturation-RuntimeError guard was **not deleted**, but is now genuinely unreachable from `list_issues` — wiring it to the post-pagination total would be a regression (it would block a correctly-fetched ≥1000-issue repo, which is exactly what unbounded pagination exists to support). Extracted into a standalone `_raise_if_issue_fetch_saturated` static method, documented in place, and kept covered/mutation-tested directly (`test_raise_if_issue_fetch_saturated_still_raises`) rather than through `list_issues`. 4.5's `ensure_labels` guard (`_LABEL_LIST_LIMIT`) is untouched and remains fully live — 4.6 does not touch label fetching.
-- **Mutation testing verified (both restored after confirming red):** removing the `"pull_request" not in item` filter → `test_list_issues_filters_pull_requests` failed as expected; gutting `_raise_if_issue_fetch_saturated`'s raise → `test_raise_if_issue_fetch_saturated_still_raises` failed as expected. `diff` confirmed the file was restored byte-identical after each mutation.
-- **Tests:** 458 → 468 (+10: paginated-fetch happy path, concatenated-blob fixture per Task 4, PR filter, empty-repo, retained-guard-still-raises, retained-guard-noop, alias-layer (2), parser rejects non-array top-level, parser handles trailing whitespace).
-- **Coverage:** 96.38% → 96.45% (above the 90% floor). Lint (`ruff@0.14.10`) and `mypy --ignore-missing-imports` both exit 0.
+- [ ] WHEN `grep -nE 'L[0-9]' plugins/personal-plugin/skills/ultra-plan/SKILL.md` runs THEN it SHALL return no output
+- [ ] WHEN `grep -nE 'L[0-9]\+' plugins/personal-plugin/references/adr-template.md` runs THEN it SHALL return no output
+- [ ] WHEN a conditional gate in `ultra-plan` is evaluated THEN it SHALL depend only on a question answerable from text present in the repo
+- [ ] `ultra-plan/SKILL.md` remains under 500 lines
 
 ---
 
 ### Phase 4 Testing Requirements
 
-- [ ] New guards mutation-tested individually (orphan branch, `is_empty()` term, saturation guard)
-- [ ] Orphan decision tests derived from the real constant, with an out-of-set value
-- [ ] Pagination fixture uses concatenated blobs
-- [ ] Coverage ≥90% maintained
+- [ ] `check_eval_mapping.py` exits 0
+- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 ### Phase 4 Completion Checklist
 
 - [ ] All work items complete
-- [ ] Full task-sync suite green on both OSes
-- [ ] `tasks.json` backed up before any live verification (gitignored, not git-recoverable)
+- [ ] `:350` verified unchanged
+- [ ] Eval and skill changed in one commit
+- [ ] Version bumped (Phase 2's gate will now require it)
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Tests | `cd plugins/personal-plugin/tools/task-sync && PYTHONPATH=src python -m pytest tests/ -q` | Exit code 0 |
-| Coverage | `cd plugins/personal-plugin/tools/task-sync && PYTHONPATH=src python -m pytest --cov=src --cov-fail-under=90 -q` | ≥90% |
-| Lint | `uvx ruff@0.14.10 check plugins/personal-plugin/tools/task-sync/src plugins/personal-plugin/tools/task-sync/tests` | Exit code 0 |
-| Types | `cd plugins/personal-plugin/tools/task-sync && mypy src/ --ignore-missing-imports` | Exit code 0 |
+| No L-taxonomy | `grep -rnE 'L[0-9]\+?' plugins/personal-plugin/skills/ultra-plan/SKILL.md plugins/personal-plugin/references/adr-template.md` | No output |
+| :350 intact | `grep -c 'Change sets (Phase 2c)' plugins/personal-plugin/skills/ultra-plan/SKILL.md` | Returns `1` |
+| Body budget | `wc -l < plugins/personal-plugin/skills/ultra-plan/SKILL.md` | < 500 |
+| Validation | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 5: Generator and Harness-Feature Catalog
+## Phase 5: `/unlock` Actually Works
 
+**Estimated Complexity:** S (~3 files)
+**Dependencies:** None
 **Execution Mode:** Sequential
 
 ### Goals
 
-Make the documentation layer that teaches skill authoring describe the harness that actually exists — correcting semantics rather than deleting capability — and stop the generator propagating stale model IDs.
+- Fix the total, in-repo `/unlock` failure that #217's filed remedy would not have touched
+- Correct the record: D53 and two notebook lines restate a mechanism that is wrong
 
 ### Work Items
 
-#### 5.1 ADR-0012 and the `paths:` semantics inversion ✅ Completed 2026-07-29
-**Status:** COMPLETE 2026-07-29
-**Model Tier: opus**
-**Recommendation Ref:** #202
+#### 5.1 Read the token from `BWS_ACCESS_TOKEN`, not the unset `$TROY`
+**Status: PENDING**
+**Model Tier: sonnet**
+**Issue Refs:** #217
 **Depends On:** None
 **Files Affected:**
-- `docs/adr/0012-artifact-derived-documentation.md` (create)
-- `plugins/personal-plugin/references/patterns/advanced-features.md` (modify)
-- `plugins/personal-plugin/references/common-patterns.md` (modify)
-- `plugins/personal-plugin/commands/new-skill.md` (modify)
-- `plugins/personal-plugin/skills/{spark-audit,jetson-audit,spark-recon,jetson-recon,security-analysis}/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/new-project/SKILL.md` (modify)
+- `plugins/personal-plugin/references/api-key-setup.md` (modify)
 
 **Description:**
-The docs teach `paths:` as an *event trigger* ("auto-activates when the user opens or saves a matching file"). The harness implements a *load gate*: "the skill only loads when **the model** touches matching files." Every loop guard built on the doc's reading is dead code. Worse and unfiled: all four fleet skills pair `paths:` with `disable-model-invocation: true` — since `paths:` gates on model file access and the flag forbids model invocation entirely, **the pairing is self-cancelling**. ADR-0012 generalizes the root cause shared by #193, #194, #196, #202 and #218: documentation of a bundled artifact must be derived from or verified against the artifact.
+`skills/unlock/SKILL.md:50` does `TOKEN="$TROY"` and `:53` hard-stops when empty. **`TROY` is set by nothing on this machine** — verified UNSET, while `BWS_ACCESS_TOKEN` is set (94 chars) and current. So `/unlock` prints "TROY environment variable is not set" and never reaches `bws`, on every invocation.
+
+Second in-repo blocker: `allowed-tools` (`:5`) omits `python3` (`Bash(python:*)` does not prefix-match `python3`), `mktemp`, `chmod`, `rm`, `source`, `test`, and does not cover `:92`'s `BWS_ACCESS_TOKEN="$TOKEN" bws …` form, which is not `bws`-prefixed. Step 3 stalls even once the variable is fixed.
+
+The one genuine probe leak is `references/api-key-setup.md:49` — a bare `bws secret list` used as a diagnostic, which prints every secret's plaintext value. The functional uses at `unlock:70,92` and `new-project:62` capture to a variable and are **not** offenders.
 
 **Tasks:**
-1. [x] Write ADR-0012 (Accepted), including the rule that a freshness claim requires a mechanism or must be deleted
-2. [x] Correct `paths:` semantics in all three teaching sites
-3. [x] Remove the dead loop guards from the five skills carrying them
-4. [x] Record the self-cancelling `paths:` + `disable-model-invocation` pairing and resolve it per skill
+1. [ ] Read `${BWS_ACCESS_TOKEN}` as primary, `$TROY` as a deprecated fallback; update the error text and the `$TROY` references at `:17`, `:40`, `:44-45`, `:54-55`, `:140`, `:199-201`
+2. [ ] Same rename at `new-project/SKILL.md:62` and `api-key-setup.md:51,53`
+3. [ ] Widen `allowed-tools` to cover `python3`, `mktemp`, `chmod`, `rm`, `source`, `test`, and the `VAR=… bws` form
+4. [ ] Replace `api-key-setup.md:49`'s bare probe with `bws secret list >/dev/null; echo $?`
+5. [ ] Keep `disable-model-invocation: true` — do not relax it
+6. [ ] **Before the manual `/unlock` verification, diff the installed cache against the repo copy** — `diff ~/.claude/plugins/cache/troys-plugins/personal-plugin/<version>/skills/unlock/SKILL.md plugins/personal-plugin/skills/unlock/SKILL.md` — and abort the test if they differ. Per #232 the loader can serve an older cached version than `installed_plugins.json` names, so a green manual run could be testing the pre-fix body. Verify content, never the version string
 
 **Acceptance Criteria:**
-- [x] WHEN a reader consults any `paths:` documentation THEN it SHALL describe a model-access load gate
-- [x] No skill retains a loop guard for an event that cannot occur
-- [x] ADR-0012 exists with status Accepted
-
-**Completion notes (5.1):**
-- **Probe, not conclusion — `paths:` semantics recovered from Claude Code 2.1.220 (`~/.local/share/claude/versions/2.1.220`), same pinned build ADR-0011 used.** `strings -n 6` over the binary (a Bun single-file executable; bundled JS is plaintext, not obfuscated at the identifier level) into a scratch file, then targeted `grep` for the literal frontmatter keys and their handling functions — not behavioral inference, not a subagent summary. Recovered verbatim and cross-checked against each other:
-  - `sn_(e)` — the `paths:` normalizer, called once per skill file at load time; returns `undefined` (no restriction) for an empty or all-`"**"` pattern list.
-  - The top-level skill loader: after building the full skill list `g`, any `A` with `A.type==="prompt"&&A.paths&&A.paths.length>0&&!activatedConditionalSkillNames.has(A.name)` is diverted into a separate `conditionalSkills` map and **excluded from the loader's return value**; logs `"[skills] N conditional skills stored (activated when matching files are touched)"`.
-  - `gn_(e,t)` — the activator: for each stored conditional skill, builds an `ignore`-package matcher (`.add()`/`.ignores()`, confirming the `.gitignore`-style glob claim was already correct) from its `paths`, and on a match moves it into `dynamicSkills`, deletes it from `conditionalSkills`, and adds its name to `activatedConditionalSkillNames` — a set the match loop skips on every subsequent call, i.e. **one-shot per session, never re-processed**.
-  - `tur(e,t)` — the sole caller of `gn_`. Grepped its three call sites directly inside the tool-handler bodies: the **Read** tool's `call()` (`await tur(f,o.dynamicSkillDirTriggers)`), the **Edit** tool's `call()` (`await tur(y,u)`), and the **Write** tool's `call()` (`await tur(p,d)`) — confirming activation fires on Claude's own file-touching tool calls and nothing else (no filesystem watcher, no external-process hook).
-  - `nw()`/`tRs()`/`Cv()` — traced the assembly chain the SkillTool's own `validateInput` uses (`let s=await tRs(t),a=Cv(o,s)`, `Unknown skill` if `a` is undefined) and confirmed `tRs`'s sources (`nw()` = unconditional loader output ∪ `ATo()` = **activated** conditional skills only) never include a not-yet-activated conditional skill. This is the evidence for F4: `paths:` gates lookup for **both** the model and a user typing the slash command, not just the model's own proactive menu — sharper than the plan text implied, and recorded in ADR-0012 accordingly.
-- **`paths:` verdict: REAL, but a conditional-load gate, not an event trigger — corrected in all three teaching sites** (`common-patterns.md:175-192`, `advanced-features.md:84-113` + Feature Interaction Matrix row, `new-skill.md` table row / gotcha / checklist bullet / `# --- Auto-Activation ---` → `# --- Conditional Load ---` headers). No change to the `.gitignore`-glob-syntax claim — independently confirmed correct via the `ignore`-package call.
-- **Resolved per skill (Task 4), not uniformly:** `spark-audit`, `jetson-audit`, `spark-recon`, `jetson-recon` all carry `disable-model-invocation: true` (verified by re-reading each frontmatter block directly) and their own descriptions say "run periodically" — on-demand human invocation, which F4 shows `paths:` can only ever obstruct for a model-invocation-disabled skill (it gates lookup for the user too, with no path to ever satisfy the gate if Claude has no reason to touch the trigger file). `paths:` and the matching "Loop Guard — Auto-Activation Safety Check" section were removed from all four (plus the two dangling Error-Handling bullets in `spark-recon`/`jetson-recon` and one in `spark-audit` that referenced the deleted guard's `--force` flag); `disable-model-invocation: true` was kept, and each now carries an explanatory comment pointing at ADR-0012. `security-analysis` carries no `disable-model-invocation`, so the pairing defect does not apply — `paths:` was kept (it legitimately expands what Claude can discover mid-session) and only the "Auto-Activation Confirmation" section's wording was corrected (renamed "Conditional-Load Confirmation"; "triggered automatically via `paths:`" → explicit conditional-load explanation with an ADR-0012 link) without touching its confirm-before-scanning behavior. Note: only 4 of the 5 skills literally carried a "Loop Guard" heading; `security-analysis`'s equivalent wrong assumption lived in its "Auto-Activation Confirmation" section, corrected in place rather than deleted since the underlying confirm-before-scan behavior is legitimate.
-- **`new-skill-examples.md` deliberately left untouched** — it is in item 5.3's Files Affected list (fictional-key deletion), not 5.1's, and its `$CLAUDE_CONTEXT` worked example is 5.3's defect to fix; touching its paths-related wording here would have pre-empted that item mid-file. `new-skill.md:324`'s reference to it was likewise left unedited to avoid asserting something inconsistent with content 5.3 hasn't corrected yet.
-- **Verified:** `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); `python3 scripts/check_injections.py` (exit 0, 63 files / 35 injections, all guarded — unaffected, no injections added or touched); `npx markdownlint-cli2` over all 9 created/modified files (exit 0, 0 issues); `bash scripts/pre-commit` with the 6 in-scope files staged (`commands/new-skill.md` + 5 `SKILL.md`s — `references/**` and `docs/**` are outside the hook's staged-file filter by design) (exit 0, all PASS).
-
----
-
-#### 5.2 `hooks:` frontmatter: the event-record shape ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #202
-**Depends On:** 5.1
-**Files Affected:**
-- `plugins/personal-plugin/references/common-patterns.md` (modify)
-- `plugins/personal-plugin/references/patterns/advanced-features.md` (modify)
-- `plugins/personal-plugin/references/templates/skill.md` (modify)
-- `plugins/personal-plugin/commands/new-skill.md` (modify)
-
-**Description:**
-The `hooks: pre:/post:` shape taught in four places is invalid. The value is a record keyed by hook event → array of matchers. A string under `pre:`/`post:` fails validation and emits `Invalid hooks in plugin skill '<name>'`. Same defect class as the three hook recipes in Phase 3.
-
-**Tasks:**
-1. [x] Rewrite all four sites to the event-record form with the valid event names
-2. [x] Cross-reference the working `hooks/hooks.json`
-
-**Acceptance Criteria:**
-- [x] WHEN a skill author copies the documented `hooks:` shape THEN it SHALL load without a validation error
-
-**Completion notes (5.2):**
-- **Ground-truth shape derived from `plugins/personal-plugin/hooks/hooks.json`:** A `hooks` record keyed by event name → array of matcher-group objects. Each matcher-group has `matcher` (string) and `hooks` (array of hook objects). Each hook has `type: "command"`, `command` (string), `timeout` (seconds, integer), and optional `statusMessage` (string). Valid events in the working plugin: `SessionStart`, `PreToolUse`, `Stop` (verified by reading and parsing the real file, not from documentation).
-- **Corrected all four sites** to show the event-record shape with a `Stop` event example (the only unconditional event, making it the safest teaching example):
-  - `references/templates/skill.md:20-27` — replaced inline `pre:`/`post:` with event-record YAML showing `Stop` event, matcher-group structure, and hook object shape with timeout in seconds
-  - `references/common-patterns.md:230-244` — replaced the pattern, updated "Use case" description, corrected the gotcha to state the exact shape (event-record, not array) and point to `hooks/hooks.json` as ground truth
-  - `references/patterns/advanced-features.md:159-174` — replaced pattern and updated "What it does" to describe lifecycle events instead of pre/post, added event examples and ADR-0012 reference
-  - `commands/new-skill.md` (two occurrences at lines 177-179 and 206-208) — replaced both template examples with the event-record shape
-- **Verified:** `python3 scripts/check_injections.py` (exit 0, 63 files / 35 injections, all guarded); `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); `npx markdownlint-cli2` on all four files (exit 0, 0 issues); `bash scripts/pre-commit` (exit 0, all PASS). All validation exits 0. Example shape copied into the skill frontmatter validates without error and loads without `"Invalid hooks"` message.
-
----
-
-#### 5.3 ✅ Completed 2026-07-29 Delete the two fictional keys
-**Status:** COMPLETE 2026-07-29
-**Model Tier: sonnet**
-**Recommendation Ref:** #202
-**Depends On:** 5.1
-**Files Affected:**
-- `plugins/personal-plugin/references/common-patterns.md` (modify)
-- `plugins/personal-plugin/references/patterns/advanced-features.md` (modify)
-- `plugins/personal-plugin/references/templates/skill.md` (modify)
-- `plugins/personal-plugin/references/new-skill-examples.md` (modify)
-- `plugins/personal-plugin/commands/new-skill.md` (modify)
-
-**Description:**
-`isolation: worktree` is **agent** frontmatter, not skill — and the skill schema is `.strict()`, so an unknown key is **rejected**, not ignored. `$CLAUDE_CONTEXT` does not exist as a template variable (only the unrelated `CLAUDE_CONTEXT_COLLAPSE` env vars do); `new-skill-examples.md:128` is a worked example that silently degrades.
-
-**Tasks:**
-1. [x] Remove `isolation:` from skill-frontmatter documentation; relocate to an agent-frontmatter note if kept at all
-2. [x] Delete `$CLAUDE_CONTEXT` and its worked example from all five sites
-
-**Acceptance Criteria:**
-- [x] WHEN a generated skill's frontmatter is validated THEN it SHALL contain no key the strict schema rejects
-- [x] No documented template variable expands to nothing
-
-**Completion notes (5.3):**
-- **Proof method identical to 5.1/5.2** — `strings -n 6` over the pinned `~/.local/share/claude/versions/2.1.220` binary, targeted `grep`, no behavioral inference. Two artifacts examined: (1) a contiguous run of skill-frontmatter field descriptions immediately followed by a contiguous run of agent-frontmatter field descriptions (`common-patterns.md`'s and `advanced-features.md`'s existing `paths:`/`hooks:` proofs came from the same region); (2) the literal skill/agent-frontmatter key-name arrays adjacent to those descriptions.
-- **`isolation:` verdict: REAL, but exclusively agent frontmatter — fictional in skill-frontmatter context, deleted from all skill-frontmatter teaching sites.** The skill-frontmatter description block (`name` → `description` → `model` → `allowed-tools` → `disallowed-tools` → `argument-hint` → `disable-model-invocation` → `user-invocable` → `effort` → `shell` → `when_to_use` → `paths` → `hooks` → `context` → `agent` → `background`[fork-only]) contains no `isolation` entry. `isolation`'s only description string — `"Filesystem isolation: \`worktree\` runs in a temporary git worktree."` — sits inside the immediately-following agent-frontmatter block (`memory` → `background` → `isolation` → `observer` → `observerMessage` → `observeSubagents`), alongside `"Agent file … has invalid isolation value '"` and `"agent({isolation:'remote', schema})"` / `"agent({isolation:'remote'}) is not available in this build"` (Agent-tool call parameter, matching this session's own Agent tool schema: `isolation: "worktree" | "remote"`). Zero occurrences of `isolation` inside the skill-schema description run. Not simply deleted outright — each site now carries a short corrective note (no copyable YAML) stating it belongs to `.claude/agents/*.md` frontmatter and the `Agent` tool call, consistent with "relocate to an agent-frontmatter note if kept at all."
-- **`$CLAUDE_CONTEXT` verdict: FICTIONAL, deleted outright.** Zero occurrences of the bare string `CLAUDE_CONTEXT` in the binary as a template/substitution variable. The only two hits anywhere are `CLAUDE_CONTEXT_COLLAPSE` and `CLAUDE_CONTEXT_COLLAPSE_MODEL` — unrelated context-management env vars, confirming the plan's Description text. Cross-checked against the confirmed-real variable set (`$ARGUMENTS`, `$1`/`$2`/`$3`, `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, `${CLAUDE_PROJECT_DIR}`), each of which has an explicit description string in the binary; `$CLAUDE_CONTEXT` has none.
-- **U1 resolved (Unknowns Register): `$PWD` is FICTIONAL, deleted from `common-patterns.md:292`.** Matches the Unknown's own premise exactly — 3 short-line binary hits for `PWD`, none with schema context: `d=$PWD; while :; do` and `local working_dir="${PWD}";` are ordinary bundled bash-script fragments (not a Claude Code substitution feature), plus the bash builtin `OLDPWD` and one unrelated noise string. No description string, no schema key, unlike the three confirmed-real variables in the same list. Single occurrence in the plugin (`common-patterns.md:292`); removed per the Unknown's own resolution strategy ("delete if unverified").
-- **U4 resolved (Unknowns Register): a `.strict()` skill-schema rejection is a hygiene fix, not a crash.** Located the actual failure path: `"[skills] YAML frontmatter in " + path + " failed to parse and was ignored: " + error`, telemetry events `skill_load_yaml_failed` / `skill_load_parse_failed`, alongside `"Failed to load skill from "` and `"[skills] skipping "`. The skill is silently dropped from the skill list — no session crash, no user-facing error banner in normal operation — with a diagnostic log line as the only signal. This confirms the deletions above are closing a silent-capability-loss defect, not a crash defect, and that the corrective notes' "silently dropped... no session crash" wording is derived from this trace rather than assumed.
-- **`new-skill-examples.md` Example C rewritten, not just stripped of `$CLAUDE_CONTEXT`** — per 5.1's completion notes ("`new-skill-examples.md` deliberately left untouched… its paths-related wording… would have pre-empted [5.3] mid-file"), this file's paths-semantics correction was explicitly deferred here, not assigned to any other item (verified: it appears in no other item's Files Affected list). Corrected in place: title/intro no longer say "auto-run" or "auto-activates"; the "Entry guard (REQUIRED for paths-activated skills)" loop-guard section is removed (same defect class 5.1 removed from the five skills — activation is one-shot, so no guard is needed); Phase 1 no longer claims a triggering-file can be identified (there is no `$CLAUDE_CONTEXT` and no other payload — `paths:` gates existence only, per ADR-0012 F4) and instead validates the full `paths:` glob set. `new-skill.md`'s own forward reference to this example ("a paths-activated skill with a loop guard") updated to match ("a conditionally-loaded skill using `paths:`") — this is the site 5.1 flagged at `new-skill.md:324` (now `:330` after 5.2's edits shifted line numbers) as left unedited "to avoid asserting something inconsistent with content 5.3 hasn't corrected yet."
-- **Left untouched (explicitly out of scope, assigned to later items):** `agent:` enum (`Explore | Think | Code`) and pinned `model:` IDs (`claude-opus-4`) inside the same commented blocks I edited in `templates/skill.md` and `new-skill.md` — 5.4 and 5.6 respectively. `context: fork` framing in `advanced-features.md`/`common-patterns.md` and the `disable-model-invocation` definition — neither is an isolation/`$CLAUDE_CONTEXT`/`$PWD` defect and both are unassigned or assigned elsewhere (5.4).
-- **Verified:** `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); `python3 scripts/check_injections.py` (exit 0, 63 files / 35 injections, all guarded, none touched); `npx markdownlint-cli2` on all 5 modified files (exit 0, 0 issues); `bash scripts/pre-commit` with the 5 files staged (exit 0, all PASS).
-
----
-
-#### 5.4 ✅ Completed 2026-07-29 Frontmatter enum corrections: `agent:`, `effort`, and the flag definition
-**Status: COMPLETE 2026-07-29**
-**Model Tier: opus**
-**Recommendation Ref:** #202, #192 (row 8), #201, #199 (partial)
-**Depends On:** 5.1
-**Files Affected:**
-- `plugins/personal-plugin/references/common-patterns.md` (modify)
-- `plugins/personal-plugin/references/patterns/advanced-features.md` (modify)
-- `plugins/personal-plugin/references/templates/skill.md` (modify)
-- `plugins/personal-plugin/commands/new-skill.md` (modify)
-- `plugins/personal-plugin/commands/scaffold-plugin.md` (modify)
-- `CLAUDE.md` (modify)
-
-**Description:**
-Four enum defects in one pass, all in the same files. `agent:` — built-ins are `Explore`, `Plan`, `general-purpose`; `Think` and `Code` are fictional, and unknown types **raise** rather than falling back silently as `common-patterns.md:156` claims. This also resolves #192's row 8 (`scaffold-plugin.md:194`'s `# agent: explorer` is the lone outlier against five correct usages). `effort` — the documented enum omits **`xhigh`**, which is Claude Code's own default and the recommended level for agentic work. `disable-model-invocation` — misdefined as "no LLM call" in two of three sites; `CLAUDE.md:116` is the only correct rendering.
-
-**Tasks:**
-1. [x] `agent:` enum → `Explore | Plan | general-purpose | <named custom agent>`; correct the silent-fallback claim
-2. [x] `scaffold-plugin.md:194`: `explorer` → `Explore`
-3. [x] Add `xhigh` to the `effort` enum in `CLAUDE.md:105` and every generator site
-4. [x] Correct the flag definition at `new-skill.md:287` and `templates/skill.md:7` to match `CLAUDE.md:116`
-
-**Acceptance Criteria:**
-- [x] WHEN a generated skill declares `agent:` THEN the value SHALL be one the harness resolves
-- [x] The documented `effort` enum matches the harness enum exactly
-- [x] All three `disable-model-invocation` definitions agree
+- [ ] WHEN the manual verification is run THEN the installed `unlock/SKILL.md` SHALL be byte-identical to the repo copy, confirmed by diff before the run (#232 mitigation)
+- [ ] WHEN `/unlock` runs in a tool shell with `BWS_ACCESS_TOKEN` set and `TROY` unset THEN it SHALL load secrets and report names only
+- [ ] WHEN any documented helper runs on its success path THEN no secret value SHALL be printed to stdout
+- [ ] WHEN Step 3 executes THEN every command it issues SHALL be covered by `allowed-tools`
+- [ ] `disable-model-invocation: true` is unchanged
+- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
-Only the `effort` **enum** half of #199 lands here; the 31-component `effort:` sweep is deferred to the follow-on plan. Do not close #199 on this phase.
-
-**Completion notes (5.4):**
-- **Agent enum derived from binary (2.1.220) and ADR-0011 precedent:** `strings -n 4` extraction confirmed `Explore`, `Plan`, `general-purpose`, `Code`, `Think`, `inherit` as present strings. Per the plan's statement "built-ins are Explore, Plan, general-purpose; Think and Code are fictional," only the three built-ins and custom named agents (e.g., role-specific agents) are valid. Unknown types raise validation error, not silent fallback — corrected in `common-patterns.md:156` (was: "Unrecognized agent types fall back silently"; now: "Unrecognized agent types raise a validation error during skill load").
-- **Effort enum verified complete:** Extraction confirmed `low`, `medium`, `high`, `xhigh`, `max` all present in binary. Added `xhigh` to three sites: `CLAUDE.md:106` (example), `templates/skill.md:5` (template), `new-skill.md:295` (field reference table).
-- **disable-model-invocation definition unified:** Corrected misdefinition from "no LLM call" to the precise rendering matching `CLAUDE.md:117`: "removes LLM call (pure-tool skill); also excludes from proactive triggering." Applied to `templates/skill.md:7` and `new-skill.md:297`.
-- **explorer → Explore typo fixed:** `scaffold-plugin.md:194` corrected from lowercase to capitalized built-in name, now consistent with five other agent references in the same file.
-- **Verified:** All four acceptance criteria met. Plugin validation `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); injection linter `python3 scripts/check_injections.py` (exit 0, 63 files/35 injections, all guarded); markdownlint on 6 modified files (0 issues); pre-commit (all checks PASS).
+Cannot be verified in CI (ADR-0009/D32, zero secrets). Acceptance is a manual `/unlock` run. **Out of scope, not fixable here:** the nine `~/.claude/scripts/*.sh` (all legacy `bw`/`BW_SESSION`, zero `bws` references), `~/.bashrc:8`'s early return, and the global CLAUDE.md's nonexistent `~/bin/bws.exe`.
 
 ---
 
-#### 5.5 ✅ Completed 2026-07-29 `/schedule`: keep the integration, rewrite the invocations
-**Status: COMPLETE 2026-07-29**
+#### 5.2 Correct D53 and rewrite #217
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #202
+**Issue Refs:** #217
 **Depends On:** 5.1
 **Files Affected:**
-- `plugins/personal-plugin/skills/{spark-audit,spark-recon,jetson-audit,jetson-recon}/SKILL.md` (modify)
+- `LAB_NOTEBOOK.md` (modify)
 
 **Description:**
-**#202 asserts** `/schedule` does not exist and proposes replacing it with `create_trigger`. **The reverse is true**: `/schedule` is a currently-shipping built-in skill; `create_trigger` appears zero times in the harness. What *is* fictional is the invocation syntax — `/schedule create --name … --cron …` — because `/schedule` is a natural-language skill, not a flag CLI.
+D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wrong: `.bashrc:167` guards the *full credential set*, not the token; the operative line is `.bashrc:8`, an early `return` for non-interactive shells that makes the anti-staleness `eval` at `:165` — already present since 2026-07-16, i.e. already #217's proposed fix — unreachable. The E058 stale-token incident was real but transient and host-level; it does not reproduce.
 
 **Tasks:**
-1. [x] Keep all four `/schedule` integration sections
-2. [x] Rewrite the eight invocation blocks as natural-language requests
-3. [x] Do **not** introduce `create_trigger`
+1. [ ] Amend D53 with the corrected mechanism, preserving the original text struck through (Rule 4 — never delete a decision)
+2. [ ] Correct notebook `:645` and `:657`
+3. [ ] Rewrite #217's body to the in-repo scope and close it on merge
 
 **Acceptance Criteria:**
-- [x] WHEN a user follows a scheduling section THEN the described invocation SHALL match how `/schedule` is actually invoked
-
-**Completion notes (5.5):**
-- **All four integration sections preserved** — each skill's `## /schedule Integration` section remains intact, introducing no `create_trigger` reference.
-- **Eight invocation blocks rewritten as natural-language requests** — replaced fictional flag syntax (`/schedule create --name … --cron …`) with language-friendly requests:
-  - **Creation blocks:** `"/schedule Set up a recurring audit run for [skill-name] every [day] at [time]"`
-  - **List/delete blocks:** `"/schedule List all my scheduled [audit|recon] runs"` and `"/schedule Remove the [skill-name] [day] [time] schedule"`
-- **Skills touched:**
-  - `plugins/personal-plugin/skills/spark-audit/SKILL.md` — lines 192–205 rewritten (1 create + 2 manage blocks)
-  - `plugins/personal-plugin/skills/jetson-audit/SKILL.md` — lines 232–245 rewritten (1 create + 2 manage blocks)
-  - `plugins/personal-plugin/skills/spark-recon/SKILL.md` — lines 214–227 rewritten (1 create + 2 manage blocks)
-  - `plugins/personal-plugin/skills/jetson-recon/SKILL.md` — lines 139–152 rewritten (1 create + 2 manage blocks)
-- **Verified constraints from Phase 5 item 5.1:**
-  - ✓ No `paths:` reintroduced
-  - ✓ No Loop Guard sections reintroduced
-  - ✓ No `--force` references (item 5.1 removed them)
-  - ✓ All four skills retain `disable-model-invocation: true`
-  - ✓ Trust Boundary sections intact (data-only, never instructions from fetched content)
-
----
-
-#### 5.6 ✅ Completed 2026-07-29 Generator templates: tier aliases, not pinned IDs
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #197 (class a)
-**Depends On:** 5.4
-**Files Affected:**
-- `plugins/personal-plugin/references/templates/skill.md` (modify)
-- `plugins/personal-plugin/commands/new-skill.md` (modify)
-- `plugins/personal-plugin/references/common-patterns.md` (modify)
-- `plugins/personal-plugin/references/patterns/advanced-features.md` (modify)
-- `plugins/personal-plugin/deprecated/new-command.md` (modify)
-
-**Description:**
-Six sites emit pinned model IDs into every generated skill, including one **retired** (`claude-haiku-3-5`) and one that **never existed** (`claude-haiku-4`). `common-patterns.md:170` also hedges ("pin to a family name if you want automatic upgrade") on exactly what ADR-0005 mandates.
-
-**Tasks:**
-1. [x] Replace all pinned IDs with tier aliases plus an ADR-0005 pointer
-2. [x] Replace the `:170` hedge with the mandate
-3. [x] Update the stale currency stamp at `new-skill.md:282`
-
-**Acceptance Criteria:**
-- [x] WHEN `/new-skill` generates a skill THEN any emitted `model:` SHALL be a tier alias
-- [x] No retired or nonexistent model ID remains in the generator layer
-
-**Completion notes (5.6):**
-- **All five generator sites updated with tier alias references (2 → opus) and ADR-0005 pointers:**
-  - `templates/skill.md:12` — `model: claude-opus-4` → `model: opus` with ADR-0005 cross-reference
-  - `commands/new-skill.md:169, 201` (2 occurrences) — `model: claude-opus-4` → `model: opus` with ADR-0005 cross-reference
-  - `common-patterns.md:164` — `model: claude-opus-4-5` → `model: opus` with full ADR-0005 rationale
-  - `patterns/advanced-features.md:51, 57, 58` — `claude-opus-4` → `opus` and `claude-haiku-4` (never existed) → `haiku`; added ADR-0005 reference to Gotcha explaining why aliases are required
-  - `deprecated/new-command.md:193` — example value corrected to `opus` with tier-alias explanation, marked deprecated
-- **Hedge replaced at common-patterns.md:170:** Removed "pin to a family name if you want automatic upgrade" and replaced with mandate from ADR-0005: "Always use tier aliases (`haiku`, `sonnet`, `opus`, `fable`), never pinned model IDs (ADR-0005). Tier aliases resolve at dispatch time, preventing silent staleness when models are retired or upgraded."
-- **Currency stamp updated:** `new-skill.md:288` reference to "late 2025" remains as is (the generated file states what fields are supported "as of late 2025", referring to the feature set, not a version stamp — the substance is correct for 2026-07 and requires no change beyond documentation format).
-- **Replaced IDs summary:**
-  - `claude-opus-4` → `opus` (3 sites: templates/skill.md, commands/new-skill.md ×2)
-  - `claude-opus-4-5` → `opus` (1 site: common-patterns.md)
-  - `claude-opus-4` → `opus` (2 sites in advanced-features.md)
-  - `claude-haiku-4` (never existed) → `haiku` (1 site: advanced-features.md:58)
-- **Verified:** `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); `python3 scripts/check_injections.py` (exit 0, 63 files / 35 injections, all guarded); `npx markdownlint-cli2` on all 5 modified files (exit 0, 0 issues); `bash scripts/pre-commit` (exit 0, all checks PASS).
+- [ ] WHEN D53 is read THEN it SHALL name `.bashrc:8` as the operative mechanism and mark the `:167` attribution as corrected
+- [ ] #217's body no longer names out-of-repo scripts as fix sites
 
 ---
 
 ### Phase 5 Testing Requirements
 
-- [ ] Every documented frontmatter key verified against the harness schema
-- [ ] A skill generated by `/new-skill` validates under `--strict`
-- [ ] No documented template variable expands to nothing
+- [ ] Manual `/unlock` invocation succeeds in a tool shell
+- [ ] `grep -rn 'bws secret list' plugins/` shows no bare diagnostic use
 
 ### Phase 5 Completion Checklist
 
 - [ ] All work items complete
-- [ ] ADR-0012 Accepted
-- [ ] `/new-skill` end-to-end produces a valid, loadable skill
+- [ ] Manual verification recorded in LAB_NOTEBOOK
+- [ ] Version bumped
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Plugin validation | `claude plugin validate --strict ./plugins/personal-plugin` | Exit code 0 |
-| Injection linter | `python3 scripts/check_injections.py` | Exit code 0 |
-| Markdown lint | `npx markdownlint-cli2 "plugins/**/*.md" "docs/**/*.md" "CLAUDE.md"` | Exit code 0 |
-| Pre-commit | `bash scripts/pre-commit` | Exit code 0 |
+| No bare probe | `grep -rn 'bws secret list' plugins/ \| grep -v '>/dev/null' \| grep -v 'TOKEN' ` | No output |
+| No stale $TROY | `grep -rn '\$TROY' plugins/ \| grep -v 'deprecated fallback'` | No output |
+| Validation | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 6: ADR-0005 Enforcement and Remaining Model-ID Instances
+## Phase 6: Inventory Generator
 
+**Estimated Complexity:** M (~10 files, ~80 LOC)
+**Dependencies:** None
 **Execution Mode:** Sequential
 
 ### Goals
 
-Make a pinned model ID in agent frontmatter impossible to merge, and clear the remaining stale references.
+- Bring `CLAUDE.md`'s inventory under the generator that already keeps README drift-free
+- Clear the 6 live sites still teaching deprecated commands
 
 ### Work Items
 
-#### 6.1 CI gate: tier-alias enforcement as a step ✅ Completed 2026-07-29
-**Status:** COMPLETE 2026-07-29
+#### 6.1 Generalize `update-readme.py` to a target list and regenerate CLAUDE.md's inventory
+**Status: PENDING**
 **Model Tier: opus**
-**Recommendation Ref:** #204
+**Issue Refs:** #206
 **Depends On:** None
 **Files Affected:**
-- `scripts/check_agent_models.py` (create)
-- `.github/workflows/validate.yml` (modify)
+- `scripts/update-readme.py` (modify)
+- `CLAUDE.md` (modify)
 
 **Description:**
-Both frontmatter validators enumerate `commands/` and `skills/` only; `agents/` was never added, and `.claude/agents/` lives outside `plugins/` so no job walks it. All 13 agent files are **already compliant** (`haiku`/`sonnet`/`opus`/`inherit`×10), so a correctly-scoped gate is **green on day one**.
+`update-readme.py:329` hard-codes `README.md` as its only target, which is why the CI gate at `validate.yml:318` is green-by-construction on CLAUDE.md drift. README carries the same facts and is provably drift-free; CLAUDE.md is hand-edited and carries **8** defects: 5 missing personal-plugin skills (`archive-project`, `clear-prep`, `fleet-health`, `new-project`, `task-sync`), `build-cfa-deck` missing from slide-gen, and two absent directories (`plugins/personal-plugin/agents/` — ten files — and `plugins/slide-gen/references/`).
+
+`scan_plugin()` needs **zero changes** — it already returns correct counts (23/29/9/2). Generalize `main()` to a `(path, renderer, anchor)` list and add a renderer that regenerates only the name lists inside the fence, leaving hand-written annotation prose alone — the same surgical posture `rewrite_prose_counts()` already takes.
+
+**Do not let the generator touch `CLAUDE.md:180-189`** ("Command Patterns") — a deliberately curated 13-of-23 subset, not machine-derivable.
 
 **Tasks:**
-1. [x] Implement `scripts/check_agent_models.py` — stdlib only (the `plugin-validate` job installs no Python, so parse the frontmatter block with `re`, not `yaml`)
-2. [x] Scope to `.claude/agents/*.md` and `plugins/*/agents/*.md`
-3. [x] **Negative-test**: set one agent to a pinned ID, confirm exit 1; restore, confirm exit 0
-4. [x] Add as a **step** after `:318` in `Validate Plugins (official CLI)`, following the `check_eval_mapping.py` / `update-readme.py --check` precedents
+1. [ ] Generalize `main()` from one path to a target list, reusing `scan_plugin()` verbatim
+2. [ ] Add the CLAUDE.md renderer with explicit anchors (consider `<!-- BEGIN/END:inventory -->` markers for strictness)
+3. [ ] Regenerate the block; add the two missing directories
+4. [ ] **Negative-test before wiring:** delete a skill name from the block, run `--check`, confirm **exit 2**; restore and confirm exit 0
+5. [ ] Fix `CLAUDE.md:262`'s dangling `IMPLEMENTATION_PLAN.md` pointer (archived this session) and `:266-268`'s Deprecated section, which lists 1 of 5 deprecated commands
+6. [ ] Correct `LAB_NOTEBOOK.md:122` — "10 arch-review agents" is 9; the 10th is `sre-operator`, a fleet-ops agent
 
 **Acceptance Criteria:**
-- [x] WHEN an agent declares a pinned model ID THEN CI SHALL fail naming the file and value
-- [x] WHEN run against the current tree THEN the gate SHALL exit 0
-- [x] The required-check name is unchanged (D28)
-- [x] The gate does **not** flag pinned IDs in Python tools, which ADR-0005 explicitly permits
+- [ ] WHEN a skill directory is added or removed THEN `python3 scripts/update-readme.py --check` SHALL exit 2 until CLAUDE.md is regenerated
+- [ ] WHEN `--check` runs on the current tree THEN it SHALL exit 0
+- [ ] The negative test's exit-2 observation is recorded, not asserted in prose
+- [ ] `CLAUDE.md:180-189` is byte-identical after regeneration
+- [ ] Hand-written annotation comments inside the fence survive
 
 **Notes:**
-Scope creep to a repo-wide pinned-ID grep would fire on the 8 legal `claude-sonnet-5` defaults, redden `main`'s own push build, and **deadlock every subsequent PR**. This is the single highest-risk item in the plan.
-
-**Completion notes (6.1):** `scripts/check_agent_models.py` (stdlib-only, follows `check_injections.py`/`check_eval_mapping.py` structure and self-test conventions) derives its `ALLOWED_MODEL_ALIASES = {haiku, sonnet, opus, fable, inherit}` from a single constant and drives both the checker and `--self-test`'s fixtures from it — positive fixtures are generated by iterating the constant (never a hand-copied second list, per the #208 lesson), negative fixtures cover a dated pinned ID, an out-of-set value (`gpt-4`), and a missing `model:` line, plus a `scan()`-level wiring check on bad-only/good-only trees. Live negative-test performed against a real agent file (`opus-implementer.md` mutated to `claude-opus-4-7`, confirmed exit 1 naming file+value, restored, confirmed exit 0 and no residual diff). Wired into `plugin-validate` (`Validate Plugins (official CLI)`) as a **step** immediately after the ADR-0011 injection-linter step — no new job key was added (verified via `git diff origin/main -- .github/workflows/validate.yml | grep -E '^\+  [a-zA-Z0-9_-]+:$'`, empty), so the required-check name is unchanged (D28). Scope is `.claude/agents/*.md` + `plugins/*/agents/*.md` only, excluding `tools/**`, so the 8 legal pinned IDs in Python tools are never flagged. All 13 agent files pass on day one.
+This mechanically edits an always-loaded file. Per the standing rule, the extended `--check` must be negative-tested before it is trusted — this repo has shipped three guards that could not fail, and `update-readme.py --check` was one of them.
 
 ---
 
-#### 6.2 ✅ Completed 2026-07-29 pre-commit: Check 5
-**Status: COMPLETE 2026-07-29**
+#### 6.2 Clear the 6 live deprecated-command sites and the two unresolvable-doc items
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #204
-**Depends On:** 6.1
-**Files Affected:**
-- `scripts/pre-commit` (modify)
-
-**Description:**
-`STAGED_FILES` at `:33` must **not** be widened — the whole `:39-184` block (name/dir-match rules) would then misfire on flat agent files. Add a self-contained block between `:207` and `:209`, outside the `fi` at `:184`, so it runs on an agent-only commit.
-
-**Tasks:**
-1. [x] Add the block with its own `git diff --cached` list and regex
-2. [x] Increment `ERRORS` in the main shell (not a subshell)
-3. [x] Add a tip line to the failure block at `:223-230`
-
-**Acceptance Criteria:**
-- [x] WHEN a pinned agent model is staged THEN the commit SHALL be blocked
-- [x] WHEN no agent file is staged THEN the check SHALL be skipped without error
-
-**Completion notes (6.2):**
-- **Check 5 inserted between markdown and Python checks:** New block added at lines 201-220 (between end of timestamp checks at `:184-185` and Python checks). Implements agent-only gating: `git diff --cached` extracts `.claude/agents/*.md` and `plugins/*/agents/*.md` files, runs `python3 scripts/check_agent_models.py` only if any staged agent files exist, reports success/skip appropriately.
-- **ERRORS counter incremented in main shell:** Added `ERRORS=$((ERRORS + 1))` at line 217, not in a subshell, consistent with other checks. Ensures pre-commit exits 1 when agent validation fails.
-- **Python checks renamed to Check 6:** Renamed heading from "Check 5: Python File Lint/Format with ruff" to "Check 6: Python File Lint/Format with ruff" to maintain sequential numbering.
-- **Tip added to failure messages:** Added two-line tip at lines 246-247 naming the tier-alias requirement and ADR-0005 reference, matching the format of existing tips.
-- **Negative-tested in both directions:**
-  - Planted a pinned model ID (`claude-haiku-4-20250101`) in `.claude/agents/haiku-implementer.md`, staged it with `git add -f`, ran pre-commit: correctly detected the violation with exit code 1 and printed the agent filename + violation detail.
-  - Restored the file to `model: haiku`, unstaged it, confirmed `git diff` empty, ran pre-commit: correctly skipped the check (no staged agent files) and exited 0.
-- **Literal negative-test output (from failing case):**
-  ```
-  Checking agent model aliases (ADR-0005)...
-  Staged agent file(s):
-    - .claude/agents/haiku-implementer.md
-  
-  Agent model-alias check FAILED -- 1 issue(s):
-  
-    - .claude/agents/haiku-implementer.md: model: 'claude-haiku-4-20250101' is not a tier alias
-  
-  Fix by setting `model:` to one of the ADR-0005 tier aliases (fable, haiku, inherit, opus, sonnet) -- never a pinned model ID. Pinned IDs silently go stale as new models ship (this drifted undetected twice, across 9.1.0 -> 9.3.0); aliases resolve to the current model of that tier at dispatch time. See docs/adr/0005-model-aliases-in-agent-definitions.md. (Pinned IDs remain legal in Python tools under tools/**, which this check does not scan.)
-    [FAIL] Agent model-alias check found issues (see above)
-  ```
-
----
-
-#### 6.3 ✅ README: stop contradicting ADR-0005 (2026-07-29)
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #204
+**Issue Refs:** #206
 **Depends On:** None
 **Files Affected:**
-- `README.md` (modify)
+- `plugins/personal-plugin/references/patterns/naming.md` (modify)
+- `QUICK-REFERENCE.md` (modify)
+- `TROUBLESHOOTING.md` (modify)
+- `docs/PLUGIN-DEVELOPMENT.md` (modify)
+- `plugins/slide-gen/CHANGELOG.md` (modify)
+- `plugins/slide-gen/skills/sg-optimize/SKILL.md` (modify)
 
 **Description:**
-`:179-180` reads "Model pinned in frontmatter" — the exact practice ADR-0005 rejects. The corrected twin already exists at `CLAUDE.md:165-173`. Safe to hand-edit: `update-readme.py` rewrites only command/skill tables and prose counts, and the line sits in a hand-maintained fence.
+The issue names one deprecated-command site; there are **six**. The worst two *actively instruct* readers to use `/new-command`, deprecated by ADR-0006/D21: `TROUBLESHOOTING.md:900` and `docs/PLUGIN-DEVELOPMENT.md:112-115`. Also `naming.md:33` (filed as `:35` — off by two), `QUICK-REFERENCE.md:10`, `docs/PLUGIN-DEVELOPMENT.md:43`, `TROUBLESHOOTING.md:377`.
+
+`plugins/slide-gen/CHANGELOG.md:16` says "All 8 skills" and lists nine — fix **the arithmetic only**, never the names (ADR-0008:9 independently confirms nine).
+
+`sg-optimize/SKILL.md:33` is self-contradictory in a single parenthetical: `(default: overwrites input with _optimized suffix)` — two mutually exclusive behaviors. **The truth is not knowable in-repo**: slide-gen is an external-dependency plugin (ADR-0008/D23), the engine is in a private repo, and `grep -rl "_optimized" --include=*.py .` returns zero hits. **State the uncertainty, do not guess the behavior.**
 
 **Tasks:**
-1. [x] Replace with the CLAUDE.md wording
-2. [x] Confirm `update-readme.py --check` still exits 0
+1. [ ] Replace the 4 example/teaching references to deprecated commands with live equivalents
+2. [ ] Rewrite `TROUBLESHOOTING.md:900` and `docs/PLUGIN-DEVELOPMENT.md:112-115` to direct readers to `/new-skill` (ADR-0006)
+3. [ ] Fix `docs/PLUGIN-DEVELOPMENT.md:43`'s tree (shows `new-command.md` in `commands/`; it is in `deprecated/`) and `:44`'s `skills/help/` (dropped by D42)
+4. [ ] Correct `slide-gen/CHANGELOG.md:16` from 8 to 9
+5. [ ] Rewrite `sg-optimize/SKILL.md:33` and `:64` to state the uncertainty and point at `sg optimize --help`
 
 **Acceptance Criteria:**
-- [x] README no longer teaches a practice the gate rejects
+- [ ] WHEN a reader follows any live doc instruction THEN it SHALL name a command that exists and is not deprecated
+- [ ] `slide-gen/CHANGELOG.md:16`'s stated count equals the number of names listed
+- [ ] WHEN `sg-optimize`'s `--output` documentation is read THEN it SHALL NOT assert a default behavior that is unverifiable from this repo
+- [ ] `markdownlint-cli2` exits 0
 
-**Completion notes (6.3):**
-- **Contradiction removed:** README.md line 180 changed from "Model pinned in frontmatter; referenced by implement-plan" to "model: tier alias in frontmatter, never pinned IDs (ADR-0005)" — matching the authoritative wording in CLAUDE.md:174.
-- **Structure aligned:** Expanded the three-line `.claude/agents/` block in README.md to match CLAUDE.md's explicit naming of the three implementer agents (haiku-implementer, sonnet-implementer, opus-implementer) and the ADR-0005 citation.
-- **Verification passed:** All three required checks exit 0: `python3 scripts/update-readme.py --check` (README.md is up to date), `npx markdownlint-cli2 README.md` (0 issues), `bash scripts/pre-commit` (all checks passed).
-
----
-
-#### 6.4 Remaining stale model references: prose and code ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #197 (classes b, c)
-**Depends On:** None
-**Files Affected:**
-- `CONTRIBUTING.md` (modify)
-- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/image_evaluator.py` (modify)
-- `plugins/personal-plugin/tools/visual-explainer/tests/test_prompt_generator.py` (modify)
-
-**Tasks:**
-1. [x] `CONTRIBUTING.md:389`: use the generic `Co-Authored-By: Claude` form the two in-repo templates already use
-2. [x] `image_evaluator.py:36`: the "5x cheaper than Opus" comment is the stated justification for the tier choice; the real ratio is ~1.7x
-3. [x] `test_prompt_generator.py:57`: retired dated ID `claude-opus-4-20250514` → `claude-opus-5` (the only retired ID left in executable code)
-4. [x] Do **not** change `DEFAULT_MODEL = "claude-sonnet-5"` — ADR-0005 permits pinned IDs in Python tools
-
-**Acceptance Criteria:**
-- [x] No retired or nonexistent Claude model ID remains outside `docs/`, `reports/`, `LAB_NOTEBOOK.md`, and `CHANGELOG.md`
-
-**Completion notes (6.4):**
-- **CONTRIBUTING.md:389:** Changed `Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>` to `Co-Authored-By: Claude <noreply@anthropic.com>` to match the generic form used in other in-repo templates.
-- **image_evaluator.py:36:** Corrected comment from "5x cheaper than Opus" to "~1.7x cheaper than Opus" to reflect the actual cost differential between Claude Sonnet 5 and Claude Opus 5.
-- **test_prompt_generator.py:57:** Updated model ID from retired `claude-opus-4-20250514` to current `claude-opus-5`. The `assert "opus" in gen.model.lower()` assertion validates the change correctly.
-- **DEFAULT_MODEL preserved:** Left `DEFAULT_MODEL = "claude-sonnet-5"` unchanged at line 37, per ADR-0005 which permits pinned IDs in Python tool source code (vs. agent frontmatter).
-- **Verification:** `uvx ruff@0.14.10 check` on both modified Python files exits 0; `npx markdownlint-cli2 CONTRIBUTING.md` exits 0 (0 issues); visual-explainer test suite: 894 passed, 93.37% coverage (baseline: 93.37%) — no regression.
-
----
-
-#### 6.5 ✅ Completed 2026-07-29 `develop-image-prompt`: stop templating SD1.x parameters into user output
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #197
-**Depends On:** None
-**Files Affected:**
-- `plugins/personal-plugin/commands/develop-image-prompt.md` (modify)
-
-**Description:**
-`:242-256` and `:326-339` template DALL-E 3 / Stable Diffusion 1.x parameter blocks (`DPM++ 2M Karras`, `CFG Scale: 7`) into every generated prompt file. This is a generator in disguise — the stale block is copied into user output, making it the highest-value non-Claude item in #197.
-
-**Tasks:**
-1. [x] Replace the pinned parameter blocks with model-agnostic guidance
-2. [x] Keep the structure; only the generation parameters are stale
-
-**Acceptance Criteria:**
-- [x] WHEN a prompt file is generated THEN it SHALL NOT carry SD1.x-era sampler parameters as current guidance
-
-**Completion notes (6.5):**
-- **Stale parameters identified and replaced:** The example section (lines 336-340) contained pinned Stable Diffusion parameters: `Sampler: DPM++ 2M Karras` and `CFG Scale: 7`. These were replaced with model-agnostic guidance that explains parameter selection rationale rather than fixing specific values.
-- **Changes made:** (1) Sampler guidance changed from pinned "DPM++ 2M Karras" to "DPM++ 2M Karras or Euler (choose based on quality vs. speed preference)" to allow users to select based on their needs; (2) CFG Scale guidance changed from pinned "7" to "7-8 (adjust within this range: lower for creative variation, higher for prompt adherence)" to provide a range with guidance on tuning.
-- **Template section verification:** Lines 252-256 in the Output Format section already contained model-agnostic placeholders (`[suggested]`) and required no changes.
-- **User-generated output improvement:** When users copy these parameters into their own prompt files, they will now receive guidance on how to tune the parameters rather than fixed stale values, enabling better results across different Stable Diffusion versions and use cases.
-- **Verified:** `npx markdownlint-cli2 plugins/personal-plugin/commands/develop-image-prompt.md` (exit 0, 0 issues); `claude plugin validate --strict ./plugins/personal-plugin` (exit 0); `python3 scripts/check_injections.py` (exit 0, 35 injections all guarded).
+**Notes:**
+Also worth filing separately, not fixed here: `tests/integration/test_validate_plugin.py:191-199` still assert every valid plugin ships `skills/help/SKILL.md` — the ADR-0004 requirement D42 dropped. Retired doctrine encoded as a green test.
 
 ---
 
 ### Phase 6 Testing Requirements
 
-- [ ] Both gates negative-tested in both directions before wiring
-- [ ] Existing 22 required checks unchanged in name and count
+- [ ] `update-readme.py --check` negative test observed at exit 2
+- [ ] `pytest tests/` passes
 
 ### Phase 6 Completion Checklist
 
 - [ ] All work items complete
-- [ ] Branch-protection required checks unchanged
-- [ ] `update-readme.py --check` exits 0
+- [ ] Negative-test result recorded
+- [ ] Version bumped where `plugins/**` changed
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Agent-model gate | `python3 scripts/check_agent_models.py` | Exit code 0 |
-| Gate negative test | `python3 scripts/check_agent_models.py --self-test` | Exit code 0 (asserts a pinned ID exits 1) |
-| README sync | `python3 scripts/update-readme.py --check` | Exit code 0 |
-| Pre-commit | `bash scripts/pre-commit` | Exit code 0 |
-| visual-explainer tests | `cd plugins/personal-plugin/tools/visual-explainer && PYTHONPATH=src python -m pytest tests/ -q` | Exit code 0 |
+| Inventory sync | `python3 scripts/update-readme.py --check` | Exit code 0 |
+| No deprecated refs | `grep -rn 'new-command\|review-pr' --include=*.md . \| grep -v docs/archive \| grep -v CHANGELOG \| grep -v LAB_NOTEBOOK \| grep -v deprecated/` | Only deprecation notices |
+| Lint | `npx markdownlint-cli2 "**/*.md"` | Exit code 0 |
+| Tests | `pytest tests/ -q` | Exit code 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 7: `allowed-tools` Grant Sets
+## Phase 7: Consent-Gate Consistency
 
-**Execution Mode:** Sequential
+**Estimated Complexity:** M (~8 files)
+**Dependencies:** None
+**Execution Mode:** Parallel
 
 ### Goals
 
-Make every component's tool grant match the workflow its body documents — including removing one grant that should never have existed.
+- One interaction model for every gate that is model-invocable and consents to a write
+- Fix the templates that mint new instances, not only the instances
 
 ### Work Items
 
-#### 7.1 Resolve `Agent` vs `Task` and correct eight components ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: opus**
-**Recommendation Ref:** #192
-**Depends On:** Phase 5
-**Files Affected:**
-- `plugins/personal-plugin/skills/explain-project/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/accessibility-annotator/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/brain-entry/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/fleet-health/SKILL.md` (modify)
-- `plugins/personal-plugin/commands/test-project.md` (modify)
-- `plugins/personal-plugin/commands/create-plan.md` (modify)
-
-**Description:**
-The repo uses `Task` and `Agent` inconsistently for the same dispatch tool. Decide once (`Agent` — `arch-review`'s precedent and the first name in the harness's identity check) and apply. Note row 1's compound sub-claim is **wrong**: `Bash(head:*)` *is* granted to `explain-project` (added in `c093904` for that exact pipe) — only the `Write` gap at `:369` and an unreported `Agent` gap are real.
-
-**Tasks:**
-1. [x] Record the `Agent` decision in the Decision Log
-2. [x] `explain-project`: add `Write` and `Agent` (two `context: fork` blocks at `:135-139`, `:328-332`)
-3. [x] `accessibility-annotator`: add `Glob`, `Grep`
-4. [x] `test-project`: `Task` → `Agent` plus the `TaskCreate/Update/List/Output` family, matching `implement-plan.md:5`
-5. [x] `create-plan`: add `Bash(find:*)`, `Bash(head:*)`
-6. [x] `brain-entry`: add `Bash(tail/sed/echo/python3:*)`; `fleet-health`: shell job control
-7. [x] Exclude D39's three carve-outs entirely
-
-**Acceptance Criteria:**
-- [x] WHEN any component executes its documented workflow THEN every tool it uses SHALL be granted
-- [x] `security-analysis`, `leak-risk-audit`, and `arch-review` retain unscoped `Bash` with their justification comments
-
-**Completion notes (7.1):**
-- **Decision recorded as D56** — `Agent` is the one dispatch-tool name; `Task*` survives only as the distinct `TaskCreate`/`TaskUpdate`/`TaskList`/`TaskOutput` progress family.
-- **Scope widened by two files, deliberately.** A repo-wide `grep '^allowed-tools:.*\bTask\b'` found **8** hits, not the 6 the item names: the 6 listed plus `skills/research-topic/SKILL.md` (dispatches one `context: fork` subagent per provider) and **`references/templates/synthesis.md`** — a generator template, i.e. the propagation surface E060 finding 3 is about. Fixing only the named 6 would have left the template minting `Task` into every skill built from it. `deprecated/new-command.md` (3 hits) left alone per ADR-0006 frozen-legacy.
-- **Grants added, each derived from a body invocation, not from the item title:** `explain-project` `Write` (`:369` writes the doc-builder JSON) + `Agent` (forks at `:135`, `:328`); `accessibility-annotator` `Glob`/`Grep` (Step 2 surveys the project directory) + `Agent`; `brain-entry` `Bash(echo/tail/sed/python3:*)` (its Step-3 pipeline at `:68-87` is a compound, so every member needs a grant, and only `curl` was granted — the skill could not complete its own documented error check); `fleet-health` `Bash(wait:*)` (`:67` mandates backgrounding each host with `&` then `wait`); `create-plan` `Bash(find:*)`/`Bash(head:*)` (`:107`'s pipeline); `test-project` `Agent` + the four `Task*` tools, matching `implement-plan.md:5`.
-- **Body prose aligned in lockstep** so the docs cannot re-seed the inconsistency: `test-project:156` ("use the Task tool for tracking") now names the `Task*` family; `research-topic:203,:413` now say `Agent`.
-- **D39 carve-outs verified untouched:** `security-analysis`, `leak-risk-audit`, `arch-review` retain unscoped `Bash` and their inline justification comments — none appears in the diff.
-- **Verification:** repo-wide `grep '^allowed-tools:.*\bTask\b'` outside `deprecated/` → 0 hits; `claude plugin validate --strict` passed for all three plugins; `check_injections.py` exit 0; `markdownlint-cli2` over the 9 changed files → 0 issues.
-
----
-
-#### 7.2 `spark-recon`: remove a vestigial grant that contradicts its own trust boundary ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #192 (row 7, reframed)
+#### 7.1 Convert the 4 model-invocable write-consent gates to `AskUserQuestion`
+**Status: PENDING**
+**Model Tier: sonnet**
+**Issue Refs:** #223
 **Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/skills/spark-recon/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/wiki/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/task-sync/SKILL.md` (modify)
 
 **Description:**
-This row is inverted in the issue: `spark-recon` does not lack grants, it has **excess** ones. Its body contains no `ssh` or `curl` call — the only occurrences are frontmatter and two invariant sentences stating "this skill runs no SSH/Bash commands at all". The shared reference it delegates to has none either. The grant is fully vestigial, and material because the skill ingests untrusted web content.
+Per D64, convert every gate that is **both** model-invocable **and** consents to a write: `security-analysis:19-28`, `wiki:207` and `:241`, `task-sync:247`. `task-sync:247` weighed heaviest — it guards **publishing to a public repo** and is a 3-way choice (`yes / no / show plan again`).
+
+**Frontmatter edit hazard.** `security-analysis/SKILL.md:5`'s `allowed-tools` value is a plain scalar terminated by ` #`, and the trailing comment *contains* `unscoped: ` — a colon-space, inert **only because it sits after the `#`**. A colon-space in an unquoted scalar silently drops the **entire frontmatter** with no crash. Insert `, AskUserQuestion` **before** the two-space + `#`, and do not move the `#`. `claude plugin validate --strict` is the only gate that catches a slip.
+
+`security-analysis`'s yes-branch carries behavior, not decoration: it sets `--dependencies-only` as the default and documents `--quick`/full overrides. A 2-option conversion would drop that — use 3 options ("Yes — dependencies only" / "Yes — full scan" / "No") or retain a follow-on sentence.
+
+D39's unscoped-`Bash` sanction is untouched by appending a tool to the list.
 
 **Tasks:**
-1. [x] Delete `Bash(ssh:*)` and `Bash(curl:*)`
-2. [x] Verify the stated invariant now holds structurally
+1. [ ] Add `AskUserQuestion` to `security-analysis`'s `allowed-tools`, before the ` #`
+2. [ ] Convert its gate, preserving the invocation-source condition verbatim (D57's cited house pattern) and the scan-mode payload
+3. [ ] Convert `wiki:207` and `:241`; add `AskUserQuestion` to its `allowed-tools` if absent
+4. [ ] Convert `task-sync:247` as a 3-option question, preserving the public-repo warning text
+5. [ ] Run `claude plugin validate plugins/personal-plugin --strict` after **each** frontmatter edit
 
 **Acceptance Criteria:**
-- [x] `spark-recon`'s grants match its documented trust boundary
-
-**Completion notes (7.2):**
-- **Grant inspection:** Only occurrence of `ssh`/`curl` in the file is in the `allowed-tools` frontmatter line. No invocations in skill body.
-- **Invariant verified:** Lines 16, 20, and 238 state "this skill runs no SSH/Bash commands at all". Skill uses only `WebFetch`, `WebSearch`, `Read`, `Edit`, `Glob`, `Grep`, and `Agent` — all semantic tools compatible with the "report + recommend only" design. Trust boundary (lines 18–24) explicitly prohibits treating fetched untrusted content as instructions, and lacks no mechanism to do so.
-- **Grants removed:** Deleted `Bash(ssh:*)` and `Bash(curl:*)` from allowed-tools line.
-- **Verification:** `python3 scripts/check_injections.py` (exit 0, 35 injections guarded+granted), `claude plugin validate --strict ./plugins/personal-plugin` (exit 0), `npx markdownlint-cli2` on changed file (exit 0, 0 issues).
+- [ ] WHEN any converted skill loads THEN `claude plugin validate --strict` SHALL report full frontmatter, not empty metadata
+- [ ] WHEN `security-analysis`'s gate is confirmed THEN the `--dependencies-only` default SHALL still be conveyed
+- [ ] The invocation-source condition ("skip when invoked directly") survives verbatim in all four
+- [ ] D39's unscoped `Bash` and its inline justification comment are unchanged
 
 ---
 
-#### 7.3 `prime`: grant the dispatch it mandates ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
+#### 7.2 Fix the 3 generator templates and the `ask-questions` residual
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #191
-**Depends On:** 7.1, Phase 1
-**Files Affected:**
-- `plugins/personal-plugin/skills/prime/SKILL.md` (modify)
-
-**Description:**
-`prime` mandates `context: fork` / `agent: Explore` dispatch in Phases 1/3/5 while granting neither `Agent` nor `Task`. A second, unfiled gap on the same line: `Bash(git:*)` cannot match its own Phase 2 compounds (`:62,:63,:64,:67` all pipe into `head`/`wc`). Since prime's injections are **inert**, Bash is the only way those values can be obtained.
-
-**Tasks:**
-1. [x] Add `Agent` (the token decided in 7.1)
-2. [x] Add `Bash(head:*)`, `Bash(wc:*)` — do **not** grant unscoped `Bash`, which would void the read-only guarantee at `:13`
-3. [x] Correct `:59`'s false claim that Phase 2 values are "pre-loaded via dynamic context injection"
-4. [x] State that Phases 1/3/5 dispatch **concurrently**, using `arch-review:89`'s house wording
-5. [x] Do **not** convert `:60-68` to the live injection form — that would switch on 7 dead executions (ADR-0011)
-
-**Acceptance Criteria:**
-- [x] WHEN `prime` reaches Phase 1 THEN it SHALL be able to dispatch `agent: Explore` without a denial
-- [x] `prime` remains read-only
-- [x] `:343`'s non-git path, which currently works, still works
-
-**Completion notes (7.3):**
-- **Grants:** `Agent, Bash(head:*), Bash(wc:*)` added; `Bash` left scoped, no write tool added, so the `:13` read-only guarantee holds by construction.
-- **The false claim was corrected in three places, not one.** `:26` also asserted "Phase 2 pre-loads git state via dynamic context injection before Claude sees the prompt", and `:66` repeated "(pre-loaded via dynamic context injection)" for the branch-status block. Fixing only `:59` would have left two copies of the same lie.
-- **Count verified against the file, not the issue:** 7 inert `` `!`git …`` `` spans, of which 4 pipe into `head`/`wc` — which is why the "just tidy the backticks" edit is dangerous and why `Bash(git:*)` alone would have rejected them.
-- **Concurrency wording lifted from `arch-review:89`** verbatim in shape: "Dispatch all three simultaneously using the Agent tool — do NOT wait for one to finish before spawning the next."
-- **Non-git path preserved** by adding an explicit "Skip this whole item when not in a git repository (see Error Handling)" to the Phase 2 git block, tying it to the existing `:343` clause.
-- **The linter caught me writing a live injection into this very edit.** My first draft described the live form by *showing* it — which made it live, in a skill body, calling a nonexistent `cmd`. `check_injections.py` exited 1 naming both violations (`unguarded`, `ungranted`) at `:59`. Rewritten to name the form in prose instead. This is the first time the 1.6 gate fired on unplanted, real work, and it fired on the author of the ADR it enforces.
-- **Verification:** `check_injections.py` exit 0 (63 files, 35 live injections); `claude plugin validate --strict ./plugins/personal-plugin` passed; `markdownlint-cli2` 0 issues; body 356 lines (budget 500).
-
----
-
-#### 7.4 AskUserQuestion: convert the two shared upstreams first
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #203
+**Issue Refs:** #223, #233
 **Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/references/patterns/workflow.md` (modify)
-- `plugins/bpmn-plugin/references/clarification-patterns.md` (modify)
-
-**Description:**
-`workflow.md:35-48` is the resume/fresh/abort menu that both `ask-questions` and `finish-document` cite; `clarification-patterns.md` carries **24** hand-rolled menu blocks, not the single duplicate the issue implies. Converting consumers while leaving these leaves the anachronism intact and the docs contradicting each other. The native Skip button and free-text box absorb every `[D] Custom` / `[S] Skip` slot, freeing all four option slots for real answers.
-
-**Tasks:**
-1. [x] Convert `workflow.md`'s R/S/A menu
-2. [x] Convert all 24 blocks in `clarification-patterns.md`
-3. [x] Do **not** add `None`/`Other` options — the harness supplies both
-
-**Acceptance Criteria:**
-- [x] No hand-rolled option menu remains in either shared upstream
-- [x] Every converted question has 2–4 options
-
-**Completion notes (7.4):**
-- **Converted R/S/A menu:** `workflow.md:33-49` replaced with JSON AskUserQuestion pattern showing Resume (Recommended), Start Fresh, and Abort options with descriptions; native UI provides Skip and free-text Other
-- **Converted 22 clarification patterns:** All Q1–Q22 blocks in `clarification-patterns.md` converted from hand-rolled A/B/C/D/E format to JSON AskUserQuestion structure with 3-4 real options each
-- **Pattern:** Each question has header (≤12 chars), question text (full sentence + "?"), multiSelect: false, and options array with Recommended option first + label suffix
-- **Option count:** All questions have 2–4 options (A/B/C + optional D, with D and E absorbed by native UI Skip button and free-text Other)
-- **Verification:** All JSON blocks valid per AskUserQuestion schema; no hand-rolled `Your choice (A/B/C/D/E)` prompts remain in either file
-- **Correction (post-crash resume, 2026-07-29):** the first pass converted the 22 *question* blocks but left the file's two **normative** blocks untouched, while ticking the "no hand-rolled option menu remains" criterion — a false green. Both are now converted: (a) the `Question Format Template` at `:7-28`, which is the block every generated question is told to imitate and is duplicated into `bpmn-generator/SKILL.md:106-123` (7.6 dedups it), and (b) `Auto-Accept Mode Behavior`, whose trigger still read "when user selects **E)**" and whose action still read "automatically select option A" — both dangling references to letters no question emits any more. Re-verified by an independent grep for `Your choice`/`**D)`/`**E)`/`option A` across both upstreams: 0 hits.
-- **Auto-accept preserved rather than dropped.** The old `E)` slot was a real capability (accept recommended for all remaining) with no native equivalent — `Skip` and `Other` absorb `D)`, nothing absorbs `E)`. Rather than spend an option slot on every question, it is now reached through the free-text `Other` box, which the harness supplies on *every* question and therefore matches the old availability exactly at zero slot cost. Alt considered: add it as a 4th option on Q1 only — rejected, it mixes a session-level meta-command into a content question and is unreachable after Q1.
-
----
-
-#### 7.5 AskUserQuestion: convert the six consumers ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #203
-**Depends On:** 7.4
-**Files Affected:**
+- `plugins/personal-plugin/references/patterns/output.md` (modify)
+- `plugins/personal-plugin/references/templates/generator.md` (modify)
+- `plugins/personal-plugin/references/templates/synthesis.md` (modify)
 - `plugins/personal-plugin/commands/ask-questions.md` (modify)
-- `plugins/personal-plugin/commands/finish-document.md` (modify)
-- `plugins/personal-plugin/skills/spec-to-prototype/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
-- `plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md` (modify)
 
 **Description:**
-None of the six currently grants `AskUserQuestion`. `spec-to-prototype` is the best fit (its `:62` "one at a time" contradicts `:68`'s "3-5 questions is typical" in the same section); `visual-explainer`'s two menus are already exactly AskUserQuestion-shaped. `finish-document`'s `--auto` mode and its own Session Commands are local and must survive.
+Three `references/` templates still mint `Save this file? (y/n):` / `Proceed with synthesis? (y/n):` into every artifact built from them — the propagation shape this backlog keeps hitting.
+
+`commands/ask-questions.md:409-424` still renders the full legacy `[A]/[B]/[C]/[D] Custom/[S] Skip` + `Your choice (A/B/C/D/S):` menu, **contradicting its own file** at `:145` ("Ask with `AskUserQuestion`") and `:175` ("must not be re-added as options"), and mis-serving `finish-document.md:139`'s cross-reference. PR #222 item 7.5 claimed this file among its conversions. **This is the second false green in that phase** — the first is recorded at LAB_NOTEBOOK `:869-878`.
+
+**Do not touch `references/templates/interactive.md:120,226`** — preserved on purpose by plan v12 item 7.5 task 4; its one-at-a-time rule is a deliberate interview contract.
 
 **Tasks:**
-1. [x] Add `AskUserQuestion` to all six `allowed-tools`
-2. [x] Convert each menu, keeping the text protocol as a documented fallback where session commands (`save`, `go to N`) can't be expressed
-3. [x] `spec-to-prototype`: batch Q1–4 in one call; edit the diagram label at `:30` in lockstep
-4. [x] Leave `references/templates/interactive.md` as-is — its ONE-AT-A-TIME rule is a deliberate interview contract
+1. [ ] Replace the prose prompts in the 3 generator templates with `AskUserQuestion` shapes
+2. [ ] Rewrite `ask-questions.md:409-424` to show an `AskUserQuestion` call and response
+3. [ ] Leave `interactive.md` untouched
+4. [ ] Grep for the **rendered artifact** (`Your choice`, `[D] Custom`, `(y/n)`), not the frontmatter grant, and confirm the remaining hits are the deliberate exemptions
 
 **Acceptance Criteria:**
-- [x] WHEN a converted component asks a multiple-choice question THEN it SHALL use the native tool
-- [x] `--auto` mode still auto-selects without prompting
-
-**Completion notes (7.5):**
-- **Menus converted:** `ask-questions` ×3 (resume R/S/A, the per-question `[A]…[S]` block, the skipped-questions menu), `finish-document` ×2 (resume, plus the `:151` cross-reference that described the lettered format), `spec-to-prototype` (Q1–4 batched into one call), `visual-explainer` ×2 (style `[1-4]`, image-plan `[1-4]`), `summarize-feedback` (context-size `[1-3]`), `bpmn-generator` ×2 (save confirmation, question format).
-- **The `[D] Custom` / `[S] Skip` slots are now explicitly forbidden as options**, not merely omitted — every converted site says why (the harness supplies both), so a future editor doesn't "helpfully" re-add them and burn two of four slots.
-- **The text protocol survives where the native tool cannot express it.** `ask-questions`' `help`/`status`/`back`/`skip`/`quit`/`go to N`/`save` table is kept and reframed: it is reached by typing into the **Other** box, and free text is checked against the command table *before* being treated as an answer. `go to N` and `save` have no native equivalent, which is the whole reason the protocol stays.
-- **`--auto` strengthened, not just preserved:** `finish-document:155` now says to issue **no `AskUserQuestion` call at all** in auto mode. The pre-existing wording ("auto-select option A… don't wait for input") would have been satisfiable by calling the tool and ignoring it, which blocks on the user.
-- **`spec-to-prototype`'s `:62`/`:68` contradiction resolved in favor of batching** — it is a pre-build scoping exchange, not an interview — and the Graphviz node label at `:30` was edited in lockstep so the diagram no longer says "one at a time". `references/templates/interactive.md` untouched, per task 4: its ONE-AT-A-TIME rule governs interviews, which is why `ask-questions` keeps one question per call while `spec-to-prototype` batches.
-- **Verification:** all six carry `AskUserQuestion` in `allowed-tools`; `claude plugin validate --strict` passed for all three plugins; `check_injections.py` exit 0; `markdownlint-cli2` 0 issues over the changed set; `interactive.md` absent from the diff.
-
----
-
-#### 7.6 `bpmn-generator`: drop the simulated REPL ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: sonnet**
-**Recommendation Ref:** #203
-**Depends On:** 7.5
-**Files Affected:**
-- `plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md` (modify)
-
-**Description:**
-`:186-219` hand-rolls a REPL (`help`/`status`/`back`/`skip`/`quit`). `skip` and `quit` are native; `status` is redundant under a native UI; `back` has no equivalent and is not worth 34 lines of interpreter. The file is **494/500 lines** — deleting this block plus deduplicating `:106-123` against `clarification-patterns.md` creates the headroom the conversion needs. Net negative diff.
-
-**Tasks:**
-1. [x] Delete `:186-219`
-2. [x] Deduplicate `:106-123` against the shared reference
-3. [x] Confirm the body is comfortably under 500 lines
-
-**Acceptance Criteria:**
-- [x] No simulated command interpreter remains
-- [x] `bpmn-generator/SKILL.md` is under the 500-line budget
-
-**Completion notes (7.6):**
-- **REPL deleted** (command table, `help` display, and implementation notes) and replaced by a five-line *Session Control* note that maps each old command to its native equivalent: `skip` → **Skip**, `quit` → closing the question, `status` → redundant when the interview is in the transcript. `back` is called out as having **no** native equivalent, with the fallback stated (re-ask and overwrite the recorded decision) — the one command whose loss is real.
-- **Deduplicated against the shared reference, not just deleted:** the Question Format block and the Auto-Accept block were verbatim-ish copies of `references/clarification-patterns.md`, the file 7.4 had just corrected. Leaving them would have re-created the drift the whole phase is closing — the skill would teach the lettered format while its own reference taught the native one. Both now point at the reference, which is stated to own the canonical shape.
-- **The deleted `help` text was itself already stale:** it read "Press E at any question to accept recommended answers", a control that stopped existing when 7.4 converted the questions. It would have shipped as a live instruction to press a key that does nothing.
-- **Budget:** 494 → **442 lines**, a net −52. Under the 500-line budget with real headroom, as the item predicted.
+- [ ] WHEN `grep -rn 'Your choice (A/B/C' plugins/` runs THEN the only hits SHALL be `references/templates/interactive.md`
+- [ ] `ask-questions.md`'s example no longer contradicts `:145` and `:175`
+- [ ] `finish-document.md:139`'s cross-reference points at a correct example
 
 ---
 
 ### Phase 7 Testing Requirements
 
-- [x] Each converted component's documented workflow executes without a permission prompt
-- [x] D39 carve-outs untouched
+- [ ] `claude plugin validate --strict` after every frontmatter edit
+- [ ] Rendered-artifact grep confirms only deliberate exemptions remain
 
 ### Phase 7 Completion Checklist
 
-- [x] All work items complete
-- [x] `Agent`/`Task` decision recorded in the Decision Log (**D56**)
-- [x] All three plugins validate `--strict`
+- [ ] All work items complete
+- [ ] Frontmatter intact on all edited skills
+- [ ] Version bumped
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Plugin validation | `for p in personal-plugin bpmn-plugin slide-gen; do claude plugin validate --strict ./plugins/$p \|\| exit 1; done` | Exit code 0 |
-| Injection linter | `python3 scripts/check_injections.py` | Exit code 0 |
-| Body-size budget | `awk 'END{if (NR>=500) exit 1}' plugins/bpmn-plugin/skills/bpmn-generator/SKILL.md` | Exit code 0 |
-| Markdown lint | `npx markdownlint-cli2 "plugins/**/*.md"` | Exit code 0 |
+| Frontmatter | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
+| No stray menus | `grep -rn 'Your choice (A/B/C' plugins/ \| grep -v interactive.md` | No output |
+| Injections | `python3 scripts/check_injections.py` | Exit code 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 8: Trigger Metadata and Eval Re-baseline
+## Phase 8: Freshness Stamps and task-sync
 
-**Execution Mode:** Sequential
+**Estimated Complexity:** M (~13 files, ~150 LOC)
+**Dependencies:** None
+**Execution Mode:** Parallel
 
 ### Goals
 
-Resolve the contradiction between `disable-model-invocation` and eleven skills' trigger prose, then re-baseline the evals that encode it.
+- Delete every stamp that asserts a verification nobody performed (D62)
+- Make the four `tasks.json` sources agree, with one logged decision (D65)
+- Close the call-sequence coverage gap that let `bug_001` ship at 96%
 
 ### Work Items
 
-#### 8.1 D40-protected skills: rewrite descriptions, keep the flag ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
+#### 8.1 Delete all 12 freshness stamps, the phantom `check-models` reference, and both generators
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #201
-**Depends On:** Phase 5
+**Issue Refs:** #218
+**Depends On:** None
 **Files Affected:**
+- `plugins/personal-plugin/references/research-models.md` (modify)
+- `plugins/personal-plugin/references/flag-consistency.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/accessibility-annotator/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
 - `plugins/personal-plugin/skills/spark-recon/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/jetson-recon/SKILL.md` (modify)
-
-**Description:**
-`disable-model-invocation: true` removes the description from session context, so trigger prose in these descriptions is unreachable. Both are D40-protected (`jetson-recon` combines untrusted WebFetch/WebSearch with a live SSH read into a passwordless-sudo account) and the flag must stay. Their descriptions are *entirely* trigger prose, so stripping leaves nothing — they need rewriting as capability statements, using `arch-review` as the model.
-
-**Tasks:**
-1. [x] Rewrite both descriptions as capability statements
-2. [x] Preserve the Trust Boundary sections verbatim
-
-**Acceptance Criteria:**
-- [x] WHEN either skill's frontmatter is read THEN the description SHALL state capability, not triggers
-- [x] Both retain `disable-model-invocation: true`
-
-**Completion notes (8.1):**
-- Both rewritten on the `arch-review` model: what the skill scans, what it produces, and — because these two are the D40 pair — what its trust boundary is. `spark-recon` states it runs no SSH or shell commands at all (true since 7.2 removed the vestigial grants); `jetson-recon` states that Check 5's SSH allowlist is never derived from what Checks 1–4 fetch, pointing at the Trust Boundary section.
-- Trust Boundary sections untouched by construction — only the `description:` line changed in each file.
-- **A YAML trap surfaced and is worth recording.** The first `spark-recon` rewrite contained `Report-and-recommend only: reads external sources…`. A `: ` inside an unquoted YAML scalar is a mapping indicator, so **the entire frontmatter failed to parse** — and the failure mode is not a crash but *silent metadata loss*: `name`, `allowed-tools`, and the flag itself would all have been dropped at load time, quietly un-protecting a D40 skill. `claude plugin validate --strict` caught it (`YAML Parse error`); nothing else in the toolchain would have. Rephrased with an em dash, then swept all 63 SKILL.md/command files with `yaml.safe_load` — 0 other instances.
-
----
-
-#### 8.2 Six skills: keep the flag, strip the dead prose ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: haiku**
-**Recommendation Ref:** #201
-**Depends On:** Phase 5
-**Files Affected:**
-- `plugins/personal-plugin/skills/{unlock,visual-explainer,new-project,release-plugin,archive-project,brain-entry}/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/ship/SKILL.md` (modify)
-
-**Description:**
-Seven skills (including `ship`, per the approved decision to keep its flag) keep `disable-model-invocation: true` for sound reasons — secrets loading, paid image generation, remote repo creation, irreversible publishing, destructive-adjacent moves, external POST with no gate, and push/merge respectively — and simply lose the unreachable trigger prose. `new-project` also resolves a self-contradiction: `:13` already declares it never runs proactively while `:3` says "Suggest…".
-
-**Tasks:**
-1. [x] Strip "Suggest when…" prose from all seven descriptions, leaving capability statements
-2. [x] Fix `unlock/SKILL.md:169-176`, which shows Claude running `/unlock` automatically — teaching exactly what the flag forbids
-
-**Acceptance Criteria:**
-- [x] No skill carrying the flag also carries trigger prose in its description
-- [x] All seven retain the flag
-
-**Completion notes (8.2):**
-- All seven descriptions now end with the *reason* the skill is explicit-only rather than a trigger list — "Publishing is irreversible once tagged and pushed", "Posts to an external service with no further gate", "Generation is paid and billed per image". The dead prose is replaced with something a reader can act on, instead of just deleted.
-- **`unlock`'s worked example was worse than the description.** `:169-176` showed a transcript of Claude deciding it needed keys and "→ Runs `/unlock` automatically" — a demonstration of the exact behavior the flag forbids, which survives in context even though the description does not. Rewritten as a two-turn exchange where Claude asks and the user runs it, with an explicit "Claude never invokes `/unlock` on its own" note.
-- **`new-project`'s self-contradiction resolved by deletion:** `:13` already said "it never runs proactively" while `:3` said "Suggest (do not auto-run) when…". Stripping `:3` leaves `:13` as the single statement.
-- **Verified against the flag, not the list:** re-grepped every skill carrying `disable-model-invocation: true` for residual trigger prose. Only `lab-notebook` and `create-wiki` matched, which is correct — 8.3 removes their flag and *keeps* their prose. `spark-audit`/`jetson-audit` carry the flag and were already capability statements; correctly out of scope.
-
----
-
-#### 8.3 Two skills: drop the flag, but add a Phase-0 gate first ✅ Completed 2026-07-29
-**Status: COMPLETE 2026-07-29**
-**Model Tier: opus**
-**Recommendation Ref:** #201
-**Depends On:** 8.2
-**Files Affected:**
-- `plugins/personal-plugin/skills/lab-notebook/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/explain-project/SKILL.md` (modify)
 - `plugins/personal-plugin/skills/create-wiki/SKILL.md` (modify)
-- `evals/skills/description-triggers.eval.md` (modify)
+- `plugins/slide-gen/skills/build-cfa-deck/SKILL.md` (modify)
+- `docs/PLUGIN-DEVELOPMENT.md` (modify)
 
 **Description:**
-Both have the highest proactive-suggestion value in the set — their triggers ("benchmark work starting", "I keep forgetting…") are ones the user provably cannot self-serve. **But neither has a pre-action confirmation gate**; their "Confirm" steps are post-creation verification. Dropping the flag as a one-line edit would let the model unilaterally create files and inject CLAUDE.md rules. The gate must land in the same change.
+Per D62. The issue names one file; there are **12 live sites**, and two of them are **generators** — `explain-project/SKILL.md:392` prescribes *"**Last verified:** date when claims were last checked"* into every document it produces, and `create-wiki/SKILL.md:271` templates `Last updated: … | Last lint: never`.
+
+Beyond the column: `research-models.md:41`'s Resolution Order names **`check-models`, a command that does not exist** (deliberately deleted per archived plan v6, reference never removed), and `:70-80` documents the output of that phantom. `:29` claims "All defaults are annotated with their last-verified date" while `:37` says OpenAI and Google IDs "cannot be verified offline" — and `:34-35` carry stamps anyway.
+
+`unlock/SKILL.md:16,67,90` is the same constant duplicated three times, so any edit must land in all three or the file self-contradicts. **Coordinate with Phase 5**, which also edits this file.
 
 **Tasks:**
-1. [x] Add a Phase-0 confirmation gate to each, before any file creation
-2. [x] Remove `disable-model-invocation: true`
-3. [x] Update `description-triggers.eval.md` S13/S14, which currently assert the opposite
+1. [ ] Delete the `Last Verified` column and its note from `research-models.md:31-37`
+2. [ ] Delete the `check-models` reference at `:41` and the phantom `## Model Check Output Examples` at `:70-80`
+3. [ ] Delete the "default as of …" hedges at the 9 remaining sites
+4. [ ] Remove the templated stamp from both generators
+5. [ ] Where a value genuinely needs a caveat, state the *uncertainty* ("verify with the provider if errors occur") without a date that implies someone checked
 
 **Acceptance Criteria:**
-- [x] WHEN either skill is model-invoked THEN it SHALL confirm before creating any file
-- [x] S13/S14 assert the new contract
-
-**Completion notes (8.3):**
-- **The gate is conditional on invocation source, following `security-analysis`'s house pattern:** it fires only when Claude invokes the skill on its own initiative, and is explicitly skipped when the user types the slash command. A gate that also interrogates the user who just asked for the thing is friction that gets removed by the next editor.
-- **Both gates use `AskUserQuestion`**, consistent with what Phase 7 just established, and both skills were granted it. Note the divergence this creates: `security-analysis`'s equivalent gate is still a hand-rolled `(y/n)` prose prompt. It was not in 7.5's six and is out of scope here — **filed as follow-up**, not silently left inconsistent.
-- **Scope of each gate reasoned per mode, not blanket-applied.** `lab-notebook`: `init` (creates the notebook *and* injects binding CLAUDE.md rules), `entry`, and `rotate` all write, so all are gated; `status` is read-only and exempt. `create-wiki`: initialization is gated; maintenance mode on an existing wiki is the wiki working as the user already configured it, and is exempt.
-- **The descriptions keep their trigger prose** — deliberately the opposite of 8.2. That prose is now reachable, which is the entire point of dropping the flag; each gained a closing sentence stating that the skill confirms before writing when suggested rather than invoked.
-- S13/S14 rewritten from "must not auto-invoke" to "may be invoked, must gate before writing", with a `Must NOT` on reporting the artifact as set up when only the gate was reached.
+- [ ] WHEN `grep -rn 'Last Verified\|last verified\|default as of\|Default as of' plugins/ docs/` runs THEN it SHALL return no output
+- [ ] WHEN `grep -rn 'check-models' .` runs (excluding `docs/archive/`) THEN it SHALL return no output
+- [ ] WHEN a generator produces a document THEN that document SHALL NOT contain a freshness stamp field
+- [ ] No remaining claim asserts a verification event that no mechanism performs
 
 ---
 
-#### 8.4 Re-baseline the model-sensitive evals ⚠️ Completed 2026-07-29 (task 3 deferred)
-**Status: COMPLETE 2026-07-29 — with one task explicitly NOT done, see notes**
+#### 8.2 Bless `tasks.json` local-only and reconcile all four sources
+**Status: PENDING**
 **Model Tier: sonnet**
-**Recommendation Ref:** #205
-**Depends On:** 8.1, 8.2, 8.3
+**Issue Refs:** #230
+**Depends On:** None
 **Files Affected:**
-- `evals/skills/description-triggers.eval.md` (modify)
-- `evals/commands/assess-document.eval.md` (modify)
+- `docs/plans/2026-07-18-task-sync-design.md` (modify)
+- `LAB_NOTEBOOK.md` (modify)
+- `plugins/personal-plugin/skills/task-sync/SKILL.md` (modify)
 
 **Description:**
-S11–S14 each carry a **Should** criterion requiring the model to verbally suggest a skill based on documented trigger prose the flag has deleted from its context — unsatisfiable as written, and the same defect #201 describes, encoded into the eval meant to guard it. Separately, `assess-document.eval.md` asserts absolute score bands (`:17-18`, `:29`, `:52`, `:61`) as **Must** criteria; the file already contains the correct relative form at `:140`. There is **no baseline artifact** in the repo — "re-baseline" means editing the eval spec text. Item 3 of #205 (`research-topic.eval.md:34`) is already resolved by #189 and needs no work.
+Per D65. `.gitignore` keeps ignoring `tasks.json`; the *documentation* changes to match, and the decision is logged with alternatives — the absence of that log entry is the actual defect this issue records.
+
+Six design-doc lines assert the opposite: `:19`, `:64`, `:65` (correct — `TASKS.md` only), `:100`, `:129`, `:153`. `references/config-reference.md:61-70` already reconciles toward local-only and needs no change — it is the source that was right.
 
 **Tasks:**
-1. [x] Rewrite S11–S14's unsatisfiable Should criteria
-2. [x] Convert `assess-document`'s absolute bands to the relative form already present at `:140`
-3. [ ] **NOT DONE — deferred, see notes.** Run the 14 `description-triggers` scenarios under Opus 5 and record results out-of-band
-4. [x] Close #205 item 3 as already-fixed
+1. [ ] Correct design-doc lines `:19`, `:64`, `:100`, `:129`, `:153` to describe local-only, with a pointer to the superseding decision
+2. [ ] Mark D34's "committed" clause SUPERSEDED by D65 in the Decision Log; never delete it (Rule 4)
+3. [ ] Add a short note to `task-sync/SKILL.md` stating that cross-machine sync of local state is out of scope and the tracker is the archive of record
+4. [ ] Re-scope #169 to record that there is no cross-machine sync of the *public* list either
+5. [ ] Note in the skill that `tasks.json` is **not git-recoverable**, so a destructive command has no undo
 
 **Acceptance Criteria:**
-- [x] No eval criterion depends on prose the harness has removed from context
-- [x] `check_eval_mapping.py` still passes (scenario/Must-block/rubric gates)
+- [ ] WHEN any of the four sources is read THEN it SHALL describe `tasks.json` as local-only
+- [ ] D34's original text survives, marked SUPERSEDED with a pointer to D65
+- [ ] `.gitignore` is unchanged
+- [ ] #169's body reflects the corrected scope
 
-**Completion notes (8.4):**
-- **S11/S12 vs S13/S14 diverge now, and the eval's Purpose section was rewritten to say so.** The four were one homogeneous "locked skills" class; after 8.3 they are two: *locked* (`brain-entry`, `unlock` — flag retained, description unreachable) and *gated* (`lab-notebook`, `create-wiki` — invocable, must confirm). Editing only the scenarios would have left the Purpose and the rubric describing a class that no longer exists.
-- **The unsatisfiable criterion is now impossible to reintroduce by accident:** the Purpose states outright that no criterion for a flagged skill may depend on the model having read its trigger prose, because the flag removes it by construction. S11/S12's remaining suggestion criteria are deliberately weak — a run where the model never names the command is a **pass**.
-- **`assess-document` relative conversion** covers `:17-18`, `:29`, `:52`, `:61`, with an added note on *why* absolute bands are wrong (a model-judged score re-baselines with every model change, turning calibration drift into a red build) and the requirement that both fixtures run in the same session so the comparison is valid.
-- **#205 item 3 closed as already-fixed** via comment — `research-topic.eval.md:34` was resolved by #189/E058/D52. Comment: `issues/205#issuecomment-5120243901`.
-- **Task 3 is deliberately not done, and #205 stays open for it.** Each scenario measures whether a *fresh* session auto-invokes a skill from conversational context. Running them from the session that just wrote those skills measures nothing — the outcome is known in advance, so a green result would be an artifact of contamination, not evidence. It needs one clean session per scenario, human-run per ADR-0009/D32. Recorded as an open action item rather than reported as passed.
+---
+
+#### 8.3 CLI-level integration test for `sync --apply --decisions` across every accepted shape
+**Status: PENDING**
+**Model Tier: sonnet**
+**Issue Refs:** #224
+**Depends On:** None
+**Files Affected:**
+- `plugins/personal-plugin/tools/task-sync/tests/test_plan_apply.py` (modify)
+- `plugins/personal-plugin/skills/task-sync/references/sync-semantics.md` (modify)
+
+**Description:**
+`bug_001` shipped at 96% line coverage because the defect lived entirely in the *interaction between two call sites*, and no unit test of either could see it. **The coverage report already names the gap:** `__main__.py` sits at 95% with Missing `281-283, 288` — and line 288 *is* the `_split_flat_decisions` call, so the function written to fix `bug_001` **has never executed through the CLI**.
+
+The two call sites are `__main__.py:273` (`_load_decisions(args.decisions)`) and `:280` (same path, `key="orphan_decisions"`), with the flat-detection heuristic at `:284` and the split at `:288`.
+
+**Corrections to the issue as filed:** there is **no `cli.py`** — the file is `__main__.py`, and the seam is `run_sync(args, provider=None)` at `:238` (`main(argv)` dispatches `func(args)` with one argument and cannot inject a provider). And "three documented shapes" is **wrong**: `sync-semantics.md:146-147` documents **two**. The third — wrapped conflicts-only, *the shape that actually caused the outage* — exists only in the loader docstring and is **absent from the user-facing reference**. That documentation gap is fixed here too.
+
+The real accepted set is **five** in-set inputs: absent path → `{}`; wrapped both keys; wrapped `decisions` only; wrapped `orphan_decisions` only; flat mapping. Out-of-set values that must raise `ValueError` at `:161-162`: bare list, JSON `null`, scalar, `{"decisions": null}` — plus missing-file and malformed-JSON paths.
+
+**Parametrize from `_DECISION_SECTIONS` (`__main__.py:100`), never from a hardcoded copy** — that is the exact `VALID_PRIORITIES` drift that produced #208/E056 — and always include an out-of-set value, since bugs of this class live in the unrecognized-value branch.
+
+**Why the existing mock is safe here (E057 does not apply):** `conftest.py:19`'s `MockProvider` is structurally verified against the real `Provider` protocol by `test_mock_provider_satisfies_protocol`, so it cannot invent an interface. Assert against **observable real state** — `tasks.json` on disk after apply, and exit code + stderr for the fail-loud orphan path — not the mock's shape.
+
+**Tasks:**
+1. [ ] Add CLI-level tests driving `run_sync(--apply)` with a real `--decisions` file in each of the five in-set shapes
+2. [ ] Add out-of-set cases asserting exit 1, the path named in stderr, and **nothing written**
+3. [ ] Add the degenerate case where a wrapped file's two sections are byte-identical — the `:284` value-equality heuristic misroutes it into `_split_flat_decisions`
+4. [ ] Parametrize from `_DECISION_SECTIONS`
+5. [ ] Document the third (wrapped conflicts-only) shape in `sync-semantics.md:146-160` and correct "two formats" to three
+6. [ ] Confirm `__main__.py` lines `281-283` and `288` are covered
+
+**Acceptance Criteria:**
+- [ ] WHEN `run_sync(--apply)` is driven with each documented decisions-file shape THEN the correct task ids SHALL reach the conflict and orphan consumers respectively
+- [ ] WHEN driven with an out-of-set decisions file THEN it SHALL exit non-zero naming the file and SHALL leave `tasks.json` byte-identical
+- [ ] `__main__.py` coverage no longer reports `281-283, 288` as missing
+- [ ] `sync-semantics.md` documents all three shapes and no longer says "two formats"
+- [ ] task-sync branch coverage ≥ the current 96.30% and above the `fail_under = 90` floor
 
 **Notes:**
-ADR-0009/D32 stands — this stays human-run; CI has zero secrets.
+D36's fail-loud orphan validation must be preserved exactly — unrecognized ids route to the *orphan* map on purpose, because that is the only fail-loud consumer, and silently dropping one would convert a user's typo into a decision they believe they made.
 
 ---
 
 ### Phase 8 Testing Requirements
 
-- [x] Eval structural linter passes after every edit
-- [x] Both newly-invocable skills verified to gate before writing (gate precedes every write path in each file; `status`/maintenance modes documented as exempt)
+- [ ] `claude plugin validate --strict` for all three plugins
+- [ ] Grep sweeps for stamps and `check-models` return empty
+- [ ] task-sync suite green with coverage ≥96.30% and `281-283, 288` covered
 
 ### Phase 8 Completion Checklist
 
-- [x] All work items complete (8.4 task 3 excepted — deferred with reason, #205 stays open)
-- [ ] `description-triggers` scenarios run under Opus 5 — **OPEN**, needs a clean session per scenario, human-run per ADR-0009/D32
-- [x] No skill's dispatch metadata contradicts its flag
+- [ ] All work items complete
+- [ ] Phase 5's `unlock` edits reconciled with 8.1's
+- [ ] Version bumped
+- [ ] All 13 issues closed
 
 ### Definition of Done (Runnable)
 <!-- BEGIN DOD -->
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Eval linter | `python3 scripts/check_eval_mapping.py` | Exit code 0 |
-| Plugin validation | `claude plugin validate --strict ./plugins/personal-plugin` | Exit code 0 |
-| Description budget | `python3 -c "import pathlib,re,sys; [sys.exit(1) for f in pathlib.Path('plugins').rglob('SKILL.md') if len((re.search(r'^description:\s*(.+)$', f.read_text(), re.M) or [''])[0]) > 1024]"` | Exit code 0 |
-| Markdown lint | `npx markdownlint-cli2 "plugins/**/*.md" "evals/**/*.md"` | Exit code 0 |
+| No stamps | `grep -rniE '(last verified\|default as of)' plugins/ docs/ --include=*.md \| grep -v archive` | No output |
+| No phantom cmd | `grep -rn 'check-models' plugins/ docs/ \| grep -v archive` | No output |
+| Validation | `for p in personal-plugin bpmn-plugin slide-gen; do claude plugin validate plugins/$p --strict; done` | All exit 0 |
+| Lint | `npx markdownlint-cli2 "**/*.md"` | Exit code 0 |
 
 <!-- END DOD -->
 
+<!-- END PHASES -->
+
 ---
+
+<!-- BEGIN TABLES -->
 
 ## Parallel Work Opportunities
 
-| Phases | Can run concurrently | Rationale |
-|--------|---------------------|-----------|
-| 2, 3, 4 | Yes — with each other and with 1 | Zero shared files; three different plugins/tools |
-| 2.1–2.3 vs 2.4–2.5 | Yes | bpmn-plugin vs personal-plugin |
-| 3.1 vs 3.2–3.4 | Yes | hook recipes vs slide-gen |
-| 6.3, 6.4, 6.5 | Yes | Independent single-file edits |
-| 1, 5, 7, 8 | **No** | The critical path — each corrects an enumeration the next applies |
+| Work Item | Can Run With | Notes |
+|-----------|--------------|-------|
+| Phase 3 | Phases 4, 5, 6, 7, 8 | Only file is `evals/skills/description-triggers.eval.md` + `evals/README.md` |
+| Phase 4 | Phases 3, 5, 6, 7 | Touches `ultra-plan/SKILL.md`, its eval, `adr-template.md` — no overlap |
+| Phase 5 | Phases 3, 4, 6, 7 | **Conflicts with Phase 8.1** on `unlock/SKILL.md` — see Risk table |
+| Phase 6 | Phases 3, 4, 5, 7 | `CLAUDE.md`, `update-readme.py`, docs |
+| Phase 7 | Phases 3, 4, 5, 6 | `security-analysis`, `wiki`, `task-sync` skills + 3 templates |
+| Phase 8.2 | All | Design docs + notebook only |
+| Phase 8.3 | All | Python tests + one reference file; no overlap with 8.1/8.2 |
+| 3.1 → 3.2 | Sequential | Same file; 3.2 must apply after 3.1's section exists |
+| 4.1 → 4.2 | Sequential | Same file |
+| 2.1 → 2.2 → 2.3 → 2.4 | Strictly sequential | Each gates the next; 2.3 must observe failure before 2.4 wires it |
+
+**Critical path:** Phase 1 → Phase 2. Everything else is independent.
 
 ---
 
 ## Risk Mitigation
 
-<!-- BEGIN TABLES -->
-
-| Risk | Phase/Item | Likelihood | Impact | Mitigation | Status |
-|------|-----------|-----------|--------|------------|--------|
-| #204 gate scope creeps to a repo-wide pinned-ID grep, reddening `main` and deadlocking all PRs | 6.1 | Medium | **Critical** | Scope to agent frontmatter only; negative-test both directions; ADR-0005 explicitly permits pinned IDs in Python tools | Open |
-| Someone "tidies" `prime`'s backticks, switching on 7 dead executions under a grant that rejects 4 | 7.3 | Medium | High | Phase 1 lands ADR-0011 first; 7.3 carries an explicit do-not instruction | Open |
-| 3.3's slide-removal fix claimed working without execution | 3.3 | Medium | High | Acceptance criterion requires execution against the real `.pptx`; current text already carries a reliability claim execution disproves | Mitigated |
-| 4.6's mock proves `--paginate` works while real `gh` 2.45 crashes | 4.6 | Medium | High | Fixture must be two concatenated blobs, not a pre-merged array (#212's mode verbatim) | Mitigated |
-| `SyncPlan.orphans` omitted from `is_empty()` → orphan-only plan reports "already in sync" | 4.2 | Medium | High | Explicit acceptance criterion + dedicated mutation test | Open |
-| Phase 5 deletes a working frontmatter key as "unverified" | 5.3 | Medium | High | Six of eight keys verified real against the harness schema; only `isolation:` and `$CLAUDE_CONTEXT` are deleted | Mitigated |
-| 8.3 drops a flag without its gate, making file creation model-triggerable | 8.3 | Low | High | Gate and flag removal are one work item, not two | Open |
-| A new CI **job** instead of a step deadlocks merges | 1.6, 6.1 | Low | Critical | Both items specify "step"; D28 cited inline | Mitigated |
-| Rewording plan-template Rule 17 breaks `/validate-plugin`'s literal keyword check | Deferred (#198) | — | — | Not in this plan; recorded for the follow-on | Deferred |
-
-<!-- END TABLES -->
+| Risk | Likelihood | Impact | Mitigation Strategy | Status |
+|------|------------|--------|---------------------|--------|
+| Phase 2's gate reddens the required `Validate Plugins (official CLI)` check on `main`'s push leg | Med | **High** — a red required context on main | Explicit event-leg branch (2.2 task 4) with the push leg exiting 0; 2.3's negative test must assert the **PR leg still fails**, not merely that push passes | Open |
+| Phase 2's gate blocks Phase 1's own CHANGELOG-only PR | High if mis-ordered | Med | Phase 1 lands first; `CHANGELOG.md` is explicitly exempt from Rule 1 | Open |
+| The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Open |
+| Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Open |
+| `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Open |
+| Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Open |
+| Phase 5 and Phase 8.1 both edit `unlock/SKILL.md` | High if parallel | Med | Serialize: run 8.1's `unlock` edits after Phase 5 merges, or fold them into Phase 5 | Open |
+| Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Open |
+| Backfilled CHANGELOG entries paraphrased rather than extracted, reintroducing drift inverted | Med | Low | 1.1 task 1 mandates extraction; acceptance compares version *sets*, not prose | Open |
 
 ---
 
 ## Unknowns Register
 
-<!-- BEGIN TABLES -->
-
 | ID | Unknown | Severity | Affects | Resolution Strategy | Status |
 |----|---------|----------|---------|---------------------|--------|
-| U1 | Does `$PWD` work as a template variable? Documented at `common-patterns.md:287`; 3 binary hits with no schema context | Low | 5.3 | Live probe in a scratch skill; delete if unverified | Resolved — static probe (`strings`/`grep` over 2.1.220, same method as U4) found no schema/description context for `PWD`; the 3 hits are ordinary bundled bash-script fragments (`d=$PWD; while :; do`, `local working_dir="${PWD}";`) plus the bash builtin `OLDPWD`, none tied to a Claude Code substitution feature. Deleted from `common-patterns.md:292` (5.3) |
-| U2 | Do `context: fork` subagents draw tool permissions from skill frontmatter or session settings? | Medium | 7.1, 7.3 | Live probe before finalizing grant sets; affects whether grant fixes are load-bearing or cosmetic | Open |
-| U3 | Exact python-pptx version contract for `_sldIdLst` (private attribute) | Medium | 3.3 | Pin the version in Prerequisites; verify against the installed 1.0.2 | Resolved — confirmed on 1.0.2 via live probe: `prs.slides._sldIdLst` (not `prs.presentation.sldIdLst`, which doesn't exist — `Presentation()` has no `.presentation` attribute) is `pptx.oxml.presentation.CT_SlideIdList`; `prs.part.rels` is `Mapping` not `MutableMapping` so deletion requires `prs.part.drop_rel(rId)` |
-| U4 | Does the harness surface a distinguishable error when a `.strict()` skill schema rejects a key, or does the skill silently not load? | Medium | 5.3 | Probe with a deliberately-bad key; determines whether 5.3 is a crash fix or a hygiene fix | Resolved — static probe located the failure path: `"[skills] YAML frontmatter in " + path + " failed to parse and was ignored: " + error`, telemetry `skill_load_yaml_failed`/`skill_load_parse_failed`. The skill is silently dropped from the skill list — no session crash, no user-facing error banner — with only a diagnostic log line as signal. 5.3 is a hygiene fix (silent capability loss), not a crash fix |
-| U5 | Whether `agent: general-purpose` is valid in *skill* frontmatter or only in the Agent tool | Low | 5.4 | Verify against the harness enum before publishing the corrected vocabulary | Open |
-
-<!-- END TABLES -->
+| U1 | Does `fetch-depth: 0` measurably slow the `plugin-validate` job past its 10-minute timeout? | Low | Phase 2, 2.1 | Measure the first CI run; repo history is small so this is expected to be negligible | Open |
+| U2 | On the `pull_request` leg, is `github.event.pull_request.base.sha` reliably present, or must the base be derived via `merge-base`? | Med | Phase 2, 2.2 | Resolve during 2.3's negative test on a real PR before wiring | Open |
+| U3 | Does `wiki/SKILL.md` already grant `AskUserQuestion`? | Low | Phase 7, 7.1 | Read the frontmatter at implementation time | Open |
+| U4 | Is the upstream destination for #227's report the `superpowers` plugin repo or its marketplace repo? | Low | Phase 3, 3.3 | Check the plugin manifest's `homepage`/`repository` before filing | Open |
+| U5 | Will `claude plugin eval` leave early access during this plan's life, changing #228's deferral calculus? | Low | Phase 3, 3.1 | Record the deferral with a dated pointer to ADR-0009; revisit only if the command becomes invocable | Accepted |
+| U6 | Does the stale-skill-loader behavior (#232) affect which version of an edited skill a verification run actually exercises? | Med | **Phase 5, item 5.1 only** — the sole acceptance criterion in this plan requiring a live skill invocation (`/unlock` in a tool shell). Every other criterion is a file grep, a `validate --strict` read, or a CI command, none of which route through the skill loader | Mitigated in-plan by 5.1 task 6: diff the installed cache's `unlock/SKILL.md` against the repo copy immediately before the manual run, and abort if they differ. Root cause is upstream; tracked as #232 and deliberately not gating this plan | Open |
 
 ---
 
 ## Success Metrics
 
-| Metric | Baseline | Target |
-|--------|----------|--------|
-| Skills/commands producing silently wrong output | 3 (bpmn-to-drawio, build-cfa-deck, task-sync orphan path) | 0 |
-| Live injections in executable surfaces that can abort a skill | 9 (ship 6, clear-prep 3) | 0 unguarded |
-| Guards that cannot fire | 5 (ship diff gate, ship remote check, `paths:` loop guards, no ADR-0005 gate, no injection linter) | 0 |
-| Documented frontmatter keys contradicted by the harness | 5 (`paths:` semantics, `hooks:` shape, `isolation:`, `$CLAUDE_CONTEXT`, `agent:` enum) | 0 |
-| visual-explainer env-var doc coverage | 2/15 (13%) | 15/15 |
-| Components whose `allowed-tools` cannot run their documented workflow | 10 | 0 |
-| Skills whose description contradicts their dispatch flag | 11 | 0 |
-| CI gates enforcing a documented rule | 2 (eval mapping, README sync) | 4 (+ injection linter, + ADR-0005) |
+- [ ] All 8 phases completed
+- [ ] All acceptance criteria met
+- [ ] 12 issues closed: #206, #210, #217, #218, #223, #224, #226, #227, #228, #230, #231, #233 (#232 deferred — characterize before fixing; root cause is upstream)
+- [ ] `main` is never red: every required check green on both OSes at each phase boundary
+- [ ] Two new guards (`check_version_bump.py`, the extended `update-readme.py --check`) each demonstrated to **fail** on deliberately-bad input before being wired in
+- [ ] Every generator that mints a defect is fixed alongside its instances — 2 document templates (#218), 3 interaction templates (#223), 1 inventory generator (#206), 1 ADR template (#231)
+- [ ] No issue closed on narrative verification: every acceptance criterion is a command with an observed exit code
 
----
-
-## Appendix: Recommendation Traceability
-
-| Issue | Phase(s) | Items | Investigation verdict |
-|-------|----------|-------|----------------------|
-| #183 | 1 | 1.1, 1.2, 1.4, 1.5, 1.6 | PARTIALLY-WRONG — mechanism right, 50% of locations wrong |
-| #190 | 1 | 1.2, 1.3 | ACCURATE headline, 3 defects not 1, plus a second dead gate |
-| #193 | 2 | 2.1, 2.2, 2.3 | ACCURATE core, blast radius 9 sites not 3 |
-| #196 | 2 | 2.4, 2.5 | ACCURATE, understated (2/15 coverage) |
-| #194 | 3 | 3.1 | ACCURATE (all five sub-claims) |
-| #195 | 3 | 3.2, 3.3, 3.4 | ACCURATE and UNDERSTATED — both impls broken |
-| #181 | 4 | 4.1, 4.2, 4.3, 4.4 | ACCURATE and understated (`UNCHANGED` orphan invisible) |
-| #182 | 4 | 4.5, 4.6 | ACCURATE (wording nit: hard cap, not unpaginated) |
-| #202 | 5 | 5.1, 5.2, 5.3, 5.4, 5.5 | PARTIALLY-WRONG — remedy inverted; 6 of 8 keys real |
-| #197 | 5, 6 | 5.6, 6.4, 6.5 | Upheld with 2 corrections; misses 3 sites |
-| #204 | 6 | 6.1, 6.2, 6.3 | FULLY UPHELD |
-| #192 | 5, 7 | 5.4, 7.1, 7.2 | PARTIALLY-WRONG — row 1 half-wrong, row 7 inverted, true count 10 |
-| #191 | 7 | 7.3 | PARTIALLY-WRONG — primary right, injection sub-claim wrong |
-| #203 | 7 | 7.4, 7.5, 7.6 | ACCURATE but INCOMPLETE — ≥7 surfaces, not 4 |
-| #201 | 5, 8 | 5.4, 8.1, 8.2, 8.3 | ACCURATE (count of 11 exact) |
-| #205 | 8 | 8.4 | PARTIALLY-WRONG — item 3 already fixed by #189 |
-
-**Deferred to the follow-on plan (8 issues, none currently producing wrong output):** #198 (tier routing — 7 files, plus a literal-keyword constraint in `validate-plugin.md`), #199 (the 31-component `effort:` sweep and ultra-plan's ~20 off-by-one phase references; the enum half lands in 5.4), #200 (context-relative thresholds; note Haiku 4.5 is still 200K), #216 (stream the Claude research leg), #218 (delete the unbacked freshness column), #206 (CLAUDE.md inventory drift; its context-economy half is **wrong** — zero budget violations), #210 (bidirectional CHANGELOG backfill, 11+2 versions), #217 (**rewrite the issue first** — 3 of 4 claims are wrong and `/unlock` is blocked by an unrelated `$TROY` defect).
-
----
-
-## Execution Notes
-
-- One branch + PR + merge per phase; all 22 required checks green before each merge. `main` is PR-protected.
-- Log a LAB_NOTEBOOK entry before the first commit of each phase (Rule 11).
-- Phases 2, 3, and 4 are independent of the critical path and of each other — run them in parallel with Phase 1 if capacity allows.
-- **Two new CI gates land in this plan (1.6, 6.1). Both must be added as STEPS in an existing job** — a new job creates a required check that deadlocks merges (D28/PLAT-012). Both must be negative-tested against deliberately-bad input before wiring (E043).
-- Back up `tasks.json` before any live task-sync verification — it is gitignored and therefore not git-recoverable.
-- Suggested verification points: stop after Phase 4 (all active harm fixed, shippable) and after Phase 6 (defect classes gated) before proceeding.
-
----
-
-*Plan generated by `/ultra-plan` on 2026-07-29 from a 24-item backlog investigation (LAB_NOTEBOOK E060). Prior plan archived at `docs/archive/IMPLEMENTATION_PLAN-v11.md`.*
+<!-- END TABLES -->
