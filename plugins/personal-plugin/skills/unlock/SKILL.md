@@ -13,7 +13,7 @@ Load project secrets from Bitwarden Secrets Manager into the current environment
 
 | Item | Value |
 |------|-------|
-| BWS project ID | `$BWS_PROJECT_ID` env var, or `5022ea9c-e711-4f4e-bf5f-b3df0181a41d` (default project ID for Troy's vault — override via `BWS_PROJECT_ID`. Default as of 2026-03-04 — verify if errors occur) |
+| BWS project ID | `$BWS_PROJECT_ID` env var, or `5022ea9c-e711-4f4e-bf5f-b3df0181a41d` (default project ID for Troy's vault — override via `BWS_PROJECT_ID`) |
 | Access token env var | `BWS_ACCESS_TOKEN` (deprecated fallback — `TROY`, for older setups that still export it) |
 | bws install docs | https://bitwarden.com/help/secrets-manager-cli/ |
 
@@ -66,7 +66,6 @@ Run bws with the access token set for that single command, then parse the JSON o
 ```powershell
 # Use BWS_PROJECT_ID env var if set, otherwise fall back to default
 # Default project ID for Troy's vault — override via BWS_PROJECT_ID
-# Default as of 2026-03-04 — verify if errors occur
 $projectId = if ($env:BWS_PROJECT_ID) { $env:BWS_PROJECT_ID } else { '5022ea9c-e711-4f4e-bf5f-b3df0181a41d' }
 $env:BWS_ACCESS_TOKEN = $token
 $json = bws secret list $projectId 2>&1
@@ -89,7 +88,6 @@ foreach ($s in $secrets) {
 ```bash
 # Use BWS_PROJECT_ID env var if set, otherwise fall back to default
 # Default project ID for Troy's vault — override via BWS_PROJECT_ID
-# Default as of 2026-03-04 — verify if errors occur
 PROJECT_ID="${BWS_PROJECT_ID:-5022ea9c-e711-4f4e-bf5f-b3df0181a41d}"
 export BWS_ACCESS_TOKEN="$TOKEN"
 JSON=$(bws secret list "$PROJECT_ID" 2>&1)

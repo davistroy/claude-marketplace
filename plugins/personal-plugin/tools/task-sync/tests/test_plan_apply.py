@@ -19,6 +19,7 @@ import pytest
 from conftest import MockProvider
 from task_sync import store
 from task_sync.__main__ import (
+    _DECISION_SECTIONS,
     _apply_summary,
     _build_provider,
     _load_decisions,
@@ -1072,3 +1073,250 @@ def test_plan_json_includes_orphans_section() -> None:
     assert payload["orphans"][0]["task_id"] == "t-orphan"
     assert payload["orphans"][0]["issue_number"] == 42
     assert payload["orphans"][0]["local_changed"] is True
+
+
+# -- CLI-level integration: `sync --apply --decisions` across every accepted
+# shape (#224/8.3) -----------------------------------------------------
+#
+# `test_load_decisions_variants` exercises `_load_decisions` in isolation and
+# the conflict/orphan tests above hand hand-built decision dicts straight to
+# `apply()`. Neither reproduces the CLI's *double call* to `_load_decisions`
+# in `run_sync` (`__main__.py:273`/`:280`), the flat-vs-wrapped heuristic at
+# `:284`, or the `_split_flat_decisions` seam at `:288` — the exact
+# interaction `bug_001` lived in. These tests drive `run_sync` end to end
+# with a real `--decisions` file on disk and a plan that has BOTH a conflict
+# and an orphan, so both consumers are exercised, and assert on the
+# persisted `tasks.json`, not on any mock's recorded calls.
+
+# Shape labels for parametrize ids. The wrapped section *keys* are always
+# derived from `_DECISION_SECTIONS`, never hardcoded — the #208/E056 lesson.
+_SHAPE_ABSENT = "absent"
+_SHAPE_WRAPPED_BOTH = "wrapped_both"
+_SHAPE_WRAPPED_CONFLICTS_ONLY = "wrapped_conflicts_only"
+_SHAPE_WRAPPED_ORPHANS_ONLY = "wrapped_orphans_only"
+_SHAPE_FLAT = "flat"
+
+_CONFLICT_SECTION, _ORPHAN_SECTION = _DECISION_SECTIONS
+
+
+def _conflict_and_orphan_tasklist() -> TaskList:
+    """A plan with one CHANGED_BOTH conflict (`t-c`) and one ORPHAN_LOCAL
+    (`t-o`, linked to an issue number the fetch never returns)."""
+    conflict_task = Task(id="t-c", title="local title", body="local", status="todo", issue_number=5)
+    conflict_task.last_synced = {"hash": "stale", "at": BASE_AT}
+    orphan_task = Task(id="t-o", title="orphaned task", issue_number=99)
+    orphan_task.last_synced = {"hash": "abc123", "at": BASE_AT}
+    return TaskList(provider="github", repo="o/r", tasks=[conflict_task, orphan_task])
+
+
+def _decisions_file_content(shape: str) -> dict[str, object] | None:
+    """The on-disk JSON for each shape. `None` means "pass no --decisions"."""
+    if shape == _SHAPE_ABSENT:
+        return None
+    if shape == _SHAPE_WRAPPED_BOTH:
+        return {_CONFLICT_SECTION: {"t-c": "remote"}, _ORPHAN_SECTION: {"t-o": "keep"}}
+    if shape == _SHAPE_WRAPPED_CONFLICTS_ONLY:
+        return {_CONFLICT_SECTION: {"t-c": "remote"}}
+    if shape == _SHAPE_WRAPPED_ORPHANS_ONLY:
+        return {_ORPHAN_SECTION: {"t-o": "keep"}}
+    if shape == _SHAPE_FLAT:
+        return {"t-c": "remote", "t-o": "keep"}
+    raise AssertionError(f"unhandled shape {shape!r}")  # pragma: no cover
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        _SHAPE_ABSENT,
+        _SHAPE_WRAPPED_BOTH,
+        _SHAPE_WRAPPED_CONFLICTS_ONLY,
+        _SHAPE_WRAPPED_ORPHANS_ONLY,
+        _SHAPE_FLAT,
+    ],
+)
+def test_apply_via_cli_covers_every_accepted_decisions_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
+) -> None:
+    """Each of the five in-set shapes, driven through `run_sync(--apply)`
+    with a real file, routes the conflict decision to the conflict and the
+    orphan decision to the orphan — verified against persisted `tasks.json`,
+    never against `_load_decisions`'/`_split_flat_decisions`'s return values.
+
+    Conflict resolution uses "remote" (not "local") so a resolved conflict's
+    title visibly flips to "remote title" — "local" would leave the title
+    unchanged either way and couldn't distinguish resolved from untouched.
+    """
+    tl = _conflict_and_orphan_tasklist()
+    tasks_path = _committed_repo(tmp_path, tl)
+    issue = _issue(number=5, title="remote title", updated=LATER)
+    provider = MockProvider(issues=[issue], now=NOW)
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    flags = ["--apply"]
+    content = _decisions_file_content(shape)
+    if content is not None:
+        decisions_path = tmp_path / "decisions.json"
+        decisions_path.write_text(json.dumps(content))
+        flags += ["--decisions", str(decisions_path)]
+
+    rc = run_sync(_parse(tasks_path, tmp_path, *flags), provider=provider)
+
+    assert rc == 0
+    saved = store.load(tasks_path)
+    conflict = _by_id(saved, "t-c")
+    orphan = _by_id(saved, "t-o")
+
+    conflict_resolved = shape in (_SHAPE_WRAPPED_BOTH, _SHAPE_WRAPPED_CONFLICTS_ONLY, _SHAPE_FLAT)
+    orphan_resolved = shape in (_SHAPE_WRAPPED_BOTH, _SHAPE_WRAPPED_ORPHANS_ONLY, _SHAPE_FLAT)
+
+    assert conflict.title == ("remote title" if conflict_resolved else "local title")
+    assert orphan.issue_number == (None if orphan_resolved else 99)
+
+
+def test_apply_via_cli_flat_empty_decisions_short_circuits_split_guard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A flat, empty `{}` decisions file: both `_load_decisions` calls return
+    `{}`, which are trivially equal — but the `:284` guard is
+    `if decisions and decisions == orphan_decisions`, so the falsy `{}`
+    short-circuits it and `_split_flat_decisions` is never invoked. Distinct
+    from `_SHAPE_ABSENT` above (no `--decisions` at all): this exercises the
+    guard's truthiness check specifically, with a real (empty) file on disk.
+    """
+    tl = _conflict_and_orphan_tasklist()
+    tasks_path = _committed_repo(tmp_path, tl)
+    issue = _issue(number=5, title="remote title", updated=LATER)
+    provider = MockProvider(issues=[issue], now=NOW)
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    decisions_path = tmp_path / "empty.json"
+    decisions_path.write_text(json.dumps({}))
+
+    rc = run_sync(
+        _parse(tasks_path, tmp_path, "--apply", "--decisions", str(decisions_path)),
+        provider=provider,
+    )
+
+    assert rc == 0
+    saved = store.load(tasks_path)
+    assert _by_id(saved, "t-c").title == "local title"  # conflict untouched
+    assert _by_id(saved, "t-o").issue_number == 99  # orphan untouched
+
+
+def test_apply_via_cli_wrapped_identical_sections_misroutes_but_fails_loud(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Degenerate case: a wrapped file whose two sections are BYTE-IDENTICAL.
+
+    `{"t-unknown": "local"}` under both `decisions` and `orphan_decisions`
+    makes the two `_load_decisions` calls return equal dicts even though the
+    file *is* wrapped, so the `:284` value-equality heuristic misreads it as
+    flat and reroutes through `_split_flat_decisions`. "t-unknown" belongs to
+    neither the conflict nor the orphan id set in this plan, so it lands in
+    BOTH split outputs (routed to the conflict map because it's not an
+    orphan id, and to the orphan map on purpose per D36's fail-loud rule).
+    `apply()`'s upfront `_validate_orphan_decisions` then rejects the
+    unrecognized orphan id — the seam re-derives what the wrapped shape's own
+    keys already told the loader, but still fails loud rather than silently
+    misapplying a decision meant for one section as if it were the other.
+    """
+    tl = _conflict_and_orphan_tasklist()
+    tasks_path = _committed_repo(tmp_path, tl)
+    before = tasks_path.read_bytes()
+    issue = _issue(number=5, title="remote title", updated=LATER)
+    provider = MockProvider(issues=[issue], now=NOW)
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    decisions_path = tmp_path / "identical.json"
+    decisions_path.write_text(
+        json.dumps(
+            {_CONFLICT_SECTION: {"t-unknown": "local"}, _ORPHAN_SECTION: {"t-unknown": "local"}}
+        )
+    )
+
+    with pytest.raises(ValueError, match="orphan decision for unknown task"):
+        run_sync(
+            _parse(tasks_path, tmp_path, "--apply", "--decisions", str(decisions_path)),
+            provider=provider,
+        )
+
+    assert tasks_path.read_bytes() == before  # nothing written
+
+
+@pytest.mark.parametrize(
+    "label, content",
+    [
+        ("bare_list", ["t-1", "local"]),
+        ("json_null", None),
+        ("scalar", "local"),
+        ("wrapped_conflicts_section_null", {_CONFLICT_SECTION: None}),
+    ],
+)
+def test_apply_via_cli_out_of_set_decisions_shape_fails_loud_and_writes_nothing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    label: str,
+    content: object,
+) -> None:
+    """A bare list, JSON `null`, a scalar, and a wrapped section whose value
+    is itself not a dict (`{"decisions": null}`) all fail the `isinstance`
+    check at `:161-162` on the FIRST `_load_decisions` call (`:273`) — exit 1,
+    the offending path named in stderr, and `tasks.json` byte-identical
+    because the failure happens before `apply()`/`store.save()` ever run.
+    """
+    tl = TaskList(
+        provider="github", repo="o/r", tasks=[Task(id="t-1", title="x", issue_number=None)]
+    )
+    tasks_path = _committed_repo(tmp_path, tl)
+    before = tasks_path.read_bytes()
+    provider = MockProvider(issues=[], now=NOW)
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    decisions_path = tmp_path / f"{label}.json"
+    decisions_path.write_text(json.dumps(content))
+
+    rc = run_sync(
+        _parse(tasks_path, tmp_path, "--apply", "--decisions", str(decisions_path)),
+        provider=provider,
+    )
+
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert str(decisions_path) in err
+    assert tasks_path.read_bytes() == before
+    assert provider.method_calls("create_issue") == []
+
+
+def test_apply_via_cli_bad_orphan_section_shape_fails_at_second_load_and_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The FIRST `_load_decisions` call (`:273`, key="decisions") succeeds —
+    the `decisions` section is a well-formed (empty) object — but the
+    SECOND call (`:280`, key="orphan_decisions") extracts a list, which
+    fails the `:161-162` check and is caught by the `:281-283` except block
+    that `test_sync_apply_with_missing_decisions_file_errors_cleanly` above
+    cannot reach (there, the same path fails identically on both calls, so
+    the second call is never even attempted).
+    """
+    tl = TaskList(
+        provider="github", repo="o/r", tasks=[Task(id="t-1", title="x", issue_number=None)]
+    )
+    tasks_path = _committed_repo(tmp_path, tl)
+    before = tasks_path.read_bytes()
+    provider = MockProvider(issues=[], now=NOW)
+    monkeypatch.setattr("task_sync.__main__.detect_provider", lambda r: ("github", "o/r"))
+
+    decisions_path = tmp_path / "bad_orphan_section.json"
+    decisions_path.write_text(json.dumps({_CONFLICT_SECTION: {}, _ORPHAN_SECTION: ["nope"]}))
+
+    rc = run_sync(
+        _parse(tasks_path, tmp_path, "--apply", "--decisions", str(decisions_path)),
+        provider=provider,
+    )
+
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert str(decisions_path) in err
+    assert tasks_path.read_bytes() == before
+    assert provider.method_calls("create_issue") == []

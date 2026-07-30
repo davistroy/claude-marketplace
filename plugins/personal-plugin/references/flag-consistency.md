@@ -2,8 +2,6 @@
 
 **Purpose:** Internal reference documenting which flags each command supports. Used for consistency audits.
 
-**Last Updated:** 2026-03-04
-
 ## File-Generating Commands
 
 These commands write output files. All support `--no-prompt` for automation.

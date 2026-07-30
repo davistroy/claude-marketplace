@@ -318,7 +318,7 @@ For each image location, write a detailed content-specific description and a ful
 
 **If `--generate-images` is ON:**
 1. Load the Google API key from Bitwarden: `bws secret get 74f9abaf-d730-4c4e-b689-b3df01843d65`
-2. Use `google-genai` SDK with model `gemini-3-pro-image-preview` (default as of 2026-03-31)
+2. Use `google-genai` SDK with model `gemini-3-pro-image-preview` (verify with provider if errors occur)
 3. Dispatch one `context: fork` subagent per image (max 3 concurrent — see concurrency note above)
 4. Each subagent: generate image with `response_modalities=["IMAGE"]`, aspect ratio 16:9, 300s timeout; save PNG to `word/media/<filename>.png`
 5. After all subagents complete, parent skill inserts each image into the document:

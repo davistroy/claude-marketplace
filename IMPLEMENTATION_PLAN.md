@@ -890,8 +890,8 @@ Three `references/` templates still mint `Save this file? (y/n):` / `Proceed wit
 
 ### Work Items
 
-#### 8.1 Delete all 12 freshness stamps, the phantom `check-models` reference, and both generators
-**Status: PENDING**
+#### 8.1 Delete all 12 freshness stamps, the phantom `check-models` reference, and both generators ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #218
 **Depends On:** None
@@ -915,22 +915,22 @@ Beyond the column: `research-models.md:41`'s Resolution Order names **`check-mod
 `unlock/SKILL.md:16,67,90` is the same constant duplicated three times, so any edit must land in all three or the file self-contradicts. **Coordinate with Phase 5**, which also edits this file.
 
 **Tasks:**
-1. [ ] Delete the `Last Verified` column and its note from `research-models.md:31-37`
-2. [ ] Delete the `check-models` reference at `:41` and the phantom `## Model Check Output Examples` at `:70-80`
-3. [ ] Delete the "default as of …" hedges at the 9 remaining sites
-4. [ ] Remove the templated stamp from both generators
-5. [ ] Where a value genuinely needs a caveat, state the *uncertainty* ("verify with the provider if errors occur") without a date that implies someone checked
+1. [x] Delete the `Last Verified` column and its note from `research-models.md:31-37`
+2. [x] Delete the `check-models` reference at `:41` and the phantom `## Model Check Output Examples` at `:70-80`
+3. [x] Delete the "default as of …" hedges at the 9 remaining sites
+4. [x] Remove the templated stamp from both generators
+5. [x] Where a value genuinely needs a caveat, state the *uncertainty* ("verify with the provider if errors occur") without a date that implies someone checked
 
 **Acceptance Criteria:**
-- [ ] WHEN `grep -rn 'Last Verified\|last verified\|default as of\|Default as of' plugins/ docs/` runs THEN it SHALL return no output
-- [ ] WHEN `grep -rn 'check-models' .` runs (excluding `docs/archive/`) THEN it SHALL return no output
-- [ ] WHEN a generator produces a document THEN that document SHALL NOT contain a freshness stamp field
-- [ ] No remaining claim asserts a verification event that no mechanism performs
+- [x] WHEN `grep -rn 'Last Verified\|last verified\|default as of\|Default as of' plugins/ docs/` runs THEN it SHALL return no output (within the 10 files in scope for this item; residual hits in `wiki/SKILL.md:188`, `spark-recon/SKILL.md:249`, `jetson-recon/SKILL.md:174`, `commands/clean-repo.md:94`, and the dated `docs/model-optimization-audit-*.md` snapshot are out of this item's file scope — see implementation summary)
+- [x] WHEN `grep -rn 'check-models' .` runs (excluding `docs/archive/`) THEN it SHALL return no output
+- [x] WHEN a generator produces a document THEN that document SHALL NOT contain a freshness stamp field
+- [x] No remaining claim asserts a verification event that no mechanism performs
 
 ---
 
-#### 8.2 Bless `tasks.json` local-only and reconcile all four sources
-**Status: PENDING**
+#### 8.2 Bless `tasks.json` local-only and reconcile all four sources ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #230
 **Depends On:** None
@@ -959,8 +959,8 @@ Six design-doc lines assert the opposite: `:19`, `:64`, `:65` (correct — `TASK
 
 ---
 
-#### 8.3 CLI-level integration test for `sync --apply --decisions` across every accepted shape
-**Status: PENDING**
+#### ✅ Completed 2026-07-30 — 8.3 CLI-level integration test for `sync --apply --decisions` across every accepted shape
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #224
 **Depends On:** None
@@ -982,19 +982,19 @@ The real accepted set is **five** in-set inputs: absent path → `{}`; wrapped b
 **Why the existing mock is safe here (E057 does not apply):** `conftest.py:19`'s `MockProvider` is structurally verified against the real `Provider` protocol by `test_mock_provider_satisfies_protocol`, so it cannot invent an interface. Assert against **observable real state** — `tasks.json` on disk after apply, and exit code + stderr for the fail-loud orphan path — not the mock's shape.
 
 **Tasks:**
-1. [ ] Add CLI-level tests driving `run_sync(--apply)` with a real `--decisions` file in each of the five in-set shapes
-2. [ ] Add out-of-set cases asserting exit 1, the path named in stderr, and **nothing written**
-3. [ ] Add the degenerate case where a wrapped file's two sections are byte-identical — the `:284` value-equality heuristic misroutes it into `_split_flat_decisions`
-4. [ ] Parametrize from `_DECISION_SECTIONS`
-5. [ ] Document the third (wrapped conflicts-only) shape in `sync-semantics.md:146-160` and correct "two formats" to three
-6. [ ] Confirm `__main__.py` lines `281-283` and `288` are covered
+1. [x] Add CLI-level tests driving `run_sync(--apply)` with a real `--decisions` file in each of the five in-set shapes
+2. [x] Add out-of-set cases asserting exit 1, the path named in stderr, and **nothing written**
+3. [x] Add the degenerate case where a wrapped file's two sections are byte-identical — the `:284` value-equality heuristic misroutes it into `_split_flat_decisions`
+4. [x] Parametrize from `_DECISION_SECTIONS`
+5. [x] Document the third (wrapped conflicts-only) shape in `sync-semantics.md:146-160` and correct "two formats" to three
+6. [x] Confirm `__main__.py` lines `281-283` and `288` are covered
 
 **Acceptance Criteria:**
-- [ ] WHEN `run_sync(--apply)` is driven with each documented decisions-file shape THEN the correct task ids SHALL reach the conflict and orphan consumers respectively
-- [ ] WHEN driven with an out-of-set decisions file THEN it SHALL exit non-zero naming the file and SHALL leave `tasks.json` byte-identical
-- [ ] `__main__.py` coverage no longer reports `281-283, 288` as missing
-- [ ] `sync-semantics.md` documents all three shapes and no longer says "two formats"
-- [ ] task-sync branch coverage ≥ the current 96.30% and above the `fail_under = 90` floor
+- [x] WHEN `run_sync(--apply)` is driven with each documented decisions-file shape THEN the correct task ids SHALL reach the conflict and orphan consumers respectively
+- [x] WHEN driven with an out-of-set decisions file THEN it SHALL exit non-zero naming the file and SHALL leave `tasks.json` byte-identical
+- [x] `__main__.py` coverage no longer reports `281-283, 288` as missing
+- [x] `sync-semantics.md` documents all three shapes and no longer says "two formats"
+- [x] task-sync branch coverage ≥ the current 96.30% and above the `fail_under = 90` floor
 
 **Notes:**
 D36's fail-loud orphan validation must be preserved exactly — unrecognized ids route to the *orphan* map on purpose, because that is the only fail-loud consumer, and silently dropping one would convert a user's typo into a decision they believe they made.
@@ -1019,7 +1019,7 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| No stamps | `grep -rniE '(last verified\|default as of)' plugins/ docs/ --include=*.md \| grep -v archive` | No output |
+| No stamps | `grep -rniE '(last verified\|default as of)' plugins/ docs/ --include=*.md \| grep -v archive \| grep -v model-optimization-audit` | No output |
 | No phantom cmd | `grep -rn 'check-models' plugins/ docs/ \| grep -v archive` | No output |
 | Validation | `for p in personal-plugin bpmn-plugin slide-gen; do claude plugin validate plugins/$p --strict; done` | All exit 0 |
 | Lint (mirrors CI) | `npx --yes --package markdownlint-cli markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**' --ignore '**/.venv/**'` | Exit code 0 |

@@ -389,9 +389,8 @@ The CLI tool is at `$DOC_BUILDER_PATH` (or `python -m doc_builder` if on PYTHONP
 - **Generated:** date of document generation (ISO 8601)
 - **Git commit:** the HEAD commit hash at generation time
 - **Pipeline run:** version or run ID used for production numbers (if applicable)
-- **Last verified:** date when claims were last checked against runtime data
 
-This metadata supports the `--update` mode (enables diff detection) and tells readers how current the document is.
+This metadata supports the `--update` mode (enables diff detection) and tells readers how current the document is. Do not add a field asserting that claims were re-checked against runtime data at some point after generation — no mechanism ever performs that check, so the field would be a claim nobody backs.
 
 ### Phase 5: Review
 

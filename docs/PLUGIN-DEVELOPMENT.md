@@ -619,4 +619,4 @@ Example: /check-links README.md
 
 ---
 
-*Plugin Development Guide v1.0 - Last updated 2026-01-15*
+*Plugin Development Guide v1.0*

@@ -326,6 +326,23 @@ Header fields (`provider`, `repo`, `last_sync_at`, `config`) and the
 `sensitive_terms`, optional `gitea_url`), plus the full Gitea base-URL/token
 resolution order: `references/config-reference.md`.
 
+### `tasks.json` is machine-local, and not git-recoverable
+
+Whether `tasks.json` is committed is a per-repo choice. **In this repo it is
+gitignored** (D65), which has two consequences worth stating plainly rather
+than discovering:
+
+- **Cross-machine sync of local state is out of scope.** The `last_synced`
+  merge base lives inside `tasks.json`, so each machine keeps its own. On a
+  second machine `sync` exits until `init` runs there, after which every open
+  issue is adopted fresh. Conflict detection works normally *within* a
+  machine; what does not travel is state that has never been pushed —
+  unpushed tasks, unpushed edits, and confidentiality dispositions. The
+  tracker remains the archive of record (D34), so nothing pushed is at risk.
+- **There is no `git checkout` undo.** A gitignored file has no version
+  history, so any destructive command against `tasks.json` is final. Before a
+  bulk `remove`, or any hand-edit, copy the file first.
+
 ## Error Handling
 
 - **No `tasks.json`** for a non-`init` command: run `init` first (see "First

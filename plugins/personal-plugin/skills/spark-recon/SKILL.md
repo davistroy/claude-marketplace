@@ -83,7 +83,7 @@ Use the Generic Recon Check Structure from the shared reference. Machine-specifi
 
 **Data source:** `https://spark-arena.com/leaderboard`
 
-**Access note (2026-06-11):** The leaderboard table is JS-rendered and the `entries`/`leaderboard`/`recipes` Firestore collections are App-Check-gated (HTTP 403 to anonymous reads; `WebFetch` returns an empty shell; the `/api/recipes/{id}/raw` endpoint 404s). **The `benchmarks` Firestore collection is world-readable via the Firestore REST API** — this is the reliable access path. Project id `spark-arena`; the public client API key is embedded in the site's JS bundle. Each `benchmarks` doc embeds its full recipe (122+ approved docs as of 2026-06-11). Browser MCP, if available, also works.
+**Access note:** The leaderboard table is JS-rendered and the `entries`/`leaderboard`/`recipes` Firestore collections are App-Check-gated (HTTP 403 to anonymous reads; `WebFetch` returns an empty shell; the `/api/recipes/{id}/raw` endpoint 404s). **The `benchmarks` Firestore collection is world-readable via the Firestore REST API** — this is the reliable access path. Project id `spark-arena`; the public client API key is embedded in the site's JS bundle. Each `benchmarks` doc embeds its full recipe (122+ approved docs, growing over time). Browser MCP, if available, also works. If any of these endpoints stop behaving as described, re-verify reachability against the live site before relying on this path.
 
 **Agent instructions:**
 1. Pull leaderboard data via the Firestore `benchmarks` REST collection (preferred — see Access note). Fall back to browser MCP (`mcp__claude-in-chrome__*`), then `WebFetch`, then `WebSearch` for recent mentions if all direct paths fail.
