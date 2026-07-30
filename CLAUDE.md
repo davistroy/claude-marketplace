@@ -134,6 +134,9 @@ allowed-tools: Bash(git:*)
 
 ## Repository Structure
 
+The `commands/`, `skills/` and `agents/` name lists below are generated — run `python3 scripts/update-readme.py` after adding or removing one; CI fails the build if they drift. Every other line in the tree is hand-written and is left alone by the generator.
+
+<!-- BEGIN:inventory -->
 ```
 plugins/
   personal-plugin/
@@ -141,16 +144,19 @@ plugins/
     commands/ (23)     # analyze-transcript, arch-review-single, arch-synthesize, ask-questions,
                        # assess-document, bump-version, clean-repo, consolidate-documents,
                        # convert-markdown, create-plan, define-questions, develop-image-prompt,
-                       # finish-document, implement-plan, new-skill, plan-improvements,
-                       # plan-next, remove-ip, review-arch, review-intent, scaffold-plugin,
-                       # test-project, validate-plugin
+                       # finish-document, implement-plan, new-skill, plan-improvements, plan-next,
+                       # remove-ip, review-arch, review-intent, scaffold-plugin, test-project,
+                       # validate-plugin
     deprecated/        # Archived commands
-    skills/            # accessibility-annotator, arch-review, brain-entry, create-wiki,
-                       # evaluate-pipeline-output, explain-project, jetson-audit, jetson-recon,
-                       # lab-notebook, leak-risk-audit, plan-gate, prime, release-plugin,
-                       # research-topic, security-analysis, ship, spark-audit, spark-recon,
-                       # spec-to-prototype, summarize-feedback, ultra-plan, unlock,
-                       # visual-explainer, wiki
+    skills/ (29)       # accessibility-annotator, arch-review, archive-project, brain-entry,
+                       # clear-prep, create-wiki, evaluate-pipeline-output, explain-project,
+                       # fleet-health, jetson-audit, jetson-recon, lab-notebook, leak-risk-audit,
+                       # new-project, plan-gate, prime, release-plugin, research-topic,
+                       # security-analysis, ship, spark-audit, spark-recon, spec-to-prototype,
+                       # summarize-feedback, task-sync, ultra-plan, unlock, visual-explainer, wiki
+    agents/ (10)       # data-architect, integration-architect, performance-engineer,
+                       # platform-engineer, qa-architect, risk-compliance, security-architect,
+                       # software-engineer, solutions-architect, sre-operator
     references/        # common-patterns.md, api-key-setup.md, flag-consistency.md,
                        # plan-template.md, research-models.md, validation-maturity-scorecard.md,
                        # adr-template.md, agents-md-template.md, anti-patterns.md,
@@ -160,7 +166,7 @@ plugins/
 
   bpmn-plugin/
     .claude-plugin/plugin.json
-    skills/            # bpmn-generator, bpmn-to-drawio
+    skills/ (2)        # bpmn-generator, bpmn-to-drawio
     references/        # BPMN element docs and guides
     templates/         # XML/Draw.io skeletons
     examples/
@@ -168,14 +174,18 @@ plugins/
 
   slide-gen/
     .claude-plugin/plugin.json
-    skills/            # sg-research, sg-outline, sg-draft, sg-optimize,
-                       # sg-validate-graphics, sg-generate-images, sg-build, sg-full-workflow
+    skills/ (9)        # build-cfa-deck, sg-build, sg-draft, sg-full-workflow, sg-generate-images,
+                       # sg-optimize, sg-outline, sg-research, sg-validate-graphics
+    references/        # CFA deck helper reference
 
 .claude/
   agents/              # Named implementer agents for implement-plan model routing
                        # haiku-implementer, sonnet-implementer, opus-implementer —
                        # model: tier alias in frontmatter, never pinned IDs (ADR-0005)
 ```
+<!-- END:inventory -->
+
+Two distinct agent surfaces, do not conflate: `plugins/personal-plugin/agents/` ships 9 arch-review domain agents plus `sre-operator` (fleet ops, not part of the arch-review team), while `.claude/agents/` holds only the three `implement-plan` model-routing tiers.
 
 ## Command Patterns
 
@@ -259,13 +269,24 @@ python -c "import package_name" 2>/dev/null || echo "package_name: MISSING"
 
 ## Key References
 
-- `LAB_NOTEBOOK.md` — Experiment log with decision tracking and action items
-- `IMPLEMENTATION_PLAN.md` — Current/completed implementation plan (planning-pipeline gap-analysis upgrade, completed 2026-04-30)
+- `LAB_NOTEBOOK.md` — Experiment log with decision tracking and action items. Older entries archived to `docs/archive/LAB_NOTEBOOK-E001-E016.md` and `-E017-E050.md`
+- `IMPLEMENTATION_PLAN.md` — The **one active** plan; superseded plans are archived to `docs/archive/IMPLEMENTATION_PLAN-v<N>.md` (v4–v12), never deleted. The plan is rewritten in place each cycle, so treat any date or scope in it as current, not historical
 - `CHANGELOG.md` — Version history across all plugins
+- `docs/adr/` — Accepted architecture decisions; `LAB_NOTEBOOK.md`'s Decision Log is the index
 
 ## Deprecated
 
-- `review-pr` (deprecated 2026-04-21) — use native `/review` for standard PR review or `/code-review ultra` for multi-agent deep review
+Retired commands live in `plugins/personal-plugin/deprecated/` with per-command rationale in that directory's `README.md`. None are discoverable by Claude Code — the directory is outside `commands/`.
+
+| Retired | Date | Use instead |
+|---------|------|-------------|
+| `review-pr` | 2026-04-21 | native `/review`, or `/code-review ultra` for multi-agent deep review |
+| `new-command` | 2026-07-08 | `/new-skill --pattern <name>` — skills-first authoring (ADR-0006) |
+| `convert-hooks` | 2026-03-04 | Claude Code's native cross-platform hook support |
+| `check-updates` | pending | `/validate-plugin --check-updates` |
+| `setup-statusline` | pending | Claude Code's built-in status line configuration |
+
+Also retired, though never a command: the **per-plugin `skills/help/` requirement** of ADR-0004, dropped by D42 (2026-07-16) in favor of native `/help`. No plugin ever implemented it; `scripts/generate-help.py` and its pre-commit check are gone. Any doc or test still asserting a plugin ships `skills/help/SKILL.md` is stale.
 
 ---
 

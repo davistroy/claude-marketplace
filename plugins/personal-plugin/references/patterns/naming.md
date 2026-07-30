@@ -30,7 +30,7 @@ Examples:
 - Use **kebab-case** for command filenames (e.g., `define-questions.md`)
 - Commands are invoked as `/filename` (without `.md` extension)
 - Use action-oriented verbs: `define-`, `validate-`, `review-`, `analyze-`, etc.
-- Be descriptive but concise: prefer `review-pr` over `code-review-pull-request`
+- Be descriptive but concise: prefer `review-arch` over `code-review-pull-request`
 
 ## Variable and Field Naming
 

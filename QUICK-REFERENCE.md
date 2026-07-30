@@ -7,7 +7,7 @@ Essential patterns for plugin development. See full docs in `plugins/personal-pl
 | Rule | Example | Avoid |
 |------|---------|-------|
 | Use kebab-case | `define-questions.md` | `defineQuestions.md` |
-| Verb-noun pattern | `review-pr`, `assess-document` | `pr-review`, `document` |
+| Verb-noun pattern | `review-arch`, `assess-document` | `arch-review`, `document` |
 | No `name` in frontmatter | Filename = command name | `name: my-command` |
 
 ## Frontmatter Template

@@ -38,12 +38,12 @@ claude-marketplace/
     personal-plugin/
       .claude-plugin/
         plugin.json         # Plugin metadata
-      commands/             # User-initiated commands (FLAT files)
+      commands/             # User-initiated commands (FLAT files, frozen legacy — ADR-0006)
         assess-document.md
-        new-command.md
+        new-skill.md
         ...
-      skills/               # Proactive suggestions (NESTED directories)
-        help/
+      skills/               # Proactive suggestions (NESTED directories, default for new work)
+        prime/
           SKILL.md          # Must be exactly SKILL.md (uppercase)
         ship/
           SKILL.md
@@ -107,20 +107,15 @@ First, decide what type of command you are building:
 
 For our example, we will use the **read-only** pattern since we are analyzing without modifying.
 
-### Step 2: Use the Command Generator
+### Step 2: Scaffold the File
 
-The easiest way to create a command is using `/new-command`:
+**New functionality ships as a skill, not a command (ADR-0006).** `commands/` is frozen legacy — maintained for the existing 23 commands, but not extended with new entries. `/new-command` has been retired to `deprecated/`; use `/new-skill` to scaffold new functionality instead:
 
 ```
-/new-command
+/new-skill check-links --pattern read-only
 ```
 
-When prompted:
-1. **Command name:** `check-links`
-2. **Description:** `Scan a document for broken or invalid links`
-3. **Pattern type:** `1` (read-only)
-
-This generates `plugins/personal-plugin/commands/check-links.md` with the template structure.
+The remaining steps below document the command file structure for reference — for example, when maintaining one of the existing legacy commands. To manually scaffold a legacy command like the `check-links` example that follows, copy the structure from an existing compliant command such as `review-arch.md` into `plugins/personal-plugin/commands/check-links.md` and adjust it per the template below.
 
 ### Step 3: Customize the Generated File
 

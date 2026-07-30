@@ -30,7 +30,7 @@ Run quality analysis and automated improvement on drafted slide content. Uses Cl
 - `<presentation.md>` - Path to presentation markdown file
 
 **Optional:**
-- `--output <path>` - Output file path (default: overwrites input with `_optimized` suffix)
+- `--output <path>` - Explicit output file path. If omitted, the `sg` engine chooses the output location itself — this is not documented in this repository (the engine lives in the private `davistroy/slide-generator` repo, ADR-0008/D23); run `sg optimize --help` to confirm current behavior before relying on it.
 
 ## Instructions
 
@@ -61,7 +61,7 @@ The optimize step uses:
 
 ## Output
 
-The optimize step produces an improved `presentation.md` (or `presentation_optimized.md`) with:
+The optimize step produces an improved presentation markdown file — at the `--output` path if given, otherwise wherever the `sg` engine defaults to (unconfirmed here; see `sg optimize --help`) — with:
 - Improved readability (shorter sentences, clearer language)
 - Consistent tone across all slides
 - Reduced redundancy between slides

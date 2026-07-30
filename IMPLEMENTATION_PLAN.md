@@ -671,8 +671,8 @@ D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wro
 
 ### Work Items
 
-#### 6.1 Generalize `update-readme.py` to a target list and regenerate CLAUDE.md's inventory
-**Status: PENDING**
+#### 6.1 Generalize `update-readme.py` to a target list and regenerate CLAUDE.md's inventory ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #206
 **Depends On:** None
@@ -688,27 +688,31 @@ D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wro
 **Do not let the generator touch `CLAUDE.md:180-189`** ("Command Patterns") — a deliberately curated 13-of-23 subset, not machine-derivable.
 
 **Tasks:**
-1. [ ] Generalize `main()` from one path to a target list, reusing `scan_plugin()` verbatim
-2. [ ] Add the CLAUDE.md renderer with explicit anchors (consider `<!-- BEGIN/END:inventory -->` markers for strictness)
-3. [ ] Regenerate the block; add the two missing directories
-4. [ ] **Negative-test before wiring:** delete a skill name from the block, run `--check`, confirm **exit 2**; restore and confirm exit 0
-5. [ ] Fix `CLAUDE.md:262`'s dangling `IMPLEMENTATION_PLAN.md` pointer (archived this session) and `:266-268`'s Deprecated section, which lists 1 of 5 deprecated commands
-6. [ ] Correct `LAB_NOTEBOOK.md:122` — "10 arch-review agents" is 9; the 10th is `sre-operator`, a fleet-ops agent
+1. [x] Generalize `main()` from one path to a target list, reusing `scan_plugin()` verbatim
+2. [x] Add the CLAUDE.md renderer with explicit anchors (consider `<!-- BEGIN/END:inventory -->` markers for strictness)
+3. [x] Regenerate the block; add the two missing directories
+4. [x] **Negative-test before wiring:** delete a skill name from the block, run `--check`, confirm **exit 2**; restore and confirm exit 0
+5. [x] Fix `CLAUDE.md:262`'s dangling `IMPLEMENTATION_PLAN.md` pointer (archived this session) and `:266-268`'s Deprecated section, which lists 1 of 5 deprecated commands
+6. [x] Correct `LAB_NOTEBOOK.md:122` — "10 arch-review agents" is 9; the 10th is `sre-operator`, a fleet-ops agent
 
 **Acceptance Criteria:**
-- [ ] WHEN a skill directory is added or removed THEN `python3 scripts/update-readme.py --check` SHALL exit 2 until CLAUDE.md is regenerated
-- [ ] WHEN `--check` runs on the current tree THEN it SHALL exit 0
-- [ ] The negative test's exit-2 observation is recorded, not asserted in prose
-- [ ] `CLAUDE.md:180-189` is byte-identical after regeneration
-- [ ] Hand-written annotation comments inside the fence survive
+- [x] WHEN a skill directory is added or removed THEN `python3 scripts/update-readme.py --check` SHALL exit 2 until CLAUDE.md is regenerated
+- [x] WHEN `--check` runs on the current tree THEN it SHALL exit 0
+- [x] The negative test's exit-2 observation is recorded, not asserted in prose
+- [x] `CLAUDE.md:180-189` is byte-identical after regeneration
+- [x] Hand-written annotation comments inside the fence survive
 
 **Notes:**
 This mechanically edits an always-loaded file. Per the standing rule, the extended `--check` must be negative-tested before it is trusted — this repo has shipped three guards that could not fail, and `update-readme.py --check` was one of them.
 
+**Completion (2026-07-30):** `main()` now scans once and feeds two targets; `scan_plugin()` is byte-identical, with a new sibling `scan_agent_names()` for the `agents/` directory README has no table for. The tree region is anchored by `BEGIN:inventory` / `END:inventory`, and inside it only `commands/`, `skills/` and `agents/` lines at indent 4 under a `plugins/<name>/` node are derived — the four hand-written annotations (`# Archived commands`, the hedged `references/` list, `# BPMN element docs and guides`, the ADR-0005 note on `.claude/agents/`) all survive because they are not those keys. All 8 defects cleared; `skills/` and `agents/` gained `(N)` count decorations the generator now maintains.
+
+**Negative test, observed (not asserted):** dropped `fleet-health` from the regenerated block → `--check` **exit 2** (naming `CLAUDE.md`, not README); restored → **exit 0**. Two further fail-open holes were found *by* negative-testing and closed before wiring: with the anchors deleted the check exited **0** (silently unchecked), and a plugin missing its `plugins/<name>/` node likewise regenerated nothing at exit 0. Both now raise `InventoryError` → **exit 1**. Re-observed after the fix: no-anchor **1**, missing-plugin-node **1**, clean tree **0**, skill dir added on disk **2**, removed again **0**.
+
 ---
 
-#### 6.2 Clear the 6 live deprecated-command sites and the two unresolvable-doc items
-**Status: PENDING**
+#### 6.2 Clear the 6 live deprecated-command sites and the two unresolvable-doc items ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #206
 **Depends On:** None
@@ -728,17 +732,17 @@ The issue names one deprecated-command site; there are **six**. The worst two *a
 `sg-optimize/SKILL.md:33` is self-contradictory in a single parenthetical: `(default: overwrites input with _optimized suffix)` — two mutually exclusive behaviors. **The truth is not knowable in-repo**: slide-gen is an external-dependency plugin (ADR-0008/D23), the engine is in a private repo, and `grep -rl "_optimized" --include=*.py .` returns zero hits. **State the uncertainty, do not guess the behavior.**
 
 **Tasks:**
-1. [ ] Replace the 4 example/teaching references to deprecated commands with live equivalents
-2. [ ] Rewrite `TROUBLESHOOTING.md:900` and `docs/PLUGIN-DEVELOPMENT.md:112-115` to direct readers to `/new-skill` (ADR-0006)
-3. [ ] Fix `docs/PLUGIN-DEVELOPMENT.md:43`'s tree (shows `new-command.md` in `commands/`; it is in `deprecated/`) and `:44`'s `skills/help/` (dropped by D42)
-4. [ ] Correct `slide-gen/CHANGELOG.md:16` from 8 to 9
-5. [ ] Rewrite `sg-optimize/SKILL.md:33` and `:64` to state the uncertainty and point at `sg optimize --help`
+1. [x] Replace the 4 example/teaching references to deprecated commands with live equivalents
+2. [x] Rewrite `TROUBLESHOOTING.md:900` and `docs/PLUGIN-DEVELOPMENT.md:112-115` to direct readers to `/new-skill` (ADR-0006)
+3. [x] Fix `docs/PLUGIN-DEVELOPMENT.md:43`'s tree (shows `new-command.md` in `commands/`; it is in `deprecated/`) and `:44`'s `skills/help/` (dropped by D42)
+4. [x] Correct `slide-gen/CHANGELOG.md:16` from 8 to 9
+5. [x] Rewrite `sg-optimize/SKILL.md:33` and `:64` to state the uncertainty and point at `sg optimize --help`
 
 **Acceptance Criteria:**
-- [ ] WHEN a reader follows any live doc instruction THEN it SHALL name a command that exists and is not deprecated
-- [ ] `slide-gen/CHANGELOG.md:16`'s stated count equals the number of names listed
-- [ ] WHEN `sg-optimize`'s `--output` documentation is read THEN it SHALL NOT assert a default behavior that is unverifiable from this repo
-- [ ] `markdownlint-cli2` exits 0
+- [x] WHEN a reader follows any live doc instruction THEN it SHALL name a command that exists and is not deprecated
+- [x] `slide-gen/CHANGELOG.md:16`'s stated count equals the number of names listed
+- [x] WHEN `sg-optimize`'s `--output` documentation is read THEN it SHALL NOT assert a default behavior that is unverifiable from this repo
+- [x] `markdownlint-cli2` exits 0
 
 **Notes:**
 Also worth filing separately, not fixed here: `tests/integration/test_validate_plugin.py:191-199` still assert every valid plugin ships `skills/help/SKILL.md` — the ADR-0004 requirement D42 dropped. Retired doctrine encoded as a green test.
@@ -763,7 +767,7 @@ Also worth filing separately, not fixed here: `tests/integration/test_validate_p
 |-------|---------|---------------|
 | Inventory sync | `python3 scripts/update-readme.py --check` | Exit code 0 |
 | No deprecated refs | `grep -rn 'new-command\|review-pr' --include=*.md . \| grep -v docs/archive \| grep -v CHANGELOG \| grep -v LAB_NOTEBOOK \| grep -v deprecated/` | Only deprecation notices |
-| Lint | `npx markdownlint-cli2 "**/*.md"` | Exit code 0 |
+| Lint (mirrors CI) | `npx --yes --package markdownlint-cli markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**' --ignore '**/.venv/**'` | Exit code 0 |
 | Tests | `pytest tests/ -q` | Exit code 0 |
 
 <!-- END DOD -->
@@ -1018,7 +1022,7 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 | No stamps | `grep -rniE '(last verified\|default as of)' plugins/ docs/ --include=*.md \| grep -v archive` | No output |
 | No phantom cmd | `grep -rn 'check-models' plugins/ docs/ \| grep -v archive` | No output |
 | Validation | `for p in personal-plugin bpmn-plugin slide-gen; do claude plugin validate plugins/$p --strict; done` | All exit 0 |
-| Lint | `npx markdownlint-cli2 "**/*.md"` | Exit code 0 |
+| Lint (mirrors CI) | `npx --yes --package markdownlint-cli markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**' --ignore '**/.venv/**'` | Exit code 0 |
 
 <!-- END DOD -->
 
@@ -1058,7 +1062,7 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 | `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Mitigated |
 | Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Open |
 | Phase 5 and Phase 8.1 both edit `unlock/SKILL.md` | High if parallel | Med | Serialize: run 8.1's `unlock` edits after Phase 5 merges, or fold them into Phase 5 | Open |
-| Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Open |
+| Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Mitigated (6.1) — the renderer is opt-**in** by directory key (`commands`/`skills`/`agents` at indent 4 under a `plugins/<name>/` node) and by an explicit `BEGIN:inventory`/`END:inventory` anchor pair, so every other tree line and everything outside the anchors is structurally unreachable. All four hand-written annotations survive verbatim, and "Command Patterns" `diff`s clean against `main`. The negative test observed exit 2 on a deleted skill name and additionally exposed two fail-**open** paths (anchors absent, plugin node absent) that exited 0; both now exit 1 |
 | Backfilled CHANGELOG entries paraphrased rather than extracted, reintroducing drift inverted | Med | Low | 1.1 task 1 mandates extraction; acceptance compares version *sets*, not prose | Mitigated |
 
 ---
