@@ -5,6 +5,18 @@ All notable changes to slide-gen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-07-30
+
+### Fixed
+- `sg-optimize/SKILL.md`: `--output` documentation was self-contradictory (claimed both "overwrites input with `_optimized` suffix" AND a distinct `_optimized.md`-style default in the same doc). The true default behavior is not knowable from this repository — the `sg` engine lives in the private `davistroy/slide-generator` repo (ADR-0008/D23) and no in-repo source, test, or fixture pins it. Documentation now states the uncertainty explicitly and points to `sg optimize --help` instead of asserting either candidate default.
+- `CHANGELOG.md` 1.2.0 entry: skill count corrected from eight to nine — the list beside it already named nine skills (matches `docs/adr/0008-slide-gen-dependency-model.md`).
+
+## [1.3.0] - 2026-07-29
+
+### Fixed
+- `build-cfa-deck`: the primary snippet used `Presentation` before importing it, and two different slide-removal implementations were both broken. One working implementation now lives in the new `references/cfa-deck-helpers.md`.
+- Machine-specific asset paths replaced with a `CFA_ASSETS_DIR` override.
+
 ## [1.2.0] - 2026-07-08
 
 Coordinated with marketplace v3.3.0, personal-plugin v10.0.0, bpmn-plugin v4.2.0 (8-phase modernization pass against current official Anthropic guidance).
@@ -13,7 +25,7 @@ Coordinated with marketplace v3.3.0, personal-plugin v10.0.0, bpmn-plugin v4.2.0
 - `README.md`, `LICENSE` at plugin root
 
 ### Changed
-- All 8 skills (`sg-research`, `sg-outline`, `sg-draft`, `sg-optimize`, `sg-validate-graphics`, `sg-generate-images`, `sg-build`, `sg-full-workflow`, `build-cfa-deck`): body "Proactive Triggers" sections folded into frontmatter `description` per official trigger-info-in-frontmatter guidance
+- All 9 skills (`sg-research`, `sg-outline`, `sg-draft`, `sg-optimize`, `sg-validate-graphics`, `sg-generate-images`, `sg-build`, `sg-full-workflow`, `build-cfa-deck`): body "Proactive Triggers" sections folded into frontmatter `description` per official trigger-info-in-frontmatter guidance
 
 ## [1.1.0] - 2026-05-14
 

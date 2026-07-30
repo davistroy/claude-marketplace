@@ -1,21 +1,27 @@
 #!/usr/bin/env python3
 """
-Update README.md command/skill tables from plugin metadata.
+Regenerate the plugin inventory in README.md and CLAUDE.md from plugin metadata.
 
-This script scans commands/*.md and skills/*.md files in plugin directories,
-extracts descriptions from frontmatter, and updates the corresponding tables
-in README.md while preserving all non-table content.
+This script scans commands/*.md, skills/*/SKILL.md and agents/*.md files in
+plugin directories and rewrites the derived inventory in every registered
+target, preserving all hand-written content around it.
+
+Targets:
+    README.md   - the per-plugin Command/Skill description tables and the
+                  prose/header counts that accompany them.
+    CLAUDE.md   - the name lists inside the "Repository Structure" tree, which
+                  is delimited by BEGIN:inventory / END:inventory HTML comments.
+                  Only `commands/`, `skills/` and `agents/` lines nested under
+                  `plugins/<name>/` are regenerated; every other line in the
+                  tree (`deprecated/`, `references/`, `tools/`, `hooks/`, and
+                  the top-level `.claude/agents/` block) is hand-written and is
+                  left byte-for-byte alone. Nothing outside the two markers is
+                  ever touched -- notably the curated "Command Patterns" table.
 
 Usage:
-    python scripts/update-readme.py              # Update README.md
-    python scripts/update-readme.py --check      # Check if update needed
+    python scripts/update-readme.py              # Update all targets
+    python scripts/update-readme.py --check      # Check if an update is needed
     python scripts/update-readme.py --verbose    # Show detailed output
-
-The script:
-    - Scans all plugins in the plugins/ directory
-    - Extracts command/skill descriptions from frontmatter
-    - Updates only the command/skill tables in README.md
-    - Preserves all other README content
 
 Exit codes:
     0 - Success (or no changes needed with --check)
@@ -23,12 +29,12 @@ Exit codes:
     2 - Changes detected (with --check)
 """
 
-import sys
-import re
 import argparse
+import re
+import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
-from dataclasses import dataclass
 
 
 @dataclass
@@ -107,7 +113,8 @@ def truncate_to_sentence(text: str, max_length: int = 120) -> str:
     return text[:max_length - 3].rstrip() + '...'
 
 
-def scan_plugin(plugin_path: Path, repo_root: Path) -> Tuple[List[CommandEntry], List[CommandEntry]]:
+def scan_plugin(plugin_path: Path,
+                repo_root: Path) -> Tuple[List[CommandEntry], List[CommandEntry]]:
     """Scan a plugin directory and return commands and skills."""
     commands = []
     skills = []
@@ -159,6 +166,20 @@ def scan_plugin(plugin_path: Path, repo_root: Path) -> Tuple[List[CommandEntry],
                 print(f"Warning: Could not read {md_file}: {e}", file=sys.stderr)
 
     return commands, skills
+
+
+def scan_agent_names(plugin_path: Path) -> List[str]:
+    """Return the sorted agent names shipped by a plugin (agents/*.md stems).
+
+    Agents are a flat directory of markdown files, unlike the nested skill
+    layout. They carry no README table of their own -- this exists purely so
+    the CLAUDE.md tree can name them instead of omitting the directory.
+    """
+    agents_dir = plugin_path / 'agents'
+    if not agents_dir.exists():
+        return []
+    return sorted(md_file.stem for md_file in agents_dir.glob('*.md')
+                  if md_file.stem != 'README')
 
 
 def generate_table(entries: List[CommandEntry], entry_type: str) -> str:
@@ -303,16 +324,187 @@ def update_readme_section(readme_content: str, plugin_name: str,
     return readme_content[:section_start] + section_content + readme_content[section_end:]
 
 
+# --- CLAUDE.md "Repository Structure" inventory -----------------------------
+#
+# The tree is a plain code fence, so there is no in-band way to mark generated
+# spans. The region is therefore delimited by explicit HTML comment anchors,
+# and *within* that region only three directory keys are considered derived.
+# Everything else -- including all four hand-written annotations (`# Archived
+# commands`, the hedged personal-plugin `references/` list, `# BPMN element
+# docs and guides`, and the ADR-0005 note on `.claude/agents/`) -- is preserved
+# verbatim, exactly the way rewrite_prose_counts() leaves README prose alone.
+
+INVENTORY_BEGIN = '<!-- BEGIN:inventory -->'
+INVENTORY_END = '<!-- END:inventory -->'
+
+
+class InventoryError(Exception):
+    """The CLAUDE.md inventory region is unusable (missing anchor, missing plugin).
+
+    Raised rather than warned-and-skipped on purpose. Every one of these
+    conditions makes the regeneration a no-op, and a no-op that exits 0 is a
+    guard that cannot fail -- the exact defect this script shipped once before.
+    """
+
+# Directory keys under `plugins/<name>/` whose comment name-list is derived.
+GENERATED_DIRS = ('commands', 'skills', 'agents')
+
+# Column at which the `#` of a tree comment starts, and the wrap width. Both
+# match the hand-written style already in the file.
+COMMENT_COLUMN = 23
+MAX_LINE_WIDTH = 100
+
+# `    skills/ (29)      # name, name, ...` -- the count and the comment are
+# both optional so a bare `    agents/` line is still recognised and filled in.
+_ENTRY_RE = re.compile(
+    r'^ {4}(?P<dir>' + '|'.join(GENERATED_DIRS) + r')/'
+    r'(?P<count> \(\d+\))?'
+    r'(?: +#.*)?$'
+)
+# A wrapped continuation of the comment above: whitespace, then `#`.
+_CONT_RE = re.compile(r'^ +#')
+# `  plugin-name/` nested directly under a top-level `plugins/`.
+_PLUGIN_RE = re.compile(r'^ {2}(?P<name>[A-Za-z0-9._-]+)/$')
+
+
+def render_tree_entry(dir_key: str, has_count: bool, names: List[str]) -> List[str]:
+    """Render one `<dir>/ (N)   # a, b, c` tree entry, wrapped at MAX_LINE_WIDTH.
+
+    Continuation lines are indented to COMMENT_COLUMN so the comment block
+    stays aligned. The trailing comma is kept on the wrapped line, matching the
+    existing hand-written style.
+    """
+    prefix = f'    {dir_key}/'
+    if has_count:
+        prefix += f' ({len(names)})'
+    prefix = prefix.ljust(COMMENT_COLUMN)
+
+    body_width = MAX_LINE_WIDTH - COMMENT_COLUMN - len('# ')
+
+    chunks: List[str] = []
+    current = ''
+    for i, name in enumerate(names):
+        token = name if i == len(names) - 1 else name + ','
+        candidate = f'{current} {token}' if current else token
+        if current and len(candidate) > body_width:
+            chunks.append(current)
+            current = token
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    if not chunks:
+        chunks = ['']
+
+    lines = [f'{prefix}# {chunks[0]}'.rstrip()]
+    pad = ' ' * COMMENT_COLUMN
+    lines.extend(f'{pad}# {chunk}'.rstrip() for chunk in chunks[1:])
+    return lines
+
+
+def rewrite_inventory_block(block: str, inventory: Dict[str, Dict[str, List[str]]],
+                            verbose: bool = False) -> str:
+    """Rewrite the derived name lists inside the CLAUDE.md inventory block.
+
+    Walks the block line by line tracking which `plugins/<name>/` subtree the
+    cursor is in. A line matching _ENTRY_RE at indent 4 inside a known plugin
+    is replaced (together with its wrapped continuation lines) by a freshly
+    rendered list. Every other line is copied through untouched -- including
+    the `.claude/agents/` entry at the end, which sits at indent 2 outside any
+    plugin subtree and so can never match.
+    """
+    out: List[str] = []
+    lines = block.split('\n')
+    in_plugins = False
+    plugin: str = ''
+    seen_plugins: set = set()
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        if line and not line.startswith(' ') and not line.startswith('#'):
+            in_plugins = line.strip() == 'plugins/'
+            plugin = ''
+            out.append(line)
+            i += 1
+            continue
+
+        plugin_match = _PLUGIN_RE.match(line)
+        if plugin_match:
+            plugin = plugin_match.group('name') if in_plugins else ''
+            if plugin:
+                seen_plugins.add(plugin)
+            out.append(line)
+            i += 1
+            continue
+
+        entry_match = _ENTRY_RE.match(line) if plugin in inventory else None
+        if entry_match:
+            dir_key = entry_match.group('dir')
+            names = inventory[plugin].get(dir_key, [])
+            # Never fabricate: an entry for a directory the plugin does not
+            # ship is left exactly as the author wrote it.
+            if names:
+                out.extend(render_tree_entry(
+                    dir_key,
+                    has_count=entry_match.group('count') is not None,
+                    names=names,
+                ))
+                if verbose:
+                    print(f"  Rendered {plugin}/{dir_key}/ ({len(names)} entries)")
+                # Swallow the old wrapped continuation lines.
+                i += 1
+                while i < len(lines) and _CONT_RE.match(lines[i]):
+                    i += 1
+                continue
+
+        out.append(line)
+        i += 1
+
+    # A plugin absent from the tree would silently regenerate nothing.
+    missing = sorted(set(inventory) - seen_plugins)
+    if missing:
+        raise InventoryError(
+            f"plugin(s) {', '.join(missing)} exist on disk but have no "
+            f"`  <name>/` node under `plugins/` in the CLAUDE.md inventory block"
+        )
+
+    return '\n'.join(out)
+
+
+def update_claude_md(content: str, inventory: Dict[str, Dict[str, List[str]]],
+                     verbose: bool = False) -> str:
+    """Regenerate the anchored inventory region of CLAUDE.md.
+
+    Raises InventoryError if the anchors are missing or inverted. It must not
+    fall back to rewriting the whole file (destructive) *or* to returning the
+    content unchanged (which would make --check pass on an unchecked file).
+    """
+    begin = content.find(INVENTORY_BEGIN)
+    end = content.find(INVENTORY_END)
+
+    if begin == -1 or end == -1 or end < begin:
+        raise InventoryError(
+            f"{INVENTORY_BEGIN} / {INVENTORY_END} anchors missing or inverted "
+            f"in CLAUDE.md -- the inventory region cannot be located"
+        )
+
+    inner_start = begin + len(INVENTORY_BEGIN)
+    rewritten = rewrite_inventory_block(content[inner_start:end], inventory, verbose)
+    return content[:inner_start] + rewritten + content[end:]
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Update README.md command/skill tables from plugin metadata',
+        description='Regenerate README.md and CLAUDE.md inventory from plugin metadata',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )
     parser.add_argument(
         '--check',
         action='store_true',
-        help='Check if README needs updating without writing'
+        help='Check if any target needs updating without writing'
     )
     parser.add_argument(
         '--verbose',
@@ -326,23 +518,23 @@ def main():
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent
     plugins_dir = repo_root / 'plugins'
-    readme_path = repo_root / 'README.md'
+    target_paths = [repo_root / 'README.md', repo_root / 'CLAUDE.md']
 
     if not plugins_dir.exists():
         print(f"Error: plugins directory not found at {plugins_dir}", file=sys.stderr)
         sys.exit(1)
 
-    if not readme_path.exists():
-        print(f"Error: README.md not found at {readme_path}", file=sys.stderr)
-        sys.exit(1)
-
-    # Read current README
-    readme_content = readme_path.read_text(encoding='utf-8')
-    original_content = readme_content
+    for target_path in target_paths:
+        if not target_path.exists():
+            print(f"Error: {target_path.name} not found at {target_path}", file=sys.stderr)
+            sys.exit(1)
 
     print("Scanning plugins...")
 
-    # Process each plugin
+    # One scan, many targets: every renderer below reads from this.
+    entries: Dict[str, Tuple[List[CommandEntry], List[CommandEntry]]] = {}
+    inventory: Dict[str, Dict[str, List[str]]] = {}
+
     for plugin_dir in sorted(plugins_dir.iterdir()):
         if not plugin_dir.is_dir():
             continue
@@ -353,10 +545,24 @@ def main():
         print(f"  Processing {plugin_name}...")
 
         commands, skills = scan_plugin(plugin_dir, repo_root)
+        agents = scan_agent_names(plugin_dir)
+
+        entries[plugin_name] = (commands, skills)
+        inventory[plugin_name] = {
+            'commands': [c.name for c in commands],
+            'skills': [s.name for s in skills],
+            'agents': agents,
+        }
 
         if args.verbose:
-            print(f"    Found {len(commands)} commands, {len(skills)} skills")
+            print(f"    Found {len(commands)} commands, {len(skills)} skills, "
+                  f"{len(agents)} agents")
 
+    readme_path, claude_md_path = target_paths
+
+    readme_original = readme_path.read_text(encoding='utf-8')
+    readme_content = readme_original
+    for plugin_name, (commands, skills) in entries.items():
         readme_content = update_readme_section(
             readme_content,
             plugin_name,
@@ -365,19 +571,36 @@ def main():
             verbose=args.verbose
         )
 
-    # Check for changes
-    if readme_content == original_content:
-        print("\nREADME.md is up to date.")
+    claude_md_original = claude_md_path.read_text(encoding='utf-8')
+    try:
+        claude_md_content = update_claude_md(claude_md_original, inventory,
+                                             verbose=args.verbose)
+    except InventoryError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    results = [
+        (readme_path, readme_original, readme_content),
+        (claude_md_path, claude_md_original, claude_md_content),
+    ]
+    drifted = [(path, updated) for path, original, updated in results
+               if original != updated]
+
+    if not drifted:
+        print("\n" + ", ".join(p.name for p in target_paths) + " are up to date.")
         sys.exit(0)
 
     if args.check:
-        print("\nREADME.md needs updating.")
+        print()
+        for path, _ in drifted:
+            print(f"{path.name} needs updating.")
         print("Run without --check to apply updates.")
         sys.exit(2)
 
-    # Write updated README
-    readme_path.write_text(readme_content, encoding='utf-8')
-    print(f"\nUpdated: {readme_path}")
+    print()
+    for path, updated in drifted:
+        path.write_text(updated, encoding='utf-8')
+        print(f"Updated: {path}")
     sys.exit(0)
 
 

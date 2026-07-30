@@ -303,6 +303,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          # fetch-depth: 0 (full history) is required by the version-bump gate below, which
+          # diffs the PR base against HEAD. The default depth of 1 is a single-commit shallow
+          # clone with no base commit and no merge-base, so any diff-derived check is
+          # impossible without this. Repo history is small; the cost is negligible.
+          fetch-depth: 0
 
       - name: Check eval-mapping (evals/**/*.eval.md -> live skill/command)
         # Stdlib-only script -- no Python setup step needed on ubuntu-latest.
@@ -339,6 +345,29 @@ jobs:
         # does not scan tools/**, where ADR-0005 permits pinned IDs.
         # IMPLEMENTATION_PLAN.md 6.1.
         run: python3 scripts/check_agent_models.py
+
+      - name: Check release integrity (version bump + CHANGELOG entry)
+        # Stdlib-only script -- no Python setup step needed on ubuntu-latest.
+        # Deliberately a STEP in this existing job, never a new job (D28): a new
+        # job creates a new required status check that must be coordinated with
+        # branch protection or it deadlocks merges. `main` has 16 required
+        # contexts and this change adds none.
+        #
+        # Rule 1 (#226): a bump-worthy change under plugins/<name>/ requires a
+        # version bump in that plugin's plugin.json -- PR #222 shipped 42 items
+        # of behavior change at an unchanged 11.5.1, so `claude plugin update`
+        # reported "already up to date" forever and nobody received it.
+        # Rule 2 (#210): a version bump requires a matching CHANGELOG.md entry.
+        #
+        # The script picks its event leg from GITHUB_EVENT_NAME / GITHUB_BASE_REF
+        # (see its `resolve_leg`). Both are default GitHub Actions environment
+        # variables present in every step, so no `env:` block is needed here; on
+        # the push-to-main leg it exits 0 by design (a `main...HEAD` diff there
+        # compares main against itself), and on the pull_request leg an empty
+        # GITHUB_BASE_REF fails closed rather than guessing a base.
+        # Requires the `fetch-depth: 0` checkout above.
+        # IMPLEMENTATION_PLAN.md 2.4.
+        run: python3 scripts/check_version_bump.py
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0

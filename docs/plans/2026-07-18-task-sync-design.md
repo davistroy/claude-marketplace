@@ -16,7 +16,7 @@ A per-repo task list, stored as JSON in the repo, that stays reconciled with the
 | Storage | Single JSON file, canonicalized (stable key order, tasks sorted by id) | Clean git diffs, deterministic sync. Rejected YAML/Markdown-as-storage — you never hand-edit, so machine-reliability beats hand-editability. |
 | Interface | The skill is the interface; it renders tables in-session and regenerates a read-only `TASKS.md` for glancing | Lightweight. Rejected a standalone interactive TUI app — large maintenance surface that duplicates what the terminal Claude session already gives. |
 | Edit model | You primarily edit locally; the tracker is a peer that also changes on its own | A pure one-way push would fight dependabot, PR-close automation, and web-filed issues. |
-| Sync | Reconciling 3-way merge against a committed `last_synced` base | Handles both directions; the committed base makes multi-machine safe. |
+| Sync | Reconciling 3-way merge against a `last_synced` base stored in `tasks.json` | Handles both directions. **Superseded by D65 (2026-07-30):** `tasks.json` is gitignored, so the base is machine-local and does NOT travel between machines — see the note under "Files & interface". |
 | Conflict tiebreaker | Last-write-wins by `updated_at`, but **report genuine two-sided conflicts** for the user to resolve | You are in a Claude session when syncing, so ask rather than silently clobber. |
 | Archiving | Prune `done` tasks from the JSON after N days; the tracker's closed issues are the permanent archive | Keeps the JSON a live working list. Safe in every repo because closed issues persist in the tracker forever. |
 | Confidentiality | One list, always the sanitized version; a scan offers keep/anonymize/redact/remove per finding, remembered by content hash | Rejected a second gitignored private file — the user wants exactly one list. |
@@ -61,7 +61,7 @@ No `archived` status — prune-on-close covers it; the closed issue is the archi
 
 ## Files & interface
 
-- **`tasks.json`** — repo root, **committed**. The list plus the `last_synced` merge base. Committed so the base travels between the user's two machines via git.
+- **`tasks.json`** — repo root, **gitignored** (per **D65**, 2026-07-30). The list plus the `last_synced` merge base. ~~Committed so the base travels between the user's two machines via git.~~ **Corrected:** it is *not* committed. PR #175 added it to `.gitignore` on the same day this design landed, and `references/config-reference.md` was later edited to match; D65 ratifies that as the decision and records the cost. **The merge base is therefore machine-local**, so no local-only state — unpushed tasks, unpushed edits, or confidentiality dispositions — propagates between machines. The tracker remains the archive of record (D34). Note also that `tasks.json` is **not git-recoverable**: a destructive command against it has no undo.
 - **`TASKS.md`** — repo root, **gitignored**, regenerated each sync/list. A read-only terminal glance view. Not committed: it is derived (would churn every sync and conflict across machines), and "see it on the web" is already the tracker's job.
 
 **Commands** (natural language or explicit; aliases in the last column):
@@ -97,7 +97,7 @@ Open tasks — claude-marketplace  ·  github  ·  synced 2m ago
 
 ## Confidentiality
 
-One list, always the safe version — so `tasks.json` is fine to commit (even in a public repo) and fine to sync.
+One list, always the safe version — so `tasks.json` *would be* safe to commit even in a public repo. **D65 (2026-07-30) nonetheless keeps it gitignored**, so this property is now a safety margin rather than the thing that makes committing viable. Weigh that before relying on it: as of 2026-07-30 exactly one task of 59 carried a confidentiality review record, and `config.sensitive_terms` is empty, so the scanner runs on generic patterns only.
 
 On `sync` (and on `add`/`edit`), the skill scans each task's title/body/labels for confidential info: secret/token patterns plus a configurable sensitive-terms list (client names, internal hostnames), reusing the `leak-risk-audit` and `remove-ip` machinery. For each new finding it offers four dispositions:
 
@@ -126,7 +126,7 @@ Trade-off: once anonymized/redacted, the raw detail is gone from the task (that 
 - **Offline / auth fails** → sync aborts cleanly, local edits preserved; `add`/`edit`/`ls` still work.
 - **First sync in an existing repo** → adopts all current issues as tasks (including dependabot's).
 - **Issue deleted on the tracker** → flag and ask keep-local-or-drop; never silent.
-- **Two machines** → `git pull` before syncing so you reconcile against the latest base; the committed `last_synced` makes it safe.
+- **Two machines** → **not supported as designed (D65).** With `tasks.json` gitignored, each machine keeps its own `last_synced` base. `sync` on a second machine exits before classification until `init` runs there, after which every open issue classifies as `NEW_REMOTE` and is adopted fresh (closed issues are gated by `adopt_closed_within_days`, default `0`). Conflict detection works normally *within* a machine thereafter; what is lost is any cross-machine propagation of local-only state.
 - **Rate limits / pagination** → batch tracker reads.
 
 ## Relationship to `IMPLEMENTATION_PLAN.md`
@@ -150,7 +150,7 @@ The deterministic reconcile — 3-way match, conflict detection, status/label ma
 
 ## Out of scope (for now)
 
-- **Cross-machine private tasks** — with one committed list there is no private lane that travels between machines; private detail is sanitized out, not hidden. Revisit only if a real need appears.
+- **Cross-machine private tasks** — private detail is sanitized out, not hidden. **Re-scoped by D65 (#169):** since `tasks.json` is gitignored, there is now no cross-machine sync of the *public* list either, so this deferral is broader than originally written. Revisit only if a real need appears.
 - **A standalone interactive TUI** — the in-session table is the interactive view.
 - **Tighter plan integration** (phase 2) — `/ultra-plan` registering its plan as a milestone and ensuring its items exist as tasks, and `/implement-plan` closing those tasks as phases complete. Ship task-sync standalone first.
 

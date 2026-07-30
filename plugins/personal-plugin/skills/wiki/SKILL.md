@@ -1,7 +1,7 @@
 ---
 name: wiki
 description: "Wiki operations: ingest source documents into wiki pages, lint for health issues, query the wiki for answers, propagate resolved facts, and report status. Supports both /create-wiki layouts (wiki/ + schema.yaml) and OKF-bundle layouts (kb/ + AGENTS.md contract)."
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(python3:*)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(python3:*), AskUserQuestion
 ---
 
 # Wiki Operations
@@ -203,8 +203,30 @@ Auto-fixable issues found:
   - Add orphan pages/scratch-notes.md to index.md
   - Add missing 'category' field to pages/api-design.md frontmatter
   - Remove broken index entry for pages/old-auth.md
+```
 
-Apply auto-fixes? (yes/no)
+Confirm with `AskUserQuestion`:
+
+```json
+{
+  "questions": [
+    {
+      "question": "Apply the auto-fixable issues listed above?",
+      "header": "Auto-Fix",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Yes, apply",
+          "description": "Applies all listed structural auto-fixes (orphan additions, missing frontmatter fields, broken index entries)"
+        },
+        {
+          "label": "No",
+          "description": "Nothing is changed; the lint report stands as-is"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 Only fix structural issues automatically. Content issues (stale pages, contradictions, duplicates) require human judgment — report them but don't auto-fix.
@@ -235,11 +257,30 @@ Search the wiki for a topic and synthesize an answer from wiki content, with cit
 
 5. **Cite sources.** For every claim or fact, cite the wiki page: "Based on [Page Title](pages/filename.md)."
 
-6. **Offer page creation.** If the answer required significant cross-page synthesis or revealed new connections not captured in any single page, offer:
-   ```text
-   This synthesis draws from N pages and connects information not captured
-   in any single page. Create a wiki page for this topic? (yes/no)
+6. **Offer page creation.** If the answer required significant cross-page synthesis or revealed new connections not captured in any single page, confirm with `AskUserQuestion`:
+
+   ```json
+   {
+     "questions": [
+       {
+         "question": "This synthesis draws from N pages and connects information not captured in any single page. Create a wiki page for this topic?",
+         "header": "New Page",
+         "multiSelect": false,
+         "options": [
+           {
+             "label": "Yes, create it",
+             "description": "Creates a new wiki page following standard page creation protocol (frontmatter, cross-references, index update, log entry)"
+           },
+           {
+             "label": "No",
+             "description": "Nothing is created; the synthesized answer stands as the response"
+           }
+         ]
+       }
+     ]
+   }
    ```
+
    If yes, create the page following standard page creation protocol (frontmatter, cross-references, index update, log entry).
 
 7. **Handle no results.** If no relevant pages are found:

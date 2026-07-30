@@ -144,7 +144,9 @@ their content) and is empty only when nothing outbound is flagged. See
 When a plan contains orphans, apply requires explicit `orphan_decisions` to
 handle them (all ids and dispositions are validated upfront before any mutations).
 The `--decisions` file can carry both conflict and orphan decisions in one of
-two formats:
+three formats:
+
+**1. Wrapped, both sections:**
 
 ```json
 {
@@ -153,7 +155,25 @@ two formats:
 }
 ```
 
-Or flat (decisions and orphan_decisions can coexist in the same object):
+**2. Wrapped, one section only** — a file is *wrapped* if it carries **any**
+top-level key named `decisions` or `orphan_decisions`. Once wrapped, a
+missing section means "no decisions of that kind" (an empty map), not "fall
+through to the outer object" — this is what backward-compat conflicts-only
+files rely on:
+
+```json
+{"decisions": {"t-ab12cd": "local", "t-ef34gh": "remote"}}
+```
+
+```json
+{"orphan_decisions": {"t-orphan-1": "keep", "t-orphan-2": "drop"}}
+```
+
+**3. Flat** (decisions and orphan_decisions coexist in the same object, with
+no `decisions`/`orphan_decisions` wrapper key; each id is routed to whichever
+of the current plan's conflicts/orphans it matches — an id in neither is
+routed to the orphan map on purpose, since that is the only fail-loud
+consumer, so a mistyped id still raises rather than being silently dropped):
 
 ```json
 {"t-ab12cd": "local", "t-orphan-1": "keep"}

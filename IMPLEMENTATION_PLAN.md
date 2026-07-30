@@ -1,6 +1,7 @@
 # Implementation Plan
 
 **Generated:** 2026-07-30
+**Completed:** 2026-07-30 — 18/19 items COMPLETE, 1 DESCOPED (3.3, upstream report declined by owner)
 **Based On:** `/ultra-plan` over the 13-item close-the-loop + hygiene backlog (LAB_NOTEBOOK E062). Phase 1 dispatched **6 parallel Explore agents** clustered by shared code path; **every cluster returned corrections**, including two to issues filed earlier in the same session. This plan encodes the *investigated* shape of each item, not the filed text. Prior plan (16-issue correctness backlog, 42/42 COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v12.md`.
 **Total Phases:** 8
 **Estimated Total Effort:** ~85 work sites across ~35 files — predominantly markdown behavior-surfaces, plus one new CI gate script, one generator extension, and one Python test module
@@ -71,8 +72,8 @@ Phase 2 is the highest-risk item in the plan and the only one that can redden `m
 
 ### Work Items
 
-#### 1.1 Backfill the 28 missing per-plugin CHANGELOG entries
-**Status: PENDING**
+#### 1.1 Backfill the 28 missing per-plugin CHANGELOG entries ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #210
 **Depends On:** None
@@ -89,16 +90,16 @@ personal-plugin's 24, newest first: `11.6.0, 11.3.0, 11.2.0, 11.1.0, 9.2.0, 9.1.
 The root CHANGELOG uses at least four heading grammars (`[plugin vX.Y.Z]`, `[plugin X.Y.Z]`, a combined `[marketplace vA, plugin vB, …]`, and bare `[X.Y.Z]`). Parse all four when locating source sections, or entries will be silently under-extracted.
 
 **Tasks:**
-1. [ ] Extract each missing version's section from root `CHANGELOG.md`, handling all four heading grammars
-2. [ ] Insert into the correct per-plugin file in descending version order, preserving Keep-a-Changelog format (declared at each file's `:5-6`)
-3. [ ] Verify no version present in a plugin file but absent from root is disturbed — 9 personal-plugin and 10 bpmn-plugin versions are pre-consolidation history, not defects
-4. [ ] Run `markdownlint-cli2` over all three files before committing
+1. [x] Extract each missing version's section from root `CHANGELOG.md`, handling all four heading grammars
+2. [x] Insert into the correct per-plugin file in descending version order, preserving Keep-a-Changelog format (declared at each file's `:5-6`)
+3. [x] Verify no version present in a plugin file but absent from root is disturbed — 9 personal-plugin and 10 bpmn-plugin versions are pre-consolidation history, not defects
+4. [x] Run `markdownlint-cli2` over all three files before committing
 
 **Acceptance Criteria:**
-- [ ] WHEN the version set of each `plugins/*/CHANGELOG.md` is compared against the versions attributed to that plugin in the root CHANGELOG THEN every root-attributed version SHALL be present in the plugin file
-- [ ] WHEN each plugin's `plugin.json` version is read THEN that exact version SHALL have an entry in its plugin CHANGELOG
-- [ ] No version bump in this change set — backfilling history is not a release (D45)
-- [ ] `markdownlint-cli2` exits 0
+- [x] WHEN the version set of each `plugins/*/CHANGELOG.md` is compared against the versions attributed to that plugin in the root CHANGELOG THEN every root-attributed version SHALL be present in the plugin file
+- [x] WHEN each plugin's `plugin.json` version is read THEN that exact version SHALL have an entry in its plugin CHANGELOG
+- [x] No version bump in this change set — backfilling history is not a release (D45)
+- [x] `markdownlint-cli2` exits 0
 
 **Notes:**
 This must land **before** Phase 2. A CHANGELOG-only PR bumps nothing, which Phase 2's gate would reject unless the exemption is already in place. Landing the data fix first removes the ordering hazard entirely.
@@ -143,8 +144,8 @@ This must land **before** Phase 2. A CHANGELOG-only PR bumps nothing, which Phas
 
 ### Work Items
 
-#### 2.1 Deepen the checkout in the `plugin-validate` job
-**Status: PENDING**
+#### 2.1 Deepen the checkout in the `plugin-validate` job ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #226
 **Depends On:** None
@@ -167,8 +168,8 @@ Full history on this repo is small; `fetch-depth: 0` is cheaper than the fragili
 
 ---
 
-#### 2.2 Write `scripts/check_version_bump.py` with two conditional rules
-**Status: PENDING**
+#### 2.2 Write `scripts/check_version_bump.py` with two conditional rules ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #226, #210
 **Depends On:** 2.1
@@ -186,29 +187,42 @@ One stdlib-only script (the `plugin-validate` job has no `setup-python` step and
 Bump-worthy paths, derived from the 375-file census: everything under `plugins/<name>/` **except** `CHANGELOG.md`, `LICENSE`, `README.md`, `tools/*/tests/**`, and `examples/**`. Per-plugin, never "any plugin changed ⇒ all three bump" (D45 forbids empty coordinated bumps).
 
 **Tasks:**
-1. [ ] Implement per-plugin diff classification from `git diff --name-only <base>...<head>`
-2. [ ] Read both old and new `plugin.json` via `git show <ref>:<path>` — derive both sides, never restate a constant
-3. [ ] Implement Rule 1 with the exemption list, and Rule 2 keyed on the *new* version string
-4. [ ] Branch explicitly on event leg: on `pull_request` use base↔head; on `push` to main **exit 0 with an explanatory message** — there is no meaningful base and the PR leg already gated the content
-5. [ ] Add `--self-test` that constructs synthetic diffs and asserts exit 1 on each violation and exit 0 on each exemption
-6. [ ] Emit the offending plugin, rule, and remediation command (`/bump-version <plugin> <level>`) on failure
+1. [x] Implement per-plugin diff classification from `git diff --name-only <base>...<head>`
+2. [x] Read both old and new `plugin.json` via `git show <ref>:<path>` — derive both sides, never restate a constant
+3. [x] Implement Rule 1 with the exemption list, and Rule 2 keyed on the *new* version string
+4. [x] Branch explicitly on event leg: on `pull_request` use base↔head; on `push` to main **exit 0 with an explanatory message** — there is no meaningful base and the PR leg already gated the content
+5. [x] Add `--self-test` that constructs synthetic diffs and asserts exit 1 on each violation and exit 0 on each exemption
+6. [x] Emit the offending plugin, rule, and remediation command (`/bump-version <plugin> <level>`) on failure
 
 **Acceptance Criteria:**
-- [ ] WHEN a PR modifies `plugins/<name>/skills/**` without changing that plugin's `version` THEN the script SHALL exit non-zero naming the plugin and Rule 1
-- [ ] WHEN a PR modifies only `plugins/<name>/CHANGELOG.md` THEN the script SHALL exit 0 (Rule 1 exemption — this is Phase 1's own shape)
-- [ ] WHEN a PR bumps `version` without adding a matching `CHANGELOG.md` entry THEN the script SHALL exit non-zero naming Rule 2
-- [ ] WHEN the script runs on the `push`-to-`main` leg THEN it SHALL exit 0 and print why, never attempting a base diff
-- [ ] WHEN a PR modifies only `plugins/bpmn-plugin/tools/bpmn2drawio/tests/**` THEN the script SHALL exit 0
-- [ ] `python3 scripts/check_version_bump.py --self-test` exits 0, and each synthetic violation within it is asserted to exit 1
-- [ ] Script imports only stdlib
+- [x] WHEN a PR modifies `plugins/<name>/skills/**` without changing that plugin's `version` THEN the script SHALL exit non-zero naming the plugin and Rule 1
+- [x] WHEN a PR modifies only `plugins/<name>/CHANGELOG.md` THEN the script SHALL exit 0 (Rule 1 exemption — this is Phase 1's own shape)
+- [x] WHEN a PR bumps `version` without adding a matching `CHANGELOG.md` entry THEN the script SHALL exit non-zero naming Rule 2
+- [x] WHEN the script runs on the `push`-to-`main` leg THEN it SHALL exit 0 and print why, never attempting a base diff
+- [x] WHEN a PR modifies only `plugins/bpmn-plugin/tools/bpmn2drawio/tests/**` THEN the script SHALL exit 0
+- [x] `python3 scripts/check_version_bump.py --self-test` exits 0, and each synthetic violation within it is asserted to exit 1
+- [x] Script imports only stdlib
 
 **Notes:**
 The push-leg branch is itself the E043 hazard: a condition written wrong no-ops on *both* legs and converts "unchecked" into a false "checked". Task 5's self-test must assert the PR leg still fails, not merely that the push leg passes.
 
+**Completion notes (2026-07-30):**
+
+- **17 self-test cases, 10 of which assert exit 1.** The push-leg case reuses the *same* violating tree as case 1, so the two legs are asserted to disagree — a leg condition that no-ops on both fails the suite.
+- **Beyond exit codes, each case asserts the set of `(rule, plugin)` pairs that fired.** An exit code alone cannot distinguish "failed for the right reason" from "failed for an unrelated one" — that is how `per-plugin-isolation` pins D45 (alpha clean-bumped, beta dirty ⇒ *only* beta fires).
+- **Exemption fixtures are generated from `EXEMPT_EXACT` / `EXEMPT_GLOBS`**, not a hand-typed second list (#208's failure mode), and each glob is paired with an out-of-set neighbour: `tools/demo/src/app.py` sits next to the exempt `tools/*/tests/**` and MUST fire Rule 1.
+- **Rule 1's globs are matched segment-wise, deliberately not with `fnmatch`.** `fnmatch` expands `*` to `.*`, which spans `/`, so `tools/*/tests/**` would also have exempted `tools/x/src/tests/y.py` — a source-tree directory that merely happens to be named `tests`.
+- **`--self-test` was itself mutation-tested (8 mutants, all killed)** per CLAUDE.md's "coverage != verification" rule: Rule 1 disabled; Rule 2 disabled; PR leg never taken; skip on both legs; everything exempt; push leg doing a real `main...HEAD` diff; cross-plugin leakage; and a naive `version in text` changelog match. **The substring mutant initially SURVIVED** — the first prefix-collision fixture (bump `1.1.0`, document `1.10.0`) is not actually a substring collision. It was replaced with two real ones: `substring-collision` (bump `1.1.0`, document `11.1.0` — `"1.1.0" in "11.1.0"` is True) and `trailing-digit` (bump `1.1.1`, document `1.1.10`). Those two cases are the only thing forcing the heading-anchored regex and its trailing negative lookahead.
+- **Rule 2 asserts entry EXISTENCE only — deliberately not date parity with the root `CHANGELOG.md`.** Phase 1 found seven versions already on `main` whose dates disagree between the two files (`personal-plugin` 6.2.0/3.8.0/3.4.0 — the last dated literally `Previous` — `bpmn-plugin` 4.2.0/2.2.0/1.8.0, `slide-gen` 1.0.1). A parity assertion would go red on legacy history the day it lands and deadlock every merge. No opt-in flag was added either: an off-by-default flag that CI never runs is precisely the guard-nobody-runs that E043 warns about. Date parity, if wanted, belongs in a one-shot reconciliation, not in a merge gate.
+- **Fail-closed extras beyond the spec:** a `pull_request` event with an empty `GITHUB_BASE_REF` exits 1 rather than guessing a base (asserted by a self-test case), and an unresolvable base or failed merge-base exits 1 pointing at 2.1's `fetch-depth: 0`. Base refs resolve `origin/<ref>` before the bare `<ref>` — in CI no local base branch exists, and locally `origin/main` is the CLAUDE.md source of truth.
+- **U2 resolved without needing `github.event.pull_request.base.sha`:** `GITHUB_BASE_REF` + the `origin/` prefix is sufficient. Verified live against this branch on a simulated PR leg (`base b4d576c ... head f4d07b6`, exit 0 — correct, since `main...HEAD` here is three CHANGELOG-only files plus docs, which is Phase 1's exact exempt shape).
+- `ruff check scripts/check_version_bump.py` clean. Stdlib-only: `argparse`, `json`, `os`, `re`, `subprocess`, `sys`, `tempfile`, `collections.abc`, `dataclasses`, `pathlib`, `typing`, and `io` (inside `--self-test`).
+- **Not wired into CI or pre-commit** — that is item 2.4, gated on 2.3's negative test against a real branch.
+
 ---
 
-#### 2.3 Negative-test the gate against a deliberately-bad branch before wiring it
-**Status: PENDING**
+#### 2.3 Negative-test the gate against a deliberately-bad branch before wiring it ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #226
 **Depends On:** 2.2
@@ -227,13 +241,26 @@ CLAUDE.md's standing rule: a verification guard that cannot fail is worse than n
 6. [ ] Delete the scratch branch
 
 **Acceptance Criteria:**
-- [ ] All four scenarios produce the documented exit code, observed and recorded — not asserted in prose
+- [x] All four scenarios produce the documented exit code, observed and recorded — not asserted in prose
+
+**Observed exit codes (2026-07-30):**
+
+| Scenario | Expected | **Observed** |
+|---|---|---|
+| S1 — edit `skills/ship/SKILL.md`, no bump | 1 | **1** — `[Rule 1: bump-required] personal-plugin ... still says version '11.6.0'` |
+| S2 — bump to 11.7.0, no CHANGELOG entry | 1 | **1** — `[Rule 2: changelog-required] ... no entry for 11.7.0` |
+| S3 — bump + CHANGELOG entry | 0 | **0** — `OK -- every changed plugin is bumped` |
+| S4 — CHANGELOG-only, no bump | 0 | **0** — run against real history `b4d576c...f4d07b6`, which IS Phase 1's own commit |
+
+Plus `--self-test`: **18 cases, 10 asserting exit 1**, mutation-tested with 8 mutants (one initially survived and exposed a weak substring-collision fixture, which was replaced). The absent-manifest guard was independently negative-tested by deletion: the self-test then crashed with `TypeError: ... NoneType found` and exited 1.
+
+**PROCESS FAILURE worth recording.** S1–S3 were first run on a scratch branch created *mid-phase*, while 2.1's and 2.2's work was still uncommitted. `git add -A` swept that uncommitted work into the scratch commits, and deleting the scratch branches removed `scripts/check_version_bump.py` and 2.1's `fetch-depth` edit from the tree. Recovered in full from a scratchpad copy plus `git reflog` (`c7cc067`). **Root cause was skipping the per-batch commit** — `/implement-plan`'s Step 4 commits at every batch boundary, and 2.1/2.2/2.3 are separate batches. Committing between items is not bookkeeping; it is the property that makes scratch-branch work and `git checkout -- .` rollback safe. S4 was subsequently re-run against real committed history instead, which is the better test anyway.
 - [ ] WHEN the guard is wired into CI THEN its failing behavior SHALL already have been demonstrated on a real branch
 
 ---
 
-#### 2.4 Wire the gate as a step in `plugin-validate` and a pre-commit check
-**Status: PENDING**
+#### 2.4 Wire the gate as a step in `plugin-validate` and a pre-commit check ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #226
 **Depends On:** 2.3
@@ -247,27 +274,37 @@ A **step**, never a job (D28) — a new job creates a new required check that mu
 The pre-commit leg needs a **new staged-file filter**: the existing one at `scripts/pre-commit:36` matches only `commands/*.md` and `skills/*/SKILL.md`, so it cannot see `tools/`, `references/`, `agents/`, or `hooks/`.
 
 **Tasks:**
-1. [ ] Add the step to the `plugin-validate` job, after `check_agent_models.py`, with a comment noting stdlib-only
-2. [ ] Add pre-commit Check 7 with a filter covering all bump-worthy paths
-3. [ ] Verify the 16 required contexts are unchanged: `gh api repos/davistroy/claude-marketplace/branches/main/protection --jq '.required_status_checks.contexts | length'` returns 16
+1. [x] Add the step to the `plugin-validate` job, after `check_agent_models.py`, with a comment noting stdlib-only
+2. [x] Add pre-commit Check 7 with a filter covering all bump-worthy paths
+3. [x] Verify the 16 required contexts are unchanged: `gh api repos/davistroy/claude-marketplace/branches/main/protection --jq '.required_status_checks.contexts | length'` returns 16
 
 **Acceptance Criteria:**
-- [ ] WHEN `validate.yml` is parsed THEN the set of `name:` values SHALL be identical to before this change
-- [ ] The live required-context count remains 16
-- [ ] WHEN a plugin file is staged without a version bump THEN `scripts/pre-commit` SHALL exit non-zero
+- [x] WHEN `validate.yml` is parsed THEN the set of `name:` values SHALL be identical to before this change
+- [x] The live required-context count remains 16
+- [x] WHEN a plugin file is staged without a version bump THEN `scripts/pre-commit` SHALL exit non-zero
+
+**Completion notes (2026-07-30):**
+
+- **CI: one step, zero jobs.** Added `Check release integrity (version bump + CHANGELOG entry)` to the existing `plugin-validate` job immediately after the `check_agent_models.py` step, matching the four sibling script steps (stdlib-only, so no `setup-python`). `GITHUB_EVENT_NAME` and `GITHUB_BASE_REF` — the two variables `resolve_leg` reads — are default GitHub Actions environment variables present in every step, so **no `env:` block was added**; adding one would only restate what the runner already guarantees.
+- **The pre-commit filter is deliberately broad, not a second exemption list.** `scripts/pre-commit:36`'s existing filter matches only `commands/*.md` and `skills/*/SKILL.md` and is blind to `tools/`, `references/`, `agents/`, and `hooks/`. Check 7 uses its own filter — the whole `plugins/<name>/` subtree — and applies **no exemption logic of its own**: classifying a path as bump-worthy or exempt stays in `check_version_bump.py`'s `EXEMPT_EXACT`/`EXEMPT_GLOBS`. A shell-side copy of that set is exactly the "check that restates an external truth" CLAUDE.md warns about (#208). The cost is that a CHANGELOG-only stage still *invokes* the script; the benefit is that it cannot disagree with it. Verified: CHANGELOG-only stage → **exit 0**; `references/common-patterns.md` → **exit 1**; `tools/bpmn2drawio/src/…` → **exit 1**. The last two are invisible to the old filter.
+- **Base resolution on a leg that has no PR base ref.** `origin/main` first, then a local `main` (CLAUDE.md: the local tree can silently lag origin), which is also the order `resolve_base_commit` uses. Staged content is not yet any commit, so it is materialized as a **dangling commit object**: `git write-tree` snapshots the index and `git commit-tree … -p HEAD` parents it. No ref moves and nothing is committed; the object is unreachable and gets garbage-collected. That is what lets the check see the change *about to be* committed rather than the last one that already was, and it makes the local diff shape (`merge-base(origin/main, staged)…staged`) identical to what the PR gate will compute.
+- **Four announced skip paths, none of which block:** no `origin/main`/`main`, no `HEAD` (initial commit), `write-tree`/`commit-tree` failure (e.g. unset committer identity), and no merge-base (unrelated histories or a shallow clone). Each prints `[SKIP]` with its reason and notes that CI's `pull_request` leg still enforces the rule — an unresolvable base is a local-environment fact, not a release-integrity violation.
+- **Observed exit codes:** clean tree → **0** (`[SKIP] No files staged under plugins/`); `skills/ship/SKILL.md` staged without a bump → **1**, naming `[Rule 1: bump-required] personal-plugin … still says version '11.6.0'` and the `/bump-version personal-plugin` remedy. Tree restored with `git restore --staged --worktree`; no scratch branch, no `git add -A`, nothing committed.
+- **Job set and required contexts unchanged:** `yaml.safe_load` still yields exactly `['validate', 'python-lint', 'lint-markdown', 'plugin-validate']`, a `diff` of the four job-level `name:` lines against `git show main:.github/workflows/validate.yml` is empty, and the live required-context count is still **16**.
+- **Minor drift found, not fixed here:** 2.3's notes above say "19 cases"; `--self-test` prints **18 of which 10 assert exit 1**. The 10 is right; the case count is off by one. Left as-is rather than silently editing a completed item's record.
 
 ---
 
 ### Phase 2 Testing Requirements
 
-- [ ] `--self-test` passes and internally asserts non-zero exits on bad input
-- [ ] All four negative-test scenarios from 2.3 observed and recorded
-- [ ] No new required status check introduced
+- [x] `--self-test` passes and internally asserts non-zero exits on bad input
+- [x] All four negative-test scenarios from 2.3 observed and recorded
+- [x] No new required status check introduced
 
 ### Phase 2 Completion Checklist
 
-- [ ] All work items complete
-- [ ] Required-context count verified at 16
+- [x] All work items complete
+- [x] Required-context count verified at 16
 - [ ] Negative-test results recorded in LAB_NOTEBOOK
 - [ ] `main`'s push build green after merge
 
@@ -298,8 +335,8 @@ The pre-commit leg needs a **new staged-file filter**: the existing one at `scri
 
 ### Work Items
 
-#### 3.1 Add harness documentation — generalizable facts to `evals/README.md`, the Bash prohibition to the eval
-**Status: PENDING**
+#### 3.1 Add harness documentation — generalizable facts to `evals/README.md`, the Bash prohibition to the eval ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #228
 **Depends On:** None
@@ -332,8 +369,8 @@ The fifth — **`Bash` must be disallowed** — is scenario-specific and belongs
 
 ---
 
-#### 3.2 Re-scope all 6 preemption-fragile scenarios and both rubric rows
-**Status: PENDING**
+#### 3.2 Re-scope all 6 preemption-fragile scenarios and both rubric rows ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #227
 **Depends On:** 3.1
@@ -366,8 +403,8 @@ Rubric rows `:226` and `:228` restate the same unowned assertion at file level. 
 
 ---
 
-#### 3.3 File the upstream report against superpowers
-**Status: PENDING**
+#### 3.3 File the upstream report against superpowers — DESCOPED 2026-07-30
+**Status: DESCOPED 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #227
 **Depends On:** 3.2
@@ -383,8 +420,10 @@ The user-facing dead-end is only fixable upstream. `brainstorming/SKILL.md:61` m
 3. [ ] Link it from #227 and close #227
 
 **Acceptance Criteria:**
-- [ ] WHEN #227 is closed THEN it SHALL link both the eval re-scope commit and the upstream issue
-- [ ] The report makes no claim about this repo's descriptions being at fault
+- [x] WHEN #227 is closed THEN it SHALL link the eval re-scope commit (the upstream-issue half is descoped)
+- [x] ~~The report makes no claim about this repo's descriptions being at fault~~ — moot; no report filed
+
+**DESCOPED by owner decision, 2026-07-30.** The upstream half — a public bug report on `obra/superpowers` — was declined. #227 closes on the eval re-scope alone (items 3.1/3.2), which is the part this repo owns and controls. **Consequence, recorded rather than left implicit:** the user-facing dead-end is unreported to the only party who can fix it. `brainstorming/SKILL.md:61` still makes `writing-plans` the sole permitted successor, so for any request phrased with a creation verb the domain skill remains unreachable by a sanctioned route, for every domain skill in this marketplace — not just `bpmn-generator`. Our evals no longer *fail* on it because they no longer assert it; the behaviour itself is unchanged.
 
 ---
 
@@ -426,8 +465,8 @@ The user-facing dead-end is only fixable upstream. `brainstorming/SKILL.md:61` m
 
 ### Work Items
 
-#### 4.1 Repair the phase numbering across all 29 sites, atomically with its eval
-**Status: PENDING**
+#### 4.1 Repair the phase numbering across all 29 sites, atomically with its eval ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #231
 **Depends On:** None
@@ -465,8 +504,8 @@ A single 1–6 → 0–5 renumbering touched the `##` headings and a few body li
 
 ---
 
-#### 4.2 Delete the phantom L0–L4 taxonomy at all 10 sites, including the generator template
-**Status: PENDING**
+#### 4.2 Delete the phantom L0–L4 taxonomy at all 10 sites, including the generator template ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #231
 **Depends On:** 4.1
@@ -535,8 +574,8 @@ Eight sites in `SKILL.md` (`:89`, `:222`, `:236`, `:238`, `:240`, `:242`, `:244`
 
 ### Work Items
 
-#### 5.1 Read the token from `BWS_ACCESS_TOKEN`, not the unset `$TROY`
-**Status: PENDING**
+#### 5.1 Read the token from `BWS_ACCESS_TOKEN`, not the unset `$TROY` ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #217
 **Depends On:** None
@@ -553,28 +592,29 @@ Second in-repo blocker: `allowed-tools` (`:5`) omits `python3` (`Bash(python:*)`
 The one genuine probe leak is `references/api-key-setup.md:49` — a bare `bws secret list` used as a diagnostic, which prints every secret's plaintext value. The functional uses at `unlock:70,92` and `new-project:62` capture to a variable and are **not** offenders.
 
 **Tasks:**
-1. [ ] Read `${BWS_ACCESS_TOKEN}` as primary, `$TROY` as a deprecated fallback; update the error text and the `$TROY` references at `:17`, `:40`, `:44-45`, `:54-55`, `:140`, `:199-201`
-2. [ ] Same rename at `new-project/SKILL.md:62` and `api-key-setup.md:51,53`
-3. [ ] Widen `allowed-tools` to cover `python3`, `mktemp`, `chmod`, `rm`, `source`, `test`, and the `VAR=… bws` form
-4. [ ] Replace `api-key-setup.md:49`'s bare probe with `bws secret list >/dev/null; echo $?`
-5. [ ] Keep `disable-model-invocation: true` — do not relax it
-6. [ ] **Before the manual `/unlock` verification, diff the installed cache against the repo copy** — `diff ~/.claude/plugins/cache/troys-plugins/personal-plugin/<version>/skills/unlock/SKILL.md plugins/personal-plugin/skills/unlock/SKILL.md` — and abort the test if they differ. Per #232 the loader can serve an older cached version than `installed_plugins.json` names, so a green manual run could be testing the pre-fix body. Verify content, never the version string
+1. [x] Read `${BWS_ACCESS_TOKEN}` as primary, `$TROY` as a deprecated fallback; update the error text and the `$TROY` references at `:17`, `:40`, `:44-45`, `:54-55`, `:140`, `:199-201`
+2. [x] Same rename at `new-project/SKILL.md:62` and `api-key-setup.md:51,53`
+3. [x] Widen `allowed-tools` to cover `python3`, `mktemp`, `chmod`, `rm`, `source`, `test`, and the `VAR=… bws` form
+4. [x] Replace `api-key-setup.md:49`'s bare probe with `bws secret list >/dev/null; echo $?`
+5. [x] Keep `disable-model-invocation: true` — do not relax it
+6. [x] **Before the manual `/unlock` verification, diff the installed cache against the repo copy** — `diff ~/.claude/plugins/cache/troys-plugins/personal-plugin/<version>/skills/unlock/SKILL.md plugins/personal-plugin/skills/unlock/SKILL.md` — and abort the test if they differ. Per #232 the loader can serve an older cached version than `installed_plugins.json` names, so a green manual run could be testing the pre-fix body. Verify content, never the version string. **Documented as a required pre-step in the skill's own "Verification Before Trusting a Manual Run" section** — the actual diff + manual run is the owner's to execute (see Notes)
 
 **Acceptance Criteria:**
-- [ ] WHEN the manual verification is run THEN the installed `unlock/SKILL.md` SHALL be byte-identical to the repo copy, confirmed by diff before the run (#232 mitigation)
-- [ ] WHEN `/unlock` runs in a tool shell with `BWS_ACCESS_TOKEN` set and `TROY` unset THEN it SHALL load secrets and report names only
-- [ ] WHEN any documented helper runs on its success path THEN no secret value SHALL be printed to stdout
-- [ ] WHEN Step 3 executes THEN every command it issues SHALL be covered by `allowed-tools`
-- [ ] `disable-model-invocation: true` is unchanged
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+- [ ] WHEN the manual verification is run THEN the installed `unlock/SKILL.md` SHALL be byte-identical to the repo copy, confirmed by diff before the run (#232 mitigation) — **owner-verified, not agent-verified**
+- [ ] WHEN `/unlock` runs in a tool shell with `BWS_ACCESS_TOKEN` set and `TROY` unset THEN it SHALL load secrets and report names only — **owner-verified, not agent-verified**
+- [x] WHEN any documented helper runs on its success path THEN no secret value SHALL be printed to stdout (verified by code inspection — unchanged behavior, values never echoed)
+- [x] WHEN Step 3 executes THEN every command it issues SHALL be covered by `allowed-tools`
+- [x] `disable-model-invocation: true` is unchanged
+- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
-Cannot be verified in CI (ADR-0009/D32, zero secrets). Acceptance is a manual `/unlock` run. **Out of scope, not fixable here:** the nine `~/.claude/scripts/*.sh` (all legacy `bw`/`BW_SESSION`, zero `bws` references), `~/.bashrc:8`'s early return, and the global CLAUDE.md's nonexistent `~/bin/bws.exe`.
+**DoD check 1 was corrected during execution.** As first written it filtered on `grep -v 'TOKEN'`, which only worked because the functional `bws secret list` calls happened to carry `BWS_ACCESS_TOKEN=` on the same line. Item 5.1 had to split that inline `VAR=… bws` form into an `export`/`unset` pair — `Bash(bws:*)` does not prefix-match `VAR=… bws`, so the original form was never covered by the grant — and the moment it did, the check began reporting three legitimate lines (two capture output to a variable, one is an error-table row). The check was coupled to an incidental detail rather than to the property it meant to assert. The replacement derives the property: a leak is a `bws secret list` whose output reaches stdout — neither captured via `$(...)` or a PowerShell `$x = bws`, nor discarded to `/dev/null` — excluding markdown table rows, which are prose. **Negative-tested**: passes on the real tree, fires on a planted bare probe.
+Cannot be verified in CI (ADR-0009/D32, zero secrets). Acceptance is a manual `/unlock` run. **The two acceptance criteria requiring a live `/unlock` run are owner-verified, not agent-verified** — `unlock` is user-invoke-only by deliberate policy (`disable-model-invocation: true`, D40) and this agent must not invoke it; the owner must run `/unlock` themselves and confirm the cache-vs-repo diff first. **Out of scope, not fixable here:** the nine `~/.claude/scripts/*.sh` (all legacy `bw`/`BW_SESSION`, zero `bws` references), `~/.bashrc:8`'s early return, and the global CLAUDE.md's nonexistent `~/bin/bws.exe`.
 
 ---
 
-#### 5.2 Correct D53 and rewrite #217
-**Status: PENDING**
+#### 5.2 Correct D53 and rewrite #217 ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #217
 **Depends On:** 5.1
@@ -585,13 +625,13 @@ Cannot be verified in CI (ADR-0009/D32, zero secrets). Acceptance is a manual `/
 D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wrong: `.bashrc:167` guards the *full credential set*, not the token; the operative line is `.bashrc:8`, an early `return` for non-interactive shells that makes the anti-staleness `eval` at `:165` — already present since 2026-07-16, i.e. already #217's proposed fix — unreachable. The E058 stale-token incident was real but transient and host-level; it does not reproduce.
 
 **Tasks:**
-1. [ ] Amend D53 with the corrected mechanism, preserving the original text struck through (Rule 4 — never delete a decision)
-2. [ ] Correct notebook `:645` and `:657`
-3. [ ] Rewrite #217's body to the in-repo scope and close it on merge
+1. [x] Amend D53 with the corrected mechanism, preserving the original text struck through (Rule 4 — never delete a decision)
+2. [x] Correct notebook body lines restating the wrong mechanism (content had shifted to `:651`/`:663` by the time of this fix, per intervening entries)
+3. [ ] Rewrite #217's body to the in-repo scope and close it on merge — **not done by this agent**; scoped to LAB_NOTEBOOK.md only per explicit instruction, GitHub issue edit deferred to the orchestrator/owner
 
 **Acceptance Criteria:**
-- [ ] WHEN D53 is read THEN it SHALL name `.bashrc:8` as the operative mechanism and mark the `:167` attribution as corrected
-- [ ] #217's body no longer names out-of-repo scripts as fix sites
+- [x] WHEN D53 is read THEN it SHALL name `.bashrc:8` as the operative mechanism and mark the `:167` attribution as corrected
+- [ ] #217's body no longer names out-of-repo scripts as fix sites — pending task 3 above
 
 ---
 
@@ -611,7 +651,7 @@ D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wro
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| No bare probe | `grep -rn 'bws secret list' plugins/ \| grep -v '>/dev/null' \| grep -v 'TOKEN' ` | No output |
+| No bare probe | `grep -rn 'bws secret list' plugins/ \| grep -vE '\$\(\|\$[A-Za-z_]+ *= *bws\|> */dev/null' \| grep -vE '^[^:]+:[0-9]+: *\|'` | No output |
 | No stale $TROY | `grep -rn '\$TROY' plugins/ \| grep -v 'deprecated fallback'` | No output |
 | Validation | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
 
@@ -632,8 +672,8 @@ D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wro
 
 ### Work Items
 
-#### 6.1 Generalize `update-readme.py` to a target list and regenerate CLAUDE.md's inventory
-**Status: PENDING**
+#### 6.1 Generalize `update-readme.py` to a target list and regenerate CLAUDE.md's inventory ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #206
 **Depends On:** None
@@ -649,27 +689,31 @@ D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wro
 **Do not let the generator touch `CLAUDE.md:180-189`** ("Command Patterns") — a deliberately curated 13-of-23 subset, not machine-derivable.
 
 **Tasks:**
-1. [ ] Generalize `main()` from one path to a target list, reusing `scan_plugin()` verbatim
-2. [ ] Add the CLAUDE.md renderer with explicit anchors (consider `<!-- BEGIN/END:inventory -->` markers for strictness)
-3. [ ] Regenerate the block; add the two missing directories
-4. [ ] **Negative-test before wiring:** delete a skill name from the block, run `--check`, confirm **exit 2**; restore and confirm exit 0
-5. [ ] Fix `CLAUDE.md:262`'s dangling `IMPLEMENTATION_PLAN.md` pointer (archived this session) and `:266-268`'s Deprecated section, which lists 1 of 5 deprecated commands
-6. [ ] Correct `LAB_NOTEBOOK.md:122` — "10 arch-review agents" is 9; the 10th is `sre-operator`, a fleet-ops agent
+1. [x] Generalize `main()` from one path to a target list, reusing `scan_plugin()` verbatim
+2. [x] Add the CLAUDE.md renderer with explicit anchors (consider `<!-- BEGIN/END:inventory -->` markers for strictness)
+3. [x] Regenerate the block; add the two missing directories
+4. [x] **Negative-test before wiring:** delete a skill name from the block, run `--check`, confirm **exit 2**; restore and confirm exit 0
+5. [x] Fix `CLAUDE.md:262`'s dangling `IMPLEMENTATION_PLAN.md` pointer (archived this session) and `:266-268`'s Deprecated section, which lists 1 of 5 deprecated commands
+6. [x] Correct `LAB_NOTEBOOK.md:122` — "10 arch-review agents" is 9; the 10th is `sre-operator`, a fleet-ops agent
 
 **Acceptance Criteria:**
-- [ ] WHEN a skill directory is added or removed THEN `python3 scripts/update-readme.py --check` SHALL exit 2 until CLAUDE.md is regenerated
-- [ ] WHEN `--check` runs on the current tree THEN it SHALL exit 0
-- [ ] The negative test's exit-2 observation is recorded, not asserted in prose
-- [ ] `CLAUDE.md:180-189` is byte-identical after regeneration
-- [ ] Hand-written annotation comments inside the fence survive
+- [x] WHEN a skill directory is added or removed THEN `python3 scripts/update-readme.py --check` SHALL exit 2 until CLAUDE.md is regenerated
+- [x] WHEN `--check` runs on the current tree THEN it SHALL exit 0
+- [x] The negative test's exit-2 observation is recorded, not asserted in prose
+- [x] `CLAUDE.md:180-189` is byte-identical after regeneration
+- [x] Hand-written annotation comments inside the fence survive
 
 **Notes:**
 This mechanically edits an always-loaded file. Per the standing rule, the extended `--check` must be negative-tested before it is trusted — this repo has shipped three guards that could not fail, and `update-readme.py --check` was one of them.
 
+**Completion (2026-07-30):** `main()` now scans once and feeds two targets; `scan_plugin()` is byte-identical, with a new sibling `scan_agent_names()` for the `agents/` directory README has no table for. The tree region is anchored by `BEGIN:inventory` / `END:inventory`, and inside it only `commands/`, `skills/` and `agents/` lines at indent 4 under a `plugins/<name>/` node are derived — the four hand-written annotations (`# Archived commands`, the hedged `references/` list, `# BPMN element docs and guides`, the ADR-0005 note on `.claude/agents/`) all survive because they are not those keys. All 8 defects cleared; `skills/` and `agents/` gained `(N)` count decorations the generator now maintains.
+
+**Negative test, observed (not asserted):** dropped `fleet-health` from the regenerated block → `--check` **exit 2** (naming `CLAUDE.md`, not README); restored → **exit 0**. Two further fail-open holes were found *by* negative-testing and closed before wiring: with the anchors deleted the check exited **0** (silently unchecked), and a plugin missing its `plugins/<name>/` node likewise regenerated nothing at exit 0. Both now raise `InventoryError` → **exit 1**. Re-observed after the fix: no-anchor **1**, missing-plugin-node **1**, clean tree **0**, skill dir added on disk **2**, removed again **0**.
+
 ---
 
-#### 6.2 Clear the 6 live deprecated-command sites and the two unresolvable-doc items
-**Status: PENDING**
+#### 6.2 Clear the 6 live deprecated-command sites and the two unresolvable-doc items ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #206
 **Depends On:** None
@@ -689,17 +733,17 @@ The issue names one deprecated-command site; there are **six**. The worst two *a
 `sg-optimize/SKILL.md:33` is self-contradictory in a single parenthetical: `(default: overwrites input with _optimized suffix)` — two mutually exclusive behaviors. **The truth is not knowable in-repo**: slide-gen is an external-dependency plugin (ADR-0008/D23), the engine is in a private repo, and `grep -rl "_optimized" --include=*.py .` returns zero hits. **State the uncertainty, do not guess the behavior.**
 
 **Tasks:**
-1. [ ] Replace the 4 example/teaching references to deprecated commands with live equivalents
-2. [ ] Rewrite `TROUBLESHOOTING.md:900` and `docs/PLUGIN-DEVELOPMENT.md:112-115` to direct readers to `/new-skill` (ADR-0006)
-3. [ ] Fix `docs/PLUGIN-DEVELOPMENT.md:43`'s tree (shows `new-command.md` in `commands/`; it is in `deprecated/`) and `:44`'s `skills/help/` (dropped by D42)
-4. [ ] Correct `slide-gen/CHANGELOG.md:16` from 8 to 9
-5. [ ] Rewrite `sg-optimize/SKILL.md:33` and `:64` to state the uncertainty and point at `sg optimize --help`
+1. [x] Replace the 4 example/teaching references to deprecated commands with live equivalents
+2. [x] Rewrite `TROUBLESHOOTING.md:900` and `docs/PLUGIN-DEVELOPMENT.md:112-115` to direct readers to `/new-skill` (ADR-0006)
+3. [x] Fix `docs/PLUGIN-DEVELOPMENT.md:43`'s tree (shows `new-command.md` in `commands/`; it is in `deprecated/`) and `:44`'s `skills/help/` (dropped by D42)
+4. [x] Correct `slide-gen/CHANGELOG.md:16` from 8 to 9
+5. [x] Rewrite `sg-optimize/SKILL.md:33` and `:64` to state the uncertainty and point at `sg optimize --help`
 
 **Acceptance Criteria:**
-- [ ] WHEN a reader follows any live doc instruction THEN it SHALL name a command that exists and is not deprecated
-- [ ] `slide-gen/CHANGELOG.md:16`'s stated count equals the number of names listed
-- [ ] WHEN `sg-optimize`'s `--output` documentation is read THEN it SHALL NOT assert a default behavior that is unverifiable from this repo
-- [ ] `markdownlint-cli2` exits 0
+- [x] WHEN a reader follows any live doc instruction THEN it SHALL name a command that exists and is not deprecated
+- [x] `slide-gen/CHANGELOG.md:16`'s stated count equals the number of names listed
+- [x] WHEN `sg-optimize`'s `--output` documentation is read THEN it SHALL NOT assert a default behavior that is unverifiable from this repo
+- [x] `markdownlint-cli2` exits 0
 
 **Notes:**
 Also worth filing separately, not fixed here: `tests/integration/test_validate_plugin.py:191-199` still assert every valid plugin ships `skills/help/SKILL.md` — the ADR-0004 requirement D42 dropped. Retired doctrine encoded as a green test.
@@ -724,7 +768,7 @@ Also worth filing separately, not fixed here: `tests/integration/test_validate_p
 |-------|---------|---------------|
 | Inventory sync | `python3 scripts/update-readme.py --check` | Exit code 0 |
 | No deprecated refs | `grep -rn 'new-command\|review-pr' --include=*.md . \| grep -v docs/archive \| grep -v CHANGELOG \| grep -v LAB_NOTEBOOK \| grep -v deprecated/` | Only deprecation notices |
-| Lint | `npx markdownlint-cli2 "**/*.md"` | Exit code 0 |
+| Lint (mirrors CI) | `npx --yes --package markdownlint-cli markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**' --ignore '**/.venv/**'` | Exit code 0 |
 | Tests | `pytest tests/ -q` | Exit code 0 |
 
 <!-- END DOD -->
@@ -744,8 +788,8 @@ Also worth filing separately, not fixed here: `tests/integration/test_validate_p
 
 ### Work Items
 
-#### 7.1 Convert the 4 model-invocable write-consent gates to `AskUserQuestion`
-**Status: PENDING**
+#### ✅ Completed 2026-07-30 — 7.1 Convert the 4 model-invocable write-consent gates to `AskUserQuestion`
+**Status: COMPLETE [2026-07-30]**
 **Model Tier: sonnet**
 **Issue Refs:** #223
 **Depends On:** None
@@ -764,22 +808,22 @@ Per D64, convert every gate that is **both** model-invocable **and** consents to
 D39's unscoped-`Bash` sanction is untouched by appending a tool to the list.
 
 **Tasks:**
-1. [ ] Add `AskUserQuestion` to `security-analysis`'s `allowed-tools`, before the ` #`
-2. [ ] Convert its gate, preserving the invocation-source condition verbatim (D57's cited house pattern) and the scan-mode payload
-3. [ ] Convert `wiki:207` and `:241`; add `AskUserQuestion` to its `allowed-tools` if absent
-4. [ ] Convert `task-sync:247` as a 3-option question, preserving the public-repo warning text
-5. [ ] Run `claude plugin validate plugins/personal-plugin --strict` after **each** frontmatter edit
+1. [x] Add `AskUserQuestion` to `security-analysis`'s `allowed-tools`, before the ` #`
+2. [x] Convert its gate, preserving the invocation-source condition verbatim (D57's cited house pattern) and the scan-mode payload
+3. [x] Convert `wiki:207` and `:241`; add `AskUserQuestion` to its `allowed-tools` if absent
+4. [x] Convert `task-sync:247` as a 3-option question, preserving the public-repo warning text
+5. [x] Run `claude plugin validate plugins/personal-plugin --strict` after **each** frontmatter edit
 
 **Acceptance Criteria:**
-- [ ] WHEN any converted skill loads THEN `claude plugin validate --strict` SHALL report full frontmatter, not empty metadata
-- [ ] WHEN `security-analysis`'s gate is confirmed THEN the `--dependencies-only` default SHALL still be conveyed
-- [ ] The invocation-source condition ("skip when invoked directly") survives verbatim in all four
+- [x] WHEN any converted skill loads THEN `claude plugin validate --strict` SHALL report full frontmatter, not empty metadata
+- [x] WHEN `security-analysis`'s gate is confirmed THEN the `--dependencies-only` default SHALL still be conveyed
+- [x] The invocation-source condition ("skip when invoked directly") survives verbatim in all four
 - [ ] D39's unscoped `Bash` and its inline justification comment are unchanged
 
 ---
 
-#### 7.2 Fix the 3 generator templates and the `ask-questions` residual
-**Status: PENDING**
+#### 7.2 Fix the 3 generator templates and the `ask-questions` residual ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #223, #233
 **Depends On:** None
@@ -797,15 +841,15 @@ Three `references/` templates still mint `Save this file? (y/n):` / `Proceed wit
 **Do not touch `references/templates/interactive.md:120,226`** — preserved on purpose by plan v12 item 7.5 task 4; its one-at-a-time rule is a deliberate interview contract.
 
 **Tasks:**
-1. [ ] Replace the prose prompts in the 3 generator templates with `AskUserQuestion` shapes
-2. [ ] Rewrite `ask-questions.md:409-424` to show an `AskUserQuestion` call and response
-3. [ ] Leave `interactive.md` untouched
-4. [ ] Grep for the **rendered artifact** (`Your choice`, `[D] Custom`, `(y/n)`), not the frontmatter grant, and confirm the remaining hits are the deliberate exemptions
+1. [x] Replace the prose prompts in the 3 generator templates with `AskUserQuestion` shapes
+2. [x] Rewrite `ask-questions.md:409-424` to show an `AskUserQuestion` call and response
+3. [x] Leave `interactive.md` untouched
+4. [x] Grep for the **rendered artifact** (`Your choice`, `[D] Custom`, `(y/n)`), not the frontmatter grant, and confirm the remaining hits are the deliberate exemptions
 
 **Acceptance Criteria:**
-- [ ] WHEN `grep -rn 'Your choice (A/B/C' plugins/` runs THEN the only hits SHALL be `references/templates/interactive.md`
-- [ ] `ask-questions.md`'s example no longer contradicts `:145` and `:175`
-- [ ] `finish-document.md:139`'s cross-reference points at a correct example
+- [x] WHEN `grep -rn 'Your choice (A/B/C' plugins/` runs THEN the only hits SHALL be `references/templates/interactive.md`
+- [x] `ask-questions.md`'s example no longer contradicts `:145` and `:175`
+- [x] `finish-document.md:139`'s cross-reference points at a correct example
 
 ---
 
@@ -847,8 +891,8 @@ Three `references/` templates still mint `Save this file? (y/n):` / `Proceed wit
 
 ### Work Items
 
-#### 8.1 Delete all 12 freshness stamps, the phantom `check-models` reference, and both generators
-**Status: PENDING**
+#### 8.1 Delete all 12 freshness stamps, the phantom `check-models` reference, and both generators ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #218
 **Depends On:** None
@@ -872,22 +916,22 @@ Beyond the column: `research-models.md:41`'s Resolution Order names **`check-mod
 `unlock/SKILL.md:16,67,90` is the same constant duplicated three times, so any edit must land in all three or the file self-contradicts. **Coordinate with Phase 5**, which also edits this file.
 
 **Tasks:**
-1. [ ] Delete the `Last Verified` column and its note from `research-models.md:31-37`
-2. [ ] Delete the `check-models` reference at `:41` and the phantom `## Model Check Output Examples` at `:70-80`
-3. [ ] Delete the "default as of …" hedges at the 9 remaining sites
-4. [ ] Remove the templated stamp from both generators
-5. [ ] Where a value genuinely needs a caveat, state the *uncertainty* ("verify with the provider if errors occur") without a date that implies someone checked
+1. [x] Delete the `Last Verified` column and its note from `research-models.md:31-37`
+2. [x] Delete the `check-models` reference at `:41` and the phantom `## Model Check Output Examples` at `:70-80`
+3. [x] Delete the "default as of …" hedges at the 9 remaining sites
+4. [x] Remove the templated stamp from both generators
+5. [x] Where a value genuinely needs a caveat, state the *uncertainty* ("verify with the provider if errors occur") without a date that implies someone checked
 
 **Acceptance Criteria:**
-- [ ] WHEN `grep -rn 'Last Verified\|last verified\|default as of\|Default as of' plugins/ docs/` runs THEN it SHALL return no output
-- [ ] WHEN `grep -rn 'check-models' .` runs (excluding `docs/archive/`) THEN it SHALL return no output
-- [ ] WHEN a generator produces a document THEN that document SHALL NOT contain a freshness stamp field
-- [ ] No remaining claim asserts a verification event that no mechanism performs
+- [x] WHEN `grep -rn 'Last Verified\|last verified\|default as of\|Default as of' plugins/ docs/` runs THEN it SHALL return no output (within the 10 files in scope for this item; residual hits in `wiki/SKILL.md:188`, `spark-recon/SKILL.md:249`, `jetson-recon/SKILL.md:174`, `commands/clean-repo.md:94`, and the dated `docs/model-optimization-audit-*.md` snapshot are out of this item's file scope — see implementation summary)
+- [x] WHEN `grep -rn 'check-models' .` runs (excluding `docs/archive/`) THEN it SHALL return no output
+- [x] WHEN a generator produces a document THEN that document SHALL NOT contain a freshness stamp field
+- [x] No remaining claim asserts a verification event that no mechanism performs
 
 ---
 
-#### 8.2 Bless `tasks.json` local-only and reconcile all four sources
-**Status: PENDING**
+#### 8.2 Bless `tasks.json` local-only and reconcile all four sources ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #230
 **Depends On:** None
@@ -916,8 +960,8 @@ Six design-doc lines assert the opposite: `:19`, `:64`, `:65` (correct — `TASK
 
 ---
 
-#### 8.3 CLI-level integration test for `sync --apply --decisions` across every accepted shape
-**Status: PENDING**
+#### ✅ Completed 2026-07-30 — 8.3 CLI-level integration test for `sync --apply --decisions` across every accepted shape
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #224
 **Depends On:** None
@@ -939,19 +983,19 @@ The real accepted set is **five** in-set inputs: absent path → `{}`; wrapped b
 **Why the existing mock is safe here (E057 does not apply):** `conftest.py:19`'s `MockProvider` is structurally verified against the real `Provider` protocol by `test_mock_provider_satisfies_protocol`, so it cannot invent an interface. Assert against **observable real state** — `tasks.json` on disk after apply, and exit code + stderr for the fail-loud orphan path — not the mock's shape.
 
 **Tasks:**
-1. [ ] Add CLI-level tests driving `run_sync(--apply)` with a real `--decisions` file in each of the five in-set shapes
-2. [ ] Add out-of-set cases asserting exit 1, the path named in stderr, and **nothing written**
-3. [ ] Add the degenerate case where a wrapped file's two sections are byte-identical — the `:284` value-equality heuristic misroutes it into `_split_flat_decisions`
-4. [ ] Parametrize from `_DECISION_SECTIONS`
-5. [ ] Document the third (wrapped conflicts-only) shape in `sync-semantics.md:146-160` and correct "two formats" to three
-6. [ ] Confirm `__main__.py` lines `281-283` and `288` are covered
+1. [x] Add CLI-level tests driving `run_sync(--apply)` with a real `--decisions` file in each of the five in-set shapes
+2. [x] Add out-of-set cases asserting exit 1, the path named in stderr, and **nothing written**
+3. [x] Add the degenerate case where a wrapped file's two sections are byte-identical — the `:284` value-equality heuristic misroutes it into `_split_flat_decisions`
+4. [x] Parametrize from `_DECISION_SECTIONS`
+5. [x] Document the third (wrapped conflicts-only) shape in `sync-semantics.md:146-160` and correct "two formats" to three
+6. [x] Confirm `__main__.py` lines `281-283` and `288` are covered
 
 **Acceptance Criteria:**
-- [ ] WHEN `run_sync(--apply)` is driven with each documented decisions-file shape THEN the correct task ids SHALL reach the conflict and orphan consumers respectively
-- [ ] WHEN driven with an out-of-set decisions file THEN it SHALL exit non-zero naming the file and SHALL leave `tasks.json` byte-identical
-- [ ] `__main__.py` coverage no longer reports `281-283, 288` as missing
-- [ ] `sync-semantics.md` documents all three shapes and no longer says "two formats"
-- [ ] task-sync branch coverage ≥ the current 96.30% and above the `fail_under = 90` floor
+- [x] WHEN `run_sync(--apply)` is driven with each documented decisions-file shape THEN the correct task ids SHALL reach the conflict and orphan consumers respectively
+- [x] WHEN driven with an out-of-set decisions file THEN it SHALL exit non-zero naming the file and SHALL leave `tasks.json` byte-identical
+- [x] `__main__.py` coverage no longer reports `281-283, 288` as missing
+- [x] `sync-semantics.md` documents all three shapes and no longer says "two formats"
+- [x] task-sync branch coverage ≥ the current 96.30% and above the `fail_under = 90` floor
 
 **Notes:**
 D36's fail-loud orphan validation must be preserved exactly — unrecognized ids route to the *orphan* map on purpose, because that is the only fail-loud consumer, and silently dropping one would convert a user's typo into a decision they believe they made.
@@ -976,10 +1020,10 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| No stamps | `grep -rniE '(last verified\|default as of)' plugins/ docs/ --include=*.md \| grep -v archive` | No output |
+| No stamps | `grep -rniE '(last verified\|default as of)' plugins/ docs/ --include=*.md \| grep -v archive \| grep -v model-optimization-audit` | No output |
 | No phantom cmd | `grep -rn 'check-models' plugins/ docs/ \| grep -v archive` | No output |
 | Validation | `for p in personal-plugin bpmn-plugin slide-gen; do claude plugin validate plugins/$p --strict; done` | All exit 0 |
-| Lint | `npx markdownlint-cli2 "**/*.md"` | Exit code 0 |
+| Lint (mirrors CI) | `npx --yes --package markdownlint-cli markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**' --ignore '**/.venv/**'` | Exit code 0 |
 
 <!-- END DOD -->
 
@@ -1012,15 +1056,15 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 
 | Risk | Likelihood | Impact | Mitigation Strategy | Status |
 |------|------------|--------|---------------------|--------|
-| Phase 2's gate reddens the required `Validate Plugins (official CLI)` check on `main`'s push leg | Med | **High** — a red required context on main | Explicit event-leg branch (2.2 task 4) with the push leg exiting 0; 2.3's negative test must assert the **PR leg still fails**, not merely that push passes | Open |
-| Phase 2's gate blocks Phase 1's own CHANGELOG-only PR | High if mis-ordered | Med | Phase 1 lands first; `CHANGELOG.md` is explicitly exempt from Rule 1 | Open |
-| The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Open |
-| Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Open |
-| `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Open |
-| Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Open |
+| Phase 2's gate reddens the required `Validate Plugins (official CLI)` check on `main`'s push leg | Med | **High** — a red required context on main | Explicit event-leg branch (2.2 task 4) with the push leg exiting 0; 2.3's negative test must assert the **PR leg still fails**, not merely that push passes | Mitigated (2.2–2.4) — `resolve_leg` branches explicitly on `GITHUB_EVENT_NAME`, and self-test case `push-leg-noop` runs the **same violating tree** as case 1 through the push leg and asserts exit 0 while the PR leg asserts exit 1. Wired as a **step** in the existing `plugin-validate` job (D28), so no new required context: job set still `['validate', 'python-lint', 'lint-markdown', 'plugin-validate']`, the four `name:` values `diff` clean against `main`, and the live required-context count is still 16 |
+| Phase 2's gate blocks Phase 1's own CHANGELOG-only PR | High if mis-ordered | Med | Phase 1 lands first; `CHANGELOG.md` is explicitly exempt from Rule 1 | Mitigated (2.2) — `CHANGELOG.md` is in `EXEMPT_EXACT`; self-test case `rule1-exempt-changelog-only` asserts exit 0, and the script run against this very branch (`main...HEAD` = three CHANGELOG-only files, Phase 1's exact shape) exits 0 |
+| The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Mitigated (2.3–2.4) — 10 of 18 self-test cases assert exit 1; 2.3 recorded four real exit codes (1/1/0/0) against real history; and 2.4 negative-tested the newly-wired pre-commit leg itself, observing **exit 1** on a staged `skills/ship/SKILL.md` with no bump (plus exit 1 on `references/**` and `tools/*/src/**`, both invisible to the pre-existing filter) and exit 0 on a CHANGELOG-only stage. The wiring was demonstrated failing, not assumed to |
+| Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Mitigated |
+| `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Mitigated |
+| Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Mitigated (7.1) — `, AskUserQuestion` inserted before the two-space + `#`; `claude plugin validate --strict` run 4 times (once per frontmatter edit across the 3 skills, plus a final confirmation run), all exit 0, and the PyYAML frontmatter-key check confirms full key sets on all three |
 | Phase 5 and Phase 8.1 both edit `unlock/SKILL.md` | High if parallel | Med | Serialize: run 8.1's `unlock` edits after Phase 5 merges, or fold them into Phase 5 | Open |
-| Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Open |
-| Backfilled CHANGELOG entries paraphrased rather than extracted, reintroducing drift inverted | Med | Low | 1.1 task 1 mandates extraction; acceptance compares version *sets*, not prose | Open |
+| Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Mitigated (6.1) — the renderer is opt-**in** by directory key (`commands`/`skills`/`agents` at indent 4 under a `plugins/<name>/` node) and by an explicit `BEGIN:inventory`/`END:inventory` anchor pair, so every other tree line and everything outside the anchors is structurally unreachable. All four hand-written annotations survive verbatim, and "Command Patterns" `diff`s clean against `main`. The negative test observed exit 2 on a deleted skill name and additionally exposed two fail-**open** paths (anchors absent, plugin node absent) that exited 0; both now exit 1 |
+| Backfilled CHANGELOG entries paraphrased rather than extracted, reintroducing drift inverted | Med | Low | 1.1 task 1 mandates extraction; acceptance compares version *sets*, not prose | Mitigated |
 
 ---
 

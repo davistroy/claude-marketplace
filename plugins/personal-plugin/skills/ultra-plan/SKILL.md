@@ -86,7 +86,7 @@ After the drift report, return to normal mode — do NOT proceed with Phase 0-5.
 
 Before investigating any items, establish the project's non-negotiable constraints. These constraints gate every subsequent phase -- no proposed solution may violate them.
 
-**Skip conditions:** Skip Phase 0 entirely if (a) the user says "skip constitution", (b) the task is clearly L0-L1 scope per plan-gate classification, or (c) the input is a single well-scoped bug fix.
+**Skip conditions:** Skip Phase 0 entirely if (a) the user says "skip constitution", or (b) the input is a single well-scoped bug fix.
 
 ### 0a. Read Existing Constraints
 
@@ -113,8 +113,8 @@ Record answers. These constraints apply to all subsequent phases.
 ### 0c. Output
 
 Produce a **Constraints Summary** -- a compact table of all documented and answered constraints. This summary:
-- Feeds into the Summary Report (Phase 5) as "Pre-Plan Gates"
-- Is checked during Solution Design (Phase 4) -- every proposed change must comply
+- Feeds into the Summary Report (Phase 4) as "Pre-Plan Gates"
+- Is checked during Solution Design (Phase 3) -- every proposed change must comply
 - Is included in the plan generation output for downstream consumption
 
 ## Phase 1 -- Investigation
@@ -139,7 +139,7 @@ For **each item** in the input list, investigate and document:
 - If an item seems simple, that's when you're most likely to miss something. Investigate anyway.
 - Document what you found, including anything surprising.
 
-Present Phase 2 findings as a structured table or list before proceeding.
+Present Phase 1 findings as a structured table or list before proceeding.
 
 ### Sub-Agent Investigation (>5 items)
 
@@ -164,36 +164,36 @@ When the input list has more than 5 items, use the Agent tool with `subagent_typ
 
 3. Launch sub-agents in parallel using `run_in_background: true`
 4. Collect results as each completes
-5. Merge all findings into a single Phase 2 deliverable before proceeding to Phase 3
+5. Merge all findings into a single Phase 1 deliverable before proceeding to Phase 2
 
-**Graceful degradation:** If the Agent tool is unavailable or sub-agents fail, fall back to inline investigation for all items. Note the fallback in the Phase 2 output.
+**Graceful degradation:** If the Agent tool is unavailable or sub-agents fail, fall back to inline investigation for all items. Note the fallback in the Phase 1 output.
 
 ## Phase 2 -- Interaction Mapping
 
 Before proposing **any** solution, map the interactions:
 
-### 3a. Item-to-Item Interactions
+### 2a. Item-to-Item Interactions
 Build a matrix or dependency graph showing:
 - Which items share code paths, state, data, or constraints
 - Which items MUST be solved together (atomic change sets)
 - Where fixing one item could break, complicate, or conflict with another
 - Items that are actually the same root cause manifesting differently
 
-### 3b. Change-to-System Interactions
+### 2b. Change-to-System Interactions
 For each potential change area:
 - What upstream components feed into it
 - What downstream components depend on it
 - What configuration, environment, or runtime state it reads/writes
 - What contracts (APIs, interfaces, data formats) it participates in
 
-### 3c. Grouping
+### 2c. Grouping
 Group items into **coherent change sets** -- items that should be designed and implemented together because they share root causes, touch the same code, or have ordering dependencies.
 
 Present the interaction map before proceeding. This is the most important phase -- it prevents the whack-a-mole fix loop.
 
 ## Phase 3 -- Solution Design
 
-Design integrated changes for each change set from Phase 3.
+Design integrated changes for each change set from Phase 2.
 
 **Design constraints:**
 - Fit within the existing architecture and design intent
@@ -219,7 +219,7 @@ Design integrated changes for each change set from Phase 3.
 
 See `references/anti-patterns.md` for the full catalog with detection heuristics and mitigation strategies.
 
-### ADR Generation (L3+ tasks)
+### ADR Generation (conditional)
 
 For each change set that involves choosing between fundamentally different approaches (not minor implementation variants), generate an Architecture Decision Record:
 
@@ -227,21 +227,21 @@ For each change set that involves choosing between fundamentally different appro
 
 **If yes:**
 1. Create `docs/adr/ADR-NNNN-[slug].md` using the template from `references/adr-template.md`
-2. Populate Context from Phase 2 investigation findings
-3. Populate Decision from the chosen approach in Phase 4
+2. Populate Context from Phase 1 investigation findings
+3. Populate Decision from the chosen approach in Phase 3
 4. Populate Alternatives from the rejected approaches with specific rejection reasons
 5. Set Status to "Proposed"
-6. List the generated ADR in the Phase 5 Summary Report
+6. List the generated ADR in the Phase 4 Summary Report
 
-**Skip conditions:** Skip ADR generation when the task is L0-L2 (per plan-gate classification) AND the user hasn't explicitly requested it. Simple implementation decisions (naming, file organization, configuration values) don't need ADRs.
+**Skip conditions:** Skip ADR generation for simple implementation decisions (naming, file organization, configuration values) unless the user explicitly requests one.
 
-### Creative Branching (L4+ tasks)
+### Creative Branching (conditional)
 
-For L4+ tasks (greenfield architecture, multi-system integration, fundamental redesign) where **2-3 fundamentally different valid approaches** exist, generate a comparison table before committing to one approach.
+When greenfield architecture, multi-system integration, or fundamental redesign work has **2-3 fundamentally different valid approaches**, generate a comparison table before committing to one approach.
 
-**Trigger question:** "Are there 2+ fundamentally different architectures that could solve this, where the choice has lasting consequences?" If yes, and the task is L4+ scope, branch.
+**Trigger question:** "Are there 2+ fundamentally different architectures that could solve this, where the choice has lasting consequences?" If yes, branch.
 
-**Skip conditions:** Skip when (a) the task is L0-L3, (b) there is only one viable approach, or (c) the differences between approaches are minor implementation variants rather than fundamentally different architectures.
+**Skip conditions:** Skip when (a) there is only one viable approach, or (b) the differences between approaches are minor implementation variants rather than fundamentally different architectures.
 
 **Comparison table format:**
 
@@ -267,7 +267,7 @@ Deliver a structured summary containing all of the following:
 
 ### Pre-Plan Gates
 - Constraints summary from Phase 0
-- Compliance check: verify every proposed change in Phase 4 respects documented constraints
+- Compliance check: verify every proposed change in Phase 3 respects documented constraints
 - Flag any proposed change that conflicts with a constraint -- present the conflict and ask the user to decide
 
 ### Investigation Findings
@@ -305,14 +305,14 @@ Deliver a structured summary containing all of the following:
 - Recommended follow-up work, if any
 
 ### Verification Commands
-- All runnable verification commands specified per change set in Phase 4
+- All runnable verification commands specified per change set in Phase 3
 - These feed into the plan's Definition of Done (Runnable) section when generated via create-plan
 - Organized by change set: list the Check name and Command for each
 
 ### Generated ADRs (if any)
-- List of ADR files generated during Phase 4
+- List of ADR files generated during Phase 3
 - Each with: ADR number, title, status (Proposed), and the change set it documents
-- Note: ADRs are generated only for L3+ tasks; this section may be empty for smaller scopes
+- Note: ADRs are generated conditionally (see ADR Generation); this section may be empty for smaller scopes
 
 ---
 
@@ -324,7 +324,7 @@ After presenting the summary report, ask:
 
 When the user approves, produce a formal implementation plan using the appropriate command:
 
-### 6a. Check for Existing Plans
+### 5a. Check for Existing Plans
 
 Run `/personal-plugin:plan-next` first to assess the current repo state:
 - Is there an existing IMPLEMENTATION_PLAN.md?
@@ -333,17 +333,17 @@ Run `/personal-plugin:plan-next` first to assess the current repo state:
 
 This determines the routing below.
 
-### 6b. Route to Plan Command
+### 5b. Route to Plan Command
 
 | Situation | Action |
 |-----------|--------|
-| **No existing plan** | Invoke `/personal-plugin:create-plan`, feeding it the Phase 4 solution design as the requirements input. The investigation findings, interaction map, and change sets become the source material for plan generation. |
-| **Existing plan, all items complete** | Invoke `/personal-plugin:create-plan` to append new phases to the existing plan. The new phases correspond to the change sets from Phase 4. |
+| **No existing plan** | Invoke `/personal-plugin:create-plan`, feeding it the Phase 3 solution design as the requirements input. The investigation findings, interaction map, and change sets become the source material for plan generation. |
+| **Existing plan, all items complete** | Invoke `/personal-plugin:create-plan` to append new phases to the existing plan. The new phases correspond to the change sets from Phase 3. |
 | **Existing plan with pending/in-progress items** | Present the conflict to the user. Options: (1) append new phases after existing work, (2) replace the existing plan, (3) defer until current plan completes. Do not silently overwrite in-progress work. |
 
-### 6c. Feed Ultra Plan Analysis into Create-Plan
+### 5c. Feed Ultra Plan Analysis into Create-Plan
 
-The Phase 1-4 analysis is the requirements input for `/personal-plugin:create-plan`. Map ultra-plan outputs to create-plan inputs:
+The Phase 0-3 analysis is the requirements input for `/personal-plugin:create-plan`. Map ultra-plan outputs to create-plan inputs:
 
 | Ultra Plan Output | Create-Plan Input |
 |-------------------|-------------------|
@@ -357,17 +357,17 @@ The Phase 1-4 analysis is the requirements input for `/personal-plugin:create-pl
 
 The resulting IMPLEMENTATION_PLAN.md inherits the architectural coherence from ultra-plan's analysis -- it is NOT a fresh discovery process, but a structured encoding of decisions already made.
 
-### 6d. Verify Plan Quality
+### 5d. Verify Plan Quality
 
 After the plan is generated, verify:
-- Every item from the approved Phase 5 summary appears in the plan
+- Every item from the approved Phase 4 summary appears in the plan
 - Change set groupings are preserved (items that must ship together are in the same phase)
-- The interaction dependencies from Phase 3 are reflected in phase ordering
+- The interaction dependencies from Phase 2 are reflected in phase ordering
 - No items were silently dropped or split in a way that breaks atomic change sets
 
 If anything is missing or misaligned, fix it before presenting the final plan.
 
-### 6e. Present Final Plan
+### 5e. Present Final Plan
 
 Report:
 - Location of IMPLEMENTATION_PLAN.md
@@ -379,7 +379,7 @@ Report:
 
 - **Input is ambiguous or incomplete:** ask clarifying questions before starting Phase 0 rather than guessing scope (see Inputs).
 - **`--refresh` invoked but no IMPLEMENTATION_PLAN.md (or `--input` path) exists:** report that no plan was found and direct the user to run `/ultra-plan` fresh (see Drift Detection Mode Prerequisites).
-- **Agent tool is unavailable or a dispatched Explore sub-agent fails** during Phase 1 investigation (>5 items): fall back to inline investigation for all items and note the fallback in the Phase 2 output (see "Graceful degradation").
+- **Agent tool is unavailable or a dispatched Explore sub-agent fails** during Phase 1 investigation (>5 items): fall back to inline investigation for all items and note the fallback in the Phase 1 output (see "Graceful degradation").
 - **A proposed solution in Phase 3 would violate a documented Phase 0 constraint:** flag the conflict explicitly and ask the user to decide rather than proceeding silently (see Phase 4 Pre-Plan Gates).
-- **Routing to Phase 5 finds an existing plan with pending/in-progress items:** present the conflict and let the user choose append/replace/defer — never silently overwrite in-progress work (see 6b routing table).
-- **After plan generation, an approved item from the Phase 4 summary is missing or an atomic change-set grouping was split:** fix it before presenting the final plan (see 6d Verify Plan Quality).
+- **Routing to Phase 5 finds an existing plan with pending/in-progress items:** present the conflict and let the user choose append/replace/defer — never silently overwrite in-progress work (see 5b routing table).
+- **After plan generation, an approved item from the Phase 4 summary is missing or an atomic change-set grouping was split:** fix it before presenting the final plan (see 5d Verify Plan Quality).

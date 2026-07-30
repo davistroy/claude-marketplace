@@ -37,7 +37,7 @@ The system automatically selects appropriate page types based on content:
 ## Technical Notes
 
 **Image Generation:**
-- Uses `google-genai` SDK with model from `$VISUAL_EXPLAINER_GEMINI_MODEL` env var, falling back to `gemini-3-pro-image-preview` (default as of 2026-03-31 — verify with provider if errors occur)
+- Uses `google-genai` SDK with model from `$VISUAL_EXPLAINER_GEMINI_MODEL` env var, falling back to `gemini-3-pro-image-preview` (verify with provider if errors occur)
 - Configuration: `response_modalities=["IMAGE"]` with `ImageConfig` for aspect ratio/size
 - 4K images are approximately 6-7.5MB each (JPEG format)
 
@@ -113,7 +113,7 @@ API keys must be loaded into the environment before use. The primary method is t
 - `ANTHROPIC_API_KEY` - For Claude concept analysis and image evaluation
 
 **Optional Model Configuration (non-sensitive, safe for .env):**
-- `VISUAL_EXPLAINER_GEMINI_MODEL` - Override Gemini image model (default: `gemini-3-pro-image-preview`, as of 2026-03-31 — verify with provider if errors occur)
+- `VISUAL_EXPLAINER_GEMINI_MODEL` - Override Gemini image model (default: `gemini-3-pro-image-preview` — verify with provider if errors occur)
 - `VISUAL_EXPLAINER_CLAUDE_MODEL` - Override Claude model for concept analysis and image evaluation (default: `claude-sonnet-5`)
 
 If keys are not in the environment, suggest running `/unlock` before proceeding. **Secrets policy compliance:**

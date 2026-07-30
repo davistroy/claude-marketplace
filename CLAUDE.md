@@ -26,6 +26,8 @@ After any non-trivial finding (plugin discovery failure, frontmatter requirement
 - **A `: ` inside an unquoted YAML `description:` silently drops the ENTIRE frontmatter** — colon-space is a mapping indicator in a plain scalar, so the skill loads with empty metadata: `name`, `allowed-tools`, and `disable-model-invocation` all gone, with no crash and no visible symptom. On a D40-protected skill that means it quietly loads **unprotected**. Only `claude plugin validate --strict` catches it ("At runtime this skill loads with empty metadata"); markdownlint, the injection linter, and human reading all pass. Use an em dash, never a colon, in descriptions — the house style already did, which is why the corpus was clean when swept (E061).
 - **Documentation of a dynamic injection must NAME the form, never RENDER it.** Writing out the *tidy* double-backtick form in prose to explain it **is** writing a live injection — inside a skill body, aborting skill load on non-zero exit. This is not a novice error: it caught the author of ADR-0011 editing the file ADR-0011 is about, because prose explaining syntax naturally wants to display that syntax. `scripts/check_injections.py` caught it (E061, item 7.3) — the gate's first catch on real unplanted work.
 - **Bump the plugin version in the same PR that changes anything under `plugins/<name>/` — otherwise nobody ever gets the change.** `claude plugin update` compares version strings, so an unbumped change leaves two materially different trees under one version and the installed cache reports "already up to date" forever. PR #222 shipped 42 items of behavior change at an unchanged 11.5.1 and every gate was green: version bumping is a `/bump-version` step, not a check; `claude plugin validate --strict` checks manifest *shape*, not *currency*; `update-readme.py --check` is version-blind. The second-order damage is worse than the first — it silently invalidated the next task's eval run, which would have tested pre-change skills against a post-change spec and read as a real finding (#226/E061). Update with `claude plugin update <name>@<marketplace>` (the bare name fails), and before any behavior test verify the installed cache *content*, not its version string.
+- **An artifact identified by a LABEL rather than its CONTENT will eventually disagree with itself, silently.** Three instances in two sessions: #226 (two trees under one version string — `claude plugin update` compares strings, so it says "already up to date" forever), #232 (the skill loader served personal-plugin **11.3.0** while `installed_plugins.json` named 11.6.0 as its only entry, so a skill body three versions stale defined the contract a *current* tool's output was parsed against), and #235 (`/implement-plan`'s state file names its plan by **path**, so a completed run's state was inherited by a different plan at the same path — resume would have skipped all 19 PENDING items and reported success). Each is individually silent and produces no error. **Before trusting any cached, installed, or resumed artifact, compare content, not the identifier**: diff the installed cache copy against the repo copy before a behavior test; print the keys a tool actually emits before parsing against a documented contract; fingerprint the plan in any state file.
+- **A Definition-of-Done row is a GATE, not documentation — derive it from what CI actually runs, and negative-test it.** Four DoD rows authored in the E063 plan were wrong the same way: written from what the author expected the command to match. One filtered on `grep -v 'TOKEN'` and only worked because the target line incidentally carried that token — it broke the moment the item legitimately restructured that line. Two used `markdownlint-cli2 "**/*.md"` while **CI runs a different tool** (`markdownlint` from `markdownlint-cli`) with four `--ignore` globs, so they swept gitignored `.venv` files and deliberately-invalid fixtures. One flagged a historical audit report that *quotes* the banned phrase as its own finding. Express the **property** (a leak is output reaching stdout uncaptured and unredirected), never a proxy that correlates today, and run it against a deliberately-bad input before the plan ships.
 - **Keep descriptions and skill bodies compact** — `description` ≤1024 chars (1536 combined with `when_to_use`), with all trigger/proactive-use info there, never a body "Proactive Triggers" section; SKILL.md body <500 lines, bulk moved to `references/`.
 - **Always `git fetch` + check `origin/main` divergence before trusting any version state** — the local working tree can silently lag origin even when `git status` shows clean. Happened twice (LAB_NOTEBOOK.md Entry 006/D17, Entry 007/D19 -- archived, see `docs/archive/LAB_NOTEBOOK-E001-E016.md`; D17/D19 remain in the live Decision Log), both times causing wrong version-bump math or a stale baseline. Version source of truth is always `origin/main`, never local HEAD.
 - **A verification guard that can't fail is worse than none — negative-test every new gate before wiring it in.** It converts "unchecked" into a false "checked". Three 2026-07-17 issues were exactly this: `update-readme.py --check` exited 0 for ANY drift (dead glob + stale anchor), the eval check validated mapping only (not structure), the pre-commit hook was uninstalled with a dead `help.md` check inside. Before trusting/wiring any guard: run it against deliberately-bad input and confirm it exits non-zero (E043 -- archived along with E040/E042, see `docs/archive/LAB_NOTEBOOK-E017-E050.md`).
@@ -134,6 +136,9 @@ allowed-tools: Bash(git:*)
 
 ## Repository Structure
 
+The `commands/`, `skills/` and `agents/` name lists below are generated — run `python3 scripts/update-readme.py` after adding or removing one; CI fails the build if they drift. Every other line in the tree is hand-written and is left alone by the generator.
+
+<!-- BEGIN:inventory -->
 ```
 plugins/
   personal-plugin/
@@ -141,16 +146,19 @@ plugins/
     commands/ (23)     # analyze-transcript, arch-review-single, arch-synthesize, ask-questions,
                        # assess-document, bump-version, clean-repo, consolidate-documents,
                        # convert-markdown, create-plan, define-questions, develop-image-prompt,
-                       # finish-document, implement-plan, new-skill, plan-improvements,
-                       # plan-next, remove-ip, review-arch, review-intent, scaffold-plugin,
-                       # test-project, validate-plugin
+                       # finish-document, implement-plan, new-skill, plan-improvements, plan-next,
+                       # remove-ip, review-arch, review-intent, scaffold-plugin, test-project,
+                       # validate-plugin
     deprecated/        # Archived commands
-    skills/            # accessibility-annotator, arch-review, brain-entry, create-wiki,
-                       # evaluate-pipeline-output, explain-project, jetson-audit, jetson-recon,
-                       # lab-notebook, leak-risk-audit, plan-gate, prime, release-plugin,
-                       # research-topic, security-analysis, ship, spark-audit, spark-recon,
-                       # spec-to-prototype, summarize-feedback, ultra-plan, unlock,
-                       # visual-explainer, wiki
+    skills/ (29)       # accessibility-annotator, arch-review, archive-project, brain-entry,
+                       # clear-prep, create-wiki, evaluate-pipeline-output, explain-project,
+                       # fleet-health, jetson-audit, jetson-recon, lab-notebook, leak-risk-audit,
+                       # new-project, plan-gate, prime, release-plugin, research-topic,
+                       # security-analysis, ship, spark-audit, spark-recon, spec-to-prototype,
+                       # summarize-feedback, task-sync, ultra-plan, unlock, visual-explainer, wiki
+    agents/ (10)       # data-architect, integration-architect, performance-engineer,
+                       # platform-engineer, qa-architect, risk-compliance, security-architect,
+                       # software-engineer, solutions-architect, sre-operator
     references/        # common-patterns.md, api-key-setup.md, flag-consistency.md,
                        # plan-template.md, research-models.md, validation-maturity-scorecard.md,
                        # adr-template.md, agents-md-template.md, anti-patterns.md,
@@ -160,7 +168,7 @@ plugins/
 
   bpmn-plugin/
     .claude-plugin/plugin.json
-    skills/            # bpmn-generator, bpmn-to-drawio
+    skills/ (2)        # bpmn-generator, bpmn-to-drawio
     references/        # BPMN element docs and guides
     templates/         # XML/Draw.io skeletons
     examples/
@@ -168,14 +176,18 @@ plugins/
 
   slide-gen/
     .claude-plugin/plugin.json
-    skills/            # sg-research, sg-outline, sg-draft, sg-optimize,
-                       # sg-validate-graphics, sg-generate-images, sg-build, sg-full-workflow
+    skills/ (9)        # build-cfa-deck, sg-build, sg-draft, sg-full-workflow, sg-generate-images,
+                       # sg-optimize, sg-outline, sg-research, sg-validate-graphics
+    references/        # CFA deck helper reference
 
 .claude/
   agents/              # Named implementer agents for implement-plan model routing
                        # haiku-implementer, sonnet-implementer, opus-implementer —
                        # model: tier alias in frontmatter, never pinned IDs (ADR-0005)
 ```
+<!-- END:inventory -->
+
+Two distinct agent surfaces, do not conflate: `plugins/personal-plugin/agents/` ships 9 arch-review domain agents plus `sre-operator` (fleet ops, not part of the arch-review team), while `.claude/agents/` holds only the three `implement-plan` model-routing tiers.
 
 ## Command Patterns
 
@@ -259,13 +271,24 @@ python -c "import package_name" 2>/dev/null || echo "package_name: MISSING"
 
 ## Key References
 
-- `LAB_NOTEBOOK.md` — Experiment log with decision tracking and action items
-- `IMPLEMENTATION_PLAN.md` — Current/completed implementation plan (planning-pipeline gap-analysis upgrade, completed 2026-04-30)
+- `LAB_NOTEBOOK.md` — Experiment log with decision tracking and action items. Older entries archived to `docs/archive/LAB_NOTEBOOK-E001-E016.md` and `-E017-E050.md`
+- `IMPLEMENTATION_PLAN.md` — The **one active** plan; superseded plans are archived to `docs/archive/IMPLEMENTATION_PLAN-v<N>.md` (v4–v12), never deleted. The plan is rewritten in place each cycle, so treat any date or scope in it as current, not historical
 - `CHANGELOG.md` — Version history across all plugins
+- `docs/adr/` — Accepted architecture decisions; `LAB_NOTEBOOK.md`'s Decision Log is the index
 
 ## Deprecated
 
-- `review-pr` (deprecated 2026-04-21) — use native `/review` for standard PR review or `/code-review ultra` for multi-agent deep review
+Retired commands live in `plugins/personal-plugin/deprecated/` with per-command rationale in that directory's `README.md`. None are discoverable by Claude Code — the directory is outside `commands/`.
+
+| Retired | Date | Use instead |
+|---------|------|-------------|
+| `review-pr` | 2026-04-21 | native `/review`, or `/code-review ultra` for multi-agent deep review |
+| `new-command` | 2026-07-08 | `/new-skill --pattern <name>` — skills-first authoring (ADR-0006) |
+| `convert-hooks` | 2026-03-04 | Claude Code's native cross-platform hook support |
+| `check-updates` | pending | `/validate-plugin --check-updates` |
+| `setup-statusline` | pending | Claude Code's built-in status line configuration |
+
+Also retired, though never a command: the **per-plugin `skills/help/` requirement** of ADR-0004, dropped by D42 (2026-07-16) in favor of native `/help`. No plugin ever implemented it; `scripts/generate-help.py` and its pre-commit check are gone. Any doc or test still asserting a plugin ships `skills/help/SKILL.md` is stale.
 
 ---
 

@@ -13,7 +13,11 @@
 #   4. Injection linter (ADR-0011) -- replays the harness pre-pass to find
 #      unguarded or ungranted live dynamic injections in staged skill/command
 #      bodies (scripts/check_injections.py)
-#   5. Python lint/format check with ruff
+#   5. Agent model-alias enforcement (ADR-0005, scripts/check_agent_models.py)
+#   6. Python lint/format check with ruff
+#   7. Release integrity -- a bump-worthy change under plugins/<name>/ requires
+#      a version bump, and a version bump requires a CHANGELOG.md entry
+#      (scripts/check_version_bump.py, #226/#210)
 #
 # Target: < 5 seconds execution time
 #
@@ -245,6 +249,76 @@ if [ -n "$PYTHON_FILES" ]; then
 fi
 
 # ============================================
+# Check 7: Release Integrity -- version bump + CHANGELOG (#226 / #210)
+# ============================================
+echo "Checking release integrity (version bump + CHANGELOG)..."
+
+# NOTE: this deliberately does NOT reuse $STAGED_FILES. That filter (line ~36)
+# matches only `commands/*.md` and `skills/*/SKILL.md`, so it is blind to
+# tools/, references/, agents/, and hooks/ -- all of which are bump-worthy.
+# This filter is the whole `plugins/<name>/` subtree and applies NO exemption
+# logic of its own: deciding whether a path is bump-worthy or exempt belongs to
+# check_version_bump.py's EXEMPT_EXACT / EXEMPT_GLOBS, its single source of
+# truth. Restating that set here would let the copy drift into agreeing with a
+# bug (CLAUDE.md: "derive it, don't copy it"). A CHANGELOG-only stage therefore
+# still runs the script -- and the script correctly exits 0.
+PLUGIN_STAGED=$(git diff --cached --name-only | grep -E '^plugins/[^/]+/' || true)
+
+if [ -z "$PLUGIN_STAGED" ]; then
+    echo -e "  ${GREEN}[SKIP]${NC} No files staged under plugins/"
+else
+    # The pre-commit leg has no PR base ref, so resolve one the way CI would:
+    # origin/main first (CLAUDE.md -- the local branch can silently lag origin),
+    # then a local main. The script diffs merge-base(base, head)...head, so this
+    # sees exactly what the PR gate will see, plus the staged changes.
+    BUMP_BASE=""
+    for CAND in origin/main main; do
+        if git rev-parse --verify --quiet "${CAND}^{commit}" >/dev/null 2>&1; then
+            BUMP_BASE="$CAND"
+            break
+        fi
+    done
+
+    # The staged content is not yet any commit, so materialize it as a dangling
+    # commit object: `write-tree` snapshots the index, `commit-tree` parents it
+    # on HEAD. Nothing is committed and no ref moves -- the object is unreachable
+    # and gets garbage-collected. This is what lets the check see the change
+    # about to be committed rather than the last one that already was.
+    PENDING=""
+    HEAD_SHA=$(git rev-parse --verify --quiet HEAD 2>/dev/null || true)
+    if [ -n "$HEAD_SHA" ]; then
+        STAGED_TREE=$(git write-tree 2>/dev/null || true)
+        if [ -n "$STAGED_TREE" ]; then
+            PENDING=$(git commit-tree "$STAGED_TREE" -p "$HEAD_SHA" \
+                          -m "pre-commit: staged tree (not a real commit)" 2>/dev/null || true)
+        fi
+    fi
+
+    # Every skip below is announced with its reason. This check must never block
+    # a commit just because a base could not be determined -- an unresolvable
+    # base is a local-environment fact, not a release-integrity violation, and
+    # the PR leg in CI gates the same content authoritatively.
+    if [ -z "$BUMP_BASE" ]; then
+        echo -e "  ${YELLOW}[SKIP]${NC} No origin/main or main to diff against -- cannot"
+        echo -e "         determine a base locally. CI's pull_request leg still enforces this."
+    elif [ -z "$HEAD_SHA" ]; then
+        echo -e "  ${YELLOW}[SKIP]${NC} No HEAD commit yet (initial commit) -- no base to diff."
+    elif [ -z "$PENDING" ]; then
+        echo -e "  ${YELLOW}[SKIP]${NC} Could not snapshot the staged tree (git write-tree /"
+        echo -e "         commit-tree failed -- committer identity unset?). Not blocking."
+    elif ! git merge-base "$BUMP_BASE" "$PENDING" >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}[SKIP]${NC} No merge-base between $BUMP_BASE and the staged tree"
+        echo -e "         (unrelated histories or a shallow clone). Not blocking."
+    elif python3 scripts/check_version_bump.py --base "$BUMP_BASE" --head "$PENDING"; then
+        echo -e "  ${GREEN}[PASS]${NC} Release integrity OK (bump-required + changelog-required)"
+    else
+        echo -e "  ${RED}[FAIL]${NC} Release-integrity check failed (see above)"
+        ERRORS=$((ERRORS + 1))
+    fi
+fi
+echo ""
+
+# ============================================
 # Summary
 # ============================================
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -271,6 +345,9 @@ if [ $ERRORS -gt 0 ]; then
     echo "    pinned model IDs (ADR-0005) -- see docs/adr/0005-model-aliases-in-agent-definitions.md"
     echo "  - Python files must pass ruff check and ruff format"
     echo "    Fix with: ruff check --fix . && ruff format ."
+    echo "  - A bump-worthy change under plugins/<name>/ requires a version bump in that"
+    echo "    plugin's plugin.json, and a bump requires a CHANGELOG.md entry for the new"
+    echo "    version (#226/#210) -- fix with: /bump-version <plugin> <major|minor|patch>"
     echo ""
     echo "To bypass this check (not recommended):"
     echo "  git commit --no-verify"

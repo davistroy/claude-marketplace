@@ -399,26 +399,37 @@ Question 3 of 32 | Topic: LLM Integration
 **Additional Detail:** Your PRD emphasizes privacy and data security (Section 7.1), mentions the need for consistent personality in AI board members (Section 3.1), and targets a $9.99/month price point. The transcription service needs to handle voice memos up to 5 minutes.
 
 **What You're Solving:** You need to select infrastructure that balances cost, capability, and privacy while ensuring the AI board members can maintain consistent, high-quality personas across sessions.
-
----
-
-**[A] Recommended:** Use Claude (Anthropic) for AI board members + Deepgram for transcription
-    Why this is best: Claude excels at maintaining consistent personas and nuanced conversation. Deepgram offers accurate, cost-effective transcription with good privacy practices. Combined cost fits your margin at scale.
-
-**[B] Alternative:** Use GPT-4 (OpenAI) for both AI and transcription (Whisper)
-    Trade-off: Single vendor simplifies integration but higher cost per request. Whisper is excellent but OpenAI's data practices may conflict with privacy emphasis.
-
-**[C] Alternative:** Use Claude for AI + AssemblyAI for transcription
-    Trade-off: AssemblyAI has strong accuracy and real-time features, but adds another vendor relationship. Good middle-ground on privacy.
-
-**[D] Custom:** Provide your own answer
-
-**[S] Skip:** Skip this question for now
-
-Your choice (A/B/C/D/S):
 ```
 
-User types: `A`
+Then ask with `AskUserQuestion`:
+
+```json
+{
+  "questions": [
+    {
+      "question": "Which LLM provider(s) should be used for the AI board members and transcription services?",
+      "header": "LLM Provider",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Claude + Deepgram (Recommended)",
+          "description": "Claude excels at maintaining consistent personas and nuanced conversation. Deepgram offers accurate, cost-effective transcription with good privacy practices. Combined cost fits your margin at scale."
+        },
+        {
+          "label": "GPT-4 + Whisper",
+          "description": "Single vendor simplifies integration but higher cost per request. Whisper is excellent but OpenAI's data practices may conflict with privacy emphasis."
+        },
+        {
+          "label": "Claude + AssemblyAI",
+          "description": "AssemblyAI has strong accuracy and real-time features, but adds another vendor relationship. Good middle-ground on privacy."
+        }
+      ]
+    }
+  ]
+}
+```
+
+User selects: `Claude + Deepgram (Recommended)`
 
 ```text
 Recorded: Claude (Anthropic) for AI board members + Deepgram for transcription

@@ -2,7 +2,7 @@
 name: security-analysis
 description: Comprehensive security analysis with tech stack detection, vulnerability scanning, and remediation planning. Suggest when — security/vulnerabilities/CVEs/audit mentioned, new projects scaffolded, before releases/deployments/production, auth/input-handling code review, dependency updates, or new repos cloned.
 effort: high
-allowed-tools: Read, Write, Glob, Grep, Bash, WebSearch  # Bash unscoped: runs varied native dependency-audit tools (npm/pip-audit/cargo/govulncheck/mvn/composer/bundle/dotnet/etc.) selected dynamically per detected stack; injection mitigated by read-only fetch separation (3.2)
+allowed-tools: Read, Write, Glob, Grep, Bash, WebSearch, AskUserQuestion  # Bash unscoped: runs varied native dependency-audit tools (npm/pip-audit/cargo/govulncheck/mvn/composer/bundle/dotnet/etc.) selected dynamically per detected stack; injection mitigated by read-only fetch separation (3.2)
 paths:
   - package.json
   - pyproject.toml
@@ -18,12 +18,39 @@ Perform a comprehensive security vulnerability scan and analysis of the current 
 
 ## Conditional-Load Confirmation
 
-`paths:` does not auto-run this skill — it only makes the skill loadable once you (Claude) have touched one of the listed manifest files with a Read, Edit, or Write tool call this session (see [ADR-0012](../../../../docs/adr/0012-artifact-derived-documentation.md)). If you then choose to invoke this skill on your own initiative because you noticed such a manifest was touched — rather than the user directly asking for `/security-analysis` — ask the user before proceeding:
+`paths:` does not auto-run this skill — it only makes the skill loadable once you (Claude) have touched one of the listed manifest files with a Read, Edit, or Write tool call this session (see [ADR-0012](../../../../docs/adr/0012-artifact-derived-documentation.md)). If you then choose to invoke this skill on your own initiative because you noticed such a manifest was touched — rather than the user directly asking for `/security-analysis` — confirm first with `AskUserQuestion`:
 
-> A dependency manifest file was changed (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `requirements.txt`, or `Gemfile`). Would you like to run a full security scan now? This will audit your dependencies for known CVEs and may take 1–15 minutes depending on project size. (y/n)
+```json
+{
+  "questions": [
+    {
+      "question": "A dependency manifest file was changed (package.json, pyproject.toml, Cargo.toml, go.mod, requirements.txt, or Gemfile). Run a security scan now? This audits dependencies for known CVEs and may take 1-15 minutes depending on project size.",
+      "header": "Security",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Yes - dependencies only",
+          "description": "Faster scan targeting the changed manifests only (--dependencies-only). Skips deep taint analysis and fuzzing methodology review."
+        },
+        {
+          "label": "Yes - full scan",
+          "description": "Complete scan: tech-stack detection, dependency audit, source-code patterns, taint analysis, and fuzzing methodology review."
+        },
+        {
+          "label": "No",
+          "description": "Nothing is scanned; you can run /security-analysis manually at any time."
+        }
+      ]
+    }
+  ]
+}
+```
 
-- **If the user confirms (y / yes):** proceed with the full scan using the instructions below. Default scan mode is `--dependencies-only` in this case (faster; targets the changed manifests). User may override with `--quick` or no flag for full scan.
-- **If the user declines (n / no / anything other than y/yes):** respond with "Security scan skipped. You can run `/security-analysis` manually at any time." and exit immediately — do not perform any scanning.
+- **"Yes - dependencies only":** proceed with the full scan using the instructions below, passing `--dependencies-only` (the default for this path — faster; targets the changed manifests).
+- **"Yes - full scan":** proceed with the full scan using the instructions below with no `--dependencies-only` flag (complete scan).
+- **"No":** respond with "Security scan skipped. You can run `/security-analysis` manually at any time." and exit immediately — do not perform any scanning.
+
+A separate `--quick` surface-only mode (tech detection, dependency audit, top-level patterns only — see Input Validation below) remains available as a manual override on direct invocation; it is not one of the confirmation options above.
 
 When invoked directly by the user, skip this prompt and proceed immediately.
 

@@ -14,7 +14,7 @@
       "name": "personal-plugin",
       "source": "./plugins/personal-plugin",
       "description": "Personal Claude Code commands and skills for documentation review, architecture analysis, git workflows, document processing, and multi-source research",
-      "version": "11.6.0",
+      "version": "11.7.0",
       "category": "productivity",
       "tags": [
         "personal",
@@ -42,7 +42,7 @@
       "name": "slide-gen",
       "source": "./plugins/slide-gen",
       "description": "AI-assisted presentation generation pipeline: 7-step workflow from topic research to finished PowerPoint using Claude and Gemini",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "category": "productivity",
       "tags": [
         "presentation",

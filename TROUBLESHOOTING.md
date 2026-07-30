@@ -374,7 +374,7 @@ Example:
 
 ### 3.4 GitHub CLI Authentication Error
 
-**Symptom:** `/ship` or `/review-pr` fails with "authentication required" or "gh: not logged in".
+**Symptom:** `/ship` fails with "authentication required" or "gh: not logged in".
 
 **Cause:** GitHub CLI is not installed or not authenticated.
 
@@ -897,7 +897,7 @@ Look for: `[WARN] Non-standard flag '--skipValidation' - Consider using '--force
 **Fix:**
 1. Add all required sections for your command's pattern type
 2. Reference the template in `plugins/personal-plugin/references/templates/`
-3. Use `/new-command` to generate properly structured commands
+3. `commands/` is frozen legacy (ADR-0006) — for new functionality use `/new-skill` instead of adding a command; for an existing command, copy the section structure from a compliant example such as `review-arch`
 
 **Validation that catches this:**
 ```

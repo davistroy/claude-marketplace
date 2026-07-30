@@ -106,8 +106,8 @@ See `references/patterns/validation.md` for error message format.
 8. **Handle preview mode** - If `--preview` specified:
    - Generate output in memory
    - Validate against schema
-   - Display summary with confirmation prompt
-   - Only save on explicit 'y' or 'yes'
+   - Display summary, then ask for confirmation with `AskUserQuestion`
+   - Only save when "Save" is selected
 
    See `references/patterns/output.md` for preview pattern.
 
@@ -195,8 +195,29 @@ By category:
 Schema validation: PASSED
 Output file: {{OUTPUT_PREFIX}}-document-20260114-143052.{{OUTPUT_EXT}}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 
-Save this file? (y/n):
+Then ask for confirmation with `AskUserQuestion`:
+```json
+{
+  "questions": [
+    {
+      "question": "Save this file?",
+      "header": "Save",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Save (Recommended)",
+          "description": "Write the file to {{OUTPUT_LOCATION}}/{{OUTPUT_PREFIX}}-document-20260114-143052.{{OUTPUT_EXT}}"
+        },
+        {
+          "label": "Discard",
+          "description": "Exit without saving; nothing is written"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ## Important Notes

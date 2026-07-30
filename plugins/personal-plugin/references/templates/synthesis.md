@@ -277,8 +277,29 @@ Conflicts Detected: 4
   - Section 5: Contradictory requirements
   - Section 7: Terminology inconsistency
   - Section 9: Missing in doc2.md
+```
 
-Proceed with synthesis? (y/n):
+Then ask for confirmation with `AskUserQuestion`:
+```json
+{
+  "questions": [
+    {
+      "question": "Proceed with synthesis?",
+      "header": "Synthesis",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Proceed (Recommended)",
+          "description": "Generate the consolidated output using the structure and conflict resolutions shown above"
+        },
+        {
+          "label": "Cancel",
+          "description": "Exit without generating output; nothing is written"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 <!-- SECTION 8: PERFORMANCE -->

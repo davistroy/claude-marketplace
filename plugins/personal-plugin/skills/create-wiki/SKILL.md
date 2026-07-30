@@ -268,7 +268,7 @@ Create `wiki/index.md` populated with the seeded pages:
 # Wiki Index
 
 > Auto-maintained by Claude. Updated on every page create/update/delete.
-> Last updated: YYYY-MM-DD | Last lint: never
+> Last lint: never
 
 ## Architecture
 - [Project Architecture](pages/project-architecture.md) — High-level system design and component relationships

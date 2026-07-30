@@ -13,7 +13,7 @@ description: >
   task list, backlog, sync issues, task-sync, todo list, reconcile issues.
 argument-hint: "[sync|list|add|edit|done|remove|status|init|scan-apply] [args...] [--dry-run]"
 effort: medium
-allowed-tools: Read, Write, Edit, Glob, Bash
+allowed-tools: Read, Write, Edit, Glob, Bash, AskUserQuestion
 ---
 
 # Task Sync
@@ -239,15 +239,41 @@ gh repo view --json visibility --jq .visibility 2>/dev/null
 `$GITEA_TOKEN` if set, else the token from `~/.config/tea/config.yml` — the
 same order the tool's own Gitea adapter uses.)
 
-If the result is `PUBLIC` (GitHub) or `private: false` (Gitea), show:
+If the result is `PUBLIC` (GitHub) or `private: false` (Gitea), show the
+warning text below, then confirm with `AskUserQuestion`:
 
 ```text
 Warning: <owner>/<repo> is a PUBLIC repository.
 Creating/updating N issue(s) will publish this content publicly.
-Continue? (yes / no / show plan again)
 ```
 
-Do not proceed to apply without an explicit "yes". A private repo needs no
+```json
+{
+  "questions": [
+    {
+      "question": "<owner>/<repo> is a PUBLIC repository. Creating/updating N issue(s) will publish this content publicly. Continue?",
+      "header": "Public Repo",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Yes",
+          "description": "Proceed with applying the planned creates/pushes/pulls to the public repo"
+        },
+        {
+          "label": "No",
+          "description": "Abort — nothing is applied"
+        },
+        {
+          "label": "Show plan again",
+          "description": "Re-print the full sync plan (creates/pushes/pulls/conflicts) before deciding"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Do not proceed to apply without an explicit "Yes". A private repo needs no
 extra confirmation beyond the normal plan review.
 
 ### 6. Apply
@@ -299,6 +325,23 @@ Header fields (`provider`, `repo`, `last_sync_at`, `config`) and the
 `config` block (`prune_closed_after_days`, `adopt_closed_within_days`,
 `sensitive_terms`, optional `gitea_url`), plus the full Gitea base-URL/token
 resolution order: `references/config-reference.md`.
+
+### `tasks.json` is machine-local, and not git-recoverable
+
+Whether `tasks.json` is committed is a per-repo choice. **In this repo it is
+gitignored** (D65), which has two consequences worth stating plainly rather
+than discovering:
+
+- **Cross-machine sync of local state is out of scope.** The `last_synced`
+  merge base lives inside `tasks.json`, so each machine keeps its own. On a
+  second machine `sync` exits until `init` runs there, after which every open
+  issue is adopted fresh. Conflict detection works normally *within* a
+  machine; what does not travel is state that has never been pushed —
+  unpushed tasks, unpushed edits, and confidentiality dispositions. The
+  tracker remains the archive of record (D34), so nothing pushed is at risk.
+- **There is no `git checkout` undo.** A gitignored file has no version
+  history, so any destructive command against `tasks.json` is final. Before a
+  bulk `remove`, or any hand-edit, copy the file first.
 
 ## Error Handling
 

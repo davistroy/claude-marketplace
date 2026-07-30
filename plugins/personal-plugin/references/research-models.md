@@ -7,7 +7,6 @@ Reference tables for the `/research-topic` skill. Loaded on demand to keep the m
 - [Provider Configurations](#provider-configurations)
 - [Default Model Names](#default-model-names)
 - [Depth Parameter Mapping](#depth-parameter-mapping)
-- [Model Check Output Examples](#model-check-output-examples)
 - [Cost Estimates by Depth](#cost-estimates-by-depth)
 
 ---
@@ -26,20 +25,19 @@ Reference tables for the `/research-topic` skill. Loaded on demand to keep the m
 
 ## Default Model Names
 
-These are the default model identifiers used when environment variable overrides are not set. All defaults are annotated with their last-verified date.
+These are the default model identifiers used when environment variable overrides are not set.
 
-| Provider | Env Var Override | Default Value | Last Verified |
-|----------|-----------------|---------------|---------------|
-| Anthropic | `ANTHROPIC_MODEL` | `claude-opus-5` | 2026-07-29 |
-| OpenAI | `OPENAI_MODEL` | `o3-deep-research-2025-06-26` | 2026-03-31 |
-| Google | `GEMINI_AGENT` | `deep-research-pro-preview-12-2025` | 2026-03-31 |
+| Provider | Env Var Override | Default Value |
+|----------|-----------------|---------------|
+| Anthropic | `ANTHROPIC_MODEL` | `claude-opus-5` |
+| OpenAI | `OPENAI_MODEL` | `o3-deep-research-2025-06-26` |
+| Google | `GEMINI_AGENT` | `deep-research-pro-preview-12-2025` |
 
-**Note:** OpenAI and Google model IDs cannot be verified offline; the skill's runtime model-check step is authoritative for those providers.
+**Note:** Provider model IDs shift over time and there is no automated check against any provider. If a call fails with a model-not-found error, verify the current ID directly with the provider and set the corresponding environment variable override.
 
 **Resolution Order:**
 1. Check environment variable (e.g., `ANTHROPIC_MODEL`)
-2. Use the skill's model check feature (`check-models` command)
-3. Fall back to hardcoded defaults listed above
+2. Fall back to hardcoded defaults listed above
 
 ---
 
@@ -64,31 +62,6 @@ output truncates mid-thought, and 64,000 output tokens at roughly 60 tokens/sec 
 connections drop. Unlocking `xhigh`/`max` requires converting the leg to streaming.
 `max_tokens` is a ceiling on thinking **plus** response text, which is why it scales with
 effort rather than staying fixed.
-
----
-
-## Model Check Output Examples
-
-**If newer models are found:**
-```yaml
-Model Version Check
-===================
-Current models:
-  Anthropic: claude-opus-5
-  OpenAI:    o3-deep-research-2025-06-26
-  Gemini:    deep-research-pro-preview-12-2025
-
-Would you like to:
-1. Continue with current models
-2. Update .env to use newer models (recommended)
-```
-
-**If AUTO_UPGRADE_MODELS=true:** Skip prompt and automatically use the newest available models for this session (does not modify .env).
-
-**If no upgrades available:**
-```text
-All models are up to date.
-```
 
 ---
 

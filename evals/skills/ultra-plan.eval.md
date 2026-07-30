@@ -40,7 +40,7 @@ None — operates on a user-supplied bug/feature list or an existing `IMPLEMENTA
 
 **Must:**
 - [ ] Groups related items into clusters of 2-3 and dispatches `Explore` sub-agents in parallel (`run_in_background: true`) for Phase 1 investigation
-- [ ] Merges all sub-agent findings into a single Phase 2 deliverable before proceeding
+- [ ] Merges all sub-agent findings into a single Phase 1 deliverable before proceeding
 - [ ] Falls back to inline investigation for all items (noting the fallback) if the Agent tool is unavailable or a sub-agent fails
 
 ---

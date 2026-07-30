@@ -38,11 +38,31 @@ When `--preview` is specified:
    Schema validation: PASSED
    Output file: questions-PRD-20260114-143052.json
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-   Save this file? (y/n):
    ```
-4. **Wait for confirmation** - Only save on explicit 'y' or 'yes'
-5. **On rejection** - Display message and exit without saving
+4. **Ask for confirmation** with `AskUserQuestion`:
+   ```json
+   {
+     "questions": [
+       {
+         "question": "Save this file?",
+         "header": "Save",
+         "multiSelect": false,
+         "options": [
+           {
+             "label": "Save (Recommended)",
+             "description": "Write the file to the output location shown above"
+           },
+           {
+             "label": "Discard",
+             "description": "Exit without saving; nothing is written"
+           }
+         ]
+       }
+     ]
+   }
+   ```
+5. **Wait for confirmation** - Only save when "Save" is selected
+6. **On discard** - Display message and exit without saving
 
 ### Preview vs Dry-Run
 
@@ -65,8 +85,8 @@ Commands implementing `--preview` MUST:
 1. Document the `--preview` flag in their Input Validation section
 2. Generate complete output before showing preview (not partial)
 3. Show validation status in the preview summary
-4. Require explicit user confirmation before saving
-5. Handle 'n' response gracefully (no error, just exit)
+4. Require explicit user confirmation via `AskUserQuestion` before saving
+5. Handle "Discard" gracefully (no error, just exit)
 
 ## Completion Summaries
 

@@ -2,7 +2,7 @@
 name: unlock
 description: Load secrets from Bitwarden Secrets Manager into the environment using the bws CLI. Fully stateless — no vault unlock or session tokens required. Invoke explicitly with /unlock; it never runs on its own.
 disable-model-invocation: true
-allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(powershell:*), Bash(python:*)
+allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(unset:*), Bash(powershell:*), Bash(python3:*), Bash(mktemp:*), Bash(chmod:*), Bash(rm:*), Bash(source:*), Bash(test:*)
 ---
 
 # Unlock Skill
@@ -13,8 +13,8 @@ Load project secrets from Bitwarden Secrets Manager into the current environment
 
 | Item | Value |
 |------|-------|
-| BWS project ID | `$BWS_PROJECT_ID` env var, or `5022ea9c-e711-4f4e-bf5f-b3df0181a41d` (default project ID for Troy's vault — override via `BWS_PROJECT_ID`. Default as of 2026-03-04 — verify if errors occur) |
-| Access token env var | `TROY` |
+| BWS project ID | `$BWS_PROJECT_ID` env var, or `5022ea9c-e711-4f4e-bf5f-b3df0181a41d` (default project ID for Troy's vault — override via `BWS_PROJECT_ID`) |
+| Access token env var | `BWS_ACCESS_TOKEN` (deprecated fallback — `TROY`, for older setups that still export it) |
 | bws install docs | https://bitwarden.com/help/secrets-manager-cli/ |
 
 ## Implementation
@@ -37,22 +37,24 @@ If not found, tell the user to install bws from https://bitwarden.com/help/secre
 
 ### Step 2: Get access token
 
-The access token is stored in the `TROY` environment variable.
+The access token is stored in the `BWS_ACCESS_TOKEN` environment variable. `TROY` is a deprecated fallback name, retained only so an existing setup that still exports `TROY` keeps working — new setups should use `BWS_ACCESS_TOKEN`.
 
-**Windows** — check process env first, then Windows user env:
+**Windows** — check process env first, then Windows user env, then fall back to the deprecated name:
 ```powershell
-$token = $env:TROY
-if (-not $token) { $token = [System.Environment]::GetEnvironmentVariable('TROY', 'User') }
+$token = $env:BWS_ACCESS_TOKEN
+if (-not $token) { $token = [System.Environment]::GetEnvironmentVariable('BWS_ACCESS_TOKEN', 'User') }
+if (-not $token) { $token = $env:TROY }  # deprecated fallback
+if (-not $token) { $token = [System.Environment]::GetEnvironmentVariable('TROY', 'User') }  # deprecated fallback
 ```
 
-**Linux/macOS** — check process env:
+**Linux/macOS** — check process env, then the deprecated fallback:
 ```bash
-TOKEN="$TROY"
+TOKEN="${BWS_ACCESS_TOKEN:-$TROY}"  # TROY: deprecated fallback name
 ```
 
 If empty, tell the user:
-- **Windows:** Set via `[System.Environment]::SetEnvironmentVariable('TROY', 'your-token', 'User')`
-- **Linux/macOS:** Add `export TROY="your-token"` to `~/.bashrc` or `~/.zshrc`
+- **Windows:** Set via `[System.Environment]::SetEnvironmentVariable('BWS_ACCESS_TOKEN', 'your-token', 'User')`
+- **Linux/macOS:** Add `export BWS_ACCESS_TOKEN="your-token"` to `~/.bashrc` or `~/.zshrc`
 
 Then stop.
 
@@ -64,7 +66,6 @@ Run bws with the access token set for that single command, then parse the JSON o
 ```powershell
 # Use BWS_PROJECT_ID env var if set, otherwise fall back to default
 # Default project ID for Troy's vault — override via BWS_PROJECT_ID
-# Default as of 2026-03-04 — verify if errors occur
 $projectId = if ($env:BWS_PROJECT_ID) { $env:BWS_PROJECT_ID } else { '5022ea9c-e711-4f4e-bf5f-b3df0181a41d' }
 $env:BWS_ACCESS_TOKEN = $token
 $json = bws secret list $projectId 2>&1
@@ -87,9 +88,10 @@ foreach ($s in $secrets) {
 ```bash
 # Use BWS_PROJECT_ID env var if set, otherwise fall back to default
 # Default project ID for Troy's vault — override via BWS_PROJECT_ID
-# Default as of 2026-03-04 — verify if errors occur
 PROJECT_ID="${BWS_PROJECT_ID:-5022ea9c-e711-4f4e-bf5f-b3df0181a41d}"
-JSON=$(BWS_ACCESS_TOKEN="$TOKEN" bws secret list "$PROJECT_ID" 2>&1)
+export BWS_ACCESS_TOKEN="$TOKEN"
+JSON=$(bws secret list "$PROJECT_ID" 2>&1)
+unset BWS_ACCESS_TOKEN
 
 # Generate safe export statements using shlex.quote() — never eval raw values
 EXPORT_FILE=$(mktemp /tmp/bws-exports.XXXXXX)
@@ -137,7 +139,7 @@ Loaded 8 secret(s) from Bitwarden Secrets Manager:
 | Error | Action |
 |-------|--------|
 | `bws` not found | Print install URL and stop |
-| `TROY` env var empty | Print platform-specific setup instructions and stop |
+| `BWS_ACCESS_TOKEN` (and deprecated `TROY`) env var empty | Print platform-specific setup instructions and stop |
 | `bws secret list` fails | Print the error output from bws and stop |
 | JSON parse fails | Print raw output for debugging and stop |
 | Invalid key name in secrets | Log warning, skip that secret, continue with remaining secrets |
@@ -196,9 +198,9 @@ bws CLI not found. Install it from:
 ```
 Output:
 ```text
-TROY environment variable is not set.
-Windows: [System.Environment]::SetEnvironmentVariable('TROY', 'your-token', 'User')
-Linux/macOS: Add export TROY="your-token" to ~/.bashrc or ~/.zshrc
+BWS_ACCESS_TOKEN environment variable is not set.
+Windows: [System.Environment]::SetEnvironmentVariable('BWS_ACCESS_TOKEN', 'your-token', 'User')
+Linux/macOS: Add export BWS_ACCESS_TOKEN="your-token" to ~/.bashrc or ~/.zshrc
 ```
 
 ## Security Considerations
@@ -210,3 +212,14 @@ Linux/macOS: Add export TROY="your-token" to ~/.bashrc or ~/.zshrc
 - Secret **values** are never printed — only key names.
 - No persistent files are written — secrets exist only in process environment.
 - The project ID is not sensitive — it is useless without the access token.
+
+## Verification Before Trusting a Manual Run
+
+Before treating any manual `/unlock` invocation as evidence that this skill's logic works, confirm the plugin loader is actually serving this file. Per #232 the loader has been observed running an older cached copy than `installed_plugins.json` claims, so a passing run can silently be testing stale, pre-fix behavior. Diff the installed cache copy against this repo copy and abort the verification if they differ — never trust the reported version string alone:
+
+```bash
+diff ~/.claude/plugins/cache/troys-plugins/personal-plugin/<version>/skills/unlock/SKILL.md \
+     plugins/personal-plugin/skills/unlock/SKILL.md
+```
+
+Only proceed with the manual `/unlock` test once this diff is empty.
