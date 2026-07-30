@@ -558,8 +558,10 @@ The one genuine probe leak is `references/api-key-setup.md:49` — a bare `bws s
 3. [ ] Widen `allowed-tools` to cover `python3`, `mktemp`, `chmod`, `rm`, `source`, `test`, and the `VAR=… bws` form
 4. [ ] Replace `api-key-setup.md:49`'s bare probe with `bws secret list >/dev/null; echo $?`
 5. [ ] Keep `disable-model-invocation: true` — do not relax it
+6. [ ] **Before the manual `/unlock` verification, diff the installed cache against the repo copy** — `diff ~/.claude/plugins/cache/troys-plugins/personal-plugin/<version>/skills/unlock/SKILL.md plugins/personal-plugin/skills/unlock/SKILL.md` — and abort the test if they differ. Per #232 the loader can serve an older cached version than `installed_plugins.json` names, so a green manual run could be testing the pre-fix body. Verify content, never the version string
 
 **Acceptance Criteria:**
+- [ ] WHEN the manual verification is run THEN the installed `unlock/SKILL.md` SHALL be byte-identical to the repo copy, confirmed by diff before the run (#232 mitigation)
 - [ ] WHEN `/unlock` runs in a tool shell with `BWS_ACCESS_TOKEN` set and `TROY` unset THEN it SHALL load secrets and report names only
 - [ ] WHEN any documented helper runs on its success path THEN no secret value SHALL be printed to stdout
 - [ ] WHEN Step 3 executes THEN every command it issues SHALL be covered by `allowed-tools`
@@ -1031,7 +1033,7 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 | U3 | Does `wiki/SKILL.md` already grant `AskUserQuestion`? | Low | Phase 7, 7.1 | Read the frontmatter at implementation time | Open |
 | U4 | Is the upstream destination for #227's report the `superpowers` plugin repo or its marketplace repo? | Low | Phase 3, 3.3 | Check the plugin manifest's `homepage`/`repository` before filing | Open |
 | U5 | Will `claude plugin eval` leave early access during this plan's life, changing #228's deferral calculus? | Low | Phase 3, 3.1 | Record the deferral with a dated pointer to ADR-0009; revisit only if the command becomes invocable | Accepted |
-| U6 | Does the stale-skill-loader behavior (#232) affect which version of an edited skill a verification run actually exercises? | **High** | All phases' manual verification | **Before trusting any manual acceptance test, verify the cache content, not its version string.** Tracked separately as #232; do not gate this plan on it | Open |
+| U6 | Does the stale-skill-loader behavior (#232) affect which version of an edited skill a verification run actually exercises? | Med | **Phase 5, item 5.1 only** — the sole acceptance criterion in this plan requiring a live skill invocation (`/unlock` in a tool shell). Every other criterion is a file grep, a `validate --strict` read, or a CI command, none of which route through the skill loader | Mitigated in-plan by 5.1 task 6: diff the installed cache's `unlock/SKILL.md` against the repo copy immediately before the manual run, and abort if they differ. Root cause is upstream; tracked as #232 and deliberately not gating this plan | Open |
 
 ---
 
