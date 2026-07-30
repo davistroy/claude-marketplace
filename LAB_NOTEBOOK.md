@@ -1226,3 +1226,30 @@ The resume logic reads `current_phase`/`current_item`/`completed` and skips the 
 **8.2 reconciled four sources that had disagreed for twelve days.** The design doc's six statements, D34's "committed" clause, `config-reference.md`, and `.gitignore` now all say the same thing. D34's original text is struck through rather than deleted (Rule 4), D60 moves OPEN → RESOLVED, and #169 is re-scoped: with `tasks.json` gitignored there is no cross-machine sync of the *public* list either, so that deferral is broader than filed. The skill now states plainly that `tasks.json` has **no `git checkout` undo** — a gitignored file has no history, which this session learned the hard way when a rollback plan asserted otherwise.
 
 **A fourth DoD of mine needed correcting, and the pattern is now unmistakable.** Phase 8's no-stamps check flagged `docs/model-optimization-audit-…md`, a historical audit report that *quotes* those phrases as its own findings; editing it would falsify the record. Across this plan I authored four DoD checks that were wrong — Phase 5's coupled to an incidental token on the line, Phases 6 and 8's lint rows not mirroring CI's actual invocation, and this one mis-scoped. **All four failed the same way: written from what I expected the command to match, rather than derived from what the gate actually asserts.** The plan's own standing rule — derive it, don't restate it — applies to Definition-of-Done rows exactly as it applies to production guards, and I did not apply it when writing them.
+
+--- New session: 2026-07-30 — land PR #236, verify the installed cache by CONTENT, then work the 9-issue remainder starting with #235. ---
+
+### Entry 064 — Land the E063 plan (PR #236) and verify the plugin cache by content [ci] [cleanup] [decision]
+
+**Date:** 2026-07-30
+**Environment:** Linux VM, branch `feature/close-the-loop-backlog`, 13 commits ahead of `origin/main` (`be21fd6`), 0 behind. PR #236 OPEN · MERGEABLE · `mergeStateStatus: CLEAN` · **22/22 checks SUCCESS**, including `Validate Plugins (official CLI)` carrying the release-integrity gate this plan introduced. Versions: personal-plugin 11.7.0 · bpmn-plugin 4.4.0 · slide-gen 1.4.0 · marketplace 3.3.0.
+**Status:** IN PROGRESS
+
+**Objective:** Squash-merge PR #236, confirm the 12 issues it closes actually close, and refresh the installed plugin cache — verifying the refresh by **content diff against the repo**, not by the reported version string.
+
+**Hypothesis:**
+
+1. Squash-merge succeeds with no re-run of checks (`CLEAN` already reflects the merge-base state), producing one commit on `main`.
+2. GitHub's `Closes #…` automation closes all 12 listed issues, taking the open count **21 → 9**: #169, #170, #171, #198, #199, #200, #216, #232, #235. This is arithmetic, not a guess — the 21 open numbers minus the 12 named in the PR body leave exactly those 9.
+3. `claude plugin update personal-plugin@troys-plugins` reports a version at or above 11.7.0 — **and that report is not the test.** The test is a recursive diff of the installed cache tree against `plugins/personal-plugin/` at the merged `main`. Expected: zero differing files.
+
+Criterion 3 exists because the version string is a *label*, and this repo has now been bitten three times by an artifact whose label agreed while its content had changed underneath (#226 version string, #232 cache path, #235 plan path). #232 is specifically the case where the loader served **11.3.0** while `installed_plugins.json` named **11.6.0** — so a passing version report is exactly the evidence that failed last time. If the diff is non-empty, that is a live reproduction of #232 and gets characterized here rather than worked around.
+
+**Rollback Plan:**
+
+- **Merge:** `git revert -m 1 <squash-sha>` on a branch → PR (branch protection is PR-required, so no direct push to `main`). The squash is a single commit, so the revert is one commit and complete. The 12 auto-closed issues would need manual reopen (`gh issue reopen`); the numbers are recorded above so no reconstruction is needed.
+- **Branch:** `feature/close-the-loop-backlog` is deleted by the merge but recoverable from the PR page and from local reflog; the local branch is not deleted by this step.
+- **Cache refresh:** read-only with respect to this repo. A bad cache state is repaired by `claude plugin marketplace update` + `claude plugin update`; nothing in the working tree is touched.
+- **Notebook:** this entry is committed to the branch *before* the merge, so it lands with the PR. Results are logged in the next branch's PR, since `main` accepts no direct pushes.
+
+**Note on Rule 12:** LAB_NOTEBOOK.md is now ~1240 lines, past the ~1200 threshold — but the live Experiment Log holds only **13** entries, and rotation retains the last ~20. Rotation is therefore a no-op here; the size sits in the Decision Log (D1–D65) and in entry length, neither of which rotation addresses. Flagged rather than actioned.
