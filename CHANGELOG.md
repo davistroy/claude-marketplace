@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.8.0] - 2026-07-30
+
+Plan identity for `/implement-plan`'s state file (#235) — a completed run's state was inherited by a different plan at the same path and reported success having done nothing.
+
+### Added
+- `plan_identity` (`generated`, `total_phases`, `phase_titles`, item ids) written at STARTUP and verified before resume; mismatch offers start-fresh / resume-anyway / abort.
+- A guard so a state file describing a finished plan is reported as already-complete rather than routed to `ALL_COMPLETE`.
+
+### Fixed
+- State-file deletion moved from Final Step 0 to Final Step 4, after the COMPLETION REPORT that reads it.
+- Item ids parsed with `match()` instead of an anchored regex, which had silently dropped two prefix-decorated headings.
+
 ## [personal-plugin v11.6.0] - 2026-07-29
 
 The 16-issue correctness backlog (E060 plan, 8 phases / 42 items, PR #222). Grouped by root cause rather than by issue.

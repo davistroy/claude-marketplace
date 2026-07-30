@@ -5,6 +5,21 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.8.0] - 2026-07-30
+
+Plan identity for `/implement-plan`'s state file (#235). A completed run's state was inherited by a different plan written to the same path, and the run reported success having implemented nothing.
+
+### Added
+- **`plan_identity` in `.implement-plan-state.json`** — `generated`, `total_phases`, `phase_titles`, and the `N.M` item ids, written at STARTUP Step 2 and verified at STARTUP Step 0 *before* the IN_PROGRESS check and before anything else in the file is trusted. `plan_file` is a path, and completed plans are archived to `docs/archive/IMPLEMENTATION_PLAN-vN.md` while the next plan takes the same default path — so the path always matches and proves nothing. On mismatch the command reports both fingerprints field by field and offers start-fresh (recommended) / resume-anyway / abort; a state file with no `plan_identity` at all gets the same prompt rather than a guess.
+- **Guard against reporting a finished plan as this run's work** — if the identity matches but nothing remains, `/implement-plan` now says the plan is already complete and stops, instead of routing to `ALL_COMPLETE` and generating a completion report describing items it did not implement.
+
+### Fixed
+- **FINALIZATION deleted the state file before the report that reads it.** `rm -f .implement-plan-state.json` was Final Step 0, four steps ahead of the COMPLETION REPORT, whose generation rule 1 is "read the state file" and whose documented fallback for a missing file is "No work items were completed" — so a fully successful run had to either report the opposite of the truth or keep the file. Deletion moves to Final Step 4, after the report, and is explicitly the last action of the command.
+- **Item ids are parsed with `match()`, not anchored to the start of the heading.** The completion marker is meant to be a suffix but is not reliably one: two of plan v13's 19 items came back as `#### ✅ Completed 2026-07-30 — 7.1 Title`, which an anchored `^#### [0-9]+\.[0-9]+` silently dropped — an item count of 17 where the plan has 19. `references/plan-template.md` now states the append-only rule normatively rather than in passing.
+
+### Notes
+- The fingerprint deliberately excludes everything `/implement-plan` mutates while a plan runs — `**Status:**` fields, the `**Completed:**` header, and item heading *titles* (decorated on completion). Verified against `docs/archive/IMPLEMENTATION_PLAN-v12.md`, which executed 42/42 items: the four recorded fields are byte-identical before and after that run. A fingerprint over the file text, or over heading titles, would differ from itself after the first item and reject every legitimate resume.
+
 ## [11.7.0] - 2026-07-30
 
 Close-the-loop correctness backlog (Phase 4 of the E062 plan, #231). Repairs a scarred `/ultra-plan` skill left behind by a prior 1–6 → 0–5 phase renumbering.
