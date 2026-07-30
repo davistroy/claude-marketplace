@@ -251,15 +251,15 @@ CLAUDE.md's standing rule: a verification guard that cannot fail is worse than n
 | S3 — bump + CHANGELOG entry | 0 | **0** — `OK -- every changed plugin is bumped` |
 | S4 — CHANGELOG-only, no bump | 0 | **0** — run against real history `b4d576c...f4d07b6`, which IS Phase 1's own commit |
 
-Plus `--self-test`: **19 cases, 10 asserting exit 1**, mutation-tested with 8 mutants (one initially survived and exposed a weak substring-collision fixture, which was replaced). The absent-manifest guard was independently negative-tested by deletion: the self-test then crashed with `TypeError: ... NoneType found` and exited 1.
+Plus `--self-test`: **18 cases, 10 asserting exit 1**, mutation-tested with 8 mutants (one initially survived and exposed a weak substring-collision fixture, which was replaced). The absent-manifest guard was independently negative-tested by deletion: the self-test then crashed with `TypeError: ... NoneType found` and exited 1.
 
 **PROCESS FAILURE worth recording.** S1–S3 were first run on a scratch branch created *mid-phase*, while 2.1's and 2.2's work was still uncommitted. `git add -A` swept that uncommitted work into the scratch commits, and deleting the scratch branches removed `scripts/check_version_bump.py` and 2.1's `fetch-depth` edit from the tree. Recovered in full from a scratchpad copy plus `git reflog` (`c7cc067`). **Root cause was skipping the per-batch commit** — `/implement-plan`'s Step 4 commits at every batch boundary, and 2.1/2.2/2.3 are separate batches. Committing between items is not bookkeeping; it is the property that makes scratch-branch work and `git checkout -- .` rollback safe. S4 was subsequently re-run against real committed history instead, which is the better test anyway.
 - [ ] WHEN the guard is wired into CI THEN its failing behavior SHALL already have been demonstrated on a real branch
 
 ---
 
-#### 2.4 Wire the gate as a step in `plugin-validate` and a pre-commit check
-**Status: PENDING**
+#### 2.4 Wire the gate as a step in `plugin-validate` and a pre-commit check ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #226
 **Depends On:** 2.3
@@ -273,27 +273,37 @@ A **step**, never a job (D28) — a new job creates a new required check that mu
 The pre-commit leg needs a **new staged-file filter**: the existing one at `scripts/pre-commit:36` matches only `commands/*.md` and `skills/*/SKILL.md`, so it cannot see `tools/`, `references/`, `agents/`, or `hooks/`.
 
 **Tasks:**
-1. [ ] Add the step to the `plugin-validate` job, after `check_agent_models.py`, with a comment noting stdlib-only
-2. [ ] Add pre-commit Check 7 with a filter covering all bump-worthy paths
-3. [ ] Verify the 16 required contexts are unchanged: `gh api repos/davistroy/claude-marketplace/branches/main/protection --jq '.required_status_checks.contexts | length'` returns 16
+1. [x] Add the step to the `plugin-validate` job, after `check_agent_models.py`, with a comment noting stdlib-only
+2. [x] Add pre-commit Check 7 with a filter covering all bump-worthy paths
+3. [x] Verify the 16 required contexts are unchanged: `gh api repos/davistroy/claude-marketplace/branches/main/protection --jq '.required_status_checks.contexts | length'` returns 16
 
 **Acceptance Criteria:**
-- [ ] WHEN `validate.yml` is parsed THEN the set of `name:` values SHALL be identical to before this change
-- [ ] The live required-context count remains 16
-- [ ] WHEN a plugin file is staged without a version bump THEN `scripts/pre-commit` SHALL exit non-zero
+- [x] WHEN `validate.yml` is parsed THEN the set of `name:` values SHALL be identical to before this change
+- [x] The live required-context count remains 16
+- [x] WHEN a plugin file is staged without a version bump THEN `scripts/pre-commit` SHALL exit non-zero
+
+**Completion notes (2026-07-30):**
+
+- **CI: one step, zero jobs.** Added `Check release integrity (version bump + CHANGELOG entry)` to the existing `plugin-validate` job immediately after the `check_agent_models.py` step, matching the four sibling script steps (stdlib-only, so no `setup-python`). `GITHUB_EVENT_NAME` and `GITHUB_BASE_REF` — the two variables `resolve_leg` reads — are default GitHub Actions environment variables present in every step, so **no `env:` block was added**; adding one would only restate what the runner already guarantees.
+- **The pre-commit filter is deliberately broad, not a second exemption list.** `scripts/pre-commit:36`'s existing filter matches only `commands/*.md` and `skills/*/SKILL.md` and is blind to `tools/`, `references/`, `agents/`, and `hooks/`. Check 7 uses its own filter — the whole `plugins/<name>/` subtree — and applies **no exemption logic of its own**: classifying a path as bump-worthy or exempt stays in `check_version_bump.py`'s `EXEMPT_EXACT`/`EXEMPT_GLOBS`. A shell-side copy of that set is exactly the "check that restates an external truth" CLAUDE.md warns about (#208). The cost is that a CHANGELOG-only stage still *invokes* the script; the benefit is that it cannot disagree with it. Verified: CHANGELOG-only stage → **exit 0**; `references/common-patterns.md` → **exit 1**; `tools/bpmn2drawio/src/…` → **exit 1**. The last two are invisible to the old filter.
+- **Base resolution on a leg that has no PR base ref.** `origin/main` first, then a local `main` (CLAUDE.md: the local tree can silently lag origin), which is also the order `resolve_base_commit` uses. Staged content is not yet any commit, so it is materialized as a **dangling commit object**: `git write-tree` snapshots the index and `git commit-tree … -p HEAD` parents it. No ref moves and nothing is committed; the object is unreachable and gets garbage-collected. That is what lets the check see the change *about to be* committed rather than the last one that already was, and it makes the local diff shape (`merge-base(origin/main, staged)…staged`) identical to what the PR gate will compute.
+- **Four announced skip paths, none of which block:** no `origin/main`/`main`, no `HEAD` (initial commit), `write-tree`/`commit-tree` failure (e.g. unset committer identity), and no merge-base (unrelated histories or a shallow clone). Each prints `[SKIP]` with its reason and notes that CI's `pull_request` leg still enforces the rule — an unresolvable base is a local-environment fact, not a release-integrity violation.
+- **Observed exit codes:** clean tree → **0** (`[SKIP] No files staged under plugins/`); `skills/ship/SKILL.md` staged without a bump → **1**, naming `[Rule 1: bump-required] personal-plugin … still says version '11.6.0'` and the `/bump-version personal-plugin` remedy. Tree restored with `git restore --staged --worktree`; no scratch branch, no `git add -A`, nothing committed.
+- **Job set and required contexts unchanged:** `yaml.safe_load` still yields exactly `['validate', 'python-lint', 'lint-markdown', 'plugin-validate']`, a `diff` of the four job-level `name:` lines against `git show main:.github/workflows/validate.yml` is empty, and the live required-context count is still **16**.
+- **Minor drift found, not fixed here:** 2.3's notes above say "19 cases"; `--self-test` prints **18 of which 10 assert exit 1**. The 10 is right; the case count is off by one. Left as-is rather than silently editing a completed item's record.
 
 ---
 
 ### Phase 2 Testing Requirements
 
-- [ ] `--self-test` passes and internally asserts non-zero exits on bad input
-- [ ] All four negative-test scenarios from 2.3 observed and recorded
-- [ ] No new required status check introduced
+- [x] `--self-test` passes and internally asserts non-zero exits on bad input
+- [x] All four negative-test scenarios from 2.3 observed and recorded
+- [x] No new required status check introduced
 
 ### Phase 2 Completion Checklist
 
-- [ ] All work items complete
-- [ ] Required-context count verified at 16
+- [x] All work items complete
+- [x] Required-context count verified at 16
 - [ ] Negative-test results recorded in LAB_NOTEBOOK
 - [ ] `main`'s push build green after merge
 
@@ -1038,9 +1048,9 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 
 | Risk | Likelihood | Impact | Mitigation Strategy | Status |
 |------|------------|--------|---------------------|--------|
-| Phase 2's gate reddens the required `Validate Plugins (official CLI)` check on `main`'s push leg | Med | **High** — a red required context on main | Explicit event-leg branch (2.2 task 4) with the push leg exiting 0; 2.3's negative test must assert the **PR leg still fails**, not merely that push passes | Open |
+| Phase 2's gate reddens the required `Validate Plugins (official CLI)` check on `main`'s push leg | Med | **High** — a red required context on main | Explicit event-leg branch (2.2 task 4) with the push leg exiting 0; 2.3's negative test must assert the **PR leg still fails**, not merely that push passes | Mitigated (2.2–2.4) — `resolve_leg` branches explicitly on `GITHUB_EVENT_NAME`, and self-test case `push-leg-noop` runs the **same violating tree** as case 1 through the push leg and asserts exit 0 while the PR leg asserts exit 1. Wired as a **step** in the existing `plugin-validate` job (D28), so no new required context: job set still `['validate', 'python-lint', 'lint-markdown', 'plugin-validate']`, the four `name:` values `diff` clean against `main`, and the live required-context count is still 16 |
 | Phase 2's gate blocks Phase 1's own CHANGELOG-only PR | High if mis-ordered | Med | Phase 1 lands first; `CHANGELOG.md` is explicitly exempt from Rule 1 | Mitigated (2.2) — `CHANGELOG.md` is in `EXEMPT_EXACT`; self-test case `rule1-exempt-changelog-only` asserts exit 0, and the script run against this very branch (`main...HEAD` = three CHANGELOG-only files, Phase 1's exact shape) exits 0 |
-| The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Open |
+| The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Mitigated (2.3–2.4) — 10 of 18 self-test cases assert exit 1; 2.3 recorded four real exit codes (1/1/0/0) against real history; and 2.4 negative-tested the newly-wired pre-commit leg itself, observing **exit 1** on a staged `skills/ship/SKILL.md` with no bump (plus exit 1 on `references/**` and `tools/*/src/**`, both invisible to the pre-existing filter) and exit 0 on a CHANGELOG-only stage. The wiring was demonstrated failing, not assumed to |
 | Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Open |
 | `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Open |
 | Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Open |
