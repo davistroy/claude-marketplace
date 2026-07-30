@@ -1,3 +1,9 @@
+> **ARCHIVED — plan v13, COMPLETE.** 18/19 items COMPLETE, 1 DESCOPED (3.3, upstream
+> `superpowers` report declined by the owner). Merged as `776e140` (PR #236), closing 12
+> issues: #206, #210, #217, #218, #223, #224, #226, #227, #228, #230, #231, #233. Released
+> personal-plugin 11.7.0 / slide-gen 1.4.0. Execution narrative: LAB_NOTEBOOK Entry 063;
+> merge and cache verification: Entry 064. Superseded by plan v14 at `IMPLEMENTATION_PLAN.md`.
+
 # Implementation Plan
 
 **Generated:** 2026-07-30
