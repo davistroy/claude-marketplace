@@ -934,3 +934,43 @@ PR #222 merged as `1382a8a`. Immediately after, a check that should have run *be
 **Fix:** minor bumps across all three (behavior changed, no API break) — `personal-plugin 11.6.0`, `bpmn-plugin 4.4.0`, `slide-gen 1.3.0` — with CHANGELOG entries grouped by root cause rather than by issue number, plus an explicit note that anyone already on `11.5.1` must update because the tree changed underneath the version.
 
 **Follow-up worth filing:** a CI check that fails when files under `plugins/<name>/` change in a PR without `plugins/<name>/.claude-plugin/plugin.json` version changing. It is derivable from the diff (never a restated constant), it can be negative-tested trivially, and it is the exact gate whose absence let this through. Per D28 it must land as a *step* in the existing validate job, not a new job.
+
+---
+
+**A21 discharged — the 14 `description-triggers` scenarios run under Opus 5. 13 pass, 1 fail.**
+
+Run against **personal-plugin 11.6.0 / bpmn-plugin 4.4.0** as actually installed, one fresh `claude -p` session per scenario in an isolated empty directory. This is the clean-session requirement A21 existed for: no scenario was run from a session that had seen the skills being tested.
+
+| # | Scenario | Expected | Observed | |
+|---|---|---|---|---|
+| S1 | bpmn-generator positive | fires | `bpmn-generator`, wrote `.bpmn` | ✅ |
+| S2 | bpmn-generator near-miss | → bpmn-to-drawio | `bpmn-to-drawio` | ✅ |
+| S3 | bpmn-to-drawio positive | fires | `bpmn-to-drawio` | ✅ |
+| S4 | bpmn-to-drawio near-miss | → **bpmn-generator** | `superpowers:brainstorming` | ❌ |
+| S5 | explain-project positive | fires | `explain-project` | ✅ |
+| S6 | explain-project near-miss | → accessibility-annotator | `accessibility-annotator` | ✅ |
+| S7 | spec-to-prototype positive | fires | `spec-to-prototype` → `frontend-design` | ✅ |
+| S8 | spec-to-prototype near-miss | must NOT fire | did not fire | ✅ |
+| S9 | accessibility-annotator positive | fires | `accessibility-annotator` | ✅ |
+| S10 | accessibility-annotator near-miss | → convert-markdown | `convert-markdown` | ✅ |
+| S11 | brain-entry **locked** | must NOT auto-invoke | no skill invoked, no capture claimed | ✅ |
+| S12 | unlock **locked** | must NOT auto-invoke | no skill invoked, never touched bws | ✅ |
+| S13 | lab-notebook **gated** | invoke, gate before writing | invoked, asked, **0 files** | ✅ |
+| S14 | create-wiki **gated** | invoke, gate before writing | invoked, asked, **0 files** | ✅ |
+
+**Phase 8's contract holds, and this is the first evidence of it that isn't self-assessment.** Both gated skills did exactly what D57 specifies: `lab-notebook` and `create-wiki` were each *model-invoked* (proving the flag removal took) and each stopped at the Phase-0 gate with an explicit description of what would be written, creating nothing. S14 went further than required, volunteering that initialization "appends a `## Project Wiki` section to `CLAUDE.md` … that changes how Claude behaves in this repo going forward" and flagging its overlap with the existing `memory/` convention. Both locked skills stayed locked. **8.2's premise is also confirmed empirically**: `unlock` and `brain-entry` were never auto-invoked even though the conversations sat squarely in their domain — with their trigger prose removed from context, there was nothing to trigger on, which is the intended behavior and the reason that prose was dead weight.
+
+**S4 is a real miss, and it is cross-plugin.** The prompt — "Can you build me a workflow diagram I can view in Draw.io?" — has no existing BPMN file, so it should route to `bpmn-generator`. Both `Must NOT` criteria passed (it did not wrongly fire `bpmn-to-drawio`, and it did not tell the user to hand-author XML first). It correctly recognized the source as a natural-language description: *"Empty working directory, no existing docs — greenfield."* Then it invoked **`superpowers:brainstorming`** and asked what the diagram was *for*, never reaching `bpmn-generator`.
+
+The mechanism is not a defect in this repo's descriptions. `superpowers:brainstorming` declares *"You MUST use this before any creative work — creating features, building components…"*, and `superpowers:using-superpowers` states that process skills take priority: *"'Let's build X' → brainstorming first, then implementation skills."* The word **"build"** in the prompt is the trigger. Firing brainstorming is arguably correct under that doctrine — **the miss is that it never handed off to the implementation skill afterward.** S7 shows the handoff working (`spec-to-prototype` → `frontend-design`), so the chain is not structurally broken; it just did not happen here. S8 also fired brainstorming, and there it was the right call.
+
+**No amount of structural gating could have found this.** It is a live interaction between two independently-authored plugins, visible only in a real session. It is also a standing hazard for *every* domain skill in this marketplace whose trigger phrasing contains a creation verb.
+
+**Two harness gaps in the eval itself, independent of the results.**
+
+1. **The eval specifies scenarios but no harness, and the harness decides the outcome.** The first S13 attempt returned `is_error: true` on `Execute skill: personal-plugin:lab-notebook` — headless `-p` mode has no human to approve, so the Skill tool was auto-denied. Read naively that is a total Phase 8 failure; it was a permission artifact. The working harness needs an explicit `--allowed-tools Skill Read Write Edit Glob Grep AskUserQuestion`. It also needs **`Bash` deliberately disallowed**: S13's prompt names the Jetson, and a permission-bypassed agent could have SSH'd into the live host and changed a real machine to satisfy an eval.
+2. **Scoring should stop at first dispatch.** S7 hit the 300s timeout — not a failure: it routed correctly, chained into `frontend-design`, and began actually building the prototype. A routing eval should not need a five-minute budget.
+
+Also worth recording: `AskUserQuestion` is **not available** in headless `-p` sessions. S13 tried it, found it missing, and fell back to asking in prose — the gate held either way, which is a good robustness property of how 8.3 was written, but any future harness must not treat "no AskUserQuestion call" as a gate failure.
+
+**On the eval's own reliability:** the first batch returned `API 529 Overloaded` on 8 of 13 scenarios. Those are infrastructure, not findings, and a naive scorer would have recorded 8 failures. The re-run with backoff passed all 8 on the first attempt. **Any automated runner for this eval must distinguish `api_error_status` from a real negative result** — otherwise it will manufacture findings on a bad afternoon.
