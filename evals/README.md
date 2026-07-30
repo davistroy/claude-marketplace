@@ -90,6 +90,17 @@ Scoring table with weights.
 
 Evals are designed to be executed in a live Claude Code session. They are not automated unit tests — they test LLM behavior against a behavioral contract.
 
+### Headless Execution
+
+Running evals unattended via `claude -p` (rather than an interactive session) surfaces four harness behaviors that are easy to misread as eval failures. These apply to every eval in this suite, not just `description-triggers`:
+
+1. **The `Skill` tool is auto-denied in headless `claude -p` sessions** — there is no human present to approve it. A working harness needs an explicit `--allowed-tools Skill Read Write Edit Glob Grep AskUserQuestion`. Without it, a skill-invocation eval returns `is_error: true` and reads as a total behavioral failure when it is purely a permission artifact.
+2. **`AskUserQuestion` is unavailable in headless `-p` sessions.** A skill that would normally ask via that tool falls back to asking in prose instead. A runner must NOT score "no `AskUserQuestion` call" as a gate failure.
+3. **`api_error_status: 529` is not a result.** The first real run of `description-triggers` returned 529 on 8 of 13 scenarios; a naive scorer would have recorded 8 failures. Re-runs with backoff passed all 8. Any runner must distinguish an API error from a negative result.
+4. **Score at first dispatch, not after a long budget.** A routing eval should not need a five-minute budget per scenario — one scenario hit a 300s timeout while correctly routing and then doing real (and unnecessary) work. Score which skill was dispatched to as soon as that is observable, rather than waiting for the whole turn to finish.
+
+`claude plugin eval` (Claude Code 2.1.220+) exists natively but currently **exits 1 with "currently in early access"**, so it is unusable as a runner today. Converging this corpus onto it would mean porting all 255 scenarios and roughly 1,091 criteria from zero — about 4.6x the diff ADR-0009 already rejected — and adopting it would supersede ADR-0009 and reopen D32. It is therefore **deferred, with an explicit pointer to ADR-0009**, not scheduled; see `docs/adr/0009-eval-execution-strategy.md` before proposing a migration.
+
 ### Manual Execution
 
 1. Open a Claude Code session in a scratch directory (not the marketplace repo)

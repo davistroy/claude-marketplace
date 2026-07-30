@@ -334,8 +334,8 @@ The pre-commit leg needs a **new staged-file filter**: the existing one at `scri
 
 ### Work Items
 
-#### 3.1 Add harness documentation — generalizable facts to `evals/README.md`, the Bash prohibition to the eval
-**Status: PENDING**
+#### 3.1 Add harness documentation — generalizable facts to `evals/README.md`, the Bash prohibition to the eval ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #228
 **Depends On:** None
@@ -368,8 +368,8 @@ The fifth — **`Bash` must be disallowed** — is scenario-specific and belongs
 
 ---
 
-#### 3.2 Re-scope all 6 preemption-fragile scenarios and both rubric rows
-**Status: PENDING**
+#### 3.2 Re-scope all 6 preemption-fragile scenarios and both rubric rows ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #227
 **Depends On:** 3.1
