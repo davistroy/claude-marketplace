@@ -60,7 +60,8 @@ except Exception:
     installed = None
 if served and installed and served != installed:
     print(f"WARNING: this session is serving personal-plugin {served}; "
-          f"{installed} is installed. Restart Claude Code to pick it up. "
+          f"{installed} is installed. Run /reload-plugins to pick it up "
+          f"(a full restart also works). "
           f"Until then this skill body may be older than the bundled tool.")
 else:
     print(f"version-skew: none ({served or 'unknown'})")
@@ -68,14 +69,19 @@ PY
 ```
 
 **Why this exists.** A running Claude Code session serves the plugin version it
-resolved at start-up; `claude plugin update` writes `installed_plugins.json` for
-*future* processes and says so ("Restart to apply changes"). So a long-lived
-session can run the **current** bundled tool from repo source while reading a
-**stale** skill body — a current tool against an old contract, with no error
-anywhere. That is #232: a session served an 11.3.0 body whose plan-JSON key list
-predated `orphans`, so the orphan findings the tool emitted were never read.
-The preflight is a warning, not a gate: an older body is usually still usable,
-and the caller should know rather than be blocked.
+resolved at start-up. `claude plugin update` writes `installed_plugins.json` and
+prints "Restart to apply changes", but it does **not** change what the current
+session is already serving. So a long-lived session can run the **current**
+bundled tool from repo source while reading a **stale** skill body — a current
+tool against an old contract, with no error anywhere. That is #232: a session
+served an 11.3.0 body whose plan-JSON key list predated `orphans`, so the orphan
+findings the tool emitted were never read.
+
+**The remedy is `/reload-plugins`, not necessarily a restart** — measured, not
+assumed: a `/reload-plugins` re-resolved all three troys-plugins in place and
+brought a session that had been serving 11.3.0 since the previous day up to the
+installed 11.7.0. The preflight is a warning, not a gate: an older body is
+usually still usable, and the caller should know rather than be blocked.
 
 ## First Run: Auto-Init
 
