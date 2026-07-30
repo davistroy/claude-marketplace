@@ -573,8 +573,8 @@ Eight sites in `SKILL.md` (`:89`, `:222`, `:236`, `:238`, `:240`, `:242`, `:244`
 
 ### Work Items
 
-#### 5.1 Read the token from `BWS_ACCESS_TOKEN`, not the unset `$TROY`
-**Status: PENDING**
+#### 5.1 Read the token from `BWS_ACCESS_TOKEN`, not the unset `$TROY` ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #217
 **Depends On:** None
@@ -591,28 +591,29 @@ Second in-repo blocker: `allowed-tools` (`:5`) omits `python3` (`Bash(python:*)`
 The one genuine probe leak is `references/api-key-setup.md:49` — a bare `bws secret list` used as a diagnostic, which prints every secret's plaintext value. The functional uses at `unlock:70,92` and `new-project:62` capture to a variable and are **not** offenders.
 
 **Tasks:**
-1. [ ] Read `${BWS_ACCESS_TOKEN}` as primary, `$TROY` as a deprecated fallback; update the error text and the `$TROY` references at `:17`, `:40`, `:44-45`, `:54-55`, `:140`, `:199-201`
-2. [ ] Same rename at `new-project/SKILL.md:62` and `api-key-setup.md:51,53`
-3. [ ] Widen `allowed-tools` to cover `python3`, `mktemp`, `chmod`, `rm`, `source`, `test`, and the `VAR=… bws` form
-4. [ ] Replace `api-key-setup.md:49`'s bare probe with `bws secret list >/dev/null; echo $?`
-5. [ ] Keep `disable-model-invocation: true` — do not relax it
-6. [ ] **Before the manual `/unlock` verification, diff the installed cache against the repo copy** — `diff ~/.claude/plugins/cache/troys-plugins/personal-plugin/<version>/skills/unlock/SKILL.md plugins/personal-plugin/skills/unlock/SKILL.md` — and abort the test if they differ. Per #232 the loader can serve an older cached version than `installed_plugins.json` names, so a green manual run could be testing the pre-fix body. Verify content, never the version string
+1. [x] Read `${BWS_ACCESS_TOKEN}` as primary, `$TROY` as a deprecated fallback; update the error text and the `$TROY` references at `:17`, `:40`, `:44-45`, `:54-55`, `:140`, `:199-201`
+2. [x] Same rename at `new-project/SKILL.md:62` and `api-key-setup.md:51,53`
+3. [x] Widen `allowed-tools` to cover `python3`, `mktemp`, `chmod`, `rm`, `source`, `test`, and the `VAR=… bws` form
+4. [x] Replace `api-key-setup.md:49`'s bare probe with `bws secret list >/dev/null; echo $?`
+5. [x] Keep `disable-model-invocation: true` — do not relax it
+6. [x] **Before the manual `/unlock` verification, diff the installed cache against the repo copy** — `diff ~/.claude/plugins/cache/troys-plugins/personal-plugin/<version>/skills/unlock/SKILL.md plugins/personal-plugin/skills/unlock/SKILL.md` — and abort the test if they differ. Per #232 the loader can serve an older cached version than `installed_plugins.json` names, so a green manual run could be testing the pre-fix body. Verify content, never the version string. **Documented as a required pre-step in the skill's own "Verification Before Trusting a Manual Run" section** — the actual diff + manual run is the owner's to execute (see Notes)
 
 **Acceptance Criteria:**
-- [ ] WHEN the manual verification is run THEN the installed `unlock/SKILL.md` SHALL be byte-identical to the repo copy, confirmed by diff before the run (#232 mitigation)
-- [ ] WHEN `/unlock` runs in a tool shell with `BWS_ACCESS_TOKEN` set and `TROY` unset THEN it SHALL load secrets and report names only
-- [ ] WHEN any documented helper runs on its success path THEN no secret value SHALL be printed to stdout
-- [ ] WHEN Step 3 executes THEN every command it issues SHALL be covered by `allowed-tools`
-- [ ] `disable-model-invocation: true` is unchanged
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+- [ ] WHEN the manual verification is run THEN the installed `unlock/SKILL.md` SHALL be byte-identical to the repo copy, confirmed by diff before the run (#232 mitigation) — **owner-verified, not agent-verified**
+- [ ] WHEN `/unlock` runs in a tool shell with `BWS_ACCESS_TOKEN` set and `TROY` unset THEN it SHALL load secrets and report names only — **owner-verified, not agent-verified**
+- [x] WHEN any documented helper runs on its success path THEN no secret value SHALL be printed to stdout (verified by code inspection — unchanged behavior, values never echoed)
+- [x] WHEN Step 3 executes THEN every command it issues SHALL be covered by `allowed-tools`
+- [x] `disable-model-invocation: true` is unchanged
+- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
-Cannot be verified in CI (ADR-0009/D32, zero secrets). Acceptance is a manual `/unlock` run. **Out of scope, not fixable here:** the nine `~/.claude/scripts/*.sh` (all legacy `bw`/`BW_SESSION`, zero `bws` references), `~/.bashrc:8`'s early return, and the global CLAUDE.md's nonexistent `~/bin/bws.exe`.
+**DoD check 1 was corrected during execution.** As first written it filtered on `grep -v 'TOKEN'`, which only worked because the functional `bws secret list` calls happened to carry `BWS_ACCESS_TOKEN=` on the same line. Item 5.1 had to split that inline `VAR=… bws` form into an `export`/`unset` pair — `Bash(bws:*)` does not prefix-match `VAR=… bws`, so the original form was never covered by the grant — and the moment it did, the check began reporting three legitimate lines (two capture output to a variable, one is an error-table row). The check was coupled to an incidental detail rather than to the property it meant to assert. The replacement derives the property: a leak is a `bws secret list` whose output reaches stdout — neither captured via `$(...)` or a PowerShell `$x = bws`, nor discarded to `/dev/null` — excluding markdown table rows, which are prose. **Negative-tested**: passes on the real tree, fires on a planted bare probe.
+Cannot be verified in CI (ADR-0009/D32, zero secrets). Acceptance is a manual `/unlock` run. **The two acceptance criteria requiring a live `/unlock` run are owner-verified, not agent-verified** — `unlock` is user-invoke-only by deliberate policy (`disable-model-invocation: true`, D40) and this agent must not invoke it; the owner must run `/unlock` themselves and confirm the cache-vs-repo diff first. **Out of scope, not fixable here:** the nine `~/.claude/scripts/*.sh` (all legacy `bw`/`BW_SESSION`, zero `bws` references), `~/.bashrc:8`'s early return, and the global CLAUDE.md's nonexistent `~/bin/bws.exe`.
 
 ---
 
-#### 5.2 Correct D53 and rewrite #217
-**Status: PENDING**
+#### 5.2 Correct D53 and rewrite #217 ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #217
 **Depends On:** 5.1
@@ -623,13 +624,13 @@ Cannot be verified in CI (ADR-0009/D32, zero secrets). Acceptance is a manual `/
 D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wrong: `.bashrc:167` guards the *full credential set*, not the token; the operative line is `.bashrc:8`, an early `return` for non-interactive shells that makes the anti-staleness `eval` at `:165` — already present since 2026-07-16, i.e. already #217's proposed fix — unreachable. The E058 stale-token incident was real but transient and host-level; it does not reproduce.
 
 **Tasks:**
-1. [ ] Amend D53 with the corrected mechanism, preserving the original text struck through (Rule 4 — never delete a decision)
-2. [ ] Correct notebook `:645` and `:657`
-3. [ ] Rewrite #217's body to the in-repo scope and close it on merge
+1. [x] Amend D53 with the corrected mechanism, preserving the original text struck through (Rule 4 — never delete a decision)
+2. [x] Correct notebook body lines restating the wrong mechanism (content had shifted to `:651`/`:663` by the time of this fix, per intervening entries)
+3. [ ] Rewrite #217's body to the in-repo scope and close it on merge — **not done by this agent**; scoped to LAB_NOTEBOOK.md only per explicit instruction, GitHub issue edit deferred to the orchestrator/owner
 
 **Acceptance Criteria:**
-- [ ] WHEN D53 is read THEN it SHALL name `.bashrc:8` as the operative mechanism and mark the `:167` attribution as corrected
-- [ ] #217's body no longer names out-of-repo scripts as fix sites
+- [x] WHEN D53 is read THEN it SHALL name `.bashrc:8` as the operative mechanism and mark the `:167` attribution as corrected
+- [ ] #217's body no longer names out-of-repo scripts as fix sites — pending task 3 above
 
 ---
 
@@ -649,7 +650,7 @@ D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wro
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| No bare probe | `grep -rn 'bws secret list' plugins/ \| grep -v '>/dev/null' \| grep -v 'TOKEN' ` | No output |
+| No bare probe | `grep -rn 'bws secret list' plugins/ \| grep -vE '\$\(\|\$[A-Za-z_]+ *= *bws\|> */dev/null' \| grep -vE '^[^:]+:[0-9]+: *\|'` | No output |
 | No stale $TROY | `grep -rn '\$TROY' plugins/ \| grep -v 'deprecated fallback'` | No output |
 | Validation | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
 

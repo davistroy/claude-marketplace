@@ -59,8 +59,7 @@ git remote add origin https://github.com/davistroy/<name>.git
 
 ```bash
 PROJECT_ID="${BWS_PROJECT_ID:-5022ea9c-e711-4f4e-bf5f-b3df0181a41d}"
-GITEA_TOKEN=$(BWS_ACCESS_TOKEN="$TROY" bws secret list "$PROJECT_ID" \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((s['value'] for s in d if s['key']=='dev/gitea/api-token'), ''))")
+GITEA_TOKEN=$(BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$TROY}" bws secret list "$PROJECT_ID" | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((s['value'] for s in d if s['key']=='dev/gitea/api-token'), ''))")  # TROY: deprecated fallback name, honored only if BWS_ACCESS_TOKEN is unset
 
 if [ -z "$GITEA_TOKEN" ]; then
   echo "Error: Bitwarden secret 'dev/gitea/api-token' not found. Store it first (see /unlock for the bws pattern)."
