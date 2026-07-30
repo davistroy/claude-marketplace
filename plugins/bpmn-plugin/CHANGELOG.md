@@ -5,6 +5,16 @@ All notable changes to bpmn-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.4.0] - 2026-07-29
+
+### Changed
+- `bpmn-generator`: the simulated `help`/`status`/`back`/`skip`/`quit` REPL is gone (494 → 442 lines). `skip` and `quit` are native controls; `status` is redundant in a visible transcript. Its Question Format and Auto-Accept blocks now defer to `references/clarification-patterns.md` instead of duplicating them.
+- `references/clarification-patterns.md`: all 22 question blocks plus both normative blocks converted to `AskUserQuestion`. Auto-accept is preserved via the free-text **Other** box — nothing native absorbs the old `E)` slot, so dropping it would have removed a real capability.
+
+### Fixed
+- `bpmn-to-drawio`: the skill's own `HAS_DI` branch re-taught the partial-DI layout bug the tool fixed in 4.3.x, silently corrupting diagram layout. Deleted — the skill now delegates to `--layout auto`.
+- `cli.py --layout` help said `auto` preserves DI "when present"; the resolver gates on *complete* DI (every element positioned).
+
 ## [4.3.1] - 2026-07-16
 
 ### Fixed
@@ -114,6 +124,16 @@ Integrates external contributor PR #98 (Oleksandr Panasenko / @AlexanderV) — D
 
 ### Changed
 - Phase 1-6 internal quality pass: dependency hygiene, CI pipeline hardening, refactoring and ADRs, final coverage sweep
+
+## [2.1.0] - 2026-01-17
+
+### Changed
+- Version bump for consistency with personal-plugin release cycle
+
+## [2.0.0] - 2026-01-17
+
+### Changed
+- Major version bump for breaking changes in plugin structure
 
 ## [1.8.0] - 2026-01-17
 

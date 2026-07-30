@@ -1149,3 +1149,13 @@ The resume logic reads `current_phase`/`current_item`/`completed` and skips the 
 **Execution shape.** Critical path **1 → 2**, strictly sequential — Phase 1's CHANGELOG-only change is exactly what Phase 2's Rule 1 rejects, so the backfill must land first. Phases 3–8 share no files with the critical path or with each other, with one exception the `Depends On` field does not express: **Phase 5 and Phase 8.1 both edit `unlock/SKILL.md`** and must be serialized. Per-item model tiers are specified 19/19; Phases 2 and 6 override to `opus`.
 
 **Results — logged per batch as each lands:**
+
+| Batch | Items | Tier | Commit | Gates | Outcome |
+|---|---|---|---|---|---|
+| 1 | 1.1 | sonnet | (pending) | mdlint ✔ version-presence ✔ validate ✔ no-bump ✔ | 28 entries backfilled — 24 personal-plugin, 3 bpmn, 1 slide-gen |
+
+**Phase 1 verification was derived, not taken from the implementer's report.** The testing agent wrote a parser for all four root-CHANGELOG heading grammars, extracted the version set attributed to each plugin, and diffed against each plugin file: **0 missing** for all three, with 8 / 10 / 1 extra (pre-consolidation history, expected and untouched). It resolved the 15 bare `[1.0.0]`–`[2.5.0]` headings to *unattributed* marketplace-era releases rather than mis-assigning them, and attributed the one bare `[10.1.0]` by bracketing rule rather than a hardcoded mapping.
+
+**It also negative-tested its own check** — deleting one version from each plugin file, chosen to exercise all three attribution paths (combined heading, explicit single, inferred bare), flipped every plugin to `MISSING: 1` and the verdict to FAIL. So the green is real rather than vacuous. That is the E043 discipline applied by a subagent to its own verification, unprompted beyond the instruction to derive rather than trust.
+
+**Pre-existing finding that changes Phase 2's design.** A bonus date cross-check found **7 versions whose release date disagrees between the root and per-plugin CHANGELOGs** — `personal-plugin 6.2.0 / 3.8.0 / 3.4.0` (the last dated literally `Previous`), `bpmn-plugin 4.2.0 / 2.2.0 / 1.8.0`, `slide-gen 1.0.1`. All seven already exist with those dates on `main` and none is in the 28-heading added set, so this item introduced no drift. **Consequence for Phase 2:** its Rule 2 must assert *version-set presence* and *date parity* as separate checks, or the gate goes red on legacy history the moment it lands — the same "a new gate fires on pre-existing violations and deadlocks merges" hazard D55 recorded for #204.

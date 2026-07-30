@@ -5,6 +5,36 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.6.0] - 2026-07-29
+
+The 16-issue correctness backlog (E060 plan, 8 phases / 42 items, PR #222). Grouped by root cause rather than by issue.
+
+### Added
+- **ADR-0011 — dynamic-injection doctrine**, and `scripts/check_injections.py`, the only linter that can enforce it: it **replays the harness pre-pass** instead of grepping (74 textual matches under `plugins/` vs 14 live sites). Wired as a step in the existing validate job and as pre-commit Check 4.
+- **ADR-0012 — artifact-derived documentation**, correcting `paths:` (a conditional *load gate*, not a save-trigger), `hooks:` (an event record, not `pre:`/`post:`), and `isolation:` (agent frontmatter, not skill).
+- `scripts/check_agent_models.py` + pre-commit Check 5 — ADR-0005 tier aliases are now enforced, not just documented.
+- Phase-0 confirmation gates on `lab-notebook` and `create-wiki`.
+- task-sync: `ORPHAN_LOCAL` classification, `SyncPlan.orphans`, fail-loud saturation guard, and real REST pagination.
+
+### Changed
+- **`Agent` is the single dispatch-tool name in `allowed-tools`** (D56). `Task` is retired from every live component; `TaskCreate`/`TaskUpdate`/`TaskList`/`TaskOutput` remain as the distinct progress-tracking family.
+- **`lab-notebook` and `create-wiki` dropped `disable-model-invocation`** in exchange for their new gates (D57) — they may now be suggested proactively, but write nothing before confirming.
+- Every hand-rolled text menu in `ask-questions`, `finish-document`, `spec-to-prototype`, `visual-explainer`, `summarize-feedback`, and `bpmn-generator` now uses the native `AskUserQuestion` tool.
+- Eleven flagged skills' descriptions rewritten as capability statements — the `disable-model-invocation` flag removes a description from context, so trigger prose on a flagged skill was unreachable metadata.
+- `evals/skills/description-triggers.eval.md`: S11–S14 rewritten. Their `Should` criteria had required the model to suggest a skill *because it matched trigger prose the flag deletes* — the eval encoded the very defect it guarded.
+- `evals/commands/assess-document.eval.md`: absolute score bands replaced with relative assertions.
+
+### Fixed
+- **task-sync `sync --apply` aborted on two of the three documented decisions-file shapes.** `_load_decisions` is called twice on one file, and its "key absent → return the whole dict" fallthrough handed conflict ids to the fail-loud orphan validator. Fail-safe (aborted before mutation), but only the fully-wrapped form worked.
+- `prime` mandated `context: fork` dispatch it did not grant, and claimed in three places that Phase 2 git values were "pre-loaded via dynamic context injection" — they never were; those injections are inert.
+- `ship`'s diff-size gate computed the literal string `deletions(-)`, so the >500-line guard could never fire.
+- The `verification-post-edit` hook recipe registered but could never run its payload: `matcher: "Bash"` guarantees the tool is `Bash`, so its test for `Edit` was unreachable.
+- `visual-explainer`: `$GOOGLE_IMAGE_MODEL` was a phantom variable; the real override is `VISUAL_EXPLAINER_GEMINI_MODEL`. Authoritative 15-variable table added.
+- Stale and never-existent pinned Claude model IDs across the generator templates and docs.
+
+### Notes
+- Behavior changed without an API break, hence a minor bump. **Anyone on 11.5.1 must update** — the 11.5.1 tree published before this release carries different content under the same version.
+
 ## [11.5.1] - 2026-07-29
 
 ### Fixed
@@ -39,12 +69,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `tools/task-sync`: `P0` is now a valid priority (`VALID_PRIORITIES` is `P0`-`P4`). Previously the highest-severity level was the one value the tool could not represent, so a `priority/P0` label mapped to no priority at all.
 
+## [11.3.0] - 2026-07-22
+
+### Added
+- **task-sync `scan-apply` subcommand** — applying a confidentiality disposition (`keep`/`redact`/`remove`/`anonymize`) is now a first-class, tested CLI subcommand instead of an inline `python3` heredoc embedded in the skill. Takes the same `{task_id: disposition}` JSON shape as `sync --decisions` (flat, or wrapped under a `"decisions"` key), then saves `tasks.json` and regenerates `TASKS.md`. It validates **every** task id and disposition before mutating anything, so one bad entry rejects the whole batch and writes nothing — the previous inline script raised a bare `KeyError` mid-loop and silently discarded the dispositions it had already applied (closes #168).
+- **`sync --adopt-all`** — full-mirror escape hatch that adopts every tracker issue regardless of how long ago it closed (the pre-11.3.0 behavior).
+- **`adopt_closed_within_days` config key** (default `0`) — governs which unadopted tracker issues a sync will adopt.
+
+### Changed
+- **task-sync `sync` no longer adopts closed issues you never tracked.** By default (`adopt_closed_within_days: 0`) only **open** issues are adopted; a larger value adds a grace window for recently-closed ones. Previously every issue ever closed was adopted as a `done` task — in an established repo the first sync flooded the list with long-finished work, and because adoption (`apply.py:207`) and pruning (`:209-211`) happen in the *same* `apply()` call, an issue closed past the prune window was adopted and destroyed within one sync and then re-proposed on **every** subsequent sync, forever (closes #167).
+  - The window gates **new adoptions only**. An already-adopted task keeps full remote fidelity — it still learns that its issue was closed, however long afterward.
+  - The tracker fetch is unchanged (`--state all`). Filtering at the provider layer was rejected: `classify()` treats the fetched issue list as authoritative, so a missing issue silently downgrades a genuine both-sides-changed **conflict into a one-sided push** (a remote clobber), and that push carries `state`, which could even reopen a long-closed issue.
+  - Existing `tasks.json` files predate the new key; an absent key resolves to `0` (open-only), not to the unrelated 30-day prune window.
+- **`sync` plans now report what they skipped.** `sync --plan`/`--dry-run` emit `skipped (closed outside adopt window): N — use --adopt-all to mirror them`, `sync --apply` says the same in its summary, and the `--plan --json` payload gained a `skipped_adopts` array of the affected issue numbers (key order: `creates, pushes, pulls, conflicts, skipped_adopts, confidentiality_findings`). Without this, a plan that adopted nothing printed "already in sync — nothing to do" while issues sat unadopted.
+- **`scan-apply` is idempotent.** Re-running the same decisions file over unchanged content writes nothing and reports `N task(s) already carry the requested disposition`. A task is skipped only when its recorded decision matches *and* its content is unchanged since review; re-deciding with a different disposition still applies.
+
+### Fixed
+- **task-sync `scan-apply` now stamps `updated_at`.** It previously mutated `title`/`body` without touching the timestamp, so the conflict recommender's last-write-wins comparison saw a stale local time and recommended `remote` for a task redacted seconds earlier — and accepting that recommendation would restore the un-redacted content from the tracker. Every other content-mutating command already stamped it.
+- **task-sync adoption now keys off `issue.state`, not the nullable `closed_at`.** A `state="closed"` issue whose `closed_at` was absent from the tracker payload (both adapters read it with `.get()`), or whose timestamp was in the future due to clock skew, was still adopted. The predicate is now fail-closed: a closed issue is adopted only when its age is provably inside the window.
+- **task-sync: a missing or malformed `--decisions` file now reports the path** instead of raising an unhandled `FileNotFoundError` traceback (`cannot read decisions file <path>: …`). Affects both the new `scan-apply` and the pre-existing `sync --apply`.
+- **task-sync docs:** `sync-semantics.md` claimed a locally-changed task whose issue vanished is "re-created instead of pushed" — the reachable code path **pushes** to the recorded issue number (`classify()` returns `NEW_LOCAL` whenever `issue_number` is `None`, so `resolve()`'s re-create branch is unreachable from the pipeline). `config-reference.md` claimed `tasks.json` "is meant to be committed"; this repo gitignores both it and `TASKS.md`, so committing is now described as an optional per-repo choice.
+- **CI:** the `task-sync` job in `test.yml` still carried a "NON-required … withheld from branch protection" comment; both matrix legs have been required checks since Phase 6.
+
 ## [11.2.1] - 2026-07-18
 
 ### Fixed
 - `tools/task-sync`: `init` now persists `config.gitea_url` from the origin remote instead of leaving it unset (closes #173).
 - `tools/task-sync`: `_build_provider` now falls back to the tea CLI config (`~/.config/tea/config.yml`) for the Gitea base URL and token when `$GITEA_URL`/`$GITEA_TOKEN` are unset, with env vars overriding tea config when both are present (closes #174).
 - `skills/task-sync/SKILL.md` + config-reference docs now accurately describe this env → tea-config → unset resolution order (closes #172).
+
+## [11.2.0] - 2026-07-18
+
+Adds **task-sync**: a new skill that keeps a per-repo `tasks.json` (with a generated `TASKS.md` view) reconciled with the repo's issue tracker (GitHub via `gh`, Gitea via its REST API). Built per ADR-0010 / D34.
+
+### Added
+- **task-sync skill + bundled Python tool** (`plugins/personal-plugin/tools/task-sync/`, stdlib-only): direct commands (`init`/`list`/`add`/`edit`/`done`/`remove`/`status`) plus a `sync` subcommand driven by a `plan → decide → apply` protocol — `sync --plan --json` computes creates/pushes/pulls/conflicts/confidentiality findings read-only, the skill renders them and collects explicit decisions, `sync --apply` executes exactly what was decided.
+- **3-way reconcile engine** classifying each task against its last-synced base (new-local/new-remote/changed-local/changed-remote/changed-both/unchanged); conflicts (both sides changed) are always surfaced for an explicit user decision and never auto-resolved, with last-write-wins offered only as a recommendation.
+- **Confidentiality scanner**: secret/token detection (`ghp_`/`sk-`/AWS keys/PEM/bearer tokens) plus generic structural detectors (email/phone/IP/internal hostname/ticket/asset id) and per-repo `sensitive_terms` config, gating every outbound create/push; `CRITICAL` findings require an explicit `keep`/`redact`/`remove`/`anonymize` disposition before anything leaves the machine.
+- **Public-repo visibility guardrail**: warns and requires explicit confirmation before the first push/create of a sync session against a public GitHub/Gitea repo.
+- **Prune**: `done` tasks whose linked issue has been closed longer than `config.prune_closed_after_days` (default 30) are pruned during `sync --apply` only.
+- New `Task Sync Tests` CI job (non-required through Phases 1–5, added to branch protection in Phase 6) and its lockfile added to the dependency-audit gate.
+
+## [11.1.0] - 2026-07-16
+
+Releases the post-11.0.0 backlog-burndown work (#125–#131) that had landed on `main` without a version bump — headlined by a new visual-explainer image-generation feature.
+
+### Added
+- **visual-explainer memory-bounded parallel image generation** (`--concurrency`, default 3): parallelizes Gemini image calls under an `asyncio.Semaphore` for a ~2.92× speedup; `--concurrency 1` restores exact serial behavior. Backward-compatible. (#128)
+
+### Changed
+- **visual-explainer:** decomposed the 1,814-line `cli.py` god module into 6 focused modules (terminal / cli_args / io_utils / reporting / pipeline + a thin cli entry). (#125)
+- Extracted 3 oversized command bodies (`validate-plugin`, `implement-plan`, `new-skill`) under the 500-line house budget via `references/*-examples.md`. (#131)
+
+### Fixed / Internal
+- visual-explainer test coverage raised 69% → 93%, coverage-floor gate 65 → 85. (#127)
+- visual-explainer mypy baseline zeroed (101 → 0); the tool is now mypy-clean. (#129)
+- Behavioral eval corpus grown 35 → 45 across high-traffic skills. (#126)
 
 ## [11.0.0] - 2026-07-16
 
@@ -137,6 +217,54 @@ Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Close
 - `skills/spark-recon` Check 5 + `skills/spark-audit`: dropped permanently-removed NVIDIA forum category 720 (404; topics merged into 719/721).
 - `skills/spark-audit`: removed the obsolete "pre-quant FP8 hangs" CRITICAL anti-pattern (production intentionally runs pre-quant FP8 since 2026-05-18) and corrected the attention-backend expectation (FLASH_ATTN auto-selected on SM121; FlashInfer is MoE-only).
 
+## [9.2.0] - 2026-05-14
+
+### Changed
+- Coordinated minor bump across all plugins and marketplace (build-cfa-deck was the trigger; bpmn-plugin and personal-plugin bumped for release cadence)
+
+## [9.1.0] - 2026-05-10
+
+### Added
+- **Model routing in planning pipeline**: Per-task `**Model Tier:**` field (haiku/sonnet/opus) in plan template; `create-plan` and `plan-improvements` assign tiers using rubric at plan-time; `implement-plan` dispatches to named sub-agents (`haiku-implementer` / `sonnet-implementer` / `opus-implementer`) with escalation pattern
+- **Named implementer agents** in `.claude/agents/`: model pinned in frontmatter, plans reference agent name (not model) — swap models globally without touching plans
+- **Plan template Rule 17**: Model Tier field with full haiku/sonnet/opus rubric and backward-compatibility guarantee (items without Model Tier default to `sonnet`)
+
+### Changed
+- **Implement-plan**: Per-item `**Model Tier:**` takes priority over phase-level execution hints; state file adds `item_model_tiers` map; escalations logged to LEARNINGS.md with single re-dispatch at next tier
+- **Create-plan Phase 3.1**: Step 5 assigns model tier with rubric and escalation criterion guidance; Phase 3.2 Execution Hints updated to position per-item tiers as primary, phase hints supplementary
+- **Plan-improvements**: Work item construction now includes Model Tier as field 2 with inline rubric
+
+### Fixed
+- **arch-review**: Replaced parse-time bash hooks with model-driven Bash/Read calls (removes hook dependency from review workflow)
+
+## [9.0.0] - 2026-04-30
+
+### Added
+- **Plan template**: EARS acceptance criteria notation, runnable Definition of Done (`<!-- BEGIN/END DOD -->`), execution hints (model tier directives), unknowns register — structural rules 13-16
+- **Ultra-plan Phase 0**: Constitution check reads CLAUDE.md constraints, fills gaps via targeted interview, produces Pre-Plan Gates
+- **Ultra-plan sub-agent investigation**: >5 items triggers parallel Explore sub-agents for investigation
+- **Ultra-plan `--refresh`**: Drift detection mode compares existing plan against current code state
+- **Ultra-plan creative branching**: L4+ tasks get comparison tables across competing architectures
+- **Ultra-plan ADR generation**: L3+ tasks conditionally generate Architecture Decision Records
+- **Anti-patterns catalog**: 11 entries across Planning, Implementation, Verification categories (`references/anti-patterns.md`)
+- **ADR template**: Standard Architecture Decision Record format (`references/adr-template.md`)
+- **Hook recipes**: 3 example hooks — planning-stop warning, post-edit verification, session-start plan primer (`references/hooks/`)
+- **AGENTS.md template**: Cross-tool compatibility template for Codex, Cursor, Aider (`references/agents-md-template.md`)
+- Optional AGENTS.md generation in `/create-plan` and `/plan-improvements`
+- **Validate-plugin**: Phase 8.5 plan template structural rule validation (checks rules 13-16 keywords: EARS, DoD markers, Execution Hints, Unknowns Register)
+- **Validate-plugin**: Phase 8.6 reference file inventory check (core references, hook references, pattern/template subdirectories)
+
+### Changed
+- **Ultra-plan**: Rewritten from 5 phases to 7 phases (0-6) with constitution check, sub-agent support, ADR/drift/branching extensions
+- **Create-plan**: Phase 1.5 detects lint/typecheck/coverage commands; Phase 4 generates DoD sections and execution hints; unknowns routed to register
+- **Plan-improvements**: Phase 1 detects verification commands; Phase 3 generates DoD and execution hints; unknowns routed to register
+- **Implement-plan**: State file schema evolved — `verification_commands` array replaces single `test_command` (backward-compatible); testing subagent runs all DoD commands; `Depends On` parsing for parallelization; execution hints consumed for model tier; Risk Mitigation Status updated on completion; `Completed` header set during finalization
+- **Plan-gate**: `/ultraplan` references fixed to `/ultra-plan` with disambiguation notes
+- **Validate-plugin**: Replaced hardcoded example counts (15 files, 3 skills, 16 files, 21 commands) with `[N]` dynamic placeholders to prevent stale output drift
+
+### Fixed
+- `/ultraplan` vs `/ultra-plan` reference ambiguity in plan-gate and create-plan (9+ references corrected)
+
 ## [8.0.0] - 2026-04-21
 
 ### Added
@@ -157,6 +285,21 @@ Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Close
 - `skills/help/` — superseded by native `/help`
 - `commands/review-pr.md` — superseded by native `/review`
 - `tools/research-orchestrator/` — 27-file Python tool eliminated; skill now uses native subagent dispatch
+
+## [7.0.1] - 2026-04-19
+
+### Changed
+- Added mandatory Phase 0 to `/prime` skill to read `LAB_NOTEBOOK.md` before any other analysis when present
+
+## [6.8.0] - 2026-04-11
+
+### Fixed
+- Added missing `## Instructions` section to `plan-next`, `review-arch`, and `test-project` commands for pattern compliance
+
+## [6.7.2] - 2026-04-02
+
+### Changed
+- Enhanced `/prime` skill to read `LAB_NOTEBOOK.md` when present — extracts Decision Log, Open Action Items, recent experiment entries, and Current Baseline into the prime report
 
 ## [6.7.0] - 2026-03-31
 
@@ -190,6 +333,29 @@ Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Close
 - Help skill: added missing `spark-recon`, replaced `/SKILL` placeholder examples with real invocations
 - CLAUDE.md: removed false "dynamic Glob-based discovery" claims, added missing skills to structure listing
 - CONTRIBUTING.md: corrected dynamic help references to match static table reality
+
+## [6.4.0] - 2026-03-30
+
+### Added
+- `lab-notebook` skill — initialize mandatory experiment logging combining scientific notebook, ADR, and incident postmortem patterns
+- GITHUB_ERRORS.md error check log tracked at repo root
+
+### Changed
+- Enhanced `explain-project` skill with `--update` incremental mode, runtime data verification phase (Phase 3.5), glossary hyperlink navigation, production number sourcing rules, document freshness metadata, and "Known Limitations" / "Operational State" sections
+- Updated README.md skill count and table (15 → 16 skills)
+- Updated CLAUDE.md directory listing with lab-notebook skill
+- Updated help skill with lab-notebook entry
+
+## [6.3.0] - 2026-03-27
+
+### Added
+- `accessibility-annotator` skill — analyze technical documents for CS/ML concepts and add explanation annotations for non-CS readers
+- `explain-project` skill — generate comprehensive annotated technical overview document for non-technical stakeholders
+
+### Changed
+- Updated README.md skill count and table (11 → 15 skills)
+- Updated CLAUDE.md directory listing with new skills
+- Added missing CHANGELOG entry for v6.2.0
 
 ## [6.2.0] - 2026-03-23
 
@@ -325,11 +491,79 @@ Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Close
 - `references/flag-consistency.md` — comprehensive flag reference across all commands
 - `plan-gate` skill for assessing task complexity and routing to right planning approach
 
+## [4.0.0] - 2026-02-16
+
+### Added
+- `/review-intent` command: Determine original project intent and compare against current implementation
+- `/prime` skill: Evaluate codebase to produce detailed report on project purpose, health, status, and next steps
+- `/implement-plan` parallel execution: PATH B launches independent work items concurrently via background subagents
+- `/create-plan` and `/plan-improvements` append mode: If IMPLEMENTATION_PLAN.md exists, new phases are appended with renumbered items instead of overwriting
+
+### Changed
+- `/implement-plan` restructured with dual execution paths (PATH A: sequential, PATH B: parallel) and parallelization map built at startup
+- README.md updated with all 9 skills (was showing only 3) and 26 commands
+- CLAUDE.md repository structure updated with review-intent command and prime skill
+- CLAUDE.md Patterns Used section now covers all 26 commands across 14 pattern categories
+- SECURITY.md updated with multi-provider API data flow, security-relevant skills, and current third-party dependencies
+- TROUBLESHOOTING.md Python version requirement corrected (3.8 → 3.10)
+- QUICK-REFERENCE.md expanded with 5 new flags and a skills section
+- Help skill error section updated with complete command and skill lists
+- 11 code blocks in bpmn-plugin tool docs fixed with language specifiers
+
+### Fixed
+- Documentation drift: 22 fixes across 8 files for stale references, missing features, and incorrect claims
+- SECURITY.md "No Audit Trail" claim corrected — audit logging available via `--audit` flag
+
+## [3.14.0] - 2026-02-15
+
+### Changed
+- `/implement-plan` command: Removed Ralph Wiggum loop dependency, replaced with native subagent orchestration pattern
+  - Main agent now acts as thin loop controller using Task tool directly
+  - Added explicit "Context Window Discipline" rules table
+  - Instructions use blockquoted subagent prompts with `subagent_type: "general-purpose"`
+  - Progress tracking via TaskCreate/TaskUpdate instead of external loop state
+  - Added "Do not stop early" directive to ensure full plan completion
+
 ## [3.13.0] - 2026-01-27
 
 ### Added
 - `/summarize-feedback` skill: Synthesize employee feedback from Notion Voice Captures into a professional .docx assessment document
 - Bundled `feedback-docx-generator` Python tool for .docx document generation
+
+## [3.12.0] - 2026-01-26
+
+### Added
+- Help skill updated with `/unlock` skill listing and detailed usage documentation
+
+### Changed
+- Version bump to 3.12.0
+
+### Removed
+- `SHIP_GITEA_PLAN.md` planning document (completed, no longer needed)
+
+## [3.11.1] - 2026-01-26
+
+### Added
+- `/unlock` skill: Unlock Bitwarden vault and load project secrets into environment
+  - Reads master password from `~\.claude\.env` (local, not in repo)
+  - Auto-detects project name from working directory
+  - Loads secrets from `dev/<project>/api-keys` in Bitwarden
+  - Recovered from plugin cache (was installed but missing from source repo)
+
+## [3.11.0] - 2026-01-26
+
+### Added
+- `/ship` skill: Gitea platform support with `tea` CLI auto-detection
+  - Phase 0 platform detection parses git remote to select GitHub (`gh`) or Gitea (`tea`)
+  - Platform-conditional commands for PR creation, review, and merge
+  - Draft PR limitation documented (tea CLI does not support `--draft`)
+  - Gitea branch cleanup after merge (tea doesn't auto-delete branches)
+- `/validate-and-ship` skill: Added `tea` CLI to allowed tools and stopping conditions
+
+### Changed
+- `/ship` skill: `allowed-tools` now includes `Bash(tea:*)`
+- `/validate-and-ship` skill: `allowed-tools` now includes `Bash(tea:*)`
+- Help skill updated with Gitea platform support notes for `/ship`
 
 ## [3.10.0] - 2026-01-19
 
@@ -364,6 +598,38 @@ Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Close
 - Removed YAML frontmatter from CHANGELOG.md that could cause plugin parser issues
 - Fixed potential Bun crash caused by CHANGELOG.md being incorrectly parsed as a command file
 
+## [3.7.2] - 2026-01-18
+
+### Added
+- visual-explainer: **Infographic mode** (`--infographic` flag) for information-dense 11x17 inch page generation
+- visual-explainer: Adaptive page count (1-6 pages) based on document complexity, word count, and content types
+- visual-explainer: 8 page types: Hero Summary, Problem Landscape, Framework Overview, Framework Deep-Dive, Comparison Matrix, Dimensions/Variations, Reference/Action, Data/Evidence
+- visual-explainer: Zone-based layout system with explicit typography specifications (headline/subhead/body/caption)
+- visual-explainer: Page templates library with predefined layouts for each page type
+- visual-explainer: Content type detection (statistics, process, comparison, hierarchy, timeline, framework, narrative, list, matrix)
+
+### Changed
+- visual-explainer: Concept analyzer now produces page recommendations with zone assignments when in infographic mode
+- visual-explainer: Prompt generator creates information-dense prompts with explicit text specifications
+- visual-explainer: CLI displays page plan summary including page types, content focus, and compression warnings
+
+## [3.7.1] - 2026-01-18
+
+### Fixed
+- visual-explainer: Image resizing for Claude's 5MB API limit (uses 3.5MB raw limit to account for base64 encoding overhead)
+- visual-explainer: Windows path sanitization - removes invalid characters (`:`, `*`, `?`, `"`, `<`, `>`, `|`) from output folder names
+
+### Added
+- visual-explainer: google-genai and Pillow dependencies in pyproject.toml
+- visual-explainer: Technical notes section in SKILL.md with API details and tested results
+- visual-explainer: DOCX conversion tip and input format handling table in SKILL.md
+- visual-explainer: `--json` output mode for programmatic use
+- visual-explainer: Image size limit and Windows path troubleshooting sections in README.md
+
+### Changed
+- visual-explainer: Uses google-genai SDK with `gemini-3-pro-image-preview` model
+- visual-explainer: Default pass threshold recommendation: 0.75-0.85 for optimal quality/iteration balance
+
 ## [3.7.0] - 2026-01-18
 
 ### Added
@@ -375,6 +641,16 @@ Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Close
 - Bundled styles: professional-clean and professional-sketch
 - Multiple input formats: .md, .txt, .docx, .pdf, URLs
 - Comprehensive test suite (195 tests)
+
+## [3.6.1] - 2026-01-18
+
+### Changed
+- `/research-topic` skill: Increased default timeout from 720s to 1800s (30 minutes) for deep research APIs
+- `/research-topic` skill: Enhanced terminal UI with StreamingUI for real-time progress visibility
+- `/research-topic` skill: Added `PYTHONUNBUFFERED=1` and `STREAMING_UI=1` environment variables for proper output streaming
+
+### Fixed
+- Research execution now displays live progress updates instead of buffered output
 
 ## [3.6.0] - 2026-01-18
 
@@ -405,3 +681,44 @@ Coordinated with marketplace v3.3.0, bpmn-plugin v4.2.0, slide-gen v1.2.0. Close
 ## [3.4.0] - Previous
 
 - Earlier versions (see git history)
+
+## [3.3.0] - 2026-01-18
+
+### Fixed
+- Cache deployment issue: v3.2.0 source code fixes were not deployed to marketplace cache
+  - OpenAI and Gemini providers now properly call `_status_update` method from BaseProvider
+  - Users should reinstall plugin to get the fixed version: `/plugin install personal-plugin@troys-plugins --force`
+
+## [3.2.0] - 2026-01-17
+
+### Added
+- Progress updates during polling for OpenAI and Gemini deep research (every 30s)
+
+### Changed
+- Increased default timeout from 180s to 720s for deep research APIs (OpenAI/Gemini can take 5-10 minutes)
+- Clarification loop now REQUIRED in `/research-topic` skill unless `--no-clarify` specified
+- Model version check step changed from conditional to recommended (skip with `--skip-model-check`)
+
+### Fixed
+- OpenAI and Gemini deep research timeout failures (300s was insufficient)
+- Gemini SDK experimental API warnings now suppressed
+- Documentation inconsistencies for timeout values (now consistently 720s)
+
+## [3.1.0] - 2026-01-17
+
+### Added
+- `/validate-and-ship` skill - Automated pre-flight checks and shipping workflow
+  - Chains `/validate-plugin`, `/clean-repo`, and `/ship` in sequence
+  - Stops only on blocking errors, continues through warnings
+  - Supports `--skip-validate`, `--skip-cleanup`, `--dry-run` flags
+- Stale branch pruning in `/ship` skill completion phase
+  - Auto-prunes remote tracking branches that no longer exist
+  - Cleans local branches where upstream is gone (merged only)
+
+### Changed
+- `/ship` skill now reports pruned stale branches in completion output
+
+## [3.0.0] - 2026-01-17
+
+### Changed
+- Major version bump for breaking changes in plugin structure and command conventions

@@ -5,6 +5,12 @@ All notable changes to slide-gen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-29
+
+### Fixed
+- `build-cfa-deck`: the primary snippet used `Presentation` before importing it, and two different slide-removal implementations were both broken. One working implementation now lives in the new `references/cfa-deck-helpers.md`.
+- Machine-specific asset paths replaced with a `CFA_ASSETS_DIR` override.
+
 ## [1.2.0] - 2026-07-08
 
 Coordinated with marketplace v3.3.0, personal-plugin v10.0.0, bpmn-plugin v4.2.0 (8-phase modernization pass against current official Anthropic guidance).

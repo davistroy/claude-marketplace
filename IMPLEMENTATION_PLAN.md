@@ -71,8 +71,8 @@ Phase 2 is the highest-risk item in the plan and the only one that can redden `m
 
 ### Work Items
 
-#### 1.1 Backfill the 28 missing per-plugin CHANGELOG entries
-**Status: PENDING**
+#### 1.1 Backfill the 28 missing per-plugin CHANGELOG entries ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: sonnet**
 **Issue Refs:** #210
 **Depends On:** None
@@ -89,16 +89,16 @@ personal-plugin's 24, newest first: `11.6.0, 11.3.0, 11.2.0, 11.1.0, 9.2.0, 9.1.
 The root CHANGELOG uses at least four heading grammars (`[plugin vX.Y.Z]`, `[plugin X.Y.Z]`, a combined `[marketplace vA, plugin vB, …]`, and bare `[X.Y.Z]`). Parse all four when locating source sections, or entries will be silently under-extracted.
 
 **Tasks:**
-1. [ ] Extract each missing version's section from root `CHANGELOG.md`, handling all four heading grammars
-2. [ ] Insert into the correct per-plugin file in descending version order, preserving Keep-a-Changelog format (declared at each file's `:5-6`)
-3. [ ] Verify no version present in a plugin file but absent from root is disturbed — 9 personal-plugin and 10 bpmn-plugin versions are pre-consolidation history, not defects
-4. [ ] Run `markdownlint-cli2` over all three files before committing
+1. [x] Extract each missing version's section from root `CHANGELOG.md`, handling all four heading grammars
+2. [x] Insert into the correct per-plugin file in descending version order, preserving Keep-a-Changelog format (declared at each file's `:5-6`)
+3. [x] Verify no version present in a plugin file but absent from root is disturbed — 9 personal-plugin and 10 bpmn-plugin versions are pre-consolidation history, not defects
+4. [x] Run `markdownlint-cli2` over all three files before committing
 
 **Acceptance Criteria:**
-- [ ] WHEN the version set of each `plugins/*/CHANGELOG.md` is compared against the versions attributed to that plugin in the root CHANGELOG THEN every root-attributed version SHALL be present in the plugin file
-- [ ] WHEN each plugin's `plugin.json` version is read THEN that exact version SHALL have an entry in its plugin CHANGELOG
-- [ ] No version bump in this change set — backfilling history is not a release (D45)
-- [ ] `markdownlint-cli2` exits 0
+- [x] WHEN the version set of each `plugins/*/CHANGELOG.md` is compared against the versions attributed to that plugin in the root CHANGELOG THEN every root-attributed version SHALL be present in the plugin file
+- [x] WHEN each plugin's `plugin.json` version is read THEN that exact version SHALL have an entry in its plugin CHANGELOG
+- [x] No version bump in this change set — backfilling history is not a release (D45)
+- [x] `markdownlint-cli2` exits 0
 
 **Notes:**
 This must land **before** Phase 2. A CHANGELOG-only PR bumps nothing, which Phase 2's gate would reject unless the exemption is already in place. Landing the data fix first removes the ordering hazard entirely.
@@ -1020,7 +1020,7 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 | Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Open |
 | Phase 5 and Phase 8.1 both edit `unlock/SKILL.md` | High if parallel | Med | Serialize: run 8.1's `unlock` edits after Phase 5 merges, or fold them into Phase 5 | Open |
 | Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Open |
-| Backfilled CHANGELOG entries paraphrased rather than extracted, reintroducing drift inverted | Med | Low | 1.1 task 1 mandates extraction; acceptance compares version *sets*, not prose | Open |
+| Backfilled CHANGELOG entries paraphrased rather than extracted, reintroducing drift inverted | Med | Low | 1.1 task 1 mandates extraction; acceptance compares version *sets*, not prose | Mitigated |
 
 ---
 
