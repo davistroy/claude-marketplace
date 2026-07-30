@@ -72,6 +72,7 @@ The state file is the **ground truth** for execution progress. It persists minim
 | Field | Type | Purpose |
 |-------|------|---------|
 | `plan_file` | string | Resolved path to the plan file (`PLAN_FILE`) |
+| `plan_identity` | object | Fingerprint of *which plan* this state belongs to — `generated`, `total_phases`, `phase_titles`, `item_ids`. A path is a label; this is the content. See "Plan Identity" below |
 | `started_at` | ISO timestamp | When the session began |
 | `current_phase` | string | Name of the phase currently executing |
 | `current_item` | string \| null | Item number being worked; `null` when a phase just finished |
@@ -91,8 +92,50 @@ The state file is the **ground truth** for execution progress. It persists minim
 
 **`in_progress` / `in_progress_batch`:** Exactly one of these (or neither) is present at a time — `in_progress` for a single-item batch, `in_progress_batch` for a parallel batch. Set in Step 0 (before implementation) and removed in Step 5 (after commit). On resume, if either exists, an item was interrupted mid-implementation — the resume logic in Step 0 handles this.
 
+### Plan Identity (`plan_identity`)
+
+`plan_file` is a **path**, and a path is a label. The default path `IMPLEMENTATION_PLAN.md` is reused by every plan the repo ever runs — completed plans are archived to `docs/archive/IMPLEMENTATION_PLAN-vN.md` and a new one is written to the same path. So a surviving state file from a *finished* run will match the next plan's `plan_file` exactly while describing entirely different work. That is #235: resume reads `current_phase: COMPLETE`, finds nothing remaining, routes to `ALL_COMPLETE`, and reports a successful run having implemented nothing — with a completion report drawn from the previous plan's items.
+
+`plan_identity` fixes that by recording **content, not the identifier**:
+
+```json
+"plan_identity": {
+  "generated": "2026-07-29",
+  "total_phases": 8,
+  "phase_titles": ["Phase 1: Injection Doctrine and the Guards Built On It", "Phase 2: ..."],
+  "item_ids": ["1.1", "1.2", "1.3", "2.1"]
+}
+```
+
+**These four fields, and only these four, are invariant while a plan executes.** The plan file is *modified* during a run, so most of it is unusable as a fingerprint:
+
+| Plan content | Changes during a run? | In the fingerprint? |
+|---|---|---|
+| `**Generated:**` | No | **Yes** |
+| `**Total Phases:**` | No | **Yes** |
+| `## Phase N: [Title]` headings | No — never decorated | **Yes** (verbatim, without the leading `## `) |
+| `#### N.M` item **numbers** | No | **Yes** |
+| `#### N.M` item **titles** | **Yes** — decorated on completion with ` ✅ Completed YYYY-MM-DD` | **No** |
+| `**Status:**` fields | **Yes** — `PENDING` → `COMPLETE [date]` | **No** |
+| `**Completed:**` header field | **Yes** — added at finalization | **No** |
+| Task/acceptance checkboxes | **Yes** | **No** |
+
+A fingerprint over the whole file, or over heading *text*, would differ from itself after the very first item and reject every legitimate resume — turning a data-loss bug into a resume-never-works bug. Key on the item **number**, never its title.
+
+Derive the fingerprint with three commands over `PLAN_FILE` — no hashing tool, so it works identically on every platform and a human can read a mismatch:
+
+```bash
+grep -E '^\*\*(Generated|Total Phases):' "$PLAN_FILE"
+grep -E '^## Phase [0-9]+:' "$PLAN_FILE"
+awk '/^#### /{ if (match($0, /[0-9]+\.[0-9]+/)) print substr($0, RSTART, RLENGTH) }' "$PLAN_FILE"
+```
+
+**Extract the item id with `match()`, not by anchoring it to the start of the heading.** The completion decoration is *supposed* to be a suffix (`#### 1.1 Title ✅ Completed 2026-07-30`) but is not reliably one: two items in plan v13 came back as `#### ✅ Completed 2026-07-30 — 7.1 Title`, and an anchored `^#### [0-9]+\.[0-9]+` silently dropped both — an item-count that is quietly 17 instead of 19. `match()` takes the **first** `N.M` anywhere on the line, which is the item number under either decoration and is unaffected by a version-like string later in the title.
+
+When you decorate a completed heading, **append** the marker and never place anything before the item number — `plan_identity` parses that number, and a prefix decoration is one regex away from breaking the guard.
+
 **State file rules:**
-- Created during STARTUP; the main agent reads/writes it directly (small, structured — no subagent); gitignored (ephemeral, not a project artifact); deleted during FINALIZATION after the PR is created.
+- Created during STARTUP; the main agent reads/writes it directly (small, structured — no subagent); gitignored (ephemeral, not a project artifact); deleted during FINALIZATION **after** the COMPLETION REPORT has been generated from it.
 - Updated BEFORE implementation starts (mark item IN_PROGRESS) and AFTER commit succeeds (mark item COMPLETE, clear the in-progress marker).
 - On STARTUP, if it exists, resume from where it left off instead of re-reading the full plan; if resume detects an in-progress entry, offer the user retry/skip/complete options before continuing.
 
@@ -137,7 +180,20 @@ Follow these steps exactly. Use the **Agent tool** to spawn subagents (with `sub
 Check if `.implement-plan-state.json` exists in the repository root. Read it directly (it is small JSON — no subagent needed).
 
 - **If the state file does not exist or is corrupted:** Continue with Step 1 below.
-- **If the state file exists and is valid:** Resume execution. Skip the STARTUP subagent. Read `current_phase`, `current_item`, `completed`, `failed`, and `parallelization_map` from it.
+- **If the state file exists and is valid:** verify it belongs to *this* plan before trusting anything else in it (see below), then resume execution. Skip the STARTUP subagent. Read `current_phase`, `current_item`, `completed`, `failed`, and `parallelization_map` from it.
+
+  **Check plan identity FIRST (before the IN_PROGRESS check).** Run the two greps from "Plan Identity" above against `PLAN_FILE`, build the same four fields, and compare them to the state file's `plan_identity`. This must come first: an `in_progress` entry that belongs to a different plan names an item number that means something else here, so acting on it before establishing identity is acting on the wrong plan.
+
+  - **Fields match:** the state belongs to this plan. Continue to the IN_PROGRESS check.
+  - **`plan_identity` is absent** (a state file written before this field existed): do not guess. Report `Existing state file has no plan_identity — it predates identity tracking and cannot be matched to [PLAN_FILE].` and present the same three options as a mismatch.
+  - **Fields differ:** the state file describes a *different* plan. Do NOT resume. Report the mismatch concretely — name each field that differs and show both values, e.g. `state: generated 2026-07-29, 8 phases, 42 items (1.1-8.6) | plan file: generated 2026-07-30, 8 phases, 19 items (1.1-8.3)` — then present three options and wait:
+    - **(1) Start fresh (recommended):** delete `.implement-plan-state.json` and continue with Step 1. This is the right choice whenever a previous plan was archived and a new one written to the same path.
+    - **(2) Resume anyway:** keep the state file and continue to the IN_PROGRESS check. Only correct if the plan was legitimately edited mid-run (items added or renumbered) and the completed items still refer to the same work.
+    - **(3) Abort:** stop so the user can inspect both files manually.
+
+  **Never treat a matching `plan_file` path as identity.** Completed plans are archived to `docs/archive/IMPLEMENTATION_PLAN-vN.md` and the next plan is written to the same default path, so the path always matches and proves nothing.
+
+  **A state file that says the plan is already finished is not a completed run.** If `plan_identity` matches and nothing remains (`current_phase` is `COMPLETE`, or no item in `parallelization_map` is outside `completed`/`failed`), do NOT route to `ALL_COMPLETE` and generate a completion report — that report would describe work this invocation did not do. Report `[PLAN_FILE] is already complete ([N] items, finished [date]). Nothing to do. Delete .implement-plan-state.json to re-run it from scratch.` and stop.
 
   **Check for interrupted work items (IN_PROGRESS detection):** Check for an `"in_progress"` field (single-item batch) or `"in_progress_batch"` field (parallel batch). These are set in Step 0 of the MAIN LOOP (before implementation) and cleared in Step 5 (after commit). If either is present, an item was interrupted mid-implementation — present a resume prompt with three options: retry, skip, or mark complete. See `references/implement-plan-examples.md` for the exact prompt text.
 
@@ -162,7 +218,7 @@ Launch an Agent (subagent_type: "general-purpose") to read `PLAN_FILE`, PROGRESS
 
 **Step 2: Write initial state file**
 
-Using the subagent's response, write `.implement-plan-state.json` to the repository root **with the Write tool** (not a shell heredoc), following the field table above and the full schema in `references/implement-plan-state-schema.md`. Initialize `completed`/`failed` to `[]`, `checkpoints` to `{}`, and `last_good_sha` to `null`; set `plan_file`, `started_at` (current ISO timestamp), and `current_phase`/`current_item` (the first incomplete phase and its first item); fill `project_context` (with `verification_commands` as `{name, command, pass_criteria}` entries — tests plus any detected lint/typecheck), `execution_hints` (default `default_model` `sonnet`, `phase_overrides` `{}` if none), `item_model_tiers`, and `parallelization_map` from the subagent.
+Using the subagent's response, write `.implement-plan-state.json` to the repository root **with the Write tool** (not a shell heredoc), following the field table above and the full schema in `references/implement-plan-state-schema.md`. Initialize `completed`/`failed` to `[]`, `checkpoints` to `{}`, and `last_good_sha` to `null`; set `plan_file`, `plan_identity` (run the two greps from "Plan Identity" above against `PLAN_FILE` and record `generated`, `total_phases`, `phase_titles`, `item_ids` — do this *now*, while the plan is still un-decorated, so the recorded `item_ids` are the full set), `started_at` (current ISO timestamp), and `current_phase`/`current_item` (the first incomplete phase and its first item); fill `project_context` (with `verification_commands` as `{name, command, pass_criteria}` entries — tests plus any detected lint/typecheck), `execution_hints` (default `default_model` `sonnet`, `phase_overrides` `{}` if none), `item_model_tiers`, and `parallelization_map` from the subagent.
 
 **Step 3: Ensure state file is gitignored**
 
@@ -373,17 +429,9 @@ Before stopping execution — whether from normal completion, early termination,
 2. **Remaining items** = the full per-phase item list from `parallelization_map` minus everything in `completed` and `failed`.
 3. **Status line:** `COMPLETE` (all items completed, none remaining); `PARTIAL — context exhaustion` (running low on context window); `PARTIAL — user abort` (stopped at a phase gate or confirmation prompt); `PARTIAL — unfixable error` (TESTS_STUCK with user choosing Pause); `PARTIAL — interrupted` (any other early stop).
 4. **Resume guidance:** always show the `/implement-plan` command needed to resume (including `--input` if the plan path is non-default) — except on `COMPLETE`, where the "Remaining" section shows `(none)` and the resume line is omitted.
-5. **No state file** (e.g., error before state file creation): output a minimal report — "No state file found. No work items were completed. Run `/implement-plan` to start fresh."
+5. **No state file** (e.g., error before state file creation): output a minimal report — "No state file found. No work items were completed. Run `/implement-plan` to start fresh." **This fallback is only ever correct before the state file is created.** Never reach it by having deleted the file yourself — the deletion in FINALIZATION happens *after* this report is generated, precisely so a successful run cannot end up asserting that no work items were completed.
 
 ### FINALIZATION (only when ALL work items are complete)
-
-#### Final Step 0: Clean Up State File
-
-Delete the state file — it is ephemeral execution state and should not persist after the plan is complete:
-
-```bash
-rm -f .implement-plan-state.json
-```
 
 #### Final Step 1: Documentation Polish (Agent)
 
@@ -413,6 +461,16 @@ If `--auto-merge` was passed: merge the PR with `gh pr merge --squash`, delete t
 #### Final Step 3: Output (Completion Report)
 
 Output the **COMPLETION REPORT** (defined above) with `Status: COMPLETE`, then add the PR URL (PR-only mode) or merge confirmation (`--auto-merge`), plus any key learnings or issues encountered (1-3 bullet points max).
+
+#### Final Step 4: Clean Up State File
+
+**Only after the COMPLETION REPORT has been output**, delete the state file — it is ephemeral execution state and must not survive the run:
+
+```bash
+rm -f .implement-plan-state.json
+```
+
+**This is the last action of the command, and the ordering is load-bearing in both directions.** It must come *after* Final Step 3 because the COMPLETION REPORT is generated by reading this file (report rule 1) and its documented behaviour for a missing file is "No work items were completed" — deleting first makes a fully successful run report the opposite of the truth. It must not be skipped, because a state file that outlives its run is inherited by the next plan written to the same path (#235). If any earlier Final Step failed and you are stopping short of a complete run, **do not delete the file** — that is the Early Termination path in Error Handling, where the state is what makes resume possible.
 
 ## Output Files
 

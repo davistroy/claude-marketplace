@@ -77,7 +77,10 @@
 
 #### 1.1 [Work Item Title]
 <!-- Status values: PENDING, IN_PROGRESS, COMPLETE [YYYY-MM-DD] -->
-<!-- On completion, /implement-plan decorates the heading: #### 1.1 Title ✅ Completed YYYY-MM-DD -->
+<!-- On completion, /implement-plan APPENDS to the heading: #### 1.1 Title ✅ Completed YYYY-MM-DD -->
+<!-- The item number MUST stay first. Never prefix the marker (#### ✅ Completed ... — 1.1 Title):
+     the state file's plan_identity parses that number, and a prefix decoration hid two of plan
+     v13's 19 items from an anchored regex. Append only. -->
 **Status: PENDING**
 **Model Tier: sonnet** <!-- haiku | sonnet | opus — set by planner at plan-time; implement-plan dispatches to haiku-implementer / sonnet-implementer / opus-implementer in .claude/agents/ -->
 **[COMMAND-SPECIFIC: "Requirement Refs:" or "Recommendation Ref:"]** [COMMAND-SPECIFIC: PRD §2.1, TDD §4.3 OR U1, A2, etc.]
