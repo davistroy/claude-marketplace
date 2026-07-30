@@ -1123,3 +1123,29 @@ That last one is the most useful data point in the entry. **I filed #231 after v
 **Highest-severity unknown is U6, and it is about this session's own method.** #232's loader staleness means a manual acceptance test may exercise a different skill version than the one just edited — so the plan's standing instruction is to verify the installed cache *content*, not its version string, before trusting any manual verification. The plan is deliberately not gated on #232.
 
 **Status:** COMPLETE — reconciliation done, 4 issues filed, 5 corrected, plan generated and structurally verified. Execution is a separate session via `/implement-plan`.
+
+--- New session: 2026-07-30 — execute the E062 plan via `/implement-plan`: 8 phases / 19 items off `main` `b4d576c`. ---
+
+### Entry 063 — Executing the close-the-loop + hygiene backlog (8 phases / 19 items) [plan] [build] [ci]
+
+**Date:** 2026-07-30
+**Environment:** Linux VM, branch `feature/close-the-loop-backlog` off `main` `b4d576c` (E062's PR #234 squash-merged; 0/0 divergence from `origin/main` per D17). personal-plugin 11.6.0 / bpmn-plugin 4.4.0 / slide-gen 1.3.0 / marketplace 3.3.0. Orchestrator on Opus 5 (1M). Default mode — PR at the end, no auto-merge, no phase pauses.
+**Status:** IN PROGRESS
+
+**Objective:** Execute `IMPLEMENTATION_PLAN.md` (generated in E062) end-to-end, closing 12 issues across 8 phases. All 19 items start `PENDING`.
+
+**Hypothesis:** The orchestrated loop lands all 19 items with per-phase Definition-of-Done gates green, producing one PR. Measurable success criteria: (a) every item's `**Status:**` reaches `COMPLETE`; (b) each phase's DoD block exits 0 before the phase boundary is crossed; (c) the two guards this plan *creates* — `scripts/check_version_bump.py` (2.2) and the extended `update-readme.py --check` (6.1) — are each demonstrated to **exit non-zero on deliberately-bad input before being wired in**, per the standing negative-test rule, with the observed exit codes recorded here rather than asserted in prose; (d) `main` is never red — in particular the `push`-to-`main` leg of `Validate Plugins (official CLI)` stays green after Phase 2 merges, which is the single highest risk in the plan.
+
+**Rollback Plan:** Every batch is its own commit on `feature/close-the-loop-backlog`, and `last_good_sha` in `.implement-plan-state.json` tracks the most recent all-gates-green commit. A failed item is never committed — `git checkout -- .` returns the tree to `last_good_sha`. Whole-run abort: `git checkout main && git branch -D feature/close-the-loop-backlog` discards everything; `main` is untouched until the PR merges. `IMPLEMENTATION_PLAN.md` is git-tracked, so its Status-field edits revert with the branch. **Phase 2 carries an additional rollback beyond the branch:** if its gate reddens `main`'s push leg after merge, the remedy is to revert the single commit that added the CI step — the step is additive and removing it restores the prior job definition exactly, with no branch-protection coordination needed because no job key changed (D28).
+
+**Pre-flight finding: the resume path would have skipped all 19 items and reported success (#235).** `/implement-plan`'s Step 0 found a stale `.implement-plan-state.json` from the **completed E061 run** — `current_phase: COMPLETE`, `current_item: null`, `completed: 42`, and a `parallelization_map` naming plan v12's eight phases. Its `plan_file` field reads `IMPLEMENTATION_PLAN.md`, the default path, which now holds an entirely different plan.
+
+The resume logic reads `current_phase`/`current_item`/`completed` and skips the STARTUP scan. With no `in_progress` marker (the interrupted-run detector), the routing finds nothing remaining and returns `ALL_COMPLETE` → FINALIZATION: delete the state file, polish docs, open a PR "for the phases actually implemented", and print `Status: COMPLETE`. **Nineteen PENDING items skipped, reported as a successful run**, with the COMPLETION REPORT generated from the same stale file so it would have cited the *previous* plan's 42 items as this run's output.
+
+**Two failures compose.** FINALIZATION's `rm -f .implement-plan-state.json` runs only on the ALL_COMPLETE path and never executed when E061 ended at PR creation; the file is **gitignored**, so nothing — `git status`, CI, pre-commit — could surface it, and it sat on disk two days. Separately, the state file identifies its plan **by path, not by identity**, so archiving v12 and writing a new plan at the same path leaves stale state pointing at a plan it has never seen with no field capable of detecting the mismatch. Either failure alone is benign; together they are silent and total.
+
+**Same family as #226 and #232:** an artifact identified by a *label* — a version string, a cache path, a file path — where the label agrees and the content does not. That is now three instances in two sessions, and the mitigation is identical in all three: **verify content, never the identifier.** Filed as #235; state file backed up to scratchpad and deleted before starting.
+
+**Execution shape.** Critical path **1 → 2**, strictly sequential — Phase 1's CHANGELOG-only change is exactly what Phase 2's Rule 1 rejects, so the backfill must land first. Phases 3–8 share no files with the critical path or with each other, with one exception the `Depends On` field does not express: **Phase 5 and Phase 8.1 both edit `unlock/SKILL.md`** and must be serialized. Per-item model tiers are specified 19/19; Phases 2 and 6 override to `opus`.
+
+**Results — logged per batch as each lands:**
