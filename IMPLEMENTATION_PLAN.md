@@ -143,8 +143,8 @@ This must land **before** Phase 2. A CHANGELOG-only PR bumps nothing, which Phas
 
 ### Work Items
 
-#### 2.1 Deepen the checkout in the `plugin-validate` job
-**Status: PENDING**
+#### 2.1 Deepen the checkout in the `plugin-validate` job ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #226
 **Depends On:** None
@@ -167,8 +167,8 @@ Full history on this repo is small; `fetch-depth: 0` is cheaper than the fragili
 
 ---
 
-#### 2.2 Write `scripts/check_version_bump.py` with two conditional rules
-**Status: PENDING**
+#### 2.2 Write `scripts/check_version_bump.py` with two conditional rules ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #226, #210
 **Depends On:** 2.1
@@ -186,29 +186,42 @@ One stdlib-only script (the `plugin-validate` job has no `setup-python` step and
 Bump-worthy paths, derived from the 375-file census: everything under `plugins/<name>/` **except** `CHANGELOG.md`, `LICENSE`, `README.md`, `tools/*/tests/**`, and `examples/**`. Per-plugin, never "any plugin changed ⇒ all three bump" (D45 forbids empty coordinated bumps).
 
 **Tasks:**
-1. [ ] Implement per-plugin diff classification from `git diff --name-only <base>...<head>`
-2. [ ] Read both old and new `plugin.json` via `git show <ref>:<path>` — derive both sides, never restate a constant
-3. [ ] Implement Rule 1 with the exemption list, and Rule 2 keyed on the *new* version string
-4. [ ] Branch explicitly on event leg: on `pull_request` use base↔head; on `push` to main **exit 0 with an explanatory message** — there is no meaningful base and the PR leg already gated the content
-5. [ ] Add `--self-test` that constructs synthetic diffs and asserts exit 1 on each violation and exit 0 on each exemption
-6. [ ] Emit the offending plugin, rule, and remediation command (`/bump-version <plugin> <level>`) on failure
+1. [x] Implement per-plugin diff classification from `git diff --name-only <base>...<head>`
+2. [x] Read both old and new `plugin.json` via `git show <ref>:<path>` — derive both sides, never restate a constant
+3. [x] Implement Rule 1 with the exemption list, and Rule 2 keyed on the *new* version string
+4. [x] Branch explicitly on event leg: on `pull_request` use base↔head; on `push` to main **exit 0 with an explanatory message** — there is no meaningful base and the PR leg already gated the content
+5. [x] Add `--self-test` that constructs synthetic diffs and asserts exit 1 on each violation and exit 0 on each exemption
+6. [x] Emit the offending plugin, rule, and remediation command (`/bump-version <plugin> <level>`) on failure
 
 **Acceptance Criteria:**
-- [ ] WHEN a PR modifies `plugins/<name>/skills/**` without changing that plugin's `version` THEN the script SHALL exit non-zero naming the plugin and Rule 1
-- [ ] WHEN a PR modifies only `plugins/<name>/CHANGELOG.md` THEN the script SHALL exit 0 (Rule 1 exemption — this is Phase 1's own shape)
-- [ ] WHEN a PR bumps `version` without adding a matching `CHANGELOG.md` entry THEN the script SHALL exit non-zero naming Rule 2
-- [ ] WHEN the script runs on the `push`-to-`main` leg THEN it SHALL exit 0 and print why, never attempting a base diff
-- [ ] WHEN a PR modifies only `plugins/bpmn-plugin/tools/bpmn2drawio/tests/**` THEN the script SHALL exit 0
-- [ ] `python3 scripts/check_version_bump.py --self-test` exits 0, and each synthetic violation within it is asserted to exit 1
-- [ ] Script imports only stdlib
+- [x] WHEN a PR modifies `plugins/<name>/skills/**` without changing that plugin's `version` THEN the script SHALL exit non-zero naming the plugin and Rule 1
+- [x] WHEN a PR modifies only `plugins/<name>/CHANGELOG.md` THEN the script SHALL exit 0 (Rule 1 exemption — this is Phase 1's own shape)
+- [x] WHEN a PR bumps `version` without adding a matching `CHANGELOG.md` entry THEN the script SHALL exit non-zero naming Rule 2
+- [x] WHEN the script runs on the `push`-to-`main` leg THEN it SHALL exit 0 and print why, never attempting a base diff
+- [x] WHEN a PR modifies only `plugins/bpmn-plugin/tools/bpmn2drawio/tests/**` THEN the script SHALL exit 0
+- [x] `python3 scripts/check_version_bump.py --self-test` exits 0, and each synthetic violation within it is asserted to exit 1
+- [x] Script imports only stdlib
 
 **Notes:**
 The push-leg branch is itself the E043 hazard: a condition written wrong no-ops on *both* legs and converts "unchecked" into a false "checked". Task 5's self-test must assert the PR leg still fails, not merely that the push leg passes.
 
+**Completion notes (2026-07-30):**
+
+- **17 self-test cases, 10 of which assert exit 1.** The push-leg case reuses the *same* violating tree as case 1, so the two legs are asserted to disagree — a leg condition that no-ops on both fails the suite.
+- **Beyond exit codes, each case asserts the set of `(rule, plugin)` pairs that fired.** An exit code alone cannot distinguish "failed for the right reason" from "failed for an unrelated one" — that is how `per-plugin-isolation` pins D45 (alpha clean-bumped, beta dirty ⇒ *only* beta fires).
+- **Exemption fixtures are generated from `EXEMPT_EXACT` / `EXEMPT_GLOBS`**, not a hand-typed second list (#208's failure mode), and each glob is paired with an out-of-set neighbour: `tools/demo/src/app.py` sits next to the exempt `tools/*/tests/**` and MUST fire Rule 1.
+- **Rule 1's globs are matched segment-wise, deliberately not with `fnmatch`.** `fnmatch` expands `*` to `.*`, which spans `/`, so `tools/*/tests/**` would also have exempted `tools/x/src/tests/y.py` — a source-tree directory that merely happens to be named `tests`.
+- **`--self-test` was itself mutation-tested (8 mutants, all killed)** per CLAUDE.md's "coverage != verification" rule: Rule 1 disabled; Rule 2 disabled; PR leg never taken; skip on both legs; everything exempt; push leg doing a real `main...HEAD` diff; cross-plugin leakage; and a naive `version in text` changelog match. **The substring mutant initially SURVIVED** — the first prefix-collision fixture (bump `1.1.0`, document `1.10.0`) is not actually a substring collision. It was replaced with two real ones: `substring-collision` (bump `1.1.0`, document `11.1.0` — `"1.1.0" in "11.1.0"` is True) and `trailing-digit` (bump `1.1.1`, document `1.1.10`). Those two cases are the only thing forcing the heading-anchored regex and its trailing negative lookahead.
+- **Rule 2 asserts entry EXISTENCE only — deliberately not date parity with the root `CHANGELOG.md`.** Phase 1 found seven versions already on `main` whose dates disagree between the two files (`personal-plugin` 6.2.0/3.8.0/3.4.0 — the last dated literally `Previous` — `bpmn-plugin` 4.2.0/2.2.0/1.8.0, `slide-gen` 1.0.1). A parity assertion would go red on legacy history the day it lands and deadlock every merge. No opt-in flag was added either: an off-by-default flag that CI never runs is precisely the guard-nobody-runs that E043 warns about. Date parity, if wanted, belongs in a one-shot reconciliation, not in a merge gate.
+- **Fail-closed extras beyond the spec:** a `pull_request` event with an empty `GITHUB_BASE_REF` exits 1 rather than guessing a base (asserted by a self-test case), and an unresolvable base or failed merge-base exits 1 pointing at 2.1's `fetch-depth: 0`. Base refs resolve `origin/<ref>` before the bare `<ref>` — in CI no local base branch exists, and locally `origin/main` is the CLAUDE.md source of truth.
+- **U2 resolved without needing `github.event.pull_request.base.sha`:** `GITHUB_BASE_REF` + the `origin/` prefix is sufficient. Verified live against this branch on a simulated PR leg (`base b4d576c ... head f4d07b6`, exit 0 — correct, since `main...HEAD` here is three CHANGELOG-only files plus docs, which is Phase 1's exact exempt shape).
+- `ruff check scripts/check_version_bump.py` clean. Stdlib-only: `argparse`, `json`, `os`, `re`, `subprocess`, `sys`, `tempfile`, `collections.abc`, `dataclasses`, `pathlib`, `typing`, and `io` (inside `--self-test`).
+- **Not wired into CI or pre-commit** — that is item 2.4, gated on 2.3's negative test against a real branch.
+
 ---
 
-#### 2.3 Negative-test the gate against a deliberately-bad branch before wiring it
-**Status: PENDING**
+#### 2.3 Negative-test the gate against a deliberately-bad branch before wiring it ✅ Completed 2026-07-30
+**Status: COMPLETE 2026-07-30**
 **Model Tier: opus**
 **Issue Refs:** #226
 **Depends On:** 2.2
@@ -227,7 +240,20 @@ CLAUDE.md's standing rule: a verification guard that cannot fail is worse than n
 6. [ ] Delete the scratch branch
 
 **Acceptance Criteria:**
-- [ ] All four scenarios produce the documented exit code, observed and recorded — not asserted in prose
+- [x] All four scenarios produce the documented exit code, observed and recorded — not asserted in prose
+
+**Observed exit codes (2026-07-30):**
+
+| Scenario | Expected | **Observed** |
+|---|---|---|
+| S1 — edit `skills/ship/SKILL.md`, no bump | 1 | **1** — `[Rule 1: bump-required] personal-plugin ... still says version '11.6.0'` |
+| S2 — bump to 11.7.0, no CHANGELOG entry | 1 | **1** — `[Rule 2: changelog-required] ... no entry for 11.7.0` |
+| S3 — bump + CHANGELOG entry | 0 | **0** — `OK -- every changed plugin is bumped` |
+| S4 — CHANGELOG-only, no bump | 0 | **0** — run against real history `b4d576c...f4d07b6`, which IS Phase 1's own commit |
+
+Plus `--self-test`: **19 cases, 10 asserting exit 1**, mutation-tested with 8 mutants (one initially survived and exposed a weak substring-collision fixture, which was replaced). The absent-manifest guard was independently negative-tested by deletion: the self-test then crashed with `TypeError: ... NoneType found` and exited 1.
+
+**PROCESS FAILURE worth recording.** S1–S3 were first run on a scratch branch created *mid-phase*, while 2.1's and 2.2's work was still uncommitted. `git add -A` swept that uncommitted work into the scratch commits, and deleting the scratch branches removed `scripts/check_version_bump.py` and 2.1's `fetch-depth` edit from the tree. Recovered in full from a scratchpad copy plus `git reflog` (`c7cc067`). **Root cause was skipping the per-batch commit** — `/implement-plan`'s Step 4 commits at every batch boundary, and 2.1/2.2/2.3 are separate batches. Committing between items is not bookkeeping; it is the property that makes scratch-branch work and `git checkout -- .` rollback safe. S4 was subsequently re-run against real committed history instead, which is the better test anyway.
 - [ ] WHEN the guard is wired into CI THEN its failing behavior SHALL already have been demonstrated on a real branch
 
 ---
@@ -1013,7 +1039,7 @@ D36's fail-loud orphan validation must be preserved exactly — unrecognized ids
 | Risk | Likelihood | Impact | Mitigation Strategy | Status |
 |------|------------|--------|---------------------|--------|
 | Phase 2's gate reddens the required `Validate Plugins (official CLI)` check on `main`'s push leg | Med | **High** — a red required context on main | Explicit event-leg branch (2.2 task 4) with the push leg exiting 0; 2.3's negative test must assert the **PR leg still fails**, not merely that push passes | Open |
-| Phase 2's gate blocks Phase 1's own CHANGELOG-only PR | High if mis-ordered | Med | Phase 1 lands first; `CHANGELOG.md` is explicitly exempt from Rule 1 | Open |
+| Phase 2's gate blocks Phase 1's own CHANGELOG-only PR | High if mis-ordered | Med | Phase 1 lands first; `CHANGELOG.md` is explicitly exempt from Rule 1 | Mitigated (2.2) — `CHANGELOG.md` is in `EXEMPT_EXACT`; self-test case `rule1-exempt-changelog-only` asserts exit 0, and the script run against this very branch (`main...HEAD` = three CHANGELOG-only files, Phase 1's exact shape) exits 0 |
 | The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Open |
 | Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Open |
 | `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Open |

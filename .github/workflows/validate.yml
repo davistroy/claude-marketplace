@@ -303,6 +303,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          # fetch-depth: 0 (full history) is required by the version-bump gate below, which
+          # diffs the PR base against HEAD. The default depth of 1 is a single-commit shallow
+          # clone with no base commit and no merge-base, so any diff-derived check is
+          # impossible without this. Repo history is small; the cost is negligible.
+          fetch-depth: 0
 
       - name: Check eval-mapping (evals/**/*.eval.md -> live skill/command)
         # Stdlib-only script -- no Python setup step needed on ubuntu-latest.
