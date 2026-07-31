@@ -219,6 +219,7 @@ class TestInternalConfig:
         assert config.claude_timeout_seconds == 60.0
         assert "gemini" in config.gemini_model.lower()
         assert "claude" in config.claude_model.lower()
+        assert config.claude_loop_model is None
         assert config.rate_limit_delay_seconds == 1.0
 
     def test_custom_values(self):
@@ -254,6 +255,57 @@ class TestInternalConfig:
         monkeypatch.setenv("VISUAL_EXPLAINER_GEMINI_TIMEOUT", "180.0")
         config = InternalConfig.from_env()
         assert config.gemini_timeout_seconds == 180.0
+
+    def test_from_env_loop_model_unset(self, monkeypatch):
+        """An absent loop-model env var leaves the override as None."""
+        monkeypatch.delenv("VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL", raising=False)
+        config = InternalConfig.from_env()
+        assert config.claude_loop_model is None
+
+    def test_from_env_loop_model_set(self, monkeypatch):
+        """The loop-model env var populates the override."""
+        monkeypatch.setenv("VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL", "loop-model-from-env")
+        config = InternalConfig.from_env()
+        assert config.claude_loop_model == "loop-model-from-env"
+
+    def test_from_env_loop_model_does_not_disturb_base(self, monkeypatch):
+        """Setting only the loop override leaves the base model untouched."""
+        monkeypatch.delenv("VISUAL_EXPLAINER_CLAUDE_MODEL", raising=False)
+        monkeypatch.setenv("VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL", "loop-model-from-env")
+        config = InternalConfig.from_env()
+        assert config.claude_model == InternalConfig.model_fields["claude_model"].default
+
+
+class TestResolveLoopModel:
+    """Tests for InternalConfig.resolve_loop_model.
+
+    The property under test is backward compatibility: with the override unset,
+    the resolver must return exactly what each call site used before the override
+    existed, which is the caller's base value when one is supplied.
+    """
+
+    def test_unset_override_returns_base(self):
+        """With no override, an explicit base passes straight through."""
+        config = InternalConfig(claude_model="base-model")
+        assert config.resolve_loop_model("caller-supplied") == "caller-supplied"
+
+    def test_unset_override_without_base_returns_claude_model(self):
+        """With no override and no base, the resolver falls back to claude_model."""
+        config = InternalConfig(claude_model="base-model")
+        assert config.resolve_loop_model() == "base-model"
+        assert config.resolve_loop_model(None) == "base-model"
+
+    def test_set_override_wins_over_base(self):
+        """A set override beats both the caller's base and claude_model."""
+        config = InternalConfig(claude_model="base-model", claude_loop_model="loop-model")
+        assert config.resolve_loop_model("caller-supplied") == "loop-model"
+        assert config.resolve_loop_model() == "loop-model"
+
+    def test_resolution_is_idempotent(self):
+        """Re-resolving an already-resolved value is a no-op."""
+        config = InternalConfig(claude_model="base-model", claude_loop_model="loop-model")
+        once = config.resolve_loop_model("caller-supplied")
+        assert config.resolve_loop_model(once) == once
 
 
 class TestPromptRecipe:

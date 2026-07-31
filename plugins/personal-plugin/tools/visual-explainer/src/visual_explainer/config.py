@@ -344,6 +344,14 @@ class InternalConfig(BaseModel):
         default="claude-sonnet-5",
         description="Claude model ID for concept analysis and evaluation",
     )
+    claude_loop_model: str | None = Field(
+        default=None,
+        description=(
+            "Optional Claude model ID for the in-loop consumers (image evaluation and "
+            "prompt refinement). None means fall back to claude_model, which is "
+            "behaviourally identical to having no override at all."
+        ),
+    )
     rate_limit_delay_seconds: float = Field(
         default=1.0,
         ge=0.0,
@@ -363,7 +371,36 @@ class InternalConfig(BaseModel):
             claude_timeout_seconds=float(os.getenv("VISUAL_EXPLAINER_CLAUDE_TIMEOUT", "60.0")),
             gemini_model=os.getenv("VISUAL_EXPLAINER_GEMINI_MODEL", "gemini-3-pro-image-preview"),
             claude_model=os.getenv("VISUAL_EXPLAINER_CLAUDE_MODEL", "claude-sonnet-5"),
+            claude_loop_model=os.getenv("VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL"),
         )
+
+    def resolve_loop_model(self, base: str | None = None) -> str:
+        """Resolve the model ID for an in-loop consumer.
+
+        The pipeline's Claude calls split on the loop boundary. Concept analysis
+        and prompt generation run once per invocation; image evaluation and prompt
+        refinement run once per attempt inside the generation loop, so their call
+        volume is one to two orders of magnitude higher (worst case ~200 evaluation
+        plus ~180 refinement calls against 1 analysis call, with every evaluation
+        call carrying a re-encoded 4K image). ``claude_loop_model`` lets that
+        high-volume tier be pointed at a different model without touching the
+        one-shot tier.
+
+        ``base`` exists so that an unset override is indistinguishable from the
+        behaviour before this setting existed. Some in-loop consumers inherit their
+        model from a caller-supplied value rather than from ``claude_model`` --
+        ``PromptRefiner`` takes ``PromptGenerator.model``, which may have been
+        passed explicitly. Falling back to ``base`` preserves that inheritance
+        exactly; falling back to ``claude_model`` would silently override it.
+
+        Args:
+            base: The model this consumer would have used before the override
+                existed. If None, falls back to ``claude_model``.
+
+        Returns:
+            The override if one is set, otherwise ``base``, otherwise ``claude_model``.
+        """
+        return self.claude_loop_model or base or self.claude_model
 
 
 class ColorDefinition(BaseModel):

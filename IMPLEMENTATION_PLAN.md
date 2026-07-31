@@ -624,9 +624,9 @@ Ship the one tier-routing change the in-repo evidence supports, close the three 
 
 ### Work Items
 
-#### 5.1 Qualify Rule 17's opus bullet, in task properties
+#### 5.1 Qualify Rule 17's opus bullet, in task properties ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #198 items 1–2 (item 1 mostly refuted)
 **Depends On:** None
@@ -644,25 +644,25 @@ The in-repo evidence supports exactly one change, and it points opposite to the 
 
 **Tasks:**
 
-1. [ ] Qualify Rule 17's unqualified "multi-file refactors" so it routes on coupling and spec clarity, not on file count.
-2. [ ] Apply the same qualification to `opus-implementer.md`'s corresponding bullet.
-3. [ ] Verify no model generation name appears in either edit.
-4. [ ] Do NOT modify `sonnet-implementer.md`.
+1. [x] Qualify Rule 17's unqualified "multi-file refactors" so it routes on coupling and spec clarity, not on file count.
+2. [x] Apply the same qualification to `opus-implementer.md`'s corresponding bullet.
+3. [x] Verify no model generation name appears in either edit.
+4. [x] Do NOT modify `sonnet-implementer.md`.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN Rule 17 is read THEN "multi-file" SHALL NOT appear as an unqualified opus criterion
-- [ ] WHEN either edited file is read THEN no model generation name SHALL appear in the changed lines
-- [ ] `sonnet-implementer.md` is byte-identical to `main`
-- [ ] `python3 scripts/check_agent_models.py` exits 0
+- [x] WHEN Rule 17 is read THEN "multi-file" SHALL NOT appear as an unqualified opus criterion
+- [x] WHEN either edited file is read THEN no model generation name SHALL appear in the changed lines
+- [x] `sonnet-implementer.md` is byte-identical to `main`
+- [x] `python3 scripts/check_agent_models.py` exits 0
 
 **Notes:**
 
 This plan's own tier assignments already follow the corrected rule, which is the first live test of it.
 
-#### 5.2 Split `visual-explainer`'s model knob on the loop boundary
+#### 5.2 Split `visual-explainer`'s model knob on the loop boundary ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: opus**
 **Recommendation Ref:** #198 item 5 (correct in substance, wrong in shape)
 **Depends On:** None
@@ -689,30 +689,42 @@ Design is **fall-back override, not rename**: keep the existing setting unchange
 
 **Tasks:**
 
-1. [ ] Add an optional loop-tier setting with a `None` default plus a resolver that falls back to the existing setting.
-2. [ ] Route both loop consumers — image evaluation and prompt refinement — through the resolver.
-3. [ ] Fix `create_prompt_generator()` to forward the config value it already receives.
-4. [ ] Give `ImageEvaluator` optional config visibility for symmetry with its two siblings.
-5. [ ] Update the exact-kwarg assertion in the pipeline test, the shared config fixture, and the config default/env tests; add the missing mirror assertion for the evaluator construction site.
-6. [ ] Update both user-facing documentation surfaces.
-7. [ ] Leave the auth-ping model literal alone — it is a `max_tokens=1` reachability check whose output is discarded.
-8. [ ] Do NOT change any default model value.
+1. [x] Add an optional loop-tier setting with a `None` default plus a resolver that falls back to the existing setting.
+2. [x] Route both loop consumers — image evaluation and prompt refinement — through the resolver.
+3. [x] Fix `create_prompt_generator()` to forward the config value it already receives.
+4. [x] Give `ImageEvaluator` optional config visibility for symmetry with its two siblings.
+5. [x] Update the exact-kwarg assertion in the pipeline test, the shared config fixture, and the config default/env tests; add the missing mirror assertion for the evaluator construction site.
+6. [x] Update both user-facing documentation surfaces.
+7. [x] Leave the auth-ping model literal alone — it is a `max_tokens=1` reachability check whose output is discarded.
+8. [x] Do NOT change any default model value.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the loop override is unset THEN every call site SHALL resolve to exactly the value it resolves to today
-- [ ] WHEN the loop override is set THEN both evaluation and refinement SHALL use it, and analysis and generation SHALL NOT
-- [ ] WHEN `create_prompt_generator()` is called with a config THEN the config's model SHALL reach the constructed generator
-- [ ] Coverage remains at or above the configured floor
-- [ ] No default model value differs from `main`
+- [x] WHEN the loop override is unset THEN every call site SHALL resolve to exactly the value it resolves to today
+- [x] WHEN the loop override is set THEN both evaluation and refinement SHALL use it, and analysis and generation SHALL NOT
+- [x] WHEN `create_prompt_generator()` is called with a config THEN the config's model SHALL reach the constructed generator
+- [x] Coverage remains at or above the configured floor
+- [x] No default model value differs from `main`
 
 **Notes:**
 
 The backward-compatibility property — unset override is behaviourally identical to today — is the acceptance criterion that matters most and must be tested directly, not inferred.
 
-#### 5.3 Close #198's refuted claims with evidence
+**Completion notes (2026-07-31):**
 
-**Status: PENDING**
+Setting is `InternalConfig.claude_loop_model` (`str | None`, default `None`), env `VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL`, resolver `InternalConfig.resolve_loop_model(base: str | None = None) -> str`.
+
+**The resolver takes a `base` argument, and that is the load-bearing design decision.** A no-argument resolver falling back to `claude_model` would *not* have been backward compatible: `PromptRefiner` inherits its model from `PromptGenerator.model`, which can be passed explicitly and need not equal `claude_model` (`test_init_with_custom_model` constructs exactly that case). Falling back to `claude_model` there would have silently overridden a caller's explicit choice — a behaviour change smuggled in under a setting whose whole premise is that unset means unchanged. Falling back to `base` preserves the inheritance exactly. The resolver is idempotent, so resolving at both a construction site and inside the consumer is safe.
+
+Resolution happens inside each in-loop consumer (`ImageEvaluator.__init__`, and `PromptGenerator.__init__` for the refiner it composes) rather than at the pipeline call sites, so the env var reaches direct-construction paths too, not only the pipeline.
+
+`create_prompt_generator()` now resolves the config once and forwards `model=` explicitly; this also fixes the `internal_config=None` path, which previously paired a `DEFAULT_MODEL` literal with a `from_env()` config that could carry a different `claude_model`.
+
+Negative test performed as required: reverting *only* the `create_prompt_generator()` fix failed 3 tests (`test_create_prompt_generator_forwards_config_model`, `..._forwards_env_model`, `test_factory_keeps_generation_on_base_model_under_override`, each asserting `claude-sonnet-5 != <configured>`); restoring it passed all 3. Suite 894 → 913 passed, coverage 93.37% → 93.38% (floor 85%), ruff and mypy clean. `api_setup.py` has a zero-line diff. Version bump and CHANGELOG are owned by item 8.1, so deliberately not done here.
+
+#### 5.3 Close #198's refuted claims with evidence ✅ Completed 2026-07-31
+
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #198 items 1c, 3, 4
 **Depends On:** 5.1
@@ -729,15 +741,15 @@ Record a Decision Log row. Do not edit D15 or D16 beyond adding cross-references
 
 **Tasks:**
 
-1. [ ] Add a Decision Log row recording the three refutations with their evidence.
-2. [ ] Cross-reference D15 and D16 without changing their status.
-3. [ ] Record the escalation base rate — one escalation in 162 tiered items, attributable to a self-contradictory spec rather than capability — as the standing evidence for future tier debates.
+1. [x] Add a Decision Log row recording the three refutations with their evidence.
+2. [x] Cross-reference D15 and D16 without changing their status.
+3. [x] Record the escalation base rate — one escalation in 162 tiered items, attributable to a self-contradictory spec rather than capability — as the standing evidence for future tier debates.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the Decision Log is read THEN a row SHALL record all three refutations with evidence
-- [ ] D15 and D16 remain ACTIVE with their original text intact
-- [ ] The escalation base rate is recorded with its denominator
+- [x] WHEN the Decision Log is read THEN a row SHALL record all three refutations with evidence
+- [x] D15 and D16 remain ACTIVE with their original text intact
+- [x] The escalation base rate is recorded with its denominator
 
 **Notes:**
 

@@ -555,6 +555,60 @@ class TestExecuteGenerationLoop:
         assert (image_dir / "final.jpg").read_bytes() == b"img-bytes-1"
         assert (image_dir / "evaluation-01.json").exists()
 
+    async def test_constructs_evaluator_with_internal_config(
+        self,
+        sample_generation_config,
+        sample_internal_config,
+        sample_concept_analysis,
+        sample_style_config,
+        sample_image_prompt,
+        sample_passing_evaluation,
+        temp_output_dir,
+    ):
+        """Mirror of the _generate_prompts construction assertion.
+
+        Evaluation is an in-loop consumer, so the pipeline must hand the evaluator
+        the internal config. Without it the evaluator cannot see the loop-tier
+        override and silently falls back to its own module default.
+        """
+        image_generator = MagicMock()
+        image_generator.generate_image = AsyncMock(
+            return_value=GenerationResult(
+                status=GenerationStatus.SUCCESS, image_data=b"img-bytes-1", duration_seconds=1.5
+            )
+        )
+        image_evaluator = MagicMock()
+        image_evaluator.evaluate_image.return_value = sample_passing_evaluation
+
+        with (
+            patch(
+                "visual_explainer.image_generator.GeminiImageGenerator",
+                return_value=image_generator,
+            ),
+            patch(
+                "visual_explainer.image_evaluator.ImageEvaluator",
+                return_value=image_evaluator,
+            ) as mock_cls,
+        ):
+            await _execute_generation_loop(
+                [sample_image_prompt],
+                sample_generation_config,
+                sample_internal_config,
+                sample_concept_analysis,
+                sample_style_config,
+                "Test_Style",
+                MagicMock(),
+                temp_output_dir,
+                quiet=True,
+                json_output=False,
+            )
+
+        mock_cls.assert_called_once_with(
+            model=sample_internal_config.claude_model,
+            pass_threshold=sample_generation_config.pass_threshold,
+            internal_config=sample_internal_config,
+        )
+
     async def test_refinement_then_pass_on_second_attempt(
         self,
         sample_generation_config,

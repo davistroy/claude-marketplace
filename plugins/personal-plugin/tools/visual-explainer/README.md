@@ -175,7 +175,7 @@ If validation fails, you'll see a clear error message with troubleshooting sugge
 
 ### Environment Variables
 
-The tool reads 15 environment variables total: 13 through `config.py`'s `env_str`/`env_int`/`env_float` helpers (`GenerationConfig.from_cli_and_env` and `InternalConfig.from_env`), plus 2 API keys read directly in `image_generator.py`, `concept_analyzer.py`, and `api_setup.py`. **All 13 config variables are env-overridable** — none is "customized in code only." CLI arguments, where one exists, take priority over the environment variable, which takes priority over the default.
+The tool reads 16 environment variables total: 14 through `config.py`'s `env_str`/`env_int`/`env_float` helpers (`GenerationConfig.from_cli_and_env` and `InternalConfig.from_env`), plus 2 API keys read directly in `image_generator.py`, `concept_analyzer.py`, and `api_setup.py`. **All 14 config variables are env-overridable** — none is "customized in code only." CLI arguments, where one exists, take priority over the environment variable, which takes priority over the default.
 
 #### User-Configurable (CLI-overridable)
 
@@ -193,12 +193,26 @@ The tool reads 15 environment variables total: 13 through `config.py`'s `env_str
 
 | Variable | Default | Effect | Code Site |
 |----------|---------|--------|-----------|
-| `VISUAL_EXPLAINER_NEGATIVE_PROMPT` | `no text, no words, no letters, no numbers, no watermarks, no logos, no stock photo aesthetic, no borders, no frames, no signatures, no artificial lighting artifacts, no lens flare` | Negative prompt applied to every image generation | `config.py:358-360` |
-| `VISUAL_EXPLAINER_CACHE_DIR` | `.cache/visual-explainer` | Directory for concept analysis cache | `config.py:361` |
-| `VISUAL_EXPLAINER_GEMINI_TIMEOUT` | `300.0` | Timeout in seconds for Gemini API calls | `config.py:362` |
-| `VISUAL_EXPLAINER_CLAUDE_TIMEOUT` | `60.0` | Timeout in seconds for Claude API calls | `config.py:363` |
-| `VISUAL_EXPLAINER_GEMINI_MODEL` | `gemini-3-pro-image-preview` | Gemini model ID used for image generation | `config.py:364` |
-| `VISUAL_EXPLAINER_CLAUDE_MODEL` | `claude-sonnet-5` | Claude model ID used for concept analysis and evaluation | `config.py:365` |
+| `VISUAL_EXPLAINER_NEGATIVE_PROMPT` | `no text, no words, no letters, no numbers, no watermarks, no logos, no stock photo aesthetic, no borders, no frames, no signatures, no artificial lighting artifacts, no lens flare` | Negative prompt applied to every image generation | `config.py:366-368` |
+| `VISUAL_EXPLAINER_CACHE_DIR` | `.cache/visual-explainer` | Directory for concept analysis cache | `config.py:369` |
+| `VISUAL_EXPLAINER_GEMINI_TIMEOUT` | `300.0` | Timeout in seconds for Gemini API calls | `config.py:370` |
+| `VISUAL_EXPLAINER_CLAUDE_TIMEOUT` | `60.0` | Timeout in seconds for Claude API calls | `config.py:371` |
+| `VISUAL_EXPLAINER_GEMINI_MODEL` | `gemini-3-pro-image-preview` | Gemini model ID used for image generation | `config.py:372` |
+| `VISUAL_EXPLAINER_CLAUDE_MODEL` | `claude-sonnet-5` | Claude model ID used for **all** Claude calls — concept analysis, prompt generation, image evaluation, and prompt refinement | `config.py:373` |
+| `VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL` | unset (falls back to `VISUAL_EXPLAINER_CLAUDE_MODEL`) | Optional override for the **in-loop** Claude calls only — image evaluation and prompt refinement. Leave unset for identical behaviour to before this variable existed | `config.py:374` |
+
+##### Why the loop-tier override exists
+
+The tool's Claude calls split into two populations with very different volumes:
+
+| Tier | Consumers | Calls per run | Model |
+|------|-----------|---------------|-------|
+| One-shot | Concept analysis, prompt generation | 1 each | `VISUAL_EXPLAINER_CLAUDE_MODEL` |
+| In-loop | Image evaluation, prompt refinement | Up to `image_count × max_iterations` and `image_count × (max_iterations - 1)` respectively | `VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL`, falling back to `VISUAL_EXPLAINER_CLAUDE_MODEL` |
+
+At the caps (`image_count` 20, `max_iterations` 10) that is up to 200 evaluation calls plus 180 refinement calls against a single analysis call, and every evaluation call carries a re-encoded 4K image. `VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL` lets that high-volume tier be pointed at a cheaper model without changing the model used for the two calls that set up the whole run.
+
+Note that refinement is an in-loop consumer even though it is *text* generation: it is triggered by a failed evaluation, so it runs at evaluation frequency, not generation frequency.
 
 #### API Keys
 

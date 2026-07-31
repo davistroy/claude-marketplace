@@ -103,9 +103,13 @@ class PromptGenerator:
         self.infographic_builder = InfographicPromptBuilder(
             internal_config=self.internal_config,
         )
+        # Refinement runs once per failed attempt *inside* the generation loop,
+        # unlike prompt generation itself, which runs once. It therefore resolves
+        # through the loop-tier override. With the override unset the resolver
+        # returns `self.model`, i.e. exactly what this line passed before.
         self.refiner = PromptRefiner(
             client=self.client,
-            model=self.model,
+            model=self.internal_config.resolve_loop_model(self.model),
             internal_config=self.internal_config,
         )
 
@@ -731,7 +735,16 @@ def create_prompt_generator(
     Returns:
         Configured PromptGenerator instance.
     """
-    return PromptGenerator(api_key=api_key, internal_config=internal_config)
+    # Resolve the config once and forward its model explicitly. Passing only
+    # `internal_config` left `model` on its default, so a configured
+    # `claude_model` never reached the generator -- the config was accepted and
+    # then silently ignored.
+    resolved_config = internal_config or InternalConfig.from_env()
+    return PromptGenerator(
+        api_key=api_key,
+        model=resolved_config.claude_model,
+        internal_config=resolved_config,
+    )
 
 
 def generate_infographic_prompts(

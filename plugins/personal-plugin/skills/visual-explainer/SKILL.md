@@ -114,7 +114,8 @@ API keys must be loaded into the environment before use. The primary method is t
 
 **Optional Model Configuration (non-sensitive, safe for .env):**
 - `VISUAL_EXPLAINER_GEMINI_MODEL` - Override Gemini image model (default: `gemini-3-pro-image-preview` — verify with provider if errors occur)
-- `VISUAL_EXPLAINER_CLAUDE_MODEL` - Override Claude model for concept analysis and image evaluation (default: `claude-sonnet-5`)
+- `VISUAL_EXPLAINER_CLAUDE_MODEL` - Override the Claude model for all four Claude consumers — concept analysis, prompt generation, image evaluation, and prompt refinement (default: `claude-sonnet-5`)
+- `VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL` - Optional override for the two **in-loop** consumers only — image evaluation and prompt refinement, which run once per generation attempt rather than once per run (default: unset, meaning fall back to `VISUAL_EXPLAINER_CLAUDE_MODEL`)
 
 If keys are not in the environment, suggest running `/unlock` before proceeding. **Secrets policy compliance:**
 - Do NOT write API keys to `.env` files or any configuration files
