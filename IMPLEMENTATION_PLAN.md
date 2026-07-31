@@ -1,1094 +1,1273 @@
 # Implementation Plan
 
-**Generated:** 2026-07-30
-**Completed:** 2026-07-30 — 18/19 items COMPLETE, 1 DESCOPED (3.3, upstream report declined by owner)
-**Based On:** `/ultra-plan` over the 13-item close-the-loop + hygiene backlog (LAB_NOTEBOOK E062). Phase 1 dispatched **6 parallel Explore agents** clustered by shared code path; **every cluster returned corrections**, including two to issues filed earlier in the same session. This plan encodes the *investigated* shape of each item, not the filed text. Prior plan (16-issue correctness backlog, 42/42 COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v12.md`.
+**Generated:** 2026-07-31
+**Completed:** [set by /implement-plan on finalization]
+**Based On:** `/ultra-plan` over the 5-issue remainder (#200, #199, #238, #216, #198), LAB_NOTEBOOK E067. Phase 1 dispatched **6 parallel Explore agents** clustered by shared code path. **Every cluster returned corrections**, two of them by reading the shipped Claude Code binary rather than inferring from prose. This plan encodes the *investigated* shape of each item, not the filed text — in several cases the investigated shape is the opposite of the filed one. Prior plan (close-the-loop + hygiene, 18/19 COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v13.md`.
 **Total Phases:** 8
-**Estimated Total Effort:** ~85 work sites across ~35 files — predominantly markdown behavior-surfaces, plus one new CI gate script, one generator extension, and one Python test module
+**Estimated Total Effort:** ~30 work sites across ~40 files — predominantly markdown behavior-surfaces, plus one new bundled Python tool with an offline fixture suite, one new CI gate, and one backward-compatible config change in `visual-explainer`
 
 ---
 
 ## Executive Summary
 
-This plan closes 13 open issues that share three root causes, none of which is "a bug in a feature." The first is **a documented step with no gate behind it** — the repo's most-repeated defect (E043, E056, E057), now instantiated as a missing version-bump check (#226), 28 missing CHANGELOG entries (#210), and 12 freshness stamps that assert a verification nobody performed (#218). The second is **a check that restates an external truth and therefore drifts into agreeing with the bug** — eval scenario S4 asserting dispatch behavior another marketplace owns (#227), and `ultra-plan.eval.md:43` having copied the very phase-numbering defect it should catch (#231). The third is **fixing instances while leaving the mould** — the generator layer that mints defects into every future artifact (#218's two document templates, #223's three interaction templates, #206's under-scoped inventory generator).
+Five issues went into investigation. **A large fraction of their filed content is wrong**, consistent with the 22-of-24 base rate E060 established for this audit lineage. Three findings the fan-out produced are worth more than anything that was filed, and two of them were obtained by reading the harness binary rather than reasoning from documentation.
 
-Phase 1 investigation changed the plan's shape four times. My own opening hypothesis — that #226, #210 and #218 were one gate — was **refuted on evidence** (D61): the three differ on input, offline-decidability, CI-runnability and event-leg sensitivity, and #218's ground truth lives behind an API key doctrine forbids CI from holding. The honest decomposition is 2 + 1. Worse, #226 and #210 turned out to be in **direct tension** on `plugins/*/CHANGELOG.md` — #210's own remediation is a CHANGELOG-only PR with no version bump, which #226's gate would hard-block, while #210's enforcement half wants that path mandatory on a bump. That forces the backfill ahead of the gate and the gate into two conditional rules rather than one.
+**1. The `ultrathink` keyword is LIVE, and three in-repo surfaces say it is dead.** Recovered from Claude Code 2.1.220: the matcher is `/\bultrathink\b/i` — case-insensitive, word-bounded — applied to the *expanded body* of every command and skill at load. #199, `LAB_NOTEBOOK.md:1385`, and the E052 audit all assert it is "a no-op on the current model family." A **second live site** exists that no one found: `commands/plan-improvements.md:34` reads `### Phase 1: Deep Codebase Analysis (Ultrathink)`, which fires because the regex is case-insensitive and parentheses are word boundaries. That command therefore carries **two stacking escalations** — `effort: max` in frontmatter *and* a live injection in its body. And `references/templates/planning.md:66` is the mould that mints the pattern into every planning command built from it.
 
-Interrelated issues are grouped into integrated change sets rather than isolated patches: #228 and #227 are one item because they edit the same file and two PRs would revert each other's line context; #231 is atomic across three files because fixing the skill without its eval converts a passing check into a false failure; #223 and #233 are one set because they are the same defect class. Four design forks were resolved by the user with explicit alternatives recorded as D62–D65.
+**2. An absent `effort:` field is exactly equivalent to `effort: high`.** Proven through the resolver, the model catalog (`claude-opus-5 → default_effort: "high"`), and the final coercion. Consequence: **all three of #199's `high` recommendations are no-ops**, its priority ordering is inverted (only the `low`/`medium` items produce any behavioural delta, and they are *downgrades* the issue never labels as such), and its headline — "the deepest-reasoning skill has the least effort configuration" — is backwards, because `ultra-plan` runs at default `high` **plus** the live injection.
+
+**3. SKILL.md bodies are not always-loaded.** The harness's own skill-doctor legend reads *"full SKILL.md loads only when it runs."* Only the one-line description sits in the system prompt per turn. So #238's cost model — and the E052 audit finding it inherited — is wrong: extracting 116 lines from `lab-notebook` saves nothing until someone invokes it. `LAB_NOTEBOOK.md:166` (E032) already recorded this as *"a house rule, not a CI gate"* and the repo forgot. The 500-line budget is a real Anthropic **authoring** best-practice that this repo mislabelled as "the official 500-line budget."
+
+**The gate in #238 survives anyway, on an argument the issue never makes.** Both over-budget files crossed the line in **one commit** (`1382a8a`), in a PR whose own plan explicitly verified a line budget for a *different* file. That is a documented-step-with-no-gate defect, which is this repo's most-repeated failure class — it is just not a context-economy defect.
+
+Three scope decisions were taken by the owner before generation and are not re-litigated here: **#216 ships the transport rewrite only, keeping the existing ladder**; **#238 ships as a reframed authoring gate**; **#198 ships Rule 17 only, with no replay experiment**.
+
+Two constraints bind throughout. **ADR-0005 rule 2 forbids naming model generations in prose**, so the Rule 17 fix must be expressed in *task properties*, never "Sonnet 5 is now capable of X" — writing it the other way re-creates the exact staleness class ADR-0005 eliminated. And **documenting the `ultrathink` mechanism inside a skill or command body would trigger it**, the E061 name-don't-render lesson in a new form; only Phase 2's own edits may contain the literal token, and only as deletions.
 
 ---
 
 ## Plan Overview
 
-Phases are ordered by **dependency, not priority label**. The critical path is **1 → 2** (CHANGELOG truth must land before the gate that would block it). Phases 3–8 share no files with each other or with the critical path and are fully parallelizable.
+Ordering is driven by four constraints established in Phase 2 interaction mapping.
 
-Two phases carry a trap that `Depends On` alone would miss, so both are marked Sequential internally: Phase 4 (`ultra-plan`) must edit `SKILL.md`, its eval, and `adr-template.md` in one commit; Phase 3 (evals) must apply #228's section and #227's re-scope to one file in one pass.
+**Constraint 1 — corrected doctrine precedes action.** Phase 1 fixes the three surfaces that assert `ultrathink` is dead and the surfaces that assert bodies are always-loaded. Later phases act on the corrected understanding; landing them first would mean implementers reading a false rationale while editing against it.
 
-Phase 2 is the highest-risk item in the plan and the only one that can redden `main`. It is the sole `opus`-tier phase for that reason, and it carries a mandatory negative test before wiring.
+**Constraint 2 — `commands/plan-improvements.md` is touched by three issues at four separate line regions** and must be serialized: `:4` and `:34` (Phase 2, #199), `:350` (closed as wrong-as-filed, Phase 5), `:414-421` (Phase 4, #200). Phase 2 lands before Phase 4.
+
+**Constraint 3 — `skills/visual-explainer/SKILL.md` is touched by Phase 5 (env-var docs) and Phase 7 (body extraction).** Phase 5 lands before Phase 7.
+
+**Constraint 4 — the #238 gate must be green on arrival.** Both over-budget files are fixed in the same phase as the gate, ordered before it. A red-on-arrival gate reddens `main`'s own push build, which is the D55 deadlock hazard.
 
 ### Phase Summary Table
 
-| Phase | Focus Area | Key Deliverables | Est. Complexity | Dependencies | Execution Mode |
-|-------|------------|------------------|-----------------|--------------|----------------|
-| 1 | CHANGELOG truth (#210) | 28 backfilled entries across 3 plugin CHANGELOGs | M (~3 files, ~200 lines) | None | Sequential |
-| 2 | Release-integrity gate (#226 + #210 enforcement) | `scripts/check_version_bump.py`, deepened checkout, CI step, pre-commit check | L (~4 files, ~250 LOC) | Phase 1 | Sequential |
-| 3 | Eval trustworthiness (#228 + #227) | Harness section, 6 re-scoped scenarios, 2 rubric rows, upstream report | M (~3 files) | None | Sequential |
-| 4 | ultra-plan correctness (#231) | 29 sites across SKILL.md + eval + adr-template | M (~3 files) | None | Sequential |
-| 5 | `/unlock` actually works (#217) | `$TROY`→`BWS_ACCESS_TOKEN`, `allowed-tools`, probe leak | S (~3 files) | None | Sequential |
-| 6 | Inventory generator (#206) | `update-readme.py` target list, CLAUDE.md block, 6 deprecated sites | M (~10 files, ~80 LOC) | None | Sequential |
-| 7 | Consent-gate consistency (#223 + #233) | 4 gates converted, 3 generator templates | M (~8 files) | None | Parallel |
-| 8 | Freshness stamps + task-sync (#218 + #230 + #224) | 12 stamps deleted, D34 superseded, CLI-level decisions test | M (~13 files, ~150 LOC) | None | Parallel |
+| Phase | Title | Items | Depends On | Execution Mode |
+|---|---|---|---|---|
+| 1 | Correct the false doctrine | 2 | None | Sequential |
+| 2 | The `ultrathink` set — mould and castings | 3 | Phase 1 | Sequential |
+| 3 | Effort calibration — only what changes behaviour | 3 | Phase 1 | Parallel with 4 |
+| 4 | Context thresholds that are genuinely stale | 4 | Phase 2 | Sequential |
+| 5 | Tier-routing prose + the visual-explainer knob | 3 | None | Parallel with 3/4 |
+| 6 | `/research-topic` streaming transport | 5 | None | Sequential |
+| 7 | SKILL.md body budget — fix, then gate | 3 | Phase 5 | Sequential |
+| 8 | Release and issue reconciliation | 2 | All | Sequential |
 
 ### Execution Hints
 
-| Phase | Model Tier | Context Budget | Notes |
-|-------|------------|----------------|-------|
-| All (default) | `sonnet` | Standard | Predominantly markdown edits against fully-specified site lists |
-| Phase 2 | `opus` | Extended | The only phase that can redden a required check on `main`. Event-leg branching, shallow-clone semantics, and two conditional rules in tension — judgment work, not mechanical |
-| Phase 6 | `opus` | Extended | Mechanically edits an always-loaded file; the generator extension must preserve hand-written annotation prose while regenerating name lists |
-
-### Milestones
-
-| Milestone | Phases | Description |
-|-----------|--------|-------------|
-| Gate restored | 1–2 | The repo can no longer ship a plugin change without a version bump or a CHANGELOG entry. Closes the defect that invalidated the last task's eval run |
-| Evidence trustworthy | 1–4 | Eval results mean something; the planning skill no longer routes on an invented variable |
-| Complete | 1–8 | All 13 issues closed; every generator that mints a defect is fixed alongside its instances |
-
-<!-- BEGIN PHASES -->
+- **Default model tier:** `sonnet`. Phase 1's investigation found direct evidence that this repo has been *over*-provisioning `opus`: across plans v12 and v13, 15 `sonnet` items touched ≥3 files each (max 10) with **zero** escalations, while two v13 `opus` items were a one-line `fetch-depth: 0` edit and a zero-file verification task. Tiers here are assigned on task properties, not on file count.
+- **Phase overrides:** Phase 5 item 5.2 and all of Phases 6 and 7.3 override to `opus` — new bundled tool with 13 enumerated failure modes, a new CI gate requiring negative tests, and a backward-compatible config redesign with a live test surface.
+- **Phases 3 and 5 are independent of Phase 2's file** and of each other; run them concurrently with Phase 4 where the orchestrator has capacity.
+- **Context budget:** every phase is self-contained. No phase requires reading another phase's output.
 
 ---
 
-## Phase 1: CHANGELOG Truth
-
-**Estimated Complexity:** M (~3 files, ~200 lines)
-**Dependencies:** None
-**Execution Mode:** Sequential
+## Phase 1: Correct the False Doctrine
 
 ### Goals
 
-- Restore all three per-plugin CHANGELOGs to agreement with the root CHANGELOG
-- Land before Phase 2's gate, which would otherwise block this very change
+Fix the assertions later phases would otherwise be edited against. Both items are documentation-only and change no runtime behaviour, but both correct facts that this repo has been reasoning from incorrectly for weeks.
 
 ### Work Items
 
-#### 1.1 Backfill the 28 missing per-plugin CHANGELOG entries ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+#### 1.1 Correct the "`ultrathink` is a no-op" claim in every live surface
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #210
+**Recommendation Ref:** #199 item 1 (inverted)
 **Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/CHANGELOG.md` (modify)
-- `plugins/bpmn-plugin/CHANGELOG.md` (modify)
-- `plugins/slide-gen/CHANGELOG.md` (modify)
+- `LAB_NOTEBOOK.md` (modify — Decision Log and E067)
+- `CLAUDE.md` (modify — add a Verified Operational Rule)
 
 **Description:**
-The issue names 2 missing versions. Verification found **24** missing from personal-plugin, **3** from bpmn-plugin (`4.4.0`, `2.1.0`, `2.0.0`), and **1** from slide-gen (`1.3.0`) — and **all three plugins are missing their current shipped version**. Backfill by *extraction* from the root `CHANGELOG.md`, never by paraphrase, or drift is reintroduced in the opposite direction.
 
-personal-plugin's 24, newest first: `11.6.0, 11.3.0, 11.2.0, 11.1.0, 9.2.0, 9.1.0, 9.0.0, 7.0.1, 6.8.0, 6.7.2, 6.4.0, 6.3.0, 4.0.0, 3.14.0, 3.12.0, 3.11.1, 3.11.0, 3.7.2, 3.7.1, 3.6.1, 3.3.0, 3.2.0, 3.1.0, 3.0.0`.
+Three in-repo surfaces assert that the bare keyword at `skills/ultra-plan/SKILL.md:9` is "a pre-adaptive-thinking mechanism that is a no-op on the current model family." That is false. Recovered from Claude Code 2.1.220: a case-insensitive, word-bounded matcher is applied to the expanded body of every command and skill on load, and emits a system-reminder requesting deeper reasoning. The guard that would exempt plugin content returns true only for MCP and memory-store sources — plugin skills and commands are **not** exempt.
 
-The root CHANGELOG uses at least four heading grammars (`[plugin vX.Y.Z]`, `[plugin X.Y.Z]`, a combined `[marketplace vA, plugin vB, …]`, and bare `[X.Y.Z]`). Parse all four when locating source sections, or entries will be silently under-extracted.
+Correct the two **live** surfaces. Do **not** edit `docs/model-optimization-audit-opus5-sonnet5-20260728.md`: it is a dated historical report, and editing it to remove a finding it genuinely made would falsify the record — the same mis-scoping E063's Phase 8 correctly refused. Reference it as superseded instead.
 
 **Tasks:**
-1. [x] Extract each missing version's section from root `CHANGELOG.md`, handling all four heading grammars
-2. [x] Insert into the correct per-plugin file in descending version order, preserving Keep-a-Changelog format (declared at each file's `:5-6`)
-3. [x] Verify no version present in a plugin file but absent from root is disturbed — 9 personal-plugin and 10 bpmn-plugin versions are pre-consolidation history, not defects
-4. [x] Run `markdownlint-cli2` over all three files before committing
+
+1. [ ] Correct `LAB_NOTEBOOK.md:1385`'s "no-op on the current model family" **in place** per Rule 4 — strike through, do not delete, and point at this plan's Phase 2.
+2. [ ] Add a Verified Operational Rule to `CLAUDE.md` stating: the keyword is live and matched case-insensitively with word boundaries against expanded command/skill bodies; it is a **prompt-level attachment**, entirely separate from the `effort` frontmatter field, and the two stack additively; and — per the E061 name-don't-render lesson — prose that *contains* the token inside a skill or command body **fires it**, so the mechanism must be named, never rendered, in any component body.
+3. [ ] Record that the feature is behind a server-controllable gate that currently defaults on, so this is current behaviour and not a stable contract.
 
 **Acceptance Criteria:**
-- [x] WHEN the version set of each `plugins/*/CHANGELOG.md` is compared against the versions attributed to that plugin in the root CHANGELOG THEN every root-attributed version SHALL be present in the plugin file
-- [x] WHEN each plugin's `plugin.json` version is read THEN that exact version SHALL have an entry in its plugin CHANGELOG
-- [x] No version bump in this change set — backfilling history is not a release (D45)
-- [x] `markdownlint-cli2` exits 0
+
+- [ ] WHEN a reader consults `CLAUDE.md`'s Verified Operational Rules THEN they SHALL find the keyword documented as live, with the frontmatter/attachment distinction stated
+- [ ] WHEN `LAB_NOTEBOOK.md` is read at the corrected line THEN the original claim SHALL still be visible as struck-through text with a pointer, not removed
+- [ ] `docs/model-optimization-audit-opus5-sonnet5-20260728.md` is byte-identical to its state at `main`
+- [ ] No file under `plugins/` is modified by this item
 
 **Notes:**
-This must land **before** Phase 2. A CHANGELOG-only PR bumps nothing, which Phase 2's gate would reject unless the exemption is already in place. Landing the data fix first removes the ordering hazard entirely.
 
----
+This item is the reason Phase 1 exists. Phase 2 deletes the instances; without this, the next reader re-derives the wrong conclusion from the notebook and re-adds them.
+
+#### 1.2 Correct the "SKILL.md bodies are always-loaded" premise
+
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #238 (premise)
+**Depends On:** None
+**Files Affected:**
+- `CLAUDE.md` (modify — the body-budget rule's rationale)
+- `LAB_NOTEBOOK.md` (modify — Decision Log entry)
+
+**Description:**
+
+`CLAUDE.md`'s body-budget rule is read as a context-economy rule. It is not one. The harness loads a SKILL.md body **only on invocation**; only the one-line description is in the system prompt every turn. The harness's own skill-doctor legend states this verbatim. There is no platform line limit for plugin skills — `claude plugin validate --strict` passes at 540 lines today — and the 500 figure is an Anthropic *authoring* best-practice about progressive disclosure that entered this repo's `CLAUDE.md` labelled "the official 500-line budget," with no citation.
+
+`LAB_NOTEBOOK.md:166` (E032) already records the correct version — *"a house rule, not a CI gate"* — so this is a regression in the repo's own understanding, not a new discovery.
+
+Re-frame the rule as **authoring quality** (keep instructions scannable; push bulk to `references/` so the model reads it on demand) and state explicitly that the always-loaded surface is the `description`, which is why the ≤1024-character half of the same rule has real teeth.
+
+**Tasks:**
+
+1. [ ] Rewrite the rationale on `CLAUDE.md`'s body-budget rule: authoring quality, not context economy; description is the always-loaded surface.
+2. [ ] Add a Decision Log row recording the correction, citing E032 as the prior statement the repo lost track of.
+3. [ ] Do **not** delete the line budget — Phase 7 still gates it, on the authoring-quality argument.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN `CLAUDE.md`'s body-budget rule is read THEN it SHALL NOT claim the body is loaded every turn
+- [ ] WHEN the rule is read THEN it SHALL state that the `description` is the always-loaded surface
+- [ ] The `<500` figure itself is unchanged (Phase 7 depends on it)
+- [ ] A Decision Log row exists citing E032
+
+**Notes:**
+
+Correcting this *before* Phase 7 matters: Phase 7's gate comment must state the right rationale, and a gate that ships explaining itself with a false premise is worse than one that ships silently.
 
 ### Phase 1 Testing Requirements
 
-- [ ] No automated tests — documentation-only change
-- [ ] Manual verification: version-set diff between root and each plugin file is empty in the root→plugin direction
+Documentation-only. Verification is the lint gate plus a content assertion that the false claims are gone from live surfaces and intact in the historical one.
 
 ### Phase 1 Completion Checklist
 
-- [ ] All work items complete
-- [ ] `markdownlint-cli2` clean
-- [ ] No `plugin.json` modified
-- [ ] LAB_NOTEBOOK entry updated
+- [ ] Both items COMPLETE
+- [ ] The audit report is untouched
+- [ ] No `plugins/` file modified, so no version bump is required for this phase
 
 ### Definition of Done (Runnable)
+
 <!-- BEGIN DOD -->
 
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| Lint | `npx markdownlint-cli2 "plugins/*/CHANGELOG.md"` | Exit code 0 |
-| Version presence | `for p in personal-plugin bpmn-plugin slide-gen; do v=$(python3 -c "import json;print(json.load(open('plugins/$p/.claude-plugin/plugin.json'))['version'])"); grep -q "\[$v\]" plugins/$p/CHANGELOG.md \|\| echo "MISSING $p $v"; done` | No output |
-| Plugin validation | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
+| Check | Command | Pass criteria |
+|---|---|---|
+| Lint (mirrors CI exactly) | `npx markdownlint-cli@0.45.0 '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'` | exit 0 |
+| Audit report untouched | `git diff --quiet main -- docs/model-optimization-audit-opus5-sonnet5-20260728.md` | exit 0 |
+| No plugin change this phase | `git diff --quiet main -- plugins/` | exit 0 |
+| Release gate (no-op expected) | `python3 scripts/check_version_bump.py --base main` | exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 2: Release-Integrity Gate
-
-**Estimated Complexity:** L (~4 files, ~250 LOC)
-**Dependencies:** Phase 1
-**Execution Mode:** Sequential
+## Phase 2: The `ultrathink` Set — Mould and Castings
 
 ### Goals
 
-- Make "content changed ⇒ version changed" and "version changed ⇒ CHANGELOG entry added" machine-checkable
-- Land it without reddening a required check on `main`
+Remove the live keyword from both component bodies and from the generator template that mints it. All three move together: fixing the two instances without the template guarantees the next planning command re-introduces it.
+
+**Handling note for the implementer:** these edits necessarily involve the literal token. That is unavoidable for a deletion. Do **not** add explanatory prose containing the token to any file under `plugins/` — explain in the commit message and the notebook instead. This is ADR-0011's name-don't-render rule applied to a different mechanism.
 
 ### Work Items
 
-#### 2.1 Deepen the checkout in the `plugin-validate` job ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
-**Model Tier: opus**
-**Issue Refs:** #226
+#### 2.1 Remove the bare keyword from `ultra-plan` and decide its `effort:`
+
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #199 item 1
 **Depends On:** None
 **Files Affected:**
-- `.github/workflows/validate.yml` (modify)
+- `plugins/personal-plugin/skills/ultra-plan/SKILL.md` (modify)
 
 **Description:**
-`validate.yml:304-305` checks out with **no `with:` block**, so `actions/checkout` defaults to `fetch-depth: 1` — a single-commit shallow clone with no base commit and no merge-base. `grep -rn "fetch-depth" .github/ scripts/` returns **zero** hits repo-wide, so there is no precedent to copy. Any diff-derived gate is impossible until this changes.
+
+`:9` is a bare keyword on its own line as the first line of the body. It fires on every invocation. Delete it.
+
+The frontmatter question is **not** "add the missing field" — the skill already runs at `high` by default, so adding `effort: high` changes nothing. The real decision is whether `/ultra-plan` should run *above* the default. Its work is deep multi-file investigation with synthesis, which is the profile the sanctioned guidance calls intelligence-sensitive. Set `effort: xhigh` explicitly and record the reasoning, or leave the field absent and accept `high`. Do not set `effort: high` — it is a no-op that also pins a value where the default already provides it.
 
 **Tasks:**
-1. [ ] Add `with: fetch-depth: 0` to the `Checkout repository` step in the `plugin-validate` job only
-2. [ ] Confirm the job name string `Validate Plugins (official CLI)` is byte-identical after the edit — it is one of 16 required contexts
+
+1. [ ] Delete line 9 and any orphaned blank line.
+2. [ ] Add `effort: xhigh` to frontmatter, with a Decision Log entry recording that this replaces an implicit escalation with an explicit, sanctioned one — or leave absent and record *that* choice. Do not add `effort: high`.
+3. [ ] Verify frontmatter still parses with `yaml.safe_load` and carries a full key set — not merely that `--strict` exits 0 (the E061 lesson).
 
 **Acceptance Criteria:**
-- [ ] WHEN the `plugin-validate` job runs THEN `git merge-base` between the PR base and head SHALL resolve without error
-- [ ] The `name:` value of every job in `validate.yml` is unchanged (D22 — required-check names are load-bearing)
+
+- [ ] WHEN `/ultra-plan` is invoked THEN no system-reminder about the keyword SHALL be emitted
+- [ ] WHEN the frontmatter is parsed by `yaml.safe_load` THEN `name`, `description`, and every pre-existing key SHALL still be present
+- [ ] The frontmatter does NOT contain `effort: high`
+- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
-Full history on this repo is small; `fetch-depth: 0` is cheaper than the fragility of a computed depth.
 
----
+The escalation the keyword was providing is real; deleting it without a replacement is a de-escalation, not a neutral cleanup. Whichever way the decision goes, it must be recorded as a decision.
 
-#### 2.2 Write `scripts/check_version_bump.py` with two conditional rules ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
-**Model Tier: opus**
-**Issue Refs:** #226, #210
-**Depends On:** 2.1
+#### 2.2 Remove the second live site from `plan-improvements`
+
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #199 item 1 (site not identified in the issue)
+**Depends On:** None
 **Files Affected:**
-- `scripts/check_version_bump.py` (create)
+- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
 
 **Description:**
-One stdlib-only script (the `plugin-validate` job has no `setup-python` step and all four existing script steps are stdlib-only — adding a dependency would force a new step). It implements **two conditional rules**, not one, because #226 and #210 are in direct tension on `plugins/*/CHANGELOG.md`:
 
-- **Rule 1 (bump-required):** if any *bump-worthy* path under `plugins/<name>/` changed, then `plugins/<name>/.claude-plugin/plugin.json`'s `version` must have changed.
-- **Rule 2 (changelog-required):** if `plugins/<name>/.claude-plugin/plugin.json`'s `version` changed, then `plugins/<name>/CHANGELOG.md` must contain an entry for the new version.
+`:34` contains the token inside a section heading, capitalised and parenthesised. It fires: the matcher is case-insensitive and `(` / `)` are word boundaries. This command therefore carries **two stacking escalations** — `effort: max` at `:4` and this injection.
 
-`CHANGELOG.md` is **exempt from Rule 1 and mandatory under Rule 2** — that conditional is the whole reason this is one script rather than two gates.
-
-Bump-worthy paths, derived from the 375-file census: everything under `plugins/<name>/` **except** `CHANGELOG.md`, `LICENSE`, `README.md`, `tools/*/tests/**`, and `examples/**`. Per-plugin, never "any plugin changed ⇒ all three bump" (D45 forbids empty coordinated bumps).
+Delete the parenthetical from the heading. Leave `effort: max` alone: whether `max` is right is #199 item 3, which remains open as a measurement task and is explicitly **not** an edit in this plan. Removing this line is a prerequisite for that measurement ever being valid — with two escalations stacked, an A/B of the frontmatter value measures a confounded variable.
 
 **Tasks:**
-1. [x] Implement per-plugin diff classification from `git diff --name-only <base>...<head>`
-2. [x] Read both old and new `plugin.json` via `git show <ref>:<path>` — derive both sides, never restate a constant
-3. [x] Implement Rule 1 with the exemption list, and Rule 2 keyed on the *new* version string
-4. [x] Branch explicitly on event leg: on `pull_request` use base↔head; on `push` to main **exit 0 with an explanatory message** — there is no meaningful base and the PR leg already gated the content
-5. [x] Add `--self-test` that constructs synthetic diffs and asserts exit 1 on each violation and exit 0 on each exemption
-6. [x] Emit the offending plugin, rule, and remediation command (`/bump-version <plugin> <level>`) on failure
+
+1. [ ] Delete the parenthetical from the `:34` heading, leaving the heading text otherwise unchanged.
+2. [ ] Search the rest of the file for any further occurrence and remove it.
+3. [ ] Do NOT modify `:4`.
+4. [ ] Do NOT modify `:350` (that claim is closed as wrong-as-filed in Phase 5.3).
+5. [ ] Do NOT modify `:414-421` (that is Phase 4.3, and this file is serialized between the two phases).
 
 **Acceptance Criteria:**
-- [x] WHEN a PR modifies `plugins/<name>/skills/**` without changing that plugin's `version` THEN the script SHALL exit non-zero naming the plugin and Rule 1
-- [x] WHEN a PR modifies only `plugins/<name>/CHANGELOG.md` THEN the script SHALL exit 0 (Rule 1 exemption — this is Phase 1's own shape)
-- [x] WHEN a PR bumps `version` without adding a matching `CHANGELOG.md` entry THEN the script SHALL exit non-zero naming Rule 2
-- [x] WHEN the script runs on the `push`-to-`main` leg THEN it SHALL exit 0 and print why, never attempting a base diff
-- [x] WHEN a PR modifies only `plugins/bpmn-plugin/tools/bpmn2drawio/tests/**` THEN the script SHALL exit 0
-- [x] `python3 scripts/check_version_bump.py --self-test` exits 0, and each synthetic violation within it is asserted to exit 1
-- [x] Script imports only stdlib
+
+- [ ] WHEN the file is loaded as a command body THEN no system-reminder about the keyword SHALL be emitted
+- [ ] `:4` still reads `effort: max`
+- [ ] Lines `:350` and `:414-421` are byte-identical to `main`
+- [ ] The heading at `:34` still names the phase it labels
 
 **Notes:**
-The push-leg branch is itself the E043 hazard: a condition written wrong no-ops on *both* legs and converts "unchecked" into a false "checked". Task 5's self-test must assert the PR leg still fails, not merely that the push leg passes.
 
-**Completion notes (2026-07-30):**
+This is the single most actionable thing in #199, and it exists only because the fan-out disproved the issue's own premise. Both #199 and the E052 audit recommend deleting this line — *because it is dead*. Right action, wrong reason, and the wrong reason is recorded in three files (Phase 1.1 fixes two of them).
 
-- **17 self-test cases, 10 of which assert exit 1.** The push-leg case reuses the *same* violating tree as case 1, so the two legs are asserted to disagree — a leg condition that no-ops on both fails the suite.
-- **Beyond exit codes, each case asserts the set of `(rule, plugin)` pairs that fired.** An exit code alone cannot distinguish "failed for the right reason" from "failed for an unrelated one" — that is how `per-plugin-isolation` pins D45 (alpha clean-bumped, beta dirty ⇒ *only* beta fires).
-- **Exemption fixtures are generated from `EXEMPT_EXACT` / `EXEMPT_GLOBS`**, not a hand-typed second list (#208's failure mode), and each glob is paired with an out-of-set neighbour: `tools/demo/src/app.py` sits next to the exempt `tools/*/tests/**` and MUST fire Rule 1.
-- **Rule 1's globs are matched segment-wise, deliberately not with `fnmatch`.** `fnmatch` expands `*` to `.*`, which spans `/`, so `tools/*/tests/**` would also have exempted `tools/x/src/tests/y.py` — a source-tree directory that merely happens to be named `tests`.
-- **`--self-test` was itself mutation-tested (8 mutants, all killed)** per CLAUDE.md's "coverage != verification" rule: Rule 1 disabled; Rule 2 disabled; PR leg never taken; skip on both legs; everything exempt; push leg doing a real `main...HEAD` diff; cross-plugin leakage; and a naive `version in text` changelog match. **The substring mutant initially SURVIVED** — the first prefix-collision fixture (bump `1.1.0`, document `1.10.0`) is not actually a substring collision. It was replaced with two real ones: `substring-collision` (bump `1.1.0`, document `11.1.0` — `"1.1.0" in "11.1.0"` is True) and `trailing-digit` (bump `1.1.1`, document `1.1.10`). Those two cases are the only thing forcing the heading-anchored regex and its trailing negative lookahead.
-- **Rule 2 asserts entry EXISTENCE only — deliberately not date parity with the root `CHANGELOG.md`.** Phase 1 found seven versions already on `main` whose dates disagree between the two files (`personal-plugin` 6.2.0/3.8.0/3.4.0 — the last dated literally `Previous` — `bpmn-plugin` 4.2.0/2.2.0/1.8.0, `slide-gen` 1.0.1). A parity assertion would go red on legacy history the day it lands and deadlock every merge. No opt-in flag was added either: an off-by-default flag that CI never runs is precisely the guard-nobody-runs that E043 warns about. Date parity, if wanted, belongs in a one-shot reconciliation, not in a merge gate.
-- **Fail-closed extras beyond the spec:** a `pull_request` event with an empty `GITHUB_BASE_REF` exits 1 rather than guessing a base (asserted by a self-test case), and an unresolvable base or failed merge-base exits 1 pointing at 2.1's `fetch-depth: 0`. Base refs resolve `origin/<ref>` before the bare `<ref>` — in CI no local base branch exists, and locally `origin/main` is the CLAUDE.md source of truth.
-- **U2 resolved without needing `github.event.pull_request.base.sha`:** `GITHUB_BASE_REF` + the `origin/` prefix is sufficient. Verified live against this branch on a simulated PR leg (`base b4d576c ... head f4d07b6`, exit 0 — correct, since `main...HEAD` here is three CHANGELOG-only files plus docs, which is Phase 1's exact exempt shape).
-- `ruff check scripts/check_version_bump.py` clean. Stdlib-only: `argparse`, `json`, `os`, `re`, `subprocess`, `sys`, `tempfile`, `collections.abc`, `dataclasses`, `pathlib`, `typing`, and `io` (inside `--self-test`).
-- **Not wired into CI or pre-commit** — that is item 2.4, gated on 2.3's negative test against a real branch.
+#### 2.3 Fix the mould
 
----
-
-#### 2.3 Negative-test the gate against a deliberately-bad branch before wiring it ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
-**Model Tier: opus**
-**Issue Refs:** #226
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #199 item 1 (ranked lowest in the issue; highest here)
 **Depends On:** 2.2
 **Files Affected:**
-- (none — verification only)
+- `plugins/personal-plugin/references/templates/planning.md` (modify)
 
 **Description:**
-CLAUDE.md's standing rule: a verification guard that cannot fail is worse than none, and this repo has shipped three of them. Before the script is referenced from CI, prove it fails on real input, not only on synthetic fixtures.
+
+`:66` emits the same parenthesised heading into every planning command minted from this template. It is inert where it sits — `references/` files are never expanded as a body — but every casting is live. `commands/plan-improvements.md:34` is not a coincidence; it is a casting of this mould.
+
+This is the fourth consecutive plan in which a generator template has had to be fixed alongside its castings (`adr-template.md`, three `references/` consent templates, `update-readme.py`, and now this).
 
 **Tasks:**
-1. [ ] Create a scratch branch; edit one file under `plugins/personal-plugin/skills/` without bumping; run the script against `main...HEAD`; confirm **exit 1**
-2. [ ] Bump the version but add no CHANGELOG entry; confirm **exit 1** citing Rule 2
-3. [ ] Add the CHANGELOG entry; confirm **exit 0**
-4. [ ] Edit only `plugins/personal-plugin/CHANGELOG.md`; confirm **exit 0**
-5. [ ] Record all four observed exit codes in the LAB_NOTEBOOK entry
-6. [ ] Delete the scratch branch
+
+1. [ ] Remove the parenthetical from `:66`.
+2. [ ] Check the template's own `effort:` value at `:27` and confirm it is a deliberate choice, not an inherited default; leave it unless it is provably wrong.
+3. [ ] Grep the whole of `plugins/` for any remaining occurrence and confirm the count is zero.
 
 **Acceptance Criteria:**
-- [x] All four scenarios produce the documented exit code, observed and recorded — not asserted in prose
 
-**Observed exit codes (2026-07-30):**
+- [ ] WHEN a new planning command is generated from this template THEN its body SHALL NOT contain the keyword
+- [ ] Zero occurrences remain anywhere under `plugins/`
+- [ ] `python3 scripts/update-readme.py --check` exits 0 (template changes must not disturb generated inventory)
 
-| Scenario | Expected | **Observed** |
-|---|---|---|
-| S1 — edit `skills/ship/SKILL.md`, no bump | 1 | **1** — `[Rule 1: bump-required] personal-plugin ... still says version '11.6.0'` |
-| S2 — bump to 11.7.0, no CHANGELOG entry | 1 | **1** — `[Rule 2: changelog-required] ... no entry for 11.7.0` |
-| S3 — bump + CHANGELOG entry | 0 | **0** — `OK -- every changed plugin is bumped` |
-| S4 — CHANGELOG-only, no bump | 0 | **0** — run against real history `b4d576c...f4d07b6`, which IS Phase 1's own commit |
+**Notes:**
 
-Plus `--self-test`: **18 cases, 10 asserting exit 1**, mutation-tested with 8 mutants (one initially survived and exposed a weak substring-collision fixture, which was replaced). The absent-manifest guard was independently negative-tested by deletion: the self-test then crashed with `TypeError: ... NoneType found` and exited 1.
-
-**PROCESS FAILURE worth recording.** S1–S3 were first run on a scratch branch created *mid-phase*, while 2.1's and 2.2's work was still uncommitted. `git add -A` swept that uncommitted work into the scratch commits, and deleting the scratch branches removed `scripts/check_version_bump.py` and 2.1's `fetch-depth` edit from the tree. Recovered in full from a scratchpad copy plus `git reflog` (`c7cc067`). **Root cause was skipping the per-batch commit** — `/implement-plan`'s Step 4 commits at every batch boundary, and 2.1/2.2/2.3 are separate batches. Committing between items is not bookkeeping; it is the property that makes scratch-branch work and `git checkout -- .` rollback safe. S4 was subsequently re-run against real committed history instead, which is the better test anyway.
-- [ ] WHEN the guard is wired into CI THEN its failing behavior SHALL already have been demonstrated on a real branch
-
----
-
-#### 2.4 Wire the gate as a step in `plugin-validate` and a pre-commit check ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
-**Model Tier: opus**
-**Issue Refs:** #226
-**Depends On:** 2.3
-**Files Affected:**
-- `.github/workflows/validate.yml` (modify)
-- `scripts/pre-commit` (modify)
-
-**Description:**
-A **step**, never a job (D28) — a new job creates a new required check that must be coordinated with branch protection or it deadlocks merges. This mirrors `check_agent_models.py`'s dual wiring (CI step at `validate.yml:341` + pre-commit Check 5 at `scripts/pre-commit:202-221`), which is the house shape precisely because it adds zero job keys.
-
-The pre-commit leg needs a **new staged-file filter**: the existing one at `scripts/pre-commit:36` matches only `commands/*.md` and `skills/*/SKILL.md`, so it cannot see `tools/`, `references/`, `agents/`, or `hooks/`.
-
-**Tasks:**
-1. [x] Add the step to the `plugin-validate` job, after `check_agent_models.py`, with a comment noting stdlib-only
-2. [x] Add pre-commit Check 7 with a filter covering all bump-worthy paths
-3. [x] Verify the 16 required contexts are unchanged: `gh api repos/davistroy/claude-marketplace/branches/main/protection --jq '.required_status_checks.contexts | length'` returns 16
-
-**Acceptance Criteria:**
-- [x] WHEN `validate.yml` is parsed THEN the set of `name:` values SHALL be identical to before this change
-- [x] The live required-context count remains 16
-- [x] WHEN a plugin file is staged without a version bump THEN `scripts/pre-commit` SHALL exit non-zero
-
-**Completion notes (2026-07-30):**
-
-- **CI: one step, zero jobs.** Added `Check release integrity (version bump + CHANGELOG entry)` to the existing `plugin-validate` job immediately after the `check_agent_models.py` step, matching the four sibling script steps (stdlib-only, so no `setup-python`). `GITHUB_EVENT_NAME` and `GITHUB_BASE_REF` — the two variables `resolve_leg` reads — are default GitHub Actions environment variables present in every step, so **no `env:` block was added**; adding one would only restate what the runner already guarantees.
-- **The pre-commit filter is deliberately broad, not a second exemption list.** `scripts/pre-commit:36`'s existing filter matches only `commands/*.md` and `skills/*/SKILL.md` and is blind to `tools/`, `references/`, `agents/`, and `hooks/`. Check 7 uses its own filter — the whole `plugins/<name>/` subtree — and applies **no exemption logic of its own**: classifying a path as bump-worthy or exempt stays in `check_version_bump.py`'s `EXEMPT_EXACT`/`EXEMPT_GLOBS`. A shell-side copy of that set is exactly the "check that restates an external truth" CLAUDE.md warns about (#208). The cost is that a CHANGELOG-only stage still *invokes* the script; the benefit is that it cannot disagree with it. Verified: CHANGELOG-only stage → **exit 0**; `references/common-patterns.md` → **exit 1**; `tools/bpmn2drawio/src/…` → **exit 1**. The last two are invisible to the old filter.
-- **Base resolution on a leg that has no PR base ref.** `origin/main` first, then a local `main` (CLAUDE.md: the local tree can silently lag origin), which is also the order `resolve_base_commit` uses. Staged content is not yet any commit, so it is materialized as a **dangling commit object**: `git write-tree` snapshots the index and `git commit-tree … -p HEAD` parents it. No ref moves and nothing is committed; the object is unreachable and gets garbage-collected. That is what lets the check see the change *about to be* committed rather than the last one that already was, and it makes the local diff shape (`merge-base(origin/main, staged)…staged`) identical to what the PR gate will compute.
-- **Four announced skip paths, none of which block:** no `origin/main`/`main`, no `HEAD` (initial commit), `write-tree`/`commit-tree` failure (e.g. unset committer identity), and no merge-base (unrelated histories or a shallow clone). Each prints `[SKIP]` with its reason and notes that CI's `pull_request` leg still enforces the rule — an unresolvable base is a local-environment fact, not a release-integrity violation.
-- **Observed exit codes:** clean tree → **0** (`[SKIP] No files staged under plugins/`); `skills/ship/SKILL.md` staged without a bump → **1**, naming `[Rule 1: bump-required] personal-plugin … still says version '11.6.0'` and the `/bump-version personal-plugin` remedy. Tree restored with `git restore --staged --worktree`; no scratch branch, no `git add -A`, nothing committed.
-- **Job set and required contexts unchanged:** `yaml.safe_load` still yields exactly `['validate', 'python-lint', 'lint-markdown', 'plugin-validate']`, a `diff` of the four job-level `name:` lines against `git show main:.github/workflows/validate.yml` is empty, and the live required-context count is still **16**.
-- **Minor drift found, not fixed here:** 2.3's notes above say "19 cases"; `--self-test` prints **18 of which 10 assert exit 1**. The 10 is right; the case count is off by one. Left as-is rather than silently editing a completed item's record.
-
----
+Fixing 2.1 and 2.2 without 2.3 guarantees regression on the next planning command. Fixing 2.3 without 2.1/2.2 leaves both live sites firing.
 
 ### Phase 2 Testing Requirements
 
-- [x] `--self-test` passes and internally asserts non-zero exits on bad input
-- [x] All four negative-test scenarios from 2.3 observed and recorded
-- [x] No new required status check introduced
+The property to assert is **zero occurrences under `plugins/`**, matched case-insensitively, since the live matcher is case-insensitive. A case-sensitive grep would have missed `:34` — that is precisely how the issue missed it.
 
 ### Phase 2 Completion Checklist
 
-- [x] All work items complete
-- [x] Required-context count verified at 16
-- [ ] Negative-test results recorded in LAB_NOTEBOOK
-- [ ] `main`'s push build green after merge
+- [ ] All three items COMPLETE
+- [ ] Case-insensitive sweep of `plugins/` returns zero
+- [ ] `plan-improvements.md` lines `:4`, `:350`, `:414-421` untouched
+- [ ] Version bumped and CHANGELOG entry added (this phase changes `plugins/`)
 
 ### Definition of Done (Runnable)
+
 <!-- BEGIN DOD -->
 
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| Self-test | `python3 scripts/check_version_bump.py --self-test` | Exit code 0 |
-| Stdlib-only | `python3 -c "import ast,sys; t=ast.parse(open('scripts/check_version_bump.py').read()); mods={n.module or '' for n in ast.walk(t) if isinstance(n,ast.ImportFrom)}\|{a.name.split('.')[0] for n in ast.walk(t) if isinstance(n,ast.Import) for a in n.names}; print(sorted(mods))"` | No third-party modules |
-| Required checks | `gh api repos/davistroy/claude-marketplace/branches/main/protection --jq '.required_status_checks.contexts \| length'` | Returns `16` |
-| Pre-commit | `bash scripts/pre-commit` | Exit code 0 on a clean tree |
+| Check | Command | Pass criteria |
+|---|---|---|
+| Zero live sites, case-insensitive | `! grep -rniE 'ultrathink' plugins/` | exit 0 (grep finds nothing) |
+| `effort: max` preserved | `grep -qx 'effort: max' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
+| Untouched regions in the shared file | `grep -qx 'effort: max' plugins/personal-plugin/commands/plan-improvements.md && grep -q 'Orchestrator note' plugins/personal-plugin/commands/plan-improvements.md && grep -q 'Context Budget' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 (Phase 4 removes the budget table; until then all three must survive) |
+| Frontmatter integrity | `python3 -c "import yaml,pathlib,sys; d=yaml.safe_load(pathlib.Path('plugins/personal-plugin/skills/ultra-plan/SKILL.md').read_text().split('---')[1]); sys.exit(0 if {'name','description'} <= set(d) else 1)"` | exit 0 |
+| Official validation | `claude plugin validate plugins/personal-plugin --strict` | exit 0 |
+| Injections | `python3 scripts/check_injections.py` | exit 0 |
+| Inventory | `python3 scripts/update-readme.py --check` | exit 0 |
+| Release gate | `python3 scripts/check_version_bump.py --base main` | exit 0 |
+| Lint (mirrors CI exactly) | `npx markdownlint-cli@0.45.0 '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'` | exit 0 |
+
+**Negative test required before accepting the sweep:** re-introduce the token in a scratch copy of a skill body and confirm the case-insensitive grep exits non-zero. A sweep that cannot fail is worse than none.
 
 <!-- END DOD -->
 
 ---
 
-## Phase 3: Eval Trustworthiness
-
-**Estimated Complexity:** M (~3 files)
-**Dependencies:** None
-**Execution Mode:** Sequential
+## Phase 3: Effort Calibration — Only What Changes Behaviour
 
 ### Goals
 
-- Make the `description-triggers` results reproducible by a cold runner
-- Stop asserting outcomes another marketplace owns — in all 6 fragile scenarios, not just the one that failed
+Apply only the `effort:` values that produce a behavioural delta. **All three of #199's `high` recommendations are dropped** — an absent field already resolves to `high`, so they are no-ops. Every item here is a *downgrade* from an effective `high`, or the single upgrade the issue proposed.
 
 ### Work Items
 
-#### 3.1 Add harness documentation — generalizable facts to `evals/README.md`, the Bash prohibition to the eval ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
-**Model Tier: sonnet**
-**Issue Refs:** #228
+#### 3.1 Apply `effort: low` to the mechanically-bounded components
+
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** #199 item 2 (low group)
 **Depends On:** None
 **Files Affected:**
-- `evals/README.md` (modify)
-- `evals/skills/description-triggers.eval.md` (modify)
+- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/fleet-health/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/new-project/SKILL.md` (modify)
+- `plugins/slide-gen/skills/sg-build/SKILL.md`, `sg-draft`, `sg-generate-images`, `sg-optimize`, `sg-outline`, `sg-research`, `sg-validate-graphics` (modify — 7 files)
 
 **Description:**
-Four of the five harness facts are not eval-specific and belong in `evals/README.md` under "Running Evals" (`:89`), where ADR-0009 and D32 already point readers: the `Skill` tool is auto-denied headless without explicit `--allowed-tools`; `AskUserQuestion` is unavailable in `-p` sessions and its absence must not score as a gate failure; `api_error_status: 529` is not a result (8 of 13 in the first batch); score at first dispatch rather than budgeting five minutes.
 
-The fifth — **`Bash` must be disallowed** — is scenario-specific and belongs in the eval file with its justification: S13's prompt names the Jetson, and **three installed skills in this same plugin grant `Bash(ssh:*)` to that host** (`jetson-audit/SKILL.md:5`, `fleet-health/SKILL.md:4`, `jetson-recon`). This is a live-fire safety control, not tidiness.
+Each of these is a bounded, low-judgment component currently running at the default `high`. `unlock` is four fixed steps of shell-out with zero judgment. `fleet-health` is a fixed 5-host probe set with static thresholds and a sub-60-second contract. `new-project` is pure scaffolding. The seven `sg-*` wrappers are 70–91 lines each with two shell invocations, all real work in the external engine.
 
-**Three linter traps, reproduced against `validate_structure`:**
-- Heading the section `### S0: Harness` makes it a **scenario** and fails the build.
-- A file-level `## Harness` carrying `**Invocation:**` does **not** satisfy the per-file invocation requirement — `seen_invocation` is computed inside scenario bodies only. **All 14 `**Context:**` lines must stay where they are.**
-- A plain `## Harness` heading is *ignored* by the linter, which is why it is safe.
+**Excluded deliberately:** `sg-full-workflow` — #199 assigns it *two conflicting values*, listing it under `medium` and again inside "all 8 `sg-*` wrappers → `low`". On merits it is `medium` (169 lines, ten invocations, resume/orchestration judgment) and it is handled in 3.2. `archive-project` and `bpmn-to-drawio` are also excluded: the first branches destructively on a classification it makes itself, the second has a real manual-conversion fallback path. Both are `medium` candidates at best and neither is worth the risk here.
 
 **Tasks:**
-1. [ ] Add a "Headless Execution" subsection to `evals/README.md` covering the four generalizable facts
-2. [ ] Add a `## Harness` section (not `### S0:`) to `description-triggers.eval.md` with the invocation, the `Bash` prohibition, and its rationale
-3. [ ] Record `claude plugin eval`'s existence and its **deferral** with an explicit ADR-0009 pointer — it exits 1 ("early access"), and adopting it would mean porting 255 scenarios and 1,091 criteria, ~4.6× the diff ADR-0009 already rejected
-4. [ ] Do **not** move any `**Context:**` line
-5. [ ] Run `python3 scripts/check_eval_mapping.py` and confirm exit 0
+
+1. [ ] Add `effort: low` to each of the 10 files' frontmatter.
+2. [ ] Verify each file's frontmatter still parses with `yaml.safe_load` and retains its full key set.
+3. [ ] Confirm `sg-full-workflow` is NOT modified by this item.
 
 **Acceptance Criteria:**
-- [ ] WHEN `check_eval_mapping.py` runs after the edit THEN it SHALL exit 0
-- [ ] WHEN a cold runner follows the Harness section THEN the invocation SHALL include `--allowed-tools Skill Read Write Edit Glob Grep AskUserQuestion` and exclude `Bash`
-- [ ] All 14 `**Context:**` lines remain inside their scenario bodies
-- [ ] The section heading is not of the form `### S<n>`
 
----
-
-#### 3.2 Re-scope all 6 preemption-fragile scenarios and both rubric rows ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
-**Model Tier: sonnet**
-**Issue Refs:** #227
-**Depends On:** 3.1
-**Files Affected:**
-- `evals/skills/description-triggers.eval.md` (modify)
-
-**Description:**
-The issue scopes this to S4. Verification found **9 scenarios carry a positive-dispatch `Must` naming a specific skill, 6 of them behind creation verbs**: S1 ("model"), S4 ("build"), S5 ("generate"), S6 ("add"), S7 ("build"), S9 ("add"). **S7 is a false green** — its `:119` is structurally identical to S4's failing `:82` and passed only because brainstorming did not fire that run, yet it is cited as *proof the handoff works* in both #227's body and E061.
-
-**The S8 template is the fix shape.** S8 fired brainstorming and passed because it names no skill it must dispatch to (only what must **not** be used), its positive `Must` is a **recognition** assertion satisfiable from stated reasoning, and its behavioral clause is hedged with `optionally` plus a disjunction. S4 already contains its own fix: its recognition `Must` at `:81` **passed** on the live run — only `:82` must change.
-
-Rubric rows `:226` and `:228` restate the same unowned assertion at file level. The linter validates only that `## Rubric` exists as a substring, so a rubric contradicting its own scenarios passes CI silently.
-
-**Tasks:**
-1. [ ] Rewrite each of the 6 positive-dispatch `Must` criteria on the S8 pattern: keep recognition assertions as `Must`, demote first-dispatch ordering to `Should` or a harness-logged observation
-2. [ ] Keep every `Must NOT` — they are ours and they all passed
-3. [ ] Reword rubric rows `:226` and `:228` to match
-4. [ ] Add a note that a process skill firing first is an **environment-dependent observation the harness logs**, not a failure — and that the runner must record which competing plugins were installed
-5. [ ] Verify at least one literal `**Must:**` or `**Must NOT:**` marker survives in every touched scenario
-6. [ ] Run `check_eval_mapping.py`; confirm exit 0
-
-**Acceptance Criteria:**
-- [ ] WHEN any scenario in this file is scored THEN no `Must` criterion SHALL assert which skill is dispatched first
-- [ ] WHEN `check_eval_mapping.py` runs THEN it SHALL exit 0 (downgrading both `Must` and `Must NOT` in one scenario fails structure validation)
-- [ ] Every touched scenario retains ≥1 literal `**Must:**`/`**Must NOT:**` marker
-- [ ] Rubric rows no longer assert cross-marketplace dispatch order
+- [ ] WHEN each of the 10 files' frontmatter is parsed THEN `effort` SHALL equal `low` and every pre-existing key SHALL be present
+- [ ] `sg-full-workflow/SKILL.md` is byte-identical to `main`
+- [ ] `claude plugin validate --strict` exits 0 for all three plugins
 
 **Notes:**
-`evals/skills/plan-gate.eval.md` is an unrun second instance with 4 positive-routing `Must` criteria and an `S5: Proactive trigger` colliding head-on with `brainstorming → writing-plans`. **Out of scope here** — file as a follow-up rather than expanding this phase.
 
----
+These are downgrades from an effective `high`, not additions of a missing setting. The commit message must say so.
 
-#### 3.3 File the upstream report against superpowers — DESCOPED 2026-07-30
-**Status: DESCOPED 2026-07-30**
-**Model Tier: sonnet**
-**Issue Refs:** #227
-**Depends On:** 3.2
+#### 3.2 Apply `effort: medium` to the defensible orchestrators
+
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** #199 item 2 (medium group, re-scoped)
+**Depends On:** None
 **Files Affected:**
-- (none in-repo — external issue)
+- `plugins/personal-plugin/skills/release-plugin/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/jetson-audit/SKILL.md` (modify)
+- `plugins/slide-gen/skills/sg-full-workflow/SKILL.md` (modify)
+- `plugins/personal-plugin/commands/validate-plugin.md` (modify — `high` → `medium`)
+- `plugins/personal-plugin/commands/analyze-transcript.md` (modify — `high` → `medium`)
 
 **Description:**
-The user-facing dead-end is only fixable upstream. `brainstorming/SKILL.md:61` makes `writing-plans` the sole permitted successor, so for a request like "build me a workflow diagram", the domain skill is unreachable by any sanctioned route. Report it factually: the mechanism, the observed session, and the blast radius (every domain skill whose realistic trigger phrasing contains a creation verb).
+
+`release-plugin` is a three-phase delegator — the heavy reasoning happens inside the commands it invokes, each with its own effort. `jetson-audit` is bounded comparison against known-good configuration over a fixed command allowlist. `sg-full-workflow` is orchestration with resume judgment. `validate-plugin` is a checklist runner across nine-and-a-half phases with deterministic pass/fail and one optional judgment mode. `analyze-transcript` is structured extraction into seven fixed sections and three fixed output formats — the archetypal case where added effort buys little.
+
+**Excluded deliberately, against the issue:** `ship` (contains a code-review-and-fix loop, and can push and merge — fix-loop quality is exactly what effort buys), `jetson-recon` (its own description declares a trust boundary against untrusted web content; adversarial-input discipline is not a downgrade candidate), `wiki` (cross-page synthesis in two of its three modes — wrong granularity), `develop-image-prompt` (the issue's own rationale, "creative composition benefits from thinking," argues against its own recommendation), and `visual-explainer` (it decides what to depict and how *before* the tool renders, and generation is billed per image — downgrading the reasoning that decides what to spend money on is the wrong trade).
 
 **Tasks:**
-1. [ ] Draft the report with the verbatim `:61` quote and the S4 transcript summary
-2. [ ] Confirm the destination repo and open the issue
-3. [ ] Link it from #227 and close #227
+
+1. [ ] Add `effort: medium` to the three components currently absent.
+2. [ ] Change `effort: high` → `effort: medium` in the two commands.
+3. [ ] Verify frontmatter integrity on all five with `yaml.safe_load`.
+4. [ ] Confirm none of the five excluded components is modified.
 
 **Acceptance Criteria:**
-- [x] WHEN #227 is closed THEN it SHALL link the eval re-scope commit (the upstream-issue half is descoped)
-- [x] ~~The report makes no claim about this repo's descriptions being at fault~~ — moot; no report filed
 
-**DESCOPED by owner decision, 2026-07-30.** The upstream half — a public bug report on `obra/superpowers` — was declined. #227 closes on the eval re-scope alone (items 3.1/3.2), which is the part this repo owns and controls. **Consequence, recorded rather than left implicit:** the user-facing dead-end is unreported to the only party who can fix it. `brainstorming/SKILL.md:61` still makes `writing-plans` the sole permitted successor, so for any request phrased with a creation verb the domain skill remains unreachable by a sanctioned route, for every domain skill in this marketplace — not just `bpmn-generator`. Our evals no longer *fail* on it because they no longer assert it; the behaviour itself is unchanged.
+- [ ] WHEN each of the 5 files' frontmatter is parsed THEN `effort` SHALL equal `medium` with a full key set
+- [ ] `ship`, `jetson-recon`, `wiki`, `develop-image-prompt`, and `visual-explainer` SKILL.md files are byte-identical to `main`
+- [ ] `claude plugin validate --strict` exits 0
 
----
+**Notes:**
+
+Five of #199's `medium` recommendations are rejected here with reasons. That is a larger rejection rate than acceptance, which is the expected shape given the base rate.
+
+#### 3.3 Upgrade `arch-synthesize` to `medium`
+
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** #199 item 4 (the only upgrade)
+**Depends On:** None
+**Files Affected:**
+- `plugins/personal-plugin/commands/arch-synthesize.md` (modify)
+
+**Description:**
+
+Currently `low`. Of its eight steps, seven are mechanical. Step 6 is not: it identifies findings in one domain that contradict findings in another and resolves them using business impact as a tiebreaker, then writes the executive summary a human acts on. Cross-domain conflict detection with a value-judgment tiebreaker is under-provisioned at `low`.
+
+This is the only recommendation in #199 whose direction is unaffected by the absent-equals-`high` finding, because it is an upgrade from an explicitly-set value.
+
+**Tasks:**
+
+1. [ ] Change `effort: low` → `effort: medium`.
+2. [ ] Verify frontmatter integrity.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN the frontmatter is parsed THEN `effort` SHALL equal `medium`
+- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+
+**Notes:**
+
+Best-argued item in the issue.
 
 ### Phase 3 Testing Requirements
 
-- [ ] `check_eval_mapping.py` exits 0 after each item
-- [ ] Manual read-through confirming no `Must` asserts cross-marketplace behavior
+Assert the resulting distribution, not the diff: parse every component's frontmatter and confirm the intended value, and confirm every deliberately-excluded file is unchanged. The exclusions carry as much intent as the changes.
 
 ### Phase 3 Completion Checklist
 
-- [ ] All work items complete
-- [ ] Eval linter green
-- [ ] #227 and #228 closed with links
-- [ ] Follow-up filed for `plan-gate.eval.md`
+- [ ] All three items COMPLETE
+- [ ] Zero components carry a newly-added `effort: high` (it is a no-op)
+- [ ] All 8 deliberately-excluded files byte-identical to `main`
+- [ ] Version bumped and CHANGELOG entry added
 
 ### Definition of Done (Runnable)
+
 <!-- BEGIN DOD -->
 
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| Eval structure | `python3 scripts/check_eval_mapping.py` | Exit code 0 |
-| Lint | `npx markdownlint-cli2 "evals/**/*.md"` | Exit code 0 |
-| No dispatch-order Musts | `awk '/^\*\*Must:\*\*/,/^$/' evals/skills/description-triggers.eval.md \| grep -niE '(routes to\|activates).*(first\|instead)'` | No output |
+| Check | Command | Pass criteria |
+|---|---|---|
+| No no-op additions | `git diff main -- plugins/ \| grep -c '^+effort: high'` | output `0` |
+| Exclusions intact | `git diff --quiet main -- plugins/personal-plugin/skills/ship/SKILL.md plugins/personal-plugin/skills/jetson-recon/SKILL.md plugins/personal-plugin/skills/wiki/SKILL.md plugins/personal-plugin/skills/visual-explainer/SKILL.md plugins/personal-plugin/commands/develop-image-prompt.md` | exit 0 |
+| Frontmatter integrity, **every** skill (not only changed ones) | `python3 -c "import yaml,pathlib,sys; bad=[]\nfor p in pathlib.Path('plugins').rglob('SKILL.md'):\n try:\n  d=yaml.safe_load(p.read_text().split('---')[1]); assert isinstance(d,dict) and 'name' in d and 'description' in d\n except Exception: bad.append(str(p))\nprint(bad); sys.exit(1 if bad else 0)"` | exit 0. **Negative-tested:** a planted `description` containing a colon-space exits 1 |
+| Official validation ×3 | `for p in personal-plugin bpmn-plugin slide-gen; do claude plugin validate plugins/$p --strict \|\| exit 1; done` | exit 0 |
+| Release gate | `python3 scripts/check_version_bump.py --base main` | exit 0 |
+| Lint (mirrors CI exactly) | `npx markdownlint-cli@0.45.0 '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'` | exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 4: ultra-plan Correctness
-
-**Estimated Complexity:** M (~3 files)
-**Dependencies:** None
-**Execution Mode:** Sequential
+## Phase 4: Context Thresholds That Are Genuinely Stale
 
 ### Goals
 
-- Make every `Phase N` reference name the phase it describes
-- Stop gating three behaviors on a taxonomy no file defines
+Fix the four sites that carry real absolute thresholds, adopting the in-repo exemplar's **four-part** pattern rather than only its phrasing. Three of #200's five filed sites are wrong and are not touched.
+
+**Two traps govern this phase.** The "Output Reserve" column is bounded by *max output tokens*, not context — output did not grow with the context window, so that table must be **deleted**, never rescaled. And the 100-entry threshold in `summarize-feedback` doubles as an API-round-trip warning; the fix must decouple the two rather than remove both.
 
 ### Work Items
 
-#### 4.1 Repair the phase numbering across all 29 sites, atomically with its eval ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+#### 4.1 `analyze-transcript` — seven sites, moved together
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #231
+**Recommendation Ref:** #200 site 1 (under-scoped by 4 sites)
 **Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/skills/ultra-plan/SKILL.md` (modify)
-- `evals/skills/ultra-plan.eval.md` (modify)
+- `plugins/personal-plugin/commands/analyze-transcript.md` (modify)
 
 **Description:**
-A single 1–6 → 0–5 renumbering touched the `##` headings and a few body lines but missed the `###` sub-headings and 18 cross-references. Every defect is explained by one transform: **old N → new N−1**.
 
-**8 sub-headings:** `:175`, `:182`, `:189` (`3a/3b/3c` → `2a/2b/2c`); `:327`, `:336`, `:344`, `:360`, `:370` (`6a-6e` → `5a-5e`).
+The file carries seven coupled sites, of which #200 names three. It is also **internally inconsistent today**: `:96` sets a 50K "too large" threshold while `:100` begins chunking at 30K, so the 50K row triggers nothing that 30K has not already triggered, and `:82` says content under 30K proceeds directly — making the 30K–50K band simultaneously "not too large" and chunked.
 
-**18 cross-reference lines:** `:116`, `:117`, `:142`, `:167` (two wrong tokens), `:169`, `:196`, `:230`, `:231`, `:234`, `:270`, `:308`, `:313`, `:340`, `:341`, `:346`, `:363`, `:365`, `:382` (only its "Phase 2 output" clause).
+The chunking path is real work, not a no-op, and its quality cost is self-documented: `:113` instructs the model to ensure no decisions or action items are lost at chunk boundaries — an instruction to mitigate a problem the chunking itself creates.
 
-**2 anchors that must move in lockstep:** `:384` ("see 6b routing table") and `:385` ("see 6d") — correct today, dangling the moment the headings renumber.
-
-**1 site outside the file:** `evals/skills/ultra-plan.eval.md:43` copied the defect verbatim from `SKILL.md:167`. **Fixing the skill without the eval converts a passing eval into a false failure against a now-correct skill.**
-
-**DO NOT TOUCH `:350`.** "Change sets (Phase 2c)" is *correct* — it is the one reference that survived the renumbering and the diagnostic tell. Renumbering it to `3c` propagates the bug into the only place that escaped it. The whole `:349-356` table is correct in all 8 rows.
+Adopt the exemplar's full four-part shape: a relative trigger placed inline at the point of work; a named, concretely-specified degradation strategy that degrades **resolution rather than scope** (structure-first reading keeps the whole input in view, so there are no boundaries to lose items at); an error-table row that delegates to that strategy and carries no number of its own; and a performance-table row keyed on the same relative phrase.
 
 **Tasks:**
-1. [ ] Apply the 8 sub-heading renumberings
-2. [ ] Apply the 18 cross-reference corrections
-3. [ ] Update the 2 anchors at `:384`/`:385`
-4. [ ] Update `evals/skills/ultra-plan.eval.md:43` in the **same commit**
-5. [ ] Leave `:350` and the entire `:349-356` table unchanged
-6. [ ] Grep `Phase [0-9]` across the file and read every hit against its containing phase — a partial fix is worse than none
+
+1. [ ] Replace the absolute triggers at `:82`, `:96`, `:100`, `:102` with a single relative trigger, resolving the 30K/50K contradiction to one threshold.
+2. [ ] Replace the split-and-reconcile strategy with a structure-first strategy modelled on the exemplar's four numbered steps.
+3. [ ] Update the user-visible example string at `:117` so it no longer implies a token-band calculation.
+4. [ ] Re-key the performance table at `:368-371` and the note at `:373` to the relative phrase.
+5. [ ] Confirm the boundary-loss warning at `:113` is either removed as moot or retained deliberately with a reason.
 
 **Acceptance Criteria:**
-- [ ] WHEN any `Phase N` reference in `ultra-plan/SKILL.md` is read THEN it SHALL name the phase it describes
-- [ ] WHEN a `###` sub-heading is read THEN its leading digit SHALL equal its parent phase number
-- [ ] `:350` still reads "Change sets (Phase 2c)"
-- [ ] `evals/skills/ultra-plan.eval.md:43` reads "Phase 1 deliverable" and is in the same commit as `SKILL.md:167`
-- [ ] No self-contradiction remains: `:363` and `:385` refer to the same artifact by the same phase number
 
----
+- [ ] WHEN the file is read THEN it SHALL contain no absolute token threshold governing chunking
+- [ ] WHEN the file is read THEN exactly one trigger condition SHALL govern the degradation path (no second, differently-numbered trigger)
+- [ ] WHEN the degradation strategy is read THEN it SHALL specify concrete numbered steps, not a bare instruction
+- [ ] The output report's seven fixed sections are unchanged
 
-#### 4.2 Delete the phantom L0–L4 taxonomy at all 10 sites, including the generator template ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+**Notes:**
+
+Moving three of seven sites leaves the file contradicting itself more than it already does.
+
+#### 4.2 `assess-document` — replace an undefined fallback with a strategy
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #231
-**Depends On:** 4.1
+**Recommendation Ref:** #200 site 2 (understated)
+**Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/skills/ultra-plan/SKILL.md` (modify)
-- `plugins/personal-plugin/references/adr-template.md` (modify)
+- `plugins/personal-plugin/commands/assess-document.md` (modify)
 
 **Description:**
-Eight sites in `SKILL.md` (`:89`, `:222`, `:236`, `:238`, `:240`, `:242`, `:244`, `:315`) plus **two in `references/adr-template.md` (`:7`, `:58`)** — the file `SKILL.md:229` instructs the model to load when writing an ADR, so the phantom scale is restated in the shipped template the skill consumes at runtime. A fix scoped to the skill body leaves the mould minting the defect.
 
-`plan-gate` defines Paths A/B/B.5/C/D/D.5/E/F and **no L-levels**; a repo-wide sweep found no definition anywhere. It cannot emit a scope level even in principle — its output is a *Path recommendation*, so "per plan-gate classification" requests a kind of value the cited skill does not produce.
+Worse than filed, in a way that changes the remedy. `:72` calls ~100K "context window capacity" — wrong in its own era, let alone now — but the real defect is that its degradation path is **undefined**: it says the assessment will focus on "the first N sections" and `N` is never bound anywhere in the file. `:454` repeats the same undefined N.
 
-**Delete, don't define** (D62-adjacent reasoning): at `:236`/`:242`/`:244` the L-clause is ANDed onto a trigger question that is already sufficient and answerable — `:226` *"Does this change set involve an architectural decision that should outlive the plan?"* **is** the L3+ test; `:242` *"Are there 2+ fundamentally different architectures…?"* **is** the L4+ test. `:89`(b) should be deleted outright: ultra-plan is reached only as Path D.5, so anything plan-gate would call "L0-L1" routes to Path A or B and never arrives.
+**Raising the number fixes nothing.** This site needs a strategy borrowed from the exemplar, whose error row carries no number and delegates to a four-step method defined at the point of work.
 
 **Tasks:**
-1. [ ] Delete the L-clause and the "per plan-gate classification" attribution at all 8 `SKILL.md` sites
-2. [ ] Retitle `:222` and `:238` to "(conditional)" and let the existing trigger questions gate
-3. [ ] Delete `:89`'s condition (b) entirely
-4. [ ] Remove both `adr-template.md` L3+ references
-5. [ ] Confirm body stays under 500 lines (currently 385, 115 headroom)
+
+1. [ ] Add a relative-trigger context-management block at the point of work, with concrete numbered degradation steps.
+2. [ ] Rewrite `:72` to delegate to that block and carry no number and no undefined variable.
+3. [ ] Rewrite `:454` to match.
+4. [ ] Define a terminal fallback for the case where even the degraded strategy exceeds context, as the exemplar does.
 
 **Acceptance Criteria:**
-- [ ] WHEN `grep -nE 'L[0-9]' plugins/personal-plugin/skills/ultra-plan/SKILL.md` runs THEN it SHALL return no output
-- [ ] WHEN `grep -nE 'L[0-9]\+' plugins/personal-plugin/references/adr-template.md` runs THEN it SHALL return no output
-- [ ] WHEN a conditional gate in `ultra-plan` is evaluated THEN it SHALL depend only on a question answerable from text present in the repo
-- [ ] `ultra-plan/SKILL.md` remains under 500 lines
 
----
+- [ ] WHEN the file is read THEN no instruction SHALL reference an unbound variable such as "the first N sections"
+- [ ] WHEN the degradation path is triggered THEN a concrete, numbered strategy SHALL be available at the point of work
+- [ ] WHEN even the degraded strategy is insufficient THEN a terminal fallback message SHALL be specified
+
+**Notes:**
+
+The property to assert is "no unbound variable in an instruction," not "the number changed."
+
+#### 4.3 `plan-improvements` — delete the absolute budget table, touch nothing else
+
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #200 site 3b (the only genuinely stale part of that file)
+**Depends On:** Phase 2.2
+**Files Affected:**
+- `plugins/personal-plugin/commands/plan-improvements.md` (modify)
+
+**Description:**
+
+**`:53` is already context-relative** and is #200's marquee example — it reserves a *percentage* of available context and auto-scales. Do not touch it. Nor `:447`, which is the same idiom.
+
+`:414-421` is the genuinely absolute part, and it carries the trap: every row sums to exactly 100K, modelling a fixed budget split between reading and writing. **Input context grew to 1M; per-response output did not.** Rescaling the Output Reserve column would produce a meaningless number. Delete the table and let `:53`'s percentages govern the input side, leaving output bounded by the model's own limit.
+
+**`:274-300` must not be swept up.** Those cap plan phases at 5–8 files and ~500 LOC, and `:300` states the reason explicitly: `/implement-plan` executes each phase via a subagent with finite context, and oversized plans cause silent skips. They are codified in `CLAUDE.md` and mirrored in `references/plan-template.md`. They bound an *output artifact*, not a reading budget.
+
+**Tasks:**
+
+1. [ ] Delete the Context Budget table at `:414-421` and replace it with a pointer to `:53`'s relative strategy.
+2. [ ] Leave `:53`, `:447`, and `:55` unmodified.
+3. [ ] Leave `:274-300` unmodified.
+4. [ ] Leave `:4`, `:34` (already handled in Phase 2.2), and `:350` unmodified.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN the file is read THEN no absolute-token budget table SHALL remain
+- [ ] Lines `:53`, `:55`, `:274-300`, and `:447` are byte-identical to `main`
+- [ ] `:4` still reads `effort: max`
+- [ ] The `/implement-plan` phase-size contract stated at `:300` is intact
+
+**Notes:**
+
+This file is touched by three issues at four regions. Phase 2.2 has already landed its edit; this item must not disturb it.
+
+#### 4.4 `summarize-feedback` — decouple the entry warning from the batching
+
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #200 site 4 (half wrong as filed)
+**Depends On:** None
+**Files Affected:**
+- `plugins/personal-plugin/skills/summarize-feedback/SKILL.md` (modify)
+
+**Description:**
+
+`:95` is **already context-relative** — do not touch it. `:94` is absolute, but it is an *entry count*, not a token threshold, and it is load-bearing for a second reason the issue missed: the skill makes one API fetch per entry, so 100+ entries means 100+ sequential round-trips and a documented 15–30 minute run. The remedy menu even offers "narrow the date range," which is a fetch-count remedy, useless as a context remedy.
+
+Keep the warning; drop the mandatory batching, which was context-driven and is now unnecessary. The skill's own performance note says the meta-synthesis pass roughly doubles synthesis time — that is the argument for dropping it.
+
+**Tasks:**
+
+1. [ ] Retain the >100-entry warning, re-stated as an operation-cost warning (round-trips and wall-clock), not a context warning.
+2. [ ] Remove the mandatory batch-by-25 processing and the meta-synthesis pass it forces.
+3. [ ] Update the interaction payload so it no longer offers a mode the skill no longer describes.
+4. [ ] Leave `:95` unmodified.
+5. [ ] Update the performance table rows that reference the removed pass.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN entry count exceeds 100 THEN the skill SHALL still warn about run duration and API round-trips
+- [ ] WHEN the skill runs THEN it SHALL NOT mandate a fixed batch size for context reasons
+- [ ] The interaction payload offers no option the body does not describe
+- [ ] `:95` is byte-identical to `main`
+
+**Notes:**
+
+The E063 precedent is directly relevant: a naive conversion of an interaction payload silently deleted a capability. Check the payload against the body before and after.
 
 ### Phase 4 Testing Requirements
 
-- [ ] `check_eval_mapping.py` exits 0
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+For each file, assert the *property* — no absolute token threshold governs a degradation path — rather than grepping for specific numbers, which would pass on a file that merely renamed its constant. Then assert every must-not-touch region byte-identical.
 
 ### Phase 4 Completion Checklist
 
-- [ ] All work items complete
-- [ ] `:350` verified unchanged
-- [ ] Eval and skill changed in one commit
-- [ ] Version bumped (Phase 2's gate will now require it)
+- [ ] All four items COMPLETE
+- [ ] `prime/SKILL.md` untouched (misfiled in #200 — it is a wall-clock table)
+- [ ] `finish-document.md:311-312` untouched (human interaction checkpoints, not context)
+- [ ] `consolidate-documents.md` and `define-questions.md` untouched (they are the exemplars)
+- [ ] Version bumped and CHANGELOG entry added
 
 ### Definition of Done (Runnable)
+
 <!-- BEGIN DOD -->
 
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| No L-taxonomy | `grep -rnE 'L[0-9]\+?' plugins/personal-plugin/skills/ultra-plan/SKILL.md plugins/personal-plugin/references/adr-template.md` | No output |
-| :350 intact | `grep -c 'Change sets (Phase 2c)' plugins/personal-plugin/skills/ultra-plan/SKILL.md` | Returns `1` |
-| Body budget | `wc -l < plugins/personal-plugin/skills/ultra-plan/SKILL.md` | < 500 |
-| Validation | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
+| Check | Command | Pass criteria |
+|---|---|---|
+| Must-not-touch set intact | `git diff --quiet main -- plugins/personal-plugin/skills/prime/SKILL.md plugins/personal-plugin/commands/finish-document.md plugins/personal-plugin/commands/consolidate-documents.md plugins/personal-plugin/commands/define-questions.md` | exit 0 |
+| `plan-improvements` relative trigger preserved | `grep -q '60% of available context' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
+| `plan-improvements` absolute table gone | `! grep -qE '^\| (Small\|Medium\|Large\|Very Large) \(' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
+| Phase-size contract intact | `grep -q 'subagent with finite context' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
+| `summarize-feedback` relative trigger preserved | `grep -q '60% of estimated context window' plugins/personal-plugin/skills/summarize-feedback/SKILL.md` | exit 0 |
+| No unbound-N instruction | `! grep -qE 'first N sections' plugins/personal-plugin/commands/assess-document.md` | exit 0 |
+| Official validation | `claude plugin validate plugins/personal-plugin --strict` | exit 0 |
+| Evals | `python3 scripts/check_eval_mapping.py` | exit 0 |
+| Release gate | `python3 scripts/check_version_bump.py --base main` | exit 0 |
+| Lint (mirrors CI exactly) | `npx markdownlint-cli@0.45.0 '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'` | exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 5: `/unlock` Actually Works
-
-**Estimated Complexity:** S (~3 files)
-**Dependencies:** None
-**Execution Mode:** Sequential
+## Phase 5: Tier-Routing Prose + the visual-explainer Knob
 
 ### Goals
 
-- Fix the total, in-repo `/unlock` failure that #217's filed remedy would not have touched
-- Correct the record: D53 and two notebook lines restate a mechanism that is wrong
+Ship the one tier-routing change the in-repo evidence supports, close the three claims it refutes, and split `visual-explainer`'s single model knob on the correct axis.
 
 ### Work Items
 
-#### 5.1 Read the token from `BWS_ACCESS_TOKEN`, not the unset `$TROY` ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+#### 5.1 Qualify Rule 17's opus bullet, in task properties
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #217
+**Recommendation Ref:** #198 items 1–2 (item 1 mostly refuted)
 **Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/new-project/SKILL.md` (modify)
-- `plugins/personal-plugin/references/api-key-setup.md` (modify)
+- `plugins/personal-plugin/references/plan-template.md` (modify — Rule 17)
+- `.claude/agents/opus-implementer.md` (modify)
 
 **Description:**
-`skills/unlock/SKILL.md:50` does `TOKEN="$TROY"` and `:53` hard-stops when empty. **`TROY` is set by nothing on this machine** — verified UNSET, while `BWS_ACCESS_TOKEN` is set (94 chars) and current. So `/unlock` prints "TROY environment variable is not set" and never reaches `bws`, on every invocation.
 
-Second in-repo blocker: `allowed-tools` (`:5`) omits `python3` (`Bash(python:*)` does not prefix-match `python3`), `mktemp`, `chmod`, `rm`, `source`, `test`, and does not cover `:92`'s `BWS_ACCESS_TOKEN="$TOKEN" bws …` form, which is not `bws`-prefixed. Step 3 stalls even once the variable is fixed.
+The in-repo evidence supports exactly one change, and it points opposite to the issue's framing. Across plans v12 and v13, **15 `sonnet` items touched ≥3 files each (max 10) with zero escalations** — precisely the work Rule 17 assigns categorically to `opus`. Meanwhile two v13 `opus` items were a one-line CI edit and a zero-file verification task. There is concrete evidence of **opus over-spend** and none of sonnet under-performance.
 
-The one genuine probe leak is `references/api-key-setup.md:49` — a bare `bws secret list` used as a diagnostic, which prints every secret's plaintext value. The functional uses at `unlock:70,92` and `new-project:62` capture to a variable and are **not** offenders.
+`sonnet-implementer.md:31` is **not** touched: its escalation trigger is already qualified as multi-file refactoring *with system-wide coupling not anticipated in the plan*. The issue's claim that it fires on multi-file-ness per se is wrong.
+
+**ADR-0005 rule 2 binds this edit.** The qualification must be written in task properties — coupling, spec clarity, ambiguity — and must **not** name a model generation. Writing "Sonnet 5 is now capable of multi-file refactors" re-creates the staleness class ADR-0005 exists to eliminate, and would be caught by the same reasoning that produced the ADR.
 
 **Tasks:**
-1. [x] Read `${BWS_ACCESS_TOKEN}` as primary, `$TROY` as a deprecated fallback; update the error text and the `$TROY` references at `:17`, `:40`, `:44-45`, `:54-55`, `:140`, `:199-201`
-2. [x] Same rename at `new-project/SKILL.md:62` and `api-key-setup.md:51,53`
-3. [x] Widen `allowed-tools` to cover `python3`, `mktemp`, `chmod`, `rm`, `source`, `test`, and the `VAR=… bws` form
-4. [x] Replace `api-key-setup.md:49`'s bare probe with `bws secret list >/dev/null; echo $?`
-5. [x] Keep `disable-model-invocation: true` — do not relax it
-6. [x] **Before the manual `/unlock` verification, diff the installed cache against the repo copy** — `diff ~/.claude/plugins/cache/troys-plugins/personal-plugin/<version>/skills/unlock/SKILL.md plugins/personal-plugin/skills/unlock/SKILL.md` — and abort the test if they differ. Per #232 the loader can serve an older cached version than `installed_plugins.json` names, so a green manual run could be testing the pre-fix body. Verify content, never the version string. **Documented as a required pre-step in the skill's own "Verification Before Trusting a Manual Run" section** — the actual diff + manual run is the owner's to execute (see Notes)
+
+1. [ ] Qualify Rule 17's unqualified "multi-file refactors" so it routes on coupling and spec clarity, not on file count.
+2. [ ] Apply the same qualification to `opus-implementer.md`'s corresponding bullet.
+3. [ ] Verify no model generation name appears in either edit.
+4. [ ] Do NOT modify `sonnet-implementer.md`.
 
 **Acceptance Criteria:**
-- [ ] WHEN the manual verification is run THEN the installed `unlock/SKILL.md` SHALL be byte-identical to the repo copy, confirmed by diff before the run (#232 mitigation) — **owner-verified, not agent-verified**
-- [ ] WHEN `/unlock` runs in a tool shell with `BWS_ACCESS_TOKEN` set and `TROY` unset THEN it SHALL load secrets and report names only — **owner-verified, not agent-verified**
-- [x] WHEN any documented helper runs on its success path THEN no secret value SHALL be printed to stdout (verified by code inspection — unchanged behavior, values never echoed)
-- [x] WHEN Step 3 executes THEN every command it issues SHALL be covered by `allowed-tools`
-- [x] `disable-model-invocation: true` is unchanged
-- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
+
+- [ ] WHEN Rule 17 is read THEN "multi-file" SHALL NOT appear as an unqualified opus criterion
+- [ ] WHEN either edited file is read THEN no model generation name SHALL appear in the changed lines
+- [ ] `sonnet-implementer.md` is byte-identical to `main`
+- [ ] `python3 scripts/check_agent_models.py` exits 0
 
 **Notes:**
-**DoD check 1 was corrected during execution.** As first written it filtered on `grep -v 'TOKEN'`, which only worked because the functional `bws secret list` calls happened to carry `BWS_ACCESS_TOKEN=` on the same line. Item 5.1 had to split that inline `VAR=… bws` form into an `export`/`unset` pair — `Bash(bws:*)` does not prefix-match `VAR=… bws`, so the original form was never covered by the grant — and the moment it did, the check began reporting three legitimate lines (two capture output to a variable, one is an error-table row). The check was coupled to an incidental detail rather than to the property it meant to assert. The replacement derives the property: a leak is a `bws secret list` whose output reaches stdout — neither captured via `$(...)` or a PowerShell `$x = bws`, nor discarded to `/dev/null` — excluding markdown table rows, which are prose. **Negative-tested**: passes on the real tree, fires on a planted bare probe.
-Cannot be verified in CI (ADR-0009/D32, zero secrets). Acceptance is a manual `/unlock` run. **The two acceptance criteria requiring a live `/unlock` run are owner-verified, not agent-verified** — `unlock` is user-invoke-only by deliberate policy (`disable-model-invocation: true`, D40) and this agent must not invoke it; the owner must run `/unlock` themselves and confirm the cache-vs-repo diff first. **Out of scope, not fixable here:** the nine `~/.claude/scripts/*.sh` (all legacy `bw`/`BW_SESSION`, zero `bws` references), `~/.bashrc:8`'s early return, and the global CLAUDE.md's nonexistent `~/bin/bws.exe`.
 
----
+This plan's own tier assignments already follow the corrected rule, which is the first live test of it.
 
-#### 5.2 Correct D53 and rewrite #217 ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
-**Model Tier: sonnet**
-**Issue Refs:** #217
-**Depends On:** 5.1
+#### 5.2 Split `visual-explainer`'s model knob on the loop boundary
+
+**Status: PENDING**
+**Model Tier: opus**
+**Recommendation Ref:** #198 item 5 (correct in substance, wrong in shape)
+**Depends On:** None
 **Files Affected:**
-- `LAB_NOTEBOOK.md` (modify)
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/config.py` (modify)
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/pipeline.py` (modify)
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/prompt_generator.py` (modify)
+- `plugins/personal-plugin/tools/visual-explainer/src/visual_explainer/image_evaluator.py` (modify)
+- `plugins/personal-plugin/tools/visual-explainer/tests/` (modify — ~6 files)
+- `plugins/personal-plugin/tools/visual-explainer/README.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify — env-var docs only)
 
 **Description:**
-D53 and notebook lines `:645`/`:657` restate claim (a)'s mechanism, which is wrong: `.bashrc:167` guards the *full credential set*, not the token; the operative line is `.bashrc:8`, an early `return` for non-interactive shells that makes the anti-staleness `eval` at `:165` — already present since 2026-07-16, i.e. already #217's proposed fix — unreachable. The E058 stale-token incident was real but transient and host-level; it does not reproduce.
+
+One setting feeds **four** runtime consumers, not the three the issue names. The missed one is prompt *refinement*, which receives its model from the generation knob but runs once per failed attempt **inside the loop**. So the issue's proposed eval-vs-everything-else split is wrong-shaped: it would move vision calls to a cheaper tier while stranding an equally high-volume text call on the expensive one. **The boundary is loop vs one-shot.**
+
+Volume asymmetry is real and justifies the split: worst case 200 evaluation plus 180 refinement calls against 1 analysis call, with every evaluation call carrying a re-encoded 4K image.
+
+The `DEFAULT_MODEL` constants are **not** dead as filed — they are the effective value on five factory paths, and `create_prompt_generator()` receives a config carrying the model and silently ignores it. That plumbing gap is a real bug and is fixed here; the constants stay.
+
+Design is **fall-back override, not rename**: keep the existing setting unchanged in name, default, and environment variable; add an optional loop-tier override defaulting to `None` with a resolver that falls back to the base value, so an unset override is indistinguishable from today.
+
+**Do not flip any default in this item.** The economic case rests on the tier premium, and the premium is currently **2.5×**, not the ~1.7× the issue assumes — the lower figure only becomes true after the current introductory pricing ends on 2026-08-31.
 
 **Tasks:**
-1. [x] Amend D53 with the corrected mechanism, preserving the original text struck through (Rule 4 — never delete a decision)
-2. [x] Correct notebook body lines restating the wrong mechanism (content had shifted to `:651`/`:663` by the time of this fix, per intervening entries)
-3. [ ] Rewrite #217's body to the in-repo scope and close it on merge — **not done by this agent**; scoped to LAB_NOTEBOOK.md only per explicit instruction, GitHub issue edit deferred to the orchestrator/owner
+
+1. [ ] Add an optional loop-tier setting with a `None` default plus a resolver that falls back to the existing setting.
+2. [ ] Route both loop consumers — image evaluation and prompt refinement — through the resolver.
+3. [ ] Fix `create_prompt_generator()` to forward the config value it already receives.
+4. [ ] Give `ImageEvaluator` optional config visibility for symmetry with its two siblings.
+5. [ ] Update the exact-kwarg assertion in the pipeline test, the shared config fixture, and the config default/env tests; add the missing mirror assertion for the evaluator construction site.
+6. [ ] Update both user-facing documentation surfaces.
+7. [ ] Leave the auth-ping model literal alone — it is a `max_tokens=1` reachability check whose output is discarded.
+8. [ ] Do NOT change any default model value.
 
 **Acceptance Criteria:**
-- [x] WHEN D53 is read THEN it SHALL name `.bashrc:8` as the operative mechanism and mark the `:167` attribution as corrected
-- [ ] #217's body no longer names out-of-repo scripts as fix sites — pending task 3 above
 
----
+- [ ] WHEN the loop override is unset THEN every call site SHALL resolve to exactly the value it resolves to today
+- [ ] WHEN the loop override is set THEN both evaluation and refinement SHALL use it, and analysis and generation SHALL NOT
+- [ ] WHEN `create_prompt_generator()` is called with a config THEN the config's model SHALL reach the constructed generator
+- [ ] Coverage remains at or above the configured floor
+- [ ] No default model value differs from `main`
+
+**Notes:**
+
+The backward-compatibility property — unset override is behaviourally identical to today — is the acceptance criterion that matters most and must be tested directly, not inferred.
+
+#### 5.3 Close #198's refuted claims with evidence
+
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #198 items 1c, 3, 4
+**Depends On:** 5.1
+**Files Affected:**
+- `LAB_NOTEBOOK.md` (modify — Decision Log)
+
+**Description:**
+
+Three of #198's four prose claims are refuted and must be recorded as such rather than silently dropped.
+
+**Claim 1c** (`sonnet-implementer.md:31` escalates on multi-file-ness per se) is wrong — the trigger is already doubly qualified. **Claim 3** ("no escalation above Opus reads as staleness") is wrong twice over: it is D15, ACTIVE since 2026-05-10 with a recorded rejected alternative, and it is *literally true* for this repo, which has no fable-tier implementer agent and no mechanism to dispatch one. **Claim 4**'s premise ("the advisory is satisfied by default now") is unverifiable in-repo — nothing sets a session model — and the advisory it proposes to reword is D16, whose deletion was already considered and rejected.
+
+Record a Decision Log row. Do not edit D15 or D16 beyond adding cross-references; both remain ACTIVE.
+
+**Tasks:**
+
+1. [ ] Add a Decision Log row recording the three refutations with their evidence.
+2. [ ] Cross-reference D15 and D16 without changing their status.
+3. [ ] Record the escalation base rate — one escalation in 162 tiered items, attributable to a self-contradictory spec rather than capability — as the standing evidence for future tier debates.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN the Decision Log is read THEN a row SHALL record all three refutations with evidence
+- [ ] D15 and D16 remain ACTIVE with their original text intact
+- [ ] The escalation base rate is recorded with its denominator
+
+**Notes:**
+
+The base rate is the durable artifact. It is the only quantitative evidence this repo has about tier calibration, and it took reading two archived plans and two notebook entries to produce.
 
 ### Phase 5 Testing Requirements
 
-- [ ] Manual `/unlock` invocation succeeds in a tool shell
-- [ ] `grep -rn 'bws secret list' plugins/` shows no bare diagnostic use
+The Python change carries the real test surface: the backward-compatibility property must be asserted directly, and the plumbing fix needs a test that fails before it. The prose changes need an assertion that no model generation name entered the diff.
 
 ### Phase 5 Completion Checklist
 
-- [ ] All work items complete
-- [ ] Manual verification recorded in LAB_NOTEBOOK
-- [ ] Version bumped
+- [ ] All three items COMPLETE
+- [ ] `sonnet-implementer.md` untouched
+- [ ] No default model value changed
+- [ ] Version bumped and CHANGELOG entry added
 
 ### Definition of Done (Runnable)
+
 <!-- BEGIN DOD -->
 
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| No bare probe | `grep -rn 'bws secret list' plugins/ \| grep -vE '\$\(\|\$[A-Za-z_]+ *= *bws\|> */dev/null' \| grep -vE '^[^:]+:[0-9]+: *\|'` | No output |
-| No stale $TROY | `grep -rn '\$TROY' plugins/ \| grep -v 'deprecated fallback'` | No output |
-| Validation | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
+| Check | Command | Pass criteria |
+|---|---|---|
+| No model generation named in tier prose | `! git diff main -- plugins/personal-plugin/references/plan-template.md .claude/agents/opus-implementer.md \| grep -E '^\+' \| grep -qiE 'sonnet [0-9]\|opus [0-9]\|claude-(sonnet\|opus)-[0-9]'` | exit 0 |
+| sonnet-implementer untouched | `git diff --quiet main -- .claude/agents/sonnet-implementer.md` | exit 0 |
+| Agent alias gate | `python3 scripts/check_agent_models.py` | exit 0 |
+| visual-explainer tests | `cd plugins/personal-plugin/tools/visual-explainer && python -m pytest -q` | exit 0, coverage floor met |
+| Lint + types | `cd plugins/personal-plugin/tools/visual-explainer && uvx ruff@0.14.10 check src tests && mypy src --ignore-missing-imports` | exit 0 |
+| No default flipped | `! git diff main -- plugins/personal-plugin/tools/visual-explainer/ \| grep -E '^[+-].*default=.*claude-' \| grep -qv 'claude-sonnet-5'` | exit 0 |
+| Release gate | `python3 scripts/check_version_bump.py --base main` | exit 0 |
+
+**Negative test required:** revert the `create_prompt_generator()` plumbing fix and confirm its new test fails. A test that passes both before and after proves nothing.
 
 <!-- END DOD -->
 
 ---
 
-## Phase 6: Inventory Generator
-
-**Estimated Complexity:** M (~10 files, ~80 LOC)
-**Dependencies:** None
-**Execution Mode:** Sequential
+## Phase 6: `/research-topic` Streaming Transport
 
 ### Goals
 
-- Bring `CLAUDE.md`'s inventory under the generator that already keeps README drift-free
-- Clear the 6 live sites still teaching deprecated commands
+Move the Claude leg from a single non-streaming request to streaming with accumulation, **keeping the existing depth ladder unchanged**, and create the first testable surface this leg has ever had.
+
+**Scope decision, taken by the owner:** transport only. The filed ladder change is not implemented — current guidance for the default model says start at the middle of the range and sweep *down*, treats the top tiers as requiring a measured win, and states that the effort dial is not a reliable lever on visible output length, which is exactly what this leg produces.
+
+**The justification is stronger than the issue claims.** The shipped comprehensive tier already runs at double the documented non-streaming output ceiling. This is a latent correctness fix, not only an enhancement.
 
 ### Work Items
 
-#### 6.1 Generalize `update-readme.py` to a target list and regenerate CLAUDE.md's inventory ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+#### 6.1 Build the accumulator as a real, testable file
+
+**Status: PENDING**
 **Model Tier: opus**
-**Issue Refs:** #206
+**Recommendation Ref:** #216 (testability, not in the issue)
 **Depends On:** None
 **Files Affected:**
-- `scripts/update-readme.py` (modify)
-- `CLAUDE.md` (modify)
+- `plugins/personal-plugin/tools/research-sse/` (create — package, entry point, accumulator)
+- `plugins/personal-plugin/tools/research-sse/tests/fixtures/` (create — offline fixture corpus)
+- `plugins/personal-plugin/tools/research-sse/pyproject.toml` (create)
 
 **Description:**
-`update-readme.py:329` hard-codes `README.md` as its only target, which is why the CI gate at `validate.yml:318` is green-by-construction on CLAUDE.md drift. README carries the same facts and is provably drift-free; CLAUDE.md is hand-edited and carries **8** defects: 5 missing personal-plugin skills (`archive-project`, `clear-prep`, `fleet-health`, `new-project`, `task-sync`), `build-cfa-deck` missing from slide-gen, and two absent directories (`plugins/personal-plugin/agents/` — ten files — and `plugins/slide-gen/references/`).
 
-`scan_plugin()` needs **zero changes** — it already returns correct counts (23/29/9/2). Generalize `main()` to a `(path, renderer, anchor)` list and add a renderer that regenerates only the name lists inside the fence, leaving hand-written annotation prose alone — the same surgical posture `rewrite_prose_counts()` already takes.
+This leg currently has **zero testable surface**: the request lives in a markdown reference file that a subagent reads and hand-substitutes at runtime. Nothing renders, lints, or executes it. That is the substrate that let a prior crash sit undetected on every dispatch.
 
-**Do not let the generator touch `CLAUDE.md:180-189`** ("Command Patterns") — a deliberately curated 13-of-23 subset, not machine-derivable.
+The decision is binary. An inline heredoc inside a markdown fence reproduces that substrate exactly. A real file that reads an event stream on stdin and writes accumulated text plus terminal metadata to stdout is fully unit-testable with fixtures, needs no key and no network, and slots into the existing test job — for which the bundled diagram tool is the in-repo precedent.
 
 **Tasks:**
-1. [x] Generalize `main()` from one path to a target list, reusing `scan_plugin()` verbatim
-2. [x] Add the CLAUDE.md renderer with explicit anchors (consider `<!-- BEGIN/END:inventory -->` markers for strictness)
-3. [x] Regenerate the block; add the two missing directories
-4. [x] **Negative-test before wiring:** delete a skill name from the block, run `--check`, confirm **exit 2**; restore and confirm exit 0
-5. [x] Fix `CLAUDE.md:262`'s dangling `IMPLEMENTATION_PLAN.md` pointer (archived this session) and `:266-268`'s Deprecated section, which lists 1 of 5 deprecated commands
-6. [x] Correct `LAB_NOTEBOOK.md:122` — "10 arch-review agents" is 9; the 10th is `sre-operator`, a fleet-ops agent
+
+1. [ ] Create the package with a stdin→stdout accumulator, stdlib-only where practical.
+2. [ ] Build the offline fixture corpus: happy path; interleaved reasoning block skipped; truncation-at-ceiling terminal reason; refusal terminal reason with a category; refusal with a null category; **mid-stream error event after a successful start**; truncated stream with no terminal event; malformed data line; unknown event type and unknown block type ignored gracefully; empty stream; non-stream error body.
+3. [ ] Implement a **completeness sentinel**: absence of a terminal event is a failure regardless of transport status.
+4. [ ] Wire the test suite into the existing per-tool CI pattern.
 
 **Acceptance Criteria:**
-- [x] WHEN a skill directory is added or removed THEN `python3 scripts/update-readme.py --check` SHALL exit 2 until CLAUDE.md is regenerated
-- [x] WHEN `--check` runs on the current tree THEN it SHALL exit 0
-- [x] The negative test's exit-2 observation is recorded, not asserted in prose
-- [x] `CLAUDE.md:180-189` is byte-identical after regeneration
-- [x] Hand-written annotation comments inside the fence survive
+
+- [ ] WHEN a complete stream is supplied on stdin THEN the accumulator SHALL emit the concatenated text and exit 0
+- [ ] WHEN a stream ends without a terminal event THEN the accumulator SHALL exit non-zero
+- [ ] WHEN an error event arrives after a successful start THEN the accumulator SHALL exit non-zero
+- [ ] WHEN the terminal reason indicates a refusal THEN the accumulator SHALL exit non-zero and surface the category, including when the category is null
+- [ ] WHEN the terminal reason indicates truncation THEN the accumulator SHALL exit 0 and signal truncation distinctly from success
+- [ ] Every fixture has a corresponding mutation test: deleting the branch flips the row from caught to passing
 
 **Notes:**
-This mechanically edits an always-loaded file. Per the standing rule, the extended `--check` must be negative-tested before it is trusted — this repo has shipped three guards that could not fail, and `update-readme.py --check` was one of them.
 
-**Completion (2026-07-30):** `main()` now scans once and feeds two targets; `scan_plugin()` is byte-identical, with a new sibling `scan_agent_names()` for the `agents/` directory README has no table for. The tree region is anchored by `BEGIN:inventory` / `END:inventory`, and inside it only `commands/`, `skills/` and `agents/` lines at indent 4 under a `plugins/<name>/` node are derived — the four hand-written annotations (`# Archived commands`, the hedged `references/` list, `# BPMN element docs and guides`, the ADR-0005 note on `.claude/agents/`) all survive because they are not those keys. All 8 defects cleared; `skills/` and `agents/` gained `(N)` count decorations the generator now maintains.
+The refusal guard is the highest risk in the whole plan. In the current non-streaming shape the terminal reason is a top-level field; under streaming it moves inside a delta event. A port that reassembles the stream and keeps the old field lookup **compiles, reads correctly, passes review, and never fires** — silently writing an empty report on every refusal. That is a previously-fixed defect returning in a form that looks like a faithful port. Write its fixture first.
 
-**Negative test, observed (not asserted):** dropped `fleet-health` from the regenerated block → `--check` **exit 2** (naming `CLAUDE.md`, not README); restored → **exit 0**. Two further fail-open holes were found *by* negative-testing and closed before wiring: with the anchors deleted the check exited **0** (silently unchecked), and a plugin missing its `plugins/<name>/` node likewise regenerated nothing at exit 0. Both now raise `InventoryError` → **exit 1**. Re-observed after the fix: no-anchor **1**, missing-plugin-node **1**, clean tree **0**, skill dir added on disk **2**, removed again **0**.
+#### 6.2 Rewrite the leg to stream, ladder unchanged
 
----
+**Status: PENDING**
+**Model Tier: opus**
+**Recommendation Ref:** #216
+**Depends On:** 6.1
+**Files Affected:**
+- `plugins/personal-plugin/references/research-provider-protocols.md` (modify)
 
-#### 6.2 Clear the 6 live deprecated-command sites and the two unresolvable-doc items ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+**Description:**
+
+Replace the single buffered request with a streaming request piped to the accumulator. Preserve every existing guard.
+
+**Two structural hazards.** The current code captures the transport exit status immediately after a command substitution; introducing a pipe destroys that capture and makes a timeout or reset invisible. And the status-code check reports the header status, which arrives before any content — a stream that opens successfully and then fails mid-flight reports success. The completeness sentinel from 6.1 is what covers that.
+
+Keep the ladder exactly as it is. Keep the truncation note. Keep the refusal check, relocated to read the accumulator's exit status rather than a top-level field.
+
+**Tasks:**
+
+1. [ ] Rewrite the request to stream, with buffering disabled.
+2. [ ] Preserve transport-failure detection across the pipe.
+3. [ ] Re-express the refusal and truncation guards in terms of the accumulator's contract.
+4. [ ] Update the section's "synchronous, single call" framing and the conventions note about bounded calls.
+5. [ ] Leave the depth ladder values unchanged.
+6. [ ] Add a forward-compatibility note so an unrecognized block type is ignored rather than fatal.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN the leg runs THEN the depth ladder values SHALL be unchanged from `main`
+- [ ] WHEN the transport fails THEN the failure SHALL be detected despite the pipe
+- [ ] WHEN a refusal occurs THEN the leg SHALL fail loudly rather than write an empty report
+- [ ] WHEN output is truncated at the ceiling THEN the report SHALL carry the truncation note
+
+**Notes:**
+
+A half-fix across the three files is a recorded failure mode for this skill: the skill body restates the mode and the silent-failure mechanism independently of the protocol file, so they must move together (6.3).
+
+#### 6.3 Reconcile the skill body and the model reference
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #206
-**Depends On:** None
+**Recommendation Ref:** #216 (blast radius)
+**Depends On:** 6.2
 **Files Affected:**
-- `plugins/personal-plugin/references/patterns/naming.md` (modify)
-- `QUICK-REFERENCE.md` (modify)
-- `TROUBLESHOOTING.md` (modify)
-- `docs/PLUGIN-DEVELOPMENT.md` (modify)
-- `plugins/slide-gen/CHANGELOG.md` (modify)
-- `plugins/slide-gen/skills/sg-optimize/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify)
+- `plugins/personal-plugin/references/research-models.md` (modify)
 
 **Description:**
-The issue names one deprecated-command site; there are **six**. The worst two *actively instruct* readers to use `/new-command`, deprecated by ADR-0006/D21: `TROUBLESHOOTING.md:900` and `docs/PLUGIN-DEVELOPMENT.md:112-115`. Also `naming.md:33` (filed as `:35` — off by two), `QUICK-REFERENCE.md:10`, `docs/PLUGIN-DEVELOPMENT.md:43`, `TROUBLESHOOTING.md:377`.
 
-`plugins/slide-gen/CHANGELOG.md:16` says "All 8 skills" and lists nine — fix **the arithmetic only**, never the names (ADR-0008:9 independently confirms nine).
+The skill body independently restates the leg's mode, its parse target, and its silent-failure mechanism — the last of which becomes **wrong** under streaming, because the terminal reason is no longer a top-level field. The model reference restates the mode and carries the rationale paragraph that argues from the transport constraint.
 
-`sg-optimize/SKILL.md:33` is self-contradictory in a single parenthetical: `(default: overwrites input with _optimized suffix)` — two mutually exclusive behaviors. **The truth is not knowable in-repo**: slide-gen is an external-dependency plugin (ADR-0008/D23), the engine is in a private repo, and `grep -rl "_optimized" --include=*.py .` returns zero hits. **State the uncertainty, do not guess the behavior.**
+Also correct the rationale's sourcing. The output-ceiling requirement it cites is real and current, but the wall-clock derivation built on it is an unsourced estimate, and the repo states the requirement in bare prose with no citation — the same unbacked-assertion shape a prior phase deleted elsewhere.
 
 **Tasks:**
-1. [x] Replace the 4 example/teaching references to deprecated commands with live equivalents
-2. [x] Rewrite `TROUBLESHOOTING.md:900` and `docs/PLUGIN-DEVELOPMENT.md:112-115` to direct readers to `/new-skill` (ADR-0006)
-3. [x] Fix `docs/PLUGIN-DEVELOPMENT.md:43`'s tree (shows `new-command.md` in `commands/`; it is in `deprecated/`) and `:44`'s `skills/help/` (dropped by D42)
-4. [x] Correct `slide-gen/CHANGELOG.md:16` from 8 to 9
-5. [x] Rewrite `sg-optimize/SKILL.md:33` and `:64` to state the uncertainty and point at `sg optimize --help`
+
+1. [ ] Update the mode, parse-target, and silent-failure rows in the skill body.
+2. [ ] Update the "no real-time streaming progress" note, which becomes misleading.
+3. [ ] Update the mode row and rationale paragraph in the model reference.
+4. [ ] Mark the wall-clock derivation as an estimate, or remove it, rather than restating it as fact.
+5. [ ] Leave the cost table alone — the ladder is unchanged, so costs are unchanged.
 
 **Acceptance Criteria:**
-- [x] WHEN a reader follows any live doc instruction THEN it SHALL name a command that exists and is not deprecated
-- [x] `slide-gen/CHANGELOG.md:16`'s stated count equals the number of names listed
-- [x] WHEN `sg-optimize`'s `--output` documentation is read THEN it SHALL NOT assert a default behavior that is unverifiable from this repo
-- [x] `markdownlint-cli2` exits 0
+
+- [ ] WHEN the skill body's silent-failure row is read THEN it SHALL describe the streaming mechanism, not the top-level-field one
+- [ ] WHEN the rationale is read THEN any unsourced numeric derivation SHALL be marked as an estimate or absent
+- [ ] The cost table is byte-identical to `main`
+- [ ] The depth ladder values are byte-identical to `main` in both files
 
 **Notes:**
-Also worth filing separately, not fixed here: `tests/integration/test_validate_plugin.py:191-199` still assert every valid plugin ships `skills/help/SKILL.md` — the ADR-0004 requirement D42 dropped. Retired doctrine encoded as a green test.
 
----
+Leaving the skill body's silent-failure row stale would tell a future reader the guard works one way while it works another — the stale-contract shape a prior issue was filed about.
+
+#### 6.4 Grant the missing execution permission
+
+**Status: PENDING**
+**Model Tier: haiku**
+**Recommendation Ref:** Latent defect found during #216 investigation, not filed
+**Depends On:** None
+**Files Affected:**
+- `plugins/personal-plugin/skills/research-topic/SKILL.md` (modify — frontmatter only)
+
+**Description:**
+
+The skill's tool grants cover the transport binary but **not** the interpreter that the shipped fast-fail check and both other providers' extraction steps already invoke. Six other skills in the same plugin grant it, so this is an oversight rather than policy. The prior live verification ran through a standalone probe rather than a real dispatch, which is why this has never surfaced.
+
+The streaming rewrite deepens the dependency, so the grant must land with it.
+
+**Tasks:**
+
+1. [ ] Add the interpreter grant to `allowed-tools`.
+2. [ ] Verify no other binary invoked anywhere in the three files lacks a grant.
+3. [ ] Verify the frontmatter parses with a full key set after the edit — this frontmatter is a plain scalar list and is exactly the shape that has silently dropped before.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN the frontmatter is parsed THEN the interpreter grant SHALL be present and every pre-existing key SHALL remain
+- [ ] Every binary invoked in the three files has a corresponding grant
+- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+
+**Notes:**
+
+A dispatch-time-only failure is the hardest class to catch, because every offline gate passes.
+
+#### 6.5 Commit the live probe and add an eval scenario
+
+**Status: PENDING**
+**Model Tier: sonnet**
+**Recommendation Ref:** #216 (verification gap)
+**Depends On:** 6.2
+**Files Affected:**
+- `scripts/` or `tests/live/` (create — owner-run probe)
+- `evals/skills/research-topic.eval.md` (modify)
+
+**Description:**
+
+The prior fix was verified by a probe that extracted the request body and ladder from the shipped files — so it could not pass while those files were broken — and **that probe was never committed**. The single artifact proving the fix existed is gone. Commit this one.
+
+CI holds zero secrets and cannot run it, so it is explicitly owner-run. It needs a negative control: a deliberately-invalid request shape must fail, or the probe proves only that the network works.
+
+Separately, the eval suite has **no scenario for depth, parameters, or the response parse at all** — so a broken parser or a wrong ladder value passes it untouched. Add one.
+
+**Tasks:**
+
+1. [ ] Commit a probe that extracts the request shape and ladder from the shipped files rather than restating them.
+2. [ ] Give it a negative control that must fail.
+3. [ ] Mark it clearly as manual-run, with the zero-secrets constraint stated.
+4. [ ] Add an eval scenario covering the parse path and the terminal-reason handling.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN the shipped request shape is broken THEN the probe SHALL fail
+- [ ] WHEN the probe's negative control runs THEN it SHALL fail as designed
+- [ ] `python3 scripts/check_eval_mapping.py` exits 0 with the new scenario
+- [ ] No CI workflow references the probe
+
+**Notes:**
+
+"Derive it, don't restate it," applied to a probe: extracting from the shipped files is what makes it impossible to pass against a broken tree.
 
 ### Phase 6 Testing Requirements
 
-- [ ] `update-readme.py --check` negative test observed at exit 2
-- [ ] `pytest tests/` passes
+Every guard gets a fixture **and** a mutation test. This is the phase where the standing rule matters most: a guard that cannot fail is worse than none, and the specific guard at risk here has already been mutation-tested once and would silently regress under a faithful-looking port.
 
 ### Phase 6 Completion Checklist
 
-- [ ] All work items complete
-- [ ] Negative-test result recorded
-- [ ] Version bumped where `plugins/**` changed
+- [ ] All five items COMPLETE
+- [ ] Depth ladder byte-identical to `main` in both files that state it
+- [ ] Cost table byte-identical to `main`
+- [ ] Every accumulator guard has a passing mutation test
+- [ ] Version bumped and CHANGELOG entry added
 
 ### Definition of Done (Runnable)
+
 <!-- BEGIN DOD -->
 
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| Inventory sync | `python3 scripts/update-readme.py --check` | Exit code 0 |
-| No deprecated refs | `grep -rn 'new-command\|review-pr' --include=*.md . \| grep -v docs/archive \| grep -v CHANGELOG \| grep -v LAB_NOTEBOOK \| grep -v deprecated/` | Only deprecation notices |
-| Lint (mirrors CI) | `npx --yes --package markdownlint-cli markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**' --ignore '**/.venv/**'` | Exit code 0 |
-| Tests | `pytest tests/ -q` | Exit code 0 |
+| Check | Command | Pass criteria |
+|---|---|---|
+| Accumulator suite | `cd plugins/personal-plugin/tools/research-sse && python -m pytest -q` | exit 0 |
+| Ladder unchanged | `git diff main -- plugins/personal-plugin/references/research-models.md \| grep -E '^[+-]' \| grep -cE '8,?000\|16,?000\|32,?000'` | output `0` |
+| Cost table unchanged | `! git diff main -- plugins/personal-plugin/references/research-models.md \| grep -E '^[+-][^+-]' \| grep -qE '\$[0-9]'` | exit 0 |
+| Interpreter grant present | `python3 -c "import yaml,pathlib,sys; d=yaml.safe_load(pathlib.Path('plugins/personal-plugin/skills/research-topic/SKILL.md').read_text().split('---')[1]); sys.exit(0 if 'python3' in d['allowed-tools'] else 1)"` | exit 0 |
+| Frontmatter integrity | `python3 -c "import yaml,pathlib,sys; d=yaml.safe_load(pathlib.Path('plugins/personal-plugin/skills/research-topic/SKILL.md').read_text().split('---')[1]); sys.exit(0 if {'name','description','allowed-tools'} <= set(d) else 1)"` | exit 0 |
+| Evals | `python3 scripts/check_eval_mapping.py` | exit 0 |
+| Probe is not CI-wired | `! grep -rq 'research-sse-probe\|tests/live' .github/workflows/` | exit 0 |
+| Official validation | `claude plugin validate plugins/personal-plugin --strict` | exit 0 |
+| Release gate | `python3 scripts/check_version_bump.py --base main` | exit 0 |
+| Lint (mirrors CI exactly) | `npx markdownlint-cli@0.45.0 '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'` | exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 7: Consent-Gate Consistency
-
-**Estimated Complexity:** M (~8 files)
-**Dependencies:** None
-**Execution Mode:** Parallel
+## Phase 7: SKILL.md Body Budget — Fix, Then Gate
 
 ### Goals
 
-- One interaction model for every gate that is model-invocable and consents to a write
-- Fix the templates that mint new instances, not only the instances
+Bring the two over-budget bodies back under the line, then land a gate that is **green on arrival**. A red-on-arrival gate reddens the push build on the default branch and deadlocks subsequent merges — the recorded hazard from a prior gate.
+
+A ratchet is **rejected on this repo's own precedent**: a count-ratchet was adopted once against 152 pre-existing errors, then retired with the finding that it was scaffolding whose only remaining feature was an escape hatch contradicting the standard it enforced. The entire debt here is two files and 64 excess lines.
 
 ### Work Items
 
-#### ✅ Completed 2026-07-30 — 7.1 Convert the 4 model-invocable write-consent gates to `AskUserQuestion`
-**Status: COMPLETE [2026-07-30]**
+#### 7.1 Extract `lab-notebook`'s two verbatim templates
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #223
+**Recommendation Ref:** #238
 **Depends On:** None
 **Files Affected:**
-- `plugins/personal-plugin/skills/security-analysis/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/wiki/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/task-sync/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/lab-notebook/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/lab-notebook/references/` (create — two files)
 
 **Description:**
-Per D64, convert every gate that is **both** model-invocable **and** consents to a write: `security-analysis:19-28`, `wiki:207` and `:241`, `task-sync:247`. `task-sync:247` weighed heaviest — it guards **publishing to a public repo** and is a 3-way choice (`yes / no / show plan again`).
 
-**Frontmatter edit hazard.** `security-analysis/SKILL.md:5`'s `allowed-tools` value is a plain scalar terminated by ` #`, and the trailing comment *contains* `unscoped: ` — a colon-space, inert **only because it sits after the `#`**. A colon-space in an unquoted scalar silently drops the **entire frontmatter** with no crash. Insert `, AskUserQuestion` **before** the two-space + `#`, and do not move the `#`. `claude plugin validate --strict` is the only gate that catches a slip.
+Two large fenced blocks are pure emit-this-verbatim templates: a ~116-line injection template and a ~98-line notebook-structure skeleton. Both are exactly what the wiki-creation skill already externalizes, and that skill — not the ship skill — is the correct exemplar to copy. It reads its templates at runtime and emits them verbatim, and the audit itself names it as proving the pattern.
 
-`security-analysis`'s yes-branch carries behavior, not decoration: it sets `--dependencies-only` as the default and documents `--quick`/full overrides. A 2-option conversion would drop that — use 3 options ("Yes — dependencies only" / "Yes — full scan" / "No") or retain a follow-on sentence.
+Extracting both lands the body around 330 lines with substantial headroom, so this skill never returns to this issue.
 
-D39's unscoped-`Bash` sanction is untouched by appending a tool to the list.
+Pointers must carry an inline summary of the load-bearing content, so the skill stays executable without pre-reading every reference — the constraint a prior audit established. The skill's existing rotation-reference pointer is the in-file model for that shape.
 
 **Tasks:**
-1. [x] Add `AskUserQuestion` to `security-analysis`'s `allowed-tools`, before the ` #`
-2. [x] Convert its gate, preserving the invocation-source condition verbatim (D57's cited house pattern) and the scan-mode payload
-3. [x] Convert `wiki:207` and `:241`; add `AskUserQuestion` to its `allowed-tools` if absent
-4. [x] Convert `task-sync:247` as a 3-option question, preserving the public-repo warning text
-5. [x] Run `claude plugin validate plugins/personal-plugin --strict` after **each** frontmatter edit
+
+1. [ ] Extract both templates into the skill's own references directory.
+2. [ ] Replace each with a pointer that **disambiguates the location explicitly** — the two skills that got this right say so in the pointer text, and the ship skill's bare relative path is ambiguous.
+3. [ ] Keep the verification checklist inline as the summary, since it references the extracted content.
+4. [ ] Confirm the emitted output is byte-identical to what the inline template produced.
 
 **Acceptance Criteria:**
-- [x] WHEN any converted skill loads THEN `claude plugin validate --strict` SHALL report full frontmatter, not empty metadata
-- [x] WHEN `security-analysis`'s gate is confirmed THEN the `--dependencies-only` default SHALL still be conveyed
-- [x] The invocation-source condition ("skip when invoked directly") survives verbatim in all four
-- [ ] D39's unscoped `Bash` and its inline justification comment are unchanged
 
----
+- [ ] WHEN the skill runs THEN the content it emits SHALL be byte-identical to the pre-extraction template
+- [ ] WHEN a pointer is read THEN it SHALL state unambiguously which directory the reference lives in
+- [ ] The body is under 500 lines
+- [ ] `python3 scripts/check_injections.py` exits 0
 
-#### 7.2 Fix the 3 generator templates and the `ask-questions` residual ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+**Notes:**
+
+Byte-identical emission is the acceptance criterion. An extraction that subtly reformats the template changes what the skill writes into other repositories' `CLAUDE.md` files.
+
+#### 7.2 Extract `visual-explainer`'s output samples
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #223, #233
-**Depends On:** None
+**Recommendation Ref:** #238
+**Depends On:** Phase 5.2
 **Files Affected:**
-- `plugins/personal-plugin/references/patterns/output.md` (modify)
-- `plugins/personal-plugin/references/templates/generator.md` (modify)
-- `plugins/personal-plugin/references/templates/synthesis.md` (modify)
-- `plugins/personal-plugin/commands/ask-questions.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
+- `plugins/personal-plugin/skills/visual-explainer/references/` (create)
 
 **Description:**
-Three `references/` templates still mint `Save this file? (y/n):` / `Proceed with synthesis? (y/n):` into every artifact built from them — the propagation shape this backlog keeps hitting.
 
-`commands/ask-questions.md:409-424` still renders the full legacy `[A]/[B]/[C]/[D] Custom/[S] Skip` + `Your choice (A/B/C/D/S):` menu, **contradicting its own file** at `:145` ("Ask with `AskUserQuestion`") and `:175` ("must not be re-added as options"), and mis-serving `finish-document.md:139`'s cross-reference. PR #222 item 7.5 claimed this file among its conversions. **This is the second false green in that phase** — the first is recorded at LAB_NOTEBOOK `:869-878`.
+Three illustrative output samples total roughly 112 lines. Extracting them lands the body near 417 with real headroom.
 
-**Do not touch `references/templates/interactive.md:120,226`** — preserved on purpose by plan v12 item 7.5 task 4; its one-at-a-time rule is a deliberate interview contract.
+**Extract illustration only, never logic.** The interaction payloads in this skill are behavioural — the model must emit them — and stay inline. This is the illustration-versus-logic distinction the repo pre-authorized after a prior escalation caused by exactly this ambiguity.
+
+This item depends on Phase 5.2, which edits the same file's environment-variable documentation.
 
 **Tasks:**
-1. [x] Replace the prose prompts in the 3 generator templates with `AskUserQuestion` shapes
-2. [x] Rewrite `ask-questions.md:409-424` to show an `AskUserQuestion` call and response
-3. [x] Leave `interactive.md` untouched
-4. [x] Grep for the **rendered artifact** (`Your choice`, `[D] Custom`, `(y/n)`), not the frontmatter grant, and confirm the remaining hits are the deliberate exemptions
+
+1. [ ] Extract the three output samples to a references file.
+2. [ ] Replace each with a one-line pointer carrying an explicit location.
+3. [ ] Leave every interaction payload inline.
+4. [ ] Confirm Phase 5.2's documentation edit is intact.
 
 **Acceptance Criteria:**
-- [x] WHEN `grep -rn 'Your choice (A/B/C' plugins/` runs THEN the only hits SHALL be `references/templates/interactive.md`
-- [x] `ask-questions.md`'s example no longer contradicts `:145` and `:175`
-- [x] `finish-document.md:139`'s cross-reference points at a correct example
 
----
+- [ ] WHEN the body is measured THEN it SHALL be under 500 lines
+- [ ] Every interaction payload remains inline
+- [ ] Phase 5.2's environment-variable documentation is present and correct
+
+**Notes:**
+
+This file grew past the budget as a side effect of a prior remediation whose replacement blocks were longer than what they replaced. That is the case for the gate, and it belongs in the commit message.
+
+#### 7.3 Build and wire the budget gate
+
+**Status: PENDING**
+**Model Tier: opus**
+**Recommendation Ref:** #238 (the gate)
+**Depends On:** 7.1, 7.2
+**Files Affected:**
+- `scripts/check_skill_budget.py` (create)
+- `.github/workflows/validate.yml` (modify — one step)
+- `scripts/pre-commit` (modify — one check)
+
+**Description:**
+
+Build a stdlib-only checker matching the house exemplar's shape: a module docstring carrying the motivating defect and numbered rules, a findings dataclass with a render method, a pure check function separated from an I/O runner with an injectable stream, and a self-test that asserts non-zero exit on every violation class.
+
+**Four design decisions that determine whether it is green on arrival.** Measure the **body** (post-frontmatter), because that is what the rule says — and emit both numbers in any failure. Pin the boundary explicitly and negative-test at 499, 500, and 501, since a boundary bug lives entirely in the unexercised branch. Scope to a **non-recursive** glob over skill directories, mirroring the existing validator's documented reasoning, which also excludes test fixtures. And do **not** extend to commands: they are frozen legacy, and the largest is already over the line — extending scope there is the exact creep that causes the deadlock hazard.
+
+The failure text must state the authoring-quality rationale corrected in Phase 1.2, not the context-economy one.
+
+**Tasks:**
+
+1. [ ] Write the checker with a self-test that proves it exits non-zero on an over-budget fixture and zero on a compliant one.
+2. [ ] Negative-test the boundary at 499/500/501 before wiring.
+3. [ ] Wire as a **step** in the existing validation job, never a new job.
+4. [ ] Add a pre-commit check that delegates file selection to the script rather than restating it in shell.
+5. [ ] Confirm the required-check names are unchanged.
+
+**Acceptance Criteria:**
+
+- [ ] WHEN a skill body exceeds the budget THEN the gate SHALL exit non-zero and name the file with both body and total line counts
+- [ ] WHEN the current tree is checked THEN the gate SHALL exit 0
+- [ ] WHEN the self-test runs THEN it SHALL assert non-zero exit on at least one over-budget case
+- [ ] The set of required status check names is unchanged from `main`
+- [ ] No file under `commands/` is evaluated by the gate
+- [ ] Test fixtures are not evaluated
+
+**Notes:**
+
+Green on arrival is the criterion, and it depends on 7.1 and 7.2 landing first. Verify it against the current tree before wiring, not after.
 
 ### Phase 7 Testing Requirements
 
-- [ ] `claude plugin validate --strict` after every frontmatter edit
-- [ ] Rendered-artifact grep confirms only deliberate exemptions remain
+Negative-test before wiring, against deliberately-bad input, and confirm non-zero exit. This repo has shipped three guards that could not fail; the boundary case is where the fourth would hide.
 
 ### Phase 7 Completion Checklist
 
-- [ ] All work items complete
-- [ ] Frontmatter intact on all edited skills
-- [ ] Version bumped
+- [ ] All three items COMPLETE
+- [ ] Gate green against the current tree
+- [ ] Required check names unchanged
+- [ ] Version bumped and CHANGELOG entry added
 
 ### Definition of Done (Runnable)
+
 <!-- BEGIN DOD -->
 
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| Frontmatter | `claude plugin validate plugins/personal-plugin --strict` | Exit code 0 |
-| No stray menus | `grep -rn 'Your choice (A/B/C' plugins/ \| grep -v interactive.md` | No output |
-| Injections | `python3 scripts/check_injections.py` | Exit code 0 |
+| Check | Command | Pass criteria |
+|---|---|---|
+| Gate green on arrival | `python3 scripts/check_skill_budget.py` | exit 0 |
+| Gate can fail | `python3 scripts/check_skill_budget.py --self-test` | exit 0, output asserts ≥1 case expecting exit 1 |
+| No skill body over budget | `python3 -c "import pathlib,sys; over=[str(p) for p in pathlib.Path('plugins').glob('*/skills/*/SKILL.md') if len(p.read_text().split('---',2)[2].splitlines())>=500]; print(over); sys.exit(1 if over else 0)"` | exit 0 |
+| Commands not in scope | `! grep -q 'commands' scripts/check_skill_budget.py` | exit 0 |
+| Required check names unchanged | `git diff main -- .github/workflows/validate.yml \| grep -E '^[+-]\s+(name\|jobs):' \| grep -vc 'Check SKILL.md body budget'` | output `0` |
+| Injections | `python3 scripts/check_injections.py` | exit 0 |
+| Official validation | `claude plugin validate plugins/personal-plugin --strict` | exit 0 |
+| Release gate | `python3 scripts/check_version_bump.py --base main` | exit 0 |
+| Lint (mirrors CI exactly) | `npx markdownlint-cli@0.45.0 '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'` | exit 0 |
 
 <!-- END DOD -->
 
 ---
 
-## Phase 8: Freshness Stamps and task-sync
-
-**Estimated Complexity:** M (~13 files, ~150 LOC)
-**Dependencies:** None
-**Execution Mode:** Parallel
+## Phase 8: Release and Issue Reconciliation
 
 ### Goals
 
-- Delete every stamp that asserts a verification nobody performed (D62)
-- Make the four `tasks.json` sources agree, with one logged decision (D65)
-- Close the call-sequence coverage gap that let `bug_001` ship at 96%
+Ship the versions and close the issues with their corrections recorded, so the next reader does not re-derive the refuted claims.
 
 ### Work Items
 
-#### 8.1 Delete all 12 freshness stamps, the phantom `check-models` reference, and both generators ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+#### 8.1 Version bump and CHANGELOG
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #218
-**Depends On:** None
+**Depends On:** Phases 1–7
 **Files Affected:**
-- `plugins/personal-plugin/references/research-models.md` (modify)
-- `plugins/personal-plugin/references/flag-consistency.md` (modify)
-- `plugins/personal-plugin/skills/visual-explainer/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/accessibility-annotator/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/unlock/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/spark-recon/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/explain-project/SKILL.md` (modify)
-- `plugins/personal-plugin/skills/create-wiki/SKILL.md` (modify)
-- `plugins/slide-gen/skills/build-cfa-deck/SKILL.md` (modify)
-- `docs/PLUGIN-DEVELOPMENT.md` (modify)
+- `plugins/personal-plugin/.claude-plugin/plugin.json`, `plugins/slide-gen/.claude-plugin/plugin.json`, `plugins/bpmn-plugin/.claude-plugin/plugin.json` (modify as applicable)
+- `.claude-plugin/marketplace.json` (modify)
+- Per-plugin `CHANGELOG.md` files and root `CHANGELOG.md` (modify)
 
 **Description:**
-Per D62. The issue names one file; there are **12 live sites**, and two of them are **generators** — `explain-project/SKILL.md:392` prescribes *"**Last verified:** date when claims were last checked"* into every document it produces, and `create-wiki/SKILL.md:271` templates `Last updated: … | Last lint: never`.
 
-Beyond the column: `research-models.md:41`'s Resolution Order names **`check-models`, a command that does not exist** (deliberately deleted per archived plan v6, reference never removed), and `:70-80` documents the output of that phantom. `:29` claims "All defaults are annotated with their last-verified date" while `:37` says OpenAI and Google IDs "cannot be verified offline" — and `:34-35` carry stamps anyway.
-
-`unlock/SKILL.md:16,67,90` is the same constant duplicated three times, so any edit must land in all three or the file self-contradicts. **Coordinate with Phase 5**, which also edits this file.
+Bump only the plugins with genuine changes; never issue an empty coordinated bump. `slide-gen` and `bpmn-plugin` change only if Phase 3 touched their skills.
 
 **Tasks:**
-1. [x] Delete the `Last Verified` column and its note from `research-models.md:31-37`
-2. [x] Delete the `check-models` reference at `:41` and the phantom `## Model Check Output Examples` at `:70-80`
-3. [x] Delete the "default as of …" hedges at the 9 remaining sites
-4. [x] Remove the templated stamp from both generators
-5. [x] Where a value genuinely needs a caveat, state the *uncertainty* ("verify with the provider if errors occur") without a date that implies someone checked
+
+1. [ ] Determine which plugins actually changed, from the diff.
+2. [ ] Bump each changed plugin in both its manifest and the marketplace file.
+3. [ ] Add a CHANGELOG entry per bumped plugin plus a root entry.
+4. [ ] State the three doctrine corrections explicitly in the entries — they are the most valuable output and would otherwise be invisible.
 
 **Acceptance Criteria:**
-- [x] WHEN `grep -rn 'Last Verified\|last verified\|default as of\|Default as of' plugins/ docs/` runs THEN it SHALL return no output (within the 10 files in scope for this item; residual hits in `wiki/SKILL.md:188`, `spark-recon/SKILL.md:249`, `jetson-recon/SKILL.md:174`, `commands/clean-repo.md:94`, and the dated `docs/model-optimization-audit-*.md` snapshot are out of this item's file scope — see implementation summary)
-- [x] WHEN `grep -rn 'check-models' .` runs (excluding `docs/archive/`) THEN it SHALL return no output
-- [x] WHEN a generator produces a document THEN that document SHALL NOT contain a freshness stamp field
-- [x] No remaining claim asserts a verification event that no mechanism performs
 
----
+- [ ] WHEN the release gate runs THEN every changed plugin SHALL be bumped with a matching CHANGELOG entry
+- [ ] No unchanged plugin is bumped
+- [ ] Manifest and marketplace versions agree for every plugin
 
-#### 8.2 Bless `tasks.json` local-only and reconcile all four sources ✅ Completed 2026-07-30
-**Status: COMPLETE 2026-07-30**
+#### 8.2 Close the five issues with corrections
+
+**Status: PENDING**
 **Model Tier: sonnet**
-**Issue Refs:** #230
-**Depends On:** None
+**Depends On:** 8.1
 **Files Affected:**
-- `docs/plans/2026-07-18-task-sync-design.md` (modify)
-- `LAB_NOTEBOOK.md` (modify)
-- `plugins/personal-plugin/skills/task-sync/SKILL.md` (modify)
+- `LAB_NOTEBOOK.md` (modify — living sections)
 
 **Description:**
-Per D65. `.gitignore` keeps ignoring `tasks.json`; the *documentation* changes to match, and the decision is logged with alternatives — the absence of that log entry is the actual defect this issue records.
 
-Six design-doc lines assert the opposite: `:19`, `:64`, `:65` (correct — `TASKS.md` only), `:100`, `:129`, `:153`. `references/config-reference.md:61-70` already reconciles toward local-only and needs no change — it is the source that was right.
+Each issue closes with its corrections recorded, not silently. Several carry findings that invert what was filed, and a bare "fixed" comment would leave the wrong premise as the last word.
 
-**Tasks:**
-1. [ ] Correct design-doc lines `:19`, `:64`, `:100`, `:129`, `:153` to describe local-only, with a pointer to the superseding decision
-2. [ ] Mark D34's "committed" clause SUPERSEDED by D65 in the Decision Log; never delete it (Rule 4)
-3. [ ] Add a short note to `task-sync/SKILL.md` stating that cross-machine sync of local state is out of scope and the tracker is the archive of record
-4. [ ] Re-scope #169 to record that there is no cross-machine sync of the *public* list either
-5. [ ] Note in the skill that `tasks.json` is **not git-recoverable**, so a destructive command has no undo
-
-**Acceptance Criteria:**
-- [ ] WHEN any of the four sources is read THEN it SHALL describe `tasks.json` as local-only
-- [ ] D34's original text survives, marked SUPERSEDED with a pointer to D65
-- [ ] `.gitignore` is unchanged
-- [ ] #169's body reflects the corrected scope
-
----
-
-#### ✅ Completed 2026-07-30 — 8.3 CLI-level integration test for `sync --apply --decisions` across every accepted shape
-**Status: COMPLETE 2026-07-30**
-**Model Tier: sonnet**
-**Issue Refs:** #224
-**Depends On:** None
-**Files Affected:**
-- `plugins/personal-plugin/tools/task-sync/tests/test_plan_apply.py` (modify)
-- `plugins/personal-plugin/skills/task-sync/references/sync-semantics.md` (modify)
-
-**Description:**
-`bug_001` shipped at 96% line coverage because the defect lived entirely in the *interaction between two call sites*, and no unit test of either could see it. **The coverage report already names the gap:** `__main__.py` sits at 95% with Missing `281-283, 288` — and line 288 *is* the `_split_flat_decisions` call, so the function written to fix `bug_001` **has never executed through the CLI**.
-
-The two call sites are `__main__.py:273` (`_load_decisions(args.decisions)`) and `:280` (same path, `key="orphan_decisions"`), with the flat-detection heuristic at `:284` and the split at `:288`.
-
-**Corrections to the issue as filed:** there is **no `cli.py`** — the file is `__main__.py`, and the seam is `run_sync(args, provider=None)` at `:238` (`main(argv)` dispatches `func(args)` with one argument and cannot inject a provider). And "three documented shapes" is **wrong**: `sync-semantics.md:146-147` documents **two**. The third — wrapped conflicts-only, *the shape that actually caused the outage* — exists only in the loader docstring and is **absent from the user-facing reference**. That documentation gap is fixed here too.
-
-The real accepted set is **five** in-set inputs: absent path → `{}`; wrapped both keys; wrapped `decisions` only; wrapped `orphan_decisions` only; flat mapping. Out-of-set values that must raise `ValueError` at `:161-162`: bare list, JSON `null`, scalar, `{"decisions": null}` — plus missing-file and malformed-JSON paths.
-
-**Parametrize from `_DECISION_SECTIONS` (`__main__.py:100`), never from a hardcoded copy** — that is the exact `VALID_PRIORITIES` drift that produced #208/E056 — and always include an out-of-set value, since bugs of this class live in the unrecognized-value branch.
-
-**Why the existing mock is safe here (E057 does not apply):** `conftest.py:19`'s `MockProvider` is structurally verified against the real `Provider` protocol by `test_mock_provider_satisfies_protocol`, so it cannot invent an interface. Assert against **observable real state** — `tasks.json` on disk after apply, and exit code + stderr for the fail-loud orphan path — not the mock's shape.
+**Do not rely on a comma-separated closing list in the pull request body** — it closes only its leading entries, which left ten issues open on a prior merge. Write the keyword before each number, or close by hand and verify the count.
 
 **Tasks:**
-1. [x] Add CLI-level tests driving `run_sync(--apply)` with a real `--decisions` file in each of the five in-set shapes
-2. [x] Add out-of-set cases asserting exit 1, the path named in stderr, and **nothing written**
-3. [x] Add the degenerate case where a wrapped file's two sections are byte-identical — the `:284` value-equality heuristic misroutes it into `_split_flat_decisions`
-4. [x] Parametrize from `_DECISION_SECTIONS`
-5. [x] Document the third (wrapped conflicts-only) shape in `sync-semantics.md:146-160` and correct "two formats" to three
-6. [x] Confirm `__main__.py` lines `281-283` and `288` are covered
+
+1. [ ] Comment on each issue with its verdict and the evidence, including the refutations.
+2. [ ] File a follow-up for the effort A/B measurement, noting the confound is now removed.
+3. [ ] File a follow-up for the tier-boundary replay experiment, deliberately not run.
+4. [ ] Update the notebook's living sections: Decision Log, Action Items, Current Baseline, open backlog count.
+5. [ ] Verify the closed count by listing, not by trusting the merge.
 
 **Acceptance Criteria:**
-- [x] WHEN `run_sync(--apply)` is driven with each documented decisions-file shape THEN the correct task ids SHALL reach the conflict and orphan consumers respectively
-- [x] WHEN driven with an out-of-set decisions file THEN it SHALL exit non-zero naming the file and SHALL leave `tasks.json` byte-identical
-- [x] `__main__.py` coverage no longer reports `281-283, 288` as missing
-- [x] `sync-semantics.md` documents all three shapes and no longer says "two formats"
-- [x] task-sync branch coverage ≥ the current 96.30% and above the `fail_under = 90` floor
 
-**Notes:**
-D36's fail-loud orphan validation must be preserved exactly — unrecognized ids route to the *orphan* map on purpose, because that is the only fail-loud consumer, and silently dropping one would convert a user's typo into a decision they believe they made.
-
----
-
-### Phase 8 Testing Requirements
-
-- [ ] `claude plugin validate --strict` for all three plugins
-- [ ] Grep sweeps for stamps and `check-models` return empty
-- [ ] task-sync suite green with coverage ≥96.30% and `281-283, 288` covered
+- [ ] WHEN the issue list is queried after merge THEN the open count SHALL match the predicted set exactly
+- [ ] Every closed issue carries a comment stating what was refuted
+- [ ] Follow-up issues exist for both deliberately-deferred measurements
+- [ ] The Current Baseline reflects the shipped versions
 
 ### Phase 8 Completion Checklist
 
-- [ ] All work items complete
-- [ ] Phase 5's `unlock` edits reconciled with 8.1's
-- [ ] Version bumped
-- [ ] All 13 issues closed
+- [ ] Both items COMPLETE
+- [ ] Open issue count verified by listing
+- [ ] Living sections current
 
 ### Definition of Done (Runnable)
+
 <!-- BEGIN DOD -->
 
-| Check | Command | Pass Criteria |
-|-------|---------|---------------|
-| No stamps | `grep -rniE '(last verified\|default as of)' plugins/ docs/ --include=*.md \| grep -v archive \| grep -v model-optimization-audit` | No output |
-| No phantom cmd | `grep -rn 'check-models' plugins/ docs/ \| grep -v archive` | No output |
-| Validation | `for p in personal-plugin bpmn-plugin slide-gen; do claude plugin validate plugins/$p --strict; done` | All exit 0 |
-| Lint (mirrors CI) | `npx --yes --package markdownlint-cli markdownlint '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**' --ignore '**/.venv/**'` | Exit code 0 |
+| Check | Command | Pass criteria |
+|---|---|---|
+| Release gate | `python3 scripts/check_version_bump.py --base main` | exit 0 |
+| Version sync | `python3 -c "import json,pathlib,sys; m={p['name']:p['version'] for p in json.loads(pathlib.Path('.claude-plugin/marketplace.json').read_text())['plugins']}; bad=[n for n,v in m.items() if json.loads(pathlib.Path(f'plugins/{n}/.claude-plugin/plugin.json').read_text())['version']!=v]; print(bad); sys.exit(1 if bad else 0)"` | exit 0 |
+| Inventory | `python3 scripts/update-readme.py --check` | exit 0 |
+| Lint (mirrors CI exactly) | `npx markdownlint-cli@0.45.0 '**/*.md' --ignore 'node_modules/**' --ignore '.git/**' --ignore 'output/**' --ignore 'tests/fixtures/**'` | exit 0 |
 
 <!-- END DOD -->
 
-<!-- END PHASES -->
-
 ---
 
-<!-- BEGIN TABLES -->
+## Risk Register
 
-## Parallel Work Opportunities
+| Risk | Phase | Severity | Mitigation |
+|---|---|---|---|
+| The refusal guard silently dies when the terminal reason relocates under streaming | 6 | **Critical** | Its fixture is written first, with a mutation test; the guard is re-expressed in terms of the accumulator's exit contract rather than a field lookup |
+| Transport-failure detection lost across the new pipe | 6 | High | Explicit pipeline-status handling plus a fixture simulating transport-side failure |
+| Budget gate red on arrival deadlocks the default branch | 7 | High | Both over-budget files fixed in earlier items of the same phase; gate verified green against the tree before wiring; scope excludes commands |
+| Tier prose names a model generation, recreating the staleness class | 5 | High | Explicit acceptance criterion and a DoD check on the diff |
+| `plan-improvements.md` edits from three issues collide | 2, 4 | Medium | Phases serialized; each item lists the regions it must not touch; DoD asserts untouched regions byte-identical |
+| Extraction changes what a skill emits into other repositories | 7 | Medium | Byte-identical emission is the acceptance criterion, not a side note |
+| Backward-compatibility break in the model knob | 5 | Medium | Unset override must be behaviourally identical to today, tested directly |
+| Documenting the keyword mechanism re-triggers it | 1, 2 | Low | Explanations live in commit messages and the notebook, never in a component body |
 
-| Work Item | Can Run With | Notes |
-|-----------|--------------|-------|
-| Phase 3 | Phases 4, 5, 6, 7, 8 | Only file is `evals/skills/description-triggers.eval.md` + `evals/README.md` |
-| Phase 4 | Phases 3, 5, 6, 7 | Touches `ultra-plan/SKILL.md`, its eval, `adr-template.md` — no overlap |
-| Phase 5 | Phases 3, 4, 6, 7 | **Conflicts with Phase 8.1** on `unlock/SKILL.md` — see Risk table |
-| Phase 6 | Phases 3, 4, 5, 7 | `CLAUDE.md`, `update-readme.py`, docs |
-| Phase 7 | Phases 3, 4, 5, 6 | `security-analysis`, `wiki`, `task-sync` skills + 3 templates |
-| Phase 8.2 | All | Design docs + notebook only |
-| Phase 8.3 | All | Python tests + one reference file; no overlap with 8.1/8.2 |
-| 3.1 → 3.2 | Sequential | Same file; 3.2 must apply after 3.1's section exists |
-| 4.1 → 4.2 | Sequential | Same file |
-| 2.1 → 2.2 → 2.3 → 2.4 | Strictly sequential | Each gates the next; 2.3 must observe failure before 2.4 wires it |
+## Unknowns
 
-**Critical path:** Phase 1 → Phase 2. Everything else is independent.
+| Unknown | Severity | Affects | Resolution strategy |
+|---|---|---|---|
+| Whether frontmatter outranks the session effort value, or the reverse | Low | Phase 3 framing | Does not change any action — "do not add `effort: high`" holds either way. The plan asserts only the no-op claim, never the removes-user-control claim |
+| Whether the real API completes at the top effort tiers within the transport budget | Medium | #216 follow-up only | Out of scope — the ladder is unchanged. The committed probe makes it answerable later |
+| Placement of the refusal category under streaming | Medium | Phase 6.1 | Treated as unknown by design: the accumulator must not assume it and must not crash when absent; a null-category fixture pins this |
+| Whether the keyword mechanism's feature gate stays on | Low | Phase 1.1 | Recorded as current behaviour, not a stable contract |
 
----
+## Scope Boundaries
 
-## Risk Mitigation
+**In scope:** the corrections and fixes above for #200, #199, #238, #216, #198.
 
-| Risk | Likelihood | Impact | Mitigation Strategy | Status |
-|------|------------|--------|---------------------|--------|
-| Phase 2's gate reddens the required `Validate Plugins (official CLI)` check on `main`'s push leg | Med | **High** — a red required context on main | Explicit event-leg branch (2.2 task 4) with the push leg exiting 0; 2.3's negative test must assert the **PR leg still fails**, not merely that push passes | Mitigated (2.2–2.4) — `resolve_leg` branches explicitly on `GITHUB_EVENT_NAME`, and self-test case `push-leg-noop` runs the **same violating tree** as case 1 through the push leg and asserts exit 0 while the PR leg asserts exit 1. Wired as a **step** in the existing `plugin-validate` job (D28), so no new required context: job set still `['validate', 'python-lint', 'lint-markdown', 'plugin-validate']`, the four `name:` values `diff` clean against `main`, and the live required-context count is still 16 |
-| Phase 2's gate blocks Phase 1's own CHANGELOG-only PR | High if mis-ordered | Med | Phase 1 lands first; `CHANGELOG.md` is explicitly exempt from Rule 1 | Mitigated (2.2) — `CHANGELOG.md` is in `EXEMPT_EXACT`; self-test case `rule1-exempt-changelog-only` asserts exit 0, and the script run against this very branch (`main...HEAD` = three CHANGELOG-only files, Phase 1's exact shape) exits 0 |
-| The gate no-ops on both legs — "unchecked" becomes a false "checked" (E043) | Med | **High** | `--self-test` asserts exit 1 per violation; 2.3 observes four real exit codes on a scratch branch and records them | Mitigated (2.3–2.4) — 10 of 18 self-test cases assert exit 1; 2.3 recorded four real exit codes (1/1/0/0) against real history; and 2.4 negative-tested the newly-wired pre-commit leg itself, observing **exit 1** on a staged `skills/ship/SKILL.md` with no bump (plus exit 1 on `references/**` and `tools/*/src/**`, both invisible to the pre-existing filter) and exit 0 on a CHANGELOG-only stage. The wiring was demonstrated failing, not assumed to |
-| Phase 4 fixes `SKILL.md` without `ultra-plan.eval.md:43`, turning a passing eval into a false failure | Med | Med | Both files in one commit (4.1 task 4); DoD greps for the eval line | Mitigated |
-| `:350` "corrected" to `3c`, propagating the bug into the one surviving-correct reference | Med | Med | Explicit do-not-touch in 4.1; DoD asserts the string still present | Mitigated |
-| Frontmatter silently dropped by a colon-space when editing `security-analysis:5` | Low | **High** — a D40-class skill loads unprotected | Insert before the ` #`; run `validate --strict` after each frontmatter edit (7.1 task 5) | Mitigated (7.1) — `, AskUserQuestion` inserted before the two-space + `#`; `claude plugin validate --strict` run 4 times (once per frontmatter edit across the 3 skills, plus a final confirmation run), all exit 0, and the PyYAML frontmatter-key check confirms full key sets on all three |
-| Phase 5 and Phase 8.1 both edit `unlock/SKILL.md` | High if parallel | Med | Serialize: run 8.1's `unlock` edits after Phase 5 merges, or fold them into Phase 5 | Open |
-| Phase 6's generator mangles hand-written annotation prose in an always-loaded file | Med | Med | Regenerate name lists only; `CLAUDE.md:180-189` byte-identical assertion in DoD; negative-test at exit 2 first | Mitigated (6.1) — the renderer is opt-**in** by directory key (`commands`/`skills`/`agents` at indent 4 under a `plugins/<name>/` node) and by an explicit `BEGIN:inventory`/`END:inventory` anchor pair, so every other tree line and everything outside the anchors is structurally unreachable. All four hand-written annotations survive verbatim, and "Command Patterns" `diff`s clean against `main`. The negative test observed exit 2 on a deleted skill name and additionally exposed two fail-**open** paths (anchors absent, plugin node absent) that exited 0; both now exit 1 |
-| Backfilled CHANGELOG entries paraphrased rather than extracted, reintroducing drift inverted | Med | Low | 1.1 task 1 mandates extraction; acceptance compares version *sets*, not prose | Mitigated |
+**Explicitly NOT in scope:**
 
----
+- **The depth ladder change in #216** — owner decision; current guidance for the default model argues against the filed direction.
+- **The tier-boundary replay experiment** — owner decision; the one change the evidence supports ships without it.
+- **The effort A/B on the two top-tier planners** — remains open as a measurement task. Phase 2.2 removes its confound, which is a precondition for it ever being valid.
+- **All three `effort: high` additions from #199** — no-ops.
+- **`sonnet-implementer.md`** — its escalation clause is already correctly qualified.
+- **`prime`, `finish-document`, `consolidate-documents`, `define-questions`** — misfiled or exemplars.
+- **`commands/` line budgets** — frozen legacy; extending the gate there is the deadlock hazard.
+- **The historical audit report** — editing it to remove findings it genuinely made would falsify the record.
+- **Any default model value in `visual-explainer`** — the economic case rests on a premium that does not reach the assumed figure until after 2026-08-31.
 
-## Unknowns Register
-
-| ID | Unknown | Severity | Affects | Resolution Strategy | Status |
-|----|---------|----------|---------|---------------------|--------|
-| U1 | Does `fetch-depth: 0` measurably slow the `plugin-validate` job past its 10-minute timeout? | Low | Phase 2, 2.1 | Measure the first CI run; repo history is small so this is expected to be negligible | Open |
-| U2 | On the `pull_request` leg, is `github.event.pull_request.base.sha` reliably present, or must the base be derived via `merge-base`? | Med | Phase 2, 2.2 | Resolve during 2.3's negative test on a real PR before wiring | Open |
-| U3 | Does `wiki/SKILL.md` already grant `AskUserQuestion`? | Low | Phase 7, 7.1 | Read the frontmatter at implementation time | Open |
-| U4 | Is the upstream destination for #227's report the `superpowers` plugin repo or its marketplace repo? | Low | Phase 3, 3.3 | Check the plugin manifest's `homepage`/`repository` before filing | Open |
-| U5 | Will `claude plugin eval` leave early access during this plan's life, changing #228's deferral calculus? | Low | Phase 3, 3.1 | Record the deferral with a dated pointer to ADR-0009; revisit only if the command becomes invocable | Accepted |
-| U6 | Does the stale-skill-loader behavior (#232) affect which version of an edited skill a verification run actually exercises? | Med | **Phase 5, item 5.1 only** — the sole acceptance criterion in this plan requiring a live skill invocation (`/unlock` in a tool shell). Every other criterion is a file grep, a `validate --strict` read, or a CI command, none of which route through the skill loader | Mitigated in-plan by 5.1 task 6: diff the installed cache's `unlock/SKILL.md` against the repo copy immediately before the manual run, and abort if they differ. Root cause is upstream; tracked as #232 and deliberately not gating this plan | Open |
-
----
-
-## Success Metrics
-
-- [ ] All 8 phases completed
-- [ ] All acceptance criteria met
-- [ ] 12 issues closed: #206, #210, #217, #218, #223, #224, #226, #227, #228, #230, #231, #233 (#232 deferred — characterize before fixing; root cause is upstream)
-- [ ] `main` is never red: every required check green on both OSes at each phase boundary
-- [ ] Two new guards (`check_version_bump.py`, the extended `update-readme.py --check`) each demonstrated to **fail** on deliberately-bad input before being wired in
-- [ ] Every generator that mints a defect is fixed alongside its instances — 2 document templates (#218), 3 interaction templates (#223), 1 inventory generator (#206), 1 ADR template (#231)
-- [ ] No issue closed on narrative verification: every acceptance criterion is a command with an observed exit code
-
-<!-- END TABLES -->
+**Recommended follow-up work:** the two deferred measurements; `explain-project` and `accessibility-annotator` banner reduction (both under budget, ~27% and ~34% of their files are decorative comments); `release-plugin`'s fifteen still-inline output templates; and the ambiguous relative pointer in the ship skill.
