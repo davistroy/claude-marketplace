@@ -68,9 +68,9 @@ Fix the assertions later phases would otherwise be edited against. Both items ar
 
 ### Work Items
 
-#### 1.1 Correct the "`ultrathink` is a no-op" claim in every live surface
+#### 1.1 Correct the "`ultrathink` is a no-op" claim in every live surface ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1 (inverted)
 **Depends On:** None
@@ -86,24 +86,24 @@ Correct the two **live** surfaces. Do **not** edit `docs/model-optimization-audi
 
 **Tasks:**
 
-1. [ ] Correct `LAB_NOTEBOOK.md:1385`'s "no-op on the current model family" **in place** per Rule 4 — strike through, do not delete, and point at this plan's Phase 2.
-2. [ ] Add a Verified Operational Rule to `CLAUDE.md` stating: the keyword is live and matched case-insensitively with word boundaries against expanded command/skill bodies; it is a **prompt-level attachment**, entirely separate from the `effort` frontmatter field, and the two stack additively; and — per the E061 name-don't-render lesson — prose that *contains* the token inside a skill or command body **fires it**, so the mechanism must be named, never rendered, in any component body.
-3. [ ] Record that the feature is behind a server-controllable gate that currently defaults on, so this is current behaviour and not a stable contract.
+1. [x] Correct `LAB_NOTEBOOK.md:1385`'s "no-op on the current model family" **in place** per Rule 4 — strike through, do not delete, and point at this plan's Phase 2.
+2. [x] Add a Verified Operational Rule to `CLAUDE.md` stating: the keyword is live and matched case-insensitively with word boundaries against expanded command/skill bodies; it is a **prompt-level attachment**, entirely separate from the `effort` frontmatter field, and the two stack additively; and — per the E061 name-don't-render lesson — prose that *contains* the token inside a skill or command body **fires it**, so the mechanism must be named, never rendered, in any component body.
+3. [x] Record that the feature is behind a server-controllable gate that currently defaults on, so this is current behaviour and not a stable contract.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN a reader consults `CLAUDE.md`'s Verified Operational Rules THEN they SHALL find the keyword documented as live, with the frontmatter/attachment distinction stated
-- [ ] WHEN `LAB_NOTEBOOK.md` is read at the corrected line THEN the original claim SHALL still be visible as struck-through text with a pointer, not removed
-- [ ] `docs/model-optimization-audit-opus5-sonnet5-20260728.md` is byte-identical to its state at `main`
-- [ ] No file under `plugins/` is modified by this item
+- [x] WHEN a reader consults `CLAUDE.md`'s Verified Operational Rules THEN they SHALL find the keyword documented as live, with the frontmatter/attachment distinction stated
+- [x] WHEN `LAB_NOTEBOOK.md` is read at the corrected line THEN the original claim SHALL still be visible as struck-through text with a pointer, not removed
+- [x] `docs/model-optimization-audit-opus5-sonnet5-20260728.md` is byte-identical to its state at `main`
+- [x] No file under `plugins/` is modified by this item
 
 **Notes:**
 
 This item is the reason Phase 1 exists. Phase 2 deletes the instances; without this, the next reader re-derives the wrong conclusion from the notebook and re-adds them.
 
-#### 1.2 Correct the "SKILL.md bodies are always-loaded" premise
+#### 1.2 Correct the "SKILL.md bodies are always-loaded" premise ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #238 (premise)
 **Depends On:** None
@@ -121,16 +121,16 @@ Re-frame the rule as **authoring quality** (keep instructions scannable; push bu
 
 **Tasks:**
 
-1. [ ] Rewrite the rationale on `CLAUDE.md`'s body-budget rule: authoring quality, not context economy; description is the always-loaded surface.
-2. [ ] Add a Decision Log row recording the correction, citing E032 as the prior statement the repo lost track of.
-3. [ ] Do **not** delete the line budget — Phase 7 still gates it, on the authoring-quality argument.
+1. [x] Rewrite the rationale on `CLAUDE.md`'s body-budget rule: authoring quality, not context economy; description is the always-loaded surface.
+2. [x] Add a Decision Log row recording the correction, citing E032 as the prior statement the repo lost track of.
+3. [x] Do **not** delete the line budget — Phase 7 still gates it, on the authoring-quality argument.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN `CLAUDE.md`'s body-budget rule is read THEN it SHALL NOT claim the body is loaded every turn
-- [ ] WHEN the rule is read THEN it SHALL state that the `description` is the always-loaded surface
-- [ ] The `<500` figure itself is unchanged (Phase 7 depends on it)
-- [ ] A Decision Log row exists citing E032
+- [x] WHEN `CLAUDE.md`'s body-budget rule is read THEN it SHALL NOT claim the body is loaded every turn
+- [x] WHEN the rule is read THEN it SHALL state that the `description` is the always-loaded surface
+- [x] The `<500` figure itself is unchanged (Phase 7 depends on it)
+- [x] A Decision Log row exists citing E032
 
 **Notes:**
 
