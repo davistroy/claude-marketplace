@@ -798,9 +798,9 @@ Move the Claude leg from a single non-streaming request to streaming with accumu
 
 ### Work Items
 
-#### 6.1 Build the accumulator as a real, testable file
+#### 6.1 Build the accumulator as a real, testable file ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: opus**
 **Recommendation Ref:** #216 (testability, not in the issue)
 **Depends On:** None
@@ -817,27 +817,40 @@ The decision is binary. An inline heredoc inside a markdown fence reproduces tha
 
 **Tasks:**
 
-1. [ ] Create the package with a stdin→stdout accumulator, stdlib-only where practical.
-2. [ ] Build the offline fixture corpus: happy path; interleaved reasoning block skipped; truncation-at-ceiling terminal reason; refusal terminal reason with a category; refusal with a null category; **mid-stream error event after a successful start**; truncated stream with no terminal event; malformed data line; unknown event type and unknown block type ignored gracefully; empty stream; non-stream error body.
-3. [ ] Implement a **completeness sentinel**: absence of a terminal event is a failure regardless of transport status.
-4. [ ] Wire the test suite into the existing per-tool CI pattern.
+1. [x] Create the package with a stdin→stdout accumulator, stdlib-only where practical. (Stdlib-only with no caveat — zero dependencies, `dependencies = []`.)
+2. [x] Build the offline fixture corpus: happy path; interleaved reasoning block skipped; truncation-at-ceiling terminal reason; refusal terminal reason with a category; refusal with a null category; **mid-stream error event after a successful start**; truncated stream with no terminal event; malformed data line; unknown event type and unknown block type ignored gracefully; empty stream; non-stream error body. (15 fixtures — the 11 required plus refusal-with-absent-`stop_details`, refusal-with-`stop_details`-in-an-unexpected-position, completed-but-empty, and unrecognised-terminal-reason.)
+3. [x] Implement a **completeness sentinel**: absence of a terminal event is a failure regardless of transport status. (Exit 5. Deliberately keyed to *an unresolved `stop_reason`*, not to `message_stop` — a `message_stop` with no stop_reason still fails, because "the turn ended" is not "we know why it ended".)
+4. [~] Wire the test suite into the existing per-tool CI pattern. **Partially done, deliberately.** The tool conforms to the pattern exactly (sibling `pyproject.toml` shape, `tests/`, `requirements-lock.txt`, `[tool.coverage.report] fail_under = 95`, mypy-clean `src/`), and CI's **ruff check and ruff format steps already cover it automatically** — `validate.yml` globs `plugins/*/tools/*/src/ plugins/*/tools/*/tests/`, so no edit was needed there and lint is live now. The remaining wiring needs edits to files outside this item's declared `Files Affected` (a `research-sse` job in `test.yml`, a `python-compat` step, a `pip-audit` line, and the root `pyproject.toml` testpaths/pythonpath), so it is left to the follow-up that owns those files. Follow the `task-sync` precedent: add the job **non-required** first, so a not-yet-existing required check cannot deadlock the PR that creates it.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN a complete stream is supplied on stdin THEN the accumulator SHALL emit the concatenated text and exit 0
-- [ ] WHEN a stream ends without a terminal event THEN the accumulator SHALL exit non-zero
-- [ ] WHEN an error event arrives after a successful start THEN the accumulator SHALL exit non-zero
-- [ ] WHEN the terminal reason indicates a refusal THEN the accumulator SHALL exit non-zero and surface the category, including when the category is null
-- [ ] WHEN the terminal reason indicates truncation THEN the accumulator SHALL exit 0 and signal truncation distinctly from success
-- [ ] Every fixture has a corresponding mutation test: deleting the branch flips the row from caught to passing
+- [x] WHEN a complete stream is supplied on stdin THEN the accumulator SHALL emit the concatenated text and exit 0
+- [x] WHEN a stream ends without a terminal event THEN the accumulator SHALL exit non-zero
+- [x] WHEN an error event arrives after a successful start THEN the accumulator SHALL exit non-zero
+- [x] WHEN the terminal reason indicates a refusal THEN the accumulator SHALL exit non-zero and surface the category, including when the category is null
+- [x] WHEN the terminal reason indicates truncation THEN the accumulator SHALL exit 0 and signal truncation distinctly from success
+- [x] Every fixture has a corresponding mutation test: deleting the branch flips the row from caught to passing
 
 **Notes:**
 
 The refusal guard is the highest risk in the whole plan. In the current non-streaming shape the terminal reason is a top-level field; under streaming it moves inside a delta event. A port that reassembles the stream and keeps the old field lookup **compiles, reads correctly, passes review, and never fires** — silently writing an empty report on every refusal. That is a previously-fixed defect returning in a form that looks like a faithful port. Write its fixture first.
 
-#### 6.2 Rewrite the leg to stream, ladder unchanged
+**Delivered (2026-07-31).** `plugins/personal-plugin/tools/research-sse/` — 87 tests, 99% branch coverage, ruff + `ruff format` + mypy clean.
 
-**Status: PENDING**
+The refusal fixture was written first and **run red before the accumulator existed** (`ModuleNotFoundError`), then green. `tests/conftest.py::naive_top_level_stop_reason` performs the *old* top-level lookup against every refusal fixture and asserts it returns `None` — so the defect is pinned by a test, not just by prose. The corresponding mutation (`G11`, rewriting `_terminal_stop_reason` to read only the top level — the faithful-looking port) flips all four refusal tests to failing.
+
+**All 12 guards were mutation-tested fail-first** (baseline pass → mutant FAIL → restored pass), with `--no-cov` on the per-test runs so the 95% floor could not manufacture a false "caught". Deleting the refusal branch is instructive: the *with-category* fixture (which carries partial text) drops to `status='ok', exit_code=0` — it would have written a report whose entire body is a half-finished refusal sentence — while the null-category fixtures drop only to exit 8. The empty-output guard is a real second line of defence but is **not** a substitute for the refusal guard.
+
+Two decisions taken where the spec was open:
+
+- **Truncation exits 0** (as the acceptance criterion requires) and is signalled by a machine-readable marker — `"truncated": true` / `"status": "truncated"` in the metadata — not by a distinct exit code. Exit code **3 is reserved and never emitted** so this stays unambiguous for 6.2.
+- **The refusal category's placement is treated as genuinely unknown.** `find_refusal_category` does a depth-bounded search for a `stop_details` (then `refusal`) object *anywhere* in the terminal event rather than hard-coding `delta.stop_details`, and a null/absent category surfaces as `category=unknown` **without** downgrading the refusal. A fixture pins each case, including one that puts `stop_details` at the event top level.
+
+One guard was added beyond the brief: **exit 8, a completed stream that produced no text.** A reasoning-only response reaches a clean `end_turn` and would otherwise have been a silent empty report — the same failure mode as the refusal defect arriving by a different route. It also backstops an unrecognised future terminal reason, which is kept (exit 0, `stop_reason_known: false`) only when there is real text to keep.
+
+#### 6.2 Rewrite the leg to stream, ladder unchanged ✅ Completed 2026-07-31
+
+**Status: COMPLETE 2026-07-31**
 **Model Tier: opus**
 **Recommendation Ref:** #216
 **Depends On:** 6.1
@@ -854,27 +867,41 @@ Keep the ladder exactly as it is. Keep the truncation note. Keep the refusal che
 
 **Tasks:**
 
-1. [ ] Rewrite the request to stream, with buffering disabled.
-2. [ ] Preserve transport-failure detection across the pipe.
-3. [ ] Re-express the refusal and truncation guards in terms of the accumulator's contract.
-4. [ ] Update the section's "synchronous, single call" framing and the conventions note about bounded calls.
-5. [ ] Leave the depth ladder values unchanged.
-6. [ ] Add a forward-compatibility note so an unrecognized block type is ignored rather than fatal.
+1. [x] Rewrite the request to stream, with buffering disabled. (`"stream": true` inserted as the first key of the body so the two ladder lines stay byte-identical and diff as context; `curl -sS --no-buffer --dump-header` — `-w '%{http_code}'` had to go, because under streaming it would write the status code into the pipe.)
+2. [x] Preserve transport-failure detection across the pipe. (`PIPE=("${PIPESTATUS[@]}")` as the statement immediately after the pipeline, split into `CURL_EXIT`/`ACC_EXIT`. Negative-tested — see Notes.)
+3. [x] Re-express the refusal and truncation guards in terms of the accumulator's contract. (The whole `CHECK=$(python3 …)` payload-inspection block is gone; the section now contains zero occurrences of the old top-level field name.)
+4. [x] Update the section's "synchronous, single call" framing and the conventions note about bounded calls.
+5. [x] Leave the depth ladder values unchanged.
+6. [x] Add a forward-compatibility note so an unrecognized block type is ignored rather than fatal.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the leg runs THEN the depth ladder values SHALL be unchanged from `main`
-- [ ] WHEN the transport fails THEN the failure SHALL be detected despite the pipe
-- [ ] WHEN a refusal occurs THEN the leg SHALL fail loudly rather than write an empty report
-- [ ] WHEN output is truncated at the ceiling THEN the report SHALL carry the truncation note
+- [x] WHEN the leg runs THEN the depth ladder values SHALL be unchanged from `main`
+- [x] WHEN the transport fails THEN the failure SHALL be detected despite the pipe
+- [x] WHEN a refusal occurs THEN the leg SHALL fail loudly rather than write an empty report
+- [x] WHEN output is truncated at the ceiling THEN the report SHALL carry the truncation note
 
 **Notes:**
 
 A half-fix across the three files is a recorded failure mode for this skill: the skill body restates the mode and the silent-failure mechanism independently of the protocol file, so they must move together (6.3).
 
-#### 6.3 Reconcile the skill body and the model reference
+**Delivered (2026-07-31).** The block was not reviewed by reading — it was **extracted verbatim from the markdown fence and executed**, with only the `curl` invocation swapped for a fixture emitter, then driven through eight of 6.1's fixtures. Observed: happy `0`, truncation `0` + `truncated=true`, refusal `4`, no-terminal-event `5`, mid-stream error `6`, non-stream error body `7`, empty-text `8`, unknown-event-and-block `0`. Every non-zero path deleted `$BODY` before exiting. `bash -n` passes on the unmodified fence, and the `-d` payload extracted from it parses as JSON with `stream: true` and no `budget_tokens`.
 
-**Status: PENDING**
+**Both new guards were negative-tested** (per the repo rule that a guard which cannot fail is worse than none):
+
+- **Transport across the pipe.** A fake transport that emits a *fully well-formed* stream and then exits 28 is the case the pipe would hide, because the accumulator sees a complete stream and exits 0. The `PIPESTATUS` form fails the leg (`transport curl_exit=28`, body discarded); rewriting only that one line to the naive post-pipe `$?` capture prints `Anthropic request ok` and keeps the body. The guard is what does the work, not the shape of the code around it.
+- **Contract preflight.** A copy of the tool with `EXIT_REFUSAL` moved from `4` to `9` aborts the leg before the request is spent (`research-sse exit contract drifted (want, got): {'EXIT_REFUSAL': (4, 9)}`); the real tool passes silently. This exists because this file's copy of the exit-status table is a *label* for the contract, and the recorded failure mode is a label that stops matching its content (#226/#232/#235).
+
+Two decisions taken where the item was open:
+
+- **`-w '%{http_code}'` was dropped in favour of `--dump-header`.** The old capture wrote the status code onto stdout, which under streaming is the pipe — it would have been concatenated into the report body. The header status is now parsed out of a file, and is used **only** in diagnostics: it is never a success test, because it arrives before any content. Exit 5 is the success test.
+- **An unreadable metadata line appends the truncation note anyway.** If the `research-sse-meta:` line cannot be parsed, `$TRUNCATED` is `unknown`; the leg still keeps the report but adds the note. Over-warning synthesis is much cheaper than letting it read a cut-off section as complete.
+
+**Two verification commands in the brief were vacuous and are recorded here so they are not reused.** `sed -n '/^## Claude/,/^## OpenAI/p'` matches nothing — the heading is `## Anthropic Claude Protocol`. The "no `stop_reason` remains" check therefore passed on an empty range (a false pass), and the "streaming present" check produced no output despite the content being there (a false miss). Re-run against `/^## Anthropic Claude Protocol/,/^## OpenAI/`: 132 lines in range, zero `stop_reason` hits, and `--no-buffer`, `"stream": true` and `PIPESTATUS` all present. Same class as E063: a check expressed from what the author expected to match rather than derived from the artifact.
+
+#### 6.3 Reconcile the skill body and the model reference ✅ Completed 2026-07-31
+
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #216 (blast radius)
 **Depends On:** 6.2
@@ -890,26 +917,26 @@ Also correct the rationale's sourcing. The output-ceiling requirement it cites i
 
 **Tasks:**
 
-1. [ ] Update the mode, parse-target, and silent-failure rows in the skill body.
-2. [ ] Update the "no real-time streaming progress" note, which becomes misleading.
-3. [ ] Update the mode row and rationale paragraph in the model reference.
-4. [ ] Mark the wall-clock derivation as an estimate, or remove it, rather than restating it as fact.
-5. [ ] Leave the cost table alone — the ladder is unchanged, so costs are unchanged.
+1. [x] Update the mode, parse-target, and silent-failure rows in the skill body.
+2. [x] Update the "no real-time streaming progress" note, which becomes misleading.
+3. [x] Update the mode row and rationale paragraph in the model reference.
+4. [x] Mark the wall-clock derivation as an estimate, or remove it, rather than restating it as fact.
+5. [x] Leave the cost table alone — the ladder is unchanged, so costs are unchanged.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the skill body's silent-failure row is read THEN it SHALL describe the streaming mechanism, not the top-level-field one
-- [ ] WHEN the rationale is read THEN any unsourced numeric derivation SHALL be marked as an estimate or absent
-- [ ] The cost table is byte-identical to `main`
-- [ ] The depth ladder values are byte-identical to `main` in both files
+- [x] WHEN the skill body's silent-failure row is read THEN it SHALL describe the streaming mechanism, not the top-level-field one
+- [x] WHEN the rationale is read THEN any unsourced numeric derivation SHALL be marked as an estimate or absent
+- [x] The cost table is byte-identical to `main`
+- [x] The depth ladder values are byte-identical to `main` in both files
 
 **Notes:**
 
 Leaving the skill body's silent-failure row stale would tell a future reader the guard works one way while it works another — the stale-contract shape a prior issue was filed about.
 
-#### 6.4 Grant the missing execution permission
+#### 6.4 Grant the missing execution permission ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: haiku**
 **Recommendation Ref:** Latent defect found during #216 investigation, not filed
 **Depends On:** None
@@ -924,23 +951,23 @@ The streaming rewrite deepens the dependency, so the grant must land with it.
 
 **Tasks:**
 
-1. [ ] Add the interpreter grant to `allowed-tools`.
-2. [ ] Verify no other binary invoked anywhere in the three files lacks a grant.
-3. [ ] Verify the frontmatter parses with a full key set after the edit — this frontmatter is a plain scalar list and is exactly the shape that has silently dropped before.
+1. [x] Add the interpreter grant to `allowed-tools`.
+2. [x] Verify no other binary invoked anywhere in the three files lacks a grant.
+3. [x] Verify the frontmatter parses with a full key set after the edit — this frontmatter is a plain scalar list and is exactly the shape that has silently dropped before.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the frontmatter is parsed THEN the interpreter grant SHALL be present and every pre-existing key SHALL remain
-- [ ] Every binary invoked in the three files has a corresponding grant
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+- [x] WHEN the frontmatter is parsed THEN the interpreter grant SHALL be present and every pre-existing key SHALL remain
+- [x] Every binary invoked in the three files has a corresponding grant
+- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
 
 A dispatch-time-only failure is the hardest class to catch, because every offline gate passes.
 
-#### 6.5 Commit the live probe and add an eval scenario
+#### 6.5 Commit the live probe and add an eval scenario ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #216 (verification gap)
 **Depends On:** 6.2
@@ -958,17 +985,17 @@ Separately, the eval suite has **no scenario for depth, parameters, or the respo
 
 **Tasks:**
 
-1. [ ] Commit a probe that extracts the request shape and ladder from the shipped files rather than restating them.
-2. [ ] Give it a negative control that must fail.
-3. [ ] Mark it clearly as manual-run, with the zero-secrets constraint stated.
-4. [ ] Add an eval scenario covering the parse path and the terminal-reason handling.
+1. [x] Commit a probe that extracts the request shape and ladder from the shipped files rather than restating them.
+2. [x] Give it a negative control that must fail.
+3. [x] Mark it clearly as manual-run, with the zero-secrets constraint stated.
+4. [x] Add an eval scenario covering the parse path and the terminal-reason handling.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the shipped request shape is broken THEN the probe SHALL fail
-- [ ] WHEN the probe's negative control runs THEN it SHALL fail as designed
-- [ ] `python3 scripts/check_eval_mapping.py` exits 0 with the new scenario
-- [ ] No CI workflow references the probe
+- [x] WHEN the shipped request shape is broken THEN the probe SHALL fail
+- [x] WHEN the probe's negative control runs THEN it SHALL fail as designed
+- [x] `python3 scripts/check_eval_mapping.py` exits 0 with the new scenario
+- [x] No CI workflow references the probe
 
 **Notes:**
 
@@ -1248,8 +1275,8 @@ Each issue closes with its corrections recorded, not silently. Several carry fin
 
 | Risk | Phase | Severity | Mitigation |
 |---|---|---|---|
-| The refusal guard silently dies when the terminal reason relocates under streaming | 6 | **Critical** | Its fixture is written first, with a mutation test; the guard is re-expressed in terms of the accumulator's exit contract rather than a field lookup |
-| Transport-failure detection lost across the new pipe | 6 | High | Explicit pipeline-status handling plus a fixture simulating transport-side failure |
+| The refusal guard silently dies when the terminal reason relocates under streaming | 6 | **Critical** | **Mitigated both sides (2026-07-31).** 6.1: the fixture was written first and run red before the accumulator existed; the guard reads `message_delta`, is mutation-tested fail-first (`G1`, `G11`), and `naive_top_level_stop_reason` asserts the old top-level lookup finds nothing. 6.2: the leg branches on `$ACC_EXIT` alone — the payload-inspection block is deleted outright and the section contains **zero** occurrences of the old field name, so there is no surviving lookup to go quiet. Verified live: the refusal fixture returns 4 and the leg discards its 18 characters of partial refusal text rather than writing them. **Fully mitigated (2026-07-31).** 6.3 reconciled both of the skill body's silent-failure restatements (the Provider Deltas row and the Error Handling table row) plus the model reference's mode row and rationale to the exit-status mechanism; no surviving reference to the old top-level `stop_reason` field remains in either file |
+| Transport-failure detection lost across the new pipe | 6 | High | **Mitigated (2026-07-31).** `PIPE=("${PIPESTATUS[@]}")` immediately after the pipeline. Negative-tested against the case that would otherwise hide: a transport emitting a *complete-looking* stream and then exiting 28 — the shipped form fails the leg and discards the body, the naive `$?` form reports success |
 | Budget gate red on arrival deadlocks the default branch | 7 | High | Both over-budget files fixed in earlier items of the same phase; gate verified green against the tree before wiring; scope excludes commands |
 | Tier prose names a model generation, recreating the staleness class | 5 | High | Explicit acceptance criterion and a DoD check on the diff |
 | `plan-improvements.md` edits from three issues collide | 2, 4 | Medium | Phases serialized; each item lists the regions it must not touch; DoD asserts untouched regions byte-identical |
@@ -1263,7 +1290,7 @@ Each issue closes with its corrections recorded, not silently. Several carry fin
 |---|---|---|---|
 | Whether frontmatter outranks the session effort value, or the reverse | Low | Phase 3 framing | Does not change any action — "do not add `effort: high`" holds either way. The plan asserts only the no-op claim, never the removes-user-control claim |
 | Whether the real API completes at the top effort tiers within the transport budget | Medium | #216 follow-up only | Out of scope — the ladder is unchanged. The committed probe makes it answerable later |
-| Placement of the refusal category under streaming | Medium | Phase 6.1 | Treated as unknown by design: the accumulator must not assume it and must not crash when absent; a null-category fixture pins this |
+| Placement of the refusal category under streaming | Medium | Phase 6.1 | **RESOLVED 2026-07-31 by design, not by discovery — still unknown, and no longer needs to be known.** `find_refusal_category` does a depth-bounded search for a `stop_details` (then `refusal`) object anywhere in the terminal event instead of hard-coding a path, and a null/absent category surfaces as `category=unknown` without downgrading the refusal. Four fixtures pin it: category present, category null, `stop_details` absent entirely, and `stop_details` in an unexpected position. Mutation `G10` (collapsing the search to depth 0) flips the row to failing |
 | Whether the keyword mechanism's feature gate stays on | Low | Phase 1.1 | Recorded as current behaviour, not a stable contract |
 
 ## Scope Boundaries

@@ -20,6 +20,22 @@ Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #1
   Deliberately **not** downgraded, each for a stated reason: `ship` (contains a code-review-and-fix loop and can push and merge), `jetson-recon` (declares a trust boundary against untrusted web content), `wiki` (cross-page synthesis), `develop-image-prompt` (creative composition), and `visual-explainer` (decides what to depict before billing per image).
 
 ### Added
+- **New bundled tool `research-sse`** — a stdlib-only, zero-dependency accumulator that reads an Anthropic SSE stream on stdin and emits report text on stdout with a verdict as its exit status. 87 tests, 99% coverage, no API key and no network required.
+
+  It exists because the `/research-topic` Claude leg previously had **zero testable surface**: the request lived in a markdown reference file that a subagent read and hand-substituted at runtime, so nothing rendered, linted, or executed it. That substrate is what let a prior crash sit undetected on every dispatch. Wired into CI as a **non-required** job first, following the `task-sync` precedent — a required check cannot exist before the PR that creates it.
+
+- Owner-run live probe at `tests/live/research_topic_probe.sh`, plus four eval scenarios covering the parse path and terminal-reason handling. The probe **extracts** the request shape and depth ladder from the shipped files rather than restating them, which is what makes it impossible to pass against a broken tree; it carries a negative control that must fail, and skips cleanly when no key is present. The equivalent probe for the prior fix was never committed, so the only artifact proving that fix existed was lost.
+
+### Changed
+- **`/research-topic`'s Claude leg now streams.** The shipped comprehensive tier already ran at double the documented non-streaming output ceiling, so this is a latent correctness fix, not only an enhancement. The depth ladder is **unchanged** — current guidance for the default model argues against the filed ladder change.
+
+  **The guard that made this risky:** in the non-streaming shape the terminal reason was a top-level `stop_reason` field, and the leg checked exactly that. Under streaming it moves inside a `message_delta` event, so a port that reassembles the stream and keeps the old lookup compiles, reads correctly, passes review, and **never fires** — silently writing an empty or half-refusal report on every safety refusal. The refusal fixture was written first and run red; a test now performs the old naive lookup against every refusal fixture and asserts it returns `None`, pinning the ported defect by test rather than by prose. All 12 guards are mutation-tested fail-first.
+
+  Transport-failure detection is preserved across the new pipe via `PIPESTATUS` (a bare `$?` after a pipe reports only the accumulator, hiding a timeout or reset), and the HTTP status is now diagnostics-only — it arrives before any content, so a 200 header is not evidence of a complete response.
+
+### Fixed
+- `/research-topic`'s `allowed-tools` omitted **every** interpreter and text-utility grant its own shipped commands invoke — `python3` (which does all JSON parsing, 7 sites), plus `grep`, `sed`, `tail`, `tr`, `cut` and `find`. A dispatch-time-only failure that every offline gate passes; it never surfaced because the prior live verification ran through a standalone probe rather than a real dispatch.
+
 - `visual-explainer` gains an optional in-loop model override, `VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL` (`InternalConfig.claude_loop_model`, default `None`), resolved through `resolve_loop_model(base)`. **Unset, it is behaviourally indistinguishable from before** — that backward-compatibility property is asserted directly by test, not inferred.
 
   The split is on the **loop boundary**, not the evaluation boundary the filed issue proposed. One setting fed **four** consumers, not the three the issue named: the missed one is prompt *refinement*, which draws its model from the generation knob but runs once per failed attempt **inside** the loop. Splitting on eval-vs-rest would have moved vision calls to a cheaper tier while stranding an equally high-volume text call on the expensive one. Worst case is ~200 evaluation plus ~180 refinement calls against 1 analysis call, every evaluation call carrying a re-encoded 4K image.

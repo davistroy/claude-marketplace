@@ -4,26 +4,44 @@
 
 **Consumers:** The Claude, OpenAI, and Gemini research-leg subagents dispatched from `research-topic/SKILL.md` Phase 4. Each dispatched subagent is instructed (via the Subagent Prompt Template) to Read this file for its provider's protocol before making its API call.
 
-**Conventions used below:** `[BRACKETED]` tokens are placeholders the dispatching subagent substitutes with real values it was given (model name, prompt text, and `[TIMESTAMP]` — the same run timestamp already used in its `reports/research-[SLUG]-[TIMESTAMP].md` output path). Reusing `[TIMESTAMP]` in temp filenames keeps them unique per run without inventing a second value. All `curl` calls are bounded with `--max-time`/`--connect-timeout` so a hung connection cannot block indefinitely — the 180-iteration poll loops bound poll *count*, not any single call's duration. Every submit (POST) response is checked for a valid ID and no `error` body before the poll loop is entered; a failed submit exits immediately instead of polling a nonexistent job.
+**Conventions used below:** `[BRACKETED]` tokens are placeholders the dispatching subagent substitutes with real values it was given (model name, prompt text, and `[TIMESTAMP]` — the same run timestamp already used in its `reports/research-[SLUG]-[TIMESTAMP].md` output path). Reusing `[TIMESTAMP]` in temp filenames keeps them unique per run without inventing a second value. All `curl` calls are bounded with `--max-time`/`--connect-timeout` so a hung connection cannot block indefinitely — the 180-iteration poll loops bound poll *count*, not any single call's duration. **The Claude leg is the exception to the "bounded call" reading:** its `--max-time` now bounds a long-lived streaming transfer, so it caps total generation time rather than a round trip, and because that call is piped its transport status must be read from `PIPESTATUS`, never from `$?`. Every submit (POST) response is checked for a valid ID and no `error` body before the poll loop is entered; a failed submit exits immediately instead of polling a nonexistent job.
 
 ---
 
 ## Anthropic Claude Protocol
 
-Synchronous — a single call, no polling. Adaptive-thinking requests at higher depths can legitimately run several minutes, so this leg gets a longer `--max-time` than the other providers' individual calls.
+Streaming — one long-lived call, no polling. There is still exactly one request, but the reply arrives as a `text/event-stream` and is consumed incrementally: `curl` is piped into the bundled `research-sse` accumulator, which folds the events back into report text and returns its verdict as an **exit status**. Adaptive-thinking requests at higher depths can legitimately run several minutes, so this leg gets a longer `--max-time` than the two polling legs' individual calls — and here that budget covers the whole generation, not a round trip.
 
 **Thinking configuration — do not reintroduce `budget_tokens`.** `thinking: {"type": "enabled", "budget_tokens": N}` was **removed** from the API (not deprecated) and returns HTTP 400 on every current model, including `claude-opus-5` and `claude-opus-4-8`. Depth is controlled by `output_config.effort` instead. `effort` and `max_tokens` are both substituted from the depth ladder in `research-models.md`; `max_tokens` is a hard ceiling on thinking **plus** response text, so the two move together.
 
-**Request** (use Bash):
+**Request** (use Bash — this block reads the `PIPESTATUS` array, so run it as one bash invocation, top to bottom; splitting it across calls loses the transport status):
 
 ```bash
-HTTP_CODE=$(curl -s -o /tmp/claude-research-response-[TIMESTAMP].json -w '%{http_code}' \
+PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(find ~ -path '*/plugins/personal-plugin' -type d 2>/dev/null | head -1)}"
+TOOL_SRC="$PLUGIN_DIR/tools/research-sse/src"
+BODY=/tmp/claude-research-body-[TIMESTAMP].md
+META=/tmp/claude-research-meta-[TIMESTAMP].txt
+HDR=/tmp/claude-research-headers-[TIMESTAMP].txt
+CURLERR=/tmp/claude-research-curl-[TIMESTAMP].txt
+
+# Preflight. The exit codes this block branches on are a CONTRACT, and this
+# file's copy of that contract is a label, not the thing itself. Confirm the
+# tool still implements it before spending a multi-minute request on it.
+PYTHONPATH="$TOOL_SRC" python3 -c 'import research_sse.accumulator as a
+want = {"EXIT_OK": 0, "EXIT_REFUSAL": 4, "EXIT_INCOMPLETE": 5,
+        "EXIT_STREAM_ERROR": 6, "EXIT_NO_STREAM": 7, "EXIT_EMPTY_OUTPUT": 8}
+drift = {k: (v, getattr(a, k, None)) for k, v in want.items() if getattr(a, k, None) != v}
+raise SystemExit("research-sse exit contract drifted (want, got): %r" % drift if drift else 0)' \
+  || { echo "Anthropic request aborted: research-sse preflight failed"; exit 1; }
+
+curl -sS --no-buffer --dump-header "$HDR" \
   --max-time 900 --connect-timeout 10 \
   https://api.anthropic.com/v1/messages \
   -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
   -H "content-type: application/json" \
   -d '{
+    "stream": true,
     "model": "[RESOLVED_CLAUDE_MODEL]",
     "max_tokens": [MAX_TOKENS],
     "thinking": {
@@ -36,41 +54,74 @@ HTTP_CODE=$(curl -s -o /tmp/claude-research-response-[TIMESTAMP].json -w '%{http
       "role": "user",
       "content": "[ESCAPED RESEARCH PROMPT]"
     }]
-  }')
-CURL_EXIT=$?
+  }' 2>"$CURLERR" \
+  | PYTHONPATH="$TOOL_SRC" python3 -m research_sse >"$BODY" 2>"$META"
+PIPE=("${PIPESTATUS[@]}")   # MUST be the very next statement. Any command in
+CURL_EXIT=${PIPE[0]}        # between overwrites it, and a bare `$?` here would
+ACC_EXIT=${PIPE[1]}         # report only the accumulator — a timeout, DNS
+                            # failure or connection reset would go invisible.
 
-# Fast-fail before parsing. Four distinct failure modes, only three of which are
-# visible in the HTTP status:
-#   1. curl-level failure (timeout, DNS, connection reset)
-#   2. an HTTP error status
-#   3. an `error` body
-#   4. a SAFETY REFUSAL — HTTP 200, no `error` key, `stop_reason: "refusal"`, and
-#      content that is empty (declined before output) or partial (declined mid-stream).
-#      Without this check the leg writes a silently empty research report.
-CHECK=$(python3 -c "import json
-try:
-    d = json.load(open('/tmp/claude-research-response-[TIMESTAMP].json'))
-    if not isinstance(d, dict):
-        print('unparseable response body')
-    elif d.get('error'):
-        print(d['error'].get('message', 'unknown API error'))
-    elif d.get('stop_reason') == 'refusal':
-        det = d.get('stop_details') or {}
-        print('request declined by safety classifiers (category=%s)' % det.get('category'))
-    else:
-        print('')
-except Exception:
-    print('unparseable response body')")
+# Diagnostics only. The header status arrives BEFORE any content, so 200 is not
+# evidence of a complete response; ACC_EXIT is the verdict.
+HTTP_CODE=$(awk 'toupper($1) ~ /^HTTP\// {c=$2} END {print c+0}' "$HDR" 2>/dev/null)
+DIAG=$(grep -v '^research-sse-meta:' "$META" 2>/dev/null | tr '\n' ' ')
 
-if [ "$CURL_EXIT" -ne 0 ] || [ "$HTTP_CODE" -ge 400 ] || [ -n "$CHECK" ]; then
-  echo "Anthropic request failed: curl_exit=$CURL_EXIT http=$HTTP_CODE${CHECK:+ error=\"$CHECK\"}"
+# 1. Transport. Detected across the pipe, which is the whole point of PIPESTATUS.
+if [ "$CURL_EXIT" -ne 0 ]; then
+  rm -f "$BODY"
+  echo "Anthropic request failed: transport curl_exit=$CURL_EXIT header_http=$HTTP_CODE $(tr -d '\r\n' < "$CURLERR")"
   exit 1
 fi
+
+# 2. Stream verdict. Every non-zero code discards the body — a partial refusal
+#    sentence or a half-written section is worse than no report at all.
+if [ "$ACC_EXIT" -ne 0 ]; then
+  case "$ACC_EXIT" in
+    4) WHY="SAFETY REFUSAL — partial output discarded, never written" ;;
+    5) WHY="stream died mid-flight, no terminal event (header_http=$HTTP_CODE proves nothing here)" ;;
+    6) WHY="error event on the stream" ;;
+    7) WHY="not a stream: empty body, or a plain JSON error object carrying the API message" ;;
+    8) WHY="stream completed but produced zero text" ;;
+    1|2) WHY="research-sse internal or usage error" ;;
+    *) WHY="unrecognized research-sse exit status — treat as failure" ;;
+  esac
+  rm -f "$BODY"
+  echo "Anthropic request failed: acc_exit=$ACC_EXIT ($WHY) header_http=$HTTP_CODE $DIAG"
+  exit 1
+fi
+
+# 3. Success (exit 0 covers BOTH a normal completion and truncation at the
+#    ceiling). The truncation marker is metadata, never an exit status.
+TRUNCATED=$(sed -n 's/^research-sse-meta: //p' "$META" | python3 -c 'import json, sys
+try:
+    print("true" if json.load(sys.stdin).get("truncated") else "false")
+except Exception:
+    print("unknown")')
+echo "Anthropic request ok: header_http=$HTTP_CODE truncated=$TRUNCATED body=$BODY"
 ```
 
-**Parse:** Extract the `text` content blocks (skip `thinking` blocks) from `/tmp/claude-research-response-[TIMESTAMP].json`. Thinking blocks arrive with empty text by default on current models (`thinking.display` defaults to `"omitted"`), which is fine — this leg discards them either way. Write findings to `reports/research-claude-[TIMESTAMP].md` using the Write tool with this structure.
+**Exit-status contract.** Branch on `$ACC_EXIT` and nothing else. Do not re-derive the outcome from a field in the payload, and do not invent extra checks:
 
-A `stop_reason` of `"max_tokens"` is **not** a failure — the content is real, just cut short at the depth ceiling. Keep the findings, but append a `> **Note:** response truncated at the depth ceiling (`stop_reason: max_tokens`); consider a deeper `--depth`.` line to the report so synthesis does not read a truncated section as a complete one.
+| `$ACC_EXIT` | Meaning | Action |
+|---|---|---|
+| 0 | Complete, non-refusal, non-empty — **covers both a normal completion and truncation at the ceiling** | Keep `$BODY`; read `$TRUNCATED` to decide on the note |
+| 1 / 2 | `research-sse` internal or usage error | Fail the leg |
+| 3 | Reserved, never emitted | — |
+| 4 | Safety refusal; category (possibly `unknown`) on stderr | **Fail loudly and DISCARD `$BODY`** — it may hold a partial refusal sentence |
+| 5 | Completeness sentinel — no terminal event ever resolved | Fail. The mid-flight-death case the header status cannot see |
+| 6 | `error` event on the stream | Fail |
+| 7 | Not a stream at all — empty body, or a plain JSON error object | Fail; `$DIAG` carries the API error text |
+| 8 | Completed normally but produced zero text | Fail — an empty report is never a success |
+
+**The refusal guard now lives in the exit status, not in a field lookup.** Under streaming the terminal reason arrives inside a `message_delta` event, so the old top-level field lookup would still compile, still read correctly, and never fire — silently writing an empty research report on every refusal. Exit 4 is the only refusal signal this leg reads.
+
+**A 200 header is not success.** The status line arrives before any content, so a stream that opens cleanly and then dies mid-flight still reports 200. Exit 5 is the only thing that catches that, which is why `$HTTP_CODE` appears in diagnostics and never in a success test.
+
+**Parse:** nothing to parse — `$BODY` already *is* the report text. `research-sse` concatenates the `text` content blocks in block-index order and skips reasoning blocks on two independent gates (delta type and block type), so thinking never reaches the report regardless of `thinking.display`. Read `$BODY` and write findings to `reports/research-claude-[TIMESTAMP].md` using the Write tool with this structure. Never attempt to salvage text from a failed run.
+
+**Truncation** at the depth ceiling is **not** a failure and exits 0 — the content is real, just cut short. It is signalled by the `truncated` marker in the metadata line (surfaced above as `$TRUNCATED`), never by the exit status. When it is `true`, keep the findings and append a `> **Note:** response truncated at the depth ceiling; consider a deeper `--depth`.` line to the report so synthesis does not read a truncated section as a complete one. If `$TRUNCATED` came back `unknown` the metadata line was unreadable — append the note anyway; over-warning synthesis is far cheaper than presenting a cut-off section as complete.
+
+**Forward compatibility:** an unrecognized event type, content-block type, or delta type is **ignored, never fatal**. It is recorded in the metadata line (`unknown_event_types`, `unknown_block_types`) and the run still succeeds, so a block type added after this file was written degrades to "absent from the report", not "leg crashed". When a report looks unexpectedly thin, read the `research-sse-meta:` line in `$META` and enumerate the keys the tool actually emitted — do not parse for the subset restated here.
 
 ```markdown
 # Claude Research: [topic]
