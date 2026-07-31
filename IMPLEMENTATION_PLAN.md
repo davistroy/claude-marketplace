@@ -1,7 +1,7 @@
 # Implementation Plan
 
 **Generated:** 2026-07-31
-**Completed:** [set by /implement-plan on finalization]
+**Completed:** 2026-07-31
 **Based On:** `/ultra-plan` over the 5-issue remainder (#200, #199, #238, #216, #198), LAB_NOTEBOOK E067. Phase 1 dispatched **6 parallel Explore agents** clustered by shared code path. **Every cluster returned corrections**, two of them by reading the shipped Claude Code binary rather than inferring from prose. This plan encodes the *investigated* shape of each item, not the filed text — in several cases the investigated shape is the opposite of the filed one. Prior plan (close-the-loop + hygiene, 18/19 COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v13.md`.
 **Total Phases:** 8
 **Estimated Total Effort:** ~30 work sites across ~40 files — predominantly markdown behavior-surfaces, plus one new bundled Python tool with an offline fixture suite, one new CI gate, and one backward-compatible config change in `visual-explainer`
@@ -173,7 +173,7 @@ Remove the live keyword from both component bodies and from the generator templa
 
 #### 2.1 Remove the bare keyword from `ultra-plan` and decide its `effort:` ✅ Completed 2026-07-31
 
-**Status:** COMPLETE 2026-07-31
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1
 **Depends On:** None
@@ -1203,9 +1203,9 @@ Ship the versions and close the issues with their corrections recorded, so the n
 
 ### Work Items
 
-#### 8.1 Version bump and CHANGELOG
+#### 8.1 Version bump and CHANGELOG ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Depends On:** Phases 1–7
 **Files Affected:**
@@ -1230,9 +1230,9 @@ Bump only the plugins with genuine changes; never issue an empty coordinated bum
 - [ ] No unchanged plugin is bumped
 - [ ] Manifest and marketplace versions agree for every plugin
 
-#### 8.2 Close the five issues with corrections
+#### 8.2 Close the five issues with corrections ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Depends On:** 8.1
 **Files Affected:**
