@@ -79,7 +79,7 @@ Proceeding with analysis...
 
 **Step 4: Confirm scope (unless `--no-prompt`)**
 
-For transcripts under 30K tokens, proceed directly to analysis. For larger transcripts, see Context Management below.
+Proceed directly to analysis. If the transcript exceeds approximately 60% of available context, the Context Management strategy below applies automatically before analysis begins.
 
 ## Error Handling
 
@@ -93,32 +93,24 @@ Validate the transcript before beginning analysis:
 | Binary file | File contains non-text data | "Error: [path] appears to be a binary file. Provide a text transcript (.txt, .md, .vtt, .srt)." |
 | Unsupported format | File is .pdf, .docx, .xlsx, etc. | "Error: Unsupported format ([ext]). Supported: .txt, .md, .vtt, .srt, .html. For Word documents, use /convert-markdown first." |
 | No actionable content | Text is present but contains no identifiable meeting content | "Warning: No actionable meeting content detected (no speakers, decisions, or action items found). The file may not be a transcript. Proceed anyway? (yes/no)" |
-| Transcript too large | Content exceeds 50K tokens | See Context Management section below. Do not fail — process in sections. |
+| Transcript too large | Content exceeds available context for single-pass analysis | See Context Management section below. Do not fail — apply the structure-first strategy. |
 
 ## Context Management (Large Transcripts)
 
-For transcripts exceeding 30K tokens, process in sections to avoid context window limitations:
+**Context management:** If the transcript exceeds approximately 60% of available context, use this strategy:
 
-**First pass — Extraction:** Read the transcript in chunks (~20K tokens each). From each chunk, extract:
-- Speakers identified
-- Decisions made
-- Action items assigned
-- Risks or issues raised
-- Key discussion topics
-
-**Second pass — Synthesis:** Combine extracted elements across all chunks:
-- Deduplicate speakers and topics that span chunks
-- Merge action items, resolving any duplicates
-- Synthesize discussion points into coherent topic summaries
-- Ensure no decisions or action items are lost at chunk boundaries
+1. Read the transcript's structure first — speaker turns, timestamps, section breaks, or agenda markers — to map the whole conversation before reading any portion in full
+2. Identify which portions carry the highest density of decisions, action items, and risks (agenda items, recap/wrap-up segments, explicit assignments) versus low-density portions (small talk, repeated context-setting, tangents)
+3. Read high-density portions in full; read low-density portions at summary level only, enough to confirm nothing decision-relevant was missed
+4. Produce the same seven-section report at the resolution the source material supports — depth follows density, not position in the transcript — so the whole transcript stays in view throughout, with no chunk boundary at which items can be lost
 
 Report to the user:
 ```text
-Large transcript detected (~85K tokens). Processing in 5 sections.
-  Section 1/5: Extracted 3 topics, 4 action items...
-  Section 2/5: Extracted 2 topics, 2 action items...
-  ...
-Synthesis complete. Proceeding to report generation.
+Large transcript detected. Applying structure-first analysis to manage context.
+  Mapped structure: 6 topic segments, 3 recap points identified
+  High-density segments read in full: 4/6
+  Low-density segments summarized: 2/6
+Analysis complete. Proceeding to report generation.
 ```
 
 ## Instructions
@@ -365,12 +357,12 @@ Report generated: reports/meeting-analysis-20260315-091500.json
 
 | Input Size | Expected Duration |
 |------------|-------------------|
-| Short transcript (< 5K tokens) | 30-60 seconds |
-| Medium transcript (5K-30K tokens) | 1-3 minutes |
-| Large transcript (30K-50K tokens) | 3-5 minutes |
-| Very large transcript (50K+ tokens) | 5-15 minutes (multi-pass chunked processing) |
+| Short transcript (a few pages) | 30-60 seconds |
+| Medium transcript (a typical 1-hour meeting) | 1-3 minutes |
+| Long transcript (a multi-hour session or workshop) | 3-5 minutes |
+| Transcript exceeding approximately 60% of available context | 5-15 minutes (structure-first strategy) |
 
-Duration is dominated by LLM analysis passes. Large transcripts trigger the two-pass extraction/synthesis pipeline described in Context Management, which roughly doubles processing time. JSON output adds negligible overhead versus markdown.
+Duration is dominated by LLM analysis passes. Transcripts exceeding approximately 60% of available context trigger the structure-first strategy described in Context Management, which reads high-density portions in full and summarizes the rest. JSON output adds negligible overhead versus markdown.
 
 ## Related Commands
 

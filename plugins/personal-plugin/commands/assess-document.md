@@ -69,7 +69,7 @@ Before starting the assessment, validate the input file:
 | File not found | File does not exist at specified path | Display: "Error: File not found: [path]. Check the path and try again." |
 | Empty file | File exists but has zero content | Display: "Error: File is empty: [path]. Nothing to assess." |
 | Binary file | File contains non-text content (images, executables, archives) | Display: "Error: [path] appears to be a binary file. This command only assesses text documents (markdown, text, HTML, etc.)." |
-| File too large | File exceeds context window capacity (~100K tokens) | Display: "Warning: [path] is very large (X lines). Assessment will focus on the first N sections. Consider splitting the document for a thorough review." |
+| File too large | File exceeds available context capacity | Use the context management strategy from Instructions step 1 ("Read and Analyze the Document"). Display: "Warning: [path] is very large (X lines). Assessment will use a structure-first strategy. Consider splitting the document for a thorough review." |
 | Unsupported format | File extension is not a text format (.pdf, .docx, .xlsx) | Display: "Error: Unsupported format ([ext]). Supported formats: .md, .txt, .html, .rst, .adoc. For Word documents, use /convert-markdown first." |
 
 ## Input
@@ -85,6 +85,14 @@ Thoroughly read the specified document from start to finish. Build a mental mode
 - Its structure and organization
 - The key concepts, requirements, or information it conveys
 - How sections relate to each other
+
+**Context management:** If the document exceeds approximately 60% of available context, use this strategy:
+1. Read the document's structure first (table of contents, headings, and the first paragraph of each section)
+2. Identify which sections carry the most content weight — the largest, most complex, or most central to the document's stated purpose
+3. Read the highest-weight sections in full; for lower-priority sections, sample representative paragraphs rather than reading them in their entirety
+4. Note in the Executive Summary which sections received full analysis versus sampled analysis, so scores reflect the coverage actually performed
+
+If even the structure-first approach exceeds context, stop and report: "Document is too large to assess in a single pass, even with reduced-context strategies. Consider splitting the document into sections and assessing each separately."
 
 ### 2. Evaluate Against Quality Dimensions
 
@@ -451,7 +459,7 @@ Full assessment saved to: reports/assessment-PRD-20260110-143052.md (Markdown fo
 | Short document (< 500 lines) | 30-60 seconds |
 | Medium document (500-2,000 lines) | 1-3 minutes |
 | Large document (2,000-5,000 lines) | 3-7 minutes |
-| Very large document (5,000+ lines) | 7-15 minutes (may focus on first N sections) |
+| Document exceeding 60% of available context | 7-15 minutes (structure-first strategy — see Context management under Instructions step 1) |
 
 Duration scales with document length and the number of dimensions evaluated. Using `--focus` to limit dimensions reduces time roughly proportionally. JSON output adds negligible overhead versus markdown.
 

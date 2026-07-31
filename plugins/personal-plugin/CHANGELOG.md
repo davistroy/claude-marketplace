@@ -19,6 +19,13 @@ Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #1
 
   Deliberately **not** downgraded, each for a stated reason: `ship` (contains a code-review-and-fix loop and can push and merge), `jetson-recon` (declares a trust boundary against untrusted web content), `wiki` (cross-page synthesis), `develop-image-prompt` (creative composition), and `visual-explainer` (decides what to depict before billing per image).
 
+### Fixed
+- Stale absolute context thresholds in four components, replaced with relative triggers and concretely-specified degradation strategies rather than larger numbers.
+  - `analyze-transcript` was **internally contradictory**: a 50K "too large" threshold sat above a 30K chunking trigger, so the 50K row fired nothing the 30K row had not, and the 30K–50K band was simultaneously "not too large" and chunked. Seven coupled sites now share one relative trigger, and split-and-reconcile chunking is replaced by a structure-first strategy that degrades **resolution rather than scope** — which removes the chunk boundaries the old strategy then needed a separate instruction to stop losing items at.
+  - `assess-document` claimed ~100K was "context window capacity" and degraded to "the first N sections" where **N was never bound anywhere in the file**. Raising the number would have fixed nothing; the undefined path is the defect. Now delegates to a numbered strategy at the point of work, with a terminal fallback.
+  - `plan-improvements` loses its absolute Context Budget table. Every row summed to exactly 100K, modelling a fixed split between reading and writing — but input context grew to 1M while per-response output did not, so the Output Reserve column was bounded by max output tokens and rescaling it would have produced a meaningless number. Deleted, not rescaled, in favour of the file's existing percentage-based strategy.
+  - `summarize-feedback` keeps its >100-entry warning, **re-stated as an operation-cost warning** — the skill makes one API fetch per entry, so the threshold was always about round-trips and wall-clock, not context. The context-driven batch-by-25 pass and its meta-synthesis stage are removed, along with the interaction option that offered them.
+
 ## [11.9.0] - 2026-07-30
 
 Mitigations for #232 — a session serving a stale skill body against a current bundled tool. Characterized in LAB_NOTEBOOK Entry 066; the root cause is **not** an upstream loader bug.

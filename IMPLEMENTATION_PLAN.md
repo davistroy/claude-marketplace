@@ -446,9 +446,9 @@ Fix the four sites that carry real absolute thresholds, adopting the in-repo exe
 
 ### Work Items
 
-#### 4.1 `analyze-transcript` — seven sites, moved together
+#### 4.1 `analyze-transcript` — seven sites, moved together ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #200 site 1 (under-scoped by 4 sites)
 **Depends On:** None
@@ -465,26 +465,26 @@ Adopt the exemplar's full four-part shape: a relative trigger placed inline at t
 
 **Tasks:**
 
-1. [ ] Replace the absolute triggers at `:82`, `:96`, `:100`, `:102` with a single relative trigger, resolving the 30K/50K contradiction to one threshold.
-2. [ ] Replace the split-and-reconcile strategy with a structure-first strategy modelled on the exemplar's four numbered steps.
-3. [ ] Update the user-visible example string at `:117` so it no longer implies a token-band calculation.
-4. [ ] Re-key the performance table at `:368-371` and the note at `:373` to the relative phrase.
-5. [ ] Confirm the boundary-loss warning at `:113` is either removed as moot or retained deliberately with a reason.
+1. [x] Replace the absolute triggers at `:82`, `:96`, `:100`, `:102` with a single relative trigger, resolving the 30K/50K contradiction to one threshold.
+2. [x] Replace the split-and-reconcile strategy with a structure-first strategy modelled on the exemplar's four numbered steps.
+3. [x] Update the user-visible example string at `:117` so it no longer implies a token-band calculation.
+4. [x] Re-key the performance table at `:368-371` and the note at `:373` to the relative phrase.
+5. [x] Confirm the boundary-loss warning at `:113` is either removed as moot or retained deliberately with a reason.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the file is read THEN it SHALL contain no absolute token threshold governing chunking
-- [ ] WHEN the file is read THEN exactly one trigger condition SHALL govern the degradation path (no second, differently-numbered trigger)
-- [ ] WHEN the degradation strategy is read THEN it SHALL specify concrete numbered steps, not a bare instruction
-- [ ] The output report's seven fixed sections are unchanged
+- [x] WHEN the file is read THEN it SHALL contain no absolute token threshold governing chunking
+- [x] WHEN the file is read THEN exactly one trigger condition SHALL govern the degradation path (no second, differently-numbered trigger)
+- [x] WHEN the degradation strategy is read THEN it SHALL specify concrete numbered steps, not a bare instruction
+- [x] The output report's seven fixed sections are unchanged
 
 **Notes:**
 
 Moving three of seven sites leaves the file contradicting itself more than it already does.
 
-#### 4.2 `assess-document` — replace an undefined fallback with a strategy
+#### 4.2 `assess-document` — replace an undefined fallback with a strategy ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #200 site 2 (understated)
 **Depends On:** None
@@ -499,24 +499,24 @@ Worse than filed, in a way that changes the remedy. `:72` calls ~100K "context w
 
 **Tasks:**
 
-1. [ ] Add a relative-trigger context-management block at the point of work, with concrete numbered degradation steps.
-2. [ ] Rewrite `:72` to delegate to that block and carry no number and no undefined variable.
-3. [ ] Rewrite `:454` to match.
-4. [ ] Define a terminal fallback for the case where even the degraded strategy exceeds context, as the exemplar does.
+1. [x] Add a relative-trigger context-management block at the point of work, with concrete numbered degradation steps.
+2. [x] Rewrite `:72` to delegate to that block and carry no number and no undefined variable.
+3. [x] Rewrite `:454` to match.
+4. [x] Define a terminal fallback for the case where even the degraded strategy exceeds context, as the exemplar does.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the file is read THEN no instruction SHALL reference an unbound variable such as "the first N sections"
-- [ ] WHEN the degradation path is triggered THEN a concrete, numbered strategy SHALL be available at the point of work
-- [ ] WHEN even the degraded strategy is insufficient THEN a terminal fallback message SHALL be specified
+- [x] WHEN the file is read THEN no instruction SHALL reference an unbound variable such as "the first N sections"
+- [x] WHEN the degradation path is triggered THEN a concrete, numbered strategy SHALL be available at the point of work
+- [x] WHEN even the degraded strategy is insufficient THEN a terminal fallback message SHALL be specified
 
 **Notes:**
 
 The property to assert is "no unbound variable in an instruction," not "the number changed."
 
-#### 4.3 `plan-improvements` — delete the absolute budget table, touch nothing else
+#### 4.3 `plan-improvements` — delete the absolute budget table, touch nothing else ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #200 site 3b (the only genuinely stale part of that file)
 **Depends On:** Phase 2.2
@@ -533,25 +533,25 @@ The property to assert is "no unbound variable in an instruction," not "the numb
 
 **Tasks:**
 
-1. [ ] Delete the Context Budget table at `:414-421` and replace it with a pointer to `:53`'s relative strategy.
-2. [ ] Leave `:53`, `:447`, and `:55` unmodified.
-3. [ ] Leave `:274-300` unmodified.
-4. [ ] Leave `:4`, `:34` (already handled in Phase 2.2), and `:350` unmodified.
+1. [x] Delete the Context Budget table at `:414-421` and replace it with a pointer to `:53`'s relative strategy.
+2. [x] Leave `:53`, `:447`, and `:55` unmodified.
+3. [x] Leave `:274-300` unmodified.
+4. [x] Leave `:4`, `:34` (already handled in Phase 2.2), and `:350` unmodified.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the file is read THEN no absolute-token budget table SHALL remain
-- [ ] Lines `:53`, `:55`, `:274-300`, and `:447` are byte-identical to `main`
-- [ ] `:4` still reads `effort: max`
-- [ ] The `/implement-plan` phase-size contract stated at `:300` is intact
+- [x] WHEN the file is read THEN no absolute-token budget table SHALL remain
+- [x] Lines `:53`, `:55`, `:274-300`, and `:447` are byte-identical to `main`
+- [x] `:4` still reads `effort: max`
+- [x] The `/implement-plan` phase-size contract stated at `:300` is intact
 
 **Notes:**
 
 This file is touched by three issues at four regions. Phase 2.2 has already landed its edit; this item must not disturb it.
 
-#### 4.4 `summarize-feedback` — decouple the entry warning from the batching
+#### 4.4 `summarize-feedback` — decouple the entry warning from the batching ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #200 site 4 (half wrong as filed)
 **Depends On:** None
@@ -566,18 +566,18 @@ Keep the warning; drop the mandatory batching, which was context-driven and is n
 
 **Tasks:**
 
-1. [ ] Retain the >100-entry warning, re-stated as an operation-cost warning (round-trips and wall-clock), not a context warning.
-2. [ ] Remove the mandatory batch-by-25 processing and the meta-synthesis pass it forces.
-3. [ ] Update the interaction payload so it no longer offers a mode the skill no longer describes.
-4. [ ] Leave `:95` unmodified.
-5. [ ] Update the performance table rows that reference the removed pass.
+1. [x] Retain the >100-entry warning, re-stated as an operation-cost warning (round-trips and wall-clock), not a context warning.
+2. [x] Remove the mandatory batch-by-25 processing and the meta-synthesis pass it forces.
+3. [x] Update the interaction payload so it no longer offers a mode the skill no longer describes.
+4. [x] Leave `:95` unmodified.
+5. [x] Update the performance table rows that reference the removed pass.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN entry count exceeds 100 THEN the skill SHALL still warn about run duration and API round-trips
-- [ ] WHEN the skill runs THEN it SHALL NOT mandate a fixed batch size for context reasons
-- [ ] The interaction payload offers no option the body does not describe
-- [ ] `:95` is byte-identical to `main`
+- [x] WHEN entry count exceeds 100 THEN the skill SHALL still warn about run duration and API round-trips
+- [x] WHEN the skill runs THEN it SHALL NOT mandate a fixed batch size for context reasons
+- [x] The interaction payload offers no option the body does not describe
+- [x] `:95` is byte-identical to `main`
 
 **Notes:**
 
@@ -589,10 +589,10 @@ For each file, assert the *property* — no absolute token threshold governs a d
 
 ### Phase 4 Completion Checklist
 
-- [ ] All four items COMPLETE
-- [ ] `prime/SKILL.md` untouched (misfiled in #200 — it is a wall-clock table)
-- [ ] `finish-document.md:311-312` untouched (human interaction checkpoints, not context)
-- [ ] `consolidate-documents.md` and `define-questions.md` untouched (they are the exemplars)
+- [x] All four items COMPLETE
+- [x] `prime/SKILL.md` untouched (misfiled in #200 — it is a wall-clock table)
+- [x] `finish-document.md:311-312` untouched (human interaction checkpoints, not context)
+- [x] `consolidate-documents.md` and `define-questions.md` untouched (they are the exemplars)
 - [ ] Version bumped and CHANGELOG entry added
 
 ### Definition of Done (Runnable)
@@ -603,7 +603,7 @@ For each file, assert the *property* — no absolute token threshold governs a d
 |---|---|---|
 | Must-not-touch set intact | `git diff --quiet main -- plugins/personal-plugin/skills/prime/SKILL.md plugins/personal-plugin/commands/finish-document.md plugins/personal-plugin/commands/consolidate-documents.md plugins/personal-plugin/commands/define-questions.md` | exit 0 |
 | `plan-improvements` relative trigger preserved | `grep -q '60% of available context' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
-| `plan-improvements` absolute table gone | `! grep -qE '^\| (Small\|Medium\|Large\|Very Large) \(' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
+| `plan-improvements` absolute table gone | `! grep -q 'Output Reserve' plugins/personal-plugin/commands/plan-improvements.md` | exit 0. **Row corrected during execution.** As authored it was `! grep -qE '^\| (Small\|Medium\|Large\|Very Large) \('`, which matches TWO tables — the absolute context-budget table this item deletes *and* a wall-clock duration table that legitimately survives — so it returned exit 1 against a correctly-completed item. `Output Reserve` is the column that made the table absolute, so it is the derived property. |
 | Phase-size contract intact | `grep -q 'subagent with finite context' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
 | `summarize-feedback` relative trigger preserved | `grep -q '60% of estimated context window' plugins/personal-plugin/skills/summarize-feedback/SKILL.md` | exit 0 |
 | No unbound-N instruction | `! grep -qE 'first N sections' plugins/personal-plugin/commands/assess-document.md` | exit 0 |
