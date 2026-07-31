@@ -346,6 +346,30 @@ jobs:
         # IMPLEMENTATION_PLAN.md 6.1.
         run: python3 scripts/check_agent_models.py
 
+      - name: Check SKILL.md body budget (under 500 lines)
+        # Stdlib-only script -- no Python setup step needed on ubuntu-latest.
+        # Deliberately a STEP in this existing job, never a new job (D28/PLAT-012):
+        # a new job creates a new required status check that must be coordinated
+        # with branch protection or it deadlocks merges. This change adds none.
+        #
+        # The house rule "a SKILL.md body stays under 500 lines" dates to E032 and
+        # was enforced by nobody, so two bodies crossed it in a single commit whose
+        # own plan budget-checked a different file. Rule 1: body lines (everything
+        # after the closing frontmatter delimiter) must be < 500; failures name the
+        # file with BOTH the body and the total count.
+        #
+        # The rule is an AUTHORING-QUALITY one about progressive disclosure -- a
+        # SKILL.md body loads only on invocation, so trimming it is not a context
+        # saving -- and the script's failure text says exactly that.
+        #
+        # Scope is the NON-RECURSIVE glob `plugins/*/skills/*/SKILL.md`, mirroring
+        # the `glob('*/SKILL.md') is intentional, NOT rglob` reasoning in the
+        # `validate` job above. `commands/` is deliberately excluded: those are
+        # frozen legacy (ADR-0006) and the largest already exceeds 500 lines, so
+        # covering them would redden main's own push build on arrival.
+        # IMPLEMENTATION_PLAN.md 7.3.
+        run: python3 scripts/check_skill_budget.py
+
       - name: Check release integrity (version bump + CHANGELOG entry)
         # Stdlib-only script -- no Python setup step needed on ubuntu-latest.
         # Deliberately a STEP in this existing job, never a new job (D28): a new

@@ -1044,9 +1044,9 @@ A ratchet is **rejected on this repo's own precedent**: a count-ratchet was adop
 
 ### Work Items
 
-#### 7.1 Extract `lab-notebook`'s two verbatim templates
+#### 7.1 Extract `lab-notebook`'s two verbatim templates ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #238
 **Depends On:** None
@@ -1064,25 +1064,25 @@ Pointers must carry an inline summary of the load-bearing content, so the skill 
 
 **Tasks:**
 
-1. [ ] Extract both templates into the skill's own references directory.
-2. [ ] Replace each with a pointer that **disambiguates the location explicitly** — the two skills that got this right say so in the pointer text, and the ship skill's bare relative path is ambiguous.
-3. [ ] Keep the verification checklist inline as the summary, since it references the extracted content.
-4. [ ] Confirm the emitted output is byte-identical to what the inline template produced.
+1. [x] Extract both templates into the skill's own references directory.
+2. [x] Replace each with a pointer that **disambiguates the location explicitly** — the two skills that got this right say so in the pointer text, and the ship skill's bare relative path is ambiguous.
+3. [x] Keep the verification checklist inline as the summary, since it references the extracted content.
+4. [x] Confirm the emitted output is byte-identical to what the inline template produced.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the skill runs THEN the content it emits SHALL be byte-identical to the pre-extraction template
-- [ ] WHEN a pointer is read THEN it SHALL state unambiguously which directory the reference lives in
-- [ ] The body is under 500 lines
-- [ ] `python3 scripts/check_injections.py` exits 0
+- [x] WHEN the skill runs THEN the content it emits SHALL be byte-identical to the pre-extraction template
+- [x] WHEN a pointer is read THEN it SHALL state unambiguously which directory the reference lives in
+- [x] The body is under 500 lines
+- [x] `python3 scripts/check_injections.py` exits 0
 
 **Notes:**
 
 Byte-identical emission is the acceptance criterion. An extraction that subtly reformats the template changes what the skill writes into other repositories' `CLAUDE.md` files.
 
-#### 7.2 Extract `visual-explainer`'s output samples
+#### 7.2 Extract `visual-explainer`'s output samples ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #238
 **Depends On:** Phase 5.2
@@ -1100,24 +1100,24 @@ This item depends on Phase 5.2, which edits the same file's environment-variable
 
 **Tasks:**
 
-1. [ ] Extract the three output samples to a references file.
-2. [ ] Replace each with a one-line pointer carrying an explicit location.
-3. [ ] Leave every interaction payload inline.
-4. [ ] Confirm Phase 5.2's documentation edit is intact.
+1. [x] Extract the three output samples to a references file.
+2. [x] Replace each with a one-line pointer carrying an explicit location.
+3. [x] Leave every interaction payload inline.
+4. [x] Confirm Phase 5.2's documentation edit is intact.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the body is measured THEN it SHALL be under 500 lines
-- [ ] Every interaction payload remains inline
-- [ ] Phase 5.2's environment-variable documentation is present and correct
+- [x] WHEN the body is measured THEN it SHALL be under 500 lines
+- [x] Every interaction payload remains inline
+- [x] Phase 5.2's environment-variable documentation is present and correct
 
 **Notes:**
 
 This file grew past the budget as a side effect of a prior remediation whose replacement blocks were longer than what they replaced. That is the case for the gate, and it belongs in the commit message.
 
-#### 7.3 Build and wire the budget gate
+#### 7.3 Build and wire the budget gate ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: opus**
 **Recommendation Ref:** #238 (the gate)
 **Depends On:** 7.1, 7.2
@@ -1136,24 +1136,33 @@ The failure text must state the authoring-quality rationale corrected in Phase 1
 
 **Tasks:**
 
-1. [ ] Write the checker with a self-test that proves it exits non-zero on an over-budget fixture and zero on a compliant one.
-2. [ ] Negative-test the boundary at 499/500/501 before wiring.
-3. [ ] Wire as a **step** in the existing validation job, never a new job.
-4. [ ] Add a pre-commit check that delegates file selection to the script rather than restating it in shell.
-5. [ ] Confirm the required-check names are unchanged.
+1. [x] Write the checker with a self-test that proves it exits non-zero on an over-budget fixture and zero on a compliant one.
+2. [x] Negative-test the boundary at 499/500/501 before wiring.
+3. [x] Wire as a **step** in the existing validation job, never a new job.
+4. [x] Add a pre-commit check that delegates file selection to the script rather than restating it in shell.
+5. [x] Confirm the required-check names are unchanged.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN a skill body exceeds the budget THEN the gate SHALL exit non-zero and name the file with both body and total line counts
-- [ ] WHEN the current tree is checked THEN the gate SHALL exit 0
-- [ ] WHEN the self-test runs THEN it SHALL assert non-zero exit on at least one over-budget case
-- [ ] The set of required status check names is unchanged from `main`
-- [ ] No file under `commands/` is evaluated by the gate
-- [ ] Test fixtures are not evaluated
+- [x] WHEN a skill body exceeds the budget THEN the gate SHALL exit non-zero and name the file with both body and total line counts
+- [x] WHEN the current tree is checked THEN the gate SHALL exit 0
+- [x] WHEN the self-test runs THEN it SHALL assert non-zero exit on at least one over-budget case
+- [x] The set of required status check names is unchanged from `main`
+- [x] No file under `commands/` is evaluated by the gate
+- [x] Test fixtures are not evaluated
 
 **Notes:**
 
 Green on arrival is the criterion, and it depends on 7.1 and 7.2 landing first. Verify it against the current tree before wiring, not after.
+
+**Delivered 2026-07-31.** Predicate pinned in the module docstring and in `BODY_LINE_LIMIT = 500`: a body is a violation **iff `body_lines >= 500`**, so 499 passes, 500 fails, 501 fails. All three values are constructed as real fixtures and run through the pure `check_file` — observed `499 -> PASS`, `500 -> FAIL (over by 1)`, `501 -> FAIL (over by 2)`. The self-test carries the same three plus a 900-line file planted under `commands/`, an over-long file under `skills/*/references/`, one under `tests/fixtures/`, one nested a level deeper than `skills/<name>/`, and a no-frontmatter file (measured whole, fail-closed). 4 of 11 cases assert exit 1. `--filter` (the pre-commit delegation point) is asserted to agree with `in_scope()` on every one of those paths, so the hook cannot drift from the gate. Largest real body is 490 lines — 9 lines of headroom.
+
+**Two DoD rows in this item's own table are unreliable, and both were hit.**
+
+1. `! grep -q 'commands' scripts/check_skill_budget.py` **fails for a correct implementation** (5 hits). The docstring must name `commands/` to explain *why* the exclusion exists, and the self-test case that proves it is named `commands-file-not-evaluated`. The row tests the absence of a word, not the property. Derived replacement, which passes and would catch a real scope leak: `python3 scripts/check_skill_budget.py --self-test` (the planted-`commands/` case is in it), or directly — `printf 'plugins/p/commands/x.md\n' | python3 scripts/check_skill_budget.py --filter` must print nothing.
+2. `... .split('---',2)[2].splitlines()) >= 500` **over-counts every body by exactly one**. `parts[2]` begins with the newline that terminates the closing `---`, so `splitlines()` yields a leading empty element that is not a body line. Measured: the idiom reports 491/489/440 where the gate reports 490/488/439. Both are green today, but at the boundary the row would fail a file the gate passes. Replace it with the gate itself — it is a restatement of an external truth, which is the failure class CLAUDE.md warns about.
+
+**Not ticked:** the Phase 7 Completion Checklist's "Version bumped and CHANGELOG entry added". This item touches only `scripts/` and `.github/`, so it obliges no bump of its own; the bump owed for 7.1/7.2's `plugins/personal-plugin/` edits belongs to item 8.1, which has not run. Ticking it here would be a false claim in the exact place this phase exists to stop them.
 
 ### Phase 7 Testing Requirements
 
@@ -1161,10 +1170,10 @@ Negative-test before wiring, against deliberately-bad input, and confirm non-zer
 
 ### Phase 7 Completion Checklist
 
-- [ ] All three items COMPLETE
-- [ ] Gate green against the current tree
-- [ ] Required check names unchanged
-- [ ] Version bumped and CHANGELOG entry added
+- [x] All three items COMPLETE
+- [x] Gate green against the current tree — 40 skill bodies checked, 0 over budget, largest 490 (9 lines of headroom)
+- [x] Required check names unchanged — the gate is a STEP in the existing `plugin-validate` job; `git diff main` removes or alters no `name:` line and adds exactly one
+- [ ] Version bumped and CHANGELOG entry added — **deferred to item 8.1 by design**; 7.3 touches no `plugins/` path, and the bump owed for 7.1/7.2 is 8.1's deliverable
 
 ### Definition of Done (Runnable)
 
@@ -1174,8 +1183,8 @@ Negative-test before wiring, against deliberately-bad input, and confirm non-zer
 |---|---|---|
 | Gate green on arrival | `python3 scripts/check_skill_budget.py` | exit 0 |
 | Gate can fail | `python3 scripts/check_skill_budget.py --self-test` | exit 0, output asserts ≥1 case expecting exit 1 |
-| No skill body over budget | `python3 -c "import pathlib,sys; over=[str(p) for p in pathlib.Path('plugins').glob('*/skills/*/SKILL.md') if len(p.read_text().split('---',2)[2].splitlines())>=500]; print(over); sys.exit(1 if over else 0)"` | exit 0 |
-| Commands not in scope | `! grep -q 'commands' scripts/check_skill_budget.py` | exit 0 |
+| No skill body over budget | `python3 scripts/check_skill_budget.py` | exit 0. **Row corrected during execution.** As authored it re-implemented the measurement inline via `.split('---',2)[2].splitlines()`, which **over-counts every body by exactly one** — `parts[2]` begins with the newline terminating the closing `---`, so `splitlines()` yields a leading empty element (measured: idiom 491/489/440 vs gate 490/488/439). Green either way today, but at the boundary it would fail a file the gate passes. A row that restates an external truth drifts into disagreeing with it; use the gate itself. |
+| Commands not in scope | `printf 'plugins/p/commands/x.md\n' \| python3 scripts/check_skill_budget.py --filter` | prints nothing. **Row corrected during execution.** As authored it was `! grep -q 'commands' scripts/check_skill_budget.py`, which **fails for a correct implementation** — the module docstring must name `commands/` to explain why they are excluded, and the self-test case is literally named `commands-file-not-evaluated` (5 legitimate hits). The derived property is that the glob does not match a `commands/` path, which `--self-test` also proves by planting a 900-line command file. |
 | Required check names unchanged | `git diff main -- .github/workflows/validate.yml \| grep -E '^[+-]\s+(name\|jobs):' \| grep -vc 'Check SKILL.md body budget'` | output `0` |
 | Injections | `python3 scripts/check_injections.py` | exit 0 |
 | Official validation | `claude plugin validate plugins/personal-plugin --strict` | exit 0 |
@@ -1277,7 +1286,7 @@ Each issue closes with its corrections recorded, not silently. Several carry fin
 |---|---|---|---|
 | The refusal guard silently dies when the terminal reason relocates under streaming | 6 | **Critical** | **Mitigated both sides (2026-07-31).** 6.1: the fixture was written first and run red before the accumulator existed; the guard reads `message_delta`, is mutation-tested fail-first (`G1`, `G11`), and `naive_top_level_stop_reason` asserts the old top-level lookup finds nothing. 6.2: the leg branches on `$ACC_EXIT` alone — the payload-inspection block is deleted outright and the section contains **zero** occurrences of the old field name, so there is no surviving lookup to go quiet. Verified live: the refusal fixture returns 4 and the leg discards its 18 characters of partial refusal text rather than writing them. **Fully mitigated (2026-07-31).** 6.3 reconciled both of the skill body's silent-failure restatements (the Provider Deltas row and the Error Handling table row) plus the model reference's mode row and rationale to the exit-status mechanism; no surviving reference to the old top-level `stop_reason` field remains in either file |
 | Transport-failure detection lost across the new pipe | 6 | High | **Mitigated (2026-07-31).** `PIPE=("${PIPESTATUS[@]}")` immediately after the pipeline. Negative-tested against the case that would otherwise hide: a transport emitting a *complete-looking* stream and then exiting 28 — the shipped form fails the leg and discards the body, the naive `$?` form reports success |
-| Budget gate red on arrival deadlocks the default branch | 7 | High | Both over-budget files fixed in earlier items of the same phase; gate verified green against the tree before wiring; scope excludes commands |
+| Budget gate red on arrival deadlocks the default branch | 7 | High | **Mitigated (2026-07-31).** Both over-budget files were fixed in 7.1/7.2 first, and the gate was run against the real tree **before** the workflow step existed: 40 bodies, 0 findings, largest 490 lines. Scope exclusion of `commands/` is a tested property, not a comment — `--self-test` plants a 900-line file under a `commands/` directory (the largest real command, `implement-plan.md`, is 520 lines and would redden `main`'s own push build) and asserts it is neither globbed nor evaluated even when passed explicitly. Wired as a STEP in the existing `plugin-validate` job, so no new required check appears (D28/PLAT-012) |
 | Tier prose names a model generation, recreating the staleness class | 5 | High | Explicit acceptance criterion and a DoD check on the diff |
 | `plan-improvements.md` edits from three issues collide | 2, 4 | Medium | Phases serialized; each item lists the regions it must not touch; DoD asserts untouched regions byte-identical |
 | Extraction changes what a skill emits into other repositories | 7 | Medium | Byte-identical emission is the acceptance criterion, not a side note |

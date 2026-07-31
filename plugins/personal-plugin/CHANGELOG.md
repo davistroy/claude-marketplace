@@ -33,6 +33,13 @@ Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #1
 
   Transport-failure detection is preserved across the new pipe via `PIPESTATUS` (a bare `$?` after a pipe reports only the accumulator, hiding a timeout or reset), and the HTTP status is now diagnostics-only — it arrives before any content, so a 200 header is not evidence of a complete response.
 
+### Changed
+- Two oversized skill bodies brought back under the 500-line budget by moving bulk to `references/`: `lab-notebook` 541 → 333, `visual-explainer` 518 → 432.
+
+  **`lab-notebook`'s extraction is byte-identity-critical** — it emits its templates into *other repositories'* `CLAUDE.md` files, so a reformatted extraction would silently change what it writes elsewhere. Both extracted templates were verified SHA-256-identical to their pre-extraction form. `visual-explainer` extracted **illustration only, never logic**: the `AskUserQuestion` payloads are behavioural and stay inline, and a plan-display block glued to one was deliberately kept inline for the same reason.
+
+  Note the corrected rationale: this saves **zero** tokens until the skill is invoked, because bodies are not always-loaded. It is an authoring-quality change.
+
 ### Fixed
 - `/research-topic`'s `allowed-tools` omitted **every** interpreter and text-utility grant its own shipped commands invoke — `python3` (which does all JSON parsing, 7 sites), plus `grep`, `sed`, `tail`, `tr`, `cut` and `find`. A dispatch-time-only failure that every offline gate passes; it never surfaced because the prior live verification ran through a standalone probe rather than a real dispatch.
 
