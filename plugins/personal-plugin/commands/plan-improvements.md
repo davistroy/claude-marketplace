@@ -31,7 +31,7 @@ For trivial projects or fresh repositories, ask the user if they want a full imp
 
 ## Instructions
 
-### Phase 1: Deep Codebase Analysis (Ultrathink)
+### Phase 1: Deep Codebase Analysis
 
 Thoroughly analyze the codebase with extended thinking enabled.
 
@@ -411,14 +411,7 @@ If `AGENTS.md` does not exist in the repo root, offer to generate one from CLAUD
 | Large (200-500 files) | 5-10 minutes |
 | Very Large (500+ files) | 10-20 minutes |
 
-**Context Budget:**
-
-| Codebase Size | Analysis Budget | Output Reserve | Sampling? |
-|---------------|-----------------|----------------|-----------|
-| Small (< 50 files) | ~30K tokens | ~70K tokens | No — full read |
-| Medium (50-200 files) | ~50K tokens | ~50K tokens | Yes — sample per module |
-| Large (200-500 files) | ~70K tokens | ~30K tokens | Yes — strict sampling |
-| Very Large (500+ files) | ~70K tokens | ~30K tokens | Yes — strict sampling + Grep-only for low-priority dirs |
+**Context Budget:** Governed by the relative strategy in [Context Management](#context-management-read-this-first) above — reserve at least 40% of available context for output, and stop reading once analysis has consumed over 60% of available context. This scales automatically with context window size rather than assuming a fixed token budget.
 
 **Factors Affecting Performance:**
 - **File count**: More files = longer analysis

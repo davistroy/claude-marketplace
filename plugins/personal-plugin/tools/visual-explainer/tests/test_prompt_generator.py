@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from visual_explainer.config import InternalConfig
 from visual_explainer.models import (
     ConceptAnalysis,
     CriteriaScores,
@@ -466,6 +467,80 @@ class TestConvenienceFunctions:
         with patch("visual_explainer.prompt_generator.anthropic.Anthropic"):
             gen = create_prompt_generator(api_key="test-key")
             assert isinstance(gen, PromptGenerator)
+
+    def test_create_prompt_generator_forwards_config_model(self):
+        """The factory must forward the config's model to the generator.
+
+        The factory accepted an ``internal_config`` carrying ``claude_model`` but
+        constructed the generator without ``model=``, so the configured value was
+        accepted and then silently discarded in favour of ``DEFAULT_MODEL``.
+        """
+        config = InternalConfig(claude_model="configured-generation-model")
+        with patch("visual_explainer.prompt_generator.anthropic.Anthropic"):
+            gen = create_prompt_generator(api_key="test-key", internal_config=config)
+        assert gen.model == "configured-generation-model"
+        assert gen.internal_config is config
+
+    def test_create_prompt_generator_forwards_env_model(self, monkeypatch):
+        """With no explicit config, the factory still honours the env var."""
+        monkeypatch.setenv("VISUAL_EXPLAINER_CLAUDE_MODEL", "env-generation-model")
+        with patch("visual_explainer.prompt_generator.anthropic.Anthropic"):
+            gen = create_prompt_generator(api_key="test-key")
+        assert gen.model == "env-generation-model"
+
+
+class TestLoopModelRouting:
+    """Tests for the loop-vs-one-shot model split.
+
+    Prompt generation is one-shot; prompt refinement runs once per failed attempt
+    inside the generation loop. The refiner therefore resolves through the
+    loop-tier override while the generator does not.
+    """
+
+    def test_refiner_inherits_generator_model_when_override_unset(self):
+        """Backward compatibility: unset override is indistinguishable from before.
+
+        This is the property that matters most. Before the override existed the
+        refiner was constructed with ``model=self.model``; with the override unset
+        it must still receive exactly that -- including when the generator's model
+        was passed explicitly rather than derived from ``claude_model``.
+        """
+        config = InternalConfig(claude_model="base-model")
+        with patch("visual_explainer.prompt_generator.anthropic.Anthropic"):
+            gen = PromptGenerator(
+                api_key="test-key",
+                model="explicit-generation-model",
+                internal_config=config,
+            )
+        assert gen.model == "explicit-generation-model"
+        assert gen.refiner.model == "explicit-generation-model"
+
+    def test_refiner_inherits_default_model_when_override_unset(self):
+        """The same property on the path where the generator model is defaulted."""
+        config = InternalConfig(claude_model="base-model")
+        with patch("visual_explainer.prompt_generator.anthropic.Anthropic"):
+            gen = PromptGenerator(api_key="test-key", internal_config=config)
+        assert gen.refiner.model == gen.model
+
+    def test_refiner_uses_loop_override_and_generation_does_not(self):
+        """A set override moves refinement only, leaving generation on its model."""
+        config = InternalConfig(claude_model="base-model", claude_loop_model="loop-model")
+        with patch("visual_explainer.prompt_generator.anthropic.Anthropic"):
+            gen = PromptGenerator(
+                api_key="test-key",
+                model="explicit-generation-model",
+                internal_config=config,
+            )
+        assert gen.model == "explicit-generation-model"
+        assert gen.refiner.model == "loop-model"
+
+    def test_factory_keeps_generation_on_base_model_under_override(self):
+        """Via the factory, generation stays on claude_model when the loop moves."""
+        config = InternalConfig(claude_model="base-model", claude_loop_model="loop-model")
+        with patch("visual_explainer.prompt_generator.anthropic.Anthropic"):
+            gen = create_prompt_generator(api_key="test-key", internal_config=config)
+        assert gen.model == "base-model"
+        assert gen.refiner.model == "loop-model"
 
 
 class TestNegativePromptCombination:

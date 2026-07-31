@@ -2,7 +2,7 @@
 name: research-topic
 description: Orchestrate parallel deep research across multiple LLM providers using native context:fork subagents and synthesize results. Suggest when — in-depth topic research, multi-provider perspective comparison, well-sourced analysis needed, "deep research"/"research report" keywords, or thorough technical/strategic/emerging topic investigation.
 effort: high
-allowed-tools: Read, Write, Bash(echo:*), Bash(date:*), Bash(command:*), Bash(pandoc:*), Bash(curl:*), WebSearch, WebFetch, Agent
+allowed-tools: Read, Write, Bash(echo:*), Bash(date:*), Bash(command:*), Bash(pandoc:*), Bash(curl:*), Bash(python3:*), Bash(find:*), Bash(grep:*), Bash(sed:*), Bash(tail:*), Bash(tr:*), Bash(cut:*), WebSearch, WebFetch, Agent
 ---
 
 # Multi-Source Deep Research
@@ -195,10 +195,13 @@ Structure your response with:
 | standard | medium | 16,000 | high | high |
 | comprehensive | high | 32,000 | high | high |
 
-Claude's ladder tops out at `high` — not `xhigh`/`max` — because this leg is a single
-non-streaming request. Anthropic requires `max_tokens` >= 64,000 at those levels, which
-cannot finish inside the curl timeout. `high` is Anthropic's recommended minimum for
-intelligence-sensitive work, so the comprehensive tier still sits on a solid floor.
+Claude's ladder tops out at `high` — not `xhigh`/`max` — even though the leg now streams
+(`references/research-provider-protocols.md`). Anthropic still requires `max_tokens` >=
+64,000 at those levels, and the wall-clock budget that constrains it is an estimate, not a
+sourced figure — see `references/research-models.md` for the derivation and its caveat.
+`high` is Anthropic's recommended minimum for intelligence-sensitive work, so the
+comprehensive tier still sits on a solid floor. Widening to `xhigh`/`max` is a separate,
+explicitly descoped change.
 
 **Dispatch subagents in parallel** (one `Agent` call per available provider, `context: fork`, skip providers with missing keys). Instantiate the template below once per provider, substituting its row from the Provider Deltas table. The dispatched subagent Reads `references/research-provider-protocols.md` (relative to this plugin's directory) for its provider's exact request/response shape, polling mechanics, and parse/output steps.
 
@@ -239,10 +242,10 @@ On final line output exactly: `{"provider":"[SLUG]","status":"success","file":"r
 | API key env var | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY` | `GOOGLE_API_KEY` |
 | Model/Agent field (body) | `model` | `model` | `agent` |
 | Resolved var | `[RESOLVED_CLAUDE_MODEL]` | `[RESOLVED_OAI_MODEL]` | `[RESOLVED_GEMINI_AGENT_ID]` |
-| Mode | Synchronous, single call | Async: submit, poll ≤180× @10s, success = `status=="completed"` | Async: submit, poll ≤180× @10s, success = `state=="SUCCEEDED"` |
+| Mode | Streaming: one long-lived call, no polling; verdict is the `research-sse` accumulator's exit status | Async: submit, poll ≤180× @10s, success = `status=="completed"` | Async: submit, poll ≤180× @10s, success = `state=="SUCCEEDED"` |
 | Depth param | `output_config.effort` + `max_tokens` | `reasoning.effort` | `parameters.thinking_level` |
-| Parse target | `text` blocks (skip `thinking`) | `text` output | reply text |
-| Silent-failure check | `stop_reason` — `refusal` returns HTTP 200 with empty/partial content | HTTP status + `error` body | HTTP status + `error` body |
+| Parse target | `$BODY` — already the report text; `research-sse` concatenates `text` blocks and skips `thinking` | `text` output | reply text |
+| Silent-failure check | `$ACC_EXIT` from `research-sse` — exit 4 is a safety refusal (`$BODY` discarded before write), exit 5 is a stream that died mid-flight with no terminal event; exit 0 covers both normal completion and truncation (see `truncated` metadata) | HTTP status + `error` body | HTTP status + `error` body |
 
 Full curl requests, poll loops, and Write-tool output structures for each provider: `references/research-provider-protocols.md`.
 
@@ -255,7 +258,8 @@ Executing Research (parallel subagents)
 [Gemini]  context:fork subagent dispatched...
 
 All three subagents running in parallel. Watch agent-in-progress indicators.
-Note: No real-time streaming progress — results arrive when each subagent completes.
+Note: Claude's leg streams internally, but no subagent surfaces incremental progress
+here — results still arrive only when each subagent completes.
 Expected duration: brief ~2-5 min | standard ~5-15 min | comprehensive ~15-30 min
 ```
 
@@ -362,7 +366,7 @@ Word Count: [N] words
 | Timeout in subagent (>30 min) | Subagent exits; parent proceeds with partial results |
 | Rate limit | Subagent retries with exponential backoff internally |
 | Invalid/empty response | Subagent exits with `"status":"failed"`; parent notes in partial results |
-| Claude safety refusal | HTTP 200 with `stop_reason: "refusal"` and empty/partial content — the subagent treats it as a failure rather than writing an empty report |
+| Claude safety refusal | `research-sse` exits 4 and the leg discards `$BODY` before it is ever written — the subagent fails loudly rather than writing an empty or partial report |
 
 ## Performance
 

@@ -471,8 +471,12 @@ async def _execute_generation_loop(
     image_generator = GeminiImageGenerator(
         internal_config=internal_config,
     )
+    # `claude_model` is the base; the evaluator resolves it through the loop-tier
+    # override internally, exactly as PromptGenerator does for its refiner.
     image_evaluator = ImageEvaluator(
-        model=internal_config.claude_model, pass_threshold=config.pass_threshold
+        model=internal_config.claude_model,
+        pass_threshold=config.pass_threshold,
+        internal_config=internal_config,
     )
 
     suppress_output = quiet or json_output

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.10.0] - 2026-07-31
+
+Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #198), executed against the *investigated* shape of each issue rather than the filed text.
+
+### Removed
+- Two live deep-reasoning prompt injections plus the generator template that minted them. Both fired on every component load; three in-repo surfaces had asserted the mechanism was a no-op.
+
+### Changed
+- `ultra-plan` declares `effort: xhigh` explicitly, replacing an implicit unsanctioned escalation with a sanctioned one rather than de-escalating the skill.
+- Reasoning-effort calibration across 16 components in `personal-plugin` and `slide-gen`. Every change except one is a **downgrade from an effective `high`** — an absent `effort:` field resolves to exactly `high`, so nothing here was under-powered and all three `effort: high` recommendations in the filed issue were no-ops. The single upgrade is `arch-synthesize` (`low` → `medium`).
+- **`/research-topic`'s Claude leg now streams**, with a new bundled `research-sse` accumulator giving the leg its first testable surface. A latent correctness fix, not only an enhancement — the shipped comprehensive tier already ran at double the documented non-streaming output ceiling. The depth ladder is unchanged.
+- Stale absolute context thresholds replaced with relative triggers and named degradation strategies in four components. One was internally contradictory (a "too large" threshold sitting above the chunking trigger it was meant to precede); one degraded to "the first N sections" with `N` unbound anywhere in the file.
+- Tier-routing criteria route on coupling and spec clarity rather than file count, on measured evidence of top-tier over-spend: 15 mid-tier items across two archived plans touched ≥3 files each with **zero** escalations.
+- Two oversized skill bodies trimmed under budget (`lab-notebook` 541 → 333, `visual-explainer` 518 → 432), with byte-identical template emission preserved.
+
+### Added
+- `scripts/check_skill_budget.py` — a SKILL.md body-budget gate, wired as a **step** in the existing validation job. Boundary negative-tested at 499/500/501 by construction; `commands/` deliberately out of scope. Green on arrival by design, because both over-budget files were fixed first.
+- Optional in-loop model override for `visual-explainer`, split on the **loop boundary** rather than the filed evaluation boundary — prompt refinement runs inside the retry loop and the filed split would have stranded it on the expensive tier.
+
+### Fixed
+- `/research-topic` was missing execution grants for **every** interpreter and text utility its own shipped commands invoke. A dispatch-time-only failure that every offline gate passes.
+- `create_prompt_generator()` silently discarded the configured model, falling back to a module constant.
+
+## [slide-gen v1.5.0] - 2026-07-31
+
+### Changed
+- Reasoning-effort calibration across all nine skills: seven thin `sg-*` wrappers to `effort: low`, `sg-full-workflow` to `effort: medium`. Downgrades from an effective `high`, not additions of a missing setting.
+
 ## [personal-plugin v11.9.0] - 2026-07-30
 
 Mitigations for #232 — a long-lived session serves the plugin version it resolved at start-up, so a current bundled tool can be read against a stale skill-body contract.

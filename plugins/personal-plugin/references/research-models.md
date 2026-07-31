@@ -15,7 +15,7 @@ Reference tables for the `/research-topic` skill. Loaded on demand to keep the m
 
 | Provider | Default Model | Endpoint | Mode |
 |----------|---------------|----------|------|
-| Anthropic | claude-opus-5 | /v1/messages | Synchronous (adaptive thinking) |
+| Anthropic | claude-opus-5 | /v1/messages | Streaming (adaptive thinking) |
 | OpenAI | o3-deep-research-2025-06-26 | /v1/responses | Async (background + web_search_preview) |
 | Google | deep-research-pro-preview-12-2025 | /v1beta/interactions | Async (deep-research agent) |
 
@@ -55,13 +55,15 @@ These are the default model identifiers used when environment variable overrides
 every current model. `effort` governs thinking depth and overall token spend, so there is
 no 1:1 translation from the old token budgets; the ladder above was re-derived.
 
-The ladder stops at `high` rather than `xhigh`/`max` because the Claude leg is a single
-**non-streaming** request. Anthropic requires `max_tokens` >= 64,000 at those levels or
-output truncates mid-thought, and 64,000 output tokens at roughly 60 tokens/sec is about
-18 minutes — beyond the leg's `curl --max-time 900` and past the point where idle HTTP
-connections drop. Unlocking `xhigh`/`max` requires converting the leg to streaming.
-`max_tokens` is a ceiling on thinking **plus** response text, which is why it scales with
-effort rather than staying fixed.
+The ladder stops at `high` rather than `xhigh`/`max` even though the Claude leg now
+**streams** (`references/research-provider-protocols.md`). The output-ceiling requirement
+is real and current: Anthropic requires `max_tokens` >= 64,000 at those levels or output
+truncates mid-thought. The wall-clock consequence of that ceiling is an **estimate, not a
+sourced figure** — 64,000 output tokens at roughly 60 tokens/sec would be on the order of
+18 minutes, close to the leg's `curl --max-time 900`. Widening the ladder to `xhigh`/`max`
+is a separate change, explicitly descoped from the streaming conversion. `max_tokens` is a
+ceiling on thinking **plus** response text, which is why it scales with effort rather than
+staying fixed.
 
 ---
 

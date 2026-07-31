@@ -1,5 +1,6 @@
 ---
 name: fleet-health
+effort: low
 description: One-shot, read-only health snapshot across the personal fleet (DGX Spark, Jetson Orin Nano, homeserver, bond, obvm). Checks uptime, load, disk, memory, and each machine's key inference/service endpoints over SSH and curl, then renders a single status table with a pass/fail verdict. Use for a fleet status check, a morning brief before starting work, answering "is the spark available" or similar per-machine availability questions, or any general machine health check across the 5 hosts. Read-only — never restarts, stops, or reconfigures anything on any host.
 allowed-tools: Bash(ssh:*), Bash(curl:*), Bash(wait:*), Read
 ---

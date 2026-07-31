@@ -1,7 +1,7 @@
 # Implementation Plan
 
 **Generated:** 2026-07-31
-**Completed:** [set by /implement-plan on finalization]
+**Completed:** 2026-07-31
 **Based On:** `/ultra-plan` over the 5-issue remainder (#200, #199, #238, #216, #198), LAB_NOTEBOOK E067. Phase 1 dispatched **6 parallel Explore agents** clustered by shared code path. **Every cluster returned corrections**, two of them by reading the shipped Claude Code binary rather than inferring from prose. This plan encodes the *investigated* shape of each item, not the filed text — in several cases the investigated shape is the opposite of the filed one. Prior plan (close-the-loop + hygiene, 18/19 COMPLETE) archived at `docs/archive/IMPLEMENTATION_PLAN-v13.md`.
 **Total Phases:** 8
 **Estimated Total Effort:** ~30 work sites across ~40 files — predominantly markdown behavior-surfaces, plus one new bundled Python tool with an offline fixture suite, one new CI gate, and one backward-compatible config change in `visual-explainer`
@@ -68,9 +68,9 @@ Fix the assertions later phases would otherwise be edited against. Both items ar
 
 ### Work Items
 
-#### 1.1 Correct the "`ultrathink` is a no-op" claim in every live surface
+#### 1.1 Correct the "`ultrathink` is a no-op" claim in every live surface ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1 (inverted)
 **Depends On:** None
@@ -86,24 +86,24 @@ Correct the two **live** surfaces. Do **not** edit `docs/model-optimization-audi
 
 **Tasks:**
 
-1. [ ] Correct `LAB_NOTEBOOK.md:1385`'s "no-op on the current model family" **in place** per Rule 4 — strike through, do not delete, and point at this plan's Phase 2.
-2. [ ] Add a Verified Operational Rule to `CLAUDE.md` stating: the keyword is live and matched case-insensitively with word boundaries against expanded command/skill bodies; it is a **prompt-level attachment**, entirely separate from the `effort` frontmatter field, and the two stack additively; and — per the E061 name-don't-render lesson — prose that *contains* the token inside a skill or command body **fires it**, so the mechanism must be named, never rendered, in any component body.
-3. [ ] Record that the feature is behind a server-controllable gate that currently defaults on, so this is current behaviour and not a stable contract.
+1. [x] Correct `LAB_NOTEBOOK.md:1385`'s "no-op on the current model family" **in place** per Rule 4 — strike through, do not delete, and point at this plan's Phase 2.
+2. [x] Add a Verified Operational Rule to `CLAUDE.md` stating: the keyword is live and matched case-insensitively with word boundaries against expanded command/skill bodies; it is a **prompt-level attachment**, entirely separate from the `effort` frontmatter field, and the two stack additively; and — per the E061 name-don't-render lesson — prose that *contains* the token inside a skill or command body **fires it**, so the mechanism must be named, never rendered, in any component body.
+3. [x] Record that the feature is behind a server-controllable gate that currently defaults on, so this is current behaviour and not a stable contract.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN a reader consults `CLAUDE.md`'s Verified Operational Rules THEN they SHALL find the keyword documented as live, with the frontmatter/attachment distinction stated
-- [ ] WHEN `LAB_NOTEBOOK.md` is read at the corrected line THEN the original claim SHALL still be visible as struck-through text with a pointer, not removed
-- [ ] `docs/model-optimization-audit-opus5-sonnet5-20260728.md` is byte-identical to its state at `main`
-- [ ] No file under `plugins/` is modified by this item
+- [x] WHEN a reader consults `CLAUDE.md`'s Verified Operational Rules THEN they SHALL find the keyword documented as live, with the frontmatter/attachment distinction stated
+- [x] WHEN `LAB_NOTEBOOK.md` is read at the corrected line THEN the original claim SHALL still be visible as struck-through text with a pointer, not removed
+- [x] `docs/model-optimization-audit-opus5-sonnet5-20260728.md` is byte-identical to its state at `main`
+- [x] No file under `plugins/` is modified by this item
 
 **Notes:**
 
 This item is the reason Phase 1 exists. Phase 2 deletes the instances; without this, the next reader re-derives the wrong conclusion from the notebook and re-adds them.
 
-#### 1.2 Correct the "SKILL.md bodies are always-loaded" premise
+#### 1.2 Correct the "SKILL.md bodies are always-loaded" premise ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #238 (premise)
 **Depends On:** None
@@ -121,16 +121,16 @@ Re-frame the rule as **authoring quality** (keep instructions scannable; push bu
 
 **Tasks:**
 
-1. [ ] Rewrite the rationale on `CLAUDE.md`'s body-budget rule: authoring quality, not context economy; description is the always-loaded surface.
-2. [ ] Add a Decision Log row recording the correction, citing E032 as the prior statement the repo lost track of.
-3. [ ] Do **not** delete the line budget — Phase 7 still gates it, on the authoring-quality argument.
+1. [x] Rewrite the rationale on `CLAUDE.md`'s body-budget rule: authoring quality, not context economy; description is the always-loaded surface.
+2. [x] Add a Decision Log row recording the correction, citing E032 as the prior statement the repo lost track of.
+3. [x] Do **not** delete the line budget — Phase 7 still gates it, on the authoring-quality argument.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN `CLAUDE.md`'s body-budget rule is read THEN it SHALL NOT claim the body is loaded every turn
-- [ ] WHEN the rule is read THEN it SHALL state that the `description` is the always-loaded surface
-- [ ] The `<500` figure itself is unchanged (Phase 7 depends on it)
-- [ ] A Decision Log row exists citing E032
+- [x] WHEN `CLAUDE.md`'s body-budget rule is read THEN it SHALL NOT claim the body is loaded every turn
+- [x] WHEN the rule is read THEN it SHALL state that the `description` is the always-loaded surface
+- [x] The `<500` figure itself is unchanged (Phase 7 depends on it)
+- [x] A Decision Log row exists citing E032
 
 **Notes:**
 
@@ -171,9 +171,9 @@ Remove the live keyword from both component bodies and from the generator templa
 
 ### Work Items
 
-#### 2.1 Remove the bare keyword from `ultra-plan` and decide its `effort:`
+#### 2.1 Remove the bare keyword from `ultra-plan` and decide its `effort:` ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1
 **Depends On:** None
@@ -188,24 +188,24 @@ The frontmatter question is **not** "add the missing field" — the skill alread
 
 **Tasks:**
 
-1. [ ] Delete line 9 and any orphaned blank line.
-2. [ ] Add `effort: xhigh` to frontmatter, with a Decision Log entry recording that this replaces an implicit escalation with an explicit, sanctioned one — or leave absent and record *that* choice. Do not add `effort: high`.
-3. [ ] Verify frontmatter still parses with `yaml.safe_load` and carries a full key set — not merely that `--strict` exits 0 (the E061 lesson).
+1. [x] Delete line 9 and any orphaned blank line.
+2. [x] Add `effort: xhigh` to frontmatter, with a Decision Log entry recording that this replaces an implicit escalation with an explicit, sanctioned one — or leave absent and record *that* choice. Do not add `effort: high`.
+3. [x] Verify frontmatter still parses with `yaml.safe_load` and carries a full key set — not merely that `--strict` exits 0 (the E061 lesson).
 
 **Acceptance Criteria:**
 
-- [ ] WHEN `/ultra-plan` is invoked THEN no system-reminder about the keyword SHALL be emitted
-- [ ] WHEN the frontmatter is parsed by `yaml.safe_load` THEN `name`, `description`, and every pre-existing key SHALL still be present
-- [ ] The frontmatter does NOT contain `effort: high`
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+- [x] WHEN `/ultra-plan` is invoked THEN no system-reminder about the keyword SHALL be emitted
+- [x] WHEN the frontmatter is parsed by `yaml.safe_load` THEN `name`, `description`, and every pre-existing key SHALL still be present
+- [x] The frontmatter does NOT contain `effort: high`
+- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
 
 The escalation the keyword was providing is real; deleting it without a replacement is a de-escalation, not a neutral cleanup. Whichever way the decision goes, it must be recorded as a decision.
 
-#### 2.2 Remove the second live site from `plan-improvements`
+#### 2.2 Remove the second live site from `plan-improvements` ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1 (site not identified in the issue)
 **Depends On:** None
@@ -220,26 +220,26 @@ Delete the parenthetical from the heading. Leave `effort: max` alone: whether `m
 
 **Tasks:**
 
-1. [ ] Delete the parenthetical from the `:34` heading, leaving the heading text otherwise unchanged.
-2. [ ] Search the rest of the file for any further occurrence and remove it.
-3. [ ] Do NOT modify `:4`.
-4. [ ] Do NOT modify `:350` (that claim is closed as wrong-as-filed in Phase 5.3).
-5. [ ] Do NOT modify `:414-421` (that is Phase 4.3, and this file is serialized between the two phases).
+1. [x] Delete the parenthetical from the `:34` heading, leaving the heading text otherwise unchanged.
+2. [x] Search the rest of the file for any further occurrence and remove it.
+3. [x] Do NOT modify `:4`.
+4. [x] Do NOT modify `:350` (that claim is closed as wrong-as-filed in Phase 5.3).
+5. [x] Do NOT modify `:414-421` (that is Phase 4.3, and this file is serialized between the two phases).
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the file is loaded as a command body THEN no system-reminder about the keyword SHALL be emitted
-- [ ] `:4` still reads `effort: max`
-- [ ] Lines `:350` and `:414-421` are byte-identical to `main`
-- [ ] The heading at `:34` still names the phase it labels
+- [x] WHEN the file is loaded as a command body THEN no system-reminder about the keyword SHALL be emitted
+- [x] `:4` still reads `effort: max`
+- [x] Lines `:350` and `:414-421` are byte-identical to `main`
+- [x] The heading at `:34` still names the phase it labels
 
 **Notes:**
 
 This is the single most actionable thing in #199, and it exists only because the fan-out disproved the issue's own premise. Both #199 and the E052 audit recommend deleting this line — *because it is dead*. Right action, wrong reason, and the wrong reason is recorded in three files (Phase 1.1 fixes two of them).
 
-#### 2.3 Fix the mould
+#### 2.3 Fix the mould ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1 (ranked lowest in the issue; highest here)
 **Depends On:** 2.2
@@ -254,15 +254,15 @@ This is the fourth consecutive plan in which a generator template has had to be 
 
 **Tasks:**
 
-1. [ ] Remove the parenthetical from `:66`.
-2. [ ] Check the template's own `effort:` value at `:27` and confirm it is a deliberate choice, not an inherited default; leave it unless it is provably wrong.
-3. [ ] Grep the whole of `plugins/` for any remaining occurrence and confirm the count is zero.
+1. [x] Remove the parenthetical from `:66`.
+2. [x] Check the template's own `effort:` value at `:27` and confirm it is a deliberate choice, not an inherited default; leave it unless it is provably wrong.
+3. [x] Grep the whole of `plugins/` for any remaining occurrence and confirm the count is zero.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN a new planning command is generated from this template THEN its body SHALL NOT contain the keyword
-- [ ] Zero occurrences remain anywhere under `plugins/`
-- [ ] `python3 scripts/update-readme.py --check` exits 0 (template changes must not disturb generated inventory)
+- [x] WHEN a new planning command is generated from this template THEN its body SHALL NOT contain the keyword
+- [x] Zero occurrences remain anywhere under `plugins/`
+- [x] `python3 scripts/update-readme.py --check` exits 0 (template changes must not disturb generated inventory)
 
 **Notes:**
 
@@ -309,9 +309,9 @@ Apply only the `effort:` values that produce a behavioural delta. **All three of
 
 ### Work Items
 
-#### 3.1 Apply `effort: low` to the mechanically-bounded components
+#### 3.1 Apply `effort: low` to the mechanically-bounded components ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: haiku**
 **Recommendation Ref:** #199 item 2 (low group)
 **Depends On:** None
@@ -329,23 +329,23 @@ Each of these is a bounded, low-judgment component currently running at the defa
 
 **Tasks:**
 
-1. [ ] Add `effort: low` to each of the 10 files' frontmatter.
-2. [ ] Verify each file's frontmatter still parses with `yaml.safe_load` and retains its full key set.
-3. [ ] Confirm `sg-full-workflow` is NOT modified by this item.
+1. [x] Add `effort: low` to each of the 10 files' frontmatter.
+2. [x] Verify each file's frontmatter still parses with `yaml.safe_load` and retains its full key set.
+3. [x] Confirm `sg-full-workflow` is NOT modified by this item.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN each of the 10 files' frontmatter is parsed THEN `effort` SHALL equal `low` and every pre-existing key SHALL be present
-- [ ] `sg-full-workflow/SKILL.md` is byte-identical to `main`
-- [ ] `claude plugin validate --strict` exits 0 for all three plugins
+- [x] WHEN each of the 10 files' frontmatter is parsed THEN `effort` SHALL equal `low` and every pre-existing key SHALL be present
+- [x] `sg-full-workflow/SKILL.md` is byte-identical to `main`
+- [x] `claude plugin validate --strict` exits 0 for all three plugins
 
 **Notes:**
 
 These are downgrades from an effective `high`, not additions of a missing setting. The commit message must say so.
 
-#### 3.2 Apply `effort: medium` to the defensible orchestrators
+#### 3.2 Apply `effort: medium` to the defensible orchestrators ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: haiku**
 **Recommendation Ref:** #199 item 2 (medium group, re-scoped)
 **Depends On:** None
@@ -364,10 +364,10 @@ These are downgrades from an effective `high`, not additions of a missing settin
 
 **Tasks:**
 
-1. [ ] Add `effort: medium` to the three components currently absent.
-2. [ ] Change `effort: high` → `effort: medium` in the two commands.
-3. [ ] Verify frontmatter integrity on all five with `yaml.safe_load`.
-4. [ ] Confirm none of the five excluded components is modified.
+1. [x] Add `effort: medium` to the three components currently absent.
+2. [x] Change `effort: high` → `effort: medium` in the two commands.
+3. [x] Verify frontmatter integrity on all five with `yaml.safe_load`.
+4. [x] Confirm none of the five excluded components is modified.
 
 **Acceptance Criteria:**
 
@@ -379,9 +379,9 @@ These are downgrades from an effective `high`, not additions of a missing settin
 
 Five of #199's `medium` recommendations are rejected here with reasons. That is a larger rejection rate than acceptance, which is the expected shape given the base rate.
 
-#### 3.3 Upgrade `arch-synthesize` to `medium`
+#### 3.3 Upgrade `arch-synthesize` to `medium` ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: haiku**
 **Recommendation Ref:** #199 item 4 (the only upgrade)
 **Depends On:** None
@@ -396,13 +396,13 @@ This is the only recommendation in #199 whose direction is unaffected by the abs
 
 **Tasks:**
 
-1. [ ] Change `effort: low` → `effort: medium`.
-2. [ ] Verify frontmatter integrity.
+1. [x] Change `effort: low` → `effort: medium`.
+2. [x] Verify frontmatter integrity.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the frontmatter is parsed THEN `effort` SHALL equal `medium`
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+- [x] WHEN the frontmatter is parsed THEN `effort` SHALL equal `medium`
+- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
 
@@ -446,9 +446,9 @@ Fix the four sites that carry real absolute thresholds, adopting the in-repo exe
 
 ### Work Items
 
-#### 4.1 `analyze-transcript` — seven sites, moved together
+#### 4.1 `analyze-transcript` — seven sites, moved together ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #200 site 1 (under-scoped by 4 sites)
 **Depends On:** None
@@ -465,26 +465,26 @@ Adopt the exemplar's full four-part shape: a relative trigger placed inline at t
 
 **Tasks:**
 
-1. [ ] Replace the absolute triggers at `:82`, `:96`, `:100`, `:102` with a single relative trigger, resolving the 30K/50K contradiction to one threshold.
-2. [ ] Replace the split-and-reconcile strategy with a structure-first strategy modelled on the exemplar's four numbered steps.
-3. [ ] Update the user-visible example string at `:117` so it no longer implies a token-band calculation.
-4. [ ] Re-key the performance table at `:368-371` and the note at `:373` to the relative phrase.
-5. [ ] Confirm the boundary-loss warning at `:113` is either removed as moot or retained deliberately with a reason.
+1. [x] Replace the absolute triggers at `:82`, `:96`, `:100`, `:102` with a single relative trigger, resolving the 30K/50K contradiction to one threshold.
+2. [x] Replace the split-and-reconcile strategy with a structure-first strategy modelled on the exemplar's four numbered steps.
+3. [x] Update the user-visible example string at `:117` so it no longer implies a token-band calculation.
+4. [x] Re-key the performance table at `:368-371` and the note at `:373` to the relative phrase.
+5. [x] Confirm the boundary-loss warning at `:113` is either removed as moot or retained deliberately with a reason.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the file is read THEN it SHALL contain no absolute token threshold governing chunking
-- [ ] WHEN the file is read THEN exactly one trigger condition SHALL govern the degradation path (no second, differently-numbered trigger)
-- [ ] WHEN the degradation strategy is read THEN it SHALL specify concrete numbered steps, not a bare instruction
-- [ ] The output report's seven fixed sections are unchanged
+- [x] WHEN the file is read THEN it SHALL contain no absolute token threshold governing chunking
+- [x] WHEN the file is read THEN exactly one trigger condition SHALL govern the degradation path (no second, differently-numbered trigger)
+- [x] WHEN the degradation strategy is read THEN it SHALL specify concrete numbered steps, not a bare instruction
+- [x] The output report's seven fixed sections are unchanged
 
 **Notes:**
 
 Moving three of seven sites leaves the file contradicting itself more than it already does.
 
-#### 4.2 `assess-document` — replace an undefined fallback with a strategy
+#### 4.2 `assess-document` — replace an undefined fallback with a strategy ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #200 site 2 (understated)
 **Depends On:** None
@@ -499,24 +499,24 @@ Worse than filed, in a way that changes the remedy. `:72` calls ~100K "context w
 
 **Tasks:**
 
-1. [ ] Add a relative-trigger context-management block at the point of work, with concrete numbered degradation steps.
-2. [ ] Rewrite `:72` to delegate to that block and carry no number and no undefined variable.
-3. [ ] Rewrite `:454` to match.
-4. [ ] Define a terminal fallback for the case where even the degraded strategy exceeds context, as the exemplar does.
+1. [x] Add a relative-trigger context-management block at the point of work, with concrete numbered degradation steps.
+2. [x] Rewrite `:72` to delegate to that block and carry no number and no undefined variable.
+3. [x] Rewrite `:454` to match.
+4. [x] Define a terminal fallback for the case where even the degraded strategy exceeds context, as the exemplar does.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the file is read THEN no instruction SHALL reference an unbound variable such as "the first N sections"
-- [ ] WHEN the degradation path is triggered THEN a concrete, numbered strategy SHALL be available at the point of work
-- [ ] WHEN even the degraded strategy is insufficient THEN a terminal fallback message SHALL be specified
+- [x] WHEN the file is read THEN no instruction SHALL reference an unbound variable such as "the first N sections"
+- [x] WHEN the degradation path is triggered THEN a concrete, numbered strategy SHALL be available at the point of work
+- [x] WHEN even the degraded strategy is insufficient THEN a terminal fallback message SHALL be specified
 
 **Notes:**
 
 The property to assert is "no unbound variable in an instruction," not "the number changed."
 
-#### 4.3 `plan-improvements` — delete the absolute budget table, touch nothing else
+#### 4.3 `plan-improvements` — delete the absolute budget table, touch nothing else ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #200 site 3b (the only genuinely stale part of that file)
 **Depends On:** Phase 2.2
@@ -533,25 +533,25 @@ The property to assert is "no unbound variable in an instruction," not "the numb
 
 **Tasks:**
 
-1. [ ] Delete the Context Budget table at `:414-421` and replace it with a pointer to `:53`'s relative strategy.
-2. [ ] Leave `:53`, `:447`, and `:55` unmodified.
-3. [ ] Leave `:274-300` unmodified.
-4. [ ] Leave `:4`, `:34` (already handled in Phase 2.2), and `:350` unmodified.
+1. [x] Delete the Context Budget table at `:414-421` and replace it with a pointer to `:53`'s relative strategy.
+2. [x] Leave `:53`, `:447`, and `:55` unmodified.
+3. [x] Leave `:274-300` unmodified.
+4. [x] Leave `:4`, `:34` (already handled in Phase 2.2), and `:350` unmodified.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the file is read THEN no absolute-token budget table SHALL remain
-- [ ] Lines `:53`, `:55`, `:274-300`, and `:447` are byte-identical to `main`
-- [ ] `:4` still reads `effort: max`
-- [ ] The `/implement-plan` phase-size contract stated at `:300` is intact
+- [x] WHEN the file is read THEN no absolute-token budget table SHALL remain
+- [x] Lines `:53`, `:55`, `:274-300`, and `:447` are byte-identical to `main`
+- [x] `:4` still reads `effort: max`
+- [x] The `/implement-plan` phase-size contract stated at `:300` is intact
 
 **Notes:**
 
 This file is touched by three issues at four regions. Phase 2.2 has already landed its edit; this item must not disturb it.
 
-#### 4.4 `summarize-feedback` — decouple the entry warning from the batching
+#### 4.4 `summarize-feedback` — decouple the entry warning from the batching ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #200 site 4 (half wrong as filed)
 **Depends On:** None
@@ -566,18 +566,18 @@ Keep the warning; drop the mandatory batching, which was context-driven and is n
 
 **Tasks:**
 
-1. [ ] Retain the >100-entry warning, re-stated as an operation-cost warning (round-trips and wall-clock), not a context warning.
-2. [ ] Remove the mandatory batch-by-25 processing and the meta-synthesis pass it forces.
-3. [ ] Update the interaction payload so it no longer offers a mode the skill no longer describes.
-4. [ ] Leave `:95` unmodified.
-5. [ ] Update the performance table rows that reference the removed pass.
+1. [x] Retain the >100-entry warning, re-stated as an operation-cost warning (round-trips and wall-clock), not a context warning.
+2. [x] Remove the mandatory batch-by-25 processing and the meta-synthesis pass it forces.
+3. [x] Update the interaction payload so it no longer offers a mode the skill no longer describes.
+4. [x] Leave `:95` unmodified.
+5. [x] Update the performance table rows that reference the removed pass.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN entry count exceeds 100 THEN the skill SHALL still warn about run duration and API round-trips
-- [ ] WHEN the skill runs THEN it SHALL NOT mandate a fixed batch size for context reasons
-- [ ] The interaction payload offers no option the body does not describe
-- [ ] `:95` is byte-identical to `main`
+- [x] WHEN entry count exceeds 100 THEN the skill SHALL still warn about run duration and API round-trips
+- [x] WHEN the skill runs THEN it SHALL NOT mandate a fixed batch size for context reasons
+- [x] The interaction payload offers no option the body does not describe
+- [x] `:95` is byte-identical to `main`
 
 **Notes:**
 
@@ -589,10 +589,10 @@ For each file, assert the *property* — no absolute token threshold governs a d
 
 ### Phase 4 Completion Checklist
 
-- [ ] All four items COMPLETE
-- [ ] `prime/SKILL.md` untouched (misfiled in #200 — it is a wall-clock table)
-- [ ] `finish-document.md:311-312` untouched (human interaction checkpoints, not context)
-- [ ] `consolidate-documents.md` and `define-questions.md` untouched (they are the exemplars)
+- [x] All four items COMPLETE
+- [x] `prime/SKILL.md` untouched (misfiled in #200 — it is a wall-clock table)
+- [x] `finish-document.md:311-312` untouched (human interaction checkpoints, not context)
+- [x] `consolidate-documents.md` and `define-questions.md` untouched (they are the exemplars)
 - [ ] Version bumped and CHANGELOG entry added
 
 ### Definition of Done (Runnable)
@@ -603,7 +603,7 @@ For each file, assert the *property* — no absolute token threshold governs a d
 |---|---|---|
 | Must-not-touch set intact | `git diff --quiet main -- plugins/personal-plugin/skills/prime/SKILL.md plugins/personal-plugin/commands/finish-document.md plugins/personal-plugin/commands/consolidate-documents.md plugins/personal-plugin/commands/define-questions.md` | exit 0 |
 | `plan-improvements` relative trigger preserved | `grep -q '60% of available context' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
-| `plan-improvements` absolute table gone | `! grep -qE '^\| (Small\|Medium\|Large\|Very Large) \(' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
+| `plan-improvements` absolute table gone | `! grep -q 'Output Reserve' plugins/personal-plugin/commands/plan-improvements.md` | exit 0. **Row corrected during execution.** As authored it was `! grep -qE '^\| (Small\|Medium\|Large\|Very Large) \('`, which matches TWO tables — the absolute context-budget table this item deletes *and* a wall-clock duration table that legitimately survives — so it returned exit 1 against a correctly-completed item. `Output Reserve` is the column that made the table absolute, so it is the derived property. |
 | Phase-size contract intact | `grep -q 'subagent with finite context' plugins/personal-plugin/commands/plan-improvements.md` | exit 0 |
 | `summarize-feedback` relative trigger preserved | `grep -q '60% of estimated context window' plugins/personal-plugin/skills/summarize-feedback/SKILL.md` | exit 0 |
 | No unbound-N instruction | `! grep -qE 'first N sections' plugins/personal-plugin/commands/assess-document.md` | exit 0 |
@@ -624,9 +624,9 @@ Ship the one tier-routing change the in-repo evidence supports, close the three 
 
 ### Work Items
 
-#### 5.1 Qualify Rule 17's opus bullet, in task properties
+#### 5.1 Qualify Rule 17's opus bullet, in task properties ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #198 items 1–2 (item 1 mostly refuted)
 **Depends On:** None
@@ -644,25 +644,25 @@ The in-repo evidence supports exactly one change, and it points opposite to the 
 
 **Tasks:**
 
-1. [ ] Qualify Rule 17's unqualified "multi-file refactors" so it routes on coupling and spec clarity, not on file count.
-2. [ ] Apply the same qualification to `opus-implementer.md`'s corresponding bullet.
-3. [ ] Verify no model generation name appears in either edit.
-4. [ ] Do NOT modify `sonnet-implementer.md`.
+1. [x] Qualify Rule 17's unqualified "multi-file refactors" so it routes on coupling and spec clarity, not on file count.
+2. [x] Apply the same qualification to `opus-implementer.md`'s corresponding bullet.
+3. [x] Verify no model generation name appears in either edit.
+4. [x] Do NOT modify `sonnet-implementer.md`.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN Rule 17 is read THEN "multi-file" SHALL NOT appear as an unqualified opus criterion
-- [ ] WHEN either edited file is read THEN no model generation name SHALL appear in the changed lines
-- [ ] `sonnet-implementer.md` is byte-identical to `main`
-- [ ] `python3 scripts/check_agent_models.py` exits 0
+- [x] WHEN Rule 17 is read THEN "multi-file" SHALL NOT appear as an unqualified opus criterion
+- [x] WHEN either edited file is read THEN no model generation name SHALL appear in the changed lines
+- [x] `sonnet-implementer.md` is byte-identical to `main`
+- [x] `python3 scripts/check_agent_models.py` exits 0
 
 **Notes:**
 
 This plan's own tier assignments already follow the corrected rule, which is the first live test of it.
 
-#### 5.2 Split `visual-explainer`'s model knob on the loop boundary
+#### 5.2 Split `visual-explainer`'s model knob on the loop boundary ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: opus**
 **Recommendation Ref:** #198 item 5 (correct in substance, wrong in shape)
 **Depends On:** None
@@ -689,30 +689,42 @@ Design is **fall-back override, not rename**: keep the existing setting unchange
 
 **Tasks:**
 
-1. [ ] Add an optional loop-tier setting with a `None` default plus a resolver that falls back to the existing setting.
-2. [ ] Route both loop consumers — image evaluation and prompt refinement — through the resolver.
-3. [ ] Fix `create_prompt_generator()` to forward the config value it already receives.
-4. [ ] Give `ImageEvaluator` optional config visibility for symmetry with its two siblings.
-5. [ ] Update the exact-kwarg assertion in the pipeline test, the shared config fixture, and the config default/env tests; add the missing mirror assertion for the evaluator construction site.
-6. [ ] Update both user-facing documentation surfaces.
-7. [ ] Leave the auth-ping model literal alone — it is a `max_tokens=1` reachability check whose output is discarded.
-8. [ ] Do NOT change any default model value.
+1. [x] Add an optional loop-tier setting with a `None` default plus a resolver that falls back to the existing setting.
+2. [x] Route both loop consumers — image evaluation and prompt refinement — through the resolver.
+3. [x] Fix `create_prompt_generator()` to forward the config value it already receives.
+4. [x] Give `ImageEvaluator` optional config visibility for symmetry with its two siblings.
+5. [x] Update the exact-kwarg assertion in the pipeline test, the shared config fixture, and the config default/env tests; add the missing mirror assertion for the evaluator construction site.
+6. [x] Update both user-facing documentation surfaces.
+7. [x] Leave the auth-ping model literal alone — it is a `max_tokens=1` reachability check whose output is discarded.
+8. [x] Do NOT change any default model value.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the loop override is unset THEN every call site SHALL resolve to exactly the value it resolves to today
-- [ ] WHEN the loop override is set THEN both evaluation and refinement SHALL use it, and analysis and generation SHALL NOT
-- [ ] WHEN `create_prompt_generator()` is called with a config THEN the config's model SHALL reach the constructed generator
-- [ ] Coverage remains at or above the configured floor
-- [ ] No default model value differs from `main`
+- [x] WHEN the loop override is unset THEN every call site SHALL resolve to exactly the value it resolves to today
+- [x] WHEN the loop override is set THEN both evaluation and refinement SHALL use it, and analysis and generation SHALL NOT
+- [x] WHEN `create_prompt_generator()` is called with a config THEN the config's model SHALL reach the constructed generator
+- [x] Coverage remains at or above the configured floor
+- [x] No default model value differs from `main`
 
 **Notes:**
 
 The backward-compatibility property — unset override is behaviourally identical to today — is the acceptance criterion that matters most and must be tested directly, not inferred.
 
-#### 5.3 Close #198's refuted claims with evidence
+**Completion notes (2026-07-31):**
 
-**Status: PENDING**
+Setting is `InternalConfig.claude_loop_model` (`str | None`, default `None`), env `VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL`, resolver `InternalConfig.resolve_loop_model(base: str | None = None) -> str`.
+
+**The resolver takes a `base` argument, and that is the load-bearing design decision.** A no-argument resolver falling back to `claude_model` would *not* have been backward compatible: `PromptRefiner` inherits its model from `PromptGenerator.model`, which can be passed explicitly and need not equal `claude_model` (`test_init_with_custom_model` constructs exactly that case). Falling back to `claude_model` there would have silently overridden a caller's explicit choice — a behaviour change smuggled in under a setting whose whole premise is that unset means unchanged. Falling back to `base` preserves the inheritance exactly. The resolver is idempotent, so resolving at both a construction site and inside the consumer is safe.
+
+Resolution happens inside each in-loop consumer (`ImageEvaluator.__init__`, and `PromptGenerator.__init__` for the refiner it composes) rather than at the pipeline call sites, so the env var reaches direct-construction paths too, not only the pipeline.
+
+`create_prompt_generator()` now resolves the config once and forwards `model=` explicitly; this also fixes the `internal_config=None` path, which previously paired a `DEFAULT_MODEL` literal with a `from_env()` config that could carry a different `claude_model`.
+
+Negative test performed as required: reverting *only* the `create_prompt_generator()` fix failed 3 tests (`test_create_prompt_generator_forwards_config_model`, `..._forwards_env_model`, `test_factory_keeps_generation_on_base_model_under_override`, each asserting `claude-sonnet-5 != <configured>`); restoring it passed all 3. Suite 894 → 913 passed, coverage 93.37% → 93.38% (floor 85%), ruff and mypy clean. `api_setup.py` has a zero-line diff. Version bump and CHANGELOG are owned by item 8.1, so deliberately not done here.
+
+#### 5.3 Close #198's refuted claims with evidence ✅ Completed 2026-07-31
+
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #198 items 1c, 3, 4
 **Depends On:** 5.1
@@ -729,15 +741,15 @@ Record a Decision Log row. Do not edit D15 or D16 beyond adding cross-references
 
 **Tasks:**
 
-1. [ ] Add a Decision Log row recording the three refutations with their evidence.
-2. [ ] Cross-reference D15 and D16 without changing their status.
-3. [ ] Record the escalation base rate — one escalation in 162 tiered items, attributable to a self-contradictory spec rather than capability — as the standing evidence for future tier debates.
+1. [x] Add a Decision Log row recording the three refutations with their evidence.
+2. [x] Cross-reference D15 and D16 without changing their status.
+3. [x] Record the escalation base rate — one escalation in 162 tiered items, attributable to a self-contradictory spec rather than capability — as the standing evidence for future tier debates.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the Decision Log is read THEN a row SHALL record all three refutations with evidence
-- [ ] D15 and D16 remain ACTIVE with their original text intact
-- [ ] The escalation base rate is recorded with its denominator
+- [x] WHEN the Decision Log is read THEN a row SHALL record all three refutations with evidence
+- [x] D15 and D16 remain ACTIVE with their original text intact
+- [x] The escalation base rate is recorded with its denominator
 
 **Notes:**
 
@@ -786,9 +798,9 @@ Move the Claude leg from a single non-streaming request to streaming with accumu
 
 ### Work Items
 
-#### 6.1 Build the accumulator as a real, testable file
+#### 6.1 Build the accumulator as a real, testable file ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: opus**
 **Recommendation Ref:** #216 (testability, not in the issue)
 **Depends On:** None
@@ -805,27 +817,40 @@ The decision is binary. An inline heredoc inside a markdown fence reproduces tha
 
 **Tasks:**
 
-1. [ ] Create the package with a stdin→stdout accumulator, stdlib-only where practical.
-2. [ ] Build the offline fixture corpus: happy path; interleaved reasoning block skipped; truncation-at-ceiling terminal reason; refusal terminal reason with a category; refusal with a null category; **mid-stream error event after a successful start**; truncated stream with no terminal event; malformed data line; unknown event type and unknown block type ignored gracefully; empty stream; non-stream error body.
-3. [ ] Implement a **completeness sentinel**: absence of a terminal event is a failure regardless of transport status.
-4. [ ] Wire the test suite into the existing per-tool CI pattern.
+1. [x] Create the package with a stdin→stdout accumulator, stdlib-only where practical. (Stdlib-only with no caveat — zero dependencies, `dependencies = []`.)
+2. [x] Build the offline fixture corpus: happy path; interleaved reasoning block skipped; truncation-at-ceiling terminal reason; refusal terminal reason with a category; refusal with a null category; **mid-stream error event after a successful start**; truncated stream with no terminal event; malformed data line; unknown event type and unknown block type ignored gracefully; empty stream; non-stream error body. (15 fixtures — the 11 required plus refusal-with-absent-`stop_details`, refusal-with-`stop_details`-in-an-unexpected-position, completed-but-empty, and unrecognised-terminal-reason.)
+3. [x] Implement a **completeness sentinel**: absence of a terminal event is a failure regardless of transport status. (Exit 5. Deliberately keyed to *an unresolved `stop_reason`*, not to `message_stop` — a `message_stop` with no stop_reason still fails, because "the turn ended" is not "we know why it ended".)
+4. [~] Wire the test suite into the existing per-tool CI pattern. **Partially done, deliberately.** The tool conforms to the pattern exactly (sibling `pyproject.toml` shape, `tests/`, `requirements-lock.txt`, `[tool.coverage.report] fail_under = 95`, mypy-clean `src/`), and CI's **ruff check and ruff format steps already cover it automatically** — `validate.yml` globs `plugins/*/tools/*/src/ plugins/*/tools/*/tests/`, so no edit was needed there and lint is live now. The remaining wiring needs edits to files outside this item's declared `Files Affected` (a `research-sse` job in `test.yml`, a `python-compat` step, a `pip-audit` line, and the root `pyproject.toml` testpaths/pythonpath), so it is left to the follow-up that owns those files. Follow the `task-sync` precedent: add the job **non-required** first, so a not-yet-existing required check cannot deadlock the PR that creates it.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN a complete stream is supplied on stdin THEN the accumulator SHALL emit the concatenated text and exit 0
-- [ ] WHEN a stream ends without a terminal event THEN the accumulator SHALL exit non-zero
-- [ ] WHEN an error event arrives after a successful start THEN the accumulator SHALL exit non-zero
-- [ ] WHEN the terminal reason indicates a refusal THEN the accumulator SHALL exit non-zero and surface the category, including when the category is null
-- [ ] WHEN the terminal reason indicates truncation THEN the accumulator SHALL exit 0 and signal truncation distinctly from success
-- [ ] Every fixture has a corresponding mutation test: deleting the branch flips the row from caught to passing
+- [x] WHEN a complete stream is supplied on stdin THEN the accumulator SHALL emit the concatenated text and exit 0
+- [x] WHEN a stream ends without a terminal event THEN the accumulator SHALL exit non-zero
+- [x] WHEN an error event arrives after a successful start THEN the accumulator SHALL exit non-zero
+- [x] WHEN the terminal reason indicates a refusal THEN the accumulator SHALL exit non-zero and surface the category, including when the category is null
+- [x] WHEN the terminal reason indicates truncation THEN the accumulator SHALL exit 0 and signal truncation distinctly from success
+- [x] Every fixture has a corresponding mutation test: deleting the branch flips the row from caught to passing
 
 **Notes:**
 
 The refusal guard is the highest risk in the whole plan. In the current non-streaming shape the terminal reason is a top-level field; under streaming it moves inside a delta event. A port that reassembles the stream and keeps the old field lookup **compiles, reads correctly, passes review, and never fires** — silently writing an empty report on every refusal. That is a previously-fixed defect returning in a form that looks like a faithful port. Write its fixture first.
 
-#### 6.2 Rewrite the leg to stream, ladder unchanged
+**Delivered (2026-07-31).** `plugins/personal-plugin/tools/research-sse/` — 87 tests, 99% branch coverage, ruff + `ruff format` + mypy clean.
 
-**Status: PENDING**
+The refusal fixture was written first and **run red before the accumulator existed** (`ModuleNotFoundError`), then green. `tests/conftest.py::naive_top_level_stop_reason` performs the *old* top-level lookup against every refusal fixture and asserts it returns `None` — so the defect is pinned by a test, not just by prose. The corresponding mutation (`G11`, rewriting `_terminal_stop_reason` to read only the top level — the faithful-looking port) flips all four refusal tests to failing.
+
+**All 12 guards were mutation-tested fail-first** (baseline pass → mutant FAIL → restored pass), with `--no-cov` on the per-test runs so the 95% floor could not manufacture a false "caught". Deleting the refusal branch is instructive: the *with-category* fixture (which carries partial text) drops to `status='ok', exit_code=0` — it would have written a report whose entire body is a half-finished refusal sentence — while the null-category fixtures drop only to exit 8. The empty-output guard is a real second line of defence but is **not** a substitute for the refusal guard.
+
+Two decisions taken where the spec was open:
+
+- **Truncation exits 0** (as the acceptance criterion requires) and is signalled by a machine-readable marker — `"truncated": true` / `"status": "truncated"` in the metadata — not by a distinct exit code. Exit code **3 is reserved and never emitted** so this stays unambiguous for 6.2.
+- **The refusal category's placement is treated as genuinely unknown.** `find_refusal_category` does a depth-bounded search for a `stop_details` (then `refusal`) object *anywhere* in the terminal event rather than hard-coding `delta.stop_details`, and a null/absent category surfaces as `category=unknown` **without** downgrading the refusal. A fixture pins each case, including one that puts `stop_details` at the event top level.
+
+One guard was added beyond the brief: **exit 8, a completed stream that produced no text.** A reasoning-only response reaches a clean `end_turn` and would otherwise have been a silent empty report — the same failure mode as the refusal defect arriving by a different route. It also backstops an unrecognised future terminal reason, which is kept (exit 0, `stop_reason_known: false`) only when there is real text to keep.
+
+#### 6.2 Rewrite the leg to stream, ladder unchanged ✅ Completed 2026-07-31
+
+**Status: COMPLETE 2026-07-31**
 **Model Tier: opus**
 **Recommendation Ref:** #216
 **Depends On:** 6.1
@@ -842,27 +867,41 @@ Keep the ladder exactly as it is. Keep the truncation note. Keep the refusal che
 
 **Tasks:**
 
-1. [ ] Rewrite the request to stream, with buffering disabled.
-2. [ ] Preserve transport-failure detection across the pipe.
-3. [ ] Re-express the refusal and truncation guards in terms of the accumulator's contract.
-4. [ ] Update the section's "synchronous, single call" framing and the conventions note about bounded calls.
-5. [ ] Leave the depth ladder values unchanged.
-6. [ ] Add a forward-compatibility note so an unrecognized block type is ignored rather than fatal.
+1. [x] Rewrite the request to stream, with buffering disabled. (`"stream": true` inserted as the first key of the body so the two ladder lines stay byte-identical and diff as context; `curl -sS --no-buffer --dump-header` — `-w '%{http_code}'` had to go, because under streaming it would write the status code into the pipe.)
+2. [x] Preserve transport-failure detection across the pipe. (`PIPE=("${PIPESTATUS[@]}")` as the statement immediately after the pipeline, split into `CURL_EXIT`/`ACC_EXIT`. Negative-tested — see Notes.)
+3. [x] Re-express the refusal and truncation guards in terms of the accumulator's contract. (The whole `CHECK=$(python3 …)` payload-inspection block is gone; the section now contains zero occurrences of the old top-level field name.)
+4. [x] Update the section's "synchronous, single call" framing and the conventions note about bounded calls.
+5. [x] Leave the depth ladder values unchanged.
+6. [x] Add a forward-compatibility note so an unrecognized block type is ignored rather than fatal.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the leg runs THEN the depth ladder values SHALL be unchanged from `main`
-- [ ] WHEN the transport fails THEN the failure SHALL be detected despite the pipe
-- [ ] WHEN a refusal occurs THEN the leg SHALL fail loudly rather than write an empty report
-- [ ] WHEN output is truncated at the ceiling THEN the report SHALL carry the truncation note
+- [x] WHEN the leg runs THEN the depth ladder values SHALL be unchanged from `main`
+- [x] WHEN the transport fails THEN the failure SHALL be detected despite the pipe
+- [x] WHEN a refusal occurs THEN the leg SHALL fail loudly rather than write an empty report
+- [x] WHEN output is truncated at the ceiling THEN the report SHALL carry the truncation note
 
 **Notes:**
 
 A half-fix across the three files is a recorded failure mode for this skill: the skill body restates the mode and the silent-failure mechanism independently of the protocol file, so they must move together (6.3).
 
-#### 6.3 Reconcile the skill body and the model reference
+**Delivered (2026-07-31).** The block was not reviewed by reading — it was **extracted verbatim from the markdown fence and executed**, with only the `curl` invocation swapped for a fixture emitter, then driven through eight of 6.1's fixtures. Observed: happy `0`, truncation `0` + `truncated=true`, refusal `4`, no-terminal-event `5`, mid-stream error `6`, non-stream error body `7`, empty-text `8`, unknown-event-and-block `0`. Every non-zero path deleted `$BODY` before exiting. `bash -n` passes on the unmodified fence, and the `-d` payload extracted from it parses as JSON with `stream: true` and no `budget_tokens`.
 
-**Status: PENDING**
+**Both new guards were negative-tested** (per the repo rule that a guard which cannot fail is worse than none):
+
+- **Transport across the pipe.** A fake transport that emits a *fully well-formed* stream and then exits 28 is the case the pipe would hide, because the accumulator sees a complete stream and exits 0. The `PIPESTATUS` form fails the leg (`transport curl_exit=28`, body discarded); rewriting only that one line to the naive post-pipe `$?` capture prints `Anthropic request ok` and keeps the body. The guard is what does the work, not the shape of the code around it.
+- **Contract preflight.** A copy of the tool with `EXIT_REFUSAL` moved from `4` to `9` aborts the leg before the request is spent (`research-sse exit contract drifted (want, got): {'EXIT_REFUSAL': (4, 9)}`); the real tool passes silently. This exists because this file's copy of the exit-status table is a *label* for the contract, and the recorded failure mode is a label that stops matching its content (#226/#232/#235).
+
+Two decisions taken where the item was open:
+
+- **`-w '%{http_code}'` was dropped in favour of `--dump-header`.** The old capture wrote the status code onto stdout, which under streaming is the pipe — it would have been concatenated into the report body. The header status is now parsed out of a file, and is used **only** in diagnostics: it is never a success test, because it arrives before any content. Exit 5 is the success test.
+- **An unreadable metadata line appends the truncation note anyway.** If the `research-sse-meta:` line cannot be parsed, `$TRUNCATED` is `unknown`; the leg still keeps the report but adds the note. Over-warning synthesis is much cheaper than letting it read a cut-off section as complete.
+
+**Two verification commands in the brief were vacuous and are recorded here so they are not reused.** `sed -n '/^## Claude/,/^## OpenAI/p'` matches nothing — the heading is `## Anthropic Claude Protocol`. The "no `stop_reason` remains" check therefore passed on an empty range (a false pass), and the "streaming present" check produced no output despite the content being there (a false miss). Re-run against `/^## Anthropic Claude Protocol/,/^## OpenAI/`: 132 lines in range, zero `stop_reason` hits, and `--no-buffer`, `"stream": true` and `PIPESTATUS` all present. Same class as E063: a check expressed from what the author expected to match rather than derived from the artifact.
+
+#### 6.3 Reconcile the skill body and the model reference ✅ Completed 2026-07-31
+
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #216 (blast radius)
 **Depends On:** 6.2
@@ -878,26 +917,26 @@ Also correct the rationale's sourcing. The output-ceiling requirement it cites i
 
 **Tasks:**
 
-1. [ ] Update the mode, parse-target, and silent-failure rows in the skill body.
-2. [ ] Update the "no real-time streaming progress" note, which becomes misleading.
-3. [ ] Update the mode row and rationale paragraph in the model reference.
-4. [ ] Mark the wall-clock derivation as an estimate, or remove it, rather than restating it as fact.
-5. [ ] Leave the cost table alone — the ladder is unchanged, so costs are unchanged.
+1. [x] Update the mode, parse-target, and silent-failure rows in the skill body.
+2. [x] Update the "no real-time streaming progress" note, which becomes misleading.
+3. [x] Update the mode row and rationale paragraph in the model reference.
+4. [x] Mark the wall-clock derivation as an estimate, or remove it, rather than restating it as fact.
+5. [x] Leave the cost table alone — the ladder is unchanged, so costs are unchanged.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the skill body's silent-failure row is read THEN it SHALL describe the streaming mechanism, not the top-level-field one
-- [ ] WHEN the rationale is read THEN any unsourced numeric derivation SHALL be marked as an estimate or absent
-- [ ] The cost table is byte-identical to `main`
-- [ ] The depth ladder values are byte-identical to `main` in both files
+- [x] WHEN the skill body's silent-failure row is read THEN it SHALL describe the streaming mechanism, not the top-level-field one
+- [x] WHEN the rationale is read THEN any unsourced numeric derivation SHALL be marked as an estimate or absent
+- [x] The cost table is byte-identical to `main`
+- [x] The depth ladder values are byte-identical to `main` in both files
 
 **Notes:**
 
 Leaving the skill body's silent-failure row stale would tell a future reader the guard works one way while it works another — the stale-contract shape a prior issue was filed about.
 
-#### 6.4 Grant the missing execution permission
+#### 6.4 Grant the missing execution permission ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: haiku**
 **Recommendation Ref:** Latent defect found during #216 investigation, not filed
 **Depends On:** None
@@ -912,23 +951,23 @@ The streaming rewrite deepens the dependency, so the grant must land with it.
 
 **Tasks:**
 
-1. [ ] Add the interpreter grant to `allowed-tools`.
-2. [ ] Verify no other binary invoked anywhere in the three files lacks a grant.
-3. [ ] Verify the frontmatter parses with a full key set after the edit — this frontmatter is a plain scalar list and is exactly the shape that has silently dropped before.
+1. [x] Add the interpreter grant to `allowed-tools`.
+2. [x] Verify no other binary invoked anywhere in the three files lacks a grant.
+3. [x] Verify the frontmatter parses with a full key set after the edit — this frontmatter is a plain scalar list and is exactly the shape that has silently dropped before.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the frontmatter is parsed THEN the interpreter grant SHALL be present and every pre-existing key SHALL remain
-- [ ] Every binary invoked in the three files has a corresponding grant
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+- [x] WHEN the frontmatter is parsed THEN the interpreter grant SHALL be present and every pre-existing key SHALL remain
+- [x] Every binary invoked in the three files has a corresponding grant
+- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
 
 A dispatch-time-only failure is the hardest class to catch, because every offline gate passes.
 
-#### 6.5 Commit the live probe and add an eval scenario
+#### 6.5 Commit the live probe and add an eval scenario ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #216 (verification gap)
 **Depends On:** 6.2
@@ -946,17 +985,17 @@ Separately, the eval suite has **no scenario for depth, parameters, or the respo
 
 **Tasks:**
 
-1. [ ] Commit a probe that extracts the request shape and ladder from the shipped files rather than restating them.
-2. [ ] Give it a negative control that must fail.
-3. [ ] Mark it clearly as manual-run, with the zero-secrets constraint stated.
-4. [ ] Add an eval scenario covering the parse path and the terminal-reason handling.
+1. [x] Commit a probe that extracts the request shape and ladder from the shipped files rather than restating them.
+2. [x] Give it a negative control that must fail.
+3. [x] Mark it clearly as manual-run, with the zero-secrets constraint stated.
+4. [x] Add an eval scenario covering the parse path and the terminal-reason handling.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the shipped request shape is broken THEN the probe SHALL fail
-- [ ] WHEN the probe's negative control runs THEN it SHALL fail as designed
-- [ ] `python3 scripts/check_eval_mapping.py` exits 0 with the new scenario
-- [ ] No CI workflow references the probe
+- [x] WHEN the shipped request shape is broken THEN the probe SHALL fail
+- [x] WHEN the probe's negative control runs THEN it SHALL fail as designed
+- [x] `python3 scripts/check_eval_mapping.py` exits 0 with the new scenario
+- [x] No CI workflow references the probe
 
 **Notes:**
 
@@ -1005,9 +1044,9 @@ A ratchet is **rejected on this repo's own precedent**: a count-ratchet was adop
 
 ### Work Items
 
-#### 7.1 Extract `lab-notebook`'s two verbatim templates
+#### 7.1 Extract `lab-notebook`'s two verbatim templates ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #238
 **Depends On:** None
@@ -1025,25 +1064,25 @@ Pointers must carry an inline summary of the load-bearing content, so the skill 
 
 **Tasks:**
 
-1. [ ] Extract both templates into the skill's own references directory.
-2. [ ] Replace each with a pointer that **disambiguates the location explicitly** — the two skills that got this right say so in the pointer text, and the ship skill's bare relative path is ambiguous.
-3. [ ] Keep the verification checklist inline as the summary, since it references the extracted content.
-4. [ ] Confirm the emitted output is byte-identical to what the inline template produced.
+1. [x] Extract both templates into the skill's own references directory.
+2. [x] Replace each with a pointer that **disambiguates the location explicitly** — the two skills that got this right say so in the pointer text, and the ship skill's bare relative path is ambiguous.
+3. [x] Keep the verification checklist inline as the summary, since it references the extracted content.
+4. [x] Confirm the emitted output is byte-identical to what the inline template produced.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the skill runs THEN the content it emits SHALL be byte-identical to the pre-extraction template
-- [ ] WHEN a pointer is read THEN it SHALL state unambiguously which directory the reference lives in
-- [ ] The body is under 500 lines
-- [ ] `python3 scripts/check_injections.py` exits 0
+- [x] WHEN the skill runs THEN the content it emits SHALL be byte-identical to the pre-extraction template
+- [x] WHEN a pointer is read THEN it SHALL state unambiguously which directory the reference lives in
+- [x] The body is under 500 lines
+- [x] `python3 scripts/check_injections.py` exits 0
 
 **Notes:**
 
 Byte-identical emission is the acceptance criterion. An extraction that subtly reformats the template changes what the skill writes into other repositories' `CLAUDE.md` files.
 
-#### 7.2 Extract `visual-explainer`'s output samples
+#### 7.2 Extract `visual-explainer`'s output samples ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #238
 **Depends On:** Phase 5.2
@@ -1061,24 +1100,24 @@ This item depends on Phase 5.2, which edits the same file's environment-variable
 
 **Tasks:**
 
-1. [ ] Extract the three output samples to a references file.
-2. [ ] Replace each with a one-line pointer carrying an explicit location.
-3. [ ] Leave every interaction payload inline.
-4. [ ] Confirm Phase 5.2's documentation edit is intact.
+1. [x] Extract the three output samples to a references file.
+2. [x] Replace each with a one-line pointer carrying an explicit location.
+3. [x] Leave every interaction payload inline.
+4. [x] Confirm Phase 5.2's documentation edit is intact.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the body is measured THEN it SHALL be under 500 lines
-- [ ] Every interaction payload remains inline
-- [ ] Phase 5.2's environment-variable documentation is present and correct
+- [x] WHEN the body is measured THEN it SHALL be under 500 lines
+- [x] Every interaction payload remains inline
+- [x] Phase 5.2's environment-variable documentation is present and correct
 
 **Notes:**
 
 This file grew past the budget as a side effect of a prior remediation whose replacement blocks were longer than what they replaced. That is the case for the gate, and it belongs in the commit message.
 
-#### 7.3 Build and wire the budget gate
+#### 7.3 Build and wire the budget gate ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: opus**
 **Recommendation Ref:** #238 (the gate)
 **Depends On:** 7.1, 7.2
@@ -1097,24 +1136,33 @@ The failure text must state the authoring-quality rationale corrected in Phase 1
 
 **Tasks:**
 
-1. [ ] Write the checker with a self-test that proves it exits non-zero on an over-budget fixture and zero on a compliant one.
-2. [ ] Negative-test the boundary at 499/500/501 before wiring.
-3. [ ] Wire as a **step** in the existing validation job, never a new job.
-4. [ ] Add a pre-commit check that delegates file selection to the script rather than restating it in shell.
-5. [ ] Confirm the required-check names are unchanged.
+1. [x] Write the checker with a self-test that proves it exits non-zero on an over-budget fixture and zero on a compliant one.
+2. [x] Negative-test the boundary at 499/500/501 before wiring.
+3. [x] Wire as a **step** in the existing validation job, never a new job.
+4. [x] Add a pre-commit check that delegates file selection to the script rather than restating it in shell.
+5. [x] Confirm the required-check names are unchanged.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN a skill body exceeds the budget THEN the gate SHALL exit non-zero and name the file with both body and total line counts
-- [ ] WHEN the current tree is checked THEN the gate SHALL exit 0
-- [ ] WHEN the self-test runs THEN it SHALL assert non-zero exit on at least one over-budget case
-- [ ] The set of required status check names is unchanged from `main`
-- [ ] No file under `commands/` is evaluated by the gate
-- [ ] Test fixtures are not evaluated
+- [x] WHEN a skill body exceeds the budget THEN the gate SHALL exit non-zero and name the file with both body and total line counts
+- [x] WHEN the current tree is checked THEN the gate SHALL exit 0
+- [x] WHEN the self-test runs THEN it SHALL assert non-zero exit on at least one over-budget case
+- [x] The set of required status check names is unchanged from `main`
+- [x] No file under `commands/` is evaluated by the gate
+- [x] Test fixtures are not evaluated
 
 **Notes:**
 
 Green on arrival is the criterion, and it depends on 7.1 and 7.2 landing first. Verify it against the current tree before wiring, not after.
+
+**Delivered 2026-07-31.** Predicate pinned in the module docstring and in `BODY_LINE_LIMIT = 500`: a body is a violation **iff `body_lines >= 500`**, so 499 passes, 500 fails, 501 fails. All three values are constructed as real fixtures and run through the pure `check_file` — observed `499 -> PASS`, `500 -> FAIL (over by 1)`, `501 -> FAIL (over by 2)`. The self-test carries the same three plus a 900-line file planted under `commands/`, an over-long file under `skills/*/references/`, one under `tests/fixtures/`, one nested a level deeper than `skills/<name>/`, and a no-frontmatter file (measured whole, fail-closed). 4 of 11 cases assert exit 1. `--filter` (the pre-commit delegation point) is asserted to agree with `in_scope()` on every one of those paths, so the hook cannot drift from the gate. Largest real body is 490 lines — 9 lines of headroom.
+
+**Two DoD rows in this item's own table are unreliable, and both were hit.**
+
+1. `! grep -q 'commands' scripts/check_skill_budget.py` **fails for a correct implementation** (5 hits). The docstring must name `commands/` to explain *why* the exclusion exists, and the self-test case that proves it is named `commands-file-not-evaluated`. The row tests the absence of a word, not the property. Derived replacement, which passes and would catch a real scope leak: `python3 scripts/check_skill_budget.py --self-test` (the planted-`commands/` case is in it), or directly — `printf 'plugins/p/commands/x.md\n' | python3 scripts/check_skill_budget.py --filter` must print nothing.
+2. `... .split('---',2)[2].splitlines()) >= 500` **over-counts every body by exactly one**. `parts[2]` begins with the newline that terminates the closing `---`, so `splitlines()` yields a leading empty element that is not a body line. Measured: the idiom reports 491/489/440 where the gate reports 490/488/439. Both are green today, but at the boundary the row would fail a file the gate passes. Replace it with the gate itself — it is a restatement of an external truth, which is the failure class CLAUDE.md warns about.
+
+**Not ticked:** the Phase 7 Completion Checklist's "Version bumped and CHANGELOG entry added". This item touches only `scripts/` and `.github/`, so it obliges no bump of its own; the bump owed for 7.1/7.2's `plugins/personal-plugin/` edits belongs to item 8.1, which has not run. Ticking it here would be a false claim in the exact place this phase exists to stop them.
 
 ### Phase 7 Testing Requirements
 
@@ -1122,10 +1170,10 @@ Negative-test before wiring, against deliberately-bad input, and confirm non-zer
 
 ### Phase 7 Completion Checklist
 
-- [ ] All three items COMPLETE
-- [ ] Gate green against the current tree
-- [ ] Required check names unchanged
-- [ ] Version bumped and CHANGELOG entry added
+- [x] All three items COMPLETE
+- [x] Gate green against the current tree — 40 skill bodies checked, 0 over budget, largest 490 (9 lines of headroom)
+- [x] Required check names unchanged — the gate is a STEP in the existing `plugin-validate` job; `git diff main` removes or alters no `name:` line and adds exactly one
+- [ ] Version bumped and CHANGELOG entry added — **deferred to item 8.1 by design**; 7.3 touches no `plugins/` path, and the bump owed for 7.1/7.2 is 8.1's deliverable
 
 ### Definition of Done (Runnable)
 
@@ -1135,8 +1183,8 @@ Negative-test before wiring, against deliberately-bad input, and confirm non-zer
 |---|---|---|
 | Gate green on arrival | `python3 scripts/check_skill_budget.py` | exit 0 |
 | Gate can fail | `python3 scripts/check_skill_budget.py --self-test` | exit 0, output asserts ≥1 case expecting exit 1 |
-| No skill body over budget | `python3 -c "import pathlib,sys; over=[str(p) for p in pathlib.Path('plugins').glob('*/skills/*/SKILL.md') if len(p.read_text().split('---',2)[2].splitlines())>=500]; print(over); sys.exit(1 if over else 0)"` | exit 0 |
-| Commands not in scope | `! grep -q 'commands' scripts/check_skill_budget.py` | exit 0 |
+| No skill body over budget | `python3 scripts/check_skill_budget.py` | exit 0. **Row corrected during execution.** As authored it re-implemented the measurement inline via `.split('---',2)[2].splitlines()`, which **over-counts every body by exactly one** — `parts[2]` begins with the newline terminating the closing `---`, so `splitlines()` yields a leading empty element (measured: idiom 491/489/440 vs gate 490/488/439). Green either way today, but at the boundary it would fail a file the gate passes. A row that restates an external truth drifts into disagreeing with it; use the gate itself. |
+| Commands not in scope | `printf 'plugins/p/commands/x.md\n' \| python3 scripts/check_skill_budget.py --filter` | prints nothing. **Row corrected during execution.** As authored it was `! grep -q 'commands' scripts/check_skill_budget.py`, which **fails for a correct implementation** — the module docstring must name `commands/` to explain why they are excluded, and the self-test case is literally named `commands-file-not-evaluated` (5 legitimate hits). The derived property is that the glob does not match a `commands/` path, which `--self-test` also proves by planting a 900-line command file. |
 | Required check names unchanged | `git diff main -- .github/workflows/validate.yml \| grep -E '^[+-]\s+(name\|jobs):' \| grep -vc 'Check SKILL.md body budget'` | output `0` |
 | Injections | `python3 scripts/check_injections.py` | exit 0 |
 | Official validation | `claude plugin validate plugins/personal-plugin --strict` | exit 0 |
@@ -1155,9 +1203,9 @@ Ship the versions and close the issues with their corrections recorded, so the n
 
 ### Work Items
 
-#### 8.1 Version bump and CHANGELOG
+#### 8.1 Version bump and CHANGELOG ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Depends On:** Phases 1–7
 **Files Affected:**
@@ -1182,9 +1230,9 @@ Bump only the plugins with genuine changes; never issue an empty coordinated bum
 - [ ] No unchanged plugin is bumped
 - [ ] Manifest and marketplace versions agree for every plugin
 
-#### 8.2 Close the five issues with corrections
+#### 8.2 Close the five issues with corrections ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Depends On:** 8.1
 **Files Affected:**
@@ -1236,9 +1284,9 @@ Each issue closes with its corrections recorded, not silently. Several carry fin
 
 | Risk | Phase | Severity | Mitigation |
 |---|---|---|---|
-| The refusal guard silently dies when the terminal reason relocates under streaming | 6 | **Critical** | Its fixture is written first, with a mutation test; the guard is re-expressed in terms of the accumulator's exit contract rather than a field lookup |
-| Transport-failure detection lost across the new pipe | 6 | High | Explicit pipeline-status handling plus a fixture simulating transport-side failure |
-| Budget gate red on arrival deadlocks the default branch | 7 | High | Both over-budget files fixed in earlier items of the same phase; gate verified green against the tree before wiring; scope excludes commands |
+| The refusal guard silently dies when the terminal reason relocates under streaming | 6 | **Critical** | **Mitigated both sides (2026-07-31).** 6.1: the fixture was written first and run red before the accumulator existed; the guard reads `message_delta`, is mutation-tested fail-first (`G1`, `G11`), and `naive_top_level_stop_reason` asserts the old top-level lookup finds nothing. 6.2: the leg branches on `$ACC_EXIT` alone — the payload-inspection block is deleted outright and the section contains **zero** occurrences of the old field name, so there is no surviving lookup to go quiet. Verified live: the refusal fixture returns 4 and the leg discards its 18 characters of partial refusal text rather than writing them. **Fully mitigated (2026-07-31).** 6.3 reconciled both of the skill body's silent-failure restatements (the Provider Deltas row and the Error Handling table row) plus the model reference's mode row and rationale to the exit-status mechanism; no surviving reference to the old top-level `stop_reason` field remains in either file |
+| Transport-failure detection lost across the new pipe | 6 | High | **Mitigated (2026-07-31).** `PIPE=("${PIPESTATUS[@]}")` immediately after the pipeline. Negative-tested against the case that would otherwise hide: a transport emitting a *complete-looking* stream and then exiting 28 — the shipped form fails the leg and discards the body, the naive `$?` form reports success |
+| Budget gate red on arrival deadlocks the default branch | 7 | High | **Mitigated (2026-07-31).** Both over-budget files were fixed in 7.1/7.2 first, and the gate was run against the real tree **before** the workflow step existed: 40 bodies, 0 findings, largest 490 lines. Scope exclusion of `commands/` is a tested property, not a comment — `--self-test` plants a 900-line file under a `commands/` directory (the largest real command, `implement-plan.md`, is 520 lines and would redden `main`'s own push build) and asserts it is neither globbed nor evaluated even when passed explicitly. Wired as a STEP in the existing `plugin-validate` job, so no new required check appears (D28/PLAT-012) |
 | Tier prose names a model generation, recreating the staleness class | 5 | High | Explicit acceptance criterion and a DoD check on the diff |
 | `plan-improvements.md` edits from three issues collide | 2, 4 | Medium | Phases serialized; each item lists the regions it must not touch; DoD asserts untouched regions byte-identical |
 | Extraction changes what a skill emits into other repositories | 7 | Medium | Byte-identical emission is the acceptance criterion, not a side note |
@@ -1251,7 +1299,7 @@ Each issue closes with its corrections recorded, not silently. Several carry fin
 |---|---|---|---|
 | Whether frontmatter outranks the session effort value, or the reverse | Low | Phase 3 framing | Does not change any action — "do not add `effort: high`" holds either way. The plan asserts only the no-op claim, never the removes-user-control claim |
 | Whether the real API completes at the top effort tiers within the transport budget | Medium | #216 follow-up only | Out of scope — the ladder is unchanged. The committed probe makes it answerable later |
-| Placement of the refusal category under streaming | Medium | Phase 6.1 | Treated as unknown by design: the accumulator must not assume it and must not crash when absent; a null-category fixture pins this |
+| Placement of the refusal category under streaming | Medium | Phase 6.1 | **RESOLVED 2026-07-31 by design, not by discovery — still unknown, and no longer needs to be known.** `find_refusal_category` does a depth-bounded search for a `stop_details` (then `refusal`) object anywhere in the terminal event instead of hard-coding a path, and a null/absent category surfaces as `category=unknown` without downgrading the refusal. Four fixtures pin it: category present, category null, `stop_details` absent entirely, and `stop_details` in an unexpected position. Mutation `G10` (collapsing the search to depth 0) flips the row to failing |
 | Whether the keyword mechanism's feature gate stays on | Low | Phase 1.1 | Recorded as current behaviour, not a stable contract |
 
 ## Scope Boundaries

@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "research-sse"
+version = "0.1.0"
+description = "Accumulate an Anthropic Messages SSE stream into report text plus a terminal verdict"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+keywords = ["sse", "streaming", "anthropic", "research", "accumulator"]
+# Dependency choice: stdlib only, deliberately and permanently. This tool
+# parses a stream that curl already fetched — it never opens a connection — so
+# it needs no httpx and no `anthropic` SDK. That is what lets the whole test
+# suite run offline with no API key, which is the entire point of the item
+# that created it.
+dependencies = []
+
+[project.scripts]
+research-sse = "research_sse.__main__:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-xdist>=3.5",
+    "mypy>=1.8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+# `tests` is on the path so the fixture-loading helpers in conftest.py can be
+# imported by name from the test modules.
+pythonpath = ["src", "tests"]
+addopts = "--cov=research_sse --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/research_sse"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 95
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

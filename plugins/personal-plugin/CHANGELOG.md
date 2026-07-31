@@ -5,6 +5,60 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.10.0] - 2026-07-31
+
+Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #198). A large fraction of the filed issue text was wrong; three of the corrections below invert what was filed.
+
+### Removed
+- Two **live** deep-reasoning prompt injections, and the generator template that minted them. The bare trigger word in `ultra-plan`'s body and a parenthesised one in `plan-improvements`'s Phase 1 heading both fired on every load — the matcher is case-insensitive and word-bounded, which is why a case-sensitive sweep had missed the second site entirely. `references/templates/planning.md` was the mould casting the pattern into every planning command built from it.
+
+### Changed
+- `ultra-plan` now declares `effort: xhigh` explicitly. This is **not** a new escalation — the skill already ran at the default `high` plus the live injection, so deleting the injection alone would have been a net de-escalation. An absent `effort:` field resolves to exactly `high`, which makes `effort: high` a no-op that is never written.
+- Reasoning-effort calibration. `unlock`, `fleet-health` and `new-project` declare `effort: low`; `release-plugin`, `jetson-audit`, `validate-plugin` and `analyze-transcript` declare `effort: medium`. All seven are **downgrades from an effective `high`**, not additions of a missing setting.
+- `arch-synthesize` raised `low` → `medium`. Seven of its eight steps are mechanical, but step 6 resolves cross-domain contradictions using business impact as a tiebreaker and writes the summary a human acts on — under-provisioned at `low`. This is the only upgrade in the set.
+
+  Deliberately **not** downgraded, each for a stated reason: `ship` (contains a code-review-and-fix loop and can push and merge), `jetson-recon` (declares a trust boundary against untrusted web content), `wiki` (cross-page synthesis), `develop-image-prompt` (creative composition), and `visual-explainer` (decides what to depict before billing per image).
+
+### Added
+- **New bundled tool `research-sse`** — a stdlib-only, zero-dependency accumulator that reads an Anthropic SSE stream on stdin and emits report text on stdout with a verdict as its exit status. 87 tests, 99% coverage, no API key and no network required.
+
+  It exists because the `/research-topic` Claude leg previously had **zero testable surface**: the request lived in a markdown reference file that a subagent read and hand-substituted at runtime, so nothing rendered, linted, or executed it. That substrate is what let a prior crash sit undetected on every dispatch. Wired into CI as a **non-required** job first, following the `task-sync` precedent — a required check cannot exist before the PR that creates it.
+
+- Owner-run live probe at `tests/live/research_topic_probe.sh`, plus four eval scenarios covering the parse path and terminal-reason handling. The probe **extracts** the request shape and depth ladder from the shipped files rather than restating them, which is what makes it impossible to pass against a broken tree; it carries a negative control that must fail, and skips cleanly when no key is present. The equivalent probe for the prior fix was never committed, so the only artifact proving that fix existed was lost.
+
+### Changed
+- **`/research-topic`'s Claude leg now streams.** The shipped comprehensive tier already ran at double the documented non-streaming output ceiling, so this is a latent correctness fix, not only an enhancement. The depth ladder is **unchanged** — current guidance for the default model argues against the filed ladder change.
+
+  **The guard that made this risky:** in the non-streaming shape the terminal reason was a top-level `stop_reason` field, and the leg checked exactly that. Under streaming it moves inside a `message_delta` event, so a port that reassembles the stream and keeps the old lookup compiles, reads correctly, passes review, and **never fires** — silently writing an empty or half-refusal report on every safety refusal. The refusal fixture was written first and run red; a test now performs the old naive lookup against every refusal fixture and asserts it returns `None`, pinning the ported defect by test rather than by prose. All 12 guards are mutation-tested fail-first.
+
+  Transport-failure detection is preserved across the new pipe via `PIPESTATUS` (a bare `$?` after a pipe reports only the accumulator, hiding a timeout or reset), and the HTTP status is now diagnostics-only — it arrives before any content, so a 200 header is not evidence of a complete response.
+
+### Changed
+- Two oversized skill bodies brought back under the 500-line budget by moving bulk to `references/`: `lab-notebook` 541 → 333, `visual-explainer` 518 → 432.
+
+  **`lab-notebook`'s extraction is byte-identity-critical** — it emits its templates into *other repositories'* `CLAUDE.md` files, so a reformatted extraction would silently change what it writes elsewhere. Both extracted templates were verified SHA-256-identical to their pre-extraction form. `visual-explainer` extracted **illustration only, never logic**: the `AskUserQuestion` payloads are behavioural and stay inline, and a plan-display block glued to one was deliberately kept inline for the same reason.
+
+  Note the corrected rationale: this saves **zero** tokens until the skill is invoked, because bodies are not always-loaded. It is an authoring-quality change.
+
+### Fixed
+- `/research-topic`'s `allowed-tools` omitted **every** interpreter and text-utility grant its own shipped commands invoke — `python3` (which does all JSON parsing, 7 sites), plus `grep`, `sed`, `tail`, `tr`, `cut` and `find`. A dispatch-time-only failure that every offline gate passes; it never surfaced because the prior live verification ran through a standalone probe rather than a real dispatch.
+
+- `visual-explainer` gains an optional in-loop model override, `VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL` (`InternalConfig.claude_loop_model`, default `None`), resolved through `resolve_loop_model(base)`. **Unset, it is behaviourally indistinguishable from before** — that backward-compatibility property is asserted directly by test, not inferred.
+
+  The split is on the **loop boundary**, not the evaluation boundary the filed issue proposed. One setting fed **four** consumers, not the three the issue named: the missed one is prompt *refinement*, which draws its model from the generation knob but runs once per failed attempt **inside** the loop. Splitting on eval-vs-rest would have moved vision calls to a cheaper tier while stranding an equally high-volume text call on the expensive one. Worst case is ~200 evaluation plus ~180 refinement calls against 1 analysis call, every evaluation call carrying a re-encoded 4K image.
+
+  The resolver deliberately takes a `base` argument. `PromptRefiner` inherits its model from `PromptGenerator`, which may be passed an explicit model that is not `claude_model`; a no-argument resolver would have silently overridden a caller's explicit choice — a behaviour change smuggled in under a setting whose whole premise is that unset means unchanged.
+
+- Tier-routing criteria now route on **coupling and spec clarity, not file count**. Rule 17 in `references/plan-template.md` and `opus-implementer.md` previously listed "multi-file refactors" as an unqualified top-tier criterion. Evidence from archived plans v12 and v13: 15 sonnet items touched ≥3 files each (max 10) with **zero** escalations, while two top-tier items were a one-line CI edit and a zero-file verification task. Per ADR-0005 rule 2 the qualification is written in task properties and names no model generation.
+
+### Fixed
+- `create_prompt_generator()` accepted an `internal_config` carrying `claude_model` and constructed the generator without forwarding it, so the configured model silently never arrived and the module `DEFAULT_MODEL` was used instead. The three `DEFAULT_MODEL` constants are **not** dead as filed — they are the effective value on several factory paths — and they stay.
+- Stale absolute context thresholds in four components, replaced with relative triggers and concretely-specified degradation strategies rather than larger numbers.
+  - `analyze-transcript` was **internally contradictory**: a 50K "too large" threshold sat above a 30K chunking trigger, so the 50K row fired nothing the 30K row had not, and the 30K–50K band was simultaneously "not too large" and chunked. Seven coupled sites now share one relative trigger, and split-and-reconcile chunking is replaced by a structure-first strategy that degrades **resolution rather than scope** — which removes the chunk boundaries the old strategy then needed a separate instruction to stop losing items at.
+  - `assess-document` claimed ~100K was "context window capacity" and degraded to "the first N sections" where **N was never bound anywhere in the file**. Raising the number would have fixed nothing; the undefined path is the defect. Now delegates to a numbered strategy at the point of work, with a terminal fallback.
+  - `plan-improvements` loses its absolute Context Budget table. Every row summed to exactly 100K, modelling a fixed split between reading and writing — but input context grew to 1M while per-response output did not, so the Output Reserve column was bounded by max output tokens and rescaling it would have produced a meaningless number. Deleted, not rescaled, in favour of the file's existing percentage-based strategy.
+  - `summarize-feedback` keeps its >100-entry warning, **re-stated as an operation-cost warning** — the skill makes one API fetch per entry, so the threshold was always about round-trips and wall-clock, not context. The context-driven batch-by-25 pass and its meta-synthesis stage are removed, along with the interaction option that offered them.
+
 ## [11.9.0] - 2026-07-30
 
 Mitigations for #232 — a session serving a stale skill body against a current bundled tool. Characterized in LAB_NOTEBOOK Entry 066; the root cause is **not** an upstream loader bug.

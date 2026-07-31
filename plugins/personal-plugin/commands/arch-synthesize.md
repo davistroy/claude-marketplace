@@ -1,7 +1,7 @@
 ---
 description: Re-synthesize the executive summary from existing domain findings — use after editing findings, re-running a single agent, or resolving conflicts
 argument-hint: <path-to-target>
-effort: low
+effort: medium
 allowed-tools: Read, Glob, Grep, Bash(ls:*), Bash(echo:*)
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: sg-research
+effort: low
 description: Conduct autonomous web research on a topic using Claude Agent SDK, producing structured research.json. Use when researching a topic for slides, starting the pipeline from scratch, or you have a topic but no research.json yet.
 argument-hint: "<topic> [--output path] [--max-sources N]"
 allowed-tools: Bash, Read, Glob, Grep

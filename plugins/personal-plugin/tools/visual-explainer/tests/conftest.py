@@ -118,6 +118,10 @@ def sample_internal_config(temp_cache_dir: Path) -> InternalConfig:
         claude_timeout_seconds=30.0,
         gemini_model="imagen-3.0-generate-002",
         claude_model="claude-sonnet-5",
+        # Explicitly unset: the default state this fixture stands in for is
+        # "no loop-tier override", which must behave exactly as it did before
+        # the override existed.
+        claude_loop_model=None,
         negative_prompt="no text, no words, no labels",
     )
 

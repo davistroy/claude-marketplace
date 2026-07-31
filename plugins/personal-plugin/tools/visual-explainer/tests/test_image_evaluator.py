@@ -20,8 +20,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
+from visual_explainer.config import InternalConfig
 from visual_explainer.image_evaluator import (
     CLAUDE_IMAGE_SIZE_LIMIT,
+    DEFAULT_MODEL,
     ImageEvaluationError,
     ImageEvaluator,
     create_evaluator,
@@ -137,6 +139,50 @@ class TestVerdictDetermination:
         assert ev._determine_verdict(0.70) == EvaluationVerdict.PASS
         assert ev._determine_verdict(0.50) == EvaluationVerdict.NEEDS_REFINEMENT
         assert ev._determine_verdict(0.20) == EvaluationVerdict.FAIL
+
+
+# ---------------------------------------------------------------------------
+# Loop-tier Model Resolution Tests
+# ---------------------------------------------------------------------------
+
+
+class TestLoopModelResolution:
+    """Evaluation is an in-loop consumer and resolves through the loop tier."""
+
+    def test_unset_override_keeps_supplied_model(self):
+        """Backward compatibility: with no override, the supplied model is used."""
+        config = InternalConfig(claude_model="base-model")
+        with patch("visual_explainer.image_evaluator.anthropic.Anthropic"):
+            ev = ImageEvaluator(api_key="key", model="supplied-model", internal_config=config)
+        assert ev.model == "supplied-model"
+
+    def test_unset_override_keeps_module_default(self):
+        """With neither an override nor an explicit model, DEFAULT_MODEL survives."""
+        config = InternalConfig(claude_model="base-model")
+        with patch("visual_explainer.image_evaluator.anthropic.Anthropic"):
+            ev = ImageEvaluator(api_key="key", internal_config=config)
+        assert ev.model == DEFAULT_MODEL
+
+    def test_set_override_replaces_supplied_model(self):
+        """A set override moves evaluation onto the loop tier."""
+        config = InternalConfig(claude_model="base-model", claude_loop_model="loop-model")
+        with patch("visual_explainer.image_evaluator.anthropic.Anthropic"):
+            ev = ImageEvaluator(api_key="key", model="supplied-model", internal_config=config)
+        assert ev.model == "loop-model"
+
+    def test_override_read_from_env_when_config_omitted(self, monkeypatch):
+        """Without an explicit config the evaluator still sees the env override."""
+        monkeypatch.setenv("VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL", "env-loop-model")
+        with patch("visual_explainer.image_evaluator.anthropic.Anthropic"):
+            ev = ImageEvaluator(api_key="key")
+        assert ev.model == "env-loop-model"
+
+    def test_no_env_override_leaves_default(self, monkeypatch):
+        """The complementary case: no env override means no behaviour change."""
+        monkeypatch.delenv("VISUAL_EXPLAINER_CLAUDE_LOOP_MODEL", raising=False)
+        with patch("visual_explainer.image_evaluator.anthropic.Anthropic"):
+            ev = ImageEvaluator(api_key="key")
+        assert ev.model == DEFAULT_MODEL
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,6 @@
+# research-sse has zero runtime dependencies (stdlib only), by design: it
+# parses a stream that curl already fetched, so it needs no HTTP client and no
+# SDK. This file exists so the repo-wide pip-audit convention (one
+# requirements-lock.txt per bundled tool) still holds; it is intentionally
+# empty of packages. Populate via `pip-compile --output-file=requirements-lock.txt
+# pyproject.toml` if a runtime dependency is ever added.

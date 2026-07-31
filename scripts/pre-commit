@@ -18,6 +18,8 @@
 #   7. Release integrity -- a bump-worthy change under plugins/<name>/ requires
 #      a version bump, and a version bump requires a CHANGELOG.md entry
 #      (scripts/check_version_bump.py, #226/#210)
+#   8. SKILL.md body budget -- a skill body (post-frontmatter) must stay under
+#      500 lines (scripts/check_skill_budget.py, #238)
 #
 # Target: < 5 seconds execution time
 #
@@ -319,6 +321,39 @@ fi
 echo ""
 
 # ============================================
+# Check 8: SKILL.md Body Budget (#238)
+# ============================================
+echo "Checking SKILL.md body budget (under 500 lines)..."
+
+# File selection is DELEGATED to the script's `--filter` mode, which pipes the
+# staged path list through the same `in_scope()` predicate the full scan uses.
+# Restating `plugins/*/skills/*/SKILL.md` in shell here is precisely how the two
+# copies drift apart (CLAUDE.md: "derive it, don't copy it") -- and $STAGED_FILES
+# above cannot be reused either: its regex also matches commands/*.md, which this
+# gate deliberately does NOT cover (frozen legacy, ADR-0006).
+SKILL_STAGED=$(git diff --cached --name-only --diff-filter=ACM \
+                   | python3 scripts/check_skill_budget.py --filter || true)
+
+if [ -z "$SKILL_STAGED" ]; then
+    echo -e "  ${GREEN}[SKIP]${NC} No skill bodies staged"
+else
+    echo "Staged skill body/bodies:"
+    echo "$SKILL_STAGED" | while read -r file; do
+        echo "  - $file"
+    done
+    # Only the staged bodies are measured, not the whole tree: a pre-existing
+    # over-budget file elsewhere is not this commit's problem, and CI's full scan
+    # gates that authoritatively.
+    if python3 scripts/check_skill_budget.py $SKILL_STAGED; then
+        echo -e "  ${GREEN}[PASS]${NC} Every staged skill body is under 500 lines"
+    else
+        echo -e "  ${RED}[FAIL]${NC} Skill body budget exceeded (see above)"
+        ERRORS=$((ERRORS + 1))
+    fi
+fi
+echo ""
+
+# ============================================
 # Summary
 # ============================================
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -345,6 +380,9 @@ if [ $ERRORS -gt 0 ]; then
     echo "    pinned model IDs (ADR-0005) -- see docs/adr/0005-model-aliases-in-agent-definitions.md"
     echo "  - Python files must pass ruff check and ruff format"
     echo "    Fix with: ruff check --fix . && ruff format ."
+    echo "  - A SKILL.md body (everything after the closing frontmatter ---) must stay"
+    echo "    under 500 lines (#238) -- move long samples/tables into the skill's"
+    echo "    references/ directory and leave a one-line pointer in the body"
     echo "  - A bump-worthy change under plugins/<name>/ requires a version bump in that"
     echo "    plugin's plugin.json, and a bump requires a CHANGELOG.md entry for the new"
     echo "    version (#226/#210) -- fix with: /bump-version <plugin> <major|minor|patch>"

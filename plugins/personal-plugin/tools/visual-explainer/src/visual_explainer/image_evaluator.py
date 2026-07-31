@@ -29,6 +29,7 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
+from .config import InternalConfig
 from .models import CriteriaScores, EvaluationResult, EvaluationVerdict
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,8 @@ class ImageEvaluator:
 
     Attributes:
         client: Anthropic API client.
-        model: Model ID to use for evaluation.
+        model: Model ID to use for evaluation, resolved through the loop tier.
+        internal_config: Internal configuration with defaults.
         pass_threshold: Score threshold for PASS verdict (default: 0.85).
         fail_threshold: Score threshold for FAIL verdict (default: 0.5).
 
@@ -170,20 +172,27 @@ class ImageEvaluator:
         model: str = DEFAULT_MODEL,
         pass_threshold: float = DEFAULT_PASS_THRESHOLD,
         fail_threshold: float = DEFAULT_FAIL_THRESHOLD,
+        internal_config: InternalConfig | None = None,
     ) -> None:
         """Initialize the image evaluator.
 
         Args:
             api_key: Anthropic API key. If None, uses ANTHROPIC_API_KEY env var.
-            model: Claude model to use for evaluation.
+            model: Claude model to use for evaluation. Used as the fall-back base
+                when no loop-tier override is configured.
             pass_threshold: Score threshold for PASS verdict.
             fail_threshold: Score threshold for FAIL verdict.
+            internal_config: Internal configuration. If None, uses defaults.
 
         Raises:
             anthropic.AuthenticationError: If API key is invalid.
         """
         self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = model
+        self.internal_config = internal_config or InternalConfig.from_env()
+        # Evaluation runs once per generation attempt inside the loop, so it
+        # resolves through the loop-tier override. With the override unset the
+        # resolver returns `model`, i.e. exactly what this line assigned before.
+        self.model = self.internal_config.resolve_loop_model(model)
         self.pass_threshold = pass_threshold
         self.fail_threshold = fail_threshold
 

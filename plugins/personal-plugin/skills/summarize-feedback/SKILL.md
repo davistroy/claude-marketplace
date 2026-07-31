@@ -91,8 +91,8 @@ Display progress: `Fetched {N} of {total} entries...`
 
 Before synthesis, evaluate the total volume of feedback entries:
 
-- **Entry count exceeds 100:** Process in batches of 25 entries. Run synthesis on each batch, then run a final meta-synthesis pass to consolidate batch results into a single assessment.
-- **Total input text exceeds 60% of estimated context window:** Warn the user before proceeding. Offer options: (1) reduce date range, (2) process in batches, (3) proceed with truncation risk.
+- **Entry count exceeds 100:** Warn the user before proceeding — the skill makes one Notion API fetch per entry, so 100+ entries means 100+ sequential round-trips and a run that can take 15-30 minutes (see Performance below). This is an operation-cost warning, not a context-size one. Offer to proceed, or narrow the date range to reduce the entry count.
+- **Total input text exceeds 60% of estimated context window:** Warn the user before proceeding. Offer options: (1) reduce the date range, (2) proceed with truncation risk.
 - **Display warning format:**
 
 ```text
@@ -113,16 +113,12 @@ Then ask with `AskUserQuestion`:
       "multiSelect": false,
       "options": [
         {
-          "label": "Batch by 25 (Recommended)",
-          "description": "Synthesize in batches of 25 entries, then a meta-synthesis pass. Most accurate"
-        },
-        {
-          "label": "Narrow the date range",
-          "description": "Re-run entry collection over a shorter window to reduce the entry count"
+          "label": "Narrow the date range (Recommended)",
+          "description": "Re-run entry collection over a shorter window to reduce entry count and API round-trips"
         },
         {
           "label": "Proceed anyway",
-          "description": "Single synthesis pass over everything; risks silent truncation"
+          "description": "Single synthesis pass over everything; risks longer runtime and truncation"
         }
       ]
     }
@@ -277,10 +273,10 @@ Document sections:
 |----------|-------------------|-------|
 | 1-10 feedback entries | 1-3 minutes | Single-pass synthesis, fast .docx generation |
 | 10-50 feedback entries | 3-8 minutes | Dominated by Notion fetch and LLM synthesis |
-| 50-100 feedback entries | 8-15 minutes | Batch processing may trigger context guardrail |
-| 100+ feedback entries | 15-30 minutes | Multi-batch synthesis with meta-consolidation pass |
+| 50-100 feedback entries | 8-15 minutes | Approaching the entry-count warning threshold |
+| 100+ feedback entries | 15-30 minutes | Triggers the operation-cost warning: 100+ sequential Notion fetches |
 
-Duration is dominated by Notion API fetches (Step 3) and LLM synthesis (Step 4). The .docx generation via the Python tool adds under 5 seconds regardless of entry count. Batch processing (triggered at 100+ entries) adds a final meta-synthesis pass that roughly doubles synthesis time.
+Duration is dominated by Notion API fetches (Step 3) and LLM synthesis (Step 4). The .docx generation via the Python tool adds under 5 seconds regardless of entry count. The warning at 100+ entries reflects the added wall-clock cost of the additional sequential API fetches, not a context-window concern — synthesis itself remains a single pass regardless of entry count.
 
 ## Examples
 

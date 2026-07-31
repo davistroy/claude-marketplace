@@ -63,7 +63,7 @@ See `references/patterns/validation.md` for error message format.
 <!-- SECTION 5: INSTRUCTIONS -->
 ## Instructions
 
-### Phase 1: Deep Analysis (Ultrathink)
+### Phase 1: Deep Analysis
 
 Thoroughly analyze the target scope with extended thinking enabled. Focus on:
 
