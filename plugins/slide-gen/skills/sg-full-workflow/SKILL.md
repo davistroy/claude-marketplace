@@ -2,6 +2,7 @@
 name: sg-full-workflow
 description: Run the complete 7-step slide generation pipeline from topic to PowerPoint. Use when you want to create a full presentation from scratch, generate a complete deck end-to-end, or see the entire pipeline in action.
 argument-hint: "<topic> [--template generic] [--skip-images] [--output dir]"
+effort: medium
 allowed-tools: Bash, Read, Glob, Grep
 ---
 

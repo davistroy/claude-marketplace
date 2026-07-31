@@ -309,9 +309,9 @@ Apply only the `effort:` values that produce a behavioural delta. **All three of
 
 ### Work Items
 
-#### 3.1 Apply `effort: low` to the mechanically-bounded components
+#### 3.1 Apply `effort: low` to the mechanically-bounded components ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: haiku**
 **Recommendation Ref:** #199 item 2 (low group)
 **Depends On:** None
@@ -329,23 +329,23 @@ Each of these is a bounded, low-judgment component currently running at the defa
 
 **Tasks:**
 
-1. [ ] Add `effort: low` to each of the 10 files' frontmatter.
-2. [ ] Verify each file's frontmatter still parses with `yaml.safe_load` and retains its full key set.
-3. [ ] Confirm `sg-full-workflow` is NOT modified by this item.
+1. [x] Add `effort: low` to each of the 10 files' frontmatter.
+2. [x] Verify each file's frontmatter still parses with `yaml.safe_load` and retains its full key set.
+3. [x] Confirm `sg-full-workflow` is NOT modified by this item.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN each of the 10 files' frontmatter is parsed THEN `effort` SHALL equal `low` and every pre-existing key SHALL be present
-- [ ] `sg-full-workflow/SKILL.md` is byte-identical to `main`
-- [ ] `claude plugin validate --strict` exits 0 for all three plugins
+- [x] WHEN each of the 10 files' frontmatter is parsed THEN `effort` SHALL equal `low` and every pre-existing key SHALL be present
+- [x] `sg-full-workflow/SKILL.md` is byte-identical to `main`
+- [x] `claude plugin validate --strict` exits 0 for all three plugins
 
 **Notes:**
 
 These are downgrades from an effective `high`, not additions of a missing setting. The commit message must say so.
 
-#### 3.2 Apply `effort: medium` to the defensible orchestrators
+#### 3.2 Apply `effort: medium` to the defensible orchestrators ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: haiku**
 **Recommendation Ref:** #199 item 2 (medium group, re-scoped)
 **Depends On:** None
@@ -364,10 +364,10 @@ These are downgrades from an effective `high`, not additions of a missing settin
 
 **Tasks:**
 
-1. [ ] Add `effort: medium` to the three components currently absent.
-2. [ ] Change `effort: high` → `effort: medium` in the two commands.
-3. [ ] Verify frontmatter integrity on all five with `yaml.safe_load`.
-4. [ ] Confirm none of the five excluded components is modified.
+1. [x] Add `effort: medium` to the three components currently absent.
+2. [x] Change `effort: high` → `effort: medium` in the two commands.
+3. [x] Verify frontmatter integrity on all five with `yaml.safe_load`.
+4. [x] Confirm none of the five excluded components is modified.
 
 **Acceptance Criteria:**
 
@@ -379,9 +379,9 @@ These are downgrades from an effective `high`, not additions of a missing settin
 
 Five of #199's `medium` recommendations are rejected here with reasons. That is a larger rejection rate than acceptance, which is the expected shape given the base rate.
 
-#### 3.3 Upgrade `arch-synthesize` to `medium`
+#### 3.3 Upgrade `arch-synthesize` to `medium` ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: haiku**
 **Recommendation Ref:** #199 item 4 (the only upgrade)
 **Depends On:** None
@@ -396,13 +396,13 @@ This is the only recommendation in #199 whose direction is unaffected by the abs
 
 **Tasks:**
 
-1. [ ] Change `effort: low` → `effort: medium`.
-2. [ ] Verify frontmatter integrity.
+1. [x] Change `effort: low` → `effort: medium`.
+2. [x] Verify frontmatter integrity.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the frontmatter is parsed THEN `effort` SHALL equal `medium`
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+- [x] WHEN the frontmatter is parsed THEN `effort` SHALL equal `medium`
+- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
 

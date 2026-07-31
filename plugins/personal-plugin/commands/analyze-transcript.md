@@ -1,7 +1,7 @@
 ---
 description: Meeting transcript to structured markdown report
 argument-hint: "<transcript-path> [--format md|json|interview-record] [--preview]"
-effort: high
+effort: medium
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
 

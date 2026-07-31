@@ -1,5 +1,6 @@
 ---
 name: sg-generate-images
+effort: low
 description: Generate slide visuals using Gemini Pro from validated graphics descriptions. Use when you want to generate slide images, create visuals after validation, or see what the slides will look like.
 argument-hint: "<presentation.md> [--resolution high|medium|small]"
 allowed-tools: Bash, Read, Glob, Grep

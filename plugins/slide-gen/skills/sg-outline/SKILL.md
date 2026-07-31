@@ -1,5 +1,6 @@
 ---
 name: sg-outline
+effort: low
 description: Generate a structured presentation outline from research findings. Use when you have research.json and want to create an outline, structure findings into slides, or plan slide structure before drafting.
 argument-hint: "<research.json> [--output path] [--target-slides N]"
 allowed-tools: Bash, Read, Glob, Grep

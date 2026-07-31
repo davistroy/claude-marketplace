@@ -1,5 +1,6 @@
 ---
 name: sg-validate-graphics
+effort: low
 description: Validate that image descriptions are concrete enough for AI image generation. Use when you want to check if image descriptions are ready for generation, validate graphics before image generation, or avoid wasted API calls.
 argument-hint: "<presentation.md>"
 allowed-tools: Bash, Read, Glob, Grep

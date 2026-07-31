@@ -1,5 +1,6 @@
 ---
 name: sg-build
+effort: low
 description: Assemble final PowerPoint (.pptx) from presentation markdown and generated images. Use when you want to create the final PowerPoint, build the deck after image generation, or skip to building from presentation.md.
 argument-hint: "<presentation.md> [--template generic] [--style style.json]"
 allowed-tools: Bash, Read, Glob, Grep

@@ -16,6 +16,12 @@ Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #1
 
 ### Changed
 - `ultra-plan` declares `effort: xhigh` explicitly, replacing an implicit unsanctioned escalation with a sanctioned one rather than de-escalating the skill.
+- Reasoning-effort calibration across 16 components in `personal-plugin` and `slide-gen`. Every change except one is a **downgrade from an effective `high`** — an absent `effort:` field resolves to exactly `high`, so nothing here was under-powered and all three `effort: high` recommendations in the filed issue were no-ops. The single upgrade is `arch-synthesize` (`low` → `medium`).
+
+## [slide-gen v1.5.0] - 2026-07-31
+
+### Changed
+- Reasoning-effort calibration across all nine skills: seven thin `sg-*` wrappers to `effort: low`, `sg-full-workflow` to `effort: medium`. Downgrades from an effective `high`, not additions of a missing setting.
 
 ## [personal-plugin v11.9.0] - 2026-07-30
 

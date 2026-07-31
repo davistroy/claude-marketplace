@@ -1,5 +1,6 @@
 ---
 name: new-project
+effort: low
 description: Scaffold a brand-new project directory end-to-end — git init, remote repository (GitHub by default, Gitea with --gitea), CLAUDE.md, .gitignore, placeholder .env, lab notebook, kill-criteria BRIEF.md, and the initial commit/push. Creates a remote repo, so it runs only when invoked explicitly.
 argument-hint: "<org>/<name> [--type python|node|docs] [--gitea]"
 disable-model-invocation: true

@@ -1,7 +1,7 @@
 ---
 description: Validate plugin structure, frontmatter, and content for consistency and correctness (supports `--check-updates`)
 argument-hint: "<plugin-name> [--all] [--fix] [--verbose] [--strict]"
-effort: high
+effort: medium
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(sed:*), Bash(gh:*), Bash(base64:*)
 ---
 

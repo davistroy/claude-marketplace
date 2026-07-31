@@ -14,6 +14,10 @@ Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #1
 
 ### Changed
 - `ultra-plan` now declares `effort: xhigh` explicitly. This is **not** a new escalation — the skill already ran at the default `high` plus the live injection, so deleting the injection alone would have been a net de-escalation. An absent `effort:` field resolves to exactly `high`, which makes `effort: high` a no-op that is never written.
+- Reasoning-effort calibration. `unlock`, `fleet-health` and `new-project` declare `effort: low`; `release-plugin`, `jetson-audit`, `validate-plugin` and `analyze-transcript` declare `effort: medium`. All seven are **downgrades from an effective `high`**, not additions of a missing setting.
+- `arch-synthesize` raised `low` → `medium`. Seven of its eight steps are mechanical, but step 6 resolves cross-domain contradictions using business impact as a tiebreaker and writes the summary a human acts on — under-provisioned at `low`. This is the only upgrade in the set.
+
+  Deliberately **not** downgraded, each for a stated reason: `ship` (contains a code-review-and-fix loop and can push and merge), `jetson-recon` (declares a trust boundary against untrusted web content), `wiki` (cross-page synthesis), `develop-image-prompt` (creative composition), and `visual-explainer` (decides what to depict before billing per image).
 
 ## [11.9.0] - 2026-07-30
 

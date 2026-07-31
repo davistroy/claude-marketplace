@@ -1,5 +1,6 @@
 ---
 name: unlock
+effort: low
 description: Load secrets from Bitwarden Secrets Manager into the environment using the bws CLI. Fully stateless — no vault unlock or session tokens required. Invoke explicitly with /unlock; it never runs on its own.
 disable-model-invocation: true
 allowed-tools: Bash(bws:*), Bash(command:*), Bash(which:*), Bash(where:*), Bash(echo:*), Bash(export:*), Bash(unset:*), Bash(powershell:*), Bash(python3:*), Bash(mktemp:*), Bash(chmod:*), Bash(rm:*), Bash(source:*), Bash(test:*)

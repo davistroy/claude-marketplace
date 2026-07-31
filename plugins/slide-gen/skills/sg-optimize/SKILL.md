@@ -1,5 +1,6 @@
 ---
 name: sg-optimize
+effort: low
 description: Run quality analysis and automated improvement on drafted slide content. Use when you have drafted slides and want to improve quality, optimize readability, or get quality scoring before finalizing.
 argument-hint: "<presentation.md> [--output path]"
 allowed-tools: Bash, Read, Glob, Grep

@@ -3,6 +3,7 @@ name: jetson-audit
 description: SSH into the Jetson Orin Nano and audit the running inference config against known best practices and community optimizations. Reports gaps, misconfigurations, and optimization opportunities. Complements jetson-recon (external landscape) with internal config validation.
 disable-model-invocation: true
 allowed-tools: Read, Edit, Glob, Grep, Bash(ssh:*), Bash(curl:*), Agent
+effort: medium
 ---
 
 # Jetson Audit
