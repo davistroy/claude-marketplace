@@ -171,9 +171,9 @@ Remove the live keyword from both component bodies and from the generator templa
 
 ### Work Items
 
-#### 2.1 Remove the bare keyword from `ultra-plan` and decide its `effort:`
+#### 2.1 Remove the bare keyword from `ultra-plan` and decide its `effort:` ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status:** COMPLETE 2026-07-31
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1
 **Depends On:** None
@@ -188,24 +188,24 @@ The frontmatter question is **not** "add the missing field" — the skill alread
 
 **Tasks:**
 
-1. [ ] Delete line 9 and any orphaned blank line.
-2. [ ] Add `effort: xhigh` to frontmatter, with a Decision Log entry recording that this replaces an implicit escalation with an explicit, sanctioned one — or leave absent and record *that* choice. Do not add `effort: high`.
-3. [ ] Verify frontmatter still parses with `yaml.safe_load` and carries a full key set — not merely that `--strict` exits 0 (the E061 lesson).
+1. [x] Delete line 9 and any orphaned blank line.
+2. [x] Add `effort: xhigh` to frontmatter, with a Decision Log entry recording that this replaces an implicit escalation with an explicit, sanctioned one — or leave absent and record *that* choice. Do not add `effort: high`.
+3. [x] Verify frontmatter still parses with `yaml.safe_load` and carries a full key set — not merely that `--strict` exits 0 (the E061 lesson).
 
 **Acceptance Criteria:**
 
-- [ ] WHEN `/ultra-plan` is invoked THEN no system-reminder about the keyword SHALL be emitted
-- [ ] WHEN the frontmatter is parsed by `yaml.safe_load` THEN `name`, `description`, and every pre-existing key SHALL still be present
-- [ ] The frontmatter does NOT contain `effort: high`
-- [ ] `claude plugin validate plugins/personal-plugin --strict` exits 0
+- [x] WHEN `/ultra-plan` is invoked THEN no system-reminder about the keyword SHALL be emitted
+- [x] WHEN the frontmatter is parsed by `yaml.safe_load` THEN `name`, `description`, and every pre-existing key SHALL still be present
+- [x] The frontmatter does NOT contain `effort: high`
+- [x] `claude plugin validate plugins/personal-plugin --strict` exits 0
 
 **Notes:**
 
 The escalation the keyword was providing is real; deleting it without a replacement is a de-escalation, not a neutral cleanup. Whichever way the decision goes, it must be recorded as a decision.
 
-#### 2.2 Remove the second live site from `plan-improvements`
+#### 2.2 Remove the second live site from `plan-improvements` ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1 (site not identified in the issue)
 **Depends On:** None
@@ -220,26 +220,26 @@ Delete the parenthetical from the heading. Leave `effort: max` alone: whether `m
 
 **Tasks:**
 
-1. [ ] Delete the parenthetical from the `:34` heading, leaving the heading text otherwise unchanged.
-2. [ ] Search the rest of the file for any further occurrence and remove it.
-3. [ ] Do NOT modify `:4`.
-4. [ ] Do NOT modify `:350` (that claim is closed as wrong-as-filed in Phase 5.3).
-5. [ ] Do NOT modify `:414-421` (that is Phase 4.3, and this file is serialized between the two phases).
+1. [x] Delete the parenthetical from the `:34` heading, leaving the heading text otherwise unchanged.
+2. [x] Search the rest of the file for any further occurrence and remove it.
+3. [x] Do NOT modify `:4`.
+4. [x] Do NOT modify `:350` (that claim is closed as wrong-as-filed in Phase 5.3).
+5. [x] Do NOT modify `:414-421` (that is Phase 4.3, and this file is serialized between the two phases).
 
 **Acceptance Criteria:**
 
-- [ ] WHEN the file is loaded as a command body THEN no system-reminder about the keyword SHALL be emitted
-- [ ] `:4` still reads `effort: max`
-- [ ] Lines `:350` and `:414-421` are byte-identical to `main`
-- [ ] The heading at `:34` still names the phase it labels
+- [x] WHEN the file is loaded as a command body THEN no system-reminder about the keyword SHALL be emitted
+- [x] `:4` still reads `effort: max`
+- [x] Lines `:350` and `:414-421` are byte-identical to `main`
+- [x] The heading at `:34` still names the phase it labels
 
 **Notes:**
 
 This is the single most actionable thing in #199, and it exists only because the fan-out disproved the issue's own premise. Both #199 and the E052 audit recommend deleting this line — *because it is dead*. Right action, wrong reason, and the wrong reason is recorded in three files (Phase 1.1 fixes two of them).
 
-#### 2.3 Fix the mould
+#### 2.3 Fix the mould ✅ Completed 2026-07-31
 
-**Status: PENDING**
+**Status: COMPLETE 2026-07-31**
 **Model Tier: sonnet**
 **Recommendation Ref:** #199 item 1 (ranked lowest in the issue; highest here)
 **Depends On:** 2.2
@@ -254,15 +254,15 @@ This is the fourth consecutive plan in which a generator template has had to be 
 
 **Tasks:**
 
-1. [ ] Remove the parenthetical from `:66`.
-2. [ ] Check the template's own `effort:` value at `:27` and confirm it is a deliberate choice, not an inherited default; leave it unless it is provably wrong.
-3. [ ] Grep the whole of `plugins/` for any remaining occurrence and confirm the count is zero.
+1. [x] Remove the parenthetical from `:66`.
+2. [x] Check the template's own `effort:` value at `:27` and confirm it is a deliberate choice, not an inherited default; leave it unless it is provably wrong.
+3. [x] Grep the whole of `plugins/` for any remaining occurrence and confirm the count is zero.
 
 **Acceptance Criteria:**
 
-- [ ] WHEN a new planning command is generated from this template THEN its body SHALL NOT contain the keyword
-- [ ] Zero occurrences remain anywhere under `plugins/`
-- [ ] `python3 scripts/update-readme.py --check` exits 0 (template changes must not disturb generated inventory)
+- [x] WHEN a new planning command is generated from this template THEN its body SHALL NOT contain the keyword
+- [x] Zero occurrences remain anywhere under `plugins/`
+- [x] `python3 scripts/update-readme.py --check` exits 0 (template changes must not disturb generated inventory)
 
 **Notes:**
 

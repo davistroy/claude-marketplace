@@ -2,11 +2,10 @@
 name: ultra-plan
 description: "Structured implementation planning for bug lists, feature requests, or change sets. Enforces deep investigation, interaction mapping, and integrated solution design before any code changes. Use when given a list of issues/features/changes that need a cohesive implementation plan."
 allowed-tools: Read, Glob, Grep, Agent
+effort: xhigh
 ---
 
 # Ultra Plan
-
-ultrathink
 
 Build a detailed, architecturally sound implementation plan for the provided issues, changes, updates, or features. This is a **rigid workflow** -- follow every phase in order. Do not skip phases or combine them. Each phase produces a distinct deliverable that gates the next.
 

@@ -31,7 +31,7 @@ For trivial projects or fresh repositories, ask the user if they want a full imp
 
 ## Instructions
 
-### Phase 1: Deep Codebase Analysis (Ultrathink)
+### Phase 1: Deep Codebase Analysis
 
 Thoroughly analyze the codebase with extended thinking enabled.
 

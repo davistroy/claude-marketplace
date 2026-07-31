@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.10.0] - 2026-07-31
+
+Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #198), executed against the *investigated* shape of each issue rather than the filed text.
+
+### Removed
+- Two live deep-reasoning prompt injections plus the generator template that minted them. Both fired on every component load; three in-repo surfaces had asserted the mechanism was a no-op.
+
+### Changed
+- `ultra-plan` declares `effort: xhigh` explicitly, replacing an implicit unsanctioned escalation with a sanctioned one rather than de-escalating the skill.
+
 ## [personal-plugin v11.9.0] - 2026-07-30
 
 Mitigations for #232 — a long-lived session serves the plugin version it resolved at start-up, so a current bundled tool can be read against a stale skill-body contract.

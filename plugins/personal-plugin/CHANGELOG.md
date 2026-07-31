@@ -5,6 +5,16 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.10.0] - 2026-07-31
+
+Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #198). A large fraction of the filed issue text was wrong; three of the corrections below invert what was filed.
+
+### Removed
+- Two **live** deep-reasoning prompt injections, and the generator template that minted them. The bare trigger word in `ultra-plan`'s body and a parenthesised one in `plan-improvements`'s Phase 1 heading both fired on every load — the matcher is case-insensitive and word-bounded, which is why a case-sensitive sweep had missed the second site entirely. `references/templates/planning.md` was the mould casting the pattern into every planning command built from it.
+
+### Changed
+- `ultra-plan` now declares `effort: xhigh` explicitly. This is **not** a new escalation — the skill already ran at the default `high` plus the live injection, so deleting the injection alone would have been a net de-escalation. An absent `effort:` field resolves to exactly `high`, which makes `effort: high` a no-op that is never written.
+
 ## [11.9.0] - 2026-07-30
 
 Mitigations for #232 — a session serving a stale skill body against a current bundled tool. Characterized in LAB_NOTEBOOK Entry 066; the root cause is **not** an upstream loader bug.
