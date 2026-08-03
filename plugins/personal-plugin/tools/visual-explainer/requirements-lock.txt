@@ -6,16 +6,16 @@
 #
 aiofiles==25.1.0
     # via visual-explainer (pyproject.toml)
-annotated-types==0.7.0
+annotated-types==0.8.0
     # via pydantic
-anthropic==0.116.0
+anthropic==0.120.2
     # via visual-explainer (pyproject.toml)
-anyio==4.14.1
+anyio==4.14.2
     # via
     #   anthropic
     #   google-genai
     #   httpx
-certifi==2026.6.17
+certifi==2026.7.22
     # via
     #   httpcore
     #   httpx
@@ -32,9 +32,9 @@ distro==1.9.0
     #   google-genai
 docstring-parser==0.18.0
     # via anthropic
-google-auth[requests]==2.55.2
+google-auth[requests]==2.56.2
     # via google-genai
-google-genai==2.11.0
+google-genai==2.16.0
     # via visual-explainer (pyproject.toml)
 h11==0.16.0
     # via httpcore
@@ -69,7 +69,7 @@ pydantic==2.13.4
     #   anthropic
     #   google-genai
     #   visual-explainer (pyproject.toml)
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pygments==2.20.0
     # via rich
