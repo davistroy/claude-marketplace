@@ -34,7 +34,7 @@ pathspec==1.1.1
     # via
     #   black
     #   mypy
-platformdirs==4.10.0
+platformdirs==4.11.0
     # via black
 pluggy==1.6.0
     # via
@@ -52,7 +52,7 @@ pytokens==0.4.1
     # via black
 pyyaml==6.0.3
     # via bpmn2drawio (pyproject.toml)
-ruff==0.15.22
+ruff==0.16.1
     # via bpmn2drawio (pyproject.toml)
 typing-extensions==4.16.0
     # via mypy
