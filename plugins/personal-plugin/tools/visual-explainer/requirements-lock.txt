@@ -6,23 +6,23 @@
 #
 aiofiles==25.1.0
     # via visual-explainer (pyproject.toml)
-annotated-types==0.7.0
+annotated-types==0.8.0
     # via pydantic
 anthropic==0.116.0
     # via visual-explainer (pyproject.toml)
-anyio==4.14.1
+anyio==4.14.2
     # via
     #   anthropic
     #   google-genai
     #   httpx
-certifi==2026.6.17
+certifi==2026.7.22
     # via
     #   httpcore
     #   httpx
     #   requests
-cffi==2.1.0
+cffi==2.1.1
     # via cryptography
-charset-normalizer==3.4.9
+charset-normalizer==3.5.1
     # via requests
 cryptography==49.0.0
     # via google-auth
@@ -32,9 +32,9 @@ distro==1.9.0
     #   google-genai
 docstring-parser==0.18.0
     # via anthropic
-google-auth[requests]==2.55.2
+google-auth[requests]==2.57.0
     # via google-genai
-google-genai==2.11.0
+google-genai==2.20.0
     # via visual-explainer (pyproject.toml)
 h11==0.16.0
     # via httpcore
@@ -45,7 +45,7 @@ httpx==0.28.1
     #   anthropic
     #   google-genai
     #   visual-explainer (pyproject.toml)
-idna==3.18
+idna==3.19
     # via
     #   anyio
     #   httpx
@@ -69,11 +69,11 @@ pydantic==2.13.4
     #   anthropic
     #   google-genai
     #   visual-explainer (pyproject.toml)
-pydantic-core==2.46.4
+pydantic-core==2.48.0
     # via pydantic
-pygments==2.20.0
+pygments==2.21.0
     # via rich
-python-dotenv==1.2.2
+python-dotenv==1.2.3
     # via visual-explainer (pyproject.toml)
 requests==2.34.2
     # via
@@ -94,7 +94,7 @@ typing-extensions==4.16.0
     #   pydantic
     #   pydantic-core
     #   typing-inspection
-typing-inspection==0.4.2
+typing-inspection==0.4.4
     # via pydantic
 urllib3==2.7.0
     # via requests
