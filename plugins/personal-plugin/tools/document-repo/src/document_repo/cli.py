@@ -168,6 +168,28 @@ def _register_build(sub: Any) -> None:
     p.set_defaults(func=_cmd_build)
 
 
+def _cmd_remap(args: argparse.Namespace) -> int:
+    from .build import read_json
+    from .remap import remap_model, write_model
+
+    try:
+        remapped, warnings = remap_model(read_json(args.model), args.repo, args.to)
+        write_model(args.model, remapped)
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(f"remap: {exc}\n")
+        return 2
+    emit({"warnings": warnings})
+    return 0
+
+
+def _register_remap(sub: Any) -> None:
+    p = sub.add_parser("remap", help="move model line numbers to a newer commit")
+    p.add_argument("--model", type=Path, required=True, help="model.json, rewritten in place")
+    p.add_argument("--repo", type=Path, required=True)
+    p.add_argument("--to", default="HEAD", help="commit the line numbers should refer to")
+    p.set_defaults(func=_cmd_remap)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -180,6 +202,7 @@ def build_parser() -> argparse.ArgumentParser:
     _register_verify(sub)
     _register_assemble(sub)
     _register_build(sub)
+    _register_remap(sub)
     return parser
 
 
