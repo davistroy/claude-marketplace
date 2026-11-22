@@ -198,21 +198,6 @@ FALSE_PASSES = [
         "# c\n# vim: set fileencoding=ascii :\nx = 1\n",
         DIRECTIVE,
     ),
-    ("ts-ignore", "a.ts", "f();\n", "// @ts-ignore\nf();\n", DIRECTIVE),
-    ("ts-expect-error", "a.ts", "f();\n", "// @ts-expect-error\nf();\n", DIRECTIVE),
-    ("ts-nocheck", "a.ts", "f();\n", "// @ts-nocheck\nf();\n", DIRECTIVE),
-    ("js-ts-check", "a.js", "f();\n", "// @ts-check\nf();\n", DIRECTIVE),
-    ("js-eslint-disable", "a.js", "f();\n", "/* eslint-disable */\nf();\n", DIRECTIVE),
-    ("js-eslint-enable", "a.js", "f();\n", "f();\n// eslint-enable\n", DIRECTIVE),
-    ("js-prettier", "a.js", "f();\n", "// prettier-ignore\nf();\n", DIRECTIVE),
-    ("js-istanbul", "a.js", "f();\n", "/* istanbul ignore next */\nf();\n", DIRECTIVE),
-    ("js-c8", "a.js", "f();\n", "/* c8 ignore next */\nf();\n", DIRECTIVE),
-    ("js-biome", "a.js", "f();\n", "// biome-ignore lint: x\nf();\n", DIRECTIVE),
-    ("js-jsx-pragma", "a.jsx", "f();\n", "/** @jsx h */\nf();\n", DIRECTIVE),
-    ("js-jsx-import", "a.tsx", "f();\n", "/** @jsxImportSource preact */\nf();\n", DIRECTIVE),
-    ("js-jsx-runtime", "a.jsx", "f();\n", "/** @jsxRuntime classic */\nf();\n", DIRECTIVE),
-    ("js-flow", "a.js", "f();\n", "// @flow\nf();\n", DIRECTIVE),
-    ("ts-triple-slash", "a.ts", "f();\n", '/// <reference types="node" />\nf();\n', DIRECTIVE),
     ("go-build", "m.go", "package m\n", "//go:build ignore\n\npackage m\n", DIRECTIVE),
     ("go-plus-build", "m.go", "package m\n", "// +build ignore\n\npackage m\n", DIRECTIVE),
     ("go-line", "m.go", "package m\n", "package m\n//line other.go:10\n", DIRECTIVE),
@@ -404,21 +389,6 @@ FALSE_PASSES = [
     ("cpp-raw", "a.cpp", 'auto s = R"x(a\nb)x";\n', 'auto s = R"x(a\n// c\nb)x";\n', VERBATIM),
     ("rust-raw-hash", "a.rs", 'let s = r#"a\nb"#;\n', 'let s = r#"a\n// c\nb"#;\n', VERBATIM),
     ("rust-plain-multiline", "a.rs", 'let s = "a\nb";\n', 'let s = "a\n// c\nb";\n', VERBATIM),
-    ("js-template", "a.js", "const s = `a\nb`;\n", "const s = `a\n// c\nb`;\n", VERBATIM),
-    (
-        "ts-template-nested",
-        "a.ts",
-        "const s = `${f(`x`)}\nb`;\n",
-        "const s = `${f(`x`)}\n// c\nb`;\n",
-        VERBATIM,
-    ),
-    (
-        "jsx-text",
-        "a.jsx",
-        "const v = (\n  <p>\n    Hello\n    {name}\n  </p>\n);\n",
-        "const v = (\n  <p>\n    Hello\n    // c\n    {name}\n  </p>\n);\n",
-        VERBATIM,
-    ),
     (
         "html-textarea",
         "i.html",
@@ -472,30 +442,6 @@ POSITIVE_CASES = [
         ),
     ),
     ("python-crlf", "m.py", "x = 1\r\ny = 2\r\n", "# c\r\nx = 1\r\ny = 2\r\n"),
-    (
-        "typescript",
-        "a.ts",
-        "const t = `a\nb`;\nexport function f(): number {\n  return 1;\n}\n",
-        (
-            "const t = `a\nb`;\n\n/** Returns one. */\nexport function f(): number {\n"
-            "  // Why: constant.\n  return 1;\n}\n"
-        ),
-    ),
-    (
-        "javascript",
-        "a.js",
-        "const r = 'x'; // it's\nmodule.exports = r;\n",
-        "// Module header.\nconst r = 'x'; // it's\n/* export */\nmodule.exports = r;\n",
-    ),
-    (
-        "tsx-generic",
-        "a.ts",
-        "const m = new Map<string, number>();\nfunction g<T>(x: T): T {\n  return x;\n}\n",
-        (
-            "const m = new Map<string, number>();\n// Identity.\nfunction g<T>(x: T): T {\n"
-            "  return x;\n}\n"
-        ),
-    ),
     (
         "sql",
         "q.sql",
@@ -624,6 +570,90 @@ def test_comment_insertions_still_pass(make_repo, rel: str, before: str, after: 
     assert r.ok, (r.method, r.detail)
 
 
+@pytest.fixture
+def ts_ok(monkeypatch) -> None:
+    """Stand in for Task 5's ts-printer: it says "comments only", so the common guards decide.
+
+    JS/TS are verified only by ts-printer (fix round 3, D1). These tests exercise the guards that
+    run after it passes, not the printer itself.
+    """
+    import document_repo.verify as verify_mod
+
+    def fake_ts(repo, rel, before, after):
+        return verify_mod.Result(rel, "ts-printer", True)
+
+    monkeypatch.setattr(verify_mod, "_ts_verify", fake_ts)
+
+
+#: Directive-like comments in JS/TS: the common guards must fail them after a passing ts-printer.
+JS_GUARD_FAILS = [
+    ("ts-ignore", "a.ts", "f();\n", "// @ts-ignore\nf();\n", DIRECTIVE),
+    ("ts-expect-error", "a.ts", "f();\n", "// @ts-expect-error\nf();\n", DIRECTIVE),
+    ("ts-nocheck", "a.ts", "f();\n", "// @ts-nocheck\nf();\n", DIRECTIVE),
+    ("js-ts-check", "a.js", "f();\n", "// @ts-check\nf();\n", DIRECTIVE),
+    ("js-eslint-disable", "a.js", "f();\n", "/* eslint-disable */\nf();\n", DIRECTIVE),
+    ("js-eslint-enable", "a.js", "f();\n", "f();\n// eslint-enable\n", DIRECTIVE),
+    ("js-prettier", "a.js", "f();\n", "// prettier-ignore\nf();\n", DIRECTIVE),
+    ("js-istanbul", "a.js", "f();\n", "/* istanbul ignore next */\nf();\n", DIRECTIVE),
+    ("js-c8", "a.js", "f();\n", "/* c8 ignore next */\nf();\n", DIRECTIVE),
+    ("js-biome", "a.js", "f();\n", "// biome-ignore lint: x\nf();\n", DIRECTIVE),
+    ("js-jsx-pragma", "a.jsx", "f();\n", "/** @jsx h */\nf();\n", DIRECTIVE),
+    ("js-jsx-import", "a.tsx", "f();\n", "/** @jsxImportSource preact */\nf();\n", DIRECTIVE),
+    ("js-jsx-runtime", "a.jsx", "f();\n", "/** @jsxRuntime classic */\nf();\n", DIRECTIVE),
+    ("js-flow", "a.js", "f();\n", "// @flow\nf();\n", DIRECTIVE),
+    ("ts-triple-slash", "a.ts", "f();\n", '/// <reference types="node" />\nf();\n', DIRECTIVE),
+]
+
+
+@pytest.mark.parametrize(
+    "rel,before,after,needle", [c[1:] for c in JS_GUARD_FAILS], ids=[c[0] for c in JS_GUARD_FAILS]
+)
+def test_js_directive_fails_after_ts_printer(
+    make_repo, ts_ok, rel: str, before: str, after: str, needle: str
+) -> None:
+    r = _run(make_repo, rel, before, after)
+    assert not r.ok and r.method == "ts-printer" and needle in r.detail, (r.method, r.detail)
+
+
+#: Ordinary JS/TS comment insertions: the common guards must not false-fail them.
+JS_POSITIVE = [
+    (
+        "typescript",
+        "a.ts",
+        "const t = `a\nb`;\nexport function f(): number {\n  return 1;\n}\n",
+        (
+            "const t = `a\nb`;\n\n/** Returns one. */\nexport function f(): number {\n"
+            "  // Why: constant.\n  return 1;\n}\n"
+        ),
+    ),
+    (
+        "javascript",
+        "a.js",
+        "const r = 'x'; // it's\nmodule.exports = r;\n",
+        "// Module header.\nconst r = 'x'; // it's\n/* export */\nmodule.exports = r;\n",
+    ),
+    (
+        "tsx-generic",
+        "a.ts",
+        "const m = new Map<string, number>();\nfunction g<T>(x: T): T {\n  return x;\n}\n",
+        (
+            "const m = new Map<string, number>();\n// Identity.\nfunction g<T>(x: T): T {\n"
+            "  return x;\n}\n"
+        ),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "rel,before,after", [c[1:] for c in JS_POSITIVE], ids=[c[0] for c in JS_POSITIVE]
+)
+def test_js_comment_insertions_pass_after_ts_printer(
+    make_repo, ts_ok, rel: str, before: str, after: str
+) -> None:
+    r = _run(make_repo, rel, before, after)
+    assert r.ok and r.method == "ts-printer", (r.method, r.detail)
+
+
 def test_ascii_cookie_rejects_non_ascii_comment(make_repo) -> None:
     # ast.parse(str) ignores the cookie; the real import would fail on the non-ASCII byte.
     before = "# -*- coding: ascii -*-\nx = 1\n"
@@ -647,7 +677,7 @@ def test_shebang_removed_fails(make_repo) -> None:
     assert not r.ok and "removed or changed directive-like" in r.detail, r.detail
 
 
-def test_insert_below_next_line_directive_fails(make_repo) -> None:
+def test_insert_below_next_line_directive_fails(make_repo, ts_ok) -> None:
     before = "// eslint-disable-next-line no-eval\neval(x);\n"
     after = "// eslint-disable-next-line no-eval\n// Why: legacy.\neval(x);\n"
     r = _run(make_repo, "a.js", before, after)
@@ -717,7 +747,7 @@ def test_csharp_xml_doc_comments_pass(make_repo) -> None:
 
 
 @pytest.mark.parametrize("rel", ["a.ts", "a.tsx", "a.mts", "a.js", "a.jsx", "a.mjs"])
-def test_triple_slash_directive_still_fails_in_js_and_ts(make_repo, rel: str) -> None:
+def test_triple_slash_directive_still_fails_in_js_and_ts(make_repo, ts_ok, rel: str) -> None:
     r = _run(make_repo, rel, "f();\n", '/// <reference path="x" />\nf();\n')
     assert not r.ok and DIRECTIVE in r.detail, (r.method, r.detail)
 
@@ -895,6 +925,7 @@ def test_changed_files_lists_every_changed_or_untracked_file(make_repo) -> None:
         "a.rb",
         "conftest.py",
         "gone.py",
+        "notes.txt",
         "package.json",
     ]
 
@@ -910,7 +941,7 @@ def test_changed_files_includes_both_sides_of_a_rename(make_repo, git) -> None:
 def test_doc_suffixes_constant() -> None:
     import document_repo.verify as verify_mod
 
-    assert verify_mod.DOC_SUFFIXES == (".md", ".mdx", ".rst", ".txt")
+    assert verify_mod.DOC_SUFFIXES == (".md",)
 
 
 def test_cli_verify_changed_fails_unknown_and_untracked_files(make_repo, capsys) -> None:
@@ -918,7 +949,7 @@ def test_cli_verify_changed_fails_unknown_and_untracked_files(make_repo, capsys)
     capsys.readouterr()
     assert main(["verify", "--repo", str(repo), "--changed"]) == 1
     results = {r["path"]: r for r in json.loads(capsys.readouterr().out)}
-    assert set(results) == {"a.rb", "conftest.py", "gone.py", "package.json"}
+    assert set(results) == {"a.rb", "conftest.py", "gone.py", "notes.txt", "package.json"}
     assert not any(r["ok"] for r in results.values())
     assert results["package.json"]["method"] == "none"
     assert results["a.rb"]["method"] == "none"
@@ -983,62 +1014,6 @@ def test_go_blank_separated_comment_above_output_passes(make_repo) -> None:
     assert r.ok, (r.method, r.detail)
 
 
-# Item 4: JS/TS fallback regex literals. A "/" where a regex can start is lexed as a regex.
-@pytest.mark.parametrize(
-    "rel,before,after",
-    [
-        (
-            "a.js",
-            "const p = s.replace(/\\//g, '-') + `a\nb`;\n",
-            "const p = s.replace(/\\//g, '-') + `a\n// c\nb`;\n",
-        ),
-        (
-            "a.js",
-            "const r = /`/;\nconst t = `a\nb`;\n",
-            "const r = /`/;\nconst t = `a\n// c\nb`;\n",
-        ),
-        (
-            "a.ts",
-            "const r = /[/`]/g;\nconst t = `a\nb`;\n",
-            "const r = /[/`]/g;\nconst t = `a\n// c\nb`;\n",
-        ),
-        (
-            "a.js",
-            "const r = x.split(/'/); const t = `a\nb`;\n",
-            "const r = x.split(/'/); const t = `a\n// c\nb`;\n",
-        ),
-    ],
-    ids=["escaped-slash", "backtick-in-regex", "class-with-slash", "quote-in-regex"],
-)
-def test_js_regex_literal_does_not_hide_template(make_repo, rel: str, before: str, after: str):
-    r = _run(make_repo, rel, before, after)
-    assert not r.ok and VERBATIM in r.detail, (r.method, r.detail)
-
-
-@pytest.mark.parametrize(
-    "before,at",
-    [
-        ("const ok = x.match(/ab+c/);\nconst y = 1;\n", 1),
-        ("if (/^\\d+$/.test(s)) {\n  run();\n}\n", 1),
-        ("function f(x) {\n  return /[a-z]+\\//i.test(x);\n}\nconst y = 1;\n", 3),
-        ("const half = a / 2;\nconst q = (b + c) / d;\nconst y = 1;\n", 2),
-        ("const s = `a/b`;\nconst r = [/x/, /y/g];\nconst y = 1;\n", 2),
-    ],
-    ids=["match", "test-in-if", "return-class-escape", "division", "array-of-regex"],
-)
-def test_js_simple_regex_keeps_file_usable(make_repo, before: str, at: int) -> None:
-    lines = before.splitlines(keepends=True)
-    after = "".join(lines[:at] + ["// Why: explained.\n"] + lines[at:])
-    r = _run(make_repo, "a.js", before, after)
-    assert r.ok, (r.method, r.detail)
-
-
-def test_js_unterminated_regex_fails_closed(make_repo) -> None:
-    before = "const r = (/abc\nconst y = 1;\n"
-    r = _run(make_repo, "a.js", before, "const r = (/abc\n// c\nconst y = 1;\n")
-    assert not r.ok and VERBATIM in r.detail, (r.method, r.detail)
-
-
 # Item 5: a tab in YAML indentation is a parse error.
 @pytest.mark.parametrize("line", ["\t# note", "  \t# note", "\t"])
 def test_yaml_tab_indented_insert_fails(make_repo, line: str) -> None:
@@ -1058,17 +1033,183 @@ def test_python_transcoding_docstring_on_line_one_passes(make_repo) -> None:
     assert r.ok, (r.method, r.detail)
 
 
-@pytest.mark.parametrize("quote", ["`", "'"])
-def test_js_regex_after_paren_with_quote_fails_closed(make_repo, quote: str) -> None:
-    # After ")" a "/" is read as division, but "if (x) /`/" is a regex: when the readings disagree
-    # about a quote before a later "/", the rest of the file is unsafe.
-    before = f"if (x) /{quote}/.test(s);\nconst t = `a\nb`;\n"
-    after = f"if (x) /{quote}/.test(s);\nconst t = `a\n// c\nb`;\n"
+# ---------------------------------------------------------------------------
+# Fix round 3 (convergence).
+# ---------------------------------------------------------------------------
+
+TS_MISSING = (
+    "TypeScript compiler not available; JS/TS files cannot be verified "
+    "(install with: npm install -g typescript)"
+)
+
+
+# D1: JS/TS are verified only by ts-printer. Without it they fail; there is no fallback.
+@pytest.mark.parametrize("rel", ["a.ts", "a.tsx", "a.mts", "a.js", "a.jsx", "a.mjs", "a.cjs"])
+def test_js_ts_without_ts_printer_fail(make_repo, rel: str) -> None:
+    r = _run(make_repo, rel, "const a = 1;\n", "// Why: one.\nconst a = 1;\n")
+    assert not r.ok and r.method == "none" and r.detail == TS_MISSING, (r.method, r.detail)
+
+
+def test_ts_pure_comment_insertion_fails_without_ts_printer(make_repo) -> None:
+    before = "export function f(): number {\n  return 1;\n}\n"
+    after = "/** Returns one. */\nexport function f(): number {\n  return 1;\n}\n"
+    r = _run(make_repo, "a.ts", before, after)
+    assert not r.ok and r.detail == TS_MISSING, (r.method, r.detail)
+
+
+# D2 (end to end): a multi-line ESLint config comment fails after a passing ts-printer.
+def test_multiline_eslint_config_fails_after_ts_printer(make_repo, ts_ok) -> None:
+    before = "const a = 1;\nconst b = 2;\n"
+    after = "const a = 1;\n/* eslint\n   no-console: off */\nconst b = 2;\n"
     r = _run(make_repo, "a.js", before, after)
-    assert not r.ok and VERBATIM in r.detail, (r.method, r.detail)
+    assert not r.ok and DIRECTIVE in r.detail, (r.method, r.detail)
 
 
-def test_js_division_after_paren_without_second_slash_passes(make_repo) -> None:
-    before = 'const w = (a + b) / 2 + "px";\nconst y = 1;\n'
-    r = _run(make_repo, "a.js", before, 'const w = (a + b) / 2 + "px";\n// Why.\nconst y = 1;\n')
+# D3: only markdown is left out of --changed; other text files are listed, so they fail.
+def test_changed_files_lists_non_markdown_text_files(make_repo) -> None:
+    repo = make_repo(
+        {
+            "requirements.txt": "requests==2.0\n",
+            "CMakeLists.txt": "project(x)\n",
+            "docs/page.mdx": "import X from './x'\n",
+            "docs/index.rst": "Title\n",
+            "README.md": "# r\n",
+            "docs/GUIDE.MD": "# g\n",
+        }
+    )
+    (repo / "requirements.txt").write_text("requests==2.0\nevil-pkg\n")
+    (repo / "CMakeLists.txt").write_text("project(x)\nadd_compile_definitions(EVIL)\n")
+    (repo / "docs/page.mdx").write_text("import X from './evil'\n")
+    (repo / "docs/index.rst").write_text("Title\n.. include:: x\n")
+    (repo / "README.md").write_text("# r2\n")
+    (repo / "docs/GUIDE.MD").write_text("# g2\n")
+    assert changed_files(repo, "HEAD") == [
+        "CMakeLists.txt",
+        "docs/index.rst",
+        "docs/page.mdx",
+        "requirements.txt",
+    ]
+    assert not any(verify_file(repo, f).ok for f in changed_files(repo, "HEAD"))
+
+
+# D4: a change of file mode (executable bit, symlink) is a behaviour change.
+def test_executable_bit_added_fails(make_repo) -> None:
+    import os
+
+    repo = make_repo({"run.sh": "echo a\n"})
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    os.chmod(repo / "run.sh", 0o755)
+    r = verify_file(repo, "run.sh")
+    assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
+
+
+def test_executable_bit_removed_fails(make_repo, git) -> None:
+    import os
+
+    repo = make_repo({"run.sh": "echo a\n"})
+    os.chmod(repo / "run.sh", 0o755)
+    git(repo, "add", "run.sh")
+    git(repo, "commit", "-q", "-m", "exec")
+    os.chmod(repo / "run.sh", 0o644)
+    r = verify_file(repo, "run.sh")
+    assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
+
+
+def test_unchanged_executable_bit_passes(make_repo, git) -> None:
+    import os
+
+    repo = make_repo({"run.sh": "echo a\n"})
+    os.chmod(repo / "run.sh", 0o755)
+    git(repo, "add", "run.sh")
+    git(repo, "commit", "-q", "-m", "exec")
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    r = verify_file(repo, "run.sh")
     assert r.ok, (r.method, r.detail)
+
+
+def test_executable_bit_ignored_when_git_ignores_it(make_repo, git) -> None:
+    # core.fileMode=false (Windows, some mounts): git records no mode change, so none ships.
+    import os
+
+    repo = make_repo({"run.sh": "echo a\n"})
+    git(repo, "config", "core.fileMode", "false")
+    os.chmod(repo / "run.sh", 0o755)
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    r = verify_file(repo, "run.sh")
+    assert r.ok, (r.method, r.detail)
+
+
+def _symlink_or_skip(target: str, link) -> None:
+    import os
+
+    try:
+        os.symlink(target, link)
+    except (OSError, NotImplementedError, AttributeError) as exc:
+        pytest.skip(f"symlinks not supported here: {exc}")
+
+
+def test_file_replaced_by_symlink_fails(make_repo) -> None:
+    repo = make_repo({"a.py": "x = 1\n", "link.py": "x = 1\n"})
+    (repo / "link.py").unlink()
+    _symlink_or_skip("a.py", repo / "link.py")
+    r = verify_file(repo, "link.py")
+    assert not r.ok and "symlink" in r.detail, (r.method, r.detail)
+
+
+def test_symlink_in_base_fails(make_repo, git) -> None:
+    repo = make_repo({"a.py": "x = 1\n"})
+    _symlink_or_skip("a.py", repo / "link.py")
+    git(repo, "add", "link.py")
+    git(repo, "commit", "-q", "-m", "link")
+    r = verify_file(repo, "link.py")
+    assert not r.ok and "symlink" in r.detail, (r.method, r.detail)
+
+
+# D5: --repo may be any directory in the work tree; paths are relative to its top level.
+def test_changed_files_from_a_subdirectory_lists_the_whole_repo(make_repo) -> None:
+    repo = make_repo({"sub/s.py": "q = 1\n", "a.py": "x = 1\n"})
+    (repo / "a.py").write_text("# c\nx = 1\n")
+    (repo / "newdir").mkdir()
+    (repo / "newdir/n.py").write_text("n = 1\n")
+    assert changed_files(repo / "sub", "HEAD") == ["a.py", "newdir/n.py"]
+
+
+def test_verify_file_from_a_subdirectory_uses_toplevel_paths(make_repo) -> None:
+    repo = make_repo({"sub/s.py": "q = 1\n", "a.py": "x = 1\n"})
+    (repo / "a.py").write_text("# c\nx = 1\n")
+    r = verify_file(repo / "sub", "a.py")
+    assert r.ok and r.method == "python-ast", (r.method, r.detail)
+
+
+def test_cli_verify_changed_from_a_subdirectory(make_repo, capsys) -> None:
+    repo = make_repo({"sub/s.py": "q = 1\n", "a.py": "x = 1\n"})
+    (repo / "a.py").write_text("# c\nx = 1\n")
+    (repo / "newdir").mkdir()
+    (repo / "newdir/n.py").write_text("n = 1\n")
+    capsys.readouterr()
+    assert main(["verify", "--repo", str(repo / "sub"), "--changed"]) == 1
+    results = {r["path"]: r["ok"] for r in json.loads(capsys.readouterr().out)}
+    assert results == {"a.py": True, "newdir/n.py": False}
+
+
+def test_verify_file_outside_a_git_work_tree_fails(tmp_path) -> None:
+    (tmp_path / "a.py").write_text("x = 1\n")
+    r = verify_file(tmp_path, "a.py")
+    assert not r.ok and r.method == "none" and "git work tree" in r.detail, (r.method, r.detail)
+
+
+def test_cli_verify_changed_outside_a_git_work_tree_is_bad_input(tmp_path) -> None:
+    assert main(["verify", "--repo", str(tmp_path), "--changed"]) == 2
+
+
+# D6 (end to end): a Go block comment starting with "Output:" turns on an example's output check.
+GO_NO_OUTPUT = 'package x\n\nimport "fmt"\n\nfunc ExampleHi() {\n\tfmt.Println("hi")\n}\n'
+
+
+@pytest.mark.parametrize(
+    "chunk", ["\t/* Output: hi */", "\t/*\n\tOutput: hi\n\t*/"], ids=["one-line", "multi-line"]
+)
+def test_go_new_block_output_comment_fails(make_repo, chunk: str) -> None:
+    after = GO_NO_OUTPUT.replace('("hi")\n', '("hi")\n' + chunk + "\n")
+    r = _run(make_repo, "x_test.go", GO_NO_OUTPUT, after)
+    assert not r.ok and DIRECTIVE in r.detail, (r.method, r.detail)

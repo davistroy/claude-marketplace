@@ -77,7 +77,11 @@ def _cmd_verify(args: argparse.Namespace) -> int:
     from .verify import changed_files, verify_file
 
     if args.changed:
-        files = changed_files(args.repo, args.before)
+        try:
+            files = changed_files(args.repo, args.before)
+        except NotADirectoryError as exc:
+            sys.stderr.write(f"verify: {exc}\n")
+            return 2
     elif args.files:
         files = list(args.files)
     else:

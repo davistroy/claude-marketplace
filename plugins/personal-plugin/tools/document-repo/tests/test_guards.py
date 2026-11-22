@@ -154,11 +154,6 @@ def test_toml_scanner(text: str, expected: set[int]) -> None:
         ("a.c", "char c = '\\n';\nint x;\n", set()),
         ("a.go", "var r = '`'\nvar s = \"`\"\nok\n", set()),  # backtick in rune and string
         ("a.css", 'a::after { content: "/*"; }\nb {}\n', set()),
-        ("a.ts", "const s = `a${'}'}b`;\nok;\n", set()),  # brace inside string in ${ }
-        ("a.ts", "const s = `${ {a: 1}.a }`;\nok;\n", set()),  # object literal in ${ }
-        ("a.ts", "const s = `\\`\n`;\n", {1}),  # escaped backtick
-        ("a.js", "function f() {\n  return <div/>;\n}\n", {2, 3}),  # JSX after return
-        ("a.js", "if (a <b) {}\nok\n", set()),  # comparison is not JSX
     ],
 )
 def test_clike_scanner(path: str, text: str, expected: set[int]) -> None:
@@ -230,6 +225,8 @@ SCOPED_HOME = [
     ("a.js", "/** @jest-environment jsdom */"),
     ("a.js", "/*@cc_on @*/"),
     ("a.js", "//# sourceMappingURL=a.js.map"),
+    ("a.js", " * eslint no-console: off"),
+    ("a.js", "/* eslint"),
     ("s.css", "/*# sourceMappingURL=a.css.map */"),
     # Go tools
     ("m.go", "//go:build ignore"),
@@ -239,6 +236,7 @@ SCOPED_HOME = [
     ("m.go", "//export Foo"),
     ("m.go", "// Output: 3"),
     ("m.go", "// Unordered output: a"),
+    ("m.go", "/* Output: 3 */"),
     # Python tools
     ("m.py", "# type: ignore"),
     ("m.py", "# pylint: disable=all"),
@@ -627,7 +625,25 @@ def test_guards_source_has_no_type_comments() -> None:
     with open(GUARDS_SRC, encoding="utf-8") as fh:
         tokens = list(tokenize.generate_tokens(io.StringIO(fh.read()).readline))
     comments = [t.string for t in tokens if t.type == tokenize.COMMENT]
-    assert not [c for c in comments if re.match(r"#\s*type\s*:", c)]
+    # re.search, as the tool applies its patterns: a "# type:" quoted mid-comment counts too.
+    assert not [c for c in comments if re.search(r"#\s*type\s*:", c)]
+
+
+def test_guards_source_is_not_flagged_by_its_own_directive_patterns() -> None:
+    # If the skill ever comments this file, its own comments must not read as directives.
+    import io
+    import tokenize
+
+    from document_repo.languages import PYTHON
+
+    with open(GUARDS_SRC, encoding="utf-8") as fh:
+        tokens = list(tokenize.generate_tokens(io.StringIO(fh.read()).readline))
+    flagged = [
+        (t.start[0], t.string)
+        for t in tokens
+        if t.type == tokenize.COMMENT and guards_mod._is_directive(t.string, PYTHON)
+    ]
+    assert not flagged
 
 
 def test_guards_source_has_no_assert_statements() -> None:
@@ -636,3 +652,115 @@ def test_guards_source_has_no_assert_statements() -> None:
     with open(GUARDS_SRC, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     assert not [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Assert)]
+
+
+# ---------------------------------------------------------------------------
+# Fix round 3 (convergence).
+# ---------------------------------------------------------------------------
+
+
+# D1: JS/TS have no comment-lines scanner any more; they are verified only by ts-printer.
+@pytest.mark.parametrize("rel", ["a.ts", "a.js"])
+def test_js_ts_have_no_context_scanner(rel: str) -> None:
+    assert unsafe_insert_points(["const a = 1;", "const b = 2;"], lang_for(rel)) == {0, 1, 2}
+    assert "javascript" not in guards_mod._SYNTAX and "typescript" not in guards_mod._SYNTAX
+
+
+# D2: ESLint and JS global directives written across several lines of a block comment.
+@pytest.mark.parametrize(
+    "chunk",
+    [
+        "/* eslint\n   no-console: off */",
+        "/*\n eslint no-console: off\n*/",
+        "/*\n * eslint quotes: off\n */",
+        "/*\neslint\n  quotes: off */",
+        "/*\n * eslint-disable\n */",
+        "/*\n global foo\n*/",
+        "/*\n * exported bar\n */",
+        "/* global\n   foo */",
+        "/* exported\n   bar */",
+    ],
+    ids=[
+        "eslint-alone-on-opener",
+        "eslint-first-word",
+        "eslint-after-star",
+        "eslint-alone-in-body",
+        "eslint-disable-after-star",
+        "global-first-word",
+        "exported-after-star",
+        "global-alone-on-opener",
+        "exported-alone-on-opener",
+    ],
+)
+@pytest.mark.parametrize("rel", ["a.js", "a.ts"])
+def test_multiline_eslint_and_global_directives_fail(rel: str, chunk: str) -> None:
+    before = "const a = 1;\nconst b = 2;\n"
+    after = before.replace("const b", chunk + "\nconst b")
+    why = common_guards(rel, before, after, lang_for(rel))
+    assert why is not None and DIRECTIVE in why, why
+
+
+@pytest.mark.parametrize(
+    "chunk",
+    [
+        "// eslint runs in CI",
+        "// Shared eslint configuration",
+        "/* Lint with eslint before committing. */",
+        "/**\n * Shared eslint configuration.\n */",
+        "/*eslint*/",
+        "// global state lives in store.ts",
+    ],
+)
+def test_eslint_prose_still_passes(chunk: str) -> None:
+    before = "const a = 1;\nconst b = 2;\n"
+    after = before.replace("const b", chunk + "\nconst b")
+    assert common_guards("a.js", before, after, lang("js")) is None
+
+
+# D6: a Go block comment whose first content line is "Output:" is example output.
+@pytest.mark.parametrize(
+    "chunk",
+    [
+        "\t/* Output: hi */",
+        "\t/*\n\tOutput: hi\n\t*/",
+        "\t/*\n\n\tUnordered output: hi\n\t*/",
+        "\t/*Output:\n\thi */",
+    ],
+    ids=["one-line", "multi-line", "multi-line-unordered-after-blank", "tight"],
+)
+def test_go_block_output_comment_is_a_directive(chunk: str) -> None:
+    before = 'package x\n\nfunc ExampleHi() {\n\tprintln("hi")\n}\n'
+    after = before.replace("\n}\n", "\n" + chunk + "\n}\n")
+    why = common_guards("x_test.go", before, after, lang("go"))
+    assert why is not None and DIRECTIVE in why, why
+
+
+@pytest.mark.parametrize(
+    "chunk", ["\t/*\n\tPrints hi.\n\tOutput: none\n\t*/", "\t/* Prints hi. */", "\t/*\n\t*/"]
+)
+def test_go_block_comment_without_output_first_passes(chunk: str) -> None:
+    before = 'package x\n\nfunc ExampleHi() {\n\tprintln("hi")\n}\n'
+    after = before.replace("\n}\n", "\n" + chunk + "\n}\n")
+    assert common_guards("x_test.go", before, after, lang("go")) is None
+
+
+# D7: the Jinja comment opener "{#" is a template marker, with the same scope as "{{" and "{%".
+@pytest.mark.parametrize(
+    "rel,before",
+    [
+        ("templates/a.yaml", "a: 1\n"),
+        ("i.html", "<p>x</p>\n"),
+        ("deploy.yaml", "image: {{ .Values.image }}\n"),
+    ],
+)
+def test_jinja_comment_opener_fails_in_templates(rel: str, before: str) -> None:
+    after = f"# {{# note #}}\n<!-- {{# note #}} -->\n{before}"
+    why = common_guards(rel, before, after, lang_for(rel))
+    assert why is not None and DIRECTIVE in why, why
+
+
+def test_jinja_comment_opener_is_prose_outside_templates() -> None:
+    assert common_guards("ci.yml", "a: 1\n", "# {# not a template\na: 1\n", lang("yml")) is None
+    # "${#x}" (shell string length) in a base does not make the file a template.
+    sh = lang("sh")
+    assert common_guards("a.sh", "echo ${#x}\n", "# {{ x }} note\necho ${#x}\n", sh) is None

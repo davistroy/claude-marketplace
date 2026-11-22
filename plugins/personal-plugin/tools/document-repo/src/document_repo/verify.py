@@ -5,10 +5,14 @@ each file it compares the version at a base git ref with the working tree:
 
 - python-ast: parse both, drop docstrings, compare the syntax trees.
 - ts-printer: (JS/TS) re-print both with comments removed via the
-  TypeScript compiler and compare the text. Falls back to comment-lines
-  when node or typescript is not available.
+  TypeScript compiler and compare the text. There is no fallback: without
+  node and typescript a JS/TS file fails, because no line-based check can
+  tell a comment from text inside a template literal, regex or JSX.
 - comment-lines: (everything else) a line diff may only INSERT lines, and
   every inserted line must be blank or a comment in that language.
+
+Before any method, the file mode must match the base (``_mode_guard``): a new
+executable bit or a symlink changes behaviour without changing one line.
 
 After a method passes, ``guards.common_guards`` runs for every method (directives, line
 endings, protected headers, continuations), and comment-lines also runs
@@ -23,6 +27,8 @@ from __future__ import annotations
 
 import ast
 import difflib
+import os
+import stat
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -42,6 +48,20 @@ class Result:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def toplevel(repo: Path) -> Path | None:
+    """The work-tree root that contains ``repo``, or None when ``repo`` is not in a work tree.
+
+    Every path the verifier reads or reports is relative to this root, so ``--repo`` may name any
+    directory inside the repository.
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "--show-toplevel"], capture_output=True
+    )
+    if proc.returncode != 0:
+        return None
+    return Path(proc.stdout.decode("utf-8", "surrogateescape").strip())
 
 
 def git_show(repo: Path, ref: str, rel: str) -> str | None:
@@ -196,24 +216,78 @@ def _comment_lines(rel: str, before: str, after: str, lang: Lang) -> Result:
 
 
 def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
-    """Placeholder until Task 5: None means "use comment-lines instead"."""
+    """Placeholder until Task 5: None means "the TypeScript compiler is not available"."""
+    return None
+
+
+TS_MISSING = (
+    "TypeScript compiler not available; JS/TS files cannot be verified "
+    "(install with: npm install -g typescript)"
+)
+
+_SYMLINK, _EXEC, _PLAIN = "120000", "100755", "100644"
+
+
+def _base_mode(top: Path, ref: str, rel: str) -> str | None:
+    """The git mode of ``rel`` at ``ref`` (``100644``, ``100755``, ``120000``), or None."""
+    proc = subprocess.run(
+        ["git", "-C", str(top), "ls-tree", "-z", ref, "--", rel], capture_output=True
+    )
+    entry = proc.stdout.decode("utf-8", "surrogateescape").split("\0")[0]
+    return entry.split(" ", 1)[0] if proc.returncode == 0 and entry else None
+
+
+def _filemode_tracked(top: Path) -> bool:
+    """False when ``core.fileMode`` is false: git then records no executable-bit change."""
+    proc = subprocess.run(
+        ["git", "-C", str(top), "config", "--bool", "core.fileMode"], capture_output=True
+    )
+    return proc.stdout.strip() != b"false"
+
+
+def _mode_guard(top: Path, ref: str, rel: str) -> str | None:
+    """Fail a symlink on either side, or an executable bit that differs from the base."""
+    base = _base_mode(top, ref, rel)
+    try:
+        st = os.lstat(top / rel)
+    except OSError:
+        return None  # a missing file is reported by the read below
+    if stat.S_ISLNK(st.st_mode):
+        work = _SYMLINK
+    else:
+        work = _EXEC if st.st_mode & stat.S_IXUSR else _PLAIN
+        if work != base and base in (_EXEC, _PLAIN) and not _filemode_tracked(top):
+            work = base
+    if _SYMLINK in (base, work):
+        return f"symlink: file mode {base} in base, {work} in working tree"
+    if base != work:
+        return f"file mode changed: {base} -> {work}"
     return None
 
 
 def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
-    """Compare the working-tree ``rel`` with ``before_ref``. See module docstring."""
+    """Compare the working-tree ``rel`` with ``before_ref``. See module docstring.
+
+    ``rel`` is relative to the top level of the work tree that contains ``repo``.
+    """
     lang = detect(rel)
     if lang is None:
         return Result(rel, "none", False, "no known comment syntax for this file type")
-    before = git_show(repo, before_ref, rel)
+    top = toplevel(repo)
+    if top is None:
+        return Result(rel, "none", False, f"not inside a git work tree: {repo}")
+    before = git_show(top, before_ref, rel)
     if before is None:
         return Result(rel, "none", False, f"file is not in {before_ref} (or is not UTF-8)")
+    why = _mode_guard(top, before_ref, rel)
+    if why:
+        return Result(rel, "none", False, why)
     try:
         # Bytes, then decode: keeps every "\r" so the line-ending guard can see it.
-        after = (repo / rel).read_bytes().decode("utf-8")
+        after = (top / rel).read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         return Result(rel, "none", False, f"cannot read edited file: {exc}")
-    result = _method_result(repo, rel, before, after, lang)
+    result = _method_result(top, rel, before, after, lang)
     if not result.ok:
         return result
     why = common_guards(rel, before, after, lang)
@@ -223,18 +297,17 @@ def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
 
 
 def _method_result(repo: Path, rel: str, before: str, after: str, lang: Lang) -> Result:
-    """Run the language's own proof (python-ast, ts-printer, or the comment-lines fallback)."""
+    """Run the language's own proof: python-ast, ts-printer (no fallback) or comment-lines."""
     if lang.verify_method == "python-ast":
         return _python(rel, before, after)
     if lang.verify_method == "ts-printer":
-        ts_result = _ts_verify(repo, rel, before, after)
-        if ts_result is not None:
-            return ts_result
+        return _ts_verify(repo, rel, before, after) or Result(rel, "none", False, TS_MISSING)
     return _comment_lines(rel, before, after, lang)
 
 
-#: Documentation the skill writes. These are never verified, because they are not code.
-DOC_SUFFIXES = (".md", ".mdx", ".rst", ".txt")
+#: Documentation the skill writes, which is never verified. Markdown only: ``.txt`` is also
+#: ``requirements.txt`` and ``CMakeLists.txt``, ``.mdx`` is JSX and ``.rst`` has directives.
+DOC_SUFFIXES = (".md",)
 
 
 def _git_paths(repo: Path, *args: str) -> list[str]:
@@ -247,13 +320,18 @@ def _git_paths(repo: Path, *args: str) -> list[str]:
 def changed_files(repo: Path, ref: str) -> list[str]:
     """Every path that differs from ``ref`` in the working tree, plus untracked, unignored files.
 
-    Only the explorer output and documentation (``DOC_SUFFIXES``) are left out. Everything else
+    Paths are relative to the top level of the work tree that contains ``repo``, whatever
+    directory inside it ``repo`` names. Only the explorer output and markdown (``DOC_SUFFIXES``)
+    are left out. Everything else
     is returned, including files with no known comment syntax, new files and deleted files:
     ``verify_file`` fails each of those, so ``verify --changed`` cannot pass a change it did not
     check. Renames are listed as a delete plus an add (``--no-renames``), so both sides show.
     """
-    tracked = _git_paths(repo, "diff", "--name-only", "--no-renames", "-z", ref, "--")
-    untracked = _git_paths(repo, "ls-files", "--others", "--exclude-standard", "-z")
+    top = toplevel(repo)
+    if top is None:
+        raise NotADirectoryError(f"not inside a git work tree: {repo}")
+    tracked = _git_paths(top, "diff", "--name-only", "--no-renames", "-z", ref, "--")
+    untracked = _git_paths(top, "ls-files", "--others", "--exclude-standard", "-z")
     return sorted(
         p
         for p in set(tracked) | set(untracked)

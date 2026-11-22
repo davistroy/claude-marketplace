@@ -4,7 +4,8 @@ A comment can still change behaviour: through what it says, where it sits, or ho
 Each rule below closes one way that happens. Every rule fails closed: a false failure reverts one
 file, a false pass ships a behaviour change.
 
-Common guards (every method: python-ast, ts-printer, comment-lines):
+Common guards (every method: python-ast, ts-printer, comment-lines). The file-mode check
+(executable bit, symlink) runs in verify.py, before any method:
 
 - byte order mark: adding or dropping a BOM breaks shebangs and some parsers.
 - line endings: LF <-> CRLF breaks shebangs (``/bin/sh\\r``) and heredoc terminators.
@@ -13,10 +14,13 @@ Common guards (every method: python-ast, ts-printer, comment-lines):
 - directive-like comment: ``# noqa``, ``// @ts-ignore``, ``//go:build`` and the like are read by
   tools and compilers, so they are code. Each pattern applies only to the languages whose tools
   read it (``DIRECTIVE_SCOPES``): ``/// <summary>`` is a C# doc comment, a TypeScript directive.
+  Patterns see one line at a time, so multi-line forms are matched by their lines: a JS block
+  line whose first word is ``eslint``, ``global`` or ``exported``, and a Go block comment whose
+  first content line is ``Output:``.
 - coding cookie: a PEP 263 ``# coding: x`` comment (Python) or an Emacs ``-*- coding: x -*-``
   line (any language) in lines 1-2 changes how the file is decoded.
-- template markers: ``{{``/``{%`` in a comment run under Helm, Jinja and friends, but only in a
-  file that is a template (``template_file``).
+- template markers: ``{{``/``{%``/``{#`` in a comment run under Helm, Jinja and friends, but only
+  in a file that is a template (``template_file``).
 - YAML tab: a tab in the indentation of an inserted YAML line is a parse error.
 - continuation-ending comment: ``# note \\`` swallows the next line in make, C and shell.
 - protected header: nothing may go above a shebang, a coding cookie or Dockerfile parser
@@ -31,13 +35,13 @@ Common guards (every method: python-ast, ts-printer, comment-lines):
 Context guards (comment-lines only, via ``unsafe_insert_points``):
 
 - line continuation: a new line after a base line ending in ``\\`` splits that statement.
-- verbatim regions: inside heredocs, block scalars, multi-line strings, raw strings, template
-  literals, block comments, JSX and HTML raw-text elements a new line is data, not a comment.
+- verbatim regions: inside heredocs, block scalars, multi-line strings, raw strings, block
+  comments and HTML raw-text elements a new line is data, not a comment.
 - Go example output: from ``// Output:`` to the closing ``}`` the comments are compared with
   the program's output by ``go test``; a line directly above ``// Output:`` hides the prefix.
-- JS/TS regex literals: lexed (escapes, ``[...]`` classes) so ``/`/`` cannot open a template; one
-  that cannot be closed on its line makes the rest of the file unsafe.
-- no scanner: a language without a scanner is unsafe at every position.
+- no scanner: a language without a scanner is unsafe at every position. JS/TS have none: they are
+  verified only by ts-printer, because a line scanner cannot lex template literals, regex
+  literals and JSX reliably enough to stake a false pass on.
 - after a YAML block scalar: the position directly below its last line is unsafe only for an
   inserted line indented deeper than the ``key: |`` line (it would join the block), or a blank
   line under keep chomping (``|+``). A comment level with the next key is fine.
@@ -64,12 +68,16 @@ _CSS = frozenset({"css"})
 _JAVA = frozenset({"java"})
 _DOCKER = frozenset({"dockerfile"})
 
+#: A Go example's output comment. The directive check and ``go_example_output_points`` share it.
+_GO_OUTPUT = re.compile(r"^\s*(?://|/\*)\s*(?:unordered\s+)?output:", _I)
+
 #: Comment text that a tool, compiler or runtime reads, as ``(languages, patterns)``. ``None``
 #: means every language. A pattern is scoped to the languages whose tools read it, so ordinary
 #: comments elsewhere are not false failures: ``/// <summary>`` is a C# XML doc comment but a
-#: TypeScript triple-slash directive, ``# type: string`` is a YAML note but a Python type comment.
-#: Anything read by tools in several ecosystems stays ``None`` (``noqa`` is read in Python and in
-#: ansible-lint YAML; ``prettier-ignore`` in JS, CSS, HTML and YAML; ``{{`` by template engines).
+#: TypeScript triple-slash directive, and a ``type: string`` comment is a YAML note but a Python
+#: type comment. Anything read by tools in several ecosystems stays ``None`` (the ruff/flake8
+#: suppression word is also read by ansible-lint in YAML; Prettier's ignore marker in JS, CSS,
+#: HTML and YAML). Template markers are not here: ``TEMPLATE_PATTERN`` applies them by file instead.
 _DIRECTIVES: tuple[tuple[frozenset[str] | None, tuple[tuple[str, int], ...]], ...] = (
     (
         _ALL,
@@ -113,8 +121,8 @@ _DIRECTIVES: tuple[tuple[frozenset[str] | None, tuple[tuple[str, int], ...]], ..
             (r"#\s*pyre-", 0),
         ),
     ),
-    # coverage.py reads "# pragma: no cover"; detect-secrets reads "# pragma: allowlist secret"
-    # in any file whose comments start with '#'. A C-family "// see #pragma pack" is prose.
+    # coverage.py reads its no-cover pragma comment, and detect-secrets reads its allowlist pragma
+    # in any file whose comments start with a hash. In C, a comment naming the pack pragma is prose.
     (_HASH, ((r"#\s*pragma\b", _I),)),
     (
         _JS,
@@ -125,6 +133,10 @@ _DIRECTIVES: tuple[tuple[frozenset[str] | None, tuple[tuple[str, int], ...]], ..
             (r"\beslint-(disable|enable|env)\b", 0),
             (r"/\*\s*eslint\s", 0),
             (r"/\*\s*(global|globals|exported|jshint|jslint)\b", 0),
+            # Multi-line block forms: "/* eslint" alone on its line, or a later line of the block
+            # whose first word (after an optional "*") is the directive keyword.
+            (r"/\*\s*(eslint|global|exported)\s*$", 0),
+            (r"^\s*\*?\s*(eslint|global|exported)(\s|$)", 0),
             (r"\b(istanbul|c8|v8)\s+ignore\b", 0),
             (r"deno-(lint|fmt)-ignore", 0),
             (r"@jsx\w*", 0),
@@ -146,7 +158,7 @@ _DIRECTIVES: tuple[tuple[frozenset[str] | None, tuple[tuple[str, int], ...]], ..
             (r"//\s*\+\w", 0),  # build constraints and kubebuilder markers; "// +1" is prose
             (r"(//|/\*)line ", 0),
             (r"^\s*//(export|extern)\s", 0),
-            (r"^\s*//\s*(unordered\s+)?output:", _I),  # example tests; "// Output:" is prose
+            (_GO_OUTPUT.pattern, _I),  # example tests, "//" or "/*"; elsewhere "Output:" is prose
         ),
     ),
     (_CSS, ((r"\b(stylelint|purgecss|autoprefixer)\b", _I), (r"\brtl\s*:", _I))),
@@ -168,10 +180,13 @@ CODING_COOKIE = re.compile(r"^[ \t\f]*#.*?coding[:=][ \t]*[-\w.]+")
 #: Emacs file-variables line (``-*- coding: x -*-``), read from lines 1-2 of a file in any language.
 EMACS_COOKIE = re.compile(r"-\*-.*?\bcoding[ \t]*:[ \t]*[-\w.]+")
 
-#: Template-engine markers. Helm, Jinja, Django, Go templates and cookiecutter evaluate them even
-#: inside comments, but only in files that are templates, so ``template_file`` decides where they
-#: apply; in an ordinary Python docstring ``{{ name }}`` is prose.
-TEMPLATE_PATTERN = re.compile(r"\{\{|\{%")
+#: Template-engine markers: ``{{`` and ``{%`` (expressions, tags) and ``{#`` (a Jinja comment,
+#: which swallows text up to ``#}``). Helm, Jinja, Django, Go templates and cookiecutter evaluate
+#: them even inside comments, but only in files that are templates, so ``template_file`` decides
+#: where they apply; in an ordinary Python docstring ``{{ name }}`` is prose.
+TEMPLATE_PATTERN = re.compile(r"\{\{|\{%|\{#")
+#: What makes a base a template. ``{#`` is left out: shell ``${#x}`` is not a template.
+_TEMPLATE_BASE = re.compile(r"\{\{|\{%")
 _DOCKER_DIRECTIVE = re.compile(r"^\s*#\s*[A-Za-z][\w-]*\s*=")
 _NEWLINES = ("\n", "\r\n")
 
@@ -205,7 +220,7 @@ def template_file(rel: str, before: str, lang: Lang) -> bool:
         lang.name == "html"
         or "templates" in parts[:-1]
         or any("{{" in part for part in parts)
-        or bool(TEMPLATE_PATTERN.search(before))
+        or bool(_TEMPLATE_BASE.search(before))
     )
 
 
@@ -289,6 +304,21 @@ def _removed_lines(before: str, after: str) -> list[tuple[int, str]]:
     ]
 
 
+def _go_block_output(lines: list[str]) -> str | None:
+    """Fail a ``/*`` line whose first non-blank content line starts with ``Output:``.
+
+    go/doc strips the comment markers and leading blank lines, so ``/*`` then ``Output: hi`` is an
+    example's expected output, just like ``/* Output: hi */`` (which the line patterns catch).
+    """
+    for k, line in enumerate(lines):
+        if line.strip() != "/*":
+            continue
+        first = next((nxt.strip() for nxt in lines[k + 1 :] if nxt.strip()), "")
+        if _GO_OUTPUT.match("/* " + first):
+            return f"inserted directive-like comment: /* {first}"
+    return None
+
+
 def common_guards(rel: str, before: str, after: str, lang: Lang) -> str | None:
     """Run the guards every verify method shares. Return a failure detail, or None when clean."""
     if before.startswith("\ufeff") != after.startswith("\ufeff"):
@@ -314,6 +344,10 @@ def common_guards(rel: str, before: str, after: str, lang: Lang) -> str | None:
             and _is_directive(prev, lang, templated)
         ):
             return f"inserted below a directive-like comment: {prev.strip()!r}"
+        if lang.name == "go":
+            why = _go_block_output(lines)
+            if why:
+                return why
         for offset, line in enumerate(lines):
             text = line.strip()
             if _is_directive(line, lang, templated) or (
@@ -691,7 +725,7 @@ def _scan_toml(lines: list[str]) -> set[int]:
     return out
 
 
-# --- C family, CSS, JS/TS --------------------------------------------------
+# --- C family, CSS ------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -702,15 +736,13 @@ class _Syntax:
     char_lit: bool = True
     multiline_dq: bool = False
     backtick_raw: bool = False
-    template: bool = False
     text_block: bool = False
     cs_strings: bool = False
     cpp_raw: bool = False
     rust_raw: bool = False
-    jsx: bool = False
-    regex: bool = False
 
 
+#: JS/TS are absent on purpose: they are verified only by ts-printer (see the module docstring).
 _SYNTAX = {
     "c": _Syntax(),
     "cpp": _Syntax(cpp_raw=True),
@@ -719,75 +751,21 @@ _SYNTAX = {
     "csharp": _Syntax(cs_strings=True),
     "rust": _Syntax(nested_block=True, multiline_dq=True, rust_raw=True),
     "css": _Syntax(line_comment=False, sq_string=True, char_lit=False),
-    "javascript": _Syntax(sq_string=True, char_lit=False, template=True, jsx=True, regex=True),
-    "typescript": _Syntax(sq_string=True, char_lit=False, template=True, jsx=True, regex=True),
 }
 _CPP_RAW = re.compile(r'(?:u8|u|U|L)?R"([^()\\\s]{0,16})\(')
 _RUST_RAW = re.compile(r'[bc]?r(#*)"')
 _CS_RAW = re.compile(r'[$]*("{3,})')
-_JSX_BEFORE = set("(=,:?&|{}[>;!")
-_JSX_WORDS = {"return", "yield", "default", "case", "await"}
 
 
 def _ident(c: str) -> bool:
     return c.isalnum() or c == "_"
 
 
-#: After these characters a "/" starts a regex literal, not a division.
-_REGEX_AFTER = set("(,=:[!&|?{};+-*%<>~^")
-#: ... and after these keywords (``return /x/``), unless they are a property (``a.return``).
-_REGEX_WORDS = set(
-    "return typeof instanceof in of new delete void throw case do else yield await".split()
-)
-_TRAILING_WORD = re.compile(r"[A-Za-z_$][\w$]*$")
-
-
-def _regex_can_start(before: str) -> bool:
-    """True when a "/" after the code ``before`` (on the same line) starts a regex literal.
-
-    The start of a line counts as a regex position, so a division that starts a line is lexed as
-    a regex; it then has no closing "/" on that line in practice, and the scanner fails closed.
-    """
-    before = before.rstrip()
-    if not before or before[-1] in _REGEX_AFTER:
-        return True
-    m = _TRAILING_WORD.search(before)
-    if m is None:
-        return False
-    return m.group(0) in _REGEX_WORDS and not before[: m.start()].endswith(".")
-
-
-def _regex_end(line: str, i: int) -> int:
-    """Index just past the regex literal (and its flags) starting at ``line[i] == "/"``.
-
-    Handles escapes and character classes, where an unescaped "/" does not close the literal.
-    Returns -1 when the line ends first (a regex cannot span lines).
-    """
-    j, n, in_class = i + 1, len(line), False
-    while j < n:
-        ch = line[j]
-        if ch == "\\":
-            j += 2
-            continue
-        if in_class:
-            in_class = ch != "]"
-        elif ch == "[":
-            in_class = True
-        elif ch == "/":
-            j += 1
-            while j < n and (_ident(line[j]) or line[j] == "$"):
-                j += 1
-            return j
-        j += 1
-    return -1
-
-
 def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:
-    """One lexer, one loop: base lines that end inside a string, comment, template or JSX."""
+    """One lexer, one loop: base lines that end inside a string or a block comment."""
     out: set[int] = set()
-    # Frames: ["code", brace_depth] | ["block", 0] | ["tmpl", 0] | ["str", close, esc, multi, dbl]
-    stack: list[list[object]] = [["code", 0]]
-    prev, word, jsx_from, lost_from = "", "", -1, -1
+    # Frames: ["code"] | ["block"] | ["str", close, esc, multi, dbl]
+    stack: list[list[object]] = [["code"]]
     for idx, line in enumerate(lines):
         i, n = 0, len(line)
         while i < n:
@@ -795,7 +773,7 @@ def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:
             kind, c = top[0], line[i]
             if kind == "block":
                 if syn.nested_block and line.startswith("/*", i):
-                    stack.append(["block", 0])
+                    stack.append(["block"])
                     i += 2
                 elif line.startswith("*/", i):
                     stack.pop()
@@ -815,44 +793,13 @@ def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:
                 else:
                     i += 1
                 continue
-            if kind == "tmpl":
-                if c == "\\":
-                    i += 2
-                elif c == "`":
-                    stack.pop()
-                    i += 1
-                elif line.startswith("${", i):
-                    stack.append(["code", 0])
-                    i += 2
-                else:
-                    i += 1
-                continue
             # code
             if syn.line_comment and line.startswith("//", i):
                 break
             if line.startswith("/*", i):
-                stack.append(["block", 0])
+                stack.append(["block"])
                 i += 2
                 continue
-            if syn.regex and c == "/":
-                if _regex_can_start(line[:i]):
-                    end = _regex_end(line, i)
-                    if end < 0:
-                        lost_from = idx  # unterminated regex (or a misread division)
-                        break
-                    i, prev, word = end, "/", ""
-                    continue
-                nxt = line.find("/", i + 1)
-                if (
-                    nxt > 0
-                    and line[:i].rstrip().endswith(")")
-                    and any(q in line[i:nxt] for q in "'\"`")
-                ):
-                    # "if (x) /'/.test(s)" is a regex after ")"; "(a) / b" is a division. When
-                    # a later "/" could close the regex and the two readings disagree about a
-                    # quote or backtick between them, neither reading can be trusted.
-                    lost_from = idx
-                    break
             boundary = i == 0 or not _ident(line[i - 1])
             m = _CPP_RAW.match(line, i) if syn.cpp_raw and boundary else None
             if m:
@@ -901,43 +848,12 @@ def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:
                 stack.append(["str", "`", False, True, False])
                 i += 1
                 continue
-            if c == "`" and syn.template:
-                stack.append(["tmpl", 0])
-                i += 1
-                continue
-            if syn.template and c == "{":
-                top[1] = int(str(top[1])) + 1
-            if syn.template and c == "}" and len(stack) > 1:
-                if top[1] == 0:
-                    stack.pop()
-                    i += 1
-                    continue
-                top[1] = int(str(top[1])) - 1
-            if (
-                syn.jsx
-                and jsx_from < 0
-                and c == "<"
-                and re.match(r"<[A-Za-z>]", line[i:])
-                and (prev == "" or prev in _JSX_BEFORE or word in _JSX_WORDS)
-            ):
-                jsx_from = idx
-            if not c.isspace():
-                word = word + c if _ident(c) else ""
-                prev = c
-            elif word:
-                word = word if word in _JSX_WORDS else ""
             i += 1
         top = stack[-1]
         if top[0] == "str" and not top[3] and not line.rstrip().endswith("\\"):
             stack.pop()  # single-line string closed by the line end (a syntax error anyway)
         if len(stack) > 1:
             out.add(idx)
-    if jsx_from >= 0:
-        # JSX children are text: "// x" there renders. Fail closed from the first JSX element.
-        out.update(range(jsx_from, len(lines)))
-    if lost_from >= 0:
-        # A regex literal the lexer cannot close: the state after it is unknown, so fail closed.
-        out.update(range(lost_from, len(lines)))
     return out
 
 
@@ -966,7 +882,6 @@ def _cgo_preamble_points(lines: list[str]) -> set[int]:
 
 
 _GO_EXAMPLE = re.compile(r"^func\s+Example\w*\s*\(")
-_GO_OUTPUT = re.compile(r"^\s*(?://|/\*)\s*(?:unordered\s+)?output:", _I)
 
 
 def go_example_output_points(lines: list[str]) -> set[int]:
@@ -1084,10 +999,10 @@ def unsafe_insert_points(lines: list[str], lang: Lang) -> set[int]:
 
     Position ``k`` means "a new line placed before base line k" (0..len(lines)). It is unsafe
     after a base line that ends in a line continuation, inside a verbatim region of ``lang``
-    (heredoc, block scalar, multi-line or raw string, template literal, block comment, JSX,
-    HTML raw-text element), or in or next to a Go example's expected output. Scanners that lose
-    track fail closed: the rest of the file is unsafe. A language with no scanner is unsafe at
-    every position.
+    (heredoc, block scalar, multi-line or raw string, block comment, HTML raw-text element), or
+    in or next to a Go example's expected output. Scanners that lose track fail closed: the rest
+    of the file is unsafe. A language with no scanner (JS/TS among them) is unsafe at every
+    position.
 
     The one position this does not report is the one directly below a YAML block scalar's last
     line: whether it is safe depends on the inserted text, so ``context_guard`` decides it.
