@@ -12,6 +12,13 @@ file whose committed code changed, so a dirty tree is refused rather than guesse
 
 Paths are relative to the top level of the work tree, the same root ``inventory`` lists and the
 model's module paths use, so ``repo`` must be that top level.
+
+Git may be told to hide changes from both reads: a submodule can be ignored (``.gitmodules``,
+``diff.ignoreSubmodules``, ``status.ignoreSubmodules``), and a file can be flagged
+``assume-unchanged`` or ``skip-worktree`` so that ``git status`` never looks at it. Each of those
+would let a stale or edited work tree pass for the committed one, so submodules are always
+compared (``--ignore-submodules=none``) and a file is trusted for the comment-only proof only
+after its work-tree bytes are shown to be HEAD's.
 """
 
 from __future__ import annotations
@@ -38,28 +45,57 @@ def _prefix(module_path: str) -> str:
     return "" if prefix == "." else prefix
 
 
-def module_for(path: str, modules: list[dict[str, Any]]) -> str | None:
-    """The id of the module that owns ``path``: the longest matching path prefix wins.
+def _claim(path: str, prefix: str) -> int:
+    """How much of ``path`` a module path claims: its length, 0 for the root, -1 for none."""
+    if not prefix:
+        return 0 if "/" not in path else -1
+    return len(prefix) if path == prefix or path.startswith(prefix + "/") else -1
 
-    The root module (path ``.``) owns only top-level files, so a file in a directory no module
-    names stays unowned instead of falling to the root.
-    """
-    best: str | None = None
+
+def _owners(path: str, modules: list[dict[str, Any]]) -> list[str]:
+    """Ids of every module that ties for the longest matching path prefix, in the order given."""
+    best: list[str] = []
     best_len = -1
     for module in modules:
-        prefix = _prefix(module["path"])
-        if not prefix:
-            if "/" not in path and best_len < 0:
-                best, best_len = module["id"], 0
-        elif (path == prefix or path.startswith(prefix + "/")) and len(prefix) > best_len:
-            best, best_len = module["id"], len(prefix)
+        length = _claim(path, _prefix(module["path"]))
+        if length < 0:
+            continue
+        if length > best_len:
+            best, best_len = [module["id"]], length
+        elif length == best_len:
+            best.append(module["id"])
     return best
+
+
+def modules_for(path: str, modules: list[dict[str, Any]]) -> list[str]:
+    """The sorted ids of every module that owns ``path``: those with the longest matching prefix.
+
+    More than one module owns a path when they share a path (a module split in two, or the same
+    directory spelled ``src`` and ``./src/``). A change there affects all of them, so none may be
+    dropped. The root module (path ``.``) owns only top-level files, so a file in a directory no
+    module names stays unowned instead of falling to the root. The result is empty then.
+    """
+    return sorted(set(_owners(path, modules)))
+
+
+def module_for(path: str, modules: list[dict[str, Any]]) -> str | None:
+    """The first module (in list order) that owns ``path``, or None. See ``modules_for``.
+
+    Kept for callers that want one answer; ``compute_changes`` uses ``modules_for`` so that a tie
+    marks every module.
+    """
+    owners = _owners(path, modules)
+    return owners[0] if owners else None
 
 
 def _git(top: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     # --no-optional-locks: this only reads, so it must not rewrite the index of a repo in use.
+    # GIT_LITERAL_PATHSPECS: a path here is a file name, never pathspec magic (":(top)x.py") or a
+    # glob ("w[1].py").
     return subprocess.run(
-        ["git", "--no-optional-locks", "-C", str(top), *args], capture_output=True
+        ["git", "--no-optional-locks", "-C", str(top), *args],
+        capture_output=True,
+        env={**os.environ, "GIT_LITERAL_PATHSPECS": "1"},
     )
 
 
@@ -126,7 +162,11 @@ def _source_commit(state: Any) -> str:
     return since.lower()
 
 
-def _work_tree(repo: Path) -> Path:
+def work_tree(repo: Path) -> Path:
+    """The top level of the git work tree ``repo`` names; ``ValueError`` when it is anything else.
+
+    Public so the command line can check it before it reads any other input.
+    """
     top = toplevel(repo)
     if top is None:
         raise ValueError(f"not inside a git work tree: {repo}")
@@ -136,11 +176,77 @@ def _work_tree(repo: Path) -> Path:
 
 
 def _require_clean(top: Path) -> None:
-    if _git_out(top, "status", "--porcelain", "-z", "--untracked-files=normal"):
+    # --ignore-submodules=none: "ignore = all" (in .gitmodules or the config) would otherwise hide
+    # a submodule whose work tree was edited.
+    if _git_out(
+        top, "status", "--porcelain", "-z", "--untracked-files=normal", "--ignore-submodules=none"
+    ):
         raise ValueError(
             "working tree is not clean: commit or stash local changes first (the comment-only "
             "check reads the working tree, the list of changed files reads commits)"
         )
+
+
+def _require_plain_index_entry(top: Path, path: str) -> None:
+    """Refuse a file that git is told not to look at (``assume-unchanged``, ``skip-worktree``).
+
+    ``git status`` reports such a file as clean whatever is on disk. ``git ls-files -v`` shows an
+    ordinary tracked file as ``H``; a lowercase tag means assume-unchanged, ``S`` skip-worktree
+    (``s``: both). Anything else is refused as well, because it is not what the clean-tree check
+    assumed.
+    """
+    # GIT_LITERAL_PATHSPECS makes the path match itself and nothing else, so the first record is
+    # this file's; the tag is its first byte (empty when git lists nothing for it).
+    tag = _git_out(top, "ls-files", "-v", "-z", "--", path)[:1].decode("ascii", "replace")
+    if tag == "H":
+        return
+    flags = []
+    if tag.islower():
+        flags.append("assume-unchanged")
+    if tag.upper() == "S":
+        flags.append("skip-worktree")
+    what = (
+        " and ".join(flags)
+        or f"in an unexpected index state (git ls-files -v tag: {tag or 'none'})"
+    )
+    raise ValueError(
+        f"{path} is {what}: git status cannot see edits to it, so its comment-only check cannot "
+        "be trusted. Clear it (git update-index --no-assume-unchanged --no-skip-worktree "
+        "<file>, or widen a sparse checkout) and run again"
+    )
+
+
+def _require_matches_head(top: Path, head: str, path: str) -> None:
+    """Refuse a file whose work-tree bytes are not HEAD's blob, whatever ``git status`` says.
+
+    ``git status`` is only as good as the stat cache, flags and filesystem monitor behind it. The
+    hash is taken through the same filters as ``git add`` (``--path``: line endings, attributes),
+    so a checkout that converts line endings is not mistaken for an edit.
+    """
+    blob = _git_out(top, "rev-parse", "--verify", f"{head}:{path}").decode("ascii").strip()
+    found = _git_out(top, "hash-object", f"--path={path}", "--", str(top / path))
+    if found.decode("ascii").strip() != blob:
+        raise ValueError(
+            f"{path} differs from HEAD although git status reports a clean tree (a stale "
+            "filesystem monitor or stat cache?): its comment-only check would read the wrong "
+            "file. Run git update-index --really-refresh, or restore the file, and run again"
+        )
+
+
+def _comment_only(top: Path, head: str, since: str, path: str) -> bool:
+    """True when ``path`` is proven to differ from ``since`` in comments only.
+
+    The proof reads the work tree, so the work tree must first be shown to be HEAD's file; a file
+    that cannot be shown that way raises ``ValueError`` instead of being guessed at.
+    """
+    _require_plain_index_entry(top, path)
+    full = top / path
+    if full.is_symlink() or not full.is_file():
+        # Not hashable as a file (``hash-object`` would follow the link and hash its target), and
+        # never comment-only: a symlink or a submodule directory has no comments.
+        return False
+    _require_matches_head(top, head, path)
+    return verify_file(top, path, since).ok
 
 
 def compute_changes(repo: Path, state: dict[str, Any], model: dict[str, Any]) -> dict[str, Any]:
@@ -148,22 +254,35 @@ def compute_changes(repo: Path, state: dict[str, Any], model: dict[str, Any]) ->
 
     Returns ``since``, ``head``, ``changed_files`` (``{"status", "path"}``, the new path for a
     rename), ``comment_only_files`` (edited, proven comment-only, so not a change),
-    ``removed_files``, ``affected_modules`` and ``unmapped_files`` (changed, owned by no module).
-    A rename affects the module it left and the one it entered. A file that is a document or part
-    of the explorer owns nothing, on either side of a rename.
+    ``removed_files``, ``affected_modules`` and ``unmapped_files``.
+
+    ``affected_modules`` holds every module that owns a changed path. When several modules share
+    the longest matching path they all own it, and all are marked. A rename affects the module it
+    left and the one it entered. A file that is a document or part of the explorer owns nothing,
+    on either side of a rename. A submodule is a path like any other: a moved pointer marks the
+    module that owns the submodule's path.
+
+    ``unmapped_files`` is every changed file that no module path claims, new or modified (a
+    renamed file by its new path). It is not limited to new files: an edited file in a directory
+    the model never covered is listed here, and the caller must decide what to do with it. A
+    deleted file no module claims is listed only in ``removed_files``.
 
     Raises ``ValueError`` for input that cannot be answered from: a state without a full
     ``source_commit``, a model without ``modules``, a commit not in this repository, a ``repo``
-    that is not the top of a git work tree, or a working tree that is not clean.
+    that is not the top of a git work tree, a working tree that is not clean (a submodule's
+    included), or an edited source file whose work-tree bytes cannot be shown to be HEAD's (it is
+    flagged assume-unchanged or skip-worktree, or differs from HEAD although git says it does not).
     """
     modules = _modules(model)
     since = _source_commit(state)
-    top = _work_tree(repo)
+    top = work_tree(repo)
     if _git(top, "cat-file", "-e", f"{since}^{{commit}}").returncode != 0:
         raise ValueError(f"source_commit {since} is not in this repository's history")
     _require_clean(top)
     head = _git_out(top, "rev-parse", "HEAD").decode("ascii").strip()
-    diff = _git_out(top, "diff", "--name-status", "-z", "-M", since, head, "--")
+    diff = _git_out(
+        top, "diff", "--name-status", "-z", "-M", "--ignore-submodules=none", since, head, "--"
+    )
     changed: list[dict[str, str]] = []
     comment_only: list[str] = []
     removed: list[str] = []
@@ -172,7 +291,7 @@ def compute_changes(repo: Path, state: dict[str, Any], model: dict[str, Any]) ->
     for kind, old, new in _parse_name_status(diff):
         if _ignored(old) and _ignored(new):
             continue
-        if kind == "M" and detect(new) is not None and verify_file(top, new, since).ok:
+        if kind == "M" and detect(new) is not None and _comment_only(top, head, since, new):
             comment_only.append(new)
             continue
         changed.append({"status": kind, "path": new})
@@ -181,10 +300,9 @@ def compute_changes(repo: Path, state: dict[str, Any], model: dict[str, Any]) ->
         for path in {old, new}:
             if _ignored(path):
                 continue
-            module_id = module_for(path, modules)
-            if module_id is not None:
-                affected.add(module_id)
-            elif path == new and kind != "D":
+            owners = modules_for(path, modules)
+            affected.update(owners)
+            if not owners and path == new and kind != "D":
                 unmapped.add(path)
     return {
         "since": since,

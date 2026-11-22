@@ -223,11 +223,14 @@ def _load_input(path: Path) -> Any:
 
 
 def _cmd_changes(args: argparse.Namespace) -> int:
-    from .changes import compute_changes
+    from .changes import compute_changes, work_tree
     from .inventory import OUTPUT_DIR
 
     data = (args.explorer_dir or args.repo / OUTPUT_DIR) / "data"
     try:
+        # First: a --repo that is not the top level has no explorer/data of its own, and "no such
+        # file" would hide the real mistake.
+        work_tree(args.repo)
         state = _load_input(data / "state.json")
         model = _load_input(data / "model.json")
         result = compute_changes(args.repo, state, model)

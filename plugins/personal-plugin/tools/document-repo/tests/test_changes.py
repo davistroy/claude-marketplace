@@ -9,9 +9,16 @@ from pathlib import Path
 
 import pytest
 
-from document_repo.changes import _parse_name_status, compute_changes, module_for
+from document_repo import changes
+from document_repo.changes import (
+    _parse_name_status,
+    _require_plain_index_entry,
+    compute_changes,
+    module_for,
+    modules_for,
+)
 from document_repo.cli import main
-from document_repo.verify import typescript_available
+from document_repo.verify import Result, typescript_available
 
 MODULES = [
     {"id": "root", "path": "."},
@@ -56,6 +63,50 @@ def test_module_for_root_spellings_claim_only_top_level_files(root_path: str) ->
 def test_module_for_normalises_module_paths(src_path: str) -> None:
     assert module_for("src/a.py", [{"id": "s", "path": src_path}]) == "s"
     assert module_for("srcx/a.py", [{"id": "s", "path": src_path}]) is None
+
+
+# Two modules may name the same directory (a split module, or "src" and "./src/"). Both own its
+# files, so a change there must reach both, or one module's docs go stale without a trace.
+TWINS = [
+    {"id": "src-b", "path": "src"},
+    {"id": "src-a", "path": "src"},
+    {"id": "web", "path": "web"},
+]
+
+
+def test_modules_for_returns_every_module_that_ties_on_the_longest_prefix() -> None:
+    assert modules_for("src/x.py", TWINS) == ["src-a", "src-b"]  # sorted, not in list order
+    assert modules_for("src", TWINS) == ["src-a", "src-b"]
+    assert modules_for("web/i.ts", TWINS) == ["web"]
+    assert modules_for("other/z.py", TWINS) == []
+    assert modules_for("srcx/a.py", TWINS) == []
+
+
+def test_modules_for_ties_include_other_spellings_of_the_same_path() -> None:
+    modules = [
+        {"id": "a", "path": "src"},
+        {"id": "b", "path": "./src/"},
+        {"id": "c", "path": "src/api"},
+    ]
+    assert modules_for("src/x.py", modules) == ["a", "b"]
+    assert modules_for("src/api/z.py", modules) == ["c"]  # the longer prefix still wins alone
+
+
+def test_modules_for_root_modules_tie_on_top_level_files_only() -> None:
+    modules = [{"id": "r2", "path": "."}, {"id": "r1", "path": ""}, {"id": "s", "path": "src"}]
+    assert modules_for("setup.py", modules) == ["r1", "r2"]
+    assert modules_for("src/a.py", modules) == ["s"]
+    assert modules_for("pkg/a.py", modules) == []
+
+
+@pytest.mark.parametrize("order", [TWINS, list(reversed(TWINS))])
+def test_modules_for_is_the_same_for_any_module_order(order: list[dict[str, str]]) -> None:
+    assert modules_for("src/x.py", order) == ["src-a", "src-b"]
+
+
+def test_module_for_still_returns_the_first_module_of_a_tie() -> None:
+    assert module_for("src/x.py", TWINS) == "src-b"  # the first in the list given
+    assert module_for("src/x.py", list(reversed(TWINS))) == "src-a"
 
 
 def _setup(make_repo, git):
@@ -542,3 +593,414 @@ def test_cli_changes_outside_a_git_work_tree_exits_2(tmp_path: Path, capsys) -> 
     _write_inputs(tmp_path / "explorer", {"source_commit": "a" * 40}, {"modules": MODULES})
     assert main(["changes", "--repo", str(tmp_path)]) == 2
     assert "not inside a git work tree" in capsys.readouterr().err
+
+
+# --- modules that share a path -------------------------------------------------------------
+
+
+def test_a_change_marks_every_module_that_shares_the_path(make_repo, commit_files, git) -> None:
+    repo = make_repo({"src/a.py": "a = 1\n", "web/w.py": "w = 1\n"})
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    commit_files(repo, {"src/a.py": "a = 2\n"})
+    twins = {"modules": [{"id": "src-part1", "path": "src"}, {"id": "src-part2", "path": "src"}]}
+    result = compute_changes(repo, state, twins)
+    assert result["affected_modules"] == ["src-part1", "src-part2"]
+    assert result["unmapped_files"] == []
+
+
+def test_a_rename_marks_every_module_on_both_sides(make_repo, git) -> None:
+    repo = make_repo({"src/a.py": "a = 1\n", "web/w.py": "w = 1\n"})
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    git(repo, "mv", "src/a.py", "web/a.py")
+    git(repo, "commit", "-q", "-m", "mv")
+    modules = [
+        {"id": "src-1", "path": "src"},
+        {"id": "src-2", "path": "src"},
+        {"id": "web-1", "path": "web"},
+        {"id": "web-2", "path": "web"},
+    ]
+    result = compute_changes(repo, state, {"modules": modules})
+    assert result["affected_modules"] == ["src-1", "src-2", "web-1", "web-2"]
+
+
+# --- unmapped_files ------------------------------------------------------------------------
+
+
+def test_a_modified_file_no_module_claims_is_unmapped_not_only_a_new_one(
+    make_repo, commit_files, git
+) -> None:
+    # unmapped_files is every changed file that no module path claims. It is not limited to new
+    # files: the caller must still look at an edited file in a directory the model never covered.
+    repo = make_repo({"setup.py": "x = 1\n", "tools/old.py": "t = 1\n", "src/a.py": "a = 1\n"})
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    commit_files(repo, {"tools/old.py": "t = 2\n"})
+    result = compute_changes(repo, state, {"modules": MODULES})
+    assert result["changed_files"] == [{"status": "M", "path": "tools/old.py"}]
+    assert result["unmapped_files"] == ["tools/old.py"]
+    assert result["affected_modules"] == []
+
+
+def test_a_renamed_file_is_unmapped_by_its_new_path(make_repo, git) -> None:
+    repo = make_repo({"tools/old.py": "t = 1\n", "src/a.py": "a = 1\n"})
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    (repo / "scripts").mkdir()
+    git(repo, "mv", "tools/old.py", "scripts/new.py")
+    git(repo, "commit", "-q", "-m", "mv")
+    result = compute_changes(repo, state, {"modules": MODULES})
+    assert result["unmapped_files"] == ["scripts/new.py"]
+    assert result["affected_modules"] == []
+
+
+# --- file type changes ---------------------------------------------------------------------
+
+needs_symlinks = pytest.mark.skipif(
+    sys.platform == "win32", reason="creating a symlink needs a privilege on Windows"
+)
+
+
+def _replace_with_symlink(repo: Path, git, rel: str, target: str) -> None:
+    (repo / rel).unlink()
+    os.symlink(target, repo / rel)
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "type change")
+
+
+@needs_symlinks
+def test_a_file_replaced_by_a_symlink_marks_its_module(make_repo, git) -> None:
+    repo, state, model = _setup(make_repo, git)
+    _replace_with_symlink(repo, git, "web/w.py", "../setup.py")
+    assert git(repo, "diff", "--name-status", state["source_commit"], "HEAD").startswith("T\t")
+    result = compute_changes(repo, state, model)
+    assert result["changed_files"] == [{"status": "T", "path": "web/w.py"}]
+    assert result["comment_only_files"] == []
+    assert result["affected_modules"] == ["web"]
+
+
+@needs_symlinks
+def test_a_symlink_replaced_by_a_file_marks_its_module(make_repo, commit_files, git) -> None:
+    repo, _, model = _setup(make_repo, git)
+    _replace_with_symlink(repo, git, "web/w.py", "../setup.py")
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    (repo / "web" / "w.py").unlink()
+    commit_files(repo, {"web/w.py": "w = 1\n"})
+    assert git(repo, "diff", "--name-status", state["source_commit"], "HEAD").startswith("T\t")
+    result = compute_changes(repo, state, model)
+    assert result["changed_files"] == [{"status": "T", "path": "web/w.py"}]
+    assert result["affected_modules"] == ["web"]
+
+
+@needs_symlinks
+def test_a_retargeted_symlink_named_like_code_is_a_change_not_an_error(
+    make_repo, git, commit_files
+) -> None:
+    repo, _, model = _setup(make_repo, git)
+    os.symlink("a.py", repo / "src" / "api" / "link.py")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "link")
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    (repo / "src" / "api" / "link.py").unlink()
+    os.symlink("../../web/w.py", repo / "src" / "api" / "link.py")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "retarget")
+    result = compute_changes(repo, state, model)
+    assert result["changed_files"] == [{"status": "M", "path": "src/api/link.py"}]
+    assert result["affected_modules"] == ["src-api"]
+
+
+# The verifier refuses a symlink on its own, so a real type change cannot show that compute_changes
+# keeps the guard itself. A verifier that says "comment-only" for everything can: only a plain
+# edit (status M) may ever be counted as comment-only.
+
+
+@pytest.fixture
+def lenient_verifier(monkeypatch):
+    monkeypatch.setattr(changes, "verify_file", lambda top, rel, ref: Result(rel, "stub", True))
+
+
+@needs_symlinks
+@pytest.mark.parametrize("to_symlink", [True, False])
+def test_a_type_change_is_never_comment_only_whatever_the_verifier_says(
+    make_repo, commit_files, git, lenient_verifier, to_symlink: bool
+) -> None:
+    repo, state, model = _setup(make_repo, git)
+    _replace_with_symlink(repo, git, "web/w.py", "../setup.py")
+    if not to_symlink:  # the other direction: the work tree now holds a regular file
+        state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+        (repo / "web" / "w.py").unlink()
+        commit_files(repo, {"web/w.py": "w = 1\n"})
+    assert git(repo, "diff", "--name-status", state["source_commit"], "HEAD").startswith("T\t")
+    result = compute_changes(repo, state, model)
+    assert result["comment_only_files"] == []
+    assert result["affected_modules"] == ["web"]
+
+
+def test_only_a_plain_edit_is_comment_only_whatever_the_verifier_says(
+    make_repo, commit_files, git, lenient_verifier
+) -> None:
+    repo, state, model = _setup(make_repo, git)
+    git(repo, "mv", "src/old.py", "web/old.py")
+    git(repo, "rm", "-q", "setup.py")
+    commit_files(repo, {"src/new.py": "n = 1\n", "web/w.py": "# edited\nw = 1\n"})
+    result = compute_changes(repo, state, model)
+    assert result["comment_only_files"] == ["web/w.py"]  # the one plain edit
+    assert {c["path"] for c in result["changed_files"]} == {"web/old.py", "setup.py", "src/new.py"}
+    assert result["affected_modules"] == ["root", "src", "web"]
+
+
+# --- submodules ----------------------------------------------------------------------------
+
+SUB_MODULES = [*MODULES, {"id": "lib-foo", "path": "libs/foo"}]
+
+
+def _with_submodule(make_repo, git) -> Path:
+    """A repo with a submodule at libs/foo, committed."""
+    sub = make_repo({"s.py": "s = 1\n"})
+    repo = make_repo({"setup.py": "x = 1\n", "src/a.py": "a = 1\n"})
+    git(repo, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(sub), "libs/foo")
+    git(repo, "commit", "-q", "-m", "add submodule")
+    return repo
+
+
+def _hide_submodule(repo: Path, git, how: str) -> None:
+    """Tell git to ignore the submodule, the three ways a repo or a user can."""
+    if how == "gitmodules":
+        git(repo, "config", "-f", ".gitmodules", "submodule.libs/foo.ignore", "all")
+        git(repo, "add", ".gitmodules")
+        git(repo, "commit", "-q", "-m", "ignore the submodule")
+    elif how == "config":
+        git(repo, "config", "diff.ignoreSubmodules", "all")
+        git(repo, "config", "status.ignoreSubmodules", "all")
+    else:
+        assert how == "none"
+
+
+def _commit_in_submodule(repo: Path, git) -> str:
+    foo = repo / "libs" / "foo"
+    (foo / "s.py").write_text("s = 2\n")
+    git(foo, "add", "-A")
+    git(foo, "commit", "-q", "-m", "advance")
+    return git(foo, "rev-parse", "HEAD").strip()
+
+
+HIDING = ["none", "gitmodules", "config"]
+
+
+@pytest.mark.parametrize("how", HIDING)
+def test_a_bumped_submodule_pointer_marks_its_module(make_repo, git, how: str) -> None:
+    repo = _with_submodule(make_repo, git)
+    _hide_submodule(repo, git, how)
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    new = _commit_in_submodule(repo, git)
+    # "git add libs/foo" would skip an ignored submodule, so record the new pointer directly.
+    git(repo, "update-index", "--cacheinfo", f"160000,{new},libs/foo")
+    git(repo, "commit", "-q", "-m", "bump the pointer")
+    assert git(repo, "status", "--porcelain") == ""
+    result = compute_changes(repo, state, {"modules": SUB_MODULES})
+    assert result["changed_files"] == [{"status": "M", "path": "libs/foo"}]
+    assert result["affected_modules"] == ["lib-foo"]
+
+
+def _modify_submodule_file(repo: Path, git) -> None:
+    (repo / "libs" / "foo" / "s.py").write_text("s = 99\n")
+
+
+def _add_untracked_file_in_submodule(repo: Path, git) -> None:
+    (repo / "libs" / "foo" / "new.py").write_text("n = 1\n")
+
+
+def _move_submodule_head(repo: Path, git) -> None:
+    _commit_in_submodule(repo, git)
+
+
+@pytest.mark.parametrize("how", ["gitmodules", "config"])
+@pytest.mark.parametrize(
+    "dirty", [_modify_submodule_file, _add_untracked_file_in_submodule, _move_submodule_head]
+)
+def test_a_dirty_submodule_fails_the_clean_tree_gate(make_repo, git, how: str, dirty) -> None:
+    repo = _with_submodule(make_repo, git)
+    _hide_submodule(repo, git, how)
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    dirty(repo, git)
+    with pytest.raises(ValueError, match="working tree is not clean"):
+        compute_changes(repo, state, {"modules": SUB_MODULES})
+
+
+def test_a_clean_submodule_passes_the_gate(make_repo, commit_files, git) -> None:
+    repo = _with_submodule(make_repo, git)
+    _hide_submodule(repo, git, "gitmodules")
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    commit_files(repo, {"src/a.py": "a = 2\n"})
+    assert compute_changes(repo, state, {"modules": SUB_MODULES})["affected_modules"] == ["src"]
+
+
+# --- a flagged index entry cannot hide an edit --------------------------------------------
+
+FLAGS = [("--assume-unchanged", "assume-unchanged"), ("--skip-worktree", "skip-worktree")]
+
+
+@pytest.mark.parametrize("flag,name", FLAGS)
+def test_a_flagged_file_cannot_hide_a_committed_code_change(
+    make_repo, commit_files, git, flag: str, name: str
+) -> None:
+    # Commit "w = 2", put "w = 1" back on disk and tell git not to look: git status is clean, and
+    # the proof that the file only gained comments would pass against the old text.
+    repo, state, model = _setup(make_repo, git)
+    commit_files(repo, {"web/w.py": "w = 2\n"})
+    (repo / "web" / "w.py").write_text("w = 1\n")
+    git(repo, "update-index", flag, "web/w.py")
+    assert git(repo, "status", "--porcelain") == ""  # the premise: git sees nothing
+    with pytest.raises(ValueError, match=rf"web/w\.py is {name}:"):
+        compute_changes(repo, state, model)
+
+
+@pytest.mark.parametrize("flag,name", FLAGS)
+def test_a_flagged_file_is_refused_even_when_it_matches_head(
+    make_repo, commit_files, git, flag: str, name: str
+) -> None:
+    repo, state, model = _setup(make_repo, git)
+    commit_files(repo, {"web/w.py": "# comment only\nw = 1\n"})
+    git(repo, "update-index", flag, "web/w.py")
+    with pytest.raises(ValueError, match=rf"web/w\.py is {name}:"):
+        compute_changes(repo, state, model)
+
+
+def test_a_file_with_both_flags_names_both(make_repo, commit_files, git) -> None:
+    repo, state, model = _setup(make_repo, git)
+    commit_files(repo, {"web/w.py": "# comment only\nw = 1\n"})
+    git(repo, "update-index", "--assume-unchanged", "web/w.py")
+    git(repo, "update-index", "--skip-worktree", "web/w.py")  # git shows both flags as "s"
+    assert git(repo, "ls-files", "-v", "--", "web/w.py").startswith("s ")
+    with pytest.raises(ValueError, match=r"web/w\.py is assume-unchanged and skip-worktree:"):
+        compute_changes(repo, state, model)
+
+
+def test_a_flag_on_a_file_the_diff_does_not_list_is_not_checked(
+    make_repo, commit_files, git
+) -> None:
+    repo, state, model = _setup(make_repo, git)
+    git(repo, "update-index", "--assume-unchanged", "setup.py")
+    commit_files(repo, {"web/w.py": "w = 2\n"})
+    assert compute_changes(repo, state, model)["affected_modules"] == ["web"]
+
+
+def test_a_flagged_file_that_cannot_be_comment_only_is_reported_not_refused(
+    make_repo, commit_files, git
+) -> None:
+    # Only a file whose edit might be comment-only needs a trustworthy working tree; the rest is
+    # reported as changed from the commits alone.
+    repo, _, model = _setup(make_repo, git)
+    commit_files(repo, {"web/data.bin": b"\0\1\2"})
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    commit_files(repo, {"web/data.bin": b"\0\1\3"})
+    git(repo, "update-index", "--assume-unchanged", "web/data.bin")
+    result = compute_changes(repo, state, model)
+    assert result["changed_files"] == [{"status": "M", "path": "web/data.bin"}]
+    assert result["affected_modules"] == ["web"]
+
+
+def test_an_entry_that_is_not_a_plain_tracked_file_is_refused(make_repo, git) -> None:
+    repo, _, _ = _setup(make_repo, git)
+    with pytest.raises(ValueError, match=r"nope\.py.*unexpected index state"):
+        _require_plain_index_entry(repo, "nope.py")
+
+
+def test_a_flag_on_a_glob_sibling_is_not_mistaken_for_the_file(
+    make_repo, commit_files, git
+) -> None:
+    # As a pathspec, "web/w[1].py" also selects "web/w1.py", whose flag says nothing about it.
+    repo = make_repo({"web/w[1].py": "w = 1\n", "web/w1.py": "w = 1\n"})
+    git(repo, "update-index", "--assume-unchanged", "web/w1.py")
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    commit_files(repo, {"web/w[1].py": "# comment only\nw = 1\n"})
+    result = compute_changes(repo, state, {"modules": MODULES})
+    assert result["comment_only_files"] == ["web/w[1].py"]
+
+
+needs_colon_filenames = pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows file names cannot contain a colon"
+)
+
+
+@needs_colon_filenames
+def test_a_path_that_looks_like_pathspec_magic_is_a_plain_path(
+    make_repo, commit_files, git
+) -> None:
+    # ":(top)x.py" as a pathspec means "x.py"; the file is really named with the colon.
+    odd = ":(top)x.py"
+    repo = make_repo({odd: "x = 1\n"})
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    commit_files(repo, {odd: "# comment only\nx = 1\n"})
+    result = compute_changes(repo, state, {"modules": MODULES})
+    assert result["comment_only_files"] == [odd]
+
+
+needs_sh = pytest.mark.skipif(sys.platform == "win32", reason="the stale hook is a /bin/sh script")
+
+
+@needs_sh
+def test_a_working_tree_that_differs_from_head_is_refused_though_git_status_is_clean(
+    make_repo, commit_files, git, tmp_path: Path
+) -> None:
+    # A filesystem monitor that reports "nothing changed" makes git status trust a stale answer,
+    # with no flag set on the file. Only the file's own hash tells the truth.
+    repo, state, model = _setup(make_repo, git)
+    commit_files(repo, {"web/w.py": "w = 2\n"})
+    hook = tmp_path / "fsmonitor-hook.sh"
+    hook.write_text('#!/bin/sh\nprintf "token\\0"\n')  # a token and no changed paths
+    hook.chmod(0o755)
+    git(repo, "config", "core.fsmonitor", str(hook))
+    git(repo, "status", "--porcelain")  # records the token; from here on git believes the hook
+    (repo / "web" / "w.py").write_text("w = 1\n")
+    assert git(repo, "status", "--porcelain") == ""  # the premise: git sees nothing
+    with pytest.raises(ValueError, match=r"web/w\.py differs from HEAD"):
+        compute_changes(repo, state, model)
+
+
+def test_crlf_in_the_working_tree_under_autocrlf_is_not_a_difference(
+    make_repo, commit_files, git
+) -> None:
+    # The hash is taken through the same filters as git add, so CRLF on disk and LF in the blob
+    # are the same file; without that every file in such a checkout would be refused.
+    repo = make_repo({"web/w.py": "w = 1\n"})
+    git(repo, "config", "core.autocrlf", "true")
+    state = {"source_commit": git(repo, "rev-parse", "HEAD").strip()}
+    commit_files(repo, {"web/w.py": b"# comment only\r\nw = 1\r\n"})
+    assert git(repo, "status", "--porcelain") == ""
+    result = compute_changes(repo, state, {"modules": MODULES})
+    assert result["comment_only_files"] == ["web/w.py"]
+    assert result["affected_modules"] == []
+
+
+# --- command line ---------------------------------------------------------------------------
+
+
+def test_cli_changes_names_the_top_level_rule_before_reading_state(make_repo, git, capsys) -> None:
+    # A subdirectory has no explorer/data of its own; the clear message must win over the
+    # "no such file" one.
+    repo, _, _ = _setup(make_repo, git)
+    assert main(["changes", "--repo", str(repo / "src")]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("changes: repo must be the top level")
+    assert "state.json" not in err
+
+
+def test_cli_changes_names_a_missing_work_tree_before_reading_state(tmp_path: Path, capsys) -> None:
+    assert main(["changes", "--repo", str(tmp_path / "nowhere")]) == 2
+    err = capsys.readouterr().err
+    assert "not inside a git work tree" in err
+    assert "state.json" not in err
+
+
+@pytest.mark.parametrize("flag,name", FLAGS)
+def test_cli_changes_with_a_flagged_file_exits_2(
+    make_repo, commit_files, git, capsys, flag: str, name: str
+) -> None:
+    repo, state, model = _setup(make_repo, git)
+    _write_inputs(repo / "explorer", state, model)
+    commit_files(repo, {"web/w.py": "w = 2\n"})
+    (repo / "web" / "w.py").write_text("w = 1\n")
+    git(repo, "update-index", flag, "web/w.py")
+    assert main(["changes", "--repo", str(repo)]) == 2
+    captured = capsys.readouterr()
+    assert captured.err.startswith(f"changes: web/w.py is {name}:")
+    assert captured.out == ""
