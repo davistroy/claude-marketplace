@@ -39,12 +39,26 @@ def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _cmd_inventory(args: argparse.Namespace) -> int:
+    from .inventory import build_inventory
+
+    emit(build_inventory(args.repo), args.out)
+    return 0
+
+
+def _register_inventory(sub: Any) -> None:
+    p = sub.add_parser("inventory", help="list files, languages, skip reasons, entry points")
+    p.add_argument("repo", type=Path)
+    p.add_argument("--out", type=Path)
+    p.set_defaults(func=_cmd_inventory)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="document_repo", description="Helpers for the document-repo skill.")
     parser.add_argument("--version", action="version", version=f"document_repo {__version__}")
     sub = parser.add_subparsers(dest="cmd", metavar="<command>")
     # SUBCOMMANDS — each later task adds one `_register_<name>(sub)` call here, in task order.
-    _ = sub
+    _register_inventory(sub)
     return parser
 
 
