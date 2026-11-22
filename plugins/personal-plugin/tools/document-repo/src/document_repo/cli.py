@@ -103,6 +103,71 @@ def _register_verify(sub: Any) -> None:
     p.set_defaults(func=_cmd_verify)
 
 
+def _cmd_assemble(args: argparse.Namespace) -> int:
+    from .build import assemble_model, read_object
+    from .schema import validate
+
+    if not args.repo.is_dir():
+        sys.stderr.write(f"assemble: {args.repo} is not a directory\n")
+        return 2
+    try:
+        base = read_object(args.base_model) if args.base_model else None
+        model, notes = assemble_model(args.run_dir, args.repo, base_model=base)
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(f"assemble: {exc}\n")
+        return 2
+    emit(model, args.run_dir / "model.json")
+    emit(notes, args.run_dir / "file-notes.json")
+    errors = validate(model)
+    for err in errors:
+        sys.stderr.write(err + "\n")
+    return 1 if errors else 0
+
+
+def _register_assemble(sub: Any) -> None:
+    p = sub.add_parser("assemble", help="join module records + system sections into model.json")
+    p.add_argument("--run-dir", type=Path, required=True)
+    p.add_argument("--repo", type=Path, required=True)
+    p.add_argument("--base-model", type=Path)
+    p.set_defaults(func=_cmd_assemble)
+
+
+def _cmd_build(args: argparse.Namespace) -> int:
+    from .build import install_template, read_json, write_explorer_data
+    from .schema import validate
+
+    try:
+        model = read_json(args.model)
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(f"build: {exc}\n")
+        return 2
+    errors = validate(model)
+    if errors:
+        for err in errors:
+            sys.stderr.write(err + "\n")
+        return 1
+    if args.validate_only:
+        return 0
+    try:
+        if args.template:
+            install_template(args.template, args.explorer_dir)
+        state = write_explorer_data(model, args.explorer_dir / "data")
+    except OSError as exc:
+        sys.stderr.write(f"build: {exc}\n")
+        return 2
+    emit(state)
+    return 0
+
+
+def _register_build(sub: Any) -> None:
+    p = sub.add_parser("build", help="validate a model and write explorer data")
+    p.add_argument("--model", type=Path, required=True)
+    p.add_argument("--explorer-dir", type=Path, required=True)
+    p.add_argument("--template", type=Path)
+    p.add_argument("--validate-only", action="store_true")
+    p.set_defaults(func=_cmd_build)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -113,6 +178,8 @@ def build_parser() -> argparse.ArgumentParser:
     _register_inventory(sub)
     _register_modules(sub)
     _register_verify(sub)
+    _register_assemble(sub)
+    _register_build(sub)
     return parser
 
 
