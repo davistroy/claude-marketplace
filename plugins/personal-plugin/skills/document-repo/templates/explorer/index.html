@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Explorer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Fixed template from the document-repo skill. Regenerated on every run:
+       edit the project model (explorer/data/model.json), not this file. -->
+  <header class="topbar">
+    <a class="brand" id="brand" href="#/overview">Project Explorer</a>
+    <nav id="nav" aria-label="Sections"></nav>
+    <div class="controls">
+      <div class="lens" role="group" aria-label="Explanation style">
+        <button type="button" data-lens="functional" aria-pressed="true">What it does</button>
+        <button type="button" data-lens="technical" aria-pressed="false">How it works</button>
+      </div>
+      <input id="search" type="search" placeholder="Search" aria-label="Search the project">
+    </div>
+  </header>
+  <main id="view" tabindex="-1"></main>
+  <script src="data/model.js"></script>
+  <script src="vendor/mermaid.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
