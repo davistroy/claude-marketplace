@@ -20,8 +20,9 @@ SCHEMA_VERSION = 1
 MAX_SNIPPET_LINES = 30
 
 # What ``modules.slug()`` produces, including its de-duplication suffix (``-2``). ``fullmatch``,
-# not ``^...$``: ``$`` would also accept a trailing newline.
-_ID = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
+# not ``^...$``: ``$`` would also accept a trailing newline. Public: ``build`` checks run-file ids
+# against it before an id becomes a file name.
+ID_PATTERN = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 ID_HINT = "lowercase letters, digits and single hyphens"
 DOC_HINT = "expected a relative POSIX path: no leading '/', no '..' segment, no backslash, no NUL"
 
@@ -192,7 +193,7 @@ def _check(value: Any, spec: Any, path: str, errors: list[str]) -> None:
     elif isinstance(spec, IdStr):
         if not isinstance(value, str):
             errors.append(f"{path}: expected str")
-        elif not _ID.fullmatch(value):
+        elif not ID_PATTERN.fullmatch(value):
             errors.append(f"{path}: invalid id '{value}' ({ID_HINT})")
     elif isinstance(spec, LineNo):
         if not _is_int(value):

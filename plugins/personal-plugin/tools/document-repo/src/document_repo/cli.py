@@ -113,11 +113,11 @@ def _cmd_assemble(args: argparse.Namespace) -> int:
     try:
         base = read_object(args.base_model) if args.base_model else None
         model, notes = assemble_model(args.run_dir, args.repo, base_model=base)
+        emit(model, args.run_dir / "model.json")
+        emit(notes, args.run_dir / "file-notes.json")
     except (OSError, ValueError) as exc:
         sys.stderr.write(f"assemble: {exc}\n")
         return 2
-    emit(model, args.run_dir / "model.json")
-    emit(notes, args.run_dir / "file-notes.json")
     errors = validate(model)
     for err in errors:
         sys.stderr.write(err + "\n")
@@ -152,7 +152,7 @@ def _cmd_build(args: argparse.Namespace) -> int:
         if args.template:
             install_template(args.template, args.explorer_dir)
         state = write_explorer_data(model, args.explorer_dir / "data")
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         sys.stderr.write(f"build: {exc}\n")
         return 2
     emit(state)

@@ -1,11 +1,16 @@
+import copy
 import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from document_repo import build
 from document_repo.build import (
+    JS_PREFIX,
+    _git,
     assemble_model,
     install_template,
     normalize_remote,
@@ -245,7 +250,19 @@ SECRET = "s3cr3t-t0ken"
         ("deploy@gitea.example.com:a/b.git", "https://gitea.example.com/a/b"),
         ("git@host.example:/srv/o/r.git", "https://host.example/srv/o/r"),
         ("git://github.com/o/r.git", "https://github.com/o/r"),
-        ("http://github.com/o/r", "https://github.com/o/r"),
+        # The scheme survives for http (a self-hosted forge without TLS); SSH and git become https.
+        ("http://github.com/o/r", "http://github.com/o/r"),
+        ("http://localhost:3000/a/b.git", "http://localhost:3000/a/b"),
+        ("HTTP://Host.Example/o/r", "http://host.example/o/r"),
+        (f"http://u:{SECRET}@localhost:3000/a/b", "http://localhost:3000/a/b"),
+        (f"http://h.example/o/r?token={SECRET}#frag", "http://h.example/o/r"),
+        (f"http://user:pa/{SECRET}@h.example/o/r", None),
+        ("git://host.example:9418/o/r.git", "https://host.example/o/r"),
+        ("ssh://git@host.example:22/o/r.git", "https://host.example/o/r"),
+        ("https://h.example:8443/o/r.git", "https://h.example:8443/o/r"),
+        # Git output decoded with surrogateescape: bytes that are not UTF-8 never reach the model.
+        ("https://h.example/o/r\udcff", None),
+        ("git@h.example:o/r\udcff", None),
         ("HTTPS://GitHub.com/o/r", "https://github.com/o/r"),
         ("https://gitea.example.com:3000/a/b.git", "https://gitea.example.com:3000/a/b"),
         ("  git@github.com:owner/repo.git\n", "https://github.com/owner/repo"),
@@ -274,6 +291,9 @@ def test_normalize_remote_edge_cases(url: str, expected: str | None) -> None:
         f"https://u:x@{SECRET}@h.example/o/r",
         f"https://u:{SECRET}/x@h.example/o/r",
         f"http://u:{SECRET}@h.example/o/r/",
+        f"http://u:{SECRET}@localhost:3000/o/r.git",
+        f"http://u:/{SECRET}#@h.example:3000/o/r",
+        f"http://localhost:3000/o/r?token={SECRET}",
         f"ssh://u:{SECRET}@h.example:2222/o/r",
         f"u:{SECRET}@h.example:o/r",
         f"git@h.example:o/r?{SECRET}",
@@ -304,6 +324,154 @@ def test_assemble_strips_remote_credentials(make_repo, tmp_path: Path, git) -> N
 
 
 # --- assemble_model ------------------------------------------------------------------------------
+
+
+def _base_with(**changes: Any) -> dict[str, Any]:
+    base = json.loads(FIXTURE.read_text())
+    base.update(changes)
+    return base
+
+
+def _module(model: dict[str, Any], module_id: str) -> dict[str, Any]:
+    return next(m for m in model["modules"] if m["id"] == module_id)
+
+
+def _write_final(run: Path, ids: list[str]) -> None:
+    specs = [{"id": i, "path": i, "files": [], "lines": 1} for i in ids]
+    (run / "modules.final.json").write_text(json.dumps({"modules": specs}))
+
+
+# --- module precedence and order -----------------------------------------------------------------
+# A fresh record beats the base model, the base model beats a stub, a module that is not in
+# modules.final.json is gone, and the output is sorted by id whatever order final lists.
+
+
+def test_assemble_fresh_record_beats_a_different_base_entry(make_repo, tmp_path: Path) -> None:
+    run = _run_dir(tmp_path)  # src-api has a fresh record
+    base = _base_with()
+    stale = _module(base, "src-api")
+    stale["name"] = "Stale base name"
+    record = json.loads((run / "modules" / "src-api.json").read_text())["module"]
+    assert stale["name"] != record["name"]
+    model, notes = assemble_model(run, make_repo({"a.py": "x\n"}), base_model=base)
+    assert _module(model, "src-api") == record
+    assert [n["path"] for n in notes] == ["src/api/routes.py"]  # notes come from the record
+
+
+def test_assemble_drops_base_modules_that_final_no_longer_lists(make_repo, tmp_path: Path) -> None:
+    base = _base_with()
+    retired = copy.deepcopy(base["modules"][0])
+    retired.update(id="retired", name="Retired", path="retired")
+    base["modules"].append(retired)
+    model, _ = assemble_model(_run_dir(tmp_path), make_repo({"a.py": "x\n"}), base_model=base)
+    assert [m["id"] for m in model["modules"]] == ["db", "src-api"]
+
+
+def test_assemble_sorts_modules_by_id_whatever_the_order_of_final(
+    make_repo, tmp_path: Path
+) -> None:
+    run = _run_dir(tmp_path)
+    _write_final(run, ["src-api", "db"])
+    model, _ = assemble_model(run, make_repo({"a.py": "x\n"}))
+    assert [m["id"] for m in model["modules"]] == ["db", "src-api"]
+
+
+# --- assemble_model input validation -------------------------------------------------------------
+
+UNSAFE_IDS = ["../x", "a/b", "/abs", "", "X", "db\n", "db.json", "-a", "a--b", "a b", "a\\b"]
+
+
+@pytest.mark.parametrize("bad_id", UNSAFE_IDS)
+def test_assemble_rejects_an_unsafe_id_in_final_before_using_it_in_a_path(
+    make_repo, tmp_path: Path, bad_id: str
+) -> None:
+    run = _run_dir(tmp_path)
+    _write_final(run, [bad_id])
+    # What "../x" would read if the id reached a path. It must never be read: the error has to
+    # be about the id, not about this file.
+    (run / "x.json").write_text("{not json")
+    with pytest.raises(ValueError, match=r"modules\.final\.json: invalid module id"):
+        assemble_model(run, make_repo({"a.py": "x\n"}))
+
+
+@pytest.mark.parametrize(
+    "modules,message",
+    [
+        (None, "base model: modules must be a list"),
+        ("db", "base model: modules must be a list"),
+        ({"id": "db"}, "base model: modules must be a list"),
+        ([1], "base model: modules must be a list of objects with a string id"),
+        ([None], "base model: modules must be a list of objects with a string id"),
+        ([{"name": "x"}], "base model: modules must be a list of objects with a string id"),
+        ([{"id": 5}], "base model: modules must be a list of objects with a string id"),
+        ([{"id": "../x"}], "base model: invalid module id"),
+        ([{"id": "ok"}, {"id": "Bad Id"}], "base model: invalid module id"),
+    ],
+)
+def test_assemble_rejects_malformed_base_modules(
+    make_repo, tmp_path: Path, modules: Any, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        assemble_model(
+            _run_dir(tmp_path), make_repo({"a.py": "x\n"}), base_model=_base_with(modules=modules)
+        )
+
+
+def test_assemble_rejects_a_base_model_without_modules(make_repo, tmp_path: Path) -> None:
+    base = _base_with()
+    del base["modules"]
+    with pytest.raises(ValueError, match="base model: missing modules"):
+        assemble_model(_run_dir(tmp_path), make_repo({"a.py": "x\n"}), base_model=base)
+
+
+def test_assemble_still_accepts_a_base_model_with_an_empty_module_list(
+    make_repo, tmp_path: Path
+) -> None:
+    model, _ = assemble_model(
+        _run_dir(tmp_path, with_db_record=False),
+        make_repo({"a.py": "x\n"}),
+        base_model=_base_with(modules=[]),
+    )
+    assert _module(model, "db")["status"] == "not_analyzed"
+
+
+# --- git output that is not UTF-8 ----------------------------------------------------------------
+
+
+def _set_origin_bytes(repo: Path, url: bytes) -> None:
+    with (repo / ".git" / "config").open("ab") as config:
+        config.write(b'[remote "origin"]\n\turl = ' + url + b"\n")
+
+
+def test_git_helper_decodes_with_surrogateescape(make_repo) -> None:
+    repo = make_repo({"a.py": "x\n"})
+    _set_origin_bytes(repo, b"https://h.example/o/r\xff")
+    assert _git(repo, "remote", "get-url", "origin") == "https://h.example/o/r\udcff"
+
+
+def test_assemble_survives_a_remote_that_is_not_utf8(make_repo, tmp_path: Path) -> None:
+    repo = make_repo({"a.py": "x\n"})
+    _set_origin_bytes(repo, b"https://h.example/o/r\xff")
+    model, _ = assemble_model(_run_dir(tmp_path), repo)
+    assert model["meta"]["repo_url"] is None
+    write_explorer_data(model, tmp_path / "data")  # the model can be encoded
+
+
+def test_assemble_repo_name_never_carries_a_lone_surrogate(
+    make_repo, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = make_repo({"a.py": "x\n"})
+    real_git = build._git
+
+    def fake_git(where: Path, *args: str) -> str | None:
+        if args == ("rev-parse", "--show-toplevel"):
+            return "/srv/re\udcffpo"
+        return real_git(where, *args)
+
+    monkeypatch.setattr(build, "_git", fake_git)
+    model, _ = assemble_model(_run_dir(tmp_path), repo)
+    assert model["meta"]["repo_name"] == "re\ufffdpo"
+    write_explorer_data(model, tmp_path / "data")
 
 
 def test_assemble_defaults_generated_at_to_utc_now(make_repo, tmp_path: Path) -> None:
@@ -351,6 +519,9 @@ def _corrupt(run: Path, name: str, content: str) -> None:
         ("modules.final.json", "{}", "modules.final.json: missing modules"),
         ("modules.final.json", '{"modules": [{"id": "db"}]}', "string id and path"),
         ("modules.final.json", '{"modules": ["db"]}', "string id and path"),
+        ("modules.final.json", '{"modules": [{"path": "db"}]}', "string id and path"),
+        ("modules.final.json", '{"modules": [{"id": 5, "path": "db"}]}', "string id and path"),
+        ("modules.final.json", '{"modules": [{"id": "db", "path": 5}]}', "string id and path"),
         ("modules.final.json", '{"modules": {"id": "db"}}', "string id and path"),
         ("system.json", '{"project": {}}', "system.json: missing architecture"),
         ("modules/db.json", "{", r"db\.json: "),
@@ -403,6 +574,91 @@ def test_write_explorer_data_is_deterministic_and_keeps_non_ascii(tmp_path: Path
     js = (tmp_path / "a" / "model.js").read_text(encoding="utf-8")
     assert json.loads(js[len("window.PROJECT_MODEL = ") : -2]) == model
     assert json.loads((tmp_path / "a" / "model.json").read_text(encoding="utf-8")) == model
+
+
+EXPLORER_FILES = ("model.json", "model.js", "state.json")
+
+
+def _model_with_tagline(text: str) -> dict[str, Any]:
+    model = json.loads(FIXTURE.read_text())
+    model["project"]["tagline"] = text
+    return model
+
+
+@pytest.fixture
+def windows_text_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Emulate Windows text mode on any OS: ``Path.write_text`` writes CRLF for every LF."""
+
+    def write_text(
+        self: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        return self.write_bytes(
+            data.replace("\n", "\r\n").encode(encoding or "utf-8", errors or "strict")
+        )
+
+    monkeypatch.setattr(Path, "write_text", write_text)
+
+
+@pytest.mark.parametrize("name", EXPLORER_FILES)
+def test_write_explorer_data_writes_bytes_with_no_newline_translation(
+    tmp_path: Path, windows_text_mode: None, name: str
+) -> None:
+    write_explorer_data(json.loads(FIXTURE.read_text()), tmp_path)
+    data = (tmp_path / name).read_bytes()
+    assert b"\r" not in data
+    assert data.endswith(b"\n")
+
+
+def test_write_explorer_data_hashes_the_bytes_on_disk(
+    tmp_path: Path, windows_text_mode: None
+) -> None:
+    model = json.loads(FIXTURE.read_text())
+    state = write_explorer_data(model, tmp_path)
+    on_disk = (tmp_path / "model.json").read_bytes()
+    assert state["model_hash"] == hashlib.sha256(on_disk).hexdigest()
+    assert on_disk == (json.dumps(model, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    assert json.loads((tmp_path / "state.json").read_bytes()) == state
+
+
+def test_write_explorer_data_unencodable_text_writes_nothing(tmp_path: Path) -> None:
+    out = tmp_path / "data"
+    with pytest.raises(ValueError):
+        write_explorer_data(_model_with_tagline("bad \ud800 text"), out)
+    assert not out.exists()
+
+
+def test_write_explorer_data_unencodable_text_error_says_why(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="UTF-8") as excinfo:
+        write_explorer_data(_model_with_tagline("bad \ud800 text"), tmp_path / "data")
+    assert "surrogate" in str(excinfo.value)
+
+
+def test_write_explorer_data_unencodable_text_leaves_existing_files_alone(tmp_path: Path) -> None:
+    out = tmp_path / "data"
+    out.mkdir()
+    before = {name: b"previous " + name.encode() for name in EXPLORER_FILES}
+    for name, data in before.items():
+        (out / name).write_bytes(data)
+    with pytest.raises(ValueError):
+        write_explorer_data(_model_with_tagline("bad \ud800 text"), out)
+    assert {p.name: p.read_bytes() for p in out.iterdir()} == before
+
+
+def test_model_js_is_ascii_and_model_json_keeps_the_text(tmp_path: Path) -> None:
+    text = "line\u2028sep\u2029para, naïve — ✓ 😀"
+    model = _model_with_tagline(text)
+    write_explorer_data(model, tmp_path)
+    js = (tmp_path / "model.js").read_bytes()
+    assert js.isascii()
+    payload = js.decode("ascii")
+    # U+2028 and U+2029 end a line in a JavaScript string literal before ES2019.
+    assert "\u2028" not in payload and "\\u2028" in payload
+    assert json.loads(payload[len(JS_PREFIX) : -2]) == model
+    assert text in (tmp_path / "model.json").read_text(encoding="utf-8")
 
 
 # --- install_template ----------------------------------------------------------------------------
@@ -481,6 +737,51 @@ def test_cli_assemble_bad_base_model_exits_2(make_repo, tmp_path: Path, capsys) 
     args = ["assemble", "--run-dir", str(run), "--repo", str(repo), "--base-model", str(base)]
     assert main(args) == 2
     assert "base.json: expected a JSON object" in capsys.readouterr().err
+
+
+def test_cli_assemble_bad_ids_exit_2_and_name_the_file(make_repo, tmp_path: Path, capsys) -> None:
+    repo = make_repo({"a.py": "x\n"})
+    run = _run_dir(tmp_path)
+    _write_final(run, ["../x"])
+    assert main(["assemble", "--run-dir", str(run), "--repo", str(repo)]) == 2
+    assert "modules.final.json: invalid module id" in capsys.readouterr().err
+    assert not (run / "model.json").exists()
+
+
+@pytest.mark.parametrize("modules", [None, [1], [{"name": "x"}], [{"id": "../x"}]])
+def test_cli_assemble_bad_base_modules_exit_2(
+    make_repo, tmp_path: Path, capsys, modules: Any
+) -> None:
+    repo = make_repo({"a.py": "x\n"})
+    run = _run_dir(tmp_path)
+    base = tmp_path / "base.json"
+    base.write_text(json.dumps(_base_with(modules=modules)))
+    args = ["assemble", "--run-dir", str(run), "--repo", str(repo), "--base-model", str(base)]
+    assert main(args) == 2
+    assert capsys.readouterr().err.startswith("assemble: base model: ")
+    assert not (run / "model.json").exists()
+
+
+@pytest.mark.parametrize("blocked", ["model.json", "file-notes.json"])
+def test_cli_assemble_unwritable_output_exits_2(
+    make_repo, tmp_path: Path, capsys, blocked: str
+) -> None:
+    # A directory where an output file belongs: the write fails on every OS and for root too,
+    # unlike a chmod, and the inputs stay readable.
+    run = _run_dir(tmp_path)
+    (run / blocked).mkdir()
+    repo = make_repo({"a.py": "x\n"})
+    assert main(["assemble", "--run-dir", str(run), "--repo", str(repo)]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("assemble: ") and blocked in err
+
+
+def test_cli_build_unencodable_model_exits_2(tmp_path: Path, capsys) -> None:
+    model_path = tmp_path / "m.json"
+    model_path.write_text(json.dumps(_model_with_tagline("bad \ud800 text")))  # as a \ud800 escape
+    assert main(["build", "--model", str(model_path), "--explorer-dir", str(tmp_path / "ex")]) == 2
+    assert "build: " in capsys.readouterr().err
+    assert not (tmp_path / "ex").exists()
 
 
 def test_cli_build_prints_state_and_writes_data(tmp_path: Path, capsys) -> None:

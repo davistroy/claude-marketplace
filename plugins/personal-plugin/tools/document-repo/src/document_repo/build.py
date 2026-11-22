@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from .schema import SCHEMA_VERSION, validate
+from .schema import ID_HINT, ID_PATTERN, SCHEMA_VERSION, validate
 
 SYSTEM_KEYS = ("project", "architecture", "flows", "glossary", "paths", "agent_notes")
 MODEL_KEY_ORDER = (
@@ -42,25 +42,30 @@ JS_PREFIX = "window.PROJECT_MODEL = "
 # path such as C:\repo is not mistaken for a host.
 _SCP_REMOTE = re.compile(r"[^@/:\s]+@(?P<host>[^@/:\s]+):(?P<path>\S+)")
 _HOST = re.compile(r"[A-Za-z0-9._-]+")
-_REPO_PATH = re.compile(r"[^\s@?#\\]+")
+# No lone surrogates: ``_git`` decodes with surrogateescape, so a remote whose bytes are not UTF-8
+# arrives as one, and a URL that cannot be encoded is not a link the explorer can use.
+_REPO_PATH = re.compile(r"[^\s@?#\\\ud800-\udfff]+")
+_SURROGATE = re.compile(r"[\ud800-\udfff]")
 _WEB_SCHEMES = ("http", "https")
 _SSH_SCHEMES = ("ssh", "git", "git+ssh", "ssh+git")
 
 
 def normalize_remote(url: str | None) -> str | None:
-    """Browsable https URL for a git remote, with any credentials removed.
+    """Browsable URL for a git remote, with any credentials removed.
 
     Returns None for anything that is not a remote on a named host (a local path, a ``file://``
     URL), and also when the URL cannot be split into host and path without guessing. Guessing is
     the privacy risk: a password containing ``/`` or ``@`` moves the boundary between credentials
     and host, so a loose pattern can leave part of a secret in the result. Userinfo, query and
-    fragment are never copied. The scheme becomes https, and an SSH port is dropped because it is
-    not the web port.
+    fragment are never copied. An ``http://`` remote stays http, with its port (a forge on
+    ``localhost:3000`` has no TLS). SSH, ``git://`` and scp-style remotes become https and lose the
+    port, which is not the web port.
     """
     if not url:
         return None
     url = url.strip()
     port = ""
+    web_scheme = "https"
     if "://" in url:
         try:
             parts = urlsplit(url)
@@ -69,9 +74,11 @@ def normalize_remote(url: str | None) -> str | None:
         except ValueError:
             return None
         scheme = parts.scheme.lower()
-        if scheme in _WEB_SCHEMES and web_port is not None:
-            port = f":{web_port}"
-        elif scheme not in _WEB_SCHEMES + _SSH_SCHEMES:
+        if scheme in _WEB_SCHEMES:
+            web_scheme = scheme
+            if web_port is not None:
+                port = f":{web_port}"
+        elif scheme not in _SSH_SCHEMES:
             return None
         # A "/", "?" or "#" in a password ends the authority early and pushes the "@" into the
         # path, query or fragment. Any "@" outside the authority means the split is a guess.
@@ -86,12 +93,21 @@ def normalize_remote(url: str | None) -> str | None:
     path = path.strip("/").removesuffix(".git").strip("/")
     if not host or not _HOST.fullmatch(host) or not _REPO_PATH.fullmatch(path):
         return None
-    return f"https://{host.lower()}{port}/{path}"
+    return f"{web_scheme}://{host.lower()}{port}/{path}"
 
 
 def _git(repo: Path, *args: str) -> str | None:
-    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
-    return proc.stdout.strip() if proc.returncode == 0 else None
+    # Bytes decoded with surrogateescape, as in verify.py: a path or remote that is not UTF-8
+    # must not raise. text=True would raise UnicodeDecodeError.
+    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True)
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.decode("utf-8", "surrogateescape").strip()
+
+
+def _printable(text: str) -> str:
+    """Replace lone surrogates (non-UTF-8 bytes from ``_git`` or the file system) with U+FFFD."""
+    return _SURROGATE.sub("\ufffd", text)
 
 
 def _stub(spec: dict[str, Any]) -> dict[str, Any]:
@@ -128,6 +144,26 @@ def read_object(path: Path, *required: str) -> dict[str, Any]:
     return data
 
 
+def _module_entries(modules: Any, where: str, *, with_path: bool = False) -> list[dict[str, Any]]:
+    """Check a list of module entries, ids included, and return it.
+
+    A module id becomes a file name (``modules/<id>.json``), so a value such as ``../x`` or
+    ``/etc/passwd`` has to be refused before any path is built from it.
+    """
+    shape = "string id and path" if with_path else "a string id"
+    if not isinstance(modules, list) or not all(
+        isinstance(entry, dict)
+        and isinstance(entry.get("id"), str)
+        and (not with_path or isinstance(entry.get("path"), str))
+        for entry in modules
+    ):
+        raise ValueError(f"{where}: modules must be a list of objects with {shape}")
+    for entry in modules:
+        if not ID_PATTERN.fullmatch(entry["id"]):
+            raise ValueError(f"{where}: invalid module id {entry['id']!r} ({ID_HINT})")
+    return modules
+
+
 def assemble_model(
     run_dir: Path, repo: Path, base_model: dict[str, Any] | None = None, now: str | None = None
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -141,14 +177,14 @@ def assemble_model(
     a model, but not build one.
     """
     final_path = run_dir / "modules.final.json"
-    final = read_object(final_path, "modules")["modules"]
-    if not isinstance(final, list) or not all(
-        isinstance(spec, dict)
-        and isinstance(spec.get("id"), str)
-        and isinstance(spec.get("path"), str)
-        for spec in final
-    ):
-        raise ValueError(f"{final_path}: modules must be a list of objects with string id and path")
+    final = _module_entries(
+        read_object(final_path, "modules")["modules"], str(final_path), with_path=True
+    )
+    base_modules: dict[str, dict[str, Any]] = {}
+    if base_model is not None:
+        if "modules" not in base_model:
+            raise ValueError("base model: missing modules")
+        base_modules = {m["id"]: m for m in _module_entries(base_model["modules"], "base model")}
     system_path = run_dir / "system.json"
     if system_path.exists():
         system = read_object(system_path, *SYSTEM_KEYS)
@@ -159,7 +195,6 @@ def assemble_model(
         system = base_model
     else:
         raise ValueError(f"{system_path} is missing and no base model was given")
-    base_modules = {m["id"]: m for m in (base_model or {}).get("modules", [])}
     modules: list[dict[str, Any]] = []
     notes: list[dict[str, Any]] = []
     for spec in final:
@@ -183,7 +218,7 @@ def assemble_model(
         "schema_version": SCHEMA_VERSION,
         "generated_at": now or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source_commit": _git(repo, "rev-parse", "HEAD") or "",
-        "repo_name": Path(top).name if top else repo.resolve().name,
+        "repo_name": _printable(Path(top).name if top else repo.resolve().name),
         "repo_url": normalize_remote(_git(repo, "remote", "get-url", "origin")),
     }
     parts: dict[str, Any] = {
@@ -195,23 +230,36 @@ def assemble_model(
 
 
 def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
-    """Validate, then write model.json, model.js and state.json into ``out_dir``."""
+    """Validate, then write model.json, model.js and state.json into ``out_dir``.
+
+    Every payload is encoded to bytes before the first file is touched, so text that cannot be
+    encoded (a lone surrogate) raises ValueError and writes nothing. The files are written as
+    bytes, never in text mode, which would turn each newline into CRLF on Windows and make
+    ``model_hash`` differ from the hash of the file on disk.
+
+    ``model.js`` is ASCII (``ensure_ascii``): a ``<script src>`` over ``file://`` is decoded with
+    whatever charset the page declares, and a raw U+2028 or U+2029 inside a string literal is a
+    syntax error before ES2019. ``model.json`` keeps the text as written.
+    """
     errors = validate(model)
     if errors:
         raise ValueError("model is invalid:\n" + "\n".join(errors))
-    out_dir.mkdir(parents=True, exist_ok=True)
-    canonical = json.dumps(model, indent=2, ensure_ascii=False) + "\n"
-    (out_dir / "model.json").write_text(canonical, encoding="utf-8")
-    (out_dir / "model.js").write_text(
-        JS_PREFIX + json.dumps(model, ensure_ascii=False) + ";\n", encoding="utf-8"
-    )
+    try:
+        model_json = (json.dumps(model, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+        model_js = (JS_PREFIX + json.dumps(model, ensure_ascii=True) + ";\n").encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise ValueError(f"model cannot be encoded as UTF-8: {exc}") from exc
     state = {
         "source_commit": model["meta"]["source_commit"],
         "schema_version": SCHEMA_VERSION,
-        "model_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        "model_hash": hashlib.sha256(model_json).hexdigest(),
         "generated_at": model["meta"]["generated_at"],
     }
-    (out_dir / "state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    state_json = (json.dumps(state, indent=2) + "\n").encode("utf-8")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "model.json").write_bytes(model_json)
+    (out_dir / "model.js").write_bytes(model_js)
+    (out_dir / "state.json").write_bytes(state_json)
     return state
 
 
