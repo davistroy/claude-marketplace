@@ -36,7 +36,10 @@ pre code { background: none; padding: 0; }
 .lens button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
 #search { min-width: 0; width: 180px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--text); font: inherit; }
 
-main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; outline: none; }
+main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; outline: none; overflow-wrap: anywhere; }
+/* Model text is free-form: long paths and identifiers must wrap rather than widen the page. */
+code, a.file, .path, .snippet, dt, h1, h2, h3 { overflow-wrap: anywhere; }
+pre code { overflow-wrap: normal; }
 h1 { font-size: 1.9rem; line-height: 1.2; margin: 0.2em 0 0.4em; }
 h2 { font-size: 1.25rem; margin: 2em 0 0.6em; }
 h3 { font-size: 1.05rem; margin: 0 0 0.4em; }

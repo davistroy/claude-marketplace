@@ -26,23 +26,28 @@
   const byId = (items, id) => items.find((x) => x.id === id);
   const href = (...parts) => '#/' + parts.map((p) => encodeURIComponent(p)).join('/');
   const list = (items, fn) => (items.length ? '<ul>' + items.map((x) => '<li>' + fn(x) + '</li>').join('') + '</ul>' : '<p class="muted">None.</p>');
-  const termAnchor = (term) => 'term-' + String(term).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  // A glossary anchor is the term's position in M.glossary, so two terms that differ only in
+  // punctuation or script (C++ and C#, 中文 and 日本語) never share an id. Unknown terms get none.
+  const termAnchor = (term) => {
+    const i = M.glossary.findIndex((g) => g.term === term);
+    return i < 0 ? '' : 'term-' + i;
+  };
   const tags = (items) => (items.length ? '<ul class="chips">' + items.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '');
 
   // A link is built only from a web URL. Anything else in repo_url (a javascript: or data: URL, a
   // relative path, text with leading whitespace) renders the path as plain text, never an href.
   const WEB_URL = /^https?:\/\//i;
   function fileLink(path, line) {
-    const label = esc(path) + (line ? ':' + line : '');
+    const label = esc(path) + (line ? ':' + esc(line) : '');
     const base = M.meta.repo_url;
     if (typeof base !== 'string' || !WEB_URL.test(base)) return '<code class="file">' + label + '</code>';
     const url = base.replace(/\/+$/, '') + '/blob/' + encodeURIComponent(M.meta.source_commit) + '/' +
-      path.split('/').map((p) => encodeURIComponent(p)).join('/') + (line ? '#L' + line : '');
+      String(path).split('/').map((p) => encodeURIComponent(p)).join('/') + (line ? '#L' + encodeURIComponent(line) : '');
     return '<a class="file" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
   }
   const moduleLink = (id) => {
     const m = byId(M.modules, id);
-    return '<a href="' + href('modules', id) + '">' + esc(m ? m.name : id) + '</a>';
+    return '<a href="' + esc(href('modules', id)) + '">' + esc(m ? m.name : id) + '</a>';
   };
   const componentName = (id) => { const c = byId(M.architecture.components, id); return c ? c.name : id; };
   const notFound = (kind, id) => '<h1>Not found</h1><p>No ' + kind + ' called <code>' + esc(id) + '</code>. <a href="#/overview">Back to the overview</a>.</p>';
@@ -72,7 +77,7 @@
       ${p.run.setup.length ? '<h3>Setup</h3><ol>' + p.run.setup.map((s) => `<li>${rich(s)}</li>`).join('') + '</ol>' : ''}
       ${p.run.commands.map((c) => `<p class="muted">${esc(c.label)}</p><pre><code>${esc(c.command)}</code></pre>`).join('')}
       <h2>Where to go next</h2>
-      <div class="cards">${M.paths.map((pa) => `<a class="card link-card" href="${href('paths', pa.id)}"><h3>${esc(pa.title)}</h3><p>${esc(pa.audience)}</p></a>`).join('')}</div>`;
+      <div class="cards">${M.paths.map((pa) => `<a class="card link-card" href="${esc(href('paths', pa.id))}"><h3>${esc(pa.title)}</h3><p>${esc(pa.audience)}</p></a>`).join('')}</div>`;
   }
 
   function architecture() {
@@ -91,7 +96,7 @@
   function modules(id) {
     if (!id) {
       return `<h1>Modules</h1><p class="lead">Each module is one area of the code with one job.</p>
-        <div class="cards">${M.modules.map((m) => `<a class="card link-card" href="${href('modules', m.id)}">
+        <div class="cards">${M.modules.map((m) => `<a class="card link-card" href="${esc(href('modules', m.id))}">
           <h3>${esc(m.name)}</h3><p class="path"><code>${esc(m.path)}</code></p><p>${rich(lensText(m.purpose))}</p>
           ${m.status === 'not_analyzed' ? '<span class="tag warn">not analyzed</span>' : ''}</a>`).join('')}</div>`;
     }
@@ -105,7 +110,7 @@
           <td><code>${esc(i.name)}</code> <span class="tag">${esc(i.kind)}</span>${lens === 'technical' ? `<pre><code>${esc(i.signature)}</code></pre>` : ''}</td>
           <td>${rich(i.description)}</td><td>${fileLink(i.file, i.line)}</td></tr>`).join('')}</tbody></table>`
       : '<p class="muted">No public interface.</p>';
-    return `<p class="crumbs"><a href="${href('modules')}">Modules</a> / ${esc(m.name)}</p>
+    return `<p class="crumbs"><a href="${esc(href('modules'))}">Modules</a> / ${esc(m.name)}</p>
       <h1>${esc(m.name)} ${m.status === 'not_analyzed' ? '<span class="tag warn">not analyzed</span>' : ''}</h1>
       <p class="path"><code>${esc(m.path)}</code></p>
       <p class="lead">${rich(lensText(m.purpose))}</p>
@@ -114,34 +119,35 @@
       <h2>Depends on</h2>${list(m.dependencies.internal, moduleLink)}${tags(m.dependencies.external)}
       <h2>Used by</h2>${list(usedBy, (o) => moduleLink(o.id))}
       <h2>Key files</h2>${list(m.key_files, (f) => `${fileLink(f.path)} — ${rich(f.role)}`)}
-      <h2>Tours through this module</h2>${list(flowsHere, (f) => `<a href="${href('tours', f.id)}">${esc(f.title)}</a>`)}
-      <h2>Terms</h2>${list(terms, (g) => `<a href="${href('glossary', g.term)}">${esc(g.term)}</a>`)}`;
+      <h2>Tours through this module</h2>${list(flowsHere, (f) => `<a href="${esc(href('tours', f.id))}">${esc(f.title)}</a>`)}
+      <h2>Terms</h2>${list(terms, (g) => `<a href="${esc(href('glossary', g.term))}">${esc(g.term)}</a>`)}`;
   }
 
   function tours(id) {
     if (!id) {
       return `<h1>Tours</h1><p class="lead">Each tour follows one thing the system does, step by step, through the real code.</p>
-        <div class="cards">${M.flows.map((f) => `<a class="card link-card" href="${href('tours', f.id)}">
+        <div class="cards">${M.flows.map((f) => `<a class="card link-card" href="${esc(href('tours', f.id))}">
           <h3>${esc(f.title)}</h3><p>${rich(lensText(f.summary))}</p><p class="muted">${f.steps.length} steps</p></a>`).join('')}</div>`;
     }
     const f = byId(M.flows, id);
     if (!f) return notFound('tour', id);
-    return `<p class="crumbs"><a href="${href('tours')}">Tours</a> / ${esc(f.title)}</p>
+    return `<p class="crumbs"><a href="${esc(href('tours'))}">Tours</a> / ${esc(f.title)}</p>
       <h1>${esc(f.title)}</h1><p class="lead">${rich(lensText(f.summary))}</p>
       <ol class="steps">${f.steps.map((s, i) => `<li class="step" id="step-${i + 1}">
         <div class="step-num">${i + 1}</div>
         <div class="step-body"><h3>${esc(s.title)}</h3><p>${rich(lensText(s.text))}</p>
-          <p>${fileLink(s.file, s.line_start)}${s.line_end > s.line_start ? '–' + s.line_end : ''}</p>
+          <p>${fileLink(s.file, s.line_start)}${s.line_end > s.line_start ? '–' + esc(s.line_end) : ''}</p>
           ${s.snippet ? codeBlock(s.snippet) : ''}</div></li>`).join('')}</ol>`;
   }
 
   function glossary(term) {
+    if (!M.glossary.length) return '<h1>Glossary</h1><p class="muted">None.</p>';
     const groups = [['domain', 'Domain terms'], ['tech', 'Technical terms']];
     return '<h1>Glossary</h1>' + groups.map(([kind, title]) => {
       const items = M.glossary.filter((g) => g.kind === kind).sort((a, b) => a.term.localeCompare(b.term));
       if (!items.length) return '';
       return `<h2>${title}</h2><dl class="glossary">${items.map((g) => `
-        <dt id="${termAnchor(g.term)}"${term === g.term ? ' class="hit"' : ''}>${esc(g.term)}</dt>
+        <dt id="${esc(termAnchor(g.term))}"${term === g.term ? ' class="hit"' : ''}>${esc(g.term)}</dt>
         <dd>${rich(g.definition)}${g.module_ids.length ? ' <span class="muted">— ' + g.module_ids.map(moduleLink).join(', ') + '</span>' : ''}</dd>`).join('')}</dl>`;
     }).join('');
   }
@@ -157,14 +163,14 @@
     if (id) {
       const p = byId(M.paths, id);
       if (!p) return notFound('path', id);
-      return `<p class="crumbs"><a href="${href('paths')}">Start here</a> / ${esc(p.title)}</p>
+      return `<p class="crumbs"><a href="${esc(href('paths'))}">Start here</a> / ${esc(p.title)}</p>
         <h1>${esc(p.title)}</h1><p class="lead">For: ${esc(p.audience)}</p>
         <ol class="steps">${p.steps.map((s, i) => { const [link, label] = stepTarget(s); return `<li class="step">
           <div class="step-num">${i + 1}</div><div class="step-body"><h3><a href="${esc(link)}">${esc(label)}</a></h3><p>${rich(s.note)}</p></div></li>`; }).join('')}</ol>`;
     }
     const n = M.agent_notes;
     return `<h1>Start here</h1><p class="lead">Pick the path that fits you.</p>
-      <div class="cards">${M.paths.map((p) => `<a class="card link-card" href="${href('paths', p.id)}"><h3>${esc(p.title)}</h3><p>${esc(p.audience)}</p></a>`).join('')}</div>
+      <div class="cards">${M.paths.map((p) => `<a class="card link-card" href="${esc(href('paths', p.id))}"><h3>${esc(p.title)}</h3><p>${esc(p.audience)}</p></a>`).join('')}</div>
       <h2>For AI agents</h2>
       <p class="muted">The full machine-readable model is <code>explorer/data/model.json</code>. The repo root has <code>AGENTS.md</code>.</p>
       <h3>Rules</h3>${list(n.rules, rich)}
@@ -196,15 +202,21 @@
     index = index || buildIndex();
     const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
     const hits = terms.length ? index.filter((e) => terms.every((t) => e.hay.includes(t))) : [];
-    return `<h1>Search</h1><p class="muted">${hits.length} result${hits.length === 1 ? '' : 's'} for “${esc(q)}”</p>` +
-      list(hits.slice(0, 100), (h) => `<span class="tag">${esc(h.kind)}</span> <a href="${h.link}">${esc(h.title)}</a><div class="snippet">${esc(excerpt(h.text, terms[0]))}</div>`);
+    const LIMIT = 100;
+    const shown = hits.length > LIMIT ? ` (showing ${LIMIT} of ${hits.length})` : '';
+    return `<h1>Search</h1><p class="muted">${hits.length} result${hits.length === 1 ? '' : 's'} for “${esc(q)}”${shown}</p>` +
+      list(hits.slice(0, LIMIT), (h) => `<span class="tag">${esc(h.kind)}</span> <a href="${esc(h.link)}">${esc(h.title)}</a><div class="snippet">${esc(excerpt(h.text, terms[0]))}</div>`);
   }
 
   // ---- diagrams ------------------------------------------------------------
   let mermaidReady = false;
-  function wireDiagram(holder) {
+  // Mermaid 11.17 names a flowchart node `<renderId>-flowchart-<nodeId>-<n>` (11.4 dropped the
+  // render id prefix). Strip the prefix we chose, then read the node id.
+  function wireDiagram(holder, renderId) {
     holder.querySelectorAll('g.node').forEach((g) => {
-      const match = /flowchart-(.+)-\d+$/.exec(g.id || '');
+      const raw = String(g.id || '');
+      const local = raw.startsWith(renderId + '-') ? raw.slice(renderId.length + 1) : raw;
+      const match = /^flowchart-(.+)-\d+$/.exec(local);
       if (!match) return;
       const comp = byId(M.architecture.components, match[1]);
       const moduleId = comp ? comp.module_ids[0] : (byId(M.modules, match[1]) ? match[1] : null);
@@ -226,18 +238,26 @@
     if (!blocks.length || !window.mermaid) return;
     if (!mermaidReady) {
       const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default' });
+      // `secure` lists config keys a diagram's own %%{init}%% directive or front-matter config may not
+      // override. Mermaid's defaults are the first six; the styling keys are added because a
+      // fontFamily or themeCSS value is pasted into the SVG's <style> and can load a URL.
+      window.mermaid.initialize({
+        startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true, theme: dark ? 'dark' : 'default',
+        secure: ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering', 'maxEdges',
+          'theme', 'themeCSS', 'themeVariables', 'fontFamily', 'altFontFamily', 'darkMode', 'htmlLabels'],
+      });
       mermaidReady = true;
     }
     for (let i = 0; i < blocks.length; i += 1) {
       const el = blocks[i];
       try {
-        const { svg } = await window.mermaid.render('dr-diagram-' + i + '-' + Date.now(), el.textContent);
+        const renderId = 'dr-diagram-' + i + '-' + Date.now();
+        const { svg } = await window.mermaid.render(renderId, el.textContent);
         const holder = document.createElement('div');
         holder.className = 'mermaid-out';
         holder.innerHTML = svg;
         el.replaceWith(holder);
-        wireDiagram(holder);
+        wireDiagram(holder, renderId);
       } catch (err) {
         el.insertAdjacentHTML('beforebegin', '<p class="warn">This diagram could not be drawn, so its source is shown.</p>');
         console.warn('[explorer] mermaid render failed', err);
@@ -246,7 +266,10 @@
   }
 
   // ---- router --------------------------------------------------------------
-  const ROUTES = { overview, architecture, modules, tours, glossary, paths: startHere, search };
+  // A Map, not a plain object: a route name comes from the URL, and a plain-object lookup would
+  // also find inherited keys such as constructor, __proto__ and toString.
+  const ROUTES = new Map([['overview', overview], ['architecture', architecture], ['modules', modules], ['tours', tours],
+    ['glossary', glossary], ['paths', startHere], ['search', search]]);
   const NAV = [['overview', 'Overview'], ['architecture', 'Architecture'], ['modules', 'Modules'], ['tours', 'Tours'], ['glossary', 'Glossary'], ['paths', 'Start here']];
   const navEl = document.getElementById('nav');
   const searchEl = document.getElementById('search');
@@ -257,23 +280,27 @@
     const [name, ...rest] = raw.split('/');
     let arg = null;
     try { arg = rest.length ? decodeURIComponent(rest.join('/')) : null; } catch (e) { arg = null; }
-    return { name: ROUTES[name] ? name : 'overview', arg };
+    return { name: ROUTES.has(name) ? name : 'overview', arg };
   }
 
   function render() {
     const { name, arg } = parseHash();
     navEl.querySelectorAll('a').forEach((a) => a.classList.toggle('active', a.dataset.route === name));
     lensButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lens === lens)));
-    view.innerHTML = ROUTES[name](arg);
+    const viewFn = ROUTES.get(name);
+    const html = typeof viewFn === 'function' ? viewFn(arg) : null;
+    // Only a string built by one of the views above ever reaches innerHTML.
+    view.innerHTML = typeof html === 'string' ? html : overview();
     if (name === 'architecture') drawDiagrams();
-    const target = name === 'glossary' && arg ? document.getElementById(termAnchor(arg)) : null;
+    const anchor = name === 'glossary' && arg ? termAnchor(arg) : '';
+    const target = anchor ? document.getElementById(anchor) : null;
     if (target) target.scrollIntoView({ block: 'center' }); else window.scrollTo(0, 0);
-    if (name !== 'search' && document.activeElement !== searchEl) searchEl.value = '';
+    if (document.activeElement !== searchEl) searchEl.value = name === 'search' ? (arg || '') : '';
   }
 
   document.title = M.project.name + ' · Project Explorer';
   document.getElementById('brand').textContent = M.project.name;
-  navEl.innerHTML = NAV.map(([route, label]) => `<a href="${href(route)}" data-route="${route}">${label}</a>`).join('');
+  navEl.innerHTML = NAV.map(([route, label]) => `<a href="${esc(href(route))}" data-route="${esc(route)}">${esc(label)}</a>`).join('');
   lensButtons.forEach((b) => b.addEventListener('click', () => {
     lens = b.dataset.lens === 'technical' ? 'technical' : 'functional';
     store.set(LENS_KEY, lens);
