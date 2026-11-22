@@ -169,13 +169,17 @@ def _register_build(sub: Any) -> None:
 
 
 def _cmd_remap(args: argparse.Namespace) -> int:
-    from .build import read_json
-    from .remap import remap_model, write_model
+    from .remap import RemapError, remap_model, write_model
 
     try:
-        remapped, warnings = remap_model(read_json(args.model), args.repo, args.to)
+        model = json.loads(args.model.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"remap: {args.model}: {exc}\n")
+        return 2
+    try:
+        remapped, warnings = remap_model(model, args.repo, args.to)
         write_model(args.model, remapped)
-    except (OSError, ValueError) as exc:
+    except (OSError, RemapError) as exc:
         sys.stderr.write(f"remap: {exc}\n")
         return 2
     emit({"warnings": warnings})

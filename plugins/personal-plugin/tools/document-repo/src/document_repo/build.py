@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from .fsutil import write_bytes_atomic
 from .schema import ID_HINT, ID_PATTERN, SCHEMA_VERSION, validate
 
 SYSTEM_KEYS = ("project", "architecture", "flows", "glossary", "paths", "agent_notes")
@@ -235,7 +236,9 @@ def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
     Every payload is encoded to bytes before the first file is touched, so text that cannot be
     encoded (a lone surrogate) raises ValueError and writes nothing. The files are written as
     bytes, never in text mode, which would turn each newline into CRLF on Windows and make
-    ``model_hash`` differ from the hash of the file on disk.
+    ``model_hash`` differ from the hash of the file on disk. Each file is replaced atomically, but
+    the three replacements are not one transaction: a failure after the first leaves that file new
+    and the rest old.
 
     ``model.js`` is ASCII (``ensure_ascii``): a ``<script src>`` over ``file://`` is decoded with
     whatever charset the page declares, and a raw U+2028 or U+2029 inside a string literal is a
@@ -257,9 +260,9 @@ def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
     }
     state_json = (json.dumps(state, indent=2) + "\n").encode("utf-8")
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "model.json").write_bytes(model_json)
-    (out_dir / "model.js").write_bytes(model_js)
-    (out_dir / "state.json").write_bytes(state_json)
+    write_bytes_atomic(out_dir / "model.json", model_json)
+    write_bytes_atomic(out_dir / "model.js", model_js)
+    write_bytes_atomic(out_dir / "state.json", state_json)
     return state
 
 

@@ -1,4 +1,5 @@
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -6,7 +7,7 @@ from typing import Any
 import pytest
 
 from document_repo.cli import main
-from document_repo.remap import line_map, remap_model, write_model
+from document_repo.remap import RemapError, line_map, remap_model, write_model
 from document_repo.schema import MAX_SNIPPET_LINES, validate
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_model.json"
@@ -76,6 +77,51 @@ def test_remap_model_moves_lines_and_refreshes_snippet(make_repo, commit_files, 
     step = model["flows"][0]["steps"][0]
     assert (step["line_start"], step["line_end"]) == (14, 16)
     assert step["snippet"].startswith("async def create_note")
+    assert validate(model) == []
+
+
+LETTERS = "a\nb\nc\nd\ne\n"
+
+
+def _range_step(model: dict[str, Any], rel: str, start: int, end: int, snippet: str) -> None:
+    # Point the interface item at line 1 too: the fixture's line 12 is past the end of this file.
+    item = model["modules"][1]["interface"][0]
+    item["file"], item["line"] = rel, 1
+    step = model["flows"][0]["steps"][0]
+    step["file"], step["line_start"], step["line_end"], step["snippet"] = rel, start, end, snippet
+
+
+def test_remap_line_end_grows_when_a_comment_lands_inside_the_range(
+    make_repo, commit_files, git
+) -> None:
+    repo = make_repo({ROUTES_PATH: LETTERS})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    commit_files(repo, {ROUTES_PATH: "a\nb\nc\n# why\nd\ne\n"})
+    stale = _model(base)
+    _range_step(stale, ROUTES_PATH, 2, 4, "b\nc\nd")
+    model, warnings = remap_model(stale, repo, "HEAD")
+    step = model["flows"][0]["steps"][0]
+    assert warnings == []
+    assert (step["line_start"], step["line_end"]) == (2, 5)
+    assert step["snippet"] == "b\nc\n# why\nd"
+    assert validate(model) == []
+
+
+def test_remap_line_end_stays_put_when_a_comment_lands_after_the_range(
+    make_repo, commit_files, git
+) -> None:
+    # Between d (the old line 4, the range's last line) and e. Nothing above d moves, so the
+    # range does not grow: line_end still points at d.
+    repo = make_repo({ROUTES_PATH: LETTERS})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    commit_files(repo, {ROUTES_PATH: "a\nb\nc\nd\n# why\ne\n"})
+    stale = _model(base)
+    _range_step(stale, ROUTES_PATH, 2, 4, "b\nc\nd")
+    model, warnings = remap_model(stale, repo, "HEAD")
+    step = model["flows"][0]["steps"][0]
+    assert warnings == []
+    assert (step["line_start"], step["line_end"]) == (2, 4)
+    assert step["snippet"] == "b\nc\nd"
     assert validate(model) == []
 
 
@@ -260,16 +306,16 @@ def test_remap_rejects_an_invalid_model(make_repo, git) -> None:
     repo = make_repo({"a.py": "x\n"})
     broken = _model(git(repo, "rev-parse", "HEAD").strip())
     del broken["flows"]
-    with pytest.raises(ValueError, match="model is invalid"):
+    with pytest.raises(RemapError, match="model is invalid"):
         remap_model(broken, repo, "HEAD")
-    with pytest.raises(ValueError, match="model is invalid"):
+    with pytest.raises(RemapError, match="model is invalid"):
         remap_model([], repo, "HEAD")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("bad", ["", "0123456789abcdef0123456789abcdef01234567", "-x", "nope"])
 def test_remap_rejects_a_source_commit_not_in_history(make_repo, bad: str) -> None:
     repo = make_repo({"a.py": "x\n"})
-    with pytest.raises(ValueError, match="meta.source_commit"):
+    with pytest.raises(RemapError, match="meta.source_commit"):
         remap_model(_model(bad), repo, "HEAD")
 
 
@@ -277,14 +323,14 @@ def test_remap_rejects_a_source_commit_not_in_history(make_repo, bad: str) -> No
 def test_remap_rejects_an_unknown_target_ref(make_repo, git, bad: str) -> None:
     repo = make_repo({"a.py": "x\n"})
     base = git(repo, "rev-parse", "HEAD").strip()
-    with pytest.raises(ValueError, match="unknown ref"):
+    with pytest.raises(RemapError, match="unknown ref"):
         remap_model(_model(base), repo, bad)
 
 
 def test_remap_rejects_a_directory_that_is_not_a_work_tree(tmp_path: Path) -> None:
     plain = tmp_path / "plain"
     plain.mkdir()
-    with pytest.raises(ValueError, match="not inside a git work tree"):
+    with pytest.raises(RemapError, match="not inside a git work tree"):
         remap_model(_model("0" * 40), plain, "HEAD")
 
 
@@ -327,6 +373,48 @@ def test_write_model_unencodable_text_raises_and_leaves_the_file(tmp_path: Path)
     with pytest.raises(ValueError, match="UTF-8"):
         write_model(path, model)
     assert path.read_bytes() == b"keep me"
+
+
+def test_write_model_failed_replace_keeps_the_model_and_no_temp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "model.json"
+    path.write_bytes(b"keep me")
+
+    def refuse(src: str, dst: str) -> None:
+        raise OSError("replace refused")
+
+    monkeypatch.setattr(os, "replace", refuse)
+    with pytest.raises(OSError, match="replace refused"):
+        write_model(path, json.loads(FIXTURE.read_text(encoding="utf-8")))
+    assert path.read_bytes() == b"keep me"
+    assert [p.name for p in tmp_path.iterdir()] == ["model.json"]
+
+
+def test_cli_remap_propagates_a_bug_instead_of_exit_2(
+    make_repo, git, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Only expected failures (RemapError, OSError, bad JSON) map to exit 2; a bare ValueError is a
+    # bug and must surface as a traceback.
+    import document_repo.remap as remap_module
+
+    def buggy(*args: Any, **kwargs: Any) -> None:
+        raise ValueError("a real bug")
+
+    repo = make_repo({"a.py": "x\n"})
+    path = _model_file(tmp_path, repo, git)
+    monkeypatch.setattr(remap_module, "remap_model", buggy)
+    with pytest.raises(ValueError, match="a real bug"):
+        main(["remap", "--model", str(path), "--repo", str(repo)])
+
+
+def test_cli_remap_undecodable_json_exits_2_and_names_the_file(
+    make_repo, tmp_path: Path, capsys
+) -> None:
+    repo = make_repo({"a.py": "x\n"})
+    path = tmp_path / "model.json"
+    path.write_text("{not json")
+    _cli_bad_input(["--model", str(path), "--repo", str(repo)], capsys, "model.json", path)
 
 
 def test_cli_remap(make_repo, commit_files, git, tmp_path: Path) -> None:
@@ -442,8 +530,8 @@ def test_cli_remap_unwritable_model_exits_2(
     repo = make_repo({"a.py": "x\n"})
     path = _model_file(tmp_path, repo, git)
 
-    def refuse(self: Path, data: bytes) -> int:
+    def refuse(src: str, dst: str) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(Path, "write_bytes", refuse)
+    monkeypatch.setattr(os, "replace", refuse)  # the model is written by an atomic replace
     _cli_bad_input(["--model", str(path), "--repo", str(repo)], capsys, "disk full", path)

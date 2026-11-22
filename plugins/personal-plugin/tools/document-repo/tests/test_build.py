@@ -1,6 +1,8 @@
 import copy
 import hashlib
 import json
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +21,7 @@ from document_repo.build import (
     write_explorer_data,
 )
 from document_repo.cli import main
+from document_repo.fsutil import write_bytes_atomic
 from document_repo.schema import validate
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_model.json"
@@ -646,6 +649,96 @@ def test_write_explorer_data_unencodable_text_leaves_existing_files_alone(tmp_pa
     with pytest.raises(ValueError):
         write_explorer_data(_model_with_tagline("bad \ud800 text"), out)
     assert {p.name: p.read_bytes() for p in out.iterdir()} == before
+
+
+def test_write_explorer_data_failed_replace_keeps_old_files_and_no_temp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out = tmp_path / "data"
+    out.mkdir()
+    before = {name: b"previous " + name.encode() for name in EXPLORER_FILES}
+    for name, data in before.items():
+        (out / name).write_bytes(data)
+
+    def refuse(src: str, dst: str) -> None:
+        raise OSError("disk says no")
+
+    monkeypatch.setattr(os, "replace", refuse)
+    with pytest.raises(OSError, match="disk says no"):
+        write_explorer_data(_model_with_tagline("fine"), out)
+    assert {p.name: p.read_bytes() for p in out.iterdir()} == before
+
+
+def test_write_bytes_atomic_replaces_the_file(tmp_path: Path) -> None:
+    path = tmp_path / "f.json"
+    path.write_bytes(b"old")
+    write_bytes_atomic(path, b"new bytes")
+    assert path.read_bytes() == b"new bytes"
+    assert [p.name for p in tmp_path.iterdir()] == ["f.json"]
+
+
+def test_write_bytes_atomic_creates_a_new_file(tmp_path: Path) -> None:
+    path = tmp_path / "new.json"
+    write_bytes_atomic(path, b"fresh")
+    assert path.read_bytes() == b"fresh"
+    assert [p.name for p in tmp_path.iterdir()] == ["new.json"]
+
+
+def test_write_bytes_atomic_keeps_an_existing_file_mode(tmp_path: Path) -> None:
+    path = tmp_path / "f.json"
+    path.write_bytes(b"old")
+    path.chmod(0o644)
+    write_bytes_atomic(path, b"new")
+    assert path.stat().st_mode & 0o777 == 0o644
+
+
+def test_write_bytes_atomic_failure_leaves_original_and_no_temp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "f.json"
+    path.write_bytes(b"original \x00\xff bytes")
+    before = path.read_bytes()
+
+    def refuse(src: str, dst: str) -> None:
+        raise OSError("replace refused")
+
+    monkeypatch.setattr(os, "replace", refuse)
+    with pytest.raises(OSError, match="replace refused"):
+        write_bytes_atomic(path, b"replacement")
+    assert path.read_bytes() == before
+    assert [p.name for p in tmp_path.iterdir()] == ["f.json"]
+
+
+def test_write_bytes_atomic_no_temp_created_still_raises_and_keeps_original(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "f.json"
+    path.write_bytes(b"original")
+
+    def no_temp(*args: object, **kwargs: object) -> None:
+        raise OSError("no space for a temp file")
+
+    monkeypatch.setattr(tempfile, "NamedTemporaryFile", no_temp)
+    with pytest.raises(OSError, match="no space"):
+        write_bytes_atomic(path, b"replacement")
+    assert path.read_bytes() == b"original"
+    assert [p.name for p in tmp_path.iterdir()] == ["f.json"]
+
+
+def test_write_bytes_atomic_failure_before_replace_removes_temp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "f.json"
+    path.write_bytes(b"original")
+
+    def fail_fsync(fd: int) -> None:
+        raise OSError("fsync failed")
+
+    monkeypatch.setattr(os, "fsync", fail_fsync)
+    with pytest.raises(OSError, match="fsync failed"):
+        write_bytes_atomic(path, b"replacement")
+    assert path.read_bytes() == b"original"
+    assert [p.name for p in tmp_path.iterdir()] == ["f.json"]
 
 
 def test_model_js_is_ascii_and_model_json_keeps_the_text(tmp_path: Path) -> None:

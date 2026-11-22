@@ -19,8 +19,16 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .fsutil import write_bytes_atomic
 from .schema import MAX_SNIPPET_LINES, validate
 from .verify import git_show, toplevel
+
+
+class RemapError(ValueError):
+    """An expected failure caused by the input: a bad model, a repo or ref that is not usable.
+
+    The CLI reports these with exit 2. Any other ValueError is a bug and is left to propagate.
+    """
 
 
 def _split_lines(text: str) -> list[str]:
@@ -36,7 +44,8 @@ def _insertion_map(before: list[str], after: list[str]) -> list[int] | None:
 
     Each line takes the first equal line at or after the previous match, so a code line can
     never be paired with a look-alike elsewhere in the file (a longest-block diff can, when a body
-    repeats and only one copy was commented). Cost is O(n log n).
+    repeats and only one copy was commented). When an inserted line equals an old line, the
+    earliest equal line wins. Cost is O(n log n).
     """
     spots: dict[str, list[int]] = {}
     for j, text in enumerate(after):
@@ -77,15 +86,15 @@ def line_map(before: list[str], after: list[str]) -> list[int]:
 
 
 def _commit(repo: Path, ref: str, unknown: str) -> str:
-    """The full sha of the commit ``ref`` names (a tag is peeled), or ValueError(``unknown``)."""
+    """The full sha of the commit ``ref`` names (a tag is peeled), or RemapError(``unknown``)."""
     if ref.startswith("-"):  # never let a ref be read as an option
-        raise ValueError(unknown)
+        raise RemapError(unknown)
     proc = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
         capture_output=True,
     )
     if proc.returncode != 0:
-        raise ValueError(unknown)
+        raise RemapError(unknown)
     return proc.stdout.decode("ascii", "replace").strip()
 
 
@@ -95,15 +104,15 @@ def remap_model(
     """Return a copy of ``model`` whose line numbers refer to ``new_ref``, and any warnings.
 
     File paths in the model are relative to the top of the work tree that contains ``repo``, as in
-    ``verify``. Raises ValueError for a model that fails ``schema.validate``, a ``repo`` outside a
+    ``verify``. Raises RemapError for a model that fails ``schema.validate``, a ``repo`` outside a
     work tree, a ``meta.source_commit`` that is not a commit in it, or an unknown ``new_ref``.
     """
     errors = validate(model)
     if errors:
-        raise ValueError("model is invalid:\n" + "\n".join(errors))
+        raise RemapError("model is invalid:\n" + "\n".join(errors))
     top = toplevel(repo)
     if top is None:
-        raise ValueError(f"{repo} is not inside a git work tree")
+        raise RemapError(f"{repo} is not inside a git work tree")
     source = model["meta"]["source_commit"]
     old_sha = _commit(top, source, f"meta.source_commit {source!r} is not a commit in {top}")
     new_sha = _commit(top, new_ref, f"unknown ref {new_ref!r}")
@@ -167,11 +176,12 @@ def remap_model(
 def write_model(path: Path, model: dict[str, Any]) -> None:
     """Write ``model`` as UTF-8 JSON bytes (no newline translation, as ``build`` writes it).
 
-    The text is encoded before the file is opened, so text that cannot be encoded (a lone
-    surrogate) raises ValueError and leaves any existing file as it was.
+    The write is atomic (see ``fsutil.write_bytes_atomic``). The text is encoded before anything is
+    written, so text that cannot be encoded (a lone surrogate) raises RemapError and leaves any
+    existing file as it was.
     """
     try:
         data = (json.dumps(model, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
     except UnicodeEncodeError as exc:
-        raise ValueError(f"model cannot be encoded as UTF-8: {exc}") from exc
-    path.write_bytes(data)
+        raise RemapError(f"model cannot be encoded as UTF-8: {exc}") from exc
+    write_bytes_atomic(path, data)
