@@ -148,3 +148,544 @@ def test_deleted_working_file_fails(make_repo) -> None:
     (repo / "q.sql").unlink()
     r = verify_file(repo, "q.sql")
     assert not r.ok and r.method == "none" and "cannot read edited file" in r.detail
+
+
+# ---------------------------------------------------------------------------
+# Task 4b: verifier hardening. Every case in FALSE_PASSES returned ok=True before the guards
+# existed (a false pass); each now fails with the named guard. POSITIVE_CASES keep ordinary
+# comment insertions passing in every language.
+# ---------------------------------------------------------------------------
+
+
+def _run(make_repo, rel: str, before: str, after: str):
+    """Commit ``before`` (bytes, so CR survives), write ``after`` to the work tree, verify."""
+    repo = make_repo({rel: before.encode("utf-8")})
+    (repo / rel).write_bytes(after.encode("utf-8"))
+    return verify_file(repo, rel)
+
+
+DIRECTIVE = "inserted directive-like comment"
+CONT_END = "comment ends with a line continuation"
+HEADER = "inserted above a protected header line"
+EOL = "line endings changed"
+VERBATIM = "inside a verbatim region"
+AFTER_CONT = "after a line continuation"
+
+FALSE_PASSES = [
+    # A1: line endings.
+    ("sh-lf-to-crlf", "run.sh", "#!/bin/sh\necho a\n", "#!/bin/sh\r\n# a\r\necho a\r\n", EOL),
+    ("py-crlf-to-lf", "m.py", "x = 1\r\ny = 2\r\n", "# c\nx = 1\ny = 2\n", EOL),
+    ("sql-crlf-comment-in-lf", "q.sql", "select 1;\n", "-- c\r\nselect 1;\n", EOL),
+    ("sql-lf-comment-in-crlf", "q.sql", "select 1;\r\n", "-- c\nselect 1;\r\n", EOL),
+    ("sh-formfeed-inserted", "run.sh", "echo a\n", "# c\x0cecho a\n", "non-newline line break"),
+    ("css-formfeed-base", "s.css", "a{}\x0cb{}\n", "a{}\x0c/* c */\nb{}\n", "physical line"),
+    # A2: directive-like inserted comments.
+    ("py-noqa", "m.py", "x = 1\n", "# noqa\nx = 1\n", DIRECTIVE),
+    ("py-type-ignore", "m.py", "x = 1\n", "# type: ignore\nx = 1\n", DIRECTIVE),
+    ("py-pylint", "m.py", "x = 1\n", "# pylint: disable=all\nx = 1\n", DIRECTIVE),
+    ("py-fmt", "m.py", "x = 1\n", "# fmt: off\nx = 1\n", DIRECTIVE),
+    ("py-isort", "m.py", "x = 1\n", "# isort: skip_file\nx = 1\n", DIRECTIVE),
+    ("py-pyright", "m.py", "x = 1\n", "# pyright: basic\nx = 1\n", DIRECTIVE),
+    ("py-mypy", "m.py", "x = 1\n", "# mypy: ignore-errors\nx = 1\n", DIRECTIVE),
+    ("py-pragma", "m.py", "x = 1\n", "x = 1\n# pragma: no cover\n", DIRECTIVE),
+    ("py-shebang", "m.py", "x = 1\n", "#!/usr/bin/env python3\nx = 1\n", DIRECTIVE),
+    ("py-cookie-line1", "m.py", "x = 1\n", "# -*- coding: latin-1 -*-\nx = 1\n", DIRECTIVE),
+    (
+        "py-cookie-line2",
+        "m.py",
+        "x = 1\n",
+        "# c\n# vim: set fileencoding=ascii :\nx = 1\n",
+        DIRECTIVE,
+    ),
+    ("ts-ignore", "a.ts", "f();\n", "// @ts-ignore\nf();\n", DIRECTIVE),
+    ("ts-expect-error", "a.ts", "f();\n", "// @ts-expect-error\nf();\n", DIRECTIVE),
+    ("ts-nocheck", "a.ts", "f();\n", "// @ts-nocheck\nf();\n", DIRECTIVE),
+    ("js-ts-check", "a.js", "f();\n", "// @ts-check\nf();\n", DIRECTIVE),
+    ("js-eslint-disable", "a.js", "f();\n", "/* eslint-disable */\nf();\n", DIRECTIVE),
+    ("js-eslint-enable", "a.js", "f();\n", "f();\n// eslint-enable\n", DIRECTIVE),
+    ("js-prettier", "a.js", "f();\n", "// prettier-ignore\nf();\n", DIRECTIVE),
+    ("js-istanbul", "a.js", "f();\n", "/* istanbul ignore next */\nf();\n", DIRECTIVE),
+    ("js-c8", "a.js", "f();\n", "/* c8 ignore next */\nf();\n", DIRECTIVE),
+    ("js-biome", "a.js", "f();\n", "// biome-ignore lint: x\nf();\n", DIRECTIVE),
+    ("js-jsx-pragma", "a.jsx", "f();\n", "/** @jsx h */\nf();\n", DIRECTIVE),
+    ("js-jsx-import", "a.tsx", "f();\n", "/** @jsxImportSource preact */\nf();\n", DIRECTIVE),
+    ("js-jsx-runtime", "a.jsx", "f();\n", "/** @jsxRuntime classic */\nf();\n", DIRECTIVE),
+    ("js-flow", "a.js", "f();\n", "// @flow\nf();\n", DIRECTIVE),
+    ("ts-triple-slash", "a.ts", "f();\n", '/// <reference types="node" />\nf();\n', DIRECTIVE),
+    ("go-build", "m.go", "package m\n", "//go:build ignore\n\npackage m\n", DIRECTIVE),
+    ("go-plus-build", "m.go", "package m\n", "// +build ignore\n\npackage m\n", DIRECTIVE),
+    ("go-line", "m.go", "package m\n", "package m\n//line other.go:10\n", DIRECTIVE),
+    ("sh-shellcheck", "a.sh", "echo $x\n", "# shellcheck disable=SC2086\necho $x\n", DIRECTIVE),
+    ("sh-shebang-later", "a.sh", "echo a\n", "echo a\n#!/bin/bash\n", DIRECTIVE),
+    ("sql-mysql-exec", "q.sql", "select 1;\n", "/*! SET x = 1 */\nselect 1;\n", DIRECTIVE),
+    (
+        "docker-syntax",
+        "Dockerfile",
+        "FROM a\n",
+        "# syntax=docker/dockerfile:1\nFROM a\n",
+        DIRECTIVE,
+    ),
+    ("docker-escape", "Dockerfile", "FROM a\n", "# ESCAPE = `\nFROM a\n", DIRECTIVE),
+    ("docker-check", "Dockerfile", "FROM a\n", "#check=skip=all\nFROM a\n", DIRECTIVE),
+    # A3: the inserted comment itself ends in a backslash and swallows the next line.
+    (
+        "make-comment-backslash",
+        "Makefile",
+        "all:\n\techo a\n",
+        "# note \\\nall:\n\techo a\n",
+        CONT_END,
+    ),
+    ("c-comment-backslash", "m.c", "int x;\n", "// note \\\nint x;\n", CONT_END),
+    ("py-comment-backslash", "m.py", "x = 1\n", "# note \\\nx = 1\n", CONT_END),
+    # A4: inserted above a protected header line.
+    ("sh-above-shebang", "a.sh", "#!/bin/sh\necho a\n", "# hdr\n#!/bin/sh\necho a\n", HEADER),
+    (
+        "py-above-shebang",
+        "m.py",
+        "#!/usr/bin/env python3\nx = 1\n",
+        "# h\n#!/usr/bin/env python3\nx = 1\n",
+        HEADER,
+    ),
+    (
+        "py-above-cookie",
+        "m.py",
+        "# -*- coding: utf-8 -*-\nx = 1\n",
+        "# h\n# -*- coding: utf-8 -*-\nx = 1\n",
+        HEADER,
+    ),
+    (
+        "docker-between-directives",
+        "Dockerfile",
+        "# syntax=d/d:1\n# escape=`\nFROM a\n",
+        "# syntax=d/d:1\n# note\n# escape=`\nFROM a\n",
+        HEADER,
+    ),
+    # B5: existing Python docstrings are frozen (they are runtime data: PLY, argparse, doctest).
+    (
+        "py-ply-docstring",
+        "m.py",
+        'def p_e(p):\n    "e : e PLUS t"\n    p[0] = 1\n',
+        'def p_e(p):\n    "e : e MINUS t"\n    p[0] = 1\n',
+        "existing docstring changed: p_e",
+    ),
+    (
+        "py-module-docstring",
+        "m.py",
+        '"""Usage: tool A."""\nx = 1\n',
+        '"""Usage: tool B."""\nx = 1\n',
+        "existing docstring changed: <module>",
+    ),
+    (
+        "py-docstring-removed",
+        "m.py",
+        'def f():\n    """Doc."""\n',
+        "def f():\n    pass\n",
+        "existing docstring changed: f",
+    ),
+    (
+        "py-dup-name-docstring",
+        "m.py",
+        'class C:\n    def x(self):\n        """A."""\n    def x(self):\n        """B."""\n',
+        'class C:\n    def x(self):\n        """A."""\n    def x(self):\n        """Z."""\n',
+        "existing docstring changed: C.x#1",
+    ),
+    # C6: inserted after a base line that ends in a continuation.
+    ("sh-continuation", "a.sh", "echo a \\\n  b\n", "echo a \\\n# c\n  b\n", AFTER_CONT),
+    ("make-continuation", "Makefile", "X = a \\\n  b\n", "X = a \\\n\n  b\n", AFTER_CONT),
+    (
+        "c-macro-continuation",
+        "m.h",
+        "#define M(x) \\\n  (x)\n",
+        "#define M(x) \\\n// c\n  (x)\n",
+        AFTER_CONT,
+    ),
+    # C7: verbatim regions, where a new line becomes data.
+    ("sh-heredoc", "a.sh", "cat <<EOF\nhi\nEOF\n", "cat <<EOF\n# c\nhi\nEOF\n", VERBATIM),
+    (
+        "sh-heredoc-dash-quoted",
+        "a.sh",
+        "cat <<-'END'\n\thi\n\tEND\necho\n",
+        "cat <<-'END'\n\thi\n# c\n\tEND\necho\n",
+        VERBATIM,
+    ),
+    (
+        "sh-heredoc-indented-word-is-body",
+        "a.sh",
+        "cat <<EOF\n  EOF\nhi\nEOF\n",
+        "cat <<EOF\n  EOF\n# c\nhi\nEOF\n",
+        VERBATIM,
+    ),
+    ("sh-multiline-dq", "a.sh", 'MSG="one\ntwo"\n', 'MSG="one\n# c\ntwo"\n', VERBATIM),
+    (
+        "docker-heredoc",
+        "Dockerfile",
+        "FROM a\nRUN <<EOF\necho hi\nEOF\n",
+        "FROM a\nRUN <<EOF\n# c\necho hi\nEOF\n",
+        VERBATIM,
+    ),
+    (
+        "make-define",
+        "Makefile",
+        "define T\nline\nendef\n",
+        "define T\n# c\nline\nendef\n",
+        VERBATIM,
+    ),
+    (
+        "yaml-block-inside",
+        "ci.yml",
+        "run: |\n  make\n  test\n",
+        "run: |\n  make\n  # c\n  test\n",
+        VERBATIM,
+    ),
+    (
+        "yaml-block-one-past",
+        "ci.yml",
+        "a:\n  run: |\n    make\n  b: 1\n",
+        "a:\n  run: |\n    make\n    # c\n  b: 1\n",
+        VERBATIM,
+    ),
+    ("yaml-folded-after-dash", "ci.yml", "- >-\n  text\n", "- >-\n  # c\n  text\n", VERBATIM),
+    ("yaml-quoted-multiline", "c.yml", 'k: "a\n  b"\n', 'k: "a\n  # c\n  b"\n', VERBATIM),
+    (
+        "yaml-plain-multiline",
+        "c.yml",
+        "k: a long\n  plain scalar\nj: 1\n",
+        "k: a long\n\n  plain scalar\nj: 1\n",
+        VERBATIM,
+    ),
+    ("sql-string", "q.sql", "select 'a\nb';\n", "select 'a\n-- c\nb';\n", VERBATIM),
+    (
+        "sql-dollar",
+        "q.sql",
+        "create function f() returns int as $$\nselect 1;\n$$ language sql;\n",
+        "create function f() returns int as $$\n-- c\nselect 1;\n$$ language sql;\n",
+        VERBATIM,
+    ),
+    (
+        "sql-dollar-tag",
+        "q.sql",
+        "do $body$\nbegin end\n$body$;\n",
+        "do $body$\n\nbegin end\n$body$;\n",
+        VERBATIM,
+    ),
+    (
+        "sql-copy-stdin",
+        "d.sql",
+        "COPY t (a) FROM stdin;\n1\n\\.\n",
+        "COPY t (a) FROM stdin;\n-- c\n1\n\\.\n",
+        VERBATIM,
+    ),
+    ("toml-basic-ml", "c.toml", 'k = """\na\n"""\n', 'k = """\n# c\na\n"""\n', VERBATIM),
+    ("toml-literal-ml", "c.toml", "k = '''\na\n'''\n", "k = '''\n# c\na\n'''\n", VERBATIM),
+    ("go-raw-string", "m.go", "var s = `a\nb`\n", "var s = `a\n// c\nb`\n", VERBATIM),
+    (
+        "go-cgo-preamble",
+        "m.go",
+        'package m\n\n// #include <stdio.h>\nimport "C"\n',
+        'package m\n\n// #include <stdio.h>\n// c\nimport "C"\n',
+        VERBATIM,
+    ),
+    (
+        "java-text-block",
+        "A.java",
+        'String s = """\n  a\n  """;\n',
+        'String s = """\n  // c\n  a\n  """;\n',
+        VERBATIM,
+    ),
+    (
+        "cs-raw",
+        "A.cs",
+        'var s = """\n  a\n  """;\n',
+        'var s = """\n  // c\n  a\n  """;\n',
+        VERBATIM,
+    ),
+    ("cs-verbatim", "A.cs", 'var s = @"a\nb";\n', 'var s = @"a\n// c\nb";\n', VERBATIM),
+    ("cpp-raw", "a.cpp", 'auto s = R"x(a\nb)x";\n', 'auto s = R"x(a\n// c\nb)x";\n', VERBATIM),
+    ("rust-raw-hash", "a.rs", 'let s = r#"a\nb"#;\n', 'let s = r#"a\n// c\nb"#;\n', VERBATIM),
+    ("rust-plain-multiline", "a.rs", 'let s = "a\nb";\n', 'let s = "a\n// c\nb";\n', VERBATIM),
+    ("js-template", "a.js", "const s = `a\nb`;\n", "const s = `a\n// c\nb`;\n", VERBATIM),
+    (
+        "ts-template-nested",
+        "a.ts",
+        "const s = `${f(`x`)}\nb`;\n",
+        "const s = `${f(`x`)}\n// c\nb`;\n",
+        VERBATIM,
+    ),
+    (
+        "jsx-text",
+        "a.jsx",
+        "const v = (\n  <p>\n    Hello\n    {name}\n  </p>\n);\n",
+        "const v = (\n  <p>\n    Hello\n    // c\n    {name}\n  </p>\n);\n",
+        VERBATIM,
+    ),
+    (
+        "html-textarea",
+        "i.html",
+        "<textarea>\na\n</textarea>\n",
+        "<textarea>\n<!-- c -->\na\n</textarea>\n",
+        VERBATIM,
+    ),
+    (
+        "html-script",
+        "i.html",
+        "<SCRIPT>\nf();\n</SCRIPT>\n",
+        "<SCRIPT>\n<!-- c -->\nf();\n</SCRIPT>\n",
+        VERBATIM,
+    ),
+    ("html-pre", "i.html", "<pre>\na\n</pre>\n", "<pre>\na\n<!-- c -->\n</pre>\n", VERBATIM),
+    (
+        "html-style",
+        "i.html",
+        "<style>\na{}\n</style>\n",
+        "<style>\n<!-- c -->\na{}\n</style>\n",
+        VERBATIM,
+    ),
+    (
+        "html-inside-comment",
+        "i.html",
+        "<!--\nold\n-->\n<p>x</p>\n",
+        "<!--\n<!-- c -->\nold\n-->\n<p>x</p>\n",
+        VERBATIM,
+    ),
+    ("css-inside-comment", "s.css", "/*\nold\n*/\na{}\n", "/*\n/* c */\nold\n*/\na{}\n", VERBATIM),
+    ("sh-unterminated-quote", "a.sh", "echo 'a\necho b\n", "echo 'a\necho b\n# c\n", VERBATIM),
+]
+
+
+@pytest.mark.parametrize(
+    "rel,before,after,needle", [c[1:] for c in FALSE_PASSES], ids=[c[0] for c in FALSE_PASSES]
+)
+def test_false_pass_now_fails(make_repo, rel: str, before: str, after: str, needle: str) -> None:
+    r = _run(make_repo, rel, before, after)
+    assert not r.ok and needle in r.detail, (r.method, r.detail)
+
+
+POSITIVE_CASES = [
+    (
+        "python",
+        "m.py",
+        "#!/usr/bin/env python3\nimport os\n\n\ndef f():\n    return os.sep\n",
+        (
+            "#!/usr/bin/env python3\n# Path helpers.\nimport os\n\n\ndef f():\n"
+            '    """Return the separator."""\n    # Why: portable.\n    return os.sep  # sep\n'
+        ),
+    ),
+    ("python-crlf", "m.py", "x = 1\r\ny = 2\r\n", "# c\r\nx = 1\r\ny = 2\r\n"),
+    (
+        "typescript",
+        "a.ts",
+        "const t = `a\nb`;\nexport function f(): number {\n  return 1;\n}\n",
+        (
+            "const t = `a\nb`;\n\n/** Returns one. */\nexport function f(): number {\n"
+            "  // Why: constant.\n  return 1;\n}\n"
+        ),
+    ),
+    (
+        "javascript",
+        "a.js",
+        "const r = 'x'; // it's\nmodule.exports = r;\n",
+        "// Module header.\nconst r = 'x'; // it's\n/* export */\nmodule.exports = r;\n",
+    ),
+    (
+        "tsx-generic",
+        "a.ts",
+        "const m = new Map<string, number>();\nfunction g<T>(x: T): T {\n  return x;\n}\n",
+        (
+            "const m = new Map<string, number>();\n// Identity.\nfunction g<T>(x: T): T {\n"
+            "  return x;\n}\n"
+        ),
+    ),
+    (
+        "sql",
+        "q.sql",
+        (
+            "create function f() returns int as $$ select 1 $$ language sql;\nselect 'it''s';\n"
+            "-- it's fine\nselect 2;\n"
+        ),
+        (
+            "-- Schema.\ncreate function f() returns int as $$ select 1 $$ language sql;\n"
+            "-- Quote test.\nselect 'it''s';\n-- it's fine\n\n/* second */\nselect 2;\n"
+        ),
+    ),
+    (
+        "shell",
+        "a.sh",
+        '#!/bin/sh\n# cat <<EOF\ncat <<EOF\nhi\nEOF\necho "${#x}" # it\'s\n',
+        (
+            "#!/bin/sh\n# Header.\n# cat <<EOF\ncat <<EOF\nhi\nEOF\n# After heredoc.\n"
+            'echo "${#x}" # it\'s\n'
+        ),
+    ),
+    (
+        "yaml",
+        "ci.yml",
+        (
+            "# key: |\nname: ci\non: push\njobs:\n  build:\n    steps:\n      - run: |\n"
+            "          make\n\n      - name: x\n        uses: a/b\n"
+        ),
+        (
+            "# key: |\n# Workflow.\nname: ci\non: push\n# Jobs.\njobs:\n  build:\n    # Steps.\n"
+            "    steps:\n      - run: |\n          make\n\n      - name: x\n        # Action.\n"
+            "        uses: a/b\n"
+        ),
+    ),
+    (
+        "toml",
+        "c.toml",
+        '# """\n[a]\nk = """\nx\n"""\nj = \'it\'\n',
+        '# """\n# Section a.\n[a]\nk = """\nx\n"""\n# j.\nj = \'it\'\n',
+    ),
+    (
+        "dockerfile",
+        "Dockerfile",
+        '# syntax=docker/dockerfile:1\nFROM alpine\nRUN <<EOF\necho\nEOF\nCMD ["x"]\n',
+        (
+            "# syntax=docker/dockerfile:1\n# Base image.\nFROM alpine\nRUN <<EOF\necho\nEOF\n"
+            '# Entry.\nCMD ["x"]\n'
+        ),
+    ),
+    (
+        "make",
+        "Makefile",
+        "define T\nx\nendef\nall:\n\techo a\n",
+        "# Template.\ndefine T\nx\nendef\n# Default target.\nall:\n\techo a\n",
+    ),
+    (
+        "css",
+        "s.css",
+        "a { color: red; }\nb::after { content: '//'; }\n",
+        "/* Links. */\na { color: red; }\n\n/* After. */\nb::after { content: '//'; }\n",
+    ),
+    (
+        "html",
+        "i.html",
+        "<!-- <script> -->\n<div>\n<p>x</p>\n</div>\n<pre>a</pre>\n<p>y</p>\n",
+        (
+            "<!-- <script> -->\n<div>\n<!-- Paragraph. -->\n<p>x</p>\n</div>\n<pre>a</pre>\n"
+            "<!-- After pre. -->\n<p>y</p>\n"
+        ),
+    ),
+    (
+        "go",
+        "m.go",
+        "package m\n\n// use `x`\nvar s = `a\nb`\n\nfunc F() {}\n",
+        (
+            "// Package m does things.\npackage m\n\n// use `x`\nvar s = `a\nb`\n\n"
+            "// F does nothing.\nfunc F() {}\n"
+        ),
+    ),
+    (
+        "rust",
+        "a.rs",
+        "fn f<'a>(x: &'a str) -> &'a str {\n    x\n}\nlet c = '\"';\n",
+        (
+            "/// Identity.\nfn f<'a>(x: &'a str) -> &'a str {\n    // Why: borrow.\n    x\n}\n"
+            "let c = '\"';\n"
+        ),
+    ),
+    (
+        "java",
+        "A.java",
+        'class A {\n  String s = """\n    a\n    """;\n  char q = \'"\';\n}\n',
+        (
+            '/** A class. */\nclass A {\n  String s = """\n    a\n    """;\n  // Quote char.\n'
+            "  char q = '\"';\n}\n"
+        ),
+    ),
+    (
+        "c",
+        "m.c",
+        "#include <stdio.h>\nint main(void) {\n  return 0;\n}\n",
+        "/* Entry point. */\n#include <stdio.h>\nint main(void) {\n  // Done.\n  return 0;\n}\n",
+    ),
+    (
+        "cpp",
+        "a.cpp",
+        'auto s = R"(a)";\nint n = 1\'000;\nint main() {}\n',
+        'auto s = R"(a)";\n// Thousand.\nint n = 1\'000;\nint main() {}\n',
+    ),
+    ("csharp", "A.cs", 'var s = @"a";\nclass A {}\n', 'var s = @"a";\n// A type.\nclass A {}\n'),
+    (
+        "sh-after-shebang-crlf-free",
+        "b.sh",
+        "#!/bin/sh\necho a\n",
+        "#!/bin/sh\n\n# Say a.\necho a\n# end\n",
+    ),
+    ("no-trailing-newline", "q.sql", "select 1;", "select 1;\n-- end\n"),
+]
+
+
+@pytest.mark.parametrize(
+    "rel,before,after", [c[1:] for c in POSITIVE_CASES], ids=[c[0] for c in POSITIVE_CASES]
+)
+def test_comment_insertions_still_pass(make_repo, rel: str, before: str, after: str) -> None:
+    r = _run(make_repo, rel, before, after)
+    assert r.ok, (r.method, r.detail)
+
+
+def test_ascii_cookie_rejects_non_ascii_comment(make_repo) -> None:
+    # ast.parse(str) ignores the cookie; the real import would fail on the non-ASCII byte.
+    before = "# -*- coding: ascii -*-\nx = 1\n"
+    r = _run(make_repo, "m.py", before, before + "# caf\u00e9\n")
+    assert not r.ok and r.method == "python-ast" and "does not parse" in r.detail, r.detail
+
+
+def test_new_docstring_with_doctest_fails(make_repo) -> None:
+    r = _run(
+        make_repo,
+        "m.py",
+        "def f():\n    pass\n",
+        'def f():\n    """Doc.\n\n    >>> f()\n    """\n    pass\n',
+    )
+    assert not r.ok and "doctest" in r.detail, r.detail
+
+
+def test_shebang_removed_fails(make_repo) -> None:
+    # Deleting or rewriting a directive passes python-ast (comments are invisible to it).
+    r = _run(make_repo, "m.py", "#!/usr/bin/env python3\nx = 1\n", "x = 1\n")
+    assert not r.ok and "removed or changed directive-like" in r.detail, r.detail
+
+
+def test_insert_below_next_line_directive_fails(make_repo) -> None:
+    before = "// eslint-disable-next-line no-eval\neval(x);\n"
+    after = "// eslint-disable-next-line no-eval\n// Why: legacy.\neval(x);\n"
+    r = _run(make_repo, "a.js", before, after)
+    assert not r.ok and "below a directive-like comment" in r.detail, r.detail
+
+
+def test_make_tab_indented_comment_fails(make_repo) -> None:
+    # A tab-indented line in a recipe is a shell command that make echoes, not a make comment.
+    r = _run(make_repo, "Makefile", "all:\n\techo a\n", "all:\n\t# say a\n\techo a\n")
+    assert not r.ok and "recipe line" in r.detail, r.detail
+
+
+def test_sql_dashdash_without_space_fails(make_repo) -> None:
+    # MySQL needs whitespace after "--"; "--x" is two minus signs.
+    r = _run(make_repo, "q.sql", "select 1;\n", "--note\nselect 1;\n")
+    assert not r.ok and "--" in r.detail, r.detail
+
+
+def test_bom_added_fails(make_repo) -> None:
+    r = _run(make_repo, "m.py", "x = 1\n", "\ufeff# c\nx = 1\n")
+    assert not r.ok and "byte order mark" in r.detail, r.detail
+
+
+def test_autocrlf_checkout_is_not_a_line_ending_change(make_repo, git) -> None:
+    # With core.autocrlf the work tree is CRLF while the blob is LF; compare like checkout does.
+    repo = make_repo({"q.sql": b"select 1;\n"})
+    git(repo, "config", "core.autocrlf", "true")
+    (repo / "q.sql").write_bytes(b"-- c\r\nselect 1;\r\n")
+    r = verify_file(repo, "q.sql")
+    assert r.ok, r.detail
+
+
+def test_guard_runs_after_any_passing_method(make_repo, monkeypatch) -> None:
+    # A future ts-printer pass must still go through the common guards.
+    import document_repo.verify as verify_mod
+
+    def fake_ts(repo, rel, before, after):
+        return verify_mod.Result(rel, "ts-printer", True)
+
+    monkeypatch.setattr(verify_mod, "_ts_verify", fake_ts)
+    r = _run(make_repo, "a.ts", "f();\n", "// @ts-ignore\nf();\n")
+    assert not r.ok and r.method == "ts-printer" and DIRECTIVE in r.detail, r.detail
