@@ -8,7 +8,10 @@ each file it compares the version at a base git ref with the working tree:
   TypeScript compiler and compare the text. The file is parsed as its extension says
   (``.ts``/``.mts``/``.cts`` TypeScript, ``.tsx`` TSX, ``.js``/``.mjs``/``.cjs`` JavaScript,
   ``.jsx`` JSX; see ts_print.js). A parse error in either version fails the file, because
-  TypeScript skips the tokens it cannot parse. There is no fallback: without
+  TypeScript skips the tokens it cannot parse. Layout a comment changes without changing
+  the code is normalised first (empty blocks, JSX children the compiler discards). The
+  compiler is found from explicit candidates only (``ts_search_paths``), and its version is
+  recorded in the passing result. There is no fallback: without
   node and typescript a JS/TS file fails, because no line-based check can
   tell a comment from text inside a template literal, regex or JSX.
 - comment-lines: (everything else) a line diff may only INSERT lines, and
@@ -241,6 +244,17 @@ def node_binary() -> str | None:
     return shutil.which("node")
 
 
+def _neutral_dir() -> str:
+    """A directory to run ``npm`` in that belongs to neither the target repo nor the caller's cwd.
+
+    The user's home, or the tool's own directory when there is no home. ``npm`` reads the
+    ``.npmrc`` of the project around its cwd, and the CLI is usually started inside the repo
+    being verified, so the repo's configuration must not decide where the global root is.
+    """
+    home = os.path.expanduser("~")
+    return home if os.path.isdir(home) else str(Path(__file__).parent)
+
+
 @functools.lru_cache(maxsize=1)
 def _npm_global_root() -> str | None:
     npm = shutil.which("npm")
@@ -248,7 +262,12 @@ def _npm_global_root() -> str | None:
         return None
     try:
         proc = subprocess.run(
-            [npm, "root", "-g"], capture_output=True, text=True, errors="replace", timeout=30
+            [npm, "root", "-g"],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=30,
+            cwd=_neutral_dir(),
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -257,26 +276,48 @@ def _npm_global_root() -> str | None:
     return proc.stdout.strip() or None
 
 
-def ts_search_paths(repo: Path, rel: str | None = None) -> list[str]:
-    """Where to look for the typescript package, in order.
+def _dirs_up_to(start: Path, root: Path) -> list[Path]:
+    """``start`` and its parents up to and including ``root``; empty if ``start`` is outside."""
+    chain = [start, *start.parents]
+    return chain[: chain.index(root) + 1] if root in chain else []
 
-    The directory of ``repo / rel`` comes first, then the repo root, ``DOCUMENT_REPO_TS_PATHS``
-    and the npm global root. Node's ``require.resolve`` walks up from each path, so the file's own
-    directory finds the nearest ``node_modules``: in a monorepo, ``packages/web/node_modules`` beats
-    the root's. Without ``rel`` the file's directory is left out.
+
+def ts_search_paths(repo: Path, rel: str | None = None) -> list[str]:
+    """Candidate locations for the typescript package, in the order ``ts_print.js`` tries them.
+
+    ``ts_print.js`` loads the first candidate that holds the package and never looks anywhere
+    else: it does not walk up from a candidate, so nothing above the repo root can be executed.
+    A candidate is a project directory (it holds ``node_modules/typescript``), a ``node_modules``
+    directory, or the package directory itself. In order:
+
+    1. every directory from the one holding ``repo / rel`` up to and including ``repo``, nearest
+       first, so in a monorepo ``packages/web/node_modules`` beats the root's. Never above
+       ``repo``; a ``rel`` that leaves the work tree contributes nothing. Without ``rel`` this
+       is just ``repo``.
+    2. each entry of ``DOCUMENT_REPO_TS_PATHS`` (an ``os.pathsep``-separated list).
+    3. the npm global root, asked from a neutral directory so a repo ``.npmrc`` cannot steer it.
+
+    A directory that repeats an earlier one is dropped, keeping its first place.
     """
-    paths = [str(repo)]
+    root = Path(os.path.normpath(repo))
+    ordered = [str(root)]
     if rel is not None:
-        own = str((repo / rel).parent)
-        if own != paths[0]:
-            paths.insert(0, own)
+        own = Path(os.path.normpath(root / rel)).parent
+        ordered[:0] = [str(d) for d in _dirs_up_to(own, root)]
     extra = os.environ.get("DOCUMENT_REPO_TS_PATHS")
     if extra:
-        paths.extend(p for p in extra.split(os.pathsep) if p)
+        ordered.extend(p for p in extra.split(os.pathsep) if p)
     global_root = _npm_global_root()
     if global_root:
-        paths.append(global_root)
-    return paths
+        ordered.append(global_root)
+    seen: set[str] = set()
+    unique: list[str] = []
+    for candidate in ordered:
+        key = os.path.normcase(os.path.normpath(candidate))
+        if key not in seen:
+            seen.add(key)
+            unique.append(candidate)
+    return unique
 
 
 def _run_printer(
@@ -319,19 +360,29 @@ def typescript_available(repo: Path) -> bool:
     return proc is not None and proc.returncode == 0
 
 
-def _printer_verdict(stdout: str) -> tuple[bool, int, int] | None:
-    """Parse ``ts_print.js`` output into ``(equal, before_errors, after_errors)``, or None."""
+def _printer_verdict(stdout: str) -> tuple[bool, int, int, str] | None:
+    """Parse ``ts_print.js`` output into ``(equal, before_errors, after_errors, version)``.
+
+    None when any of the four is missing or of the wrong type. ``version`` is the compiler's own
+    ``ts.version``: output that does not say which compiler ran is not trusted.
+    """
     try:
         data = json.loads(stdout)
     except ValueError:
         return None
     if not isinstance(data, dict):
         return None
-    equal, before_errors, after_errors = (
-        data.get(key) for key in ("equal", "before_errors", "after_errors")
+    equal, before_errors, after_errors, version = (
+        data.get(key) for key in ("equal", "before_errors", "after_errors", "version")
     )
-    if isinstance(equal, bool) and type(before_errors) is int and type(after_errors) is int:
-        return equal, before_errors, after_errors
+    if (
+        isinstance(equal, bool)
+        and type(before_errors) is int
+        and type(after_errors) is int
+        and isinstance(version, str)
+        and version
+    ):
+        return equal, before_errors, after_errors, version
     return None
 
 
@@ -346,7 +397,7 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
     verdict = _printer_verdict(proc.stdout)
     if verdict is None:
         return Result(rel, "ts-printer", False, "printer returned unreadable output")
-    equal, before_errors, after_errors = verdict
+    equal, before_errors, after_errors, version = verdict
     if before_errors or after_errors:
         # TypeScript skips the tokens it cannot parse, so two broken versions can print equal
         # while the code differs. Neither side may have a parse error.
@@ -356,7 +407,7 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
         )
         return Result(rel, "ts-printer", False, why)
     if equal:
-        return Result(rel, "ts-printer", True)
+        return Result(rel, "ts-printer", True, f"ts-printer (typescript {version})")
     return Result(
         rel, "ts-printer", False, "code changed (printed output differs with comments removed)"
     )
