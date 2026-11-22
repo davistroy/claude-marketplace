@@ -1139,6 +1139,103 @@ def test_executable_bit_ignored_when_git_ignores_it(make_repo, git) -> None:
     assert r.ok, (r.method, r.detail)
 
 
+# Fix round 4, item 1: git decides what is a mode change (core.fileMode, the index), not lstat.
+@pytest.mark.parametrize(
+    "stage",
+    [("update-index", "--chmod=+x"), ("add", "--chmod=+x")],
+    ids=["update-index", "add"],
+)
+def test_executable_bit_staged_with_filemode_false_fails(make_repo, git, stage) -> None:
+    # core.fileMode=false hides the work-tree bit, but the index still records the mode, and a
+    # commit would ship it. lstat sees a plain file; git sees 100644 -> 100755.
+    repo = make_repo({"run.sh": "echo a\n"})
+    git(repo, "config", "core.fileMode", "false")
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    git(repo, *stage, "run.sh")
+    r = verify_file(repo, "run.sh")
+    assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
+
+
+def test_executable_bit_chmod_with_filemode_false_passes(make_repo, git) -> None:
+    # A plain chmod with core.fileMode=false and nothing staged: git records no change.
+    import os
+
+    repo = make_repo({"run.sh": "echo a\n"})
+    git(repo, "config", "core.fileMode", "false")
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    os.chmod(repo / "run.sh", 0o755)
+    assert git(repo, "diff", "HEAD", "--raw", "--", "run.sh").count("100755") == 0
+    r = verify_file(repo, "run.sh")
+    assert r.ok, (r.method, r.detail)
+
+
+def test_executable_bit_staged_only_fails_by_default(make_repo, git) -> None:
+    # Default config: the work tree still looks plain (lstat and "git diff HEAD" agree with the
+    # base), but the index carries the executable bit.
+    import os
+
+    repo = make_repo({"run.sh": "echo a\n"})
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    git(repo, "add", "--chmod=+x", "run.sh")
+    os.chmod(repo / "run.sh", 0o644)  # the work tree is a plain file again
+    assert git(repo, "diff", "HEAD", "--raw", "--", "run.sh").split()[:2] == [":100644", "100644"]
+    r = verify_file(repo, "run.sh")
+    assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
+
+
+def test_executable_bit_dropped_in_index_only_fails(make_repo, git) -> None:
+    import os
+
+    repo = make_repo({"run.sh": "echo a\n"})
+    os.chmod(repo / "run.sh", 0o755)
+    git(repo, "add", "run.sh")
+    git(repo, "commit", "-q", "-m", "exec")
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    git(repo, "update-index", "--chmod=-x", "run.sh")
+    assert os.stat(repo / "run.sh").st_mode & 0o100  # the work tree still has the bit
+    r = verify_file(repo, "run.sh")
+    assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
+
+
+def test_file_removed_from_index_fails(make_repo, git) -> None:
+    # "git rm --cached" leaves the work-tree file and drops it from the next commit.
+    repo = make_repo({"run.sh": "echo a\n"})
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    git(repo, "rm", "-q", "--cached", "run.sh")
+    r = verify_file(repo, "run.sh")
+    assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
+
+
+def test_mode_check_treats_the_path_literally(make_repo, git) -> None:
+    # "a[1].sh" is a glob that also matches a1.sh; only a1.sh changed mode.
+    import os
+
+    repo = make_repo({"a[1].sh": "echo a\n", "a1.sh": "echo a\n"})
+    os.chmod(repo / "a1.sh", 0o755)
+    (repo / "a[1].sh").write_text("# Say a.\necho a\n")
+    r = verify_file(repo, "a[1].sh")
+    assert r.ok, (r.method, r.detail)
+
+
+def test_mode_check_fails_closed_when_git_diff_fails(make_repo, monkeypatch) -> None:
+    import subprocess
+
+    from document_repo import verify as verify_mod
+
+    repo = make_repo({"run.sh": "echo a\n"})
+    (repo / "run.sh").write_text("# Say a.\necho a\n")
+    real = subprocess.run
+
+    def broken_diff(cmd, *args, **kwargs):
+        if "diff" in cmd:
+            return subprocess.CompletedProcess(cmd, 128, b"", b"fatal: boom")
+        return real(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(verify_mod.subprocess, "run", broken_diff)
+    r = verify_file(repo, "run.sh")
+    assert not r.ok and "git diff failed" in r.detail, (r.method, r.detail)
+
+
 def _symlink_or_skip(target: str, link) -> None:
     import os
 

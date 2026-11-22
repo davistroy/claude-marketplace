@@ -11,13 +11,15 @@ each file it compares the version at a base git ref with the working tree:
 - comment-lines: (everything else) a line diff may only INSERT lines, and
   every inserted line must be blank or a comment in that language.
 
-Before any method, the file mode must match the base (``_mode_guard``): a new
-executable bit or a symlink changes behaviour without changing one line.
+Before any method, git must report no mode change against the base (``_mode_guard``): neither
+``git diff --raw`` (work tree) nor ``git diff --cached --raw`` (index) may show one, so git's
+own ``core.fileMode`` rule decides what counts, and neither side may be a symlink. A new
+executable bit changes behaviour without changing one line.
 
 After a method passes, ``guards.common_guards`` runs for every method (directives, line
-endings, protected headers, continuations), and comment-lines also runs
-``guards.context_guard`` (no new line inside a heredoc, string, block scalar and so on). See
-guards.py for each rule and why it exists.
+endings, protected headers, continuations). comment-lines also runs ``guards.context_guard``
+(no new line inside a heredoc, string, block scalar and so on). See guards.py for each rule and
+why it exists.
 
 A file that fails is reverted by the skill. This check is deliberately strict:
 a false failure costs one reverted file; a false pass could ship a bug.
@@ -28,6 +30,7 @@ from __future__ import annotations
 import ast
 import difflib
 import os
+import re
 import stat
 import subprocess
 from dataclasses import asdict, dataclass
@@ -225,7 +228,7 @@ TS_MISSING = (
     "(install with: npm install -g typescript)"
 )
 
-_SYMLINK, _EXEC, _PLAIN = "120000", "100755", "100644"
+_SYMLINK = "120000"
 
 
 def _base_mode(top: Path, ref: str, rel: str) -> str | None:
@@ -237,32 +240,53 @@ def _base_mode(top: Path, ref: str, rel: str) -> str | None:
     return entry.split(" ", 1)[0] if proc.returncode == 0 and entry else None
 
 
-def _filemode_tracked(top: Path) -> bool:
-    """False when ``core.fileMode`` is false: git then records no executable-bit change."""
+#: The ``:<old mode> <new mode> `` head of each ``git diff --raw`` record. Any other shape (such
+#: as a combined-diff ``::`` record) puts a colon in the old mode, so it differs and fails closed.
+_RAW_MODES = re.compile(r"^:(\S+) (\S+) ", re.MULTILINE)
+
+
+def _git_mode_change(top: Path, ref: str, rel: str, staged: bool) -> str | None:
+    """Ask git whether ``rel`` has a different mode than at ``ref``. Return a detail, or None.
+
+    ``staged`` compares the index with ``ref`` (``git diff --cached``); otherwise the work tree
+    (``git diff``). Git applies its own rules, ``core.fileMode`` included, so a bit the work tree
+    cannot record is not a change, while one staged with ``update-index --chmod`` or
+    ``add --chmod`` is. A path that left the index (``git rm --cached``) reads as mode 000000.
+    """
+    where = "index" if staged else "working tree"
+    cmd = ["git", "--literal-pathspecs", "-C", str(top), "diff", "--raw", "--no-renames"]
     proc = subprocess.run(
-        ["git", "-C", str(top), "config", "--bool", "core.fileMode"], capture_output=True
+        [*cmd, *(["--cached"] if staged else []), ref, "--", rel], capture_output=True
     )
-    return proc.stdout.strip() != b"false"
+    if proc.returncode != 0:
+        return f"cannot compare the {where} file mode with {ref}: git diff failed"
+    for old, new in _RAW_MODES.findall(proc.stdout.decode("utf-8", "surrogateescape")):
+        if old != new:
+            return f"file mode changed: {old} -> {new} ({where})"
+    return None
 
 
 def _mode_guard(top: Path, ref: str, rel: str) -> str | None:
-    """Fail a symlink on either side, or an executable bit that differs from the base."""
+    """Fail a symlink on either side, or any mode change that git reports against ``ref``.
+
+    A symlink is found from the base mode and ``lstat``. Every other mode change is git's call,
+    not ``lstat``'s: ``git diff --raw`` (work tree vs ``ref``) and ``git diff --cached --raw``
+    (index vs ``ref``) both run, so git applies its own ``core.fileMode`` rule. A plain
+    ``chmod`` that git does not record passes; an executable bit staged with
+    ``update-index --chmod`` or ``add --chmod`` fails, as does one in the work tree by default.
+    """
     base = _base_mode(top, ref, rel)
     try:
         st = os.lstat(top / rel)
     except OSError:
         return None  # a missing file is reported by the read below
-    if stat.S_ISLNK(st.st_mode):
-        work = _SYMLINK
-    else:
-        work = _EXEC if st.st_mode & stat.S_IXUSR else _PLAIN
-        if work != base and base in (_EXEC, _PLAIN) and not _filemode_tracked(top):
-            work = base
-    if _SYMLINK in (base, work):
-        return f"symlink: file mode {base} in base, {work} in working tree"
-    if base != work:
-        return f"file mode changed: {base} -> {work}"
-    return None
+    linked = stat.S_ISLNK(st.st_mode)
+    if base == _SYMLINK or linked:
+        now = "a symlink" if linked else "not a symlink"
+        return f"symlink: file mode {base} in base, the working-tree path is {now}"
+    return _git_mode_change(top, ref, rel, staged=False) or _git_mode_change(
+        top, ref, rel, staged=True
+    )
 
 
 def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
@@ -322,10 +346,10 @@ def changed_files(repo: Path, ref: str) -> list[str]:
 
     Paths are relative to the top level of the work tree that contains ``repo``, whatever
     directory inside it ``repo`` names. Only the explorer output and markdown (``DOC_SUFFIXES``)
-    are left out. Everything else
-    is returned, including files with no known comment syntax, new files and deleted files:
-    ``verify_file`` fails each of those, so ``verify --changed`` cannot pass a change it did not
-    check. Renames are listed as a delete plus an add (``--no-renames``), so both sides show.
+    are left out. Everything else is returned, including files with no known comment syntax,
+    new files and deleted files: ``verify_file`` fails each of those, so ``verify --changed``
+    cannot pass a change it did not check. Renames are listed as a delete plus an add
+    (``--no-renames``), so both sides show.
     """
     top = toplevel(repo)
     if top is None:

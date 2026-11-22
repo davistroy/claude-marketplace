@@ -227,6 +227,13 @@ SCOPED_HOME = [
     ("a.js", "//# sourceMappingURL=a.js.map"),
     ("a.js", " * eslint no-console: off"),
     ("a.js", "/* eslint"),
+    ("a.js", "/* globals"),
+    ("a.ts", "/* jshint"),
+    ("a.js", "/* jslint"),
+    ("a.js", " * globals foo, bar"),
+    ("a.ts", "globals foo"),
+    ("a.js", " jshint esversion: 6 */"),
+    ("a.js", " * jslint node"),
     ("s.css", "/*# sourceMappingURL=a.css.map */"),
     # Go tools
     ("m.go", "//go:build ignore"),
@@ -305,6 +312,11 @@ SCOPED_ELSEWHERE = [
     ("q.sql", "-- istanbul ignore is a JS thing"),
     ("a.sh", "# sourceMappingURL= is read by browsers"),
     ("a.sh", "# webpackChunkName: only in JS"),
+    ("A.java", " * globals are avoided here"),
+    ("m.c", "/* jshint"),
+    ("m.py", "  jshint esversion: 6"),
+    ("A.cs", " * jslint is a JavaScript tool"),
+    ("m.go", "globals foo, bar"),
 ]
 
 
@@ -698,6 +710,66 @@ def test_multiline_eslint_and_global_directives_fail(rel: str, chunk: str) -> No
     after = before.replace("const b", chunk + "\nconst b")
     why = common_guards(rel, before, after, lang_for(rel))
     assert why is not None and DIRECTIVE in why, why
+
+
+# Fix round 4, item 2: globals, jshint and jslint also open a directive on the line after "/*".
+@pytest.mark.parametrize(
+    "chunk",
+    [
+        "/*\n globals foo */",
+        "/*\nglobals foo, bar\n*/",
+        "/*\n jshint esversion: 6 */",
+        "/*\n * globals foo\n */",
+        "/* globals\n   foo */",
+        "/* jshint\n   esversion: 6 */",
+        "/*\njslint node: true\n*/",
+    ],
+    ids=[
+        "globals-after-opener",
+        "globals-own-line",
+        "jshint-after-opener",
+        "globals-after-star",
+        "globals-alone-on-opener",
+        "jshint-alone-on-opener",
+        "jslint-own-line",
+    ],
+)
+@pytest.mark.parametrize("rel", ["a.js", "a.ts"])
+def test_multiline_globals_and_jshint_directives_fail(rel: str, chunk: str) -> None:
+    before = "const a = 1;\nconst b = 2;\n"
+    after = before.replace("const b", chunk + "\nconst b")
+    why = common_guards(rel, before, after, lang_for(rel))
+    assert why is not None and DIRECTIVE in why, why
+
+
+@pytest.mark.parametrize(
+    "chunk",
+    [
+        "/*\n globals foo */",
+        "/*\nglobals foo, bar\n*/",
+        "/*\n jshint esversion: 6 */",
+    ],
+)
+@pytest.mark.parametrize("rel", ["m.c", "A.java", "m.py", "m.go", "a.sh"])
+def test_multiline_globals_and_jshint_are_prose_outside_javascript(rel: str, chunk: str) -> None:
+    before = "x\ny\n"
+    after = before.replace("y", chunk + "\ny")
+    assert common_guards(rel, before, after, lang_for(rel)) is None
+
+
+@pytest.mark.parametrize(
+    "chunk",
+    [
+        "// globals are bad",
+        "// jshint is not used here",
+        "// globals foo",
+        "/* The globals are listed below. */",
+    ],
+)
+def test_globals_line_comment_prose_still_passes(chunk: str) -> None:
+    before = "const a = 1;\nconst b = 2;\n"
+    after = before.replace("const b", chunk + "\nconst b")
+    assert common_guards("a.js", before, after, lang("js")) is None
 
 
 @pytest.mark.parametrize(

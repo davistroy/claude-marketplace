@@ -5,7 +5,7 @@ Each rule below closes one way that happens. Every rule fails closed: a false fa
 file, a false pass ships a behaviour change.
 
 Common guards (every method: python-ast, ts-printer, comment-lines). The file-mode check
-(executable bit, symlink) runs in verify.py, before any method:
+(git's own view of a mode change, and symlinks) runs in verify.py, before any method:
 
 - byte order mark: adding or dropping a BOM breaks shebangs and some parsers.
 - line endings: LF <-> CRLF breaks shebangs (``/bin/sh\\r``) and heredoc terminators.
@@ -15,8 +15,8 @@ Common guards (every method: python-ast, ts-printer, comment-lines). The file-mo
   tools and compilers, so they are code. Each pattern applies only to the languages whose tools
   read it (``DIRECTIVE_SCOPES``): ``/// <summary>`` is a C# doc comment, a TypeScript directive.
   Patterns see one line at a time, so multi-line forms are matched by their lines: a JS block
-  line whose first word is ``eslint``, ``global`` or ``exported``, and a Go block comment whose
-  first content line is ``Output:``.
+  line whose first word is ``eslint``, ``global(s)``, ``exported``, ``jshint`` or ``jslint``,
+  and a Go block comment whose first content line is ``Output:``.
 - coding cookie: a PEP 263 ``# coding: x`` comment (Python) or an Emacs ``-*- coding: x -*-``
   line (any language) in lines 1-2 changes how the file is decoded.
 - template markers: ``{{``/``{%``/``{#`` in a comment run under Helm, Jinja and friends, but only
@@ -32,7 +32,10 @@ Common guards (every method: python-ast, ts-printer, comment-lines). The file-mo
 - make recipe line: a tab-indented ``# x`` inside a recipe is a shell command make echoes.
 - SQL ``--x``: MySQL needs whitespace after ``--``; otherwise it is two minus signs.
 
-Context guards (comment-lines only, via ``unsafe_insert_points``):
+Context guards (comment-lines only, run by ``context_guard``). It tests the position of every
+inserted chunk against the scanners that ``unsafe_insert_points`` also combines (it does not call
+that function), and tests the one position that depends on the text, below a YAML block scalar,
+against the inserted lines themselves:
 
 - line continuation: a new line after a base line ending in ``\\`` splits that statement.
 - verbatim regions: inside heredocs, block scalars, multi-line strings, raw strings, block
@@ -135,8 +138,8 @@ _DIRECTIVES: tuple[tuple[frozenset[str] | None, tuple[tuple[str, int], ...]], ..
             (r"/\*\s*(global|globals|exported|jshint|jslint)\b", 0),
             # Multi-line block forms: "/* eslint" alone on its line, or a later line of the block
             # whose first word (after an optional "*") is the directive keyword.
-            (r"/\*\s*(eslint|global|exported)\s*$", 0),
-            (r"^\s*\*?\s*(eslint|global|exported)(\s|$)", 0),
+            (r"/\*\s*(eslint|globals?|exported|jshint|jslint)\s*$", 0),
+            (r"^\s*\*?\s*(eslint|globals?|exported|jshint|jslint)(\s|$)", 0),
             (r"\b(istanbul|c8|v8)\s+ignore\b", 0),
             (r"deno-(lint|fmt)-ignore", 0),
             (r"@jsx\w*", 0),
