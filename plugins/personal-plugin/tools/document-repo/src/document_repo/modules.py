@@ -43,18 +43,19 @@ def slug(key: str) -> str:
 def _assign_ids(keys: list[str]) -> dict[str, str]:
     """Give each grouping key a distinct id, deterministically.
 
-    Keys are taken in sorted order. The root key takes "root" first. Every other key
+    Keys are taken in sorted order. "root" is reserved for the root key (top-level files),
+    even when that key is absent, so id "root" always means path ".". Every other key
     takes ``slug(key)``, with ``-2``, ``-3`` and so on appended until the id is free.
     Distinct keys can slug alike (``.config`` and ``config``, ``lib/foo`` and
     ``lib-foo``, ``_`` and the ``root`` fallback), so the suffix keeps ids unique.
     """
     ids: dict[str, str] = {}
-    taken: set[str] = set()
+    taken: set[str] = {ROOT_ID}
     for key in sorted(keys, key=lambda k: (k != ROOT_KEY, k)):
         base = ROOT_ID if key == ROOT_KEY else slug(key)
         candidate = base
         n = 2
-        while candidate in taken:
+        while candidate in taken and key != ROOT_KEY:
             candidate = f"{base}-{n}"
             n += 1
         taken.add(candidate)

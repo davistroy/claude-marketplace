@@ -104,7 +104,8 @@ def test_root_dir_is_not_merged_with_top_level_files() -> None:
 
 def test_root_dir_alone_is_its_own_module() -> None:
     mods = propose_modules(_inv_paths("root/a.py"))["modules"]
-    assert [(m["path"], m["files"]) for m in mods] == [("root", ["root/a.py"])]
+    # "root" is reserved for the repo root, so a lone root/ dir never takes it.
+    assert [(m["id"], m["path"], m["files"]) for m in mods] == [("root-2", "root", ["root/a.py"])]
 
 
 def test_dot_prefixed_and_plain_dir_get_distinct_ids() -> None:
