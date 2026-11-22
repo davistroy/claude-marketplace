@@ -42,7 +42,12 @@ def load_json(path: Path) -> Any:
 def _cmd_inventory(args: argparse.Namespace) -> int:
     from .inventory import build_inventory
 
-    emit(build_inventory(args.repo), args.out)
+    try:
+        inventory = build_inventory(args.repo)
+    except NotADirectoryError as exc:
+        print(f"inventory: {exc}", file=sys.stderr)
+        return 2
+    emit(inventory, args.out)
     return 0
 
 

@@ -1,8 +1,15 @@
 import json
+import os
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from document_repo.cli import main
-from document_repo.inventory import SKIP_REASONS, build_inventory
+from document_repo.inventory import SKIP_REASONS, build_inventory, count_lines, skip_reason
+
+# One MiB: the ceiling count_lines promises for any single read.
+_CHUNK = 1 << 20
 
 
 def _files() -> dict[str, str | bytes]:
@@ -79,3 +86,176 @@ def test_cli_inventory_writes_file(make_repo, tmp_path: Path) -> None:
     out = tmp_path / "out" / "inv.json"
     assert main(["inventory", str(repo), "--out", str(out)]) == 0
     assert json.loads(out.read_text())["summary"]["source_files"] == 1
+
+
+# --- Fix round 1 -----------------------------------------------------------
+
+
+class _SpyFile:
+    """Wraps a binary file and forbids line iteration, recording every read size."""
+
+    def __init__(self, fh: Any) -> None:
+        self._fh = fh
+        self.read_sizes: list[int] = []
+
+    def __enter__(self) -> "_SpyFile":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._fh.close()
+
+    def read(self, size: int = -1) -> bytes:
+        self.read_sizes.append(size)
+        data: bytes = self._fh.read(size)
+        return data
+
+    def __iter__(self) -> Any:
+        raise AssertionError("count_lines must not iterate lines")
+
+    def readline(self, *_: object) -> bytes:
+        raise AssertionError("count_lines must not read a whole line")
+
+    def readlines(self, *_: object) -> list[bytes]:
+        raise AssertionError("count_lines must not read every line")
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        (b"", 0),
+        (b"x", 1),
+        (b"a\nb", 2),
+        (b"a\n", 1),
+        (b"\n", 1),
+        (b"a\r\nb\r\n", 2),
+        # Chunk boundaries: the last byte of a chunk decides whether an unterminated line remains.
+        (b"a" * (_CHUNK - 1) + b"\n", 1),
+        (b"a" * (_CHUNK - 1) + b"\nb", 2),
+        (b"a" * _CHUNK + b"\n", 1),
+        (b"\n" * (_CHUNK + 1), _CHUNK + 1),
+        (b"a" * (_CHUNK + 1), 1),
+    ],
+)
+def test_count_lines(tmp_path: Path, content: bytes, expected: int) -> None:
+    f = tmp_path / "f.txt"
+    f.write_bytes(content)
+    assert count_lines(f) == expected
+
+
+def test_count_lines_reads_bounded_chunks_not_lines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    target = tmp_path / "big.txt"
+    # A 3 MiB first line, then one unterminated line: iterating lines would buffer the whole 3 MiB at once.
+    target.write_bytes(b"a" * (3 * _CHUNK) + b"\nb")
+    spies: list[_SpyFile] = []
+    real_open = Path.open
+
+    def spy_open(self: Path, *args: Any, **kwargs: Any) -> Any:
+        fh = real_open(self, *args, **kwargs)
+        if self == target:
+            spies.append(_SpyFile(fh))
+            return spies[-1]
+        return fh
+
+    monkeypatch.setattr(Path, "open", spy_open)
+    assert count_lines(target) == 2
+    sizes = spies[0].read_sizes
+    assert sizes and all(0 < size <= _CHUNK for size in sizes)
+
+
+def test_binary_files_report_zero_lines(make_repo) -> None:
+    inv = build_inventory(make_repo({"img.png": b"\x89PNG\x00\x00", "a.py": "x = 1\n"}))
+    by = {f["path"]: f for f in inv["files"]}
+    assert by["img.png"]["skip"] == "binary"
+    assert by["img.png"]["lines"] == 0
+    assert by["img.png"]["bytes"] == 6
+    assert by["a.py"]["lines"] == 1
+
+
+def test_inventory_rejects_missing_or_non_directory_root(tmp_path: Path) -> None:
+    with pytest.raises(NotADirectoryError):
+        build_inventory(tmp_path / "missing")
+    a_file = tmp_path / "f.py"
+    a_file.write_text("x = 1\n")
+    with pytest.raises(NotADirectoryError):
+        build_inventory(a_file)
+
+
+def test_cli_inventory_bad_repo_path_exits_2(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    missing = tmp_path / "missing"
+    out = tmp_path / "out" / "inv.json"
+    assert main(["inventory", str(missing), "--out", str(out)]) == 2
+    captured = capsys.readouterr()
+    assert captured.err.startswith("inventory: ")
+    assert str(missing) in captured.err
+    assert captured.out == ""
+    assert not out.exists()
+
+
+def test_walk_fallback_skips_dangling_symlink(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("x = 1\n")
+    try:
+        os.symlink(tmp_path / "does-not-exist", tmp_path / "dangling.py")
+    except (AttributeError, NotImplementedError, OSError):
+        pytest.skip("symlinks are not supported here")
+    paths = {f["path"] for f in build_inventory(tmp_path)["files"]}
+    assert paths == {"a.py"}
+
+
+def test_unreadable_file_is_skipped_as_binary(tmp_path: Path) -> None:
+    assert skip_reason(tmp_path, "gone.py") == "binary"
+
+
+def test_pyproject_with_non_table_project_is_ignored(make_repo) -> None:
+    inv = build_inventory(make_repo({"pyproject.toml": 'project = "x"\n'}))
+    assert inv["entry_candidates"] == []
+
+
+def test_pyproject_with_non_table_scripts_is_ignored(make_repo) -> None:
+    inv = build_inventory(make_repo({"pyproject.toml": '[project]\nname = "x"\nscripts = "x"\n'}))
+    assert inv["entry_candidates"] == []
+
+
+def test_invalid_pyproject_toml_is_ignored(make_repo) -> None:
+    inv = build_inventory(make_repo({"pyproject.toml": "[project\nname = \n"}))
+    assert inv["entry_candidates"] == []
+
+
+def test_manifests_honour_skip_dirs(make_repo) -> None:
+    inv = build_inventory(
+        make_repo(
+            {
+                "package.json": "{}",
+                "sub/pyproject.toml": "[project]\n",
+                "vendor/x/package.json": "{}",
+                "node_modules/y/package.json": "{}",
+                "explorer/package.json": "{}",
+            }
+        )
+    )
+    assert inv["manifests"] == ["package.json", "sub/pyproject.toml"]
+
+
+def test_root_file_named_explorer_is_not_a_skipped_dir(make_repo) -> None:
+    repo = make_repo({"explorer": "x\n", "src/explorer/ui.py": "x = 1\n"})
+    assert skip_reason(repo, "explorer") != "skipped-dir"
+    # Only the repo-root directory is the skill's output; a nested one is ordinary source.
+    assert skip_reason(repo, "src/explorer/ui.py") is None
+
+
+def test_skipped_dirs_are_not_entry_candidates(make_repo) -> None:
+    paths = {e["path"] for e in build_inventory(make_repo(_files()))["entry_candidates"]}
+    assert "src/main.py" in paths
+    assert "explorer/app.js" not in paths
+    assert "node_modules/pkg/index.js" not in paths
+
+
+def test_document_repo_dir_is_skipped_even_when_tracked(make_repo) -> None:
+    repo = make_repo({".document-repo/x.py": "x = 1\n", "a.py": "x = 1\n"})
+    by = {f["path"]: f for f in build_inventory(repo)["files"]}
+    assert by[".document-repo/x.py"]["skip"] == "skipped-dir"
+    assert by["a.py"]["skip"] is None
+
+
+def test_package_json_with_non_dict_scripts_and_string_bin(make_repo) -> None:
+    inv = build_inventory(make_repo({"package.json": json.dumps({"scripts": "start", "bin": "bin/t.js"})}))
+    assert inv["entry_candidates"] == [{"path": "package.json", "why": "package bin -> bin/t.js"}]

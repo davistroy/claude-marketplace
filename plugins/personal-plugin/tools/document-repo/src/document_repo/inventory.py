@@ -50,13 +50,29 @@ ENTRY_NAMES = frozenset({
 })
 MIGRATION_DIRS = frozenset({"migrations", "migration", "migrate"})
 HEAD_BYTES = 8192
+#: Largest single read count_lines makes, so memory stays flat however big the file is.
+CHUNK_BYTES = 1 << 20
+
+
+def _in_skipped_dir(parts: tuple[str, ...]) -> bool:
+    """True when a path, split into components, sits under a directory the skill never documents.
+
+    ``OUTPUT_DIR`` counts only as a directory at the repo root: a root *file* named
+    ``explorer`` has a single component and is not skipped, and ``src/explorer/`` is ordinary source.
+    """
+    if len(parts) > 1 and parts[0] == OUTPUT_DIR:
+        return True
+    return any(part in SKIP_DIRS for part in parts[:-1])
 
 
 def _walk(root: Path) -> Iterator[str]:
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for name in filenames:
-            yield Path(dirpath, name).relative_to(root).as_posix()
+            path = Path(dirpath, name)
+            # os.walk lists dangling symlinks (and sockets, FIFOs) as files; git mode filters them the same way.
+            if path.is_file():
+                yield path.relative_to(root).as_posix()
 
 
 def list_files(root: Path) -> list[str]:
@@ -76,15 +92,19 @@ def list_files(root: Path) -> list[str]:
 def skip_reason(root: Path, rel: str) -> str | None:
     """Return why ``rel`` must not be commented, or None when it should be."""
     parts = PurePosixPath(rel).parts
-    if parts[0] == OUTPUT_DIR or any(p in SKIP_DIRS for p in parts[:-1]):
+    if _in_skipped_dir(parts):
         return "skipped-dir"
     name = parts[-1]
     if name in LOCK_FILES or name.endswith(".lock"):
         return "lock-file"
     if name.endswith(MINIFIED_SUFFIXES):
         return "minified"
-    with (root / rel).open("rb") as fh:
-        head = fh.read(HEAD_BYTES)
+    try:
+        with (root / rel).open("rb") as fh:
+            head = fh.read(HEAD_BYTES)
+    except OSError:
+        # Unreadable (vanished, permission denied): nothing can be commented, and "binary" is the closest skip reason.
+        return "binary"
     if b"\0" in head:
         return "binary"
     if detect(rel) is None:
@@ -96,9 +116,18 @@ def skip_reason(root: Path, rel: str) -> str | None:
 
 
 def count_lines(path: Path) -> int:
-    """Count lines without loading the whole file (memory ceiling rule)."""
+    """Count lines by counting newline bytes in fixed-size chunks (memory ceiling rule).
+
+    Iterating lines would buffer an entire line at once, which for a minified or
+    single-line file is the whole file. A final line with no trailing newline still counts.
+    """
+    newlines = 0
+    last = b""
     with path.open("rb") as fh:
-        return sum(1 for _ in fh)
+        while chunk := fh.read(CHUNK_BYTES):
+            newlines += chunk.count(b"\n")
+            last = chunk[-1:]
+    return newlines + (1 if last and last != b"\n" else 0)
 
 
 def _is_migration(rel: str) -> bool:
@@ -137,7 +166,10 @@ def _pyproject_entries(root: Path, rel: str) -> list[dict[str, str]]:
         data = tomllib.loads((root / rel).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
-    scripts = data.get("project", {}).get("scripts", {})
+    project = data.get("project")
+    scripts = project.get("scripts") if isinstance(project, dict) else None
+    if not isinstance(scripts, dict):
+        return []
     return [{"path": rel, "why": f"console script {name} -> {target}"} for name, target in sorted(scripts.items())]
 
 
@@ -146,7 +178,7 @@ def entry_candidates(root: Path, files: list[str]) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
     for rel in files:
         p = PurePosixPath(rel)
-        if p.parts[0] == OUTPUT_DIR or any(part in SKIP_DIRS for part in p.parts[:-1]):
+        if _in_skipped_dir(p.parts):
             continue
         if p.name in ENTRY_NAMES and len(p.parts) <= 4:
             out.append({"path": rel, "why": "conventional entry-point name"})
@@ -160,8 +192,14 @@ def entry_candidates(root: Path, files: list[str]) -> list[dict[str, str]]:
 
 
 def build_inventory(root: Path) -> dict[str, Any]:
-    """Describe every file under ``root``. See the module docstring."""
+    """Describe every file under ``root``. See the module docstring.
+
+    Raises ``NotADirectoryError`` when ``root`` is not a directory, rather than
+    reporting an empty repo for a mistyped path.
+    """
     root = root.resolve()
+    if not root.is_dir():
+        raise NotADirectoryError(f"not a directory: {root}")
     rels = list_files(root)
     files: list[dict[str, Any]] = []
     by_lang: dict[str, int] = {}
@@ -171,7 +209,7 @@ def build_inventory(root: Path) -> dict[str, Any]:
         files.append({
             "path": rel,
             "lang": lang.name if lang else None,
-            "lines": count_lines(root / rel),
+            "lines": 0 if reason == "binary" else count_lines(root / rel),
             "bytes": (root / rel).stat().st_size,
             "skip": reason,
             "header_only": bool(reason is None and lang is not None and lang.name == "sql" and _is_migration(rel)),
@@ -181,7 +219,7 @@ def build_inventory(root: Path) -> dict[str, Any]:
     return {
         "root": str(root),
         "files": files,
-        "manifests": [r for r in rels if PurePosixPath(r).name in MANIFESTS],
+        "manifests": [r for r in rels if PurePosixPath(r).name in MANIFESTS and not _in_skipped_dir(PurePosixPath(r).parts)],
         "entry_candidates": entry_candidates(root, rels),
         "summary": {"total_files": len(files), "source_files": sum(by_lang.values()), "by_lang": dict(sorted(by_lang.items()))},
     }
