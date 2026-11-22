@@ -96,7 +96,7 @@ The skill uses `AskUserQuestion`, following house decision D64. It presents:
 - The write plan: how many files get comments, which folders get a README, the doc files to create or update, and the explorer views.
 - Any `not_analyzed` modules and any baseline test failures.
 
-Nothing is written into the target repo before the owner approves. The model itself is held in the run's scratch directory until then.
+Nothing is written into the target repo before the owner approves. The model itself is held in the run's scratch directory until then: `<target>/.document-repo/`, which ignores itself through a `.gitignore` holding `*`. It is not under `.git/`, because Claude Code blocks agent writes there.
 
 ### Phase 2 — Comments
 

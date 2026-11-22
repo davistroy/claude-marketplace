@@ -79,7 +79,7 @@ plugins/personal-plugin/.claude-plugin/plugin.json, .claude-plugin/marketplace.j
 - `line_map(before: list[str], after: list[str]) -> list[int]`; `remap_model(model: dict, repo: Path, new_ref: str) -> tuple[dict, list[str]]`.
 - `upsert_section(text: str, name: str, body: str) -> str`; `upsert_file(path: Path, name: str, body: str) -> None`.
 - `module_for(path: str, modules: list[dict]) -> str | None`; `compute_changes(repo: Path, state: dict, model: dict) -> dict`.
-- Run directory (scratch, never committed): `$(git -C "$TARGET" rev-parse --absolute-git-dir)/document-repo/`.
+- Run directory (scratch, never committed): `$TARGET/.document-repo/`, made self-ignoring by a `.gitignore` containing `*`. Not under `.git/`: Claude Code blocks agent writes inside `.git/`, which would stop subagents from saving their output.
 
 ---
 
@@ -689,7 +689,7 @@ SKIP_REASONS = frozenset({"skipped-dir", "lock-file", "minified", "binary", "no-
 SKIP_DIRS = frozenset({
     ".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", "coverage",
     ".next", ".nuxt", ".turbo", ".cache", "vendor", "third_party", ".mypy_cache",
-    ".pytest_cache", ".tox", "target",
+    ".pytest_cache", ".tox", "target", ".document-repo",
 })
 #: The skill's own output directory, skipped only at the repo root.
 OUTPUT_DIR = "explorer"
@@ -2152,7 +2152,7 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'document_repo.build'`
 ```python
 """Turn analysis output into the project model, and the model into explorer data.
 
-Flow inside a run directory (never committed; lives under .git/document-repo):
+Flow inside a run directory (<target>/.document-repo/, self-ignored, never committed):
 
     modules.final.json + modules/<id>.json + system.json
         --assemble_model-->  model.json (+ file-notes.json for commenters)
@@ -4034,12 +4034,14 @@ PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(find ~ -path '*/plugins/personal-plugin' -ty
 TOOL_SRC="$PLUGIN_DIR/tools/document-repo/src"
 SKILL_DIR="$PLUGIN_DIR/skills/document-repo"
 TARGET="$(git -C "${ARG_PATH:-.}" rev-parse --show-toplevel)"
-RUN_DIR="$(git -C "$TARGET" rev-parse --absolute-git-dir)/document-repo"
+RUN_DIR="$TARGET/.document-repo"
+mkdir -p "$RUN_DIR" && printf '*\n' > "$RUN_DIR/.gitignore"
 PYTHONPATH="$TOOL_SRC" python3 -m document_repo --version
 ```
 
-`ARG_PATH` is the path argument (default: current directory). `RUN_DIR` is
-inside `.git/`, so nothing in it is ever committed. If the version command
+`ARG_PATH` is the path argument (default: current directory). `RUN_DIR`
+ignores itself (its `.gitignore` holds `*`), so nothing in it is ever
+committed. It is not under `.git/` because agents may not write there. If the version command
 fails, stop and report: Python 3.10+ is required.
 
 Parse flags: `--update`, and `--phase comments|docs|explorer`. Do not combine
@@ -4406,7 +4408,7 @@ Before the run, confirm the session serves the branch's skill: `/help` must list
 ```bash
 cd ~/dev/doc-repo-trials/<repo>
 TOOL_SRC=/Users/troydavis/dev/personal/plugins/claude-marketplace/plugins/personal-plugin/tools/document-repo/src
-BASE=$(cat "$(git rev-parse --absolute-git-dir)/document-repo/base.txt")
+BASE=$(cat .document-repo/base.txt)
 test -z "$(git status --porcelain)" && echo "tree clean"
 # 1. Every source file changed since BASE is comment-only (worktree == HEAD when clean).
 PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo . --before "$BASE" --changed | python3 -c "import json,sys; r=json.load(sys.stdin); bad=[x for x in r if not x['ok']]; print(len(r),'checked',len(bad),'bad'); [print(b) for b in bad]"
@@ -4420,7 +4422,7 @@ Expected: `tree clean`, then `N checked 0 bad`; the after-run results equal the 
 
 - [ ] **Step 4: Check criterion 4 (comprehension)**
 
-Read `$(git rev-parse --absolute-git-dir)/document-repo/quiz-grade.json`. Target: score ≥ 9. If the score is lower, record the missed questions and the doc gap behind each in Entry 070. Fix the cause in the skill (prompts or templates), not in the trial repo, and re-run Phase 3 with `--phase docs`.
+Read `.document-repo/quiz-grade.json`. Target: score ≥ 9. If the score is lower, record the missed questions and the doc gap behind each in Entry 070. Fix the cause in the skill (prompts or templates), not in the trial repo, and re-run Phase 3 with `--phase docs`.
 
 - [ ] **Step 5: Check criterion 5 (update mode)**
 
