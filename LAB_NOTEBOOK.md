@@ -87,6 +87,7 @@ Decisions are tracked here with their lifecycle. When a decision is revisited, u
 | D70 | **Plan v14's Phase 6 runs unattended rather than behind a review gate**, despite carrying the plan's one Critical risk (the refusal guard that relocates from a top-level field into a delta event under streaming). | 2026-07-31 | ACTIVE | E068 | Pause before Phase 6 for a design walkthrough -- rejected by the owner: the phase's own DoD already mandates fixture-first ordering and a mutation test per guard, so the gate a human review would apply is already encoded and runnable. Pause at every phase -- rejected as disproportionate for 8 phases whose other 7 are low-risk. **Note the residual:** if the mutation tests are written to pass rather than to fail-first, nothing catches it; that is the specific thing to check at Phase 6 acceptance. |
 | D71 | **`CLAUDE.md`'s SKILL.md body-budget rule is re-framed as authoring quality, not context economy** — the harness loads a body only on invocation, so the always-loaded surface is the `description`, and the `<500`-line figure is an Anthropic authoring best-practice, not a platform limit. This is a REGRESSION in the repo's own understanding, not a new discovery: `LAB_NOTEBOOK.md:166` (E032) already recorded it as "a house rule, not a CI gate." | 2026-07-31 | ACTIVE | E068 | Delete the line budget outright -- rejected: Phase 7 still gates it, on the authoring-quality argument. Keep the context-economy rationale -- rejected as factually false. |
 | D72 | **Three of #198's four prose claims are refuted, and are recorded here rather than silently dropped.** Claim 1c is wrong: `sonnet-implementer.md:31`'s escalation trigger, confirmed by reading the file, is already doubly qualified as multi-file refactoring *with system-wide coupling not anticipated in the plan* — not multi-file-ness per se — which is why item 5.1 left that file byte-identical. Claim 3 is wrong twice over: "no escalation above Opus" is D15 (cross-ref below, text/status untouched), ACTIVE since 2026-05-10 with a recorded rejected alternative, and it is literally true for this repo, which has no fable-tier implementer agent and no mechanism to dispatch one. Claim 4's premise — "the advisory is satisfied by default now" — is unverifiable in-repo, since nothing here sets a session model, and the advisory it proposes to reword is D16 (cross-ref below, text/status untouched), whose deletion was already considered and rejected. Standing tier-calibration evidence, recorded with its denominator: across all archived plans, exactly **one escalation in 162 tiered items** — item 4.2's sonnet-to-opus step — attributable to a self-contradictory spec (the ≤500-line target conflicted with the byte-intact clause) rather than to model capability. | 2026-07-31 | ACTIVE | E068 | Silently drop the three refuted claims as filed -- rejected: a future reader who finds them undone with no explanation will simply re-derive them. Edit D15/D16's own text or status to reflect #198's framing -- rejected: both decisions remain ACTIVE and correct as originally written; #198 was wrong about them, not the reverse. |
+| D73 | **`document-repo` ships as ONE phased skill whose outputs (comments, docs, explorer) all derive from a single project model (`explorer/data/model.json`)**, with a fixed static explorer template (vanilla JS + vendored Mermaid), one owner gate after analysis, and a mechanical comments-only verifier per file | 2026-11-22 | ACTIVE | E069 | Three skills + orchestrator -- rejected: four components and a cross-skill model contract for no added ability (`--phase` covers solo runs). React/Vite explorer -- rejected: forces a Node toolchain on every target repo and breaks offline/private use. Per-phase re-analysis -- rejected: 3x cost and outputs that contradict each other. Gate per phase -- rejected: the verifier makes later phases safe by construction |
 
 Status values: ACTIVE · SUPERSEDED (by D#) · REVERSED (in E#) · OPEN (undecided, tracked)
 
@@ -1482,3 +1483,20 @@ The banner carries the Rule 4 bidirectional pointer: v13's outcome, its merge SH
 **Six follow-ups filed:** #241 (effort A/B, confound now removed), #242 (tier-boundary replay), #243 (`summarize-feedback` find gap), #244 (root CHANGELOG unguarded), #245 (promote research-sse to required), #246 (`planning.md` mints a no-op `effort: high`).
 
 **Status: COMPLETE.**
+
+--- New session: 2026-11-22 — brainstorm and spec a new `document-repo` skill (Mac, fresh clone) ---
+
+### Entry 069 — Design `document-repo`: comments + docs + interactive explorer from one project model [skill] [decision] [docs]
+
+**Date:** 2026-11-22
+**Environment:** macOS, fresh clone of `origin/main` `5c413c8`, branch `docs/document-repo-design`. personal-plugin 11.10.0. No plugin files changed.
+
+**Objective:** Record the approved design for a new skill that comments a target repo for junior devs and AI agents, writes READMEs/`AGENTS.md`/architecture docs, and builds an offline interactive explorer in `explorer/`.
+
+**Hypothesis:** Docs-only change. Success = spec at `docs/plans/2026-11-22-document-repo-design.md` passes markdownlint and the owner approves it before any implementation.
+
+**Rollback Plan:** `git checkout main && git branch -D docs/document-repo-design`. Nothing under `plugins/` is touched, so no version bump is needed.
+
+**Decisions:** D73 (see Decision Log). Owner choices: static explorer (A), `explorer/` folder (A), full run + `--update` (A), single phased skill (A), one gate after analysis. Test targets: `davistroy/open-brain` (public) and `davistroy/retire` (private -- explorer must make zero network requests).
+
+**Status:** Spec written; awaiting owner review. Next: `writing-plans` -> implementation plan.
