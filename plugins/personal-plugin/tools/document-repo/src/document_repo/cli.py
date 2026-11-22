@@ -214,6 +214,41 @@ def _register_upsert_section(sub: Any) -> None:
     p.set_defaults(func=_cmd_upsert_section)
 
 
+def _load_input(path: Path) -> Any:
+    """``load_json`` with the file named in the error: a parse error does not say which file."""
+    try:
+        return load_json(path)
+    except ValueError as exc:
+        raise ValueError(f"{path}: {exc}") from exc
+
+
+def _cmd_changes(args: argparse.Namespace) -> int:
+    from .changes import compute_changes
+    from .inventory import OUTPUT_DIR
+
+    data = (args.explorer_dir or args.repo / OUTPUT_DIR) / "data"
+    try:
+        state = _load_input(data / "state.json")
+        model = _load_input(data / "model.json")
+        result = compute_changes(args.repo, state, model)
+    except (ValueError, OSError) as exc:
+        sys.stderr.write(f"changes: {exc}\n")
+        return 2
+    emit(result)
+    return 0
+
+
+def _register_changes(sub: Any) -> None:
+    p = sub.add_parser("changes", help="modules affected since the docs were built")
+    p.add_argument("--repo", type=Path, required=True, help="top level of the git work tree")
+    p.add_argument(
+        "--explorer-dir",
+        type=Path,
+        help="holds data/state.json and data/model.json (REPO/explorer)",
+    )
+    p.set_defaults(func=_cmd_changes)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -228,6 +263,7 @@ def build_parser() -> argparse.ArgumentParser:
     _register_build(sub)
     _register_remap(sub)
     _register_upsert_section(sub)
+    _register_changes(sub)
     return parser
 
 
