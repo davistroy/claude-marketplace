@@ -1513,3 +1513,5 @@ The banner carries the Rule 4 bidirectional pointer: v13's outcome, its merge SH
 **Rollback Plan:** `git switch main && git branch -D feat/document-repo`. Acceptance trials run in throwaway clones under `~/dev/doc-repo-trials/`; delete that directory to undo. Nothing is pushed to open-brain or retire.
 
 **Results:** (log per task as it completes)
+
+- **Task 1 (scaffold, language table, CLI skeleton):** RED: `pytest -q --no-cov` failed at collection, `ModuleNotFoundError: No module named 'document_repo.cli'` and `'document_repo.languages'`. GREEN: 56 passed. `mypy src/ --ignore-missing-imports`: no issues in 4 source files. Commit on `feat/document-repo`; stdlib-only, no deps added. Attribution note: the task spec asked for `Co-Authored-By: Claude Opus 5.5`, while the session attribution reminder names Haiku 5.5; the spec's line was used.
