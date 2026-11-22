@@ -5,7 +5,9 @@ each file it compares the version at a base git ref with the working tree:
 
 - python-ast: parse both, drop docstrings, compare the syntax trees.
 - ts-printer: (JS/TS) re-print both with comments removed via the
-  TypeScript compiler and compare the text. There is no fallback: without
+  TypeScript compiler and compare the text. The file is parsed as its extension says
+  (``.ts``/``.mts``/``.cts`` TypeScript, ``.tsx`` TSX, ``.js``/``.mjs``/``.cjs`` JavaScript,
+  ``.jsx`` JSX; see ts_print.js). There is no fallback: without
   node and typescript a JS/TS file fails, because no line-based check can
   tell a comment from text inside a template literal, regex or JSX.
 - comment-lines: (everything else) a line diff may only INSERT lines, and
@@ -29,10 +31,14 @@ from __future__ import annotations
 
 import ast
 import difflib
+import functools
+import json
 import os
 import re
+import shutil
 import stat
 import subprocess
+import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -218,9 +224,125 @@ def _comment_lines(rel: str, before: str, after: str, lang: Lang) -> Result:
     return Result(rel, "comment-lines", True)
 
 
-def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
-    """Placeholder until Task 5: None means "the TypeScript compiler is not available"."""
+TS_SCRIPT = Path(__file__).with_name("ts_print.js")
+
+#: Seconds one printer run may take, and the V8 heap (MB) it may use. A run that exceeds either
+#: fails the file instead of hanging or growing past the per-process memory ceiling.
+TS_TIMEOUT = 120
+TS_HEAP_MB = 1024
+
+#: ``ts_print.js`` exit codes besides 0: it ran but could not print, and no typescript package.
+_TS_NOT_FOUND = 3
+_TS_TIMED_OUT = 124
+
+
+def node_binary() -> str | None:
+    return shutil.which("node")
+
+
+@functools.lru_cache(maxsize=1)
+def _npm_global_root() -> str | None:
+    npm = shutil.which("npm")
+    if npm is None:
+        return None
+    try:
+        proc = subprocess.run(
+            [npm, "root", "-g"], capture_output=True, text=True, errors="replace", timeout=30
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip() or None
+
+
+def ts_search_paths(repo: Path) -> list[str]:
+    """Where to look for the typescript package: repo first, then env, then global."""
+    paths = [str(repo)]
+    extra = os.environ.get("DOCUMENT_REPO_TS_PATHS")
+    if extra:
+        paths.extend(p for p in extra.split(os.pathsep) if p)
+    global_root = _npm_global_root()
+    if global_root:
+        paths.append(global_root)
+    return paths
+
+
+def _run_printer(
+    repo: Path, rel: str, before: str, after: str
+) -> subprocess.CompletedProcess[str] | None:
+    """Run ``ts_print.js`` on both texts. None means there is no ``node`` to run it with.
+
+    ``rel`` is only a name: its extension picks the script kind. The texts go through files as
+    bytes, so every ``\\r`` reaches TypeScript untouched (``write_text`` would turn each ``\\n``
+    into ``\\r\\n`` on Windows).
+    """
+    node = node_binary()
+    if node is None:
+        return None
+    with tempfile.TemporaryDirectory() as tmp:
+        a, b = Path(tmp, "before"), Path(tmp, "after")
+        a.write_bytes(before.encode("utf-8"))
+        b.write_bytes(after.encode("utf-8"))
+        cmd = [
+            node,
+            f"--max-old-space-size={TS_HEAP_MB}",
+            str(TS_SCRIPT),
+            json.dumps(ts_search_paths(repo)),
+            str(a),
+            str(b),
+            rel,
+        ]
+        try:
+            return subprocess.run(
+                cmd, capture_output=True, text=True, errors="replace", timeout=TS_TIMEOUT
+            )
+        except subprocess.TimeoutExpired:
+            return subprocess.CompletedProcess(
+                cmd, _TS_TIMED_OUT, "", f"timed out after {TS_TIMEOUT}s"
+            )
+
+
+def typescript_available(repo: Path) -> bool:
+    proc = _run_printer(repo, "probe.ts", "", "")
+    return proc is not None and proc.returncode == 0
+
+
+def _printer_verdict(stdout: str) -> tuple[bool, int, int] | None:
+    """Parse ``ts_print.js`` output into ``(equal, before_errors, after_errors)``, or None."""
+    try:
+        data = json.loads(stdout)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    equal, before_errors, after_errors = (
+        data.get(key) for key in ("equal", "before_errors", "after_errors")
+    )
+    if isinstance(equal, bool) and type(before_errors) is int and type(after_errors) is int:
+        return equal, before_errors, after_errors
     return None
+
+
+def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
+    """Printer-based proof for JS/TS. None means "printer unavailable" (verify_file then fails)."""
+    proc = _run_printer(repo, rel, before, after)
+    if proc is None or proc.returncode == _TS_NOT_FOUND:
+        return None
+    if proc.returncode != 0:
+        why = f"printer failed (exit {proc.returncode}): {proc.stderr.strip()[:500]}"
+        return Result(rel, "ts-printer", False, why)
+    verdict = _printer_verdict(proc.stdout)
+    if verdict is None:
+        return Result(rel, "ts-printer", False, "printer returned unreadable output")
+    equal, before_errors, after_errors = verdict
+    if after_errors > before_errors:
+        return Result(rel, "ts-printer", False, "edited version has new parse errors")
+    if equal:
+        return Result(rel, "ts-printer", True)
+    return Result(
+        rel, "ts-printer", False, "code changed (printed output differs with comments removed)"
+    )
 
 
 TS_MISSING = (

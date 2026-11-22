@@ -1043,14 +1043,22 @@ TS_MISSING = (
 )
 
 
+@pytest.fixture
+def no_node(monkeypatch) -> None:
+    """Make the machine look like it has no node, so ts-printer cannot run."""
+    import document_repo.verify as verify_mod
+
+    monkeypatch.setattr(verify_mod, "node_binary", lambda: None)
+
+
 # D1: JS/TS are verified only by ts-printer. Without it they fail; there is no fallback.
 @pytest.mark.parametrize("rel", ["a.ts", "a.tsx", "a.mts", "a.js", "a.jsx", "a.mjs", "a.cjs"])
-def test_js_ts_without_ts_printer_fail(make_repo, rel: str) -> None:
+def test_js_ts_without_ts_printer_fail(make_repo, no_node, rel: str) -> None:
     r = _run(make_repo, rel, "const a = 1;\n", "// Why: one.\nconst a = 1;\n")
     assert not r.ok and r.method == "none" and r.detail == TS_MISSING, (r.method, r.detail)
 
 
-def test_ts_pure_comment_insertion_fails_without_ts_printer(make_repo) -> None:
+def test_ts_pure_comment_insertion_fails_without_ts_printer(make_repo, no_node) -> None:
     before = "export function f(): number {\n  return 1;\n}\n"
     after = "/** Returns one. */\nexport function f(): number {\n  return 1;\n}\n"
     r = _run(make_repo, "a.ts", before, after)
