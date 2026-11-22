@@ -21,7 +21,8 @@ def emit(obj: Any, out: Path | None = None) -> None:
     """Write ``obj`` as pretty JSON to ``out``, or to stdout when ``out`` is None."""
     text = json.dumps(obj, indent=2, ensure_ascii=False) + "\n"
     if out is None:
-        # Write UTF-8 bytes directly: a Windows console may use a legacy code page that cannot encode the text.
+        # Write UTF-8 bytes directly: a Windows console may use a legacy code page that cannot
+        # encode the text.
         buffer = getattr(sys.stdout, "buffer", None)
         if buffer is not None:
             # Flush text already buffered on the text layer so output stays in order.
@@ -59,7 +60,9 @@ def _register_inventory(sub: Any) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="document_repo", description="Helpers for the document-repo skill.")
+    parser = argparse.ArgumentParser(
+        prog="document_repo", description="Helpers for the document-repo skill."
+    )
     parser.add_argument("--version", action="version", version=f"document_repo {__version__}")
     sub = parser.add_subparsers(dest="cmd", metavar="<command>")
     # SUBCOMMANDS — each later task adds one `_register_<name>(sub)` call here, in task order.

@@ -42,20 +42,39 @@ DOCKERFILE = Lang("dockerfile", ("#",), (), "comment-lines")
 MAKE = Lang("make", ("#",), (), "comment-lines")
 CSS = Lang("css", (), C_BLOCK, "comment-lines")
 HTML = Lang("html", (), (("<!--", "-->"),), "comment-lines")
-C_LIKE = {name: Lang(name, ("//",), C_BLOCK, "comment-lines") for name in ("go", "rust", "java", "c", "cpp", "csharp")}
+C_LIKE = {
+    name: Lang(name, ("//",), C_BLOCK, "comment-lines")
+    for name in ("go", "rust", "java", "c", "cpp", "csharp")
+}
 
 EXT: dict[str, Lang] = {
     ".py": PYTHON,
-    ".ts": TYPESCRIPT, ".tsx": TYPESCRIPT, ".mts": TYPESCRIPT, ".cts": TYPESCRIPT,
-    ".js": JAVASCRIPT, ".jsx": JAVASCRIPT, ".mjs": JAVASCRIPT, ".cjs": JAVASCRIPT,
+    ".ts": TYPESCRIPT,
+    ".tsx": TYPESCRIPT,
+    ".mts": TYPESCRIPT,
+    ".cts": TYPESCRIPT,
+    ".js": JAVASCRIPT,
+    ".jsx": JAVASCRIPT,
+    ".mjs": JAVASCRIPT,
+    ".cjs": JAVASCRIPT,
     ".sql": SQL,
-    ".sh": SHELL, ".bash": SHELL, ".zsh": SHELL,
-    ".yml": YAML, ".yaml": YAML,
+    ".sh": SHELL,
+    ".bash": SHELL,
+    ".zsh": SHELL,
+    ".yml": YAML,
+    ".yaml": YAML,
     ".toml": TOML,
-    ".css": CSS, ".scss": CSS,
-    ".html": HTML, ".htm": HTML,
-    ".go": C_LIKE["go"], ".rs": C_LIKE["rust"], ".java": C_LIKE["java"],
-    ".c": C_LIKE["c"], ".h": C_LIKE["c"], ".cpp": C_LIKE["cpp"], ".hpp": C_LIKE["cpp"],
+    ".css": CSS,
+    ".scss": CSS,
+    ".html": HTML,
+    ".htm": HTML,
+    ".go": C_LIKE["go"],
+    ".rs": C_LIKE["rust"],
+    ".java": C_LIKE["java"],
+    ".c": C_LIKE["c"],
+    ".h": C_LIKE["c"],
+    ".cpp": C_LIKE["cpp"],
+    ".hpp": C_LIKE["cpp"],
     ".cs": C_LIKE["csharp"],
 }
 

@@ -21,7 +21,8 @@ GIT = [
     "-c",
     "core.excludesFile=",
 ]
-# Ignore the developer's global/system git config so rules like a global `archive/` ignore cannot drop files.
+# Ignore the developer's global/system git config so rules like a global `archive/` ignore cannot
+# drop files.
 GIT_ENV = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
 
 

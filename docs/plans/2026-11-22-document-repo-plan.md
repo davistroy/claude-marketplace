@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Python `requires-python = ">=3.10"`; runtime `dependencies = []`; coverage `fail_under = 90`.
+- CI runs `ruff==0.14.10` (`ruff check` + `ruff format --check`, line length 100, rules E/F/W/I per root `ruff.toml`) on `plugins/*/tools/*/src` and `tests`. Run both from the repo root before every commit that touches Python.
 - Tool runs from source: `PYTHONPATH="$PLUGIN_DIR/tools/document-repo/src" python3 -m document_repo …`. Never declare tools in `plugin.json`.
 - Skill `name: document-repo` must equal the directory name.
 - `description` ≤1024 chars and contains **no colon-space** (it silently drops all frontmatter). Use em dashes.
