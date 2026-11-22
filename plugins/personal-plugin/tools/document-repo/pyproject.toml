@@ -33,6 +33,7 @@ document_repo = ["*.js"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+pythonpath = ["src"]
 addopts = "--cov=document_repo --cov-report=term-missing"
 
 [tool.coverage.run]

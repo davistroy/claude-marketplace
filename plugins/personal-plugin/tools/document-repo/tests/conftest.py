@@ -2,17 +2,33 @@
 
 from __future__ import annotations
 
+import itertools
+import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-GIT = ["git", "-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"]
+GIT = [
+    "git",
+    "-c",
+    "user.name=test",
+    "-c",
+    "user.email=test@example.com",
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "core.excludesFile=",
+]
+# Ignore the developer's global/system git config so rules like a global `archive/` ignore cannot drop files.
+GIT_ENV = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
 
 
 def run_git(repo: Path, *args: str) -> str:
-    return subprocess.run([*GIT, "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout
+    return subprocess.run(
+        [*GIT, "-C", str(repo), *args], check=True, capture_output=True, text=True, env=GIT_ENV
+    ).stdout
 
 
 def _write(repo: Path, files: dict[str, str | bytes]) -> None:
@@ -27,8 +43,11 @@ def _write(repo: Path, files: dict[str, str | bytes]) -> None:
 
 @pytest.fixture
 def make_repo(tmp_path: Path) -> Callable[[dict[str, str | bytes]], Path]:
+    counter = itertools.count(1)
+
     def _make(files: dict[str, str | bytes]) -> Path:
-        repo = tmp_path / "repo"
+        n = next(counter)
+        repo = tmp_path / ("repo" if n == 1 else f"repo{n}")
         repo.mkdir()
         run_git(repo, "init", "-q", "-b", "main")
         _write(repo, files)

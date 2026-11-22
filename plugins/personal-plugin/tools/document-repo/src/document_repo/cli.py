@@ -21,7 +21,13 @@ def emit(obj: Any, out: Path | None = None) -> None:
     """Write ``obj`` as pretty JSON to ``out``, or to stdout when ``out`` is None."""
     text = json.dumps(obj, indent=2, ensure_ascii=False) + "\n"
     if out is None:
-        sys.stdout.write(text)
+        # Write UTF-8 bytes directly: a Windows console may use a legacy code page that cannot encode the text.
+        buffer = getattr(sys.stdout, "buffer", None)
+        if buffer is not None:
+            buffer.write(text.encode("utf-8"))
+            buffer.flush()
+        else:
+            sys.stdout.write(text)
         return
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
