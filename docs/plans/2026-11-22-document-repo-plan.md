@@ -4452,3 +4452,90 @@ Claude-Session: https://claude.ai/code/session_01BZtDbTtVRje5x94myi9V7i"
 ```
 
 Do not push the marketplace branch or open a PR until the owner asks.
+
+---
+
+## Addendum A (added during execution, 2026-11-22)
+
+Task 4 shipped as written, then probing found false passes in the comment-only verifier. Task 4b hardens it. Its full brief is reproduced below.
+
+### Task 4b: Verifier hardening (added during execution)
+
+**Why:** Task 4's verifier gives false passes. They were found by probing (see `.superpowers/sdd/task-4-report.md`, "Concerns"). The verifier is the skill's safety promise: "every source edit is comment-only." A false pass ships a behaviour change. A false failure costs only one reverted file. So **when in doubt, fail.**
+
+**Files:**
+- Create: `plugins/personal-plugin/tools/document-repo/src/document_repo/guards.py` (context guards, so `verify.py` stays focused)
+- Modify: `plugins/personal-plugin/tools/document-repo/src/document_repo/verify.py` (call the guards)
+- Test: `plugins/personal-plugin/tools/document-repo/tests/test_guards.py` (and add to `tests/test_verify.py` where it is end-to-end)
+
+**Interfaces:**
+- Consumes: `languages.Lang`, `detect`, `verify.Result`, and the existing `_python`, `_comment_lines` and `_ts_verify` (stub).
+- Produces (in `guards.py`):
+  - `DIRECTIVE_PATTERNS: tuple[re.Pattern[str], ...]`
+  - `inserted_lines(before: str, after: str) -> list[tuple[int, int, list[str]]]`. Returns `(base_insert_pos, edited_start_line_1based, lines)` for every `insert` **and** the `b` side of every `replace` opcode (`difflib.SequenceMatcher(autojunk=False)` on `splitlines()`).
+  - `common_guards(rel: str, before: str, after: str, lang: Lang) -> str | None`. Returns a failure detail, or None when clean.
+  - `unsafe_insert_points(lines: list[str], lang: Lang) -> set[int]`. Position `k` means "a new line placed before base line k" (0..len(lines)).
+- `verify_file` behaviour: after the method-specific check passes, run `common_guards`. For the `comment-lines` method, also fail any insert whose base position is in `unsafe_insert_points`. The `Result.method` stays the method name, and `detail` names the guard that failed.
+
+#### Required behaviour
+
+Every rule below gets at least one test that FAILS on the current code (a false pass today) and passes after the change. Show RED for each. Add positive tests too, so that ordinary comment insertions in each language still pass. Do not break any existing test.
+
+### A. Common guards (all methods: python-ast, ts-printer, comment-lines)
+
+1. **Line endings changed.** Fail with `line endings changed` when `("\r\n" in before) != ("\r\n" in after)`. Read both texts in a way that keeps `\r`: `git_show` decodes bytes, so it keeps them; read the working-tree file with `newline=""`, or read bytes and decode.
+2. **Directive-like inserted comment.** Fail with `inserted directive-like comment: <line>` when any inserted line matches a `DIRECTIVE_PATTERNS` entry. These comments change tool or compiler behaviour. Cover at least:
+   - Python and lint: `# noqa`, `# type: ignore`, `# pylint:`, `# fmt:`, `# isort:`, `# pyright:`, `# mypy:`, `# pragma:`
+   - JS and TS: `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck`, `@ts-check`, `eslint-disable`, `eslint-enable`, `prettier-ignore`, `istanbul ignore`, `c8 ignore`, `biome-ignore`, `@jsx`, `@jsxImportSource`, `@jsxRuntime`, `@flow`, and triple-slash `/// <`
+   - Go: `//go:` and `// +build`; also `//line `
+   - Shell: `# shellcheck `
+   - SQL: MySQL `/*!`
+   - Any line starting `#!` (shebang)
+   - A Python/Emacs/Vim coding cookie, `coding[:=]`, on an inserted line that lands in edited lines 1–2
+   - Dockerfile parser directives `# syntax=`, `# escape=` and `# check=` (match case-insensitively, with spaces allowed)
+3. **Continuation-ending comment.** Fail with `comment ends with a line continuation` when an inserted line, after `rstrip()`, ends with `\`.
+4. **Protected file header.** Fail with `inserted above a protected header line` when an insert's base position is ≤ the index of the last protected leading line of the base. Protected leading lines:
+   - A shebang at base line 0.
+   - A coding cookie at base line 0 or 1.
+   - For Dockerfiles, the run of parser-directive lines at the top. The directives stop counting once any non-directive line appears.
+
+   Inserting **after** the protected lines is fine.
+
+### B. Python docstrings (python-ast only)
+
+5. **Existing docstrings are frozen.** Before stripping docstrings, collect them from both trees, keyed by node path. The key is the chain of `ClassDef`/`FunctionDef`/`AsyncFunctionDef` names from the module down, with an occurrence index to disambiguate duplicates; the module docstring uses key `()`. Every docstring present in **before** must be present, identical, in **after**. Otherwise fail with `existing docstring changed: <key>`. New docstrings on nodes that had none are allowed.
+
+### C. Context guards (comment-lines only) — `unsafe_insert_points`
+
+6. **Line continuation.** Position `k` is unsafe if base line `k-1` (after `rstrip()`) ends with `\`.
+7. **Verbatim regions.** Position `k` is unsafe if base line `k-1` ends inside a region where text is literal. A new line there would become data, not a comment. Implement a small line scanner per language. It must ignore openers that appear inside that language's own comments.
+   - **shell / dockerfile / make:** heredocs `<<WORD`, `<<-WORD`, `<<'WORD'`, `<<"WORD"`. The region ends at the line whose `strip()` equals `WORD` (for `<<-`, leading tabs are allowed). Make: `define` … `endef`.
+   - **yaml:** block scalars. A line ending with `|` or `>` (with optional chomping or indent indicators, then an optional comment) after `key:` or `- ` opens a block. It continues over blank lines and lines indented more than the opener line. Positions from the line after the opener through **one past** the block's last line are unsafe. A deeper-indented line placed right after the block would join it.
+   - **sql:** single-quoted strings spanning lines (`''` is an escaped quote) and dollar-quoted strings `$tag$ … $tag$` (the tag may be empty). Skip `--` line comments and `/* */` blocks while scanning.
+   - **toml:** multi-line basic `"""` and literal `'''` strings.
+   - **go:** backtick raw strings.
+   - **java / csharp:** text blocks and raw strings `"""`.
+   - **cpp:** raw strings `R"delim( … )delim"`.
+   - **rust:** raw strings `r"…"`, `r#"…"#` (any number of `#`).
+   - **javascript / typescript** (when they fall back to comment-lines): template literals in backticks. Track `\`` escapes and `${ … }` nesting at least well enough that a multi-line template literal is detected.
+   - **html:** the interior of `<script>`, `<style>`, `<pre>` and `<textarea>` elements (case-insensitive tags).
+   - **css, c:** none beyond the continuation rule.
+
+   When a scanner cannot be sure (for example, unbalanced quotes at end of file), treat the rest of the file as unsafe. Fail closed.
+
+### D. Wiring and reporting
+
+- In `verify_file`, run the method check first. If it passes, run `common_guards`; for comment-lines, also run the unsafe-position check. Return the first failure.
+- Keep `verify.py` readable. The guards live in `guards.py` with a module docstring that explains each rule and why it exists, one line per rule.
+- Every new public function has a docstring.
+
+#### Constraints
+
+- Python ≥3.10, stdlib only. Coverage gate 90 (`pytest -q` in the tool dir). `mypy src/ --ignore-missing-imports` must be clean. `ruff check` and `ruff format --check` on `plugins/personal-plugin/tools/document-repo/src` and `tests` (from the repo root, line length 100) must be clean.
+- Do not weaken any existing test or assertion.
+- Commit once with a message ending in exactly:
+
+  ```text
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  Claude-Session: https://claude.ai/code/session_01BZtDbTtVRje5x94myi9V7i
+  ```
