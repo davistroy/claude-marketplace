@@ -170,6 +170,7 @@ HEADER = "inserted above a protected header line"
 EOL = "line endings changed"
 VERBATIM = "inside a verbatim region"
 AFTER_CONT = "after a line continuation"
+BLOCK_TAIL = "would join the block scalar"
 
 FALSE_PASSES = [
     # A1: line endings.
@@ -342,7 +343,7 @@ FALSE_PASSES = [
         "ci.yml",
         "a:\n  run: |\n    make\n  b: 1\n",
         "a:\n  run: |\n    make\n    # c\n  b: 1\n",
-        VERBATIM,
+        BLOCK_TAIL,
     ),
     ("yaml-folded-after-dash", "ci.yml", "- >-\n  text\n", "- >-\n  # c\n  text\n", VERBATIM),
     ("yaml-quoted-multiline", "c.yml", 'k: "a\n  b"\n', 'k: "a\n  # c\n  b"\n', VERBATIM),
@@ -689,3 +690,113 @@ def test_guard_runs_after_any_passing_method(make_repo, monkeypatch) -> None:
     monkeypatch.setattr(verify_mod, "_ts_verify", fake_ts)
     r = _run(make_repo, "a.ts", "f();\n", "// @ts-ignore\nf();\n")
     assert not r.ok and r.method == "ts-printer" and DIRECTIVE in r.detail, r.detail
+
+
+# ---------------------------------------------------------------------------
+# Fix round 1. Item 1: C# XML doc comments pass; the triple-slash pattern is TS/JS only.
+# Item 2: a comment right after a YAML block scalar passes unless it is indented deeper than the
+# opener line.
+# ---------------------------------------------------------------------------
+
+CS_BEFORE = "class Calc {\n    public int Add(int a, int b) {\n        return a + b;\n    }\n}\n"
+CS_AFTER = (
+    "class Calc {\n"
+    "    /// <summary>\n"
+    "    /// Adds two numbers.\n"
+    "    /// </summary>\n"
+    '    /// <param name="a">Left operand.</param>\n'
+    '    /// <param name="b">Right operand.</param>\n'
+    "    /// <returns>The sum.</returns>\n"
+    "    public int Add(int a, int b) {\n        return a + b;\n    }\n}\n"
+)
+
+
+def test_csharp_xml_doc_comments_pass(make_repo) -> None:
+    r = _run(make_repo, "Calc.cs", CS_BEFORE, CS_AFTER)
+    assert r.ok and r.method == "comment-lines", (r.method, r.detail)
+
+
+@pytest.mark.parametrize("rel", ["a.ts", "a.tsx", "a.mts", "a.js", "a.jsx", "a.mjs"])
+def test_triple_slash_directive_still_fails_in_js_and_ts(make_repo, rel: str) -> None:
+    r = _run(make_repo, rel, "f();\n", '/// <reference path="x" />\nf();\n')
+    assert not r.ok and DIRECTIVE in r.detail, (r.method, r.detail)
+
+
+@pytest.mark.parametrize(
+    "rel,before,after",
+    [
+        ("m.go", "package m\n\nfunc F() {}\n", "package m\n\n// F does nothing.\nfunc F() {}\n"),
+        ("a.rs", "fn f() {}\n", "// Does nothing.\nfn f() {}\n"),
+        ("A.java", "class A {\n  int x;\n}\n", "class A {\n  // The count.\n  int x;\n}\n"),
+        (
+            "m.c",
+            "int main(void) {\n  return 0;\n}\n",
+            "// Entry point.\nint main(void) {\n  return 0;\n}\n",
+        ),
+        ("a.cpp", "int main() {}\n", "// Entry point.\nint main() {}\n"),
+        ("A.cs", "class A {\n  int x;\n}\n", "class A {\n  // The count.\n  int x;\n}\n"),
+    ],
+    ids=["go", "rust", "java", "c", "cpp", "csharp"],
+)
+def test_c_family_slash_comment_insertions_pass(
+    make_repo, rel: str, before: str, after: str
+) -> None:
+    r = _run(make_repo, rel, before, after)
+    assert r.ok and r.method == "comment-lines", (r.method, r.detail)
+
+
+GHA_BEFORE = (
+    "name: ci\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"
+    "      - run: |\n          make build\n          make test\n"
+    "      - name: next\n        run: echo done\n"
+)
+
+
+def _gha_with(inserted: list[str], at: int) -> str:
+    lines = GHA_BEFORE.splitlines()
+    return "\n".join([*lines[:at], *inserted, *lines[at:]]) + "\n"
+
+
+def test_yaml_comment_after_block_at_step_indent_passes(make_repo) -> None:
+    # Directly above "- name: next", at the same indentation as "- name:" (and "- run:").
+    r = _run(make_repo, "ci.yml", GHA_BEFORE, _gha_with(["      # Report the result."], 9))
+    assert r.ok and r.method == "comment-lines", (r.method, r.detail)
+
+
+def test_yaml_comment_after_block_dedented_passes(make_repo) -> None:
+    r = _run(make_repo, "ci.yml", GHA_BEFORE, _gha_with(["    # Steps continue.", ""], 9))
+    assert r.ok, (r.method, r.detail)
+
+
+def test_yaml_comment_after_block_deeper_than_run_key_fails(make_repo) -> None:
+    # "run:" is at column 8; a comment at column 10 is content of the literal block.
+    r = _run(make_repo, "ci.yml", GHA_BEFORE, _gha_with(["          # Report the result."], 9))
+    assert not r.ok and BLOCK_TAIL in r.detail, (r.method, r.detail)
+
+
+@pytest.mark.parametrize("indent", [7, 8, 10, 12])
+def test_yaml_comment_after_block_deeper_than_opener_fails(make_repo, indent: int) -> None:
+    # The threshold is the opener LINE's indent (6 here), not the key column, so it fails closed.
+    r = _run(make_repo, "ci.yml", GHA_BEFORE, _gha_with([" " * indent + "# Report."], 9))
+    assert not r.ok and BLOCK_TAIL in r.detail, (r.method, r.detail)
+
+
+def test_yaml_comment_inside_block_fails(make_repo) -> None:
+    r = _run(make_repo, "ci.yml", GHA_BEFORE, _gha_with(["          # Note."], 8))
+    assert not r.ok and VERBATIM in r.detail, (r.method, r.detail)
+
+
+def test_yaml_comment_before_first_block_line_fails(make_repo) -> None:
+    r = _run(make_repo, "ci.yml", GHA_BEFORE, _gha_with(["      # Note."], 7))
+    assert not r.ok and VERBATIM in r.detail, (r.method, r.detail)
+
+
+def test_yaml_comment_appended_after_final_block_passes(make_repo) -> None:
+    r = _run(make_repo, "ci.yml", "run: |\n  make\n", "run: |\n  make\n# The end.\n")
+    assert r.ok, (r.method, r.detail)
+
+
+def test_yaml_blank_line_after_keep_block_fails(make_repo) -> None:
+    before = "run: |+\n  make\nname: x\n"
+    r = _run(make_repo, "ci.yml", before, "run: |+\n  make\n\nname: x\n")
+    assert not r.ok and "keep-chomped" in r.detail, (r.method, r.detail)
