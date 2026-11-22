@@ -358,7 +358,10 @@ def test_directive_patterns_is_every_scoped_pattern() -> None:
     + ["s.css", "i.html", "m.go", "a.rs", "A.java", "m.c", "a.cpp", "A.cs"],
 )
 @pytest.mark.parametrize(
-    "line", ["noqa", "prettier-ignore", "biome-ignore lint: x", "{{ x }}", "@generated", "nolint"]
+    # "{{ x }}" left this list in fix round 2 (item 7): template markers apply only in template
+    # files; see test_template_braces_fail_where_templates_are_evaluated.
+    "line",
+    ["noqa", "prettier-ignore", "biome-ignore lint: x", "@generated", "nolint"],
 )
 def test_cross_language_directives_apply_to_every_language(rel: str, line: str) -> None:
     why = common_guards(rel, "x\n", f"{line}\nx\n", lang_for(rel))
@@ -480,3 +483,156 @@ def test_yaml_unanchored_block_header_keeps_the_old_rule(before: str, after: str
 )
 def test_yaml_anchored_block_header_gets_the_new_rule(before: str, after: str) -> None:
     assert context_guard(before, after, lang("yaml")) is None
+
+
+# ---------------------------------------------------------------------------
+# Fix round 2 (review findings).
+# ---------------------------------------------------------------------------
+
+
+# Item 1 (unit): comment_chunk_ok counts nesting depth for nesting languages.
+def test_comment_chunk_counts_nesting_depth() -> None:
+    from document_repo.verify import comment_chunk_ok
+
+    for name in ("sql", "rs"):
+        lg = lang(name)
+        assert comment_chunk_ok(["/* a /* b */ c */"], lg) == (True, "")
+        assert comment_chunk_ok(["/* a", "/* b */", "c */"], lg) == (True, "")
+        ok, why = comment_chunk_ok(["/* staging/*.csv */"], lg)
+        assert not ok and why == "unterminated block comment in inserted lines"
+        ok, why = comment_chunk_ok(["/* a */ */"], lg)
+        assert not ok and "code after" in why
+    assert comment_chunk_ok(["/* staging/*.csv */"], lang("css")) == (True, "")
+
+
+# Item 3 (unit): the Go example-output run, from "// Output:" through the closing "}".
+def test_go_example_output_points() -> None:
+    text = (
+        "package x\n\nfunc ExampleF() {\n\tf()\n\t// Output:\n\t// 1\n}\n\n"
+        "func ExampleG() {\n\tg()\n}\n"
+    )
+    # Line 4 is "// Output:", line 6 the closing "}": positions 4..6 are unsafe.
+    assert {4, 5, 6} <= unsafe(text, "x_test.go")
+    assert not {0, 1, 2, 3, 7, 8, 9, 10, 11} & unsafe(text, "x_test.go")
+
+
+def test_go_output_without_closing_brace_fails_closed() -> None:
+    text = "func ExampleF() {\n\tf()\n\t// Output:\n\t// 1\n"
+    assert {2, 3, 4} <= unsafe(text, "x_test.go")
+
+
+def test_go_output_comment_outside_example_is_plain() -> None:
+    text = "func helper() {\n\tf()\n\t// Output: is logged\n}\nvar x = 1\n"
+    assert not unsafe(text, "m.go")
+
+
+# Item 5 (unit): YAML tabs.
+def test_yaml_tab_in_inserted_indentation_fails() -> None:
+    y = lang("yaml")
+    why = common_guards("ci.yml", "a: 1\n", "\t# c\na: 1\n", y)
+    assert why and "tab" in why, why
+    assert common_guards("ci.yml", "a: 1\n", "  # c\ta tab inside is fine\na: 1\n", y) is None
+    # Tabs are only a YAML rule: shell and make have their own tab handling.
+    assert common_guards("a.sh", "echo a\n", "\t# c\necho a\n", lang("sh")) is None
+
+
+# Item 6: a language with no scanner fails closed at every position.
+def test_unknown_scanner_language_fails_closed() -> None:
+    from document_repo.languages import Lang
+
+    fake = Lang("klingon", ("#",), (), "comment-lines")
+    assert unsafe_insert_points(["a", "b"], fake) == {0, 1, 2}
+    why = context_guard("a\nb\n", "a\n# c\nb\n", fake)
+    assert why and "verbatim" in why, why
+
+
+# Item 7: directive patterns that were too broad.
+@pytest.mark.parametrize(
+    "rel,line",
+    [
+        ("a.js", "// Shared eslint configuration"),
+        ("a.ts", "// eslint runs in CI"),
+        ("a.js", "/* Lint with eslint before committing. */"),
+        ("ci.yml", "# Encoding: UTF-8"),
+        ("ci.yml", "# coding: latin-1 is not read by YAML"),
+        ("a.sh", "# encoding=utf-8 for the output"),
+        ("A.java", "// Transcoding: helpers"),
+        ("m.py", "# {{ name }} is filled in by the caller"),
+        ("values.yaml", "# {{ .Values.x }} is rendered by the chart's templates"),
+        ("m.go", "// {{.Name}} is a text/template action"),
+    ],
+)
+def test_round2_prose_is_not_a_directive(rel: str, line: str) -> None:
+    assert common_guards(rel, "x\n", f"{line}\nx\n", lang_for(rel)) is None
+
+
+@pytest.mark.parametrize(
+    "rel,line",
+    [
+        ("a.js", "// eslint-disable-line"),
+        ("a.js", "/* eslint-disable */"),
+        ("a.js", "// eslint-enable no-console"),
+        ("a.js", "/* eslint quotes: off */"),
+        ("a.js", "/*eslint quotes: off*/"),
+        ("a.js", "/* eslint-env node */"),
+        ("m.py", "# -*- coding: latin-1 -*-"),
+        ("m.py", "# vim: set fileencoding=ascii :"),
+        ("ci.yml", "# -*- coding: latin-1 -*-"),
+        ("a.sh", "# -*- mode: sh; coding: utf-8 -*-"),
+    ],
+)
+def test_round2_real_directives_still_fail(rel: str, line: str) -> None:
+    why = common_guards(rel, "x\n", f"{line}\nx\n", lang_for(rel))
+    assert why is not None and DIRECTIVE in why, why
+
+
+def test_yaml_encoding_note_is_not_a_protected_header() -> None:
+    before = "# Encoding: UTF-8\na: 1\n"
+    assert common_guards("ci.yml", before, "# CI settings.\n" + before, lang("yaml")) is None
+    emacs = "# -*- coding: latin-1 -*-\na: 1\n"
+    why = common_guards("ci.yml", emacs, "# CI settings.\n" + emacs, lang("yaml"))
+    assert why and "protected header" in why, why
+
+
+@pytest.mark.parametrize(
+    "rel,before",
+    [
+        ("i.html", "<p>x</p>\n"),
+        ("chart/templates/deploy.yaml", "kind: Deployment\n"),
+        ("deploy.yaml", "image: {{ .Values.image }}\n"),
+        ("{{cookiecutter.slug}}/m.py", "x = 1\n"),
+        ("m.py", "T = '{% if x %}'\n"),
+    ],
+    ids=["html", "helm-templates-dir", "base-is-a-template", "cookiecutter-path", "jinja-in-py"],
+)
+def test_template_braces_fail_where_templates_are_evaluated(rel: str, before: str) -> None:
+    after = f"# {{{{ x }}}}\n<!-- {{{{ x }}}} -->\n{before}"
+    why = common_guards(rel, before, after, lang_for(rel))
+    assert why is not None and DIRECTIVE in why, why
+
+
+# Items 8, 9, 10: guards.py hygiene.
+GUARDS_SRC = guards_mod.__file__
+
+
+def test_guards_source_has_no_literal_bom() -> None:
+    with open(GUARDS_SRC, "rb") as fh:
+        assert b"\xef\xbb\xbf" not in fh.read()
+
+
+def test_guards_source_has_no_type_comments() -> None:
+    import io
+    import tokenize
+
+    with open(GUARDS_SRC, encoding="utf-8") as fh:
+        tokens = list(tokenize.generate_tokens(io.StringIO(fh.read()).readline))
+    comments = [t.string for t in tokens if t.type == tokenize.COMMENT]
+    assert not [c for c in comments if re.match(r"#\s*type\s*:", c)]
+
+
+def test_guards_source_has_no_assert_statements() -> None:
+    import ast
+
+    with open(GUARDS_SRC, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    assert not [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Assert)]

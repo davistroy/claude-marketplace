@@ -4,7 +4,7 @@ import pytest
 
 from document_repo.cli import main
 from document_repo.languages import detect
-from document_repo.verify import changed_source_files, comment_chunk_ok, verify_file
+from document_repo.verify import changed_files, comment_chunk_ok, verify_file
 
 BASE_PY = "def add(a, b):\n    return a + b\n"
 
@@ -102,14 +102,14 @@ def test_comment_chunk_block_end_must_close_line() -> None:
     assert not ok and "code after" in why
 
 
-def test_changed_source_files(make_repo) -> None:
+def test_changed_files(make_repo) -> None:
     repo = make_repo(
         {"a.py": "x = 1\n", "README.md": "# r\n", "explorer/x.js": "x\n", "b.py": "y = 1\n"}
     )
     (repo / "a.py").write_text("# c\nx = 1\n")
     (repo / "README.md").write_text("# r2\n")
     (repo / "explorer/x.js").write_text("y\n")
-    assert changed_source_files(repo, "HEAD") == ["a.py"]
+    assert changed_files(repo, "HEAD") == ["a.py"]
 
 
 def test_cli_verify_exit_codes(make_repo, capsys) -> None:
@@ -800,3 +800,275 @@ def test_yaml_blank_line_after_keep_block_fails(make_repo) -> None:
     before = "run: |+\n  make\nname: x\n"
     r = _run(make_repo, "ci.yml", before, "run: |+\n  make\n\nname: x\n")
     assert not r.ok and "keep-chomped" in r.detail, (r.method, r.detail)
+
+
+# ---------------------------------------------------------------------------
+# Fix round 2 (review findings).
+# ---------------------------------------------------------------------------
+
+UNTERMINATED = "unterminated block comment in inserted lines"
+
+
+# Item 1: SQL (PostgreSQL) and Rust nest /* */, so "/*" inside a comment opens another level.
+@pytest.mark.parametrize(
+    "rel,before,comment",
+    [
+        ("q.sql", "select 1;\nselect 2;\n", "/* Imports staging/*.csv */"),
+        ("m.rs", "fn main() {}\n", "/* Reads src/*.rs at build time */"),
+        ("m.rs", "fn main() {}\n", "/* a /* b */"),
+    ],
+    ids=["sql-glob", "rust-glob", "rust-unbalanced"],
+)
+def test_nested_block_glob_comment_fails(make_repo, rel: str, before: str, comment: str) -> None:
+    r = _run(make_repo, rel, before, f"{comment}\n{before}")
+    assert not r.ok and UNTERMINATED in r.detail, (r.method, r.detail)
+
+
+@pytest.mark.parametrize("rel,before", [("q.sql", "select 1;\n"), ("m.rs", "fn main() {}\n")])
+@pytest.mark.parametrize(
+    "comment",
+    ["/* a /* b */ c */", "/* a\n   /* b */\n   c */", "/*/* x */*/"],
+    ids=["one-line", "multi-line", "tight"],
+)
+def test_properly_nested_block_comment_passes(
+    make_repo, rel: str, before: str, comment: str
+) -> None:
+    r = _run(make_repo, rel, before, f"{comment}\n{before}")
+    assert r.ok, (r.method, r.detail)
+
+
+def test_nested_block_code_after_close_fails(make_repo) -> None:
+    r = _run(make_repo, "m.rs", "fn main() {}\n", "/* a /* b */ c */ fn x() {}\nfn main() {}\n")
+    assert not r.ok and "code after" in r.detail, (r.method, r.detail)
+
+
+@pytest.mark.parametrize(
+    "rel,before",
+    [("s.css", "a { color: red; }\n"), ("A.java", "class A {}\n"), ("m.c", "int x;\n")],
+)
+def test_glob_comment_passes_in_non_nesting_languages(make_repo, rel: str, before: str) -> None:
+    r = _run(make_repo, rel, before, f"/* Imports staging/*.csv */\n{before}")
+    assert r.ok, (r.method, r.detail)
+
+
+def test_nested_block_flag_is_set_for_sql_and_rust_only() -> None:
+    from document_repo.languages import EXT, NAMES
+
+    nesting = {lg.name for lg in (*EXT.values(), *NAMES.values()) if lg.nested_block}
+    assert nesting == {"sql", "rust"}
+
+
+# Item 2: verify --changed covers every changed or untracked file but docs and explorer output.
+def _changed_repo(make_repo):
+    repo = make_repo(
+        {
+            "package.json": "{}\n",
+            "a.rb": "x = 1\n",
+            "README.md": "# r\n",
+            "docs/x.md": "# x\n",
+            "explorer/x.js": "x\n",
+            "keep.py": "k = 1\n",
+            "gone.py": "g = 1\n",
+            ".gitignore": "ignored.py\nbuild/\n",
+        }
+    )
+    (repo / "package.json").write_text('{"a": 1}\n')
+    (repo / "a.rb").write_text("# c\nx = 1\n")
+    (repo / "README.md").write_text("# r2\n")
+    (repo / "docs/x.md").write_text("# x2\n")
+    (repo / "explorer/x.js").write_text("y\n")
+    (repo / "explorer/new.json").write_text("{}\n")
+    (repo / "gone.py").unlink()
+    (repo / "conftest.py").write_text("import pytest\n")
+    (repo / "ignored.py").write_text("i = 1\n")
+    (repo / "build").mkdir()
+    (repo / "build/out.js").write_text("o\n")
+    (repo / "notes.txt").write_text("n\n")
+    return repo
+
+
+def test_changed_files_lists_every_changed_or_untracked_file(make_repo) -> None:
+    import document_repo.verify as verify_mod
+
+    repo = _changed_repo(make_repo)
+    assert verify_mod.changed_files(repo, "HEAD") == [
+        "a.rb",
+        "conftest.py",
+        "gone.py",
+        "package.json",
+    ]
+
+
+def test_changed_files_includes_both_sides_of_a_rename(make_repo, git) -> None:
+    import document_repo.verify as verify_mod
+
+    repo = make_repo({"old.py": "x = 1\n" * 20})
+    git(repo, "mv", "old.py", "new.py")
+    assert verify_mod.changed_files(repo, "HEAD") == ["new.py", "old.py"]
+
+
+def test_doc_suffixes_constant() -> None:
+    import document_repo.verify as verify_mod
+
+    assert verify_mod.DOC_SUFFIXES == (".md", ".mdx", ".rst", ".txt")
+
+
+def test_cli_verify_changed_fails_unknown_and_untracked_files(make_repo, capsys) -> None:
+    repo = _changed_repo(make_repo)
+    capsys.readouterr()
+    assert main(["verify", "--repo", str(repo), "--changed"]) == 1
+    results = {r["path"]: r for r in json.loads(capsys.readouterr().out)}
+    assert set(results) == {"a.rb", "conftest.py", "gone.py", "package.json"}
+    assert not any(r["ok"] for r in results.values())
+    assert results["package.json"]["method"] == "none"
+    assert results["a.rb"]["method"] == "none"
+    assert "not in HEAD" in results["conftest.py"]["detail"]
+
+
+# Item 3: Go example output. From "// Output:" to the function's "}" the comments are compared by
+# `go test`; a line directly above "// Output:" joins its comment group and hides the prefix.
+GO_EXAMPLE = (
+    'package x\n\nimport "fmt"\n\nfunc ExampleAdd() {\n\tfmt.Println(1 + 2)\n'
+    '\tfmt.Println("ok")\n\t// Output:\n\t// 3\n\t// ok\n}\n\nfunc helper() int {\n'
+    "\treturn 1\n}\n"
+)
+
+
+def _go_insert(base: str, before_line: int, text: str = "\t// Note.") -> str:
+    lines = base.splitlines(keepends=True)
+    return "".join(lines[:before_line] + [text + "\n"] + lines[before_line:])
+
+
+@pytest.mark.parametrize(
+    "before_line",
+    [7, 8, 9, 10],
+    ids=["above-output-line", "after-output-line", "middle-of-run", "end-of-run"],
+)
+def test_go_example_output_run_is_verbatim(make_repo, before_line: int) -> None:
+    r = _run(make_repo, "x_test.go", GO_EXAMPLE, _go_insert(GO_EXAMPLE, before_line))
+    # Directly below "// Output:" the older below-a-directive guard fires first; both are right.
+    assert not r.ok and ("example output" in r.detail or "below a directive" in r.detail), (
+        r.method,
+        r.detail,
+    )
+
+
+def test_go_unordered_output_run_is_verbatim(make_repo) -> None:
+    base = GO_EXAMPLE.replace("// Output:", "// Unordered output:")
+    r = _run(make_repo, "x_test.go", base, _go_insert(base, 9))
+    assert not r.ok and "example output" in r.detail, (r.method, r.detail)
+
+
+def test_go_block_comment_output_is_verbatim(make_repo) -> None:
+    base = GO_EXAMPLE.replace("\t// Output:\n\t// 3\n\t// ok\n", "\t/* Output:\n\t3\n\tok\n\t*/\n")
+    r = _run(make_repo, "x_test.go", base, _go_insert(base, 11))
+    assert not r.ok and "example output" in r.detail, (r.method, r.detail)
+
+
+@pytest.mark.parametrize(
+    "before_line,text",
+    [(5, "\t// Prints the sum."), (4, "// ExampleAdd shows Add."), (13, "\t// Why: constant.")],
+    ids=["first-statement", "doc-comment", "other-function"],
+)
+def test_go_comment_elsewhere_in_example_passes(make_repo, before_line: int, text: str) -> None:
+    r = _run(make_repo, "x_test.go", GO_EXAMPLE, _go_insert(GO_EXAMPLE, before_line, text))
+    assert r.ok, (r.method, r.detail)
+
+
+def test_go_blank_separated_comment_above_output_passes(make_repo) -> None:
+    # A comment group separated from "// Output:" by a blank line is its own group, so go/doc
+    # still sees "Output:" in the function's last comment group.
+    base = GO_EXAMPLE.replace('\tfmt.Println("ok")\n', '\tfmt.Println("ok")\n\n')
+    r = _run(make_repo, "x_test.go", base, _go_insert(base, 7, "\t// Two lines are printed."))
+    assert r.ok, (r.method, r.detail)
+
+
+# Item 4: JS/TS fallback regex literals. A "/" where a regex can start is lexed as a regex.
+@pytest.mark.parametrize(
+    "rel,before,after",
+    [
+        (
+            "a.js",
+            "const p = s.replace(/\\//g, '-') + `a\nb`;\n",
+            "const p = s.replace(/\\//g, '-') + `a\n// c\nb`;\n",
+        ),
+        (
+            "a.js",
+            "const r = /`/;\nconst t = `a\nb`;\n",
+            "const r = /`/;\nconst t = `a\n// c\nb`;\n",
+        ),
+        (
+            "a.ts",
+            "const r = /[/`]/g;\nconst t = `a\nb`;\n",
+            "const r = /[/`]/g;\nconst t = `a\n// c\nb`;\n",
+        ),
+        (
+            "a.js",
+            "const r = x.split(/'/); const t = `a\nb`;\n",
+            "const r = x.split(/'/); const t = `a\n// c\nb`;\n",
+        ),
+    ],
+    ids=["escaped-slash", "backtick-in-regex", "class-with-slash", "quote-in-regex"],
+)
+def test_js_regex_literal_does_not_hide_template(make_repo, rel: str, before: str, after: str):
+    r = _run(make_repo, rel, before, after)
+    assert not r.ok and VERBATIM in r.detail, (r.method, r.detail)
+
+
+@pytest.mark.parametrize(
+    "before,at",
+    [
+        ("const ok = x.match(/ab+c/);\nconst y = 1;\n", 1),
+        ("if (/^\\d+$/.test(s)) {\n  run();\n}\n", 1),
+        ("function f(x) {\n  return /[a-z]+\\//i.test(x);\n}\nconst y = 1;\n", 3),
+        ("const half = a / 2;\nconst q = (b + c) / d;\nconst y = 1;\n", 2),
+        ("const s = `a/b`;\nconst r = [/x/, /y/g];\nconst y = 1;\n", 2),
+    ],
+    ids=["match", "test-in-if", "return-class-escape", "division", "array-of-regex"],
+)
+def test_js_simple_regex_keeps_file_usable(make_repo, before: str, at: int) -> None:
+    lines = before.splitlines(keepends=True)
+    after = "".join(lines[:at] + ["// Why: explained.\n"] + lines[at:])
+    r = _run(make_repo, "a.js", before, after)
+    assert r.ok, (r.method, r.detail)
+
+
+def test_js_unterminated_regex_fails_closed(make_repo) -> None:
+    before = "const r = (/abc\nconst y = 1;\n"
+    r = _run(make_repo, "a.js", before, "const r = (/abc\n// c\nconst y = 1;\n")
+    assert not r.ok and VERBATIM in r.detail, (r.method, r.detail)
+
+
+# Item 5: a tab in YAML indentation is a parse error.
+@pytest.mark.parametrize("line", ["\t# note", "  \t# note", "\t"])
+def test_yaml_tab_indented_insert_fails(make_repo, line: str) -> None:
+    r = _run(make_repo, "ci.yml", "a: 1\nb: 2\n", f"a: 1\n{line}\nb: 2\n")
+    assert not r.ok and "tab" in r.detail, (r.method, r.detail)
+
+
+# Item 7: prose that only looks like a directive.
+def test_python_docstring_with_template_braces_passes(make_repo) -> None:
+    after = 'def f():\n    """Render {{ name }} and {% raw %}."""\n    pass\n'
+    r = _run(make_repo, "m.py", "def f():\n    pass\n", after)
+    assert r.ok, (r.method, r.detail)
+
+
+def test_python_transcoding_docstring_on_line_one_passes(make_repo) -> None:
+    r = _run(make_repo, "m.py", "x = 1\n", '"""Transcoding: helpers."""\nx = 1\n')
+    assert r.ok, (r.method, r.detail)
+
+
+@pytest.mark.parametrize("quote", ["`", "'"])
+def test_js_regex_after_paren_with_quote_fails_closed(make_repo, quote: str) -> None:
+    # After ")" a "/" is read as division, but "if (x) /`/" is a regex: when the readings disagree
+    # about a quote before a later "/", the rest of the file is unsafe.
+    before = f"if (x) /{quote}/.test(s);\nconst t = `a\nb`;\n"
+    after = f"if (x) /{quote}/.test(s);\nconst t = `a\n// c\nb`;\n"
+    r = _run(make_repo, "a.js", before, after)
+    assert not r.ok and VERBATIM in r.detail, (r.method, r.detail)
+
+
+def test_js_division_after_paren_without_second_slash_passes(make_repo) -> None:
+    before = 'const w = (a + b) / 2 + "px";\nconst y = 1;\n'
+    r = _run(make_repo, "a.js", before, 'const w = (a + b) / 2 + "px";\n// Why.\nconst y = 1;\n')
+    assert r.ok, (r.method, r.detail)

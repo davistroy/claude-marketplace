@@ -13,7 +13,11 @@ Common guards (every method: python-ast, ts-printer, comment-lines):
 - directive-like comment: ``# noqa``, ``// @ts-ignore``, ``//go:build`` and the like are read by
   tools and compilers, so they are code. Each pattern applies only to the languages whose tools
   read it (``DIRECTIVE_SCOPES``): ``/// <summary>`` is a C# doc comment, a TypeScript directive.
-- coding cookie: a ``coding[:=]`` comment in lines 1-2 changes how Python decodes the file.
+- coding cookie: a PEP 263 ``# coding: x`` comment (Python) or an Emacs ``-*- coding: x -*-``
+  line (any language) in lines 1-2 changes how the file is decoded.
+- template markers: ``{{``/``{%`` in a comment run under Helm, Jinja and friends, but only in a
+  file that is a template (``template_file``).
+- YAML tab: a tab in the indentation of an inserted YAML line is a parse error.
 - continuation-ending comment: ``# note \\`` swallows the next line in make, C and shell.
 - protected header: nothing may go above a shebang, a coding cookie or Dockerfile parser
   directives, or they stop being recognised.
@@ -29,6 +33,11 @@ Context guards (comment-lines only, via ``unsafe_insert_points``):
 - line continuation: a new line after a base line ending in ``\\`` splits that statement.
 - verbatim regions: inside heredocs, block scalars, multi-line strings, raw strings, template
   literals, block comments, JSX and HTML raw-text elements a new line is data, not a comment.
+- Go example output: from ``// Output:`` to the closing ``}`` the comments are compared with
+  the program's output by ``go test``; a line directly above ``// Output:`` hides the prefix.
+- JS/TS regex literals: lexed (escapes, ``[...]`` classes) so ``/`/`` cannot open a template; one
+  that cannot be closed on its line makes the rest of the file unsafe.
+- no scanner: a language without a scanner is unsafe at every position.
 - after a YAML block scalar: the position directly below its last line is unsafe only for an
   inserted line indented deeper than the ``key: |`` line (it would join the block), or a blank
   line under keep chomping (``|+``). A comment level with the next key is fine.
@@ -92,8 +101,6 @@ _DIRECTIVES: tuple[tuple[frozenset[str] | None, tuple[tuple[str, int], ...]], ..
             (r"<!\[endif\]", _I),
             (r"<!--\s*#", 0),
             (r"<!--\s*/?ko\b", 0),
-            # Template engines (Helm, Jinja, cookiecutter) run inside comments
-            (r"\{\{|\{%", 0),
             # Shebang anywhere
             (r"^\s*#!", 0),
         ),
@@ -113,7 +120,10 @@ _DIRECTIVES: tuple[tuple[frozenset[str] | None, tuple[tuple[str, int], ...]], ..
         _JS,
         (
             (r"@ts-(ignore|expect-error|nocheck|check)\b", 0),
-            (r"\beslint(-disable|-enable|-env)?\b", 0),
+            # Directive forms only: "-disable"/"-enable" (and "-line"/"-next-line"), the
+            # "/* eslint-env */" environment comment, and "/* eslint rule: x */" config comments.
+            (r"\beslint-(disable|enable|env)\b", 0),
+            (r"/\*\s*eslint\s", 0),
             (r"/\*\s*(global|globals|exported|jshint|jslint)\b", 0),
             (r"\b(istanbul|c8|v8)\s+ignore\b", 0),
             (r"deno-(lint|fmt)-ignore", 0),
@@ -153,17 +163,49 @@ DIRECTIVE_SCOPES: tuple[tuple[re.Pattern[str], frozenset[str] | None], ...] = tu
 #: Every directive pattern, regardless of language scope.
 DIRECTIVE_PATTERNS: tuple[re.Pattern[str], ...] = tuple(p for p, _ in DIRECTIVE_SCOPES)
 
-#: PEP 263 coding cookie (also matches Emacs and Vim forms).
-CODING_COOKIE = re.compile(r"coding[:=]")
-_BASE_COOKIE = re.compile(r"^[ \t\f]*#.*?coding[:=][ \t]*[-\w.]+")
+#: PEP 263 coding cookie. Python reads it from lines 1-2; it also matches the Emacs and Vim forms.
+CODING_COOKIE = re.compile(r"^[ \t\f]*#.*?coding[:=][ \t]*[-\w.]+")
+#: Emacs file-variables line (``-*- coding: x -*-``), read from lines 1-2 of a file in any language.
+EMACS_COOKIE = re.compile(r"-\*-.*?\bcoding[ \t]*:[ \t]*[-\w.]+")
+
+#: Template-engine markers. Helm, Jinja, Django, Go templates and cookiecutter evaluate them even
+#: inside comments, but only in files that are templates, so ``template_file`` decides where they
+#: apply; in an ordinary Python docstring ``{{ name }}`` is prose.
+TEMPLATE_PATTERN = re.compile(r"\{\{|\{%")
 _DOCKER_DIRECTIVE = re.compile(r"^\s*#\s*[A-Za-z][\w-]*\s*=")
 _NEWLINES = ("\n", "\r\n")
 
 
-def _is_directive(line: str, lang: Lang) -> bool:
-    """True when ``line`` matches a directive pattern that applies to ``lang``."""
-    return any(
+def _is_directive(line: str, lang: Lang, templated: bool = False) -> bool:
+    """True when ``line`` matches a directive pattern that applies to ``lang``.
+
+    ``templated`` (see ``template_file``) adds the template-engine markers.
+    """
+    return (templated and bool(TEMPLATE_PATTERN.search(line))) or any(
         p.search(line) for p, langs in DIRECTIVE_SCOPES if langs is None or lang.name in langs
+    )
+
+
+def _is_cookie(line: str, lang: Lang) -> bool:
+    """True for an encoding declaration ``lang`` reads when it sits in lines 1-2."""
+    return bool(EMACS_COOKIE.search(line)) or (
+        lang.name == "python" and bool(CODING_COOKIE.match(line))
+    )
+
+
+def template_file(rel: str, before: str, lang: Lang) -> bool:
+    """True when ``rel`` is evaluated by a template engine, so ``{{`` in a comment is code.
+
+    That is: HTML (Jinja, Django and Go templates treat ``<!-- -->`` as text), a file under a
+    ``templates`` directory (Helm charts, Django, Ansible roles), a path with ``{{`` in it
+    (cookiecutter, copier), or a base that already uses ``{{`` or ``{%`` (it is a template).
+    """
+    parts = rel.replace("\\", "/").split("/")
+    return (
+        lang.name == "html"
+        or "templates" in parts[:-1]
+        or any("{{" in part for part in parts)
+        or bool(TEMPLATE_PATTERN.search(before))
     )
 
 
@@ -216,14 +258,14 @@ def _line_ending_guard(before: str, after: str) -> str | None:
 def _last_protected(lines: list[str], lang: Lang) -> int:
     """Index of the last protected leading base line, or -1 when there is none."""
     last = -1
-    if lines and lines[0].lstrip("﻿").startswith("#!"):
+    if lines and lines[0].lstrip("\ufeff").startswith("#!"):
         last = 0
     for i in (0, 1):
-        if i < len(lines) and _BASE_COOKIE.match(lines[i].lstrip("﻿")):
+        if i < len(lines) and _is_cookie(lines[i].lstrip("\ufeff"), lang):
             last = max(last, i)
     if lang.name == "dockerfile":
         for i, line in enumerate(lines):
-            if not _DOCKER_DIRECTIVE.match(line.lstrip("﻿")):
+            if not _DOCKER_DIRECTIVE.match(line.lstrip("\ufeff")):
                 break
             last = max(last, i)
     return last
@@ -249,15 +291,17 @@ def _removed_lines(before: str, after: str) -> list[tuple[int, str]]:
 
 def common_guards(rel: str, before: str, after: str, lang: Lang) -> str | None:
     """Run the guards every verify method shares. Return a failure detail, or None when clean."""
-    if before.startswith("﻿") != after.startswith("﻿"):
+    if before.startswith("\ufeff") != after.startswith("\ufeff"):
         return "byte order mark changed"
     why = _line_ending_guard(before, after)
     if why:
         return why
     base = before.splitlines()
     protected = _last_protected(base, lang)
+    templated = template_file(rel, before, lang)
     for i, line in _removed_lines(before, after):
-        if i <= protected or (_is_directive(line, lang) and _is_comment_line(line, lang)):
+        directive = _is_directive(line, lang, templated) and _is_comment_line(line, lang)
+        if i <= protected or directive:
             return f"removed or changed directive-like line: {line.strip()!r} (base line {i + 1})"
     for pos, start, lines in inserted_lines(before, after):
         if pos <= protected:
@@ -267,15 +311,19 @@ def common_guards(rel: str, before: str, after: str, lang: Lang) -> str | None:
             pos > 0
             and pos - 1 > protected
             and _is_comment_line(prev, lang)
-            and _is_directive(prev, lang)
+            and _is_directive(prev, lang, templated)
         ):
             return f"inserted below a directive-like comment: {prev.strip()!r}"
         for offset, line in enumerate(lines):
             text = line.strip()
-            if _is_directive(line, lang) or (start + offset <= 2 and CODING_COOKIE.search(line)):
+            if _is_directive(line, lang, templated) or (
+                start + offset <= 2 and _is_cookie(line, lang)
+            ):
                 return f"inserted directive-like comment: {text}"
             if text.endswith(("\\", "??/")):
                 return f"comment ends with a line continuation: {text}"
+            if lang.name == "yaml" and "\t" in line[: len(line) - len(line.lstrip())]:
+                return f"tab in the indentation of an inserted YAML line: {line!r}"
             if lang.name == "make" and line.startswith("\t") and text:
                 return f"tab-indented line in a Makefile is a recipe line, not a comment: {text}"
             if lang.name == "sql" and re.match(r"--[^\s]", text):
@@ -371,7 +419,8 @@ def _heredoc_body(line: str, heredocs: list[tuple[str, bool]]) -> None:
 
 def _scan_shell(lines: list[str]) -> set[int]:
     out: set[int] = set()
-    stack, heredocs = ["code"], []  # type: list[str], list[tuple[str, bool]]
+    stack: list[str] = ["code"]
+    heredocs: list[tuple[str, bool]] = []
     for idx, line in enumerate(lines):
         if heredocs:
             _heredoc_body(line, heredocs)
@@ -388,7 +437,8 @@ _MAKE_ENDEF = re.compile(r"^\s*endef\b")
 
 def _scan_make(lines: list[str]) -> set[int]:
     out: set[int] = set()
-    depth, heredocs = 0, []  # type: int, list[tuple[str, bool]]
+    depth = 0
+    heredocs: list[tuple[str, bool]] = []
     for idx, line in enumerate(lines):
         if heredocs:
             _heredoc_body(line, heredocs)
@@ -658,6 +708,7 @@ class _Syntax:
     cpp_raw: bool = False
     rust_raw: bool = False
     jsx: bool = False
+    regex: bool = False
 
 
 _SYNTAX = {
@@ -668,8 +719,8 @@ _SYNTAX = {
     "csharp": _Syntax(cs_strings=True),
     "rust": _Syntax(nested_block=True, multiline_dq=True, rust_raw=True),
     "css": _Syntax(line_comment=False, sq_string=True, char_lit=False),
-    "javascript": _Syntax(sq_string=True, char_lit=False, template=True, jsx=True),
-    "typescript": _Syntax(sq_string=True, char_lit=False, template=True, jsx=True),
+    "javascript": _Syntax(sq_string=True, char_lit=False, template=True, jsx=True, regex=True),
+    "typescript": _Syntax(sq_string=True, char_lit=False, template=True, jsx=True, regex=True),
 }
 _CPP_RAW = re.compile(r'(?:u8|u|U|L)?R"([^()\\\s]{0,16})\(')
 _RUST_RAW = re.compile(r'[bc]?r(#*)"')
@@ -682,11 +733,61 @@ def _ident(c: str) -> bool:
     return c.isalnum() or c == "_"
 
 
-def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:  # noqa: C901 - one lexer, one loop
+#: After these characters a "/" starts a regex literal, not a division.
+_REGEX_AFTER = set("(,=:[!&|?{};+-*%<>~^")
+#: ... and after these keywords (``return /x/``), unless they are a property (``a.return``).
+_REGEX_WORDS = set(
+    "return typeof instanceof in of new delete void throw case do else yield await".split()
+)
+_TRAILING_WORD = re.compile(r"[A-Za-z_$][\w$]*$")
+
+
+def _regex_can_start(before: str) -> bool:
+    """True when a "/" after the code ``before`` (on the same line) starts a regex literal.
+
+    The start of a line counts as a regex position, so a division that starts a line is lexed as
+    a regex; it then has no closing "/" on that line in practice, and the scanner fails closed.
+    """
+    before = before.rstrip()
+    if not before or before[-1] in _REGEX_AFTER:
+        return True
+    m = _TRAILING_WORD.search(before)
+    if m is None:
+        return False
+    return m.group(0) in _REGEX_WORDS and not before[: m.start()].endswith(".")
+
+
+def _regex_end(line: str, i: int) -> int:
+    """Index just past the regex literal (and its flags) starting at ``line[i] == "/"``.
+
+    Handles escapes and character classes, where an unescaped "/" does not close the literal.
+    Returns -1 when the line ends first (a regex cannot span lines).
+    """
+    j, n, in_class = i + 1, len(line), False
+    while j < n:
+        ch = line[j]
+        if ch == "\\":
+            j += 2
+            continue
+        if in_class:
+            in_class = ch != "]"
+        elif ch == "[":
+            in_class = True
+        elif ch == "/":
+            j += 1
+            while j < n and (_ident(line[j]) or line[j] == "$"):
+                j += 1
+            return j
+        j += 1
+    return -1
+
+
+def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:
+    """One lexer, one loop: base lines that end inside a string, comment, template or JSX."""
     out: set[int] = set()
     # Frames: ["code", brace_depth] | ["block", 0] | ["tmpl", 0] | ["str", close, esc, multi, dbl]
     stack: list[list[object]] = [["code", 0]]
-    prev, word, jsx_from = "", "", -1
+    prev, word, jsx_from, lost_from = "", "", -1, -1
     for idx, line in enumerate(lines):
         i, n = 0, len(line)
         while i < n:
@@ -733,6 +834,25 @@ def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:  # noqa: C901 - one
                 stack.append(["block", 0])
                 i += 2
                 continue
+            if syn.regex and c == "/":
+                if _regex_can_start(line[:i]):
+                    end = _regex_end(line, i)
+                    if end < 0:
+                        lost_from = idx  # unterminated regex (or a misread division)
+                        break
+                    i, prev, word = end, "/", ""
+                    continue
+                nxt = line.find("/", i + 1)
+                if (
+                    nxt > 0
+                    and line[:i].rstrip().endswith(")")
+                    and any(q in line[i:nxt] for q in "'\"`")
+                ):
+                    # "if (x) /'/.test(s)" is a regex after ")"; "(a) / b" is a division. When
+                    # a later "/" could close the regex and the two readings disagree about a
+                    # quote or backtick between them, neither reading can be trusted.
+                    lost_from = idx
+                    break
             boundary = i == 0 or not _ident(line[i - 1])
             m = _CPP_RAW.match(line, i) if syn.cpp_raw and boundary else None
             if m:
@@ -755,9 +875,8 @@ def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:  # noqa: C901 - one
                     stack.append(["str", m.group(1), False, True, False])
                     i = m.end()
                     continue
-            if syn.cs_strings and line.startswith('"""', i):
-                m = _CS_RAW.match(line, i)
-                assert m is not None
+            m = _CS_RAW.match(line, i) if syn.cs_strings and c == '"' else None
+            if m:  # three or more quotes: a C# raw string
                 stack.append(["str", m.group(1), False, True, False])
                 i = m.end()
                 continue
@@ -816,6 +935,9 @@ def _scan_clike(lines: list[str], syn: _Syntax) -> set[int]:  # noqa: C901 - one
     if jsx_from >= 0:
         # JSX children are text: "// x" there renders. Fail closed from the first JSX element.
         out.update(range(jsx_from, len(lines)))
+    if lost_from >= 0:
+        # A regex literal the lexer cannot close: the state after it is unknown, so fail closed.
+        out.update(range(lost_from, len(lines)))
     return out
 
 
@@ -840,6 +962,38 @@ def _cgo_preamble_points(lines: list[str]) -> set[int]:
             else:
                 break
         points.update(range(start, idx + 1))
+    return points
+
+
+_GO_EXAMPLE = re.compile(r"^func\s+Example\w*\s*\(")
+_GO_OUTPUT = re.compile(r"^\s*(?://|/\*)\s*(?:unordered\s+)?output:", _I)
+
+
+def go_example_output_points(lines: list[str]) -> set[int]:
+    """Positions from an example function's ``// Output:`` line through its closing ``}``.
+
+    ``go test`` compares the function's last comment group with the program's output. A line
+    inserted inside the run, or after it before ``}``, changes the expected output or becomes the
+    last comment group. A line inserted directly above ``// Output:`` joins its group, which then
+    no longer starts with ``Output:``, so the example silently stops running: position ``k`` of
+    the ``// Output:`` line itself is unsafe too. A comment separated from it by a blank line is
+    its own group and stays safe. The function ends at the first column-0 ``}`` (gofmt layout);
+    without one, everything to end of file is unsafe.
+    """
+    points: set[int] = set()
+    in_example, i, n = False, 0, len(lines)
+    while i < n:
+        line = lines[i]
+        if _GO_EXAMPLE.match(line):
+            in_example = True
+        elif in_example and line.startswith("}"):
+            in_example = False
+        elif in_example and _GO_OUTPUT.match(line):
+            end = next((j for j in range(i + 1, n) if lines[j].startswith("}")), n)
+            points.update(range(i, end + 1))
+            i = end
+            continue
+        i += 1
     return points
 
 
@@ -917,7 +1071,8 @@ def _verbatim_points(lines: list[str], lang: Lang) -> set[int]:
     elif lang.name in _SYNTAX:
         inside = _scan_clike(lines, _SYNTAX[lang.name])
     else:
-        inside = set()  # pragma: no cover - every Lang has a scanner; fail-safe for new ones
+        # No scanner for this language: nothing is known to be safe, so every position fails.
+        return set(range(len(lines) + 1))
     points = {i + 1 for i in inside}
     if lang.name == "go":
         points |= _cgo_preamble_points(lines)
@@ -928,14 +1083,17 @@ def unsafe_insert_points(lines: list[str], lang: Lang) -> set[int]:
     """Insert positions where a new line would not be a comment.
 
     Position ``k`` means "a new line placed before base line k" (0..len(lines)). It is unsafe
-    after a base line that ends in a line continuation, or inside a verbatim region of ``lang``
+    after a base line that ends in a line continuation, inside a verbatim region of ``lang``
     (heredoc, block scalar, multi-line or raw string, template literal, block comment, JSX,
-    HTML raw-text element). Scanners that lose track fail closed: the rest of the file is unsafe.
+    HTML raw-text element), or in or next to a Go example's expected output. Scanners that lose
+    track fail closed: the rest of the file is unsafe. A language with no scanner is unsafe at
+    every position.
 
     The one position this does not report is the one directly below a YAML block scalar's last
     line: whether it is safe depends on the inserted text, so ``context_guard`` decides it.
     """
-    return _continuation_points(lines) | _verbatim_points(lines, lang)
+    examples = go_example_output_points(lines) if lang.name == "go" else set()
+    return _continuation_points(lines) | _verbatim_points(lines, lang) | examples
 
 
 def _tail_conflict(tail: _BlockTail, lines: list[str]) -> tuple[int, str] | None:
@@ -961,11 +1119,17 @@ def context_guard(before: str, after: str, lang: Lang) -> str | None:
     """
     base = before.splitlines()
     continued = _continuation_points(base)
+    examples = go_example_output_points(base) if lang.name == "go" else set()
     unsafe = continued | _verbatim_points(base, lang)
     tails = _yaml_scan(base)[1] if lang.name == "yaml" else {}
     for pos, start, lines in inserted_lines(before, after):
         if pos in continued:
             return f"inserted after a line continuation (base line {pos}, edited line {start})"
+        if pos in examples:
+            return (
+                f"inserted in or next to a Go example output comment "
+                f"(after base line {pos}, edited line {start})"
+            )
         if pos in unsafe:
             return f"inserted inside a verbatim region (after base line {pos}, edited line {start})"
         conflict = _tail_conflict(tails[pos], lines) if pos in tails else None

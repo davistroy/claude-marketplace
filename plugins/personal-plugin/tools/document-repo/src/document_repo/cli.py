@@ -74,10 +74,10 @@ def _register_modules(sub: Any) -> None:
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
-    from .verify import changed_source_files, verify_file
+    from .verify import changed_files, verify_file
 
     if args.changed:
-        files = changed_source_files(args.repo, args.before)
+        files = changed_files(args.repo, args.before)
     elif args.files:
         files = list(args.files)
     else:
@@ -92,7 +92,9 @@ def _register_verify(sub: Any) -> None:
     p = sub.add_parser("verify", help="prove files changed only in comments")
     p.add_argument("--repo", type=Path, required=True)
     p.add_argument("--before", default="HEAD", help="base git ref (default HEAD)")
-    p.add_argument("--changed", action="store_true", help="verify every changed source file")
+    p.add_argument(
+        "--changed", action="store_true", help="verify every changed or untracked file but docs"
+    )
     p.add_argument("files", nargs="*")
     p.set_defaults(func=_cmd_verify)
 

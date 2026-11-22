@@ -22,19 +22,23 @@ class Lang:
     ``line`` holds line-comment prefixes (``#``, ``//``, ``--``).
     ``block`` holds (start, end) pairs (``/*``, ``*/``).
     ``verify_method`` names the proof verify.py uses.
+    ``nested_block`` is True when block comments nest (PostgreSQL, Rust): there ``/*`` inside a
+    block comment opens another level, so ``/* staging/*.csv */`` is still open at its end.
     """
 
     name: str
     line: tuple[str, ...]
     block: tuple[tuple[str, str], ...]
     verify_method: str
+    nested_block: bool = False
 
 
 C_BLOCK = (("/*", "*/"),)
 PYTHON = Lang("python", ("#",), (), "python-ast")
 TYPESCRIPT = Lang("typescript", ("//",), C_BLOCK, "ts-printer")
 JAVASCRIPT = Lang("javascript", ("//",), C_BLOCK, "ts-printer")
-SQL = Lang("sql", ("--",), C_BLOCK, "comment-lines")
+# PostgreSQL nests /* */; MySQL and SQLite do not. Counting depth is the strict reading of both.
+SQL = Lang("sql", ("--",), C_BLOCK, "comment-lines", nested_block=True)
 SHELL = Lang("shell", ("#",), (), "comment-lines")
 YAML = Lang("yaml", ("#",), (), "comment-lines")
 TOML = Lang("toml", ("#",), (), "comment-lines")
@@ -43,7 +47,7 @@ MAKE = Lang("make", ("#",), (), "comment-lines")
 CSS = Lang("css", (), C_BLOCK, "comment-lines")
 HTML = Lang("html", (), (("<!--", "-->"),), "comment-lines")
 C_LIKE = {
-    name: Lang(name, ("//",), C_BLOCK, "comment-lines")
+    name: Lang(name, ("//",), C_BLOCK, "comment-lines", nested_block=name == "rust")
     for name in ("go", "rust", "java", "c", "cpp", "csharp")
 }
 

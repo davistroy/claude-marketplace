@@ -135,31 +135,48 @@ def _python(rel: str, before: str, after: str) -> Result:
     )
 
 
+def _block_close(text: str, start: str, end: str, depth: int, nested: bool) -> tuple[int, int]:
+    """Scan ``text`` inside a block comment at ``depth``.
+
+    Return ``(depth, index just past the close)``; the index is -1 when the line ends still open.
+    Without nesting the first ``end`` closes the comment, whatever ``start``s it contains.
+    """
+    i = 0
+    while i < len(text):
+        if nested and text.startswith(start, i):
+            depth, i = depth + 1, i + len(start)
+        elif text.startswith(end, i):
+            depth, i = depth - 1, i + len(end)
+            if depth == 0:
+                return 0, i
+        else:
+            i += 1
+    return depth, -1
+
+
 def comment_chunk_ok(lines: list[str], lang: Lang) -> tuple[bool, str]:
-    """True when every line in an inserted chunk is blank or a comment."""
-    in_block: str | None = None
+    """True when every line in an inserted chunk is blank or a comment.
+
+    For ``lang.nested_block`` languages the block-comment depth is counted, so ``/* a /* b */``
+    is still open; a chunk must end at depth 0 with nothing but blanks after the final close.
+    """
+    block: tuple[str, str] | None = None
+    depth = 0
     for raw in lines:
         s = raw.strip()
-        if in_block is not None:
-            if in_block in s:
-                if s.split(in_block, 1)[1].strip():
-                    return False, f"code after block-comment end: {raw!r}"
-                in_block = None
-            continue
-        if not s or any(s.startswith(m) for m in lang.line):
-            continue
-        for start, end in lang.block:
-            if s.startswith(start):
-                rest = s[len(start) :]
-                if end in rest:
-                    if rest.split(end, 1)[1].strip():
-                        return False, f"code after block-comment end: {raw!r}"
-                else:
-                    in_block = end
-                break
-        else:
-            return False, f"non-comment line added: {raw!r}"
-    if in_block is not None:
+        if block is None:
+            if not s or any(s.startswith(m) for m in lang.line):
+                continue
+            block = next(((b, e) for b, e in lang.block if s.startswith(b)), None)
+            if block is None:
+                return False, f"non-comment line added: {raw!r}"
+            s, depth = s[len(block[0]) :], 1
+        depth, close = _block_close(s, block[0], block[1], depth, lang.nested_block)
+        if close >= 0:
+            if s[close:].strip():
+                return False, f"code after block-comment end: {raw!r}"
+            block = None
+    if block is not None:
         return False, "unterminated block comment in inserted lines"
     return True, ""
 
@@ -216,20 +233,29 @@ def _method_result(repo: Path, rel: str, before: str, after: str, lang: Lang) ->
     return _comment_lines(rel, before, after, lang)
 
 
-def changed_source_files(repo: Path, ref: str) -> list[str]:
-    """Files changed in the working tree vs ``ref`` that have comment syntax.
+#: Documentation the skill writes. These are never verified, because they are not code.
+DOC_SUFFIXES = (".md", ".mdx", ".rst", ".txt")
 
-    Markdown (no comment syntax) and the explorer output are excluded: they
-    are documentation, not code, so they are never verified.
-    """
+
+def _git_paths(repo: Path, *args: str) -> list[str]:
     out = subprocess.run(
-        ["git", "-C", str(repo), "diff", "--name-only", ref, "--"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
+        ["git", "-C", str(repo), *args], capture_output=True, check=True
+    ).stdout.decode("utf-8", "surrogateescape")
+    return [p for p in out.split("\0") if p]
+
+
+def changed_files(repo: Path, ref: str) -> list[str]:
+    """Every path that differs from ``ref`` in the working tree, plus untracked, unignored files.
+
+    Only the explorer output and documentation (``DOC_SUFFIXES``) are left out. Everything else
+    is returned, including files with no known comment syntax, new files and deleted files:
+    ``verify_file`` fails each of those, so ``verify --changed`` cannot pass a change it did not
+    check. Renames are listed as a delete plus an add (``--no-renames``), so both sides show.
+    """
+    tracked = _git_paths(repo, "diff", "--name-only", "--no-renames", "-z", ref, "--")
+    untracked = _git_paths(repo, "ls-files", "--others", "--exclude-standard", "-z")
     return sorted(
         p
-        for p in out.splitlines()
-        if p and not p.startswith(OUTPUT_DIR + "/") and detect(p) is not None
+        for p in set(tracked) | set(untracked)
+        if not p.startswith(OUTPUT_DIR + "/") and not p.lower().endswith(DOC_SUFFIXES)
     )
