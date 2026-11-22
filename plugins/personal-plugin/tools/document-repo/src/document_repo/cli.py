@@ -73,6 +73,30 @@ def _register_modules(sub: Any) -> None:
     p.set_defaults(func=_cmd_modules)
 
 
+def _cmd_verify(args: argparse.Namespace) -> int:
+    from .verify import changed_source_files, verify_file
+
+    if args.changed:
+        files = changed_source_files(args.repo, args.before)
+    elif args.files:
+        files = list(args.files)
+    else:
+        sys.stderr.write("verify: give FILE paths or --changed\n")
+        return 2
+    results = [verify_file(args.repo, f, args.before).to_dict() for f in files]
+    emit(results)
+    return 0 if all(r["ok"] for r in results) else 1
+
+
+def _register_verify(sub: Any) -> None:
+    p = sub.add_parser("verify", help="prove files changed only in comments")
+    p.add_argument("--repo", type=Path, required=True)
+    p.add_argument("--before", default="HEAD", help="base git ref (default HEAD)")
+    p.add_argument("--changed", action="store_true", help="verify every changed source file")
+    p.add_argument("files", nargs="*")
+    p.set_defaults(func=_cmd_verify)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -82,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
     # SUBCOMMANDS — each later task adds one `_register_<name>(sub)` call here, in task order.
     _register_inventory(sub)
     _register_modules(sub)
+    _register_verify(sub)
     return parser
 
 
