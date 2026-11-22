@@ -24,6 +24,8 @@ def emit(obj: Any, out: Path | None = None) -> None:
         # Write UTF-8 bytes directly: a Windows console may use a legacy code page that cannot encode the text.
         buffer = getattr(sys.stdout, "buffer", None)
         if buffer is not None:
+            # Flush text already buffered on the text layer so output stays in order.
+            sys.stdout.flush()
             buffer.write(text.encode("utf-8"))
             buffer.flush()
         else:

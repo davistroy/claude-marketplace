@@ -1,4 +1,5 @@
 import argparse
+import io
 import json
 import os
 import subprocess
@@ -44,6 +45,15 @@ def test_emit_stdout_writes_pretty_json(capsys: pytest.CaptureFixture[str]) -> N
     assert json.loads(out) == {"k": 1}
 
 
+def test_emit_stdout_bytes_path_survives_legacy_encoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A cp1252 console cannot encode U+2713; emit must write UTF-8 bytes to the buffer instead.
+    fake = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", fake)
+    emit({"s": "✓"})
+    fake.flush()
+    assert json.loads(fake.buffer.getvalue().decode("utf-8")) == {"s": "✓"}
+
+
 def test_emit_file_creates_parents(tmp_path: Path) -> None:
     target = tmp_path / "a" / "b.json"
     emit({"k": 1}, target)
@@ -66,7 +76,7 @@ def test_load_json_reads_emitted_file(tmp_path: Path) -> None:
     assert load_json(target) == [1, "two", None]
 
 
-def test_emit_stdout_non_ascii_without_buffer(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_emit_stdout_non_ascii_without_buffer(monkeypatch: pytest.MonkeyPatch) -> None:
     class NoBuffer:
         def __init__(self) -> None:
             self.chunks: list[str] = []
