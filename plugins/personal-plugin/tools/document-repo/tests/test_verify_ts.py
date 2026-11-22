@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import textwrap
 from pathlib import Path
@@ -84,9 +85,45 @@ def test_ts_code_change_fails(ts_repo) -> None:
     assert "code changed" in r.detail
 
 
+PARSE_FAIL = re.compile(
+    r"^file does not parse cleanly as TypeScript/JavaScript "
+    r"\(before: (\d+) errors, after: (\d+) errors\)$"
+)
+
+
+def _parse_fail(result, before_clean: bool, after_clean: bool) -> None:
+    """``result`` failed on parse errors, and the error counts say which side was broken."""
+    assert not result.ok and result.method == "ts-printer", result
+    found = PARSE_FAIL.match(result.detail)
+    assert found, result.detail
+    assert (int(found[1]) == 0) is before_clean and (int(found[2]) == 0) is after_clean, (
+        result.detail
+    )
+
+
 def test_ts_new_parse_error_fails(ts_repo) -> None:
     r = _edit(ts_repo, "m.ts", BASE + "/* unterminated\n")
-    assert not r.ok and r.method == "ts-printer" and "parse errors" in r.detail, r.detail
+    _parse_fail(r, before_clean=True, after_clean=False)
+
+
+def test_same_count_parse_errors_cannot_hide_a_code_change(commit_then_edit, ts_repo) -> None:
+    # The old rule was "after_errors > before_errors". Here both sides have one error, and
+    # the parser skips the changed token, so the printer output is equal: a false pass.
+    broken = "class A { ) }\n"
+    r = commit_then_edit(ts_repo, "b.ts", broken, "class A { ] }\n")
+    _parse_fail(r, before_clean=False, after_clean=False)
+
+
+def test_broken_base_fails_even_for_a_pure_comment_insertion(commit_then_edit, ts_repo) -> None:
+    broken = "class A { ) }\n"
+    r = commit_then_edit(ts_repo, "b.ts", broken, "// a note\n" + broken)
+    _parse_fail(r, before_clean=False, after_clean=False)
+
+
+def test_broken_base_fails_when_the_edit_parses(commit_then_edit, ts_repo) -> None:
+    # Either side is enough: a file that parsed badly before cannot be proved unchanged.
+    r = commit_then_edit(ts_repo, "b.ts", "class A { ) }\n", "class A { }\n")
+    _parse_fail(r, before_clean=False, after_clean=True)
 
 
 def test_tsx_and_js(ts_repo) -> None:
@@ -111,7 +148,7 @@ def test_fails_closed_without_typescript(make_repo, monkeypatch, tmp_path) -> No
         _unavailable("node not available")
     empty = tmp_path / "empty"
     empty.mkdir()
-    monkeypatch.setattr(verify, "ts_search_paths", lambda repo: [str(empty)])
+    monkeypatch.setattr(verify, "ts_search_paths", lambda repo, rel=None: [str(empty)])
     r = _edit(repo, "m.ts", "// c\n" + BASE)
     assert not r.ok and r.method == "none" and r.detail == TS_MISSING, (r.method, r.detail)
     assert not typescript_available(repo)
@@ -136,6 +173,56 @@ def test_search_paths_without_env_or_global(make_repo, monkeypatch) -> None:
     monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
     monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
     assert verify.ts_search_paths(repo) == [str(repo)]
+
+
+def test_search_paths_start_with_the_files_own_directory(make_repo, monkeypatch, tmp_path) -> None:
+    # Node's require.resolve walks up from each path, so the file's directory must come first:
+    # packages/web/src finds packages/web/node_modules before the repo root's own.
+    repo = make_repo({"packages/web/src/a.ts": BASE})
+    (repo / "packages/web/node_modules/typescript").mkdir(parents=True)
+    env = tmp_path / "env"
+    monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(env))
+    monkeypatch.setattr(verify, "_npm_global_root", lambda: "/global/root")
+    paths = verify.ts_search_paths(repo, "packages/web/src/a.ts")
+    assert paths == [str(repo / "packages/web/src"), str(repo), str(env), "/global/root"]
+    assert paths.index(str(repo / "packages/web/src")) < paths.index(str(repo))
+    # The old one-argument call is unchanged.
+    assert verify.ts_search_paths(repo) == [str(repo), str(env), "/global/root"]
+    assert verify.ts_search_paths(repo, None) == verify.ts_search_paths(repo)
+
+
+def test_search_paths_do_not_repeat_the_repo_root(make_repo, monkeypatch) -> None:
+    # A file at the top of the work tree has the repo root as its own directory.
+    repo = make_repo({"a.ts": BASE})
+    monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
+    monkeypatch.setattr(verify, "_npm_global_root", lambda: "/global/root")
+    assert verify.ts_search_paths(repo, "a.ts") == [str(repo), "/global/root"]
+
+
+def test_nested_compiler_is_found_from_the_files_directory(make_repo, monkeypatch) -> None:
+    # End to end: the only compiler reachable is packages/web/node_modules/typescript (a stub
+    # that delegates to the real one). The env var and the global root are switched off, so
+    # only the file's own directory can find it.
+    global_root = verify._npm_global_root()
+    real = Path(global_root, "typescript") if global_root else None
+    if real is None or not real.is_dir() or verify.node_binary() is None:
+        _unavailable("node + typescript not available (install with: npm install -g typescript)")
+    stub = {
+        "packages/web/node_modules/typescript/package.json": json.dumps(
+            {"name": "typescript", "version": "0.0.0", "main": "index.js"}
+        ),
+        "packages/web/node_modules/typescript/index.js": (
+            f"module.exports = require({json.dumps(str(real))});\n"
+        ),
+        "packages/web/src/a.ts": BASE,
+    }
+    repo = make_repo(stub)
+    monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
+    monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
+    r = _edit(repo, "packages/web/src/a.ts", "// note\n" + BASE)
+    assert r.ok and r.method == "ts-printer", (r.method, r.detail)
+    changed = _edit(repo, "packages/web/src/a.ts", BASE.replace("a + b", "a - b"))
+    assert not changed.ok and "code changed" in changed.detail, changed.detail
 
 
 # --- the printer decides on the code exactly as TypeScript parses it ---------------------------

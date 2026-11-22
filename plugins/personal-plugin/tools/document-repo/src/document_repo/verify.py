@@ -7,7 +7,8 @@ each file it compares the version at a base git ref with the working tree:
 - ts-printer: (JS/TS) re-print both with comments removed via the
   TypeScript compiler and compare the text. The file is parsed as its extension says
   (``.ts``/``.mts``/``.cts`` TypeScript, ``.tsx`` TSX, ``.js``/``.mjs``/``.cjs`` JavaScript,
-  ``.jsx`` JSX; see ts_print.js). There is no fallback: without
+  ``.jsx`` JSX; see ts_print.js). A parse error in either version fails the file, because
+  TypeScript skips the tokens it cannot parse. There is no fallback: without
   node and typescript a JS/TS file fails, because no line-based check can
   tell a comment from text inside a template literal, regex or JSX.
 - comment-lines: (everything else) a line diff may only INSERT lines, and
@@ -256,9 +257,19 @@ def _npm_global_root() -> str | None:
     return proc.stdout.strip() or None
 
 
-def ts_search_paths(repo: Path) -> list[str]:
-    """Where to look for the typescript package: repo first, then env, then global."""
+def ts_search_paths(repo: Path, rel: str | None = None) -> list[str]:
+    """Where to look for the typescript package, in order.
+
+    The directory of ``repo / rel`` comes first, then the repo root, ``DOCUMENT_REPO_TS_PATHS``
+    and the npm global root. Node's ``require.resolve`` walks up from each path, so the file's own
+    directory finds the nearest ``node_modules``: in a monorepo, ``packages/web/node_modules`` beats
+    the root's. Without ``rel`` the file's directory is left out.
+    """
     paths = [str(repo)]
+    if rel is not None:
+        own = str((repo / rel).parent)
+        if own != paths[0]:
+            paths.insert(0, own)
     extra = os.environ.get("DOCUMENT_REPO_TS_PATHS")
     if extra:
         paths.extend(p for p in extra.split(os.pathsep) if p)
@@ -288,7 +299,7 @@ def _run_printer(
             node,
             f"--max-old-space-size={TS_HEAP_MB}",
             str(TS_SCRIPT),
-            json.dumps(ts_search_paths(repo)),
+            json.dumps(ts_search_paths(repo, rel)),
             str(a),
             str(b),
             rel,
@@ -336,8 +347,14 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
     if verdict is None:
         return Result(rel, "ts-printer", False, "printer returned unreadable output")
     equal, before_errors, after_errors = verdict
-    if after_errors > before_errors:
-        return Result(rel, "ts-printer", False, "edited version has new parse errors")
+    if before_errors or after_errors:
+        # TypeScript skips the tokens it cannot parse, so two broken versions can print equal
+        # while the code differs. Neither side may have a parse error.
+        why = (
+            "file does not parse cleanly as TypeScript/JavaScript "
+            f"(before: {before_errors} errors, after: {after_errors} errors)"
+        )
+        return Result(rel, "ts-printer", False, why)
     if equal:
         return Result(rel, "ts-printer", True)
     return Result(
