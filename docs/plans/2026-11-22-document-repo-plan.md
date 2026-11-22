@@ -21,7 +21,7 @@
 - Never write a live dynamic-injection form in SKILL.md or references. Never write the bare deep-reasoning trigger word (see repo `CLAUDE.md`).
 - Do **not** add `effort: high` (an absent field already means `high`, D67).
 - `disable-model-invocation: true` (the skill writes to many files and must be user-invoked).
-- The explorer makes **zero network requests**. Only local `<script src>`. Mermaid **11.4.1**, vendored at `explorer/vendor/mermaid.min.js`.
+- The explorer makes **zero network requests** and no model value may become script. Only local `<script src>`; a CSP meta (`default-src 'none'; script-src 'self'; …`) enforces both. Mermaid **11.17.2** (was 11.4.1: nine advisories, two exploits confirmed in review), vendored at `explorer/vendor/mermaid.min.js`.
 - Model `schema_version` is `1`. Each snippet is at most 30 lines.
 - Generated doc text always sits between `<!-- document-repo:start:<name> -->` and `<!-- document-repo:end:<name> -->`.
 - Bump `personal-plugin` 11.10.0 → **11.11.0** and add a CHANGELOG entry in the same PR.
