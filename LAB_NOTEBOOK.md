@@ -1500,3 +1500,16 @@ The banner carries the Rule 4 bidirectional pointer: v13's outcome, its merge SH
 **Decisions:** D73 (see Decision Log). Owner choices: static explorer (A), `explorer/` folder (A), full run + `--update` (A), single phased skill (A), one gate after analysis. Test targets: `davistroy/open-brain` (public) and `davistroy/retire` (private -- explorer must make zero network requests).
 
 **Status:** Spec approved by owner 2026-11-22. Implementation plan written to `docs/plans/2026-11-22-document-repo-plan.md` (16 tasks, Task 0-15; build is logged in E070 per the plan's Task 0). COMPLETE.
+
+### Entry 070 — Build `document-repo` (tool + skill + explorer + eval) [skill] [build] [ci]
+
+**Date:** 2026-11-22
+**Environment:** macOS, branch `feat/document-repo` off `docs/document-repo-design`. personal-plugin 11.10.0 → 11.11.0.
+
+**Objective:** Implement `docs/plans/2026-11-22-document-repo-plan.md` (D73).
+
+**Hypothesis:** All tool tests pass at ≥90% coverage; every repo gate (`check_injections`, `check_skill_budget`, `check_eval_mapping`, `update-readme --check`, `check_version_bump`, `claude plugin validate --strict`) passes; acceptance on open-brain and retire meets spec criteria 1–6.
+
+**Rollback Plan:** `git switch main && git branch -D feat/document-repo`. Acceptance trials run in throwaway clones under `~/dev/doc-repo-trials/`; delete that directory to undo. Nothing is pushed to open-brain or retire.
+
+**Results:** (log per task as it completes)
