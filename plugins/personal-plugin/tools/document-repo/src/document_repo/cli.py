@@ -194,6 +194,26 @@ def _register_remap(sub: Any) -> None:
     p.set_defaults(func=_cmd_remap)
 
 
+def _cmd_upsert_section(args: argparse.Namespace) -> int:
+    from .docs import upsert_file
+
+    try:
+        body = args.content_file.read_text(encoding="utf-8")
+        upsert_file(args.file, args.section, body)
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(f"upsert-section: {exc}\n")
+        return 2
+    return 0
+
+
+def _register_upsert_section(sub: Any) -> None:
+    p = sub.add_parser("upsert-section", help="write a generated section between markers")
+    p.add_argument("--file", type=Path, required=True)
+    p.add_argument("--section", required=True)
+    p.add_argument("--content-file", type=Path, required=True)
+    p.set_defaults(func=_cmd_upsert_section)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -207,6 +227,7 @@ def build_parser() -> argparse.ArgumentParser:
     _register_assemble(sub)
     _register_build(sub)
     _register_remap(sub)
+    _register_upsert_section(sub)
     return parser
 
 
