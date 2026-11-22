@@ -74,7 +74,7 @@ plugins/personal-plugin/.claude-plugin/plugin.json, .claude-plugin/marketplace.j
 - `Lang(name: str, line: tuple[str, ...], block: tuple[tuple[str, str], ...], verify_method: str)`; `detect(path: str) -> Lang | None`; `EXT: dict[str, Lang]`.
 - `build_inventory(root: Path) -> dict` → `{"root", "files": [{"path","lang","lines","bytes","skip","header_only"}], "manifests", "entry_candidates", "summary"}`.
 - `propose_modules(inventory: dict) -> dict` → `{"modules": [{"id","path","files","lines"}]}`.
-- `Result(path, method, ok, detail)`; `verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result`; `changed_source_files(repo: Path, ref: str) -> list[str]`.
+- `Result(path, method, ok, detail)`; `verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result`; `changed_files(repo: Path, ref: str) -> list[str]`.
 - `validate(model: dict) -> list[str]`; `SCHEMA_VERSION = 1`.
 - `assemble_model(run_dir: Path, repo: Path, base_model: dict | None = None, now: str | None = None) -> tuple[dict, list[dict]]`; `write_explorer_data(model: dict, out_dir: Path) -> dict`; `install_template(template_dir: Path, explorer_dir: Path) -> None`; `normalize_remote(url: str | None) -> str | None`.
 - `line_map(before: list[str], after: list[str]) -> list[int]`; `remap_model(model: dict, repo: Path, new_ref: str) -> tuple[dict, list[str]]`.
@@ -1060,7 +1060,7 @@ Claude-Session: https://claude.ai/code/session_01BZtDbTtVRje5x94myi9V7i"
 
 **Interfaces:**
 - Consumes: `languages.detect`, `Lang`.
-- Produces: `Result` dataclass with `to_dict()`; `git_show(repo, ref, rel) -> str | None`; `verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result` (compares the **working tree** file against `before_ref`); `changed_source_files(repo: Path, ref: str) -> list[str]`; `comment_chunk_ok(lines, lang) -> tuple[bool, str]`. `_ts_verify` is a stub returning `None` in this task (Task 5 fills it in). Methods reported: `python-ast`, `ts-printer`, `comment-lines`, `none`. CLI: `verify --repo R [--before REF] (--changed | FILE...)` → JSON list; exit 1 if any result is not ok.
+- Produces: `Result` dataclass with `to_dict()`; `git_show(repo, ref, rel) -> str | None`; `verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result` (compares the **working tree** file against `before_ref`); `changed_files(repo: Path, ref: str) -> list[str]`; `comment_chunk_ok(lines, lang) -> tuple[bool, str]`. `_ts_verify` is a stub returning `None` in this task (Task 5 fills it in). Methods reported: `python-ast`, `ts-printer`, `comment-lines`, `none`. CLI: `verify --repo R [--before REF] (--changed | FILE...)` → JSON list; exit 1 if any result is not ok.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1073,7 +1073,7 @@ import pytest
 
 from document_repo.cli import main
 from document_repo.languages import detect
-from document_repo.verify import changed_source_files, comment_chunk_ok, verify_file
+from document_repo.verify import changed_files, comment_chunk_ok, verify_file
 
 BASE_PY = "def add(a, b):\n    return a + b\n"
 
@@ -1170,12 +1170,12 @@ def test_comment_chunk_block_end_must_close_line() -> None:
     assert not ok and "code after" in why
 
 
-def test_changed_source_files(make_repo) -> None:
+def test_changed_files(make_repo) -> None:
     repo = make_repo({"a.py": "x = 1\n", "README.md": "# r\n", "explorer/x.js": "x\n", "b.py": "y = 1\n"})
     (repo / "a.py").write_text("# c\nx = 1\n")
     (repo / "README.md").write_text("# r2\n")
     (repo / "explorer/x.js").write_text("y\n")
-    assert changed_source_files(repo, "HEAD") == ["a.py"]
+    assert changed_files(repo, "HEAD") == ["a.py"]
 
 
 def test_cli_verify_exit_codes(make_repo, capsys) -> None:
@@ -1346,7 +1346,7 @@ def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
     return _comment_lines(rel, before, after, lang)
 
 
-def changed_source_files(repo: Path, ref: str) -> list[str]:
+def changed_files(repo: Path, ref: str) -> list[str]:
     """Files changed in the working tree vs ``ref`` that have comment syntax.
 
     Markdown (no comment syntax) and the explorer output are excluded: they
@@ -1364,10 +1364,10 @@ Add above `build_parser`:
 
 ```python
 def _cmd_verify(args: argparse.Namespace) -> int:
-    from .verify import changed_source_files, verify_file
+    from .verify import changed_files, verify_file
 
     if args.changed:
-        files = changed_source_files(args.repo, args.before)
+        files = changed_files(args.repo, args.before)
     elif args.files:
         files = list(args.files)
     else:
@@ -1468,12 +1468,13 @@ def test_tsx_and_js(ts_repo) -> None:
     assert verify_file(ts_repo, "j.js").ok
 
 
-def test_falls_back_without_node(make_repo, monkeypatch) -> None:
+def test_fails_closed_without_node(make_repo, monkeypatch) -> None:
+    # Addendum A / D74: JS/TS are verified only by the printer; no heuristic fallback.
     repo = make_repo({"m.ts": BASE})
     monkeypatch.setattr(verify, "node_binary", lambda: None)
     (repo / "m.ts").write_text("// c\n" + BASE)
     r = verify_file(repo, "m.ts")
-    assert r.ok and r.method == "comment-lines"
+    assert not r.ok and "TypeScript compiler not available" in r.detail
 
 
 def test_search_paths_include_env(make_repo, monkeypatch, tmp_path) -> None:
@@ -1593,7 +1594,7 @@ def typescript_available(repo: Path) -> bool:
 
 
 def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
-    """Printer-based proof for JS/TS. None means "fall back to comment-lines"."""
+    """Printer-based proof for JS/TS. None means "printer unavailable" (verify_file then fails)."""
     proc = _run_printer(repo, rel, before, after)
     if proc is None or proc.returncode == 3:
         return None
@@ -4055,7 +4056,8 @@ Parse flags: `--update`, and `--phase comments|docs|explorer`. Do not combine
 3. Branch: `git -C "$TARGET" switch -c docs/document-repo` (with `--update`: `docs/document-repo-update-$(date +%Y%m%d)`). If the branch exists, stop and ask.
 4. If `explorer/data/state.json` exists and neither `--update` nor `--phase` was given, ask with AskUserQuestion: **Update** (recommended — only changed modules) or **Full rebuild**.
 5. Find the verification commands. Look in package.json `scripts` (test, lint, typecheck/type-check), pyproject/pytest.ini/tox.ini (pytest), Makefile targets (test, lint), and CI workflow files. Write `$RUN_DIR/commands.json` as `{"test": [...], "lint": [...], "typecheck": [...]}`.
-6. Baseline: run each command with a 10-minute timeout. Record the exit code, the duration, and the last 40 lines in `$RUN_DIR/baseline.json`. Never install dependencies without asking. A command that cannot run is recorded as `not_runnable`. Failing or not-runnable commands do not block the run. They go in the gate summary and the report.
+6. If the inventory has JS/TS files, check the printer: `PYTHONPATH="$TOOL_SRC" python3 -c "from pathlib import Path; from document_repo.verify import typescript_available as t; print(t(Path('$TARGET')))"`. On `False`, ask with AskUserQuestion: **Install TypeScript** (recommended: `npm install -g typescript`, then re-check) or **Skip JS/TS files** (they get no comments and are listed in the report). JS/TS edits can only be verified by the TypeScript printer.
+7. Baseline: run each command with a 10-minute timeout. Record the exit code, the duration, and the last 40 lines in `$RUN_DIR/baseline.json`. Never install dependencies without asking. A command that cannot run is recorded as `not_runnable`. Failing or not-runnable commands do not block the run. They go in the gate summary and the report.
 
 ## Phase 1 — Analyze
 
@@ -4539,3 +4541,7 @@ Every rule below gets at least one test that FAILS on the current code (a false 
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   Claude-Session: https://claude.ai/code/session_01BZtDbTtVRje5x94myi9V7i
   ```
+
+### Addendum A, part 2 (verifier convergence, 2026-11-22)
+
+Two review rounds on Task 4b showed that heuristic JS/TS lexing (regex vs division, template literals) keeps opening new false passes. Decision: JS/TS edits are verified **only** by the TypeScript printer (Task 5). With no printer, JS/TS files fail with "TypeScript compiler not available" and the skill asks to install TypeScript or skip them (SKILL.md Phase 0 step 6). The JS/TS comment-lines scanner is deleted. Also: `verify --changed` lists every changed or untracked non-ignored file, excluding only `explorer/**` and `*.md` (renamed `changed_source_files` → `changed_files`); file-mode and symlink changes fail; `--repo` resolves to the git toplevel. Task 5's fallback test is now `test_fails_closed_without_node`.
