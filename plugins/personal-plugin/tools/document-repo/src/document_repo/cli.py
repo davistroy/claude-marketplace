@@ -59,6 +59,20 @@ def _register_inventory(sub: Any) -> None:
     p.set_defaults(func=_cmd_inventory)
 
 
+def _cmd_modules(args: argparse.Namespace) -> int:
+    from .modules import propose_modules
+
+    emit(propose_modules(load_json(args.inventory)), args.out)
+    return 0
+
+
+def _register_modules(sub: Any) -> None:
+    p = sub.add_parser("modules", help="propose module boundaries from an inventory")
+    p.add_argument("inventory", type=Path)
+    p.add_argument("--out", type=Path)
+    p.set_defaults(func=_cmd_modules)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -67,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="cmd", metavar="<command>")
     # SUBCOMMANDS — each later task adds one `_register_<name>(sub)` call here, in task order.
     _register_inventory(sub)
+    _register_modules(sub)
     return parser
 
 
