@@ -1499,4 +1499,4 @@ The banner carries the Rule 4 bidirectional pointer: v13's outcome, its merge SH
 
 **Decisions:** D73 (see Decision Log). Owner choices: static explorer (A), `explorer/` folder (A), full run + `--update` (A), single phased skill (A), one gate after analysis. Test targets: `davistroy/open-brain` (public) and `davistroy/retire` (private -- explorer must make zero network requests).
 
-**Status:** Spec written; awaiting owner review. Next: `writing-plans` -> implementation plan.
+**Status:** Spec approved by owner 2026-11-22. Implementation plan written to `docs/plans/2026-11-22-document-repo-plan.md` (16 tasks, Task 0-15; build is logged in E070 per the plan's Task 0). COMPLETE.
