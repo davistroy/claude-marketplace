@@ -74,13 +74,22 @@ def _register_modules(sub: Any) -> None:
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
+    import subprocess
+
     from .verify import changed_files, verify_file
 
     if args.changed:
+        if not args.before.strip():
+            sys.stderr.write("verify: --before is empty (an unset variable?)\n")
+            return 2
         try:
             files = changed_files(args.repo, args.before)
         except NotADirectoryError as exc:
             sys.stderr.write(f"verify: {exc}\n")
+            return 2
+        except subprocess.CalledProcessError as exc:
+            err = (exc.stderr or b"").decode("utf-8", "replace").strip()
+            sys.stderr.write(f"verify: cannot list changes against {args.before!r}: {err}\n")
             return 2
     elif args.files:
         files = list(args.files)
@@ -252,6 +261,80 @@ def _register_changes(sub: Any) -> None:
     p.set_defaults(func=_cmd_changes)
 
 
+def _repo_arg(value: str) -> Path:
+    """``--repo`` for commands that write: an empty value (an unset variable) is an error."""
+    if not value.strip():
+        raise argparse.ArgumentTypeError("--repo is empty (an unset variable?)")
+    return Path(value)
+
+
+def _cmd_commit(args: argparse.Namespace) -> int:
+    from .commit import GitError, InputError, commit_paths
+
+    try:
+        outcome = commit_paths(
+            args.repo,
+            list(args.files),
+            list(args.message),
+            None if args.no_content_check else args.verify_against,
+            skip_hooks=args.skip_hooks,
+        )
+    except InputError as exc:
+        sys.stderr.write(f"commit: {exc}\n")
+        return 2
+    except GitError as exc:
+        sys.stderr.write(f"commit: {exc}\n")
+        emit({"status": "error", "detail": str(exc)})
+        return 2
+    emit(outcome.to_dict())
+    if outcome.exit_code:
+        sys.stderr.write(f"commit: {outcome.status}: {outcome.detail}\n")
+    return outcome.exit_code
+
+
+def _register_commit(sub: Any) -> None:
+    p = sub.add_parser("commit", help="commit exactly the listed paths and prove the commit")
+    p.add_argument("--repo", type=_repo_arg, required=True, help="top level of the git work tree")
+    mode = p.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
+        "--verify-against", metavar="REF", help="every changed path must be comment-only vs REF"
+    )
+    mode.add_argument(
+        "--no-content-check", action="store_true", help="skip the comment-only check (docs)"
+    )
+    p.add_argument(
+        "--message",
+        "-m",
+        action="append",
+        required=True,
+        help="commit message; repeat for more paragraphs (subject first)",
+    )
+    p.add_argument(
+        "--skip-hooks", action="store_true", help="pass --no-verify to git commit (user's choice)"
+    )
+    p.add_argument("files", nargs="*", metavar="FILE", help="paths relative to --repo")
+    p.set_defaults(func=_cmd_commit)
+
+
+def _cmd_backstop(args: argparse.Namespace) -> int:
+    from .commit import GitError, InputError, backstop
+
+    try:
+        result = backstop(args.repo, args.base)
+    except (InputError, GitError) as exc:
+        sys.stderr.write(f"backstop: {exc}\n")
+        return 2
+    emit(result)
+    return 0 if result["ok"] else 1
+
+
+def _register_backstop(sub: Any) -> None:
+    p = sub.add_parser("backstop", help="verify the whole branch against its base, tree clean")
+    p.add_argument("--repo", type=_repo_arg, required=True, help="top level of the git work tree")
+    p.add_argument("--base", required=True, help="the commit the branch started from")
+    p.set_defaults(func=_cmd_backstop)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -267,6 +350,8 @@ def build_parser() -> argparse.ArgumentParser:
     _register_remap(sub)
     _register_upsert_section(sub)
     _register_changes(sub)
+    _register_commit(sub)
+    _register_backstop(sub)
     return parser
 
 
