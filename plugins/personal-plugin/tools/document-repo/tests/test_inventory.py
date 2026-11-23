@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from document_repo import inventory as inventory_module
 from document_repo.cli import main
 from document_repo.inventory import SKIP_REASONS, build_inventory, count_lines, skip_reason
 
@@ -71,7 +72,25 @@ def test_entry_candidates(make_repo) -> None:
     assert ("package.json", "package main -> src/util.ts") in whys
     assert ("package.json", "package bin tool -> bin/tool.js") in whys
     assert ("package.json", "npm script start -> node x") in whys
+    assert ("Dockerfile", "container definition") in whys
+
+
+@pytest.mark.skipif(
+    inventory_module.tomllib is None, reason="Python 3.10 has no tomllib to read pyproject.toml"
+)
+def test_entry_candidates_pyproject_console_script(make_repo) -> None:
+    inv = build_inventory(make_repo(_files()))
+    whys = {(e["path"], e["why"]) for e in inv["entry_candidates"]}
     assert ("pyproject.toml", "console script x -> x.cli:main") in whys
+
+
+def test_entry_candidates_without_tomllib_skip_pyproject_scripts(make_repo, monkeypatch) -> None:
+    # The Python 3.10 path: no tomllib, so pyproject.toml scripts are left out and nothing else is.
+    monkeypatch.setattr(inventory_module, "tomllib", None)
+    inv = build_inventory(make_repo(_files()))
+    whys = {(e["path"], e["why"]) for e in inv["entry_candidates"]}
+    assert not any(path == "pyproject.toml" for path, _ in whys)
+    assert ("src/main.py", "conventional entry-point name") in whys
     assert ("Dockerfile", "container definition") in whys
 
 
