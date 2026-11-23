@@ -57,10 +57,10 @@ Mermaid 11.17.2 draws each `architecture.diagrams[].mermaid` source in the brows
 
 ## Acceptance for every run
 
-Open `explorer/index.html` from disk and check:
+Open the page served from `127.0.0.1` (SKILL.md Phase 4 step 4; the Chrome extension refuses `file://`) and check:
 
 - The console shows 0 errors.
 - Every route in the table renders.
 - The Architecture view draws every diagram, with no "could not be drawn" message. A bad diagram logs a warning, not an error, so look at the page.
 - Clicking a diagram box opens its module.
-- Every request is to a `file://` address.
+- Every request goes to that same `127.0.0.1` origin. Read the page's `performance.getEntriesByType('resource')` as well as the network tool, because the tool only sees requests made after its first call.
