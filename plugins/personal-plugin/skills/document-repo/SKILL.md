@@ -70,7 +70,7 @@ preamble, fill every placeholder, and pass the prompt to the Agent tool
 | Placeholder | Fill with |
 |-------------|-----------|
 | `{TARGET}`, `{RUN_DIR}`, `{TOOL_SRC}`, `{SKILL_DIR}` | The literal paths Setup printed |
-| `{id}`, `{path}`, `{files}` | One entry of `$RUN_DIR/modules.final.json`. For a Commenter, `{files}` drops skipped JS/TS files (Phase 0 step 5) and, in an update run, files that update-mode.md step 10 leaves out. |
+| `{id}`, `{path}`, `{files}` | One entry of `$RUN_DIR/modules.final.json`. For a Commenter, `{files}` drops skipped JS/TS files (Phase 0 step 6) and, in an update run, files that update-mode.md step 10 leaves out. |
 | `{all_module_ids}` | Every `id` in `modules.final.json` |
 | `{entry_candidates_in_module}` | The `entry_candidates` in `$RUN_DIR/inventory.json` whose `path` is in `{files}`, as `path (why)`. A manifest hint (`package.json`, `pyproject.toml`) belongs to no module, so also give a module each hint whose target, the path after `->` in `why` resolved from the manifest's directory, is in `{files}`. Give a hint whose target is no file (an npm script command) to the module with path `.`, if there is one. "none" when nothing matches. |
 | `{header_only_files}` | The files in `{files}` whose inventory entry has `header_only` true, or "none" |
@@ -86,18 +86,19 @@ except the JSON shapes the prompt itself shows.
 ## Phase 0 — Preflight
 
 1. `git -C "$TARGET" status --porcelain` must print nothing. Otherwise stop and tell the user to commit or stash.
-2. If `explorer/data/state.json` exists and neither `--update` nor `--phase` was given, ask with AskUserQuestion: **Update** (recommended, only changed modules) or **Full rebuild**. Update switches to update mode.
-3. Record the base: `git -C "$TARGET" rev-parse HEAD > "$RUN_DIR/base.txt"`.
-4. Branch: `git -C "$TARGET" switch -c docs/document-repo`. In update mode use `docs/document-repo-update-$(date +%Y%m%d)`. If the branch exists, stop and ask. In update mode, run update-mode.md step 3 (`changes`) now, before the baseline: it refuses a dirty tree, and a test run can leave artifacts.
-5. Inventory, used by every later phase (Phase 3 reads its `entry_candidates`):
+2. The skill writes its explorer to `explorer/` and never judges its own files there. If `git -C "$TARGET" ls-files -- explorer` prints anything and `explorer/data/state.json` does not exist, that directory is the target's own: stop. Ask with AskUserQuestion: **Stop** (recommended: move or rename `explorer/`, then run again) or **Check again** (after the user moved it; rerun this step). Never go on while the check fails. `build` also refuses to install over it.
+3. If `explorer/data/state.json` exists and neither `--update` nor `--phase` was given, ask with AskUserQuestion: **Update** (recommended, only changed modules) or **Full rebuild**. Update switches to update mode.
+4. Record the base: `git -C "$TARGET" rev-parse HEAD > "$RUN_DIR/base.txt"`.
+5. Branch: `git -C "$TARGET" switch -c docs/document-repo`. In update mode use `docs/document-repo-update-$(date +%Y%m%d)`. If the branch exists, stop and ask. In update mode, run update-mode.md step 3 (`changes`) now, before the baseline: it refuses a dirty tree, and a test run can leave artifacts.
+6. Inventory, used by every later phase (Phase 3 reads its `entry_candidates`):
 
    ```bash
    PYTHONPATH="$TOOL_SRC" python3 -m document_repo inventory "$TARGET" --out "$RUN_DIR/inventory.json"
    ```
 
-   If `summary.by_lang` has `javascript` or `typescript` and Phase 2 will run, check the TypeScript printer: `PYTHONPATH="$TOOL_SRC" python3 -c "from pathlib import Path; from document_repo.verify import typescript_available as t; print(t(Path('$TARGET')))"`. Only that printer can verify JS/TS edits. On `False`, ask with AskUserQuestion: **Install TypeScript** (recommended: `npm install -g typescript`, then check again) or **Skip JS/TS files** (they get no comments and are listed in the report).
-6. Find the verification commands. Skip steps 6 and 7 with `--phase docs` or `--phase explorer`: no source file changes. Look in package.json `scripts` (test, lint, typecheck or type-check), pyproject.toml, pytest.ini and tox.ini (pytest), Makefile targets (test, lint), and CI workflow files. Leave out any command that writes files: `--fix`, `--write`, `format` or `fmt`, `-u`, `--update-snapshot`, `--snapshot-update`. Use the check-only form when there is one (`ruff check` without `--fix`, `prettier --check`). Write `$RUN_DIR/commands.json` as `{"test": [...], "lint": [...], "typecheck": [...]}`.
-7. Baseline: run each command with a 10-minute timeout, with the command fingerprint in `$SKILL_DIR/references/commit-protocol.md` taken before and after. Record its exit code, duration and last 40 lines in `$RUN_DIR/baseline.json`. Never install dependencies without asking. A command that cannot run is recorded as `not_runnable`. Failing or not-runnable commands do not block the run. They go in the gate summary and the report. After each command, `git -C "$TARGET" status --porcelain -uall` must print nothing. If it lists files, follow the fingerprint rules: delete new artifacts, and drop a command that changed a tracked file.
+   If `summary.by_lang` has `javascript` or `typescript` and Phase 2 will run, check the TypeScript printer: `PYTHONPATH="$TOOL_SRC" python3 -c "import sys; from pathlib import Path; from document_repo.verify import typescript_available as t; print(t(Path(sys.argv[1])))" "$TARGET"`. Only that printer can verify JS/TS edits. On `False`, ask with AskUserQuestion: **Install TypeScript** (recommended: `npm install -g typescript`, then check again) or **Skip JS/TS files** (they get no comments and are listed in the report).
+7. Find the verification commands. Skip steps 7 and 8 with `--phase docs` or `--phase explorer`: no source file changes. Look in package.json `scripts` (test, lint, typecheck or type-check), pyproject.toml, pytest.ini and tox.ini (pytest), Makefile targets (test, lint), and CI workflow files. Leave out any command that writes files: `--fix`, `--write`, `format` or `fmt`, `-u`, `--update-snapshot`, `--snapshot-update`. Use the check-only form when there is one (`ruff check` without `--fix`, `prettier --check`). Write `$RUN_DIR/commands.json` as `{"test": [...], "lint": [...], "typecheck": [...]}`.
+8. Baseline: run each command with a 10-minute timeout, with the command fingerprint in `$SKILL_DIR/references/commit-protocol.md` taken before and after. Record its exit code, duration and last 40 lines in `$RUN_DIR/baseline.json`. Never install dependencies without asking. A command that cannot run is recorded as `not_runnable`. Failing or not-runnable commands do not block the run. They go in the gate summary and the report. After each command, `git -C "$TARGET" status --porcelain -uall` must print nothing. If it lists files, follow the fingerprint rules: delete new artifacts, and drop a command that changed a tracked file.
 
 ## Phase 1 — Analyze
 

@@ -39,7 +39,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
    | Report key | Meaning |
    |------------|---------|
    | `since`, `head` | The two full commit hashes compared |
-   | `changed_files` | `{status, path}` per changed file, using git's status letter and, for a rename, the new path. It leaves out comment-only edits, Markdown files and everything under `explorer/`. |
+   | `changed_files` | `{status, path}` per changed file, using git's status letter and, for a rename, the new path. It leaves out comment-only edits, Markdown files and the explorer output (`explorer/data/`, and the template's own files while `explorer/data/state.json` exists). |
    | `comment_only_files` | Files edited in comments only, proven by the verifier. They are not changes. |
    | `removed_files` | Deleted paths |
    | `affected_modules` | Every module that owns a changed path. Modules that share a path are all listed. A rename lists the module it left and the one it entered. |
