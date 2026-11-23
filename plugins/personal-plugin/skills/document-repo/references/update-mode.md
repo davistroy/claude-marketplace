@@ -1,6 +1,6 @@
 # Update mode (`--update`)
 
-Use when `explorer/data/state.json` exists and the code changed after the commit it names. An update re-analyses only the modules whose files changed, rewrites only the doc sections that depend on them, and leaves every existing comment alone.
+Use when Phase 0's `explorer-status` prints `ours` and the code changed after the commit it names. An update re-analyses only the modules whose files changed, rewrites only the doc sections that depend on them, and leaves every existing comment alone.
 
 The inputs are in `$TARGET/explorer/data/`: `state.json` (`source_commit`, the commit the docs describe) and `model.json` (the base model). If either is missing, there is nothing to update from: offer a full run.
 
@@ -39,7 +39,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
    | Report key | Meaning |
    |------------|---------|
    | `since`, `head` | The two full commit hashes compared |
-   | `changed_files` | `{status, path}` per changed file, using git's status letter and, for a rename, the new path. It leaves out comment-only edits, Markdown files and the explorer output (`explorer/data/`, and the template's own files while `explorer/data/state.json` exists). |
+   | `changed_files` | `{status, path}` per changed file, using git's status letter and, for a rename, the new path. It leaves out comment-only edits, Markdown files and the explorer output (the files a build writes, in an explorer a build made: see commit-protocol.md). |
    | `comment_only_files` | Files edited in comments only, proven by the verifier. They are not changes. |
    | `removed_files` | Deleted paths |
    | `affected_modules` | Every module that owns a changed path. Modules that share a path are all listed. A rename lists the module it left and the one it entered. |

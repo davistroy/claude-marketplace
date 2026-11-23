@@ -1,6 +1,6 @@
 # Explorer contract
 
-The explorer is a fixed app in the skill's `templates/explorer/`. `build --template` copies it into `<target>/explorer/` (everything except the top-level `data/`) and then writes `explorer/data/`. Copy it on every run. Never edit it inside a target repo: change the template in the plugin and run again.
+The explorer is a fixed app in the skill's `templates/explorer/`. `build --template` copies it into `<target>/explorer/` (everything except the top-level `data/`) and then writes `explorer/data/`. Every run that reaches Phase 4 copies it again. `build` first refuses (exit 2) a directory it did not make. It accepts one whose `data/state.json` is exactly the file a build writes (below) with a `model_hash` that matches `model.json`, or one that holds only byte-for-byte copies of template files. It also refuses any file in `data/` other than the three below and Markdown, and any symlink. Phase 0 runs the same check with `explorer-status`. Never edit it inside a target repo: change the template in the plugin and run again.
 
 | File in `explorer/data/` | Written by | Holds |
 |--------------------------|------------|-------|
