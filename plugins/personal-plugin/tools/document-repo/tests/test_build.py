@@ -172,6 +172,92 @@ def test_install_template_keeps_existing_data(tmp_path: Path) -> None:
     assert (explorer / "data" / "model.js").read_text() == "REAL"
 
 
+def _tiny_template(tmp_path: Path) -> Path:
+    template = tmp_path / "tpl"
+    (template / "vendor").mkdir(parents=True)
+    (template / "index.html").write_text("<html></html>")
+    (template / "app.js").write_text("// app")
+    (template / "vendor" / "m.js").write_text("//m")
+    return template
+
+
+def test_template_files_lists_what_install_copies(tmp_path: Path) -> None:
+    template = _tiny_template(tmp_path)
+    (template / "data").mkdir()
+    (template / "data" / "model.js").write_text("TEMPLATE")
+    (template / "vendor" / "data").mkdir()
+    (template / "vendor" / "data" / "x.js").write_text("deep")
+    assert build.template_files(template) == {
+        "index.html",
+        "app.js",
+        "vendor/m.js",
+        "vendor/data/x.js",
+    }
+    explorer = tmp_path / "explorer"
+    install_template(template, explorer)
+    copied = {p.relative_to(explorer).as_posix() for p in explorer.rglob("*") if p.is_file()}
+    assert copied == build.template_files(template)
+
+
+@pytest.mark.parametrize(
+    "rel,content",
+    [
+        ("app.py", "print('mine')\n"),  # a file the template does not have
+        ("app.js", "// my own app\n"),  # a template name with the target's own content
+        ("vendor/lib/x.js", "x\n"),
+    ],
+)
+def test_install_template_refuses_a_directory_it_did_not_make(
+    tmp_path: Path, rel: str, content: str
+) -> None:
+    template = _tiny_template(tmp_path)
+    explorer = tmp_path / "repo" / "explorer"
+    (explorer / rel).parent.mkdir(parents=True, exist_ok=True)
+    (explorer / rel).write_text(content)
+    with pytest.raises(ValueError, match="not made by document-repo"):
+        install_template(template, explorer)
+    assert (explorer / rel).read_text() == content
+    assert not (explorer / "index.html").exists()
+
+
+def test_install_template_reinstalls_over_its_own_directory(tmp_path: Path) -> None:
+    template = _tiny_template(tmp_path)
+    explorer = tmp_path / "repo" / "explorer"
+    install_template(template, explorer)
+    # A half-made explorer (template files only, no data yet) is ours.
+    install_template(template, explorer)
+    # With state.json, an explorer from an older template is ours too.
+    (explorer / "old.js").write_text("// removed from the template since")
+    (explorer / "app.js").write_text("// older app")
+    (explorer / "data").mkdir()
+    (explorer / "data" / "state.json").write_text("{}\n")
+    install_template(template, explorer)
+    assert (explorer / "app.js").read_text() == "// app"
+
+
+def test_cli_build_refuses_a_foreign_explorer(tmp_path: Path, capsys) -> None:
+    template = _tiny_template(tmp_path)
+    explorer = tmp_path / "explorer"
+    explorer.mkdir()
+    (explorer / "app.js").write_text("// mine\n")
+    model = tmp_path / "model.json"
+    model.write_text(FIXTURE.read_text())
+    code = main(
+        [
+            "build",
+            "--model",
+            str(model),
+            "--explorer-dir",
+            str(explorer),
+            "--template",
+            str(template),
+        ]
+    )
+    assert code == 2 and "not made by document-repo" in capsys.readouterr().err
+    assert (explorer / "app.js").read_text() == "// mine\n"
+    assert not (explorer / "data").exists()
+
+
 def test_cli_assemble_and_build(make_repo, tmp_path: Path) -> None:
     run = _run_dir(tmp_path)
     repo = make_repo({"a.py": "x\n"})
@@ -782,7 +868,8 @@ def test_install_template_overwrites_stale_app_files(tmp_path: Path) -> None:
     template.mkdir()
     (template / "index.html").write_text("new")
     explorer = tmp_path / "explorer"
-    explorer.mkdir()
+    (explorer / "data").mkdir(parents=True)
+    (explorer / "data" / "state.json").write_text("{}\n")  # a build made this explorer
     (explorer / "index.html").write_text("old")
     install_template(template, explorer)
     assert (explorer / "index.html").read_text() == "new"

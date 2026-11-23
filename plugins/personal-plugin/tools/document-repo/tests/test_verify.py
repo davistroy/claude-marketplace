@@ -1,5 +1,6 @@
 import json
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -105,11 +106,17 @@ def test_comment_chunk_block_end_must_close_line() -> None:
 
 def test_changed_files(make_repo) -> None:
     repo = make_repo(
-        {"a.py": "x = 1\n", "README.md": "# r\n", "explorer/x.js": "x\n", "b.py": "y = 1\n"}
+        {
+            "a.py": "x = 1\n",
+            "README.md": "# r\n",
+            "explorer/app.js": "x\n",
+            "explorer/data/state.json": "{}\n",
+            "b.py": "y = 1\n",
+        }
     )
     (repo / "a.py").write_text("# c\nx = 1\n")
     (repo / "README.md").write_text("# r2\n")
-    (repo / "explorer/x.js").write_text("y\n")
+    (repo / "explorer/app.js").write_text("y\n")
     assert changed_files(repo, "HEAD") == ["a.py"]
 
 
@@ -897,7 +904,8 @@ def _changed_repo(make_repo):
             "a.rb": "x = 1\n",
             "README.md": "# r\n",
             "docs/x.md": "# x\n",
-            "explorer/x.js": "x\n",
+            "explorer/app.js": "x\n",
+            "explorer/data/state.json": "{}\n",
             "keep.py": "k = 1\n",
             "gone.py": "g = 1\n",
             ".gitignore": "ignored.py\nbuild/\n",
@@ -907,8 +915,8 @@ def _changed_repo(make_repo):
     (repo / "a.rb").write_text("# c\nx = 1\n")
     (repo / "README.md").write_text("# r2\n")
     (repo / "docs/x.md").write_text("# x2\n")
-    (repo / "explorer/x.js").write_text("y\n")
-    (repo / "explorer/new.json").write_text("{}\n")
+    (repo / "explorer/app.js").write_text("y\n")
+    (repo / "explorer/data/new.json").write_text("{}\n")
     (repo / "gone.py").unlink()
     (repo / "conftest.py").write_text("import pytest\n")
     (repo / "ignored.py").write_text("i = 1\n")
@@ -1329,3 +1337,96 @@ def test_go_new_block_output_comment_fails(make_repo, chunk: str) -> None:
     after = GO_NO_OUTPUT.replace('("hi")\n', '("hi")\n' + chunk + "\n")
     r = _run(make_repo, "x_test.go", GO_NO_OUTPUT, after)
     assert not r.ok and DIRECTIVE in r.detail, (r.method, r.detail)
+
+
+# --- the exempt set is the installed explorer app and explorer/data/, not all of explorer/ ------
+
+
+@pytest.mark.parametrize(
+    "path,exempt",
+    [
+        ("explorer/index.html", True),
+        ("explorer/app.js", True),
+        ("explorer/styles.css", True),
+        ("explorer/vendor/mermaid.min.js", True),
+        ("explorer/data/model.json", True),
+        ("explorer/data/run-report.md", True),
+        ("explorer/data/anything/else.bin", True),
+        ("explorer/app.py", False),
+        ("explorer/server/main.go", False),
+        ("explorer/vendor/other.js", False),
+        ("explorer/data", False),
+        ("src/explorer/app.js", False),
+        ("explorer", False),
+        ("NOTES.md", True),
+    ],
+)
+def test_is_exempt_covers_only_the_template_and_its_data(
+    tmp_path: Path, path: str, exempt: bool
+) -> None:
+    from document_repo.verify import is_exempt
+
+    (tmp_path / "explorer/data").mkdir(parents=True)
+    (tmp_path / "explorer/data/state.json").write_text("{}\n")
+    assert is_exempt(path, tmp_path) is exempt
+
+
+@pytest.mark.parametrize(
+    "path,exempt",
+    [
+        ("explorer/app.js", False),
+        ("explorer/index.html", False),
+        ("explorer/data/model.json", True),
+        ("NOTES.md", True),
+    ],
+)
+def test_without_a_build_marker_template_names_are_judged(
+    tmp_path: Path, path: str, exempt: bool
+) -> None:
+    from document_repo.verify import is_exempt
+
+    assert is_exempt(path, tmp_path) is exempt
+
+
+def test_the_exempt_set_is_read_from_the_template_directory(tmp_path: Path) -> None:
+    from document_repo.build import TEMPLATE_DIR, template_files
+    from document_repo.verify import is_exempt
+
+    installed = template_files(TEMPLATE_DIR)
+    on_disk = {
+        p.relative_to(TEMPLATE_DIR).as_posix()
+        for p in TEMPLATE_DIR.rglob("*")
+        if p.is_file() and p.relative_to(TEMPLATE_DIR).parts[0] != "data"
+    }
+    assert installed == on_disk and "app.js" in installed
+    (tmp_path / "explorer/data").mkdir(parents=True)
+    (tmp_path / "explorer/data/state.json").write_text("{}\n")
+    assert all(is_exempt("explorer/" + rel, tmp_path) for rel in installed)
+
+
+def test_a_target_file_under_explorer_is_verified(make_repo) -> None:
+    repo = make_repo({"explorer/app.py": "x = 1\n", "explorer/app.js": "var a;\n"})
+    (repo / "explorer/app.py").write_text("x = 2\n")
+    (repo / "explorer/app.js").write_text("var b;\n")
+    # No explorer/data/state.json: the target's own app.js is judged despite its name.
+    assert changed_files(repo, "HEAD") == ["explorer/app.js", "explorer/app.py"]
+    (repo / "explorer/data").mkdir()
+    (repo / "explorer/data/state.json").write_text("{}\n")
+    assert changed_files(repo, "HEAD") == ["explorer/app.py"]
+    r = verify_file(repo, "explorer/app.py")
+    assert not r.ok and "syntax tree changed" in r.detail, r.detail
+
+
+def test_without_the_template_only_explorer_data_is_exempt(monkeypatch, tmp_path) -> None:
+    from document_repo import build
+    from document_repo import verify as verify_mod
+
+    monkeypatch.setattr(build, "TEMPLATE_DIR", tmp_path / "missing")
+    verify_mod._installed_app.cache_clear()
+    try:
+        (tmp_path / "explorer/data").mkdir(parents=True)
+        (tmp_path / "explorer/data/state.json").write_text("{}\n")
+        assert not verify_mod.is_exempt("explorer/app.js", tmp_path)
+        assert verify_mod.is_exempt("explorer/data/model.json", tmp_path)
+    finally:
+        verify_mod._installed_app.cache_clear()

@@ -357,13 +357,14 @@ def _commit_failure(top: Path, output: str, skip_hooks: bool) -> str:
     return "git commit failed and no commit hook ran. Read git_output"
 
 
-def _refuse_source(changed: list[str]) -> None:
+def _refuse_source(top: Path, changed: list[str]) -> None:
     """``--no-content-check`` is for docs: refuse any changed path the verifier would judge."""
-    source = [p for p in changed if not is_exempt(p)]
+    source = [p for p in changed if not is_exempt(p, top)]
     if source:
         raise InputError(
-            "--no-content-check commits only Markdown and explorer/, and these changed paths "
-            f"are neither: {', '.join(source)}. Commit them with --verify-against"
+            "--no-content-check commits only Markdown, the explorer app's own files and "
+            f"explorer/data/, and these changed paths are none of those: {', '.join(source)}. "
+            "Commit them with --verify-against"
         )
 
 
@@ -377,7 +378,8 @@ def commit_paths(
     """Commit exactly ``paths`` and prove the commit; see the module docstring.
 
     ``verify_against`` is the ref every changed path must be comment-only against, or None for
-    docs mode: only paths ``is_exempt`` accepts (Markdown, ``explorer/``), content not checked.
+    docs mode: only paths ``is_exempt`` accepts (Markdown, the explorer app's own files and
+    ``explorer/data/``), content not checked.
     Raises ``InputError`` on bad input, before the repo is touched. Once ``git commit`` has run,
     nothing raises: every failure is an ``Outcome``.
     """
@@ -395,7 +397,7 @@ def commit_paths(
             )
     roots = normalize_paths(top, paths)
     if ref is None:
-        _refuse_source(_changed(top, "HEAD", roots))
+        _refuse_source(top, _changed(top, "HEAD", roots))
 
     _out(top, "reset", "-q")
     changed = _changed(top, "HEAD", roots)
@@ -490,13 +492,13 @@ def _after_commit(run: _Run, proc: subprocess.CompletedProcess[bytes]) -> Outcom
     problem = None
     results: list[dict[str, Any]] = []
     extra = [p for p in committed if not _under(p, roots)]
-    source = [p for p in committed if not is_exempt(p)] if ref is None else []
+    source = [p for p in committed if not is_exempt(p, top)] if ref is None else []
     differs = _changed(top, "HEAD", roots)
     if extra:
         problem = f"the commit also held {', '.join(extra)} (added by a hook?)"
     elif source:
         problem = (
-            f"the commit held {', '.join(source)}, which is not Markdown or explorer/ "
+            f"the commit held {', '.join(source)}, which is not Markdown or explorer output "
             "(added by a hook?)"
         )
     elif differs:

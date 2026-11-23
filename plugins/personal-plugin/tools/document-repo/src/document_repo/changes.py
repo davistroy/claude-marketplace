@@ -106,9 +106,9 @@ def _git_out(top: Path, *args: str) -> bytes:
     return proc.stdout
 
 
-def _ignored(path: str) -> bool:
-    """Output the skill writes itself (the explorer, at the repo root) and markdown docs."""
-    return is_exempt(path)
+def _ignored(path: str, top: Path) -> bool:
+    """Output the skill writes itself (its explorer files, see ``verify.is_exempt``) and docs."""
+    return is_exempt(path, top)
 
 
 def _text(field: bytes) -> str:
@@ -288,7 +288,7 @@ def compute_changes(repo: Path, state: dict[str, Any], model: dict[str, Any]) ->
     unmapped: set[str] = set()
     affected: set[str] = set()
     for kind, old, new in _parse_name_status(diff):
-        if _ignored(old) and _ignored(new):
+        if _ignored(old, top) and _ignored(new, top):
             continue
         if kind == "M" and detect(new) is not None and _comment_only(top, head, since, new):
             comment_only.append(new)
@@ -297,7 +297,7 @@ def compute_changes(repo: Path, state: dict[str, Any], model: dict[str, Any]) ->
         if kind == "D":
             removed.append(old)
         for path in {old, new}:
-            if _ignored(path):
+            if _ignored(path, top):
                 continue
             owners = modules_for(path, modules)
             affected.update(owners)

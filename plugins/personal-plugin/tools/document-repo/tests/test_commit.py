@@ -132,9 +132,36 @@ def test_directory_with_new_files(make_repo, capsys) -> None:
     (repo / "explorer/data").mkdir(parents=True)
     (repo / "explorer/index.html").write_text("<p>hi</p>\n")
     (repo / "explorer/data/model.json").write_text("{}\n")
+    (repo / "explorer/data/state.json").write_text("{}\n")
     code, out = commit(capsys, repo, "explorer", ref=None)
     assert code == 0, out
-    assert out["paths"] == ["explorer/data/model.json", "explorer/index.html"]
+    assert out["paths"] == [
+        "explorer/data/model.json",
+        "explorer/data/state.json",
+        "explorer/index.html",
+    ]
+
+
+def test_no_content_check_refuses_a_template_name_without_a_build_marker(
+    make_repo, git, capsys
+) -> None:
+    # A target's own explorer/app.js, with no state.json from a build, is not the skill's.
+    repo = make_repo({"explorer/app.js": "var mine = 1;\n"})
+    pre = head(git, repo)
+    (repo / "explorer/app.js").write_text("var mine = 2;\n")
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 2 and "explorer/app.js" in out["_err"], out
+    assert head(git, repo) == pre and staged(git, repo) == ""
+
+
+def test_no_content_check_refuses_a_target_file_under_explorer(make_repo, git, capsys) -> None:
+    repo = make_repo({"explorer/app.py": "x = 1\n"})
+    pre = head(git, repo)
+    (repo / "explorer/app.py").write_text("x = 2\n")
+    (repo / "explorer/index.html").write_text("<p>hi</p>\n")
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 2 and "explorer/app.py" in out["_err"], out
+    assert head(git, repo) == pre and staged(git, repo) == ""
 
 
 def test_foreign_index_entry_is_left_out(make_repo, git, capsys) -> None:
@@ -390,15 +417,17 @@ def test_hook_adds_a_file_docs_commit_keeps_the_work(make_repo, git, capsys) -> 
 
 def test_hook_rewrites_docs_without_staging_restores_staged_bytes(make_repo, git, capsys) -> None:
     repo = make_repo({"README.md": "old\n"})
-    hook(repo, "pre-commit", "printf 'hooked\\n' > README.md\necho junk > explorer/x.txt\n")
-    (repo / "explorer").mkdir()
-    (repo / "explorer/a.html").write_text("a\n")
+    hook(repo, "pre-commit", "printf 'hooked\\n' > README.md\necho junk > explorer/data/x.txt\n")
+    (repo / "explorer/data").mkdir(parents=True)
+    (repo / "explorer/data/state.json").write_text("{}\n")
+    (repo / "explorer/index.html").write_text("a\n")
     (repo / "README.md").write_text("new docs\n")
     code, out = commit(capsys, repo, "README.md", "explorer", ref=None)
     assert code == 1 and out["status"] == "undone", out
     assert (repo / "README.md").read_text() == "new docs\n"
-    assert not (repo / "explorer/x.txt").exists(), "a file the hook made under the list is removed"
-    assert (repo / "explorer/a.html").read_text() == "a\n"
+    hook_file = repo / "explorer/data/x.txt"
+    assert not hook_file.exists(), "a file the hook made under the list is removed"
+    assert (repo / "explorer/index.html").read_text() == "a\n"
 
 
 def test_hook_edits_another_modules_file_s4(make_repo, git, capsys) -> None:

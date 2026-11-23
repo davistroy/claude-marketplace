@@ -524,15 +524,30 @@ def _method_result(repo: Path, rel: str, before: str, after: str, lang: Lang) ->
 DOC_SUFFIXES = (".md",)
 
 
-def is_exempt(path: str) -> bool:
-    """True for a path the verifier never judges: the explorer output and Markdown.
+@functools.lru_cache(maxsize=1)
+def _installed_app() -> frozenset[str]:
+    """The explorer app's own files, as ``explorer/<rel>``, read once from the template."""
+    from .build import TEMPLATE_DIR, template_files
 
-    ``path`` is relative to the top level of the work tree. The test is by name only: a symlink
-    or any other entry named ``*.md`` is exempt whatever it holds or points at. This is the one
-    definition of the exempt set: ``changed_files`` leaves these paths out, and
-    ``commit --no-content-check`` refuses every other path.
+    return frozenset(f"{OUTPUT_DIR}/{rel}" for rel in template_files(TEMPLATE_DIR))
+
+
+def is_exempt(path: str, top: Path) -> bool:
+    """True for a path the verifier never judges: the skill's own explorer output and Markdown.
+
+    ``path`` is relative to ``top``, the top level of the work tree. The explorer output is
+    everything under ``explorer/data/``, plus the app's own files exactly as
+    ``build.install_template`` copies them from the template, and those only while
+    ``explorer/data/state.json`` exists in the work tree: a target's own ``explorer/app.js`` is
+    not ours because of its name, and with no build marker it is judged like any source file.
+    Every other path under ``explorer/`` is the target's and is always judged. The test is by
+    name only: a symlink or any other entry named ``*.md`` is exempt whatever it holds or points
+    at. This is the one definition of the exempt set: ``changed_files`` and ``changes`` leave
+    these paths out, and ``commit --no-content-check`` refuses every other path.
     """
-    return path.startswith(OUTPUT_DIR + "/") or path.lower().endswith(DOC_SUFFIXES)
+    if path.lower().endswith(DOC_SUFFIXES) or path.startswith(f"{OUTPUT_DIR}/data/"):
+        return True
+    return path in _installed_app() and (top / OUTPUT_DIR / "data" / "state.json").is_file()
 
 
 def _git_paths(repo: Path, *args: str) -> list[str]:
@@ -557,4 +572,4 @@ def changed_files(repo: Path, ref: str) -> list[str]:
         raise NotADirectoryError(f"not inside a git work tree: {repo}")
     tracked = _git_paths(top, "diff", "--name-only", "--no-renames", "-z", ref, "--")
     untracked = _git_paths(top, "ls-files", "--others", "--exclude-standard", "-z")
-    return sorted(p for p in set(tracked) | set(untracked) if not is_exempt(p))
+    return sorted(p for p in set(tracked) | set(untracked) if not is_exempt(p, top))

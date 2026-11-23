@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -266,14 +267,74 @@ def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
     return state
 
 
+#: The explorer app the skill installs. The tool always runs from the plugin's source tree
+#: (``PYTHONPATH=<plugin>/tools/document-repo/src``), so the template sits at a fixed place
+#: beside it. ``verify.is_exempt`` reads its file list from here.
+TEMPLATE_DIR = Path(__file__).resolve().parents[4] / "skills/document-repo/templates/explorer"
+
+#: The directory inside the explorer that holds the target's own model and the run report. It is
+#: never copied from the template, and everything in it is written by the skill.
+DATA_DIR = "data"
+
+#: Written by every build; its presence marks an explorer directory as one this skill made.
+STATE_FILE = "state.json"
+
+
+def template_files(template_dir: Path) -> frozenset[str]:
+    """Every file ``install_template`` copies, relative to the explorer directory, "/"-separated.
+
+    This is the one list of the app's own files: the install copies exactly these, and
+    ``verify.is_exempt`` exempts exactly these (plus ``data/``). A missing template lists nothing,
+    so nothing outside ``data/`` is exempt and every file there is judged.
+    """
+    found: set[str] = set()
+    for directory, dirs, files in os.walk(template_dir, followlinks=True):
+        if Path(directory) == template_dir and DATA_DIR in dirs:
+            dirs.remove(DATA_DIR)
+        rel_dir = Path(directory).relative_to(template_dir)
+        found.update((rel_dir / name).as_posix() for name in files)
+    return frozenset(found)
+
+
+def _foreign_files(template_dir: Path, explorer_dir: Path) -> list[str]:
+    """Files in ``explorer_dir`` (outside ``data/``) that the template would not have put there.
+
+    A file the template does not have is foreign, and so is a file with a template name whose
+    bytes differ: a target's own ``explorer/app.js`` must not be mistaken for ours by its name.
+    """
+    installed = template_files(template_dir)
+    foreign = []
+    for directory, dirs, files in os.walk(explorer_dir):
+        if Path(directory) == explorer_dir and DATA_DIR in dirs:
+            dirs.remove(DATA_DIR)
+        for name in files:
+            path = Path(directory) / name
+            rel = path.relative_to(explorer_dir).as_posix()
+            if rel not in installed or path.read_bytes() != (template_dir / rel).read_bytes():
+                foreign.append(rel)
+    return sorted(foreign)
+
+
 def install_template(template_dir: Path, explorer_dir: Path) -> None:
     """Copy the fixed explorer app into the target, never touching data/.
 
     Only the top-level ``data/`` is skipped: it holds the target's own model, and a ``data``
     directory deeper in the app (inside a vendored library, say) is part of the app.
+
+    An explorer directory with no ``data/state.json`` was not made by a build. If it holds any
+    file the template would not have put there, it is the target's own code, and copying over it
+    would replace that code with a file the verifier never judges: refuse with ``ValueError``.
+    With ``state.json`` the directory is ours, and an older app is overwritten.
     """
+    if not (explorer_dir / DATA_DIR / STATE_FILE).is_file():
+        foreign = _foreign_files(template_dir, explorer_dir)
+        if foreign:
+            raise ValueError(
+                f"{explorer_dir} was not made by document-repo (no {DATA_DIR}/{STATE_FILE}) and "
+                f"holds files of its own: {', '.join(foreign)}. Move it aside, then run again"
+            )
 
     def skip_top_level_data(directory: str, names: list[str]) -> set[str]:
-        return {"data"}.intersection(names) if Path(directory) == template_dir else set()
+        return {DATA_DIR}.intersection(names) if Path(directory) == template_dir else set()
 
     shutil.copytree(template_dir, explorer_dir, dirs_exist_ok=True, ignore=skip_top_level_data)

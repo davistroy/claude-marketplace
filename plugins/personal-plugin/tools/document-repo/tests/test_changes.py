@@ -265,6 +265,13 @@ def test_explorer_is_ignored_only_at_the_repo_root(make_repo, commit_files, git)
     assert result["affected_modules"] == ["root", "src"]
 
 
+def test_a_target_file_under_explorer_is_a_change(make_repo, commit_files, git) -> None:
+    repo, state, model = _setup(make_repo, git)
+    commit_files(repo, {"explorer/app.py": "x = 1\n"})
+    result = compute_changes(repo, state, model)
+    assert {"status": "A", "path": "explorer/app.py"} in result["changed_files"]
+
+
 def test_a_deleted_unmapped_file_is_removed_but_not_unmapped(make_repo, commit_files, git) -> None:
     repo, _, model = _setup(make_repo, git)
     commit_files(repo, {"tools/gone.py": "g = 1\n"})
