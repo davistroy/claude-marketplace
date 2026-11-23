@@ -5,7 +5,7 @@ Fill the `{placeholders}`, prepend the preamble, and pass each prompt to the Age
 | Placeholder | Value |
 |-------------|-------|
 | `{TARGET}` | Git top level of the repo being documented |
-| `{RUN_DIR}` | `$TARGET/.document-repo`. Create `modules/`, `comments/` and `docs/` inside it before dispatching, so agents can write there. |
+| `{RUN_DIR}` | `$TARGET/.document-repo/run-<UTC timestamp>`, a new directory for every run. Create it with `modules/`, `comments/` and `docs/` inside before dispatching, so agents can write there. `$TARGET/.document-repo/.gitignore` holds `*`, so nothing in a run directory is tracked. |
 | `{SKILL_DIR}`, `{TOOL_SRC}` | The skill directory, and `tools/document-repo/src` in the plugin |
 | `{id}`, `{path}`, `{files}` | One entry of `modules.final.json`: the module id, its path, and the files it owns |
 | `{all_module_ids}` | Every module id in `modules.final.json` |
@@ -14,6 +14,7 @@ Fill the `{placeholders}`, prepend the preamble, and pass each prompt to the Age
 | `{ids}` | A batch of module ids |
 | `{UPDATE_LINE}` | Empty in a full run. In an update run, the line given in the prompt. |
 | `{SINCE}`, `{BASE_MODEL}` | Update runs only: `since` from `changes.json`, and the path of the base model copy |
+| `{affected_modules}` | Update runs only: the ids of the modules to re-analyse, from `affected_modules` in `changes.json` plus any new module |
 
 ## Preamble for every prompt
 
@@ -99,6 +100,9 @@ Rules:
 - paths must include ids new-dev, ai-agent and change-x. A step with
   ref_type "doc" names a file that exists, as a path relative to the repo
   root, such as README.md or docs/ARCHITECTURE.md.
+
+When done, run:
+python3 -c "import json;d=json.load(open('{RUN_DIR}/system.json'));assert set(d)=={'project','architecture','flows','glossary','paths','agent_notes'}"
 ```
 
 `{UPDATE_LINE}` in an update run: `Update run: the base model is {BASE_MODEL}. Start from it and keep every statement that is still true. These modules changed since {SINCE}: {affected_modules}.`
@@ -115,18 +119,22 @@ Standards: {SKILL_DIR}/references/comment-standards.md. Read all of it first.
 Every rule in it matches a check that reverts your file.
 {UPDATE_LINE}
 
-Use the Edit tool only. To insert, put the unchanged neighbouring line in both
-old_string and new_string, byte for byte, and add your lines around it. Never
-change or remove an existing line. Keep the file's line endings.
+Change source files with the Edit tool only. To insert, put the unchanged
+neighbouring line in both old_string and new_string, byte for byte, and add
+your lines around it. old_string must occur exactly once in the file: if the
+neighbouring line repeats (a blank line, a closing brace), add the line above
+or below it to old_string until it is unique. Never change or remove an
+existing line. Keep the file's line endings.
 
 After each file, run:
-PYTHONPATH={TOOL_SRC} python3 -m document_repo verify --repo {TARGET} --before HEAD <path>
+PYTHONPATH="{TOOL_SRC}" python3 -m document_repo verify --repo "{TARGET}" --before HEAD <path>
 Read "detail" in the JSON result. If "ok" is false, restore the file with
-git -C {TARGET} checkout HEAD -- <path> and try once more with fewer, simpler
+git -C "{TARGET}" checkout HEAD -- <path> and try once more with fewer, simpler
 insertions that avoid the rule "detail" names. If it fails again, restore it
 and move on. If "detail" says the TypeScript compiler is not available,
 restore the file, do not retry, and report every JS/TS file the same way. If it
-says the file does not parse cleanly, restore it and move on.
+says the file does not parse cleanly, or its base version does not parse, restore
+it and move on.
 
 Other agents are editing other files in the same working tree. Touch only your
 files. Run git checkout only on your own files, and never git add, commit,
@@ -147,7 +155,7 @@ For each module id in {ids}, write the body of the `module` section for
 README" template, and the "Rules for every body" in
 {SKILL_DIR}/references/doc-templates.md.
 For each id, write the body to {RUN_DIR}/docs/{id}.md, then run:
-PYTHONPATH={TOOL_SRC} python3 -m document_repo upsert-section --file {TARGET}/<module.path>/README.md --section module --content-file {RUN_DIR}/docs/{id}.md
+PYTHONPATH="{TOOL_SRC}" python3 -m document_repo upsert-section --file "{TARGET}/<module.path>/README.md" --section module --content-file "{RUN_DIR}/docs/{id}.md"
 Skip the root module (path ".") and any module whose status is not_analyzed:
 the root README is written separately. If upsert-section exits 2, do not retry.
 Copy its message into your reply. Never edit README text outside the markers.
@@ -166,7 +174,7 @@ Write {RUN_DIR}/quiz.json: [{"q": str, "answer": str, "evidence": str}].
 Then stop.
 ```
 
-The orchestrator writes `{RUN_DIR}/quiz-questions.json` from `quiz.json`, with the questions only and no answers. Then it runs the student.
+The orchestrator writes `{RUN_DIR}/quiz-questions.json` from `quiz.json`: `[{"q": str}]`, the same questions in the same order, with no `answer` or `evidence` key. Then it runs the student.
 
 ## 6. Student (end of run, fresh agent)
 
@@ -175,7 +183,7 @@ Answer the questions in {RUN_DIR}/quiz-questions.json about the repo at
 {TARGET}. You may read ONLY these files: README.md, AGENTS.md, CLAUDE.md,
 anything under docs/, any README.md in a subdirectory, and
 explorer/data/model.json. Do not open any other file, run any code, or read
-git history. Under .document-repo/ you may read quiz-questions.json and write
+git history. In {RUN_DIR} you may read quiz-questions.json and write
 quiz-answers.json, nothing else.
 Write {RUN_DIR}/quiz-answers.json: [{"q": str, "answer": str, "source": str}],
 where source names the file you used. If the files do not answer a question,
@@ -192,4 +200,6 @@ incorrect when it is incomplete in a way that would mislead, names the wrong
 file, function or command, or says the answer cannot be found.
 Write {RUN_DIR}/quiz-grade.json:
 {"score": n, "per_question": [{"q": str, "correct": bool, "why": str}]}
+per_question has one entry per question, in the order of quiz.json. score is
+the number of entries with "correct" true (0 to 10).
 ```

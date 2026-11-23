@@ -3,8 +3,10 @@
 Every generated block of documentation sits between two marker lines and is written with `upsert-section`:
 
 ```bash
-PYTHONPATH="$TOOL_SRC" python3 -m document_repo upsert-section --file <file> --section <name> --content-file <tmp.md>
+PYTHONPATH="{TOOL_SRC}" python3 -m document_repo upsert-section --file <file> --section <name> --content-file <tmp.md>
 ```
+
+Run the command as written in your prompt, with `{TOOL_SRC}` already filled in. Do not rely on a `$TOOL_SRC` variable: a subagent's shell does not have it, and no shell keeps variables between Bash calls.
 
 Write the body to a temporary file under the run directory first. The command prints nothing and exits 0 on success. On failure it prints `upsert-section: <reason>` to stderr and exits 2.
 
@@ -31,7 +33,7 @@ Write a module README for every module with status `analyzed`, except the root m
 2. **Never write a marker string.** A body must not contain `document-repo:start:` or `document-repo:end:` anywhere, not even inside a code fence. The tool refuses it.
 3. **Close every code fence.** An unclosed fence hides the end marker, and the next `upsert-section` on that file fails with "the code fence opened on line N is never closed". If the text inside a fence contains a run of three or more backticks, open the fence with a longer run. Fences must also balance in the file you are writing into. If the tool reports an unclosed fence in an existing file, stop, report the file and line, and leave it alone.
 4. **A marker counts only when it is alone on its line and outside a code fence.** A README that shows a marker in a fenced example, or mentions one in a sentence, is not mistaken for a section.
-5. **Write the H1 only for a new file.** Each template below starts with its H1 where it has one. Drop that line when the file already exists with its own title. When the file was created by an earlier run, keep the H1 inside the section so each run writes the same text.
+5. **Keep the H1 when the file is new or already holds this section's start marker.** Each template below starts with its H1 where it has one. A file with the marker was made by an earlier run, so keep the H1 and each run writes the same text. Drop the H1 only when the file exists with its own title and has no start marker for this section.
 6. **Do not cite line numbers.** Docs are written before `remap` moves the model's line numbers to the commented commit, and lines shift again with every code change. Cite file paths. The explorer carries the line links.
 7. **Links are relative to the file you are writing.** From the root, `src/api/README.md`. From `docs/`, `../src/api/README.md`. From `src/api/README.md` to the `db` module, `../../db/README.md`. Link to a module README only when that module has one; otherwise write its name without a link.
 8. **Write through symlinks knowingly.** `upsert-section` resolves a symlink and writes the target, so `CLAUDE.md -> AGENTS.md` would receive the pointer inside `AGENTS.md` itself. Check `CLAUDE.md` first. If it resolves to the same file as `AGENTS.md`, skip `agents-pointer`.
@@ -39,11 +41,11 @@ Write a module README for every module with status `analyzed`, except the root m
 
 ## Root README
 
-Four sections, written in this order. A new file takes the H1 first.
+Four sections, written in this order. The H1 follows rule 5.
 
 | Section | Contents |
 |---------|----------|
-| `overview` | `# <project.name>` (new file only), then "What this is" and "What it can do" |
+| `overview` | `# <project.name>` (when rule 5 keeps it), then "What this is" and "What it can do" |
 | `quick-start` | "Quick start" |
 | `repo-map` | "Repo map" |
 | `explorer` | "Explore it" |
@@ -131,7 +133,7 @@ Guide for AI coding agents working in this repo. Humans: start at README.md.
 <one table row per module: path, one-line purpose>
 
 ## Entry points
-<each inventory entry_candidates item that an analyst confirmed, and what it starts>
+<one line per entry point: its name, its file, and what it starts>
 
 ## Commands
 <agent_notes.commands: each label, then its command in a fenced block>
@@ -156,6 +158,8 @@ The machine-readable project model is `explorer/data/model.json`
 (schema version <meta.schema_version>). Its `meta.source_commit` names the
 commit that its line numbers refer to.
 ```
+
+Take entry points from two sources only. The first is the `interface` items in `model.json` whose `kind` is `command` or `route`. The second is the `entry_candidates` in `inventory.json` whose `why` is not "conventional entry-point name" (a package main, bin or script, a console script, a container definition). No model field records that an analyst confirmed an entry point.
 
 ## docs/ARCHITECTURE.md
 

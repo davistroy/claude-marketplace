@@ -19,7 +19,7 @@ Routes are hash routes. `#/modules/<id>`, `#/tours/<id>`, `#/glossary/<term>` an
 | `#/modules` | A card per module, with a "not analyzed" tag where it applies | `modules[]` |
 | `#/modules/<id>` | Purpose, interface table, invariants, dependencies, "Used by", key files, tours, terms | `modules[]`. "Used by" lists the modules whose `dependencies.internal` names this one. Tours are the flows with a step whose `file` lies under the module's `path` (the root module `.` owns top-level files only). Terms are the glossary entries whose `module_ids` hold this id. |
 | `#/tours`, `#/tours/<id>` | Each flow, step by step, with file and line links and snippets | `flows[]` |
-| `#/glossary`, `#/glossary/<term>` | Terms in two groups, sorted alphabetically | `glossary[]` |
+| `#/glossary`, `#/glossary/<term>` | Terms in two groups, sorted alphabetically. With `<term>`, the page scrolls to that term and highlights it. | `glossary[]` |
 | `#/paths`, `#/paths/<id>` | The reading paths, then rules, traps, do-not-touch paths and commands for agents | `paths[]`, `agent_notes` |
 | `#/search/<q>` | Matches, 100 at most | Project name, tagline and purpose; capabilities; component names and descriptions; module name, path, purpose, interface names and descriptions, invariants; flow titles, summaries, step titles, step text and files; glossary terms and definitions |
 
@@ -28,12 +28,12 @@ Search does not index `agent_notes`, `paths`, `key_files`, `signature`, `tech_st
 ## What the data must satisfy
 
 1. **Both lenses are filled.** The reader switches between "What it does" (`functional`) and "How it works" (`technical`) at any time. A lens object with an empty `technical` falls back to `functional`. A capability does not, so an empty capability text renders empty.
-2. **Backticks make inline code. Nothing else is markup.** Every value is HTML-escaped, so `<b>`, `**bold**` and `[a link](x)` appear literally. Backticks are interpreted in: tagline, purpose, capability text, tech-stack role, component description, connection label, module purpose, interface description, invariants, key-file role, flow summary, step text, glossary definition, path-step note, and agent rules, traps and reasons. They are not interpreted in names, titles, audiences, `signature`, `snippet`, command labels and commands.
+2. **Backticks make inline code. Nothing else is markup.** Every value is HTML-escaped, so `<b>`, `**bold**` and `[a link](x)` appear literally. Backticks are interpreted in: tagline, purpose, capability text, tech-stack role, run setup step, architecture summary, component description, connection label, module purpose, interface description, invariants, key-file role, flow summary, step text, glossary definition, path-step note, and agent rules, traps and reasons. They are not interpreted in names, titles, audiences, `signature`, `snippet`, command labels and commands.
 3. **Snippets and signatures show in the technical lens.** The functional lens folds a snippet under "Show the code" and hides `signature`.
 4. **`meta.repo_url` decides whether files are links.** When it is an `http(s)` URL, a file reference links to `<repo_url>/blob/<meta.source_commit>/<file>#L<line>`, which is GitHub's URL shape and may not resolve on another forge. The commit must be pushed for the link to work. When `repo_url` is `null` or anything else, the path shows as plain text. The rule that derives `repo_url` is in `model-schema.md`.
 5. **A `doc` step in `paths[]` links to `../<ref_id>`**, relative to `explorer/index.html`, so it opens the file in the repo. The tool does not check that the file exists.
 6. **`modules[].path` and every `file` are normalised** (no leading `./`, no trailing `/`), because the explorer matches them as plain prefixes.
-7. **Glossary references match exactly.** A path step that names a glossary term must use the term's spelling, or the link opens a "not found" page.
+7. **Glossary references match exactly.** A path step that names a glossary term must use the term's spelling. The validator rejects a model where it does not. Without that check, the link would open the glossary with every term listed and none highlighted.
 
 ## Diagrams
 

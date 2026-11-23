@@ -4,13 +4,18 @@ Use when `explorer/data/state.json` exists and the code changed after the commit
 
 The inputs are in `$TARGET/explorer/data/`: `state.json` (`source_commit`, the commit the docs describe) and `model.json` (the base model). If either is missing, there is nothing to update from: offer a full run.
 
+Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for brevity. Shell variables do not persist between Bash calls, so set each one again at the top of every command, or write the literal paths. Step 1 prints `RUN_DIR`: use that literal path from then on, because the timestamp in it cannot be rebuilt.
+
 ## Steps
 
-1. **Empty the run directory of the previous run.** The directory persists between runs, and `assemble` prefers a file in it over the base model. A leftover `system.json` would replace the base model's system sections. A leftover `modules/<id>.json` would replace a module with its old line numbers. Keep the directory's `.gitignore`.
+1. **Start a new run directory.** Never reuse an old one. `assemble` prefers a file in the run directory over the base model: a leftover `system.json` would replace the base model's system sections, and a leftover `modules/<id>.json` would replace a module with its old line numbers. The previous model comes from the committed `explorer/data/model.json` (step 8), not from an old run directory. `$TARGET/.document-repo/.gitignore` holds `*`, so a run directory never dirties the tree. Old run directories can stay.
 
    ```bash
-   rm -rf "${RUN_DIR:?}/modules" "${RUN_DIR:?}/comments" "${RUN_DIR:?}/docs"
-   rm -f "${RUN_DIR:?}"/*.json "${RUN_DIR:?}"/*.txt
+   mkdir -p "$TARGET/.document-repo"
+   printf '*\n' > "$TARGET/.document-repo/.gitignore"
+   RUN_DIR="$TARGET/.document-repo/run-$(date -u +%Y%m%dT%H%M%SZ)"
+   mkdir -p "$RUN_DIR/modules" "$RUN_DIR/comments" "$RUN_DIR/docs"
+   echo "$RUN_DIR"
    ```
 
 2. **Preflight as usual.** The tree must be clean. Create the branch `docs/document-repo-update-<YYYYMMDD>`, then record the baseline. Do this before step 3: `changes` refuses a dirty tree.

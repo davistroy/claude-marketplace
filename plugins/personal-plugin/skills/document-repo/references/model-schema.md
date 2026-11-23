@@ -60,16 +60,34 @@ All `file` and `path` values are relative to the git top level, with `/` separat
 
 | Section | Fields | Content rules |
 |---------|--------|---------------|
-| `project` | `name`, `tagline`, `purpose` (lens), `users`, `capabilities`, `tech_stack`, `run` | `tagline` is 1 sentence. `users` are roles, not people. 3 to 8 `capabilities`, each a thing a user can see. `capabilities[]` holds `title`, `functional`, `technical`. `tech_stack[]` holds `name` and `role`; list runtimes, frameworks and stores, and say what each does here. `run.setup` is a list of steps, one per string, without numbers (the README and the explorer add them). `run.commands[]` holds `label` ("Start the API") and `command`, copied exactly from the README, package.json, Makefile or compose file. Never invent a command. |
+| `project` | `name`, `tagline`, `purpose` (lens), `users`, `capabilities`, `tech_stack`, `run` | See "Notes on `project`" below the table. |
 | `architecture.components` | `id`, `name`, `kind`, `module_ids`, `description` (lens) | 3 to 12 runtime or deployable parts: service, worker, datastore, UI, CLI, external API. `kind` is free text; use one lowercase word such as `service`, `datastore`, `ui`, `external`. `module_ids` lists the code that implements the part; an external API has `[]`. |
 | `architecture.connections` | `from`, `to`, `label` | One per real interaction, between component ids. The label names the mechanism: "HTTP JSON", "SQL", "queue". |
 | `architecture.diagrams` | `id`, `title`, `mermaid` | A Mermaid `flowchart` whose node ids equal component ids. At most 15 nodes. Add a second diagram (deployment, for example) only when it shows something the first does not. Mermaid rules are in `explorer-contract.md`. |
-| `modules[]` | `id`, `name`, `path`, `status`, `purpose` (lens), `interface`, `invariants`, `dependencies`, `key_files` | Copy `id` and `path` from the `modules.final.json` entry; `assemble` stops if `module.id` differs. `path` is `.` for the root module. `name` is human-readable ("HTTP API"), not the path. An analyst always writes `status: "analyzed"`; `not_analyzed` is written only by `assemble` for a stub. `invariants` are testable statements ("every note has a non-empty body"), never vague ones ("the code is clean"). `dependencies.internal` holds module ids; `external` holds package names. `key_files` lists the 3 to 8 files a newcomer opens first. |
+| `modules[]` | `id`, `name`, `path`, `status`, `purpose` (lens), `interface`, `invariants`, `dependencies`, `key_files` | See "Notes on `modules[]`" below the table. |
 | `modules[].interface[]` | `name`, `kind`, `signature`, `description`, `file`, `line` | Public items only: exported, routed, or called from another module. A helper that only its own file calls is not interface. `kind` is free text (`function`, `class`, `route`, `command`, `table`). `signature` is the declaration as written in the code. `description` is one sentence. `line` is the line that names the item (`def create_note`, `export function x`, `CREATE TABLE notes`). |
 | `flows[]` | `id`, `title`, `summary` (lens), `steps` | 3 to 6 flows that matter most to a user. 3 to 10 steps each, in execution order. Each step has `title`, `text` (lens), `file`, `line_start`, `line_end` and optional `snippet`. A step with a snippet spans at most 30 lines. The snippet is copied exactly from those lines. |
 | `glossary[]` | `term`, `definition`, `kind`, `module_ids` | Every domain term used anywhere in the model or the docs, plus tech terms a junior might not know. `module_ids` may be `[]`. |
 | `paths[]` | `id`, `audience`, `title`, `steps` | Reading orders. Each step has `ref_type`, `ref_id` and `note`; a `doc` step names a file such as `README.md` or `docs/ARCHITECTURE.md`. Convention (not validated): include `new-dev` ("New developer, day 1"), `ai-agent` ("AI agent, first read") and `change-x` ("I need to change something"). |
 | `agent_notes` | `rules`, `traps`, `do_not_touch`, `commands` | `rules`: conventions an agent must follow. `traps`: things that look safe and are not. `do_not_touch[]` holds `path` and `reason`: generated, vendored or production-critical paths. `commands[]` holds `label` and `command`: build, test, lint, copied exactly. |
+
+### Notes on `project`
+
+- `tagline` is 1 sentence.
+- `users` are roles, not people.
+- Write 3 to 8 `capabilities`, each a thing a user can see. Each holds `title`, `functional` and `technical`.
+- `tech_stack[]` holds `name` and `role`. List runtimes, frameworks and stores, and say what each does here.
+- `run.setup` is a list of steps, one per string, without numbers (the README and the explorer add them).
+- `run.commands[]` holds `label` ("Start the API") and `command`, copied exactly from the README, package.json, Makefile or compose file. Never invent a command.
+
+### Notes on `modules[]`
+
+- Copy `id` and `path` from the `modules.final.json` entry. `assemble` stops if `module.id` differs. `path` is `.` for the root module.
+- `name` is human-readable ("HTTP API"), not the path.
+- An analyst always writes `status: "analyzed"`. Only `assemble` writes `not_analyzed`, for a stub.
+- `invariants` are testable statements ("every note has a non-empty body"), never vague ones ("the code is clean").
+- `dependencies.internal` holds module ids. `dependencies.external` holds package names.
+- `key_files` lists the 3 to 8 files a newcomer opens first.
 
 ## Module record
 
