@@ -155,6 +155,32 @@ def _symlink_component(top: Path, rel: str) -> str | None:
     return None
 
 
+def _misspelled(top: Path, rel: str, precompose: bool) -> str | None:
+    """How the disk spells ``rel`` when some component of it exists under another spelling.
+
+    On a case-insensitive filesystem ``A/new.md`` opens ``a/new.md``, but git treats it as a
+    different path: staging, committing and restoring then act on a file git never held. Each
+    component must appear exactly in ``os.listdir`` of its parent (NFC-compared when git
+    precomposes). None when the spelling matches, or when the path stops existing first.
+    """
+    parts = rel.split("/")
+    here = str(top)
+    for i, part in enumerate(parts):
+        try:
+            names = os.listdir(here)
+        except OSError:
+            return None
+        norm = (lambda n: unicodedata.normalize("NFC", n)) if precompose else (lambda n: n)
+        found = [n for n in names if norm(n) == norm(part)]
+        if not found:
+            if not os.path.lexists(os.path.join(here, part)):
+                return None
+            other = [n for n in names if n.casefold() == part.casefold()]
+            return "/".join([*parts[:i], other[0] if other else "?", *parts[i + 1 :]])
+        here = os.path.join(here, found[0])
+    return None
+
+
 def _git_knows(top: Path, rel: str) -> bool:
     """Whether git tracks, or would add, some path at or under ``rel``."""
     proc = _run(
@@ -194,6 +220,9 @@ def normalize_paths(top: Path, raw: list[str]) -> list[str]:
         parent = os.path.realpath(os.path.join(top, posixpath.dirname(rel)))
         if parent != real_top and not parent.startswith(real_top + os.sep):
             raise InputError(f"{item!r} resolves outside the repository {top} (a symlink?)")
+        disk = _misspelled(top, rel, precompose)
+        if disk is not None:
+            raise InputError(f"{item!r} is spelled differently on disk ({disk!r}): list it so")
         link = _symlink_component(top, rel)
         if link is not None:
             raise InputError(f"{item!r} passes through the symlink {link!r}: list the real path")
@@ -290,8 +319,12 @@ def _restore(top: Path, source: str, roots: list[str]) -> list[str]:
     present = [p for p in differing if _in_tree(top, source, p)]
     if present:
         _out(top, "restore", f"--source={source}", "--worktree", "--", *_spec(present))
+    precompose = _precomposes(top)
     for rel in differing:
         if rel not in present:
+            disk = _misspelled(top, rel, precompose)
+            if disk is not None:
+                raise GitError(f"refusing to delete {rel}: spelled differently on disk ({disk})")
             path = top / rel
             if path.is_symlink() or path.is_file():
                 path.unlink()
@@ -391,10 +424,11 @@ def commit_paths(
         argv.append("--no-verify")
     for message in messages:
         argv += ["-m", message]
-    proc = _run(top, *argv, "--", *_spec(roots))
     run = _Run(top, pre, ref, staged, roots, before, changed, skip_hooks)
     try:
-        return _after_commit(run, proc)
+        # The commit call is inside the try: an interrupt while it waits may come after the
+        # commit landed.
+        return _after_commit(run, _run(top, *argv, "--", *_spec(roots)))
     except BaseException as exc:  # any failure here may leave a commit on HEAD
         return _after_exception(run, exc)
 
@@ -507,10 +541,16 @@ def _undo(
     bad = _resolve_commit(run.top, "HEAD", "HEAD")
     try:
         restored = _take_back(run)
-    except GitError as exc:
+    except BaseException as exc:  # report the bad commit, never "nothing was committed"
+        try:
+            moved = _resolve_commit(run.top, "HEAD", "HEAD") == run.pre
+        except BaseException:  # the state cannot be read: say so
+            moved = False
+        state = f"commit {bad[:12]} was undone" if moved else f"commit {bad[:12]} may be on HEAD"
         return Outcome(
             "stop",
-            f"{problem}; the commit was undone but {exc}",
+            f"{problem}; {state} but restoring the listed paths failed "
+            f"({type(exc).__name__}: {exc})",
             pre=run.pre,
             sha=bad,
             paths=committed,

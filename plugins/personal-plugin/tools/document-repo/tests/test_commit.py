@@ -922,3 +922,123 @@ def test_exception_with_foreign_commit_on_head_leaves_history_i2(
     code, out = commit(capsys, repo, "m.py")
     assert code == 1 and out["status"] == "stop" and "history was not touched" in out["detail"]
     assert out["pre"] == pre and git(repo, "log", "-1", "--format=%s").strip() == "sneaky"
+
+
+# --- task-13b review 2 fixes ---------------------------------------------------------------------
+
+
+def test_wrong_case_directory_untracked_doc_is_refused_not_deleted_r2i1(
+    make_repo, git, capsys
+) -> None:
+    """On a case-insensitive filesystem ``A/new.md`` opens ``a/new.md``; the undo used to delete
+    it. On a case-sensitive one the path does not exist. Either way: exit 2, file kept."""
+    repo = make_repo({"a/m.py": M})
+    pre = head(git, repo)
+    (repo / "a/new.md").write_text("new docs\n")
+    code, out = commit(capsys, repo, "A/new.md", ref=None)
+    assert code == 2, out
+    assert (repo / "a/new.md").read_text() == "new docs\n"
+    assert head(git, repo) == pre and staged(git, repo) == ""
+
+
+def test_wrong_case_directory_tracked_doc_is_refused_r2i1(make_repo, git, capsys) -> None:
+    repo = make_repo({"a/doc.md": "old\n"})
+    (repo / "a/doc.md").write_text("new\n")
+    code, out = commit(capsys, repo, "A/doc.md", ref=None)
+    assert code == 2, out
+    assert (repo / "a/doc.md").read_text() == "new\n"
+    assert git(repo, "status", "--porcelain") == " M a/doc.md\n"
+
+
+def test_wrong_case_directory_ref_mode_is_refused_r2i1(make_repo, git, capsys) -> None:
+    repo = make_repo({"a/m.py": M})
+    (repo / "a/m.py").write_text(M_COMMENTED)
+    code, out = commit(capsys, repo, "A/m.py")
+    assert code == 2, out
+    assert (repo / "a/m.py").read_text() == M_COMMENTED
+
+
+def test_on_disk_spelling_mismatch_message_r2i1(make_repo, monkeypatch) -> None:
+    """The spelling check itself, independent of the filesystem's case rules."""
+    repo = make_repo({"a/m.py": M})
+    real_listdir = os.listdir
+    monkeypatch.setattr(
+        commit_mod.os, "listdir", lambda p: ["A" if n == "a" else n for n in real_listdir(p)]
+    )
+    with pytest.raises(commit_mod.InputError, match="spelled differently on disk"):
+        commit_mod.normalize_paths(repo, ["a/m.py"])
+
+
+def test_restore_never_unlinks_a_misspelled_path_r2i1(make_repo, git, monkeypatch) -> None:
+    repo = make_repo({"keep.md": "k\n"})
+    (repo / "a").mkdir()
+    (repo / "a/new.md").write_text("x\n")
+    real_listdir = os.listdir
+    monkeypatch.setattr(
+        commit_mod.os, "listdir", lambda p: ["A" if n == "a" else n for n in real_listdir(p)]
+    )
+    with pytest.raises(commit_mod.GitError, match="spelled differently"):
+        commit_mod._restore(repo, head(git, repo), ["a"])
+    assert (repo / "a/new.md").exists()
+
+
+def test_undo_os_error_reports_the_bad_commit_r2m1(make_repo, git, capsys, monkeypatch) -> None:
+    repo = make_repo({"m.py": M})
+    pre = head(git, repo)
+    hook(repo, "pre-commit", "printf 'x = 9\\n' > m.py\ngit add m.py\n")
+    (repo / "m.py").write_text(M_COMMENTED)
+
+    def fail(*args: Any) -> list[str]:
+        raise PermissionError("c is read-only")
+
+    monkeypatch.setattr(commit_mod, "_restore", fail)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "stop", out
+    assert out["sha"] and out["sha"] != pre and out["pre"] == pre
+    assert "was undone" in out["detail"] and "c is read-only" in out["detail"]
+    assert "nothing was committed" not in out["detail"]
+
+
+def test_interrupt_during_git_commit_is_stop_r2m4(make_repo, git, capsys, monkeypatch) -> None:
+    repo = make_repo({"m.py": M})
+    pre = head(git, repo)
+    (repo / "m.py").write_text(M_COMMENTED)
+    real = commit_mod._run
+
+    def interrupted(top: Path, *args: str) -> Any:
+        proc = real(top, *args)
+        if args[0] == "commit":
+            raise KeyboardInterrupt("Ctrl-C after the commit landed")
+        return proc
+
+    monkeypatch.setattr(commit_mod, "_run", interrupted)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "stop", out
+    assert "was undone" in out["detail"] and head(git, repo) == pre
+
+
+def test_misspelled_stops_at_a_non_directory_r2i1(make_repo) -> None:
+    repo = make_repo({"m.py": M})
+    assert commit_mod._misspelled(repo, "m.py/x", precompose=False) is None
+
+
+def test_undo_failure_before_reset_says_head_may_hold_it_r2m1(
+    make_repo, git, capsys, monkeypatch
+) -> None:
+    repo = make_repo({"m.py": M})
+    hook(repo, "pre-commit", "printf 'x = 9\\n' > m.py\ngit add m.py\n")
+    (repo / "m.py").write_text(M_COMMENTED)
+    real_resolve = commit_mod._resolve_commit
+
+    def fail(*args: Any) -> list[str]:
+        def broken(*a: Any) -> str:
+            raise commit_mod.GitError("HEAD unreadable")
+
+        monkeypatch.setattr(commit_mod, "_resolve_commit", broken)
+        raise OSError("reset failed")
+
+    monkeypatch.setattr(commit_mod, "_take_back", fail)
+    code, out = commit(capsys, repo, "m.py")
+    monkeypatch.setattr(commit_mod, "_resolve_commit", real_resolve)
+    assert code == 1 and out["status"] == "stop", out
+    assert "may be on HEAD" in out["detail"] and "reset failed" in out["detail"]

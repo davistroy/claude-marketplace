@@ -527,9 +527,10 @@ DOC_SUFFIXES = (".md",)
 def is_exempt(path: str) -> bool:
     """True for a path the verifier never judges: the explorer output and Markdown.
 
-    ``path`` is relative to the top level of the work tree. This is the one definition of the
-    exempt set: ``changed_files`` leaves these paths out, and ``commit --no-content-check``
-    refuses every other path.
+    ``path`` is relative to the top level of the work tree. The test is by name only: a symlink
+    or any other entry named ``*.md`` is exempt whatever it holds or points at. This is the one
+    definition of the exempt set: ``changed_files`` leaves these paths out, and
+    ``commit --no-content-check`` refuses every other path.
     """
     return path.startswith(OUTPUT_DIR + "/") or path.lower().endswith(DOC_SUFFIXES)
 
