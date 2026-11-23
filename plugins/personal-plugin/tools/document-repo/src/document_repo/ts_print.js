@@ -64,17 +64,84 @@ function findTypescript(candidates) {
 //  - An empty block prints "{ }" or "{\n}" by a flag (and, for a function body or a module
 //    block, by whether the source braces share a line), and a comment inside makes the braces
 //    span lines. Every empty block is replaced by one fresh, empty, multi-line block.
-//  - JSX children the compiler discards: `{/* c */}` is a JsxExpression with no expression, and
-//    a whitespace-only text that contains a line break is dropped by JSX. A comment on its own
-//    line between two elements splits one such text into two, so both kinds are removed.
-//    Text that is not removed (words, or whitespace on one line) is meaningful and stays.
-const DROPPED_JSX_TEXT = /^[ \t]*[\r\n][ \t\r\n]*$/;
+//  - JSX children. `{/* c */}` is a JsxExpression with no expression, which the compiler
+//    discards, so it is removed. A JsxText is not printed as its source: JSX cooks whitespace per
+//    text node (see cookJsxText), so a comment that splits one text into two can change what
+//    renders while the source characters around it stay the same ("Hello\n  world" renders
+//    "Hello world"; "Hello{/* c */}\n  world" renders "Hello", "world"). Each JsxText is replaced
+//    by one child holding its cooked value, node by node, and a text that cooks to nothing is
+//    removed. A comment alone on its own line between elements then normalises away, and one
+//    that changes the rendered children fails.
+
+// What a JSX compiler makes of one text node's raw source, as the strings that would be its
+// child. Compilers differ at the edges, so the value is cooked by each rule and both are kept:
+//  - TypeScript (fixupWhitespaceAndDecodeEntities): split on line breaks; drop lines that are
+//    all whitespace; trim each line except at the start of the first and the end of the last;
+//    join with one space. Its own isLineBreak and isWhiteSpaceSingleLine decide the characters.
+//  - Babel (cleanJSXElementLiteralChild, followed by esbuild and swc): the same shape, but only
+//    "\r\n", "\n" and "\r" break lines, only space and tab are whitespace, and a tab becomes a
+//    space.
+// Entities are not decoded: an edit that only re-spells one fails, which is safe. Because Babel
+// decodes before it splits lines, a text that holds "&" also keeps its raw source, so an entity
+// that decodes to whitespace cannot hide a change. Two texts are equal only if every rule
+// agrees, so when the compilers disagree about a change, the change fails.
+function cookTypescript(ts, text) {
+  let acc;
+  let first = 0;
+  let last = -1;
+  const add = (line) => {
+    acc = acc === undefined ? line : `${acc} ${line}`;
+  };
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (ts.isLineBreak(c)) {
+      if (first !== -1 && last !== -1) add(text.substr(first, last - first + 1));
+      first = -1;
+    } else if (!ts.isWhiteSpaceSingleLine(c)) {
+      last = i;
+      if (first === -1) first = i;
+    }
+  }
+  if (first !== -1) add(text.substr(first));
+  return acc === undefined ? '' : acc;
+}
+
+function cookBabel(text) {
+  const lines = text.split(/\r\n|\n|\r/);
+  let lastNonEmpty = 0;
+  lines.forEach((line, i) => {
+    if (/[^ \t]/.test(line)) lastNonEmpty = i;
+  });
+  let out = '';
+  lines.forEach((line, i) => {
+    let trimmed = line.replace(/\t/g, ' ');
+    if (i !== 0) trimmed = trimmed.replace(/^[ ]+/, '');
+    if (i !== lines.length - 1) trimmed = trimmed.replace(/[ ]+$/, '');
+    if (trimmed) out += i === lastNonEmpty ? trimmed : `${trimmed} `;
+  });
+  return out;
+}
+
+function cookJsxText(ts, text) {
+  const cooked = [cookTypescript(ts, text), cookBabel(text)];
+  if (cooked.every((value) => value === '')) return null;
+  if (text.includes('&')) cooked.push(text);
+  return cooked;
+}
 
 function normalise(ts, sourceFile) {
   const factory = ts.factory;
-  const discarded = (child) => {
-    if (ts.isJsxExpression(child)) return !child.expression && !child.dotDotDotToken;
-    return ts.isJsxText(child) && DROPPED_JSX_TEXT.test(child.text);
+  // A JSX child as it compiles: null when the compiler drops it, otherwise the child itself or,
+  // for text, one expression child holding the cooked values.
+  const jsxChild = (child) => {
+    if (ts.isJsxExpression(child)) {
+      return !child.expression && !child.dotDotDotToken ? null : child;
+    }
+    if (!ts.isJsxText(child)) return child;
+    const cooked = cookJsxText(ts, child.text);
+    if (cooked === null) return null;
+    const values = cooked.map((value) => factory.createStringLiteral(value));
+    return factory.createJsxExpression(undefined, factory.createArrayLiteralExpression(values));
   };
   const transformer = (context) => {
     const visit = (original) => {
@@ -82,8 +149,9 @@ function normalise(ts, sourceFile) {
       if (ts.isBlock(node) && node.statements.length === 0) return factory.createBlock([], true);
       if (ts.isModuleBlock(node) && node.statements.length === 0) return factory.createModuleBlock([]);
       if (ts.isJsxElement(node) || ts.isJsxFragment(node)) {
-        const kept = node.children.filter((child) => !discarded(child));
-        if (kept.length === node.children.length) return node;
+        // Every text is cooked on the children as written, before any comment is removed, so a
+        // text split by a comment stays two children.
+        const kept = node.children.map(jsxChild).filter((child) => child !== null);
         return ts.isJsxElement(node)
           ? factory.updateJsxElement(node, node.openingElement, kept, node.closingElement)
           : factory.updateJsxFragment(node, node.openingFragment, kept, node.closingFragment);

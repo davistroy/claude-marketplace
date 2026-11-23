@@ -730,6 +730,134 @@ def test_a_code_change_next_to_a_jsx_comment_still_fails(
     )
 
 
+# --- JSX text is compared as it renders, one child per text node -------------------------------
+#
+# JSX cooks whitespace per text node: lines are trimmed at their inner edges, whitespace-only
+# lines are dropped, and the rest are joined with one space. A comment that splits one text node
+# into two changes what renders even though the raw characters around it are the same, so the
+# printer must compare cooked text node by node, never the concatenated source.
+
+JSX_TEXT_CHANGES = [
+    (
+        # "Hello world" becomes "Hello", "world": the line break was the space.
+        "split-after-word",
+        "export const A = () => <p>Hello\n  world</p>;\n",
+        "export const A = () => <p>Hello{/* greeting */}\n  world</p>;\n",
+    ),
+    (
+        "split-before-word",
+        "export const A = () => <p>Hello\n  world</p>;\n",
+        "export const A = () => <p>Hello\n  {/* greeting */}world</p>;\n",
+    ),
+    (
+        # The DOM text is the same, but the children array goes from ["a ", x] to ["a", " ", x].
+        "split-before-space",
+        "export const A = () => <p>a {x}</p>;\n",
+        "export const A = () => <p>a{/* c */} {x}</p>;\n",
+    ),
+    (
+        # One child "a b" becomes two, "a " and "b".
+        "split-inside-one-line-run",
+        "export const A = () => <p>a b</p>;\n",
+        "export const A = () => <p>a {/* c */}b</p>;\n",
+    ),
+    (
+        # "Hello" becomes "Hello ": the space before the comment is now the end of the last line.
+        "space-left-before-trailing-comment",
+        "export const A = () => (\n  <p>\n    Hello\n  </p>\n);\n",
+        "export const A = () => (\n  <p>\n    Hello {/* c */}\n  </p>\n);\n",
+    ),
+    (
+        # A tab inside a line renders as a tab under TypeScript and as a space under Babel.
+        "tab-for-space",
+        "export const A = () => <p>a b</p>;\n",
+        "export const A = () => <p>a\tb</p>;\n",
+    ),
+    (
+        # TypeScript trims U+00A0 at a line edge; the reflowed line no longer has that edge.
+        "nbsp-at-line-edge",
+        "export const A = () => <p>a\u00a0 b</p>;\n",
+        "export const A = () => <p>a\u00a0\nb</p>;\n",
+    ),
+    (
+        # Babel decodes &#32; before it trims lines, so the reflow changes "a b" to "a  b" there.
+        "entity-space-at-line-edge",
+        "export const A = () => <p>a&#32;\nb</p>;\n",
+        "export const A = () => <p>a&#32; b</p>;\n",
+    ),
+    (
+        "text-changed",
+        "export const A = () => <p>\n  Hello world\n</p>;\n",
+        "export const A = () => <p>\n  {/* c */}\n  Hello, world\n</p>;\n",
+    ),
+]
+
+
+@pytest.mark.parametrize("rel", ["c.tsx", "c.jsx", "c.js"])
+@pytest.mark.parametrize(
+    "before,after", [c[1:] for c in JSX_TEXT_CHANGES], ids=[c[0] for c in JSX_TEXT_CHANGES]
+)
+def test_a_comment_that_changes_rendered_jsx_text_fails(
+    ts_repo, commit_then_edit, rel: str, before: str, after: str
+) -> None:
+    r = commit_then_edit(ts_repo, rel, before, after)
+    assert not r.ok and r.method == "ts-printer" and "code changed" in r.detail, (
+        r.method,
+        r.detail,
+    )
+
+
+JSX_TEXT_SAME = [
+    (
+        "comment-alone-between-elements",
+        "export const A = () => (\n  <div>\n    <B />\n    <C />\n  </div>\n);\n",
+        "export const A = () => (\n  <div>\n    <B />\n    {/* C */}\n    <C />\n  </div>\n);\n",
+    ),
+    (
+        "comment-alone-after-text",
+        "export const A = () => (\n  <p>\n    Hello\n  </p>\n);\n",
+        "export const A = () => (\n  <p>\n    Hello\n    {/* c */}\n  </p>\n);\n",
+    ),
+    (
+        "comment-alone-before-text",
+        "export const A = () => (\n  <p>\n    Hello world\n  </p>\n);\n",
+        "export const A = () => (\n  <p>\n    {/* c */}\n    Hello world\n  </p>\n);\n",
+    ),
+    (
+        "comment-at-end-of-one-line-run",
+        "export const A = () => <p>Hello</p>;\n",
+        "export const A = () => <p>Hello{/* c */}</p>;\n",
+    ),
+    (
+        "comment-between-text-and-element",
+        "export const A = () => <p>Hello <b>x</b></p>;\n",
+        "export const A = () => <p>Hello {/* c */}<b>x</b></p>;\n",
+    ),
+    (
+        "comment-alone-next-to-entity-text",
+        "export const A = () => (\n  <p>\n    Fish &amp; chips\n  </p>\n);\n",
+        "export const A = () => (\n  <p>\n    {/* c */}\n    Fish &amp; chips\n  </p>\n);\n",
+    ),
+    (
+        # Re-indenting a multi-line text renders the same text.
+        "reindented-text",
+        "export const A = () => (\n  <p>\n    Hello\n    world\n  </p>\n);\n",
+        "export const A = () => (\n  <p>\n      Hello\n      world\n  </p>\n);\n",
+    ),
+]
+
+
+@pytest.mark.parametrize("rel", ["c.tsx", "c.jsx", "c.js"])
+@pytest.mark.parametrize(
+    "before,after", [c[1:] for c in JSX_TEXT_SAME], ids=[c[0] for c in JSX_TEXT_SAME]
+)
+def test_a_comment_that_keeps_rendered_jsx_text_passes(
+    ts_repo, commit_then_edit, rel: str, before: str, after: str
+) -> None:
+    r = commit_then_edit(ts_repo, rel, before, after)
+    assert r.ok and r.method == "ts-printer", r.detail
+
+
 # --- the compiler is looked up from explicit candidates, never by walking up --------------------
 
 
