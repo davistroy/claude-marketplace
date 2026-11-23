@@ -6,7 +6,7 @@ Every commit the skill makes in the target goes through `document_repo commit`: 
 - another file is already in the index, and a bare `git commit` takes the whole index;
 - a pre-commit hook (husky with lint-staged, pre-commit with black or end-of-file-fixer) rewrites and re-stages files at commit time. A hook can add files to the commit even under `git commit --only`.
 
-`document_repo commit` closes all three. It empties the index, stages the listed paths, verifies them, commits only those paths, and then checks the commit it made: exactly one new commit on the old HEAD, no other path in it, the work tree equal to it, and every committed source file comment-only against the ref. A failed check undoes the commit before the command returns. It replaced a hand-filled shell block (decision D76), which skipped verification when a variable expanded to empty, committed in the wrong repo after `cd ""`, and ran backticks in the message.
+`document_repo commit` closes all three. It empties the index, stages the listed paths, verifies them, commits only those paths, and then checks the commit it made: exactly one new commit on the old HEAD, no other path in it, the work tree equal to it, and every committed source file comment-only against the ref (with `--no-content-check`, no source file in it at all). A failed check undoes the commit before the command returns. It replaced a hand-filled shell block (decision D76), which skipped verification when a variable expanded to empty, committed in the wrong repo after `cd ""`, and ran backticks in the message.
 
 ## The command
 
@@ -17,16 +17,18 @@ PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --verify
   -- <path> <path> ...
 ```
 
+Run `commit` and `backstop` with a 10-minute Bash timeout, as Phase 0 does for commands. Both can run the TypeScript verifier (up to 2 minutes per file) and the target's hooks, so the default 2-minute timeout can kill a run after the commit landed.
+
 - `--repo` is the literal target path Setup printed. It must be the top level of the work tree. An empty value is refused.
 - Exactly one of `--verify-against REF` and `--no-content-check` is required. There is no default and no empty form.
   - `--verify-against HEAD` for a Phase 2 comment commit: the files are verified against the commit they are about to sit on.
-  - `--verify-against <base sha>` for a restore commit, whose files must equal the base. Paste the sha from `$RUN_DIR/base.txt` as a literal.
-  - `--no-content-check` for Markdown and `explorer/`, which the verifier does not judge. Those commits still get every other check.
+  - `--verify-against <base sha>` for a restore commit, whose files must equal the base. Paste the sha from `$RUN_DIR/base.txt` as a literal. The ref must be HEAD or an ancestor of it; any other commit exits 2.
+  - `--no-content-check` for Markdown and `explorer/`, which the verifier does not judge. Any other changed path under the list (a source file, a rename, a submodule) exits 2 before anything is touched, and a commit that ends up holding one is undone. Those commits still get every other check.
 - `-m` is the subject. A second `-m` adds the body. Each message is one argv element, so quotes, backticks and `$` in it are text. Write it in single quotes when it holds a backtick or `$`.
-- After `--`, list the paths relative to the target, each quoted when it holds a space. A directory (`explorer`) commits everything under it. List only paths that exist, or that HEAD has and the work tree deleted. A path that is neither is a fill error, and the command exits 2 without touching anything.
+- After `--`, list the paths relative to the target, each quoted when it holds a space. A directory (`explorer`) commits everything under it. List only paths that exist, or that HEAD has and the work tree deleted, spelled as git lists them. A path that is neither, one through a symlinked directory, one inside a submodule, one in the wrong case, or a directory that holds only ignored files is a fill error, and the command exits 2 without touching anything.
 - `--skip-hooks` passes `--no-verify` to git. Add it only after the user chose it (see "Hooks").
 
-The command prints JSON: `{"status", "detail", "sha", "paths", "verify", "restored", "strays", "git_output"}`. `paths` are the paths the commit holds (or would have held). `verify` lists the failing verifier results. `restored` lists the listed paths it reset in the work tree. `strays` lists paths outside the list that changed in the work tree while the commit ran, which only a hook can do.
+The command prints JSON: `{"status", "detail", "pre", "sha", "paths", "verify", "restored", "strays", "git_output"}`. `pre` is the commit HEAD named before the command ran. `sha` is the commit it made (or found on HEAD). `paths` are the paths the commit holds (or would have held). `verify` lists the failing verifier results. `restored` lists the listed paths it reset in the work tree. `strays` lists paths outside the list that changed in the work tree while the commit ran, which only a hook can do.
 
 ## What each result means
 
@@ -34,11 +36,13 @@ The command prints JSON: `{"status", "detail", "sha", "paths", "verify", "restor
 |-----------------|---------|--------|
 | `ok` (0) | Committed and proven | Go on. Apply the stray rules (SKILL.md) to every path in `strays`, recording "commit hook" as the cause. |
 | `skip` (0) | Nothing under the listed paths differs from HEAD | Record the module as "nothing to commit". No commit was made. |
-| `precheck` (1) | A listed file is not comment-only against the ref, for example because a command changed it after the batch verify. Nothing was committed and the index is empty. The work tree is untouched. | Restore each file in `verify` with `git -C "$TARGET" checkout HEAD -- <path>`, record it with its `detail`, take it out of the list and run the command again |
-| `commit-failed` (1) | `git commit` itself failed. Nothing was committed and the index is empty. Any listed file that changed during the attempt (a hook that fixes, then exits 1) was reset to the bytes that were staged and is in `restored`. `detail` names the cause: the commit hooks that ran, or a signing failure. | A hook: see "Hooks". A signing failure (`commit.gpgsign` with a missing key or a pinentry that cannot prompt): stop and tell the user, because skipping hooks does not help. Anything else: show `git_output` to the user. Apply the stray rules to `strays`. |
-| `undone` (1) | The commit failed a post-commit check and was taken back with `git reset --soft`. With `--verify-against`, the listed paths were reset to the old HEAD, so the module's change is gone. With `--no-content-check`, they were reset to the bytes that were staged, so the docs survive and only a hook's change is gone. | Record the module as reverted with `detail`. Apply the stray rules to `strays` and to any extra path `detail` names. See "Hooks". |
-| `stop` (1) | History moved in a way the command did not cause (a hook made its own commit), or an undo could not restore a listed path | Stop the run and show the user `detail` and `git -C "$TARGET" log --oneline -5` |
-| (2) | Bad input: the repo is not a top level, a path is missing or outside it, the ref does not resolve, the message is empty. Nothing was touched. stderr says which. | Fix the command line and run it again. Never fix it by switching to `--no-content-check`. |
+| `precheck` (1) | A listed file is not comment-only against the ref, for example because a command changed it after the batch verify. Nothing was committed and the index is empty. The work tree is untouched. | With `--verify-against HEAD`: restore each file in `verify` with `git -C "$TARGET" checkout HEAD -- <path>`. In a restore commit (`--verify-against <base sha>`), HEAD holds the version being reverted, so check the file out of the base again instead: `git -C "$TARGET" checkout <base sha> -- <path>`, and keep it in the list; if the base lacks the file, stop and show the user. Record the file with its `detail` and run the command again. |
+| `commit-failed` (1) | `git commit` itself failed. Nothing was committed and the index is empty. Any listed file that changed during the attempt (a hook that fixes, then exits 1) was reset to the bytes that were staged and is in `restored`. `detail` names the cause: the commit hooks that ran, or a signing failure. | The verified edits are still in the work tree: hold them as "Holding work for a retry" says, before any status check or stray rule runs. A hook: see "Hooks". A signing failure (`commit.gpgsign` with a missing key or a pinentry that cannot prompt): stop and tell the user, because skipping hooks does not help. Anything else: show `git_output` to the user. Apply the stray rules to `strays`. |
+| `undone` (1) | The commit failed a post-commit check and was taken back with `git reset --soft`. With `--verify-against`, the listed paths were reset to the old HEAD, so the module's change is gone. With `--no-content-check`, they were reset to the bytes that were staged, so the docs survive and only a hook's change is gone. | With `--verify-against`: record the module as reverted with `detail`. With `--no-content-check`: the docs are still in the tree, uncommitted. Hold them as "Holding work for a retry" says, and see "Hooks". Either way, apply the stray rules to `strays` and to any extra path `detail` names. |
+| `stop` (1) | History moved in a way the command did not cause (a hook made its own commit), an undo could not restore a listed path, or anything failed after `git commit` ran (the command tried the undo and `detail` says whether it worked) | Stop the run. Show the user `detail` and `git -C "$TARGET" log --oneline -5`. If HEAD is not `pre`, the commits above `pre` were not verified by this command: the branch must not be pushed, and the user decides whether to run `git -C "$TARGET" reset --soft <pre>`. Never reset on your own. |
+| `error` (2) | A git command or the verifier failed before `git commit` ran. Nothing was committed; the index may have been emptied. | Stop the run and show the user `detail`. |
+| (2, no JSON) | Bad input: the repo is not a top level, a path is missing, outside it or not one git knows, the ref does not resolve or is not an ancestor of HEAD, a source path was listed with `--no-content-check`, the message is empty. Nothing was touched. stderr says which. | Fix the command line and run it again. Never fix it by switching to `--no-content-check`. |
+| anything else | No JSON with a status from this table: a traceback, an unknown status, an exit code not listed, or the Bash call timed out | Treat it as `stop`: run the branch backstop, and show the user its output, stderr and `git -C "$TARGET" log --oneline -5`. |
 
 ## Why the undo is `reset --soft`
 
@@ -58,7 +62,16 @@ After the second module that ends in `commit-failed` caused by a hook, or in `un
 - **Skip hooks for document-repo commits** (recommended when the hook only formats). Later commits then run with `--skip-hooks`, and each commit holds exactly the verified bytes. Every post-commit check still runs.
 - **Keep the hooks.** Every module the hook rewrites is reverted and reported.
 
-Never pass `--skip-hooks` without that answer. Record the choice in the report. A module that ended in `commit-failed` keeps its verified edits in the work tree, so after the user chooses to skip hooks, run its command again with `--skip-hooks`. A module that ended in `undone` with `--verify-against` was reset to HEAD; record it as reverted.
+Never pass `--skip-hooks` without that answer. Record the choice in the report. A Phase 3 or Phase 4 commit is that phase's only one, so when it ends in `commit-failed` or `undone` because of a hook, ask at once rather than after a second. A module that ended in `undone` with `--verify-against` was reset to HEAD; record it as reverted.
+
+### Holding work for a retry
+
+`commit-failed`, and `undone` after `--no-content-check`, leave verified work uncommitted in the work tree. Step 6 of Phase 2 and the stray rules would otherwise revert it as a stray. Hold it first:
+
+- **Phase 2 module:** `git -C "$TARGET" diff HEAD --binary -- <its paths> > "$RUN_DIR/hold/<id>.patch"`, then `git -C "$TARGET" checkout HEAD -- <its paths>`. To retry: `git -C "$TARGET" apply "$RUN_DIR/hold/<id>.patch"` and run its command again.
+- **Phase 3 or 4 docs:** ask the hook question at once. To skip hooks, run the same command again with `--skip-hooks`; the files are still in place. To keep the hooks, copy the listed files into `$RUN_DIR/uncommitted/` with their paths, run `git -C "$TARGET" checkout HEAD -- <the tracked ones>`, delete the untracked ones, and tell the user where the copies are.
+
+After the user chooses to skip hooks, retry every held module with `--skip-hooks`. After the user chooses to keep the hooks, leave every held module out and record it as reverted, with the hook as the cause.
 
 ## Batch snapshot
 
@@ -101,4 +114,5 @@ It verifies every path that differs from the base (Markdown and `explorer/` exce
 
 - Exit 0: `ok` is true. Every entry in `verify` passed and `status` is empty.
 - Exit 1: a file in `verify` has `"ok": false`, or `status` lists paths. For a failing file that the base has, check it out of the base and commit it with `--verify-against <base sha>` and `-m "revert(<module id>): <reason>"`. A failing file that the base does not have was added on the branch: stop and show the user. Handle anything `status` lists with the stray rules in SKILL.md. Then run the backstop again until it exits 0.
-- Exit 2: the base is empty, does not resolve, or is not an ancestor of HEAD, or the repo is not a top level. stderr says which. Fix the command line. Never skip the backstop.
+- Exit 2: the base is empty, does not resolve, or is not an ancestor of HEAD, or the repo is not a top level: fix the command line. Or git itself failed (stderr starts `backstop: git failed`): stop and show the user stderr. Never skip the backstop.
+- Anything else (a traceback, no JSON, a timeout): stop and show the user what it printed.

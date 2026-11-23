@@ -183,8 +183,8 @@ for a run after the last batch apply: check out HEAD and clean, because no
 batch snapshot is left to restore.
 
 **Branch backstop.** Run "Branch backstop" in commit-protocol.md
-(`document_repo backstop --base <base sha>`). It must exit 0 before anything
-else happens.
+(`PYTHONPATH="$TOOL_SRC" python3 -m document_repo backstop --repo "$TARGET" --base <base sha>`).
+It must exit 0 before anything else happens.
 
 After the backstop, move the model's line numbers to the commented code:
 
