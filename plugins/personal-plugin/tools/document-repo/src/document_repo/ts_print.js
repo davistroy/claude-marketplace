@@ -69,9 +69,9 @@ function findTypescript(candidates) {
 //    text node (see cookJsxText), so a comment that splits one text into two can change what
 //    renders while the source characters around it stay the same ("Hello\n  world" renders
 //    "Hello world"; "Hello{/* c */}\n  world" renders "Hello", "world"). Each JsxText is replaced
-//    by one child holding its cooked value, node by node, and a text that cooks to nothing is
-//    removed. A comment alone on its own line between elements then normalises away, and one
-//    that changes the rendered children fails.
+//    by one marker holding its cooked value (encodeJsxText), node by node, and a text that cooks
+//    to nothing is removed. A comment alone on its own line between elements then normalises
+//    away, and one that changes the rendered children fails.
 
 // What a JSX compiler makes of one text node's raw source, as the strings that would be its
 // child. Compilers differ at the edges, so the value is cooked by each rule and both are kept:
@@ -129,19 +129,31 @@ function cookJsxText(ts, text) {
   return cooked;
 }
 
+// The printed form of a cooked text. It must be something no parseable source prints, or an edit
+// that turns text into code (`Hello` into `{["Hello", "Hello"]}`) would print the same and pass.
+// It is printed as JSX text that starts with "<#": source JSX text cannot hold "<" (it opens a
+// tag), and a tag name cannot start with "#" (that is a parse error, and a file with one fails).
+// The JSON inside has every "<", ">", "{", "}" and "&" escaped, so it cannot close the marker
+// early or read as markup, and each text node stays one marker.
+function encodeJsxText(cooked) {
+  const json = JSON.stringify(cooked).replace(
+    /[<>{}&]/g,
+    (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+  return `<#text ${json}>`;
+}
+
 function normalise(ts, sourceFile) {
   const factory = ts.factory;
   // A JSX child as it compiles: null when the compiler drops it, otherwise the child itself or,
-  // for text, one expression child holding the cooked values.
+  // for text, one marker holding the cooked values.
   const jsxChild = (child) => {
     if (ts.isJsxExpression(child)) {
       return !child.expression && !child.dotDotDotToken ? null : child;
     }
     if (!ts.isJsxText(child)) return child;
     const cooked = cookJsxText(ts, child.text);
-    if (cooked === null) return null;
-    const values = cooked.map((value) => factory.createStringLiteral(value));
-    return factory.createJsxExpression(undefined, factory.createArrayLiteralExpression(values));
+    return cooked === null ? null : factory.createJsxText(encodeJsxText(cooked), false);
   };
   const transformer = (context) => {
     const visit = (original) => {

@@ -807,6 +807,60 @@ def test_a_comment_that_changes_rendered_jsx_text_fails(
     )
 
 
+# Text is compared through an encoding of its cooked value. No source may print the same as that
+# encoding: a child expression, an element, or text that spells the encoding out.
+JSX_ENCODING_COLLISIONS = [
+    (
+        "text-to-array",
+        "export const A = () => <p>Hello</p>;\n",
+        'export const A = () => <p>{["Hello", "Hello"]}</p>;\n',
+    ),
+    (
+        "entity-text-to-array",
+        "export const A = () => <p>a&amp;b</p>;\n",
+        'export const A = () => <p>{["a&amp;b", "a&amp;b", "a&amp;b"]}</p>;\n',
+    ),
+    (
+        "trailing-space-text-to-array",
+        "export const A = () => <p>Hello </p>;\n",
+        'export const A = () => <p>{["Hello ", "Hello "]}</p>;\n',
+    ),
+    (
+        "array-to-text",
+        'export const A = () => <p>{["x", "x"]}</p>;\n',
+        "export const A = () => <p>x</p>;\n",
+    ),
+    (
+        "text-to-string-child",
+        "export const A = () => <p>Hello</p>;\n",
+        'export const A = () => <p>{"Hello"}</p>;\n',
+    ),
+    (
+        "text-to-private-name-tag",
+        "export const A = () => <p>Hello</p>;\n",
+        'export const A = () => <p><#text ["Hello","Hello"]></p>;\n',
+    ),
+    (
+        "text-to-empty-expression",
+        "export const A = () => <p>Hello</p>;\n",
+        "export const A = () => <p>{}</p>;\n",
+    ),
+]
+
+
+@pytest.mark.parametrize("rel", ["c.tsx", "c.jsx", "c.js"])
+@pytest.mark.parametrize(
+    "before,after",
+    [c[1:] for c in JSX_ENCODING_COLLISIONS],
+    ids=[c[0] for c in JSX_ENCODING_COLLISIONS],
+)
+def test_code_cannot_print_as_encoded_jsx_text(
+    ts_repo, commit_then_edit, rel: str, before: str, after: str
+) -> None:
+    r = commit_then_edit(ts_repo, rel, before, after)
+    assert not r.ok and r.method == "ts-printer", (r.method, r.detail)
+
+
 JSX_TEXT_SAME = [
     (
         "comment-alone-between-elements",
