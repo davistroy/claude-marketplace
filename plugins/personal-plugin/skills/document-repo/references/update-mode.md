@@ -8,7 +8,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
 
 ## Steps
 
-1. **Start a new run directory.** Never reuse an old one. `assemble` prefers a file in the run directory over the base model: a leftover `system.json` would replace the base model's system sections, and a leftover `modules/<id>.json` would replace a module with its old line numbers. The previous model comes from the committed `explorer/data/model.json` (step 8), not from an old run directory. `$TARGET/.document-repo/.gitignore` holds `*`, so a run directory never dirties the tree. Old run directories can stay.
+1. **Start a new run directory.** The skill's Setup does this step. Never reuse an old one. `assemble` prefers a file in the run directory over the base model: a leftover `system.json` would replace the base model's system sections, and a leftover `modules/<id>.json` would replace a module with its old line numbers. The previous model comes from the committed `explorer/data/model.json` (step 8), not from an old run directory. `$TARGET/.document-repo/.gitignore` holds `*`, so a run directory never dirties the tree. Old run directories can stay.
 
    ```bash
    mkdir -p "$TARGET/.document-repo"
@@ -47,7 +47,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
 
 4. **If `affected_modules` and `unmapped_files` are both empty and `removed_files` is empty**, no module needs analysis. If `comment_only_files` is non-empty, people edited comments by hand, so line numbers moved: do steps 5 and 8 with no module records and no `system.json` (`files` is not needed in step 5), then step 12. Otherwise tell the user the docs are current and stop.
 
-5. **Write `$RUN_DIR/modules.final.json`** from the base model's `modules[]`: one `{"id", "path", "files"}` entry each, with the same `id` and `path`. Set `files` to the non-skipped files in a fresh inventory that the module owns by longest path prefix. Run `inventory` and `modules` as in a full run to get that inventory.
+5. **Write `$RUN_DIR/modules.final.json`** from the base model's `modules[]`: one `{"id", "path", "files"}` entry each, with the same `id` and `path`. Set `files` to the non-skipped files in a fresh inventory that the module owns by longest path prefix. Use the inventory from preflight (Phase 0), and run `modules` on it as in a full run.
 
    - **New modules.** Group `unmapped_files` by directory. Take a new module for each group from the fresh `modules` proposal, or widen an existing module's `path` when the files belong to it. Check each new `id` against the existing ids and add `-2`, `-3` until it is free.
    - **Dropped modules.** Drop a module only when all its files are in `removed_files`.
@@ -70,7 +70,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
 
 9. **Gate.** The plan lists only the affected and new modules, the files to comment, the doc sections to rewrite, and any module documented from the previous run. Ask for approval before any write.
 
-10. **Comments** (Phase 2). Comment the files in `changed_files` whose status is not `D` and that belong to an affected or new module, plus every file of a new module. Skip `comment_only_files`. Give each commenter `since` from `changes.json`, so it comments only items that are new or whose code changed. Existing comments are never touched. Verify and commit per module, as in a full run.
+10. **Comments** (Phase 2). Comment the files in `changed_files` whose status is not `D` and that belong to an affected or new module, plus every file of a new module. Skip `comment_only_files`. Give each commenter `since` from `changes.json`, so it comments only items that are new or whose code changed. Existing comments are never touched. Verify and commit per module, as in a full run. After the last module commit, remap `$RUN_DIR/model.json` to HEAD, as in a full run.
 
 11. **Docs** (Phase 3). Write these sections and no others:
 
@@ -83,7 +83,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
 
     Writing a section whose text did not change produces no git diff, so an uncertain case costs nothing. A removed module leaves its README behind, because the tool cannot delete a section. List it in the report as stale.
 
-12. **Explorer** (Phase 4). Remap the assembled model to the commented commit, then build:
+12. **Explorer** (Phase 4). Remap the assembled model to HEAD, then build. After step 10 only Markdown has changed, so no line moves; when step 10 was skipped, this remap is the one that counts:
 
     ```bash
     PYTHONPATH="$TOOL_SRC" python3 -m document_repo remap --model "$RUN_DIR/model.json" --repo "$TARGET" --to HEAD
