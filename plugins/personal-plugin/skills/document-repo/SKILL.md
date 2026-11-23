@@ -131,7 +131,8 @@ the target before approval.
 Skip this phase when `--phase` is `docs` or `explorer`.
 
 Read `$SKILL_DIR/references/commit-protocol.md` first. Every commit in this
-phase, and in Phases 3 and 4, goes through its block.
+phase, and in Phases 3 and 4, goes through `document_repo commit` as it
+describes, and its result table says what to do with each outcome.
 
 **Stray rules.** A stray is a path in `git -C "$TARGET" status --porcelain -uall`
 that the current step does not own. For a tracked stray, run
@@ -157,23 +158,33 @@ for every agent, then:
    1. Run the command once more. If it passes, it is flaky: record it and go on.
    2. Take the batch's modules out one at a time, and re-run after each. commit-protocol.md says how to take a module out and put it back. When the failure is gone, the last module taken out caused it. Put the others back one at a time, re-running after each, and keep out any whose return brings the failure back. A module kept out stays restored from HEAD and is recorded.
    3. If the failure remains with every module out, the tree equals HEAD and the batch did not cause it. Record the command as unstable, put every module back, and do not run that command for later batches.
-5. **Commit each surviving module separately** with the commit-protocol block: `FILES` is its list from step 2, `MSG` is `docs(<module id>): add explanatory comments`, `BODY` is `Comment-only change, verified by document-repo verify.`, and `VERIFY_REF` is `HEAD`. Act on the result as its table says.
+5. **Commit each surviving module separately.** The paths are its list from step 2, each quoted:
+
+   ```bash
+   PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --verify-against HEAD -m "docs(<module id>): add explanatory comments" -m "Comment-only change, verified by document-repo verify." -- <path> <path> ...
+   ```
+
+   Act on the `status` it prints as the commit-protocol table says. Exit 2 is a fill error: fix the command line, never drop the check.
 6. **Check that the batch is done.** `git -C "$TARGET" status --porcelain -uall` must print nothing. Apply the stray rules to anything it lists.
 
-Never `git add -A` in the target, and never make a commit outside the block.
+Never `git add -A` in the target, and never make a commit outside `document_repo commit`.
 
 A command that passed at baseline in 5 minutes or more runs once, after the
 last batch, with the fingerprint. On a regression, run it once more, as in
 step 4. Then find the cause in the work tree, as in step 4: take a module out
 with `git -C "$TARGET" checkout <base sha> -- <its files>`, and put it back
 with `git -C "$TARGET" checkout HEAD -- <its files>`. For each module that
-caused it, check its files out of the base and run the block with `VERIFY_REF`
-set to the base sha and `MSG` set to `revert(<module id>): remove comments that broke <command>`.
-If the failure remains with every module out, record the command as unstable
-and put every module back.
+caused it, check its files out of the base and commit them with
+`--verify-against <base sha>` (the literal sha from `$RUN_DIR/base.txt`) and
+`-m 'revert(<module id>): remove comments that broke <command>'`. If the
+failure remains with every module out, record the command as unstable and put
+every module back. If this command writes to the tree, the fingerprint rules
+for a run after the last batch apply: check out HEAD and clean, because no
+batch snapshot is left to restore.
 
-**Branch backstop.** Run "Branch backstop" in commit-protocol.md. It must pass
-before anything else happens.
+**Branch backstop.** Run "Branch backstop" in commit-protocol.md
+(`document_repo backstop --base <base sha>`). It must exit 0 before anything
+else happens.
 
 After the backstop, move the model's line numbers to the commented code:
 
@@ -200,7 +211,7 @@ Skip this phase when `--phase` is `comments` or `explorer`. Follow
 2. **Module READMEs.** Dispatch **Module docs writers** (prompt 4) in batches of up to 6 module ids.
 3. **CLAUDE.md.** Only if it already exists and does not resolve to the same file as `AGENTS.md`, upsert section `agents-pointer`. Never create `CLAUDE.md`.
 4. Confirm that no source file changed: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo "$TARGET" --before HEAD --changed` must print `[]`. Apply the stray rules to every path it lists, then run it again until it prints `[]`.
-5. Commit the doc files with the commit-protocol block: `FILES` is `README.md AGENTS.md docs/ARCHITECTURE.md docs/GLOSSARY.md`, each module README and, if it was written, `CLAUDE.md`. `MSG` is `docs: add READMEs, AGENTS.md, architecture and glossary` and `VERIFY_REF` is empty. Then `git -C "$TARGET" status --porcelain -uall` must print nothing. A path it lists is a stray, for example a Markdown file an agent made.
+5. Commit the doc files: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --no-content-check -m "docs: add READMEs, AGENTS.md, architecture and glossary" -- README.md AGENTS.md docs/ARCHITECTURE.md docs/GLOSSARY.md <module READMEs>`. List each module README that was written and `CLAUDE.md` only if it was written: a path that does not exist exits 2. Then `git -C "$TARGET" status --porcelain -uall` must print nothing. A path it lists is a stray, for example a Markdown file an agent made.
 
 ## Phase 4 — Explorer
 
@@ -212,15 +223,15 @@ Skip this phase when `--phase` is `comments` or `docs`.
 4. If the claude-in-chrome tools are available, open `file://$TARGET/explorer/index.html` and run the acceptance list in `$SKILL_DIR/references/explorer-contract.md`: 0 console errors, every view renders, every diagram draws, only `file://` requests. Otherwise tell the user to open it.
 5. **Comprehension check.** Dispatch the **Examiner** (prompt 5). Write `$RUN_DIR/quiz-questions.json` from `quiz.json` as `[{"q": str}]`, the same questions in the same order. Dispatch a fresh **Student** (prompt 6). Then send the **Grader** prompt (7) to the Examiner with SendMessage, or to a fresh agent if that fails. The score is the count of correct answers, 0 to 10. The target is 9. If it is lower, list the missed topics in the report as doc gaps. Do not loop.
 6. Write `$TARGET/explorer/data/run-report.md`: counts (files commented, reverted, READMEs), reverted files with reasons, modules kept out for test regressions, suspect existing comments (from `$RUN_DIR/comments/*.json`), skipped JS/TS files, `not_analyzed` modules, baseline versus after-run results, commands dropped because they write files or marked unstable, strays and their causes, commits the commit protocol undid and the hook choice, the Phase 2 backstop result, remap warnings, and the quiz score with missed topics.
-7. Commit the explorer with the commit-protocol block: `FILES` is `explorer`, `MSG` is `docs: add interactive project explorer`, and `VERIFY_REF` is empty.
+7. Commit the explorer: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --no-content-check -m "docs: add interactive project explorer" -- explorer`.
 
 When Phase 4 is skipped, write the same report to `$RUN_DIR/run-report.md`
 and leave it uncommitted.
 
 ## Finish
 
-Run "Branch backstop" in commit-protocol.md one last time. It must pass before
-you tell the user anything else.
+Run "Branch backstop" in commit-protocol.md one last time. It must exit 0
+before you tell the user anything else.
 
 Tell the user:
 

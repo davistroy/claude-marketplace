@@ -1,91 +1,64 @@
 # Commit protocol
 
-Every commit the skill makes in the target goes through the block below: each Phase 2 module commit, each restore commit, the Phase 3 docs commit and the Phase 4 explorer commit. The block exists because three things can put an unverified change into a commit after the verifier said yes:
+Every commit the skill makes in the target goes through `document_repo commit`: each Phase 2 module commit, each restore commit, the Phase 3 docs commit and the Phase 4 explorer commit. Three things can put an unverified change into a commit after the verifier said yes:
 
 - a command in `commands.json` rewrites files between the verify and the commit (`eslint --fix`, `ruff --fix`, `prettier --write`, a snapshot update);
 - another file is already in the index, and a bare `git commit` takes the whole index;
 - a pre-commit hook (husky with lint-staged, pre-commit with black or end-of-file-fixer) rewrites and re-stages files at commit time. A hook can add files to the commit even under `git commit --only`.
 
-The block closes all three. It empties the index, verifies the files immediately before staging, commits only the named paths, and then checks the commit it made: exactly one new commit, no other path in it, the work tree equal to it, and every source file comment-only against its parent. A failed check undoes the commit before the block returns.
+`document_repo commit` closes all three. It empties the index, stages the listed paths, verifies them, commits only those paths, and then checks the commit it made: exactly one new commit on the old HEAD, no other path in it, the work tree equal to it, and every committed source file comment-only against the ref. A failed check undoes the commit before the command returns. It replaced a hand-filled shell block (decision D76), which skipped verification when a variable expanded to empty, committed in the wrong repo after `cd ""`, and ran backticks in the message.
 
-## The block
-
-Run it as one Bash call. Fill in the literal paths and the file list. Shell state does not persist between calls, which is why the whole check sits in one call.
+## The command
 
 ```bash
-bash -s <<'COMMIT'
-cd "<TARGET>" || exit 2
-TOOL_SRC="<TOOL_SRC>"
-FILES=(<path> <path>)          # paths relative to TARGET; a directory is allowed
-MSG="<subject>"
-BODY="<body>"
-VERIFY_REF="HEAD"              # HEAD for a comment commit, the base sha for a restore commit, "" for docs and explorer/
-HOOKS=""                       # "--no-verify" only after the user chose it
-verify() { PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo . --before "$1" -- "${FILES[@]}"; }
-git restore --staged -- . 2>/dev/null || git reset -q
-KEEP=(); for f in "${FILES[@]}"; do if [ -e "$f" ]; then KEEP+=("$f"); else echo "NOTE: $f does not exist, left out"; fi; done
-[ ${#KEEP[@]} -gt 0 ] || { echo "SKIP: no files"; exit 0; }
-FILES=("${KEEP[@]}")
-if git diff --quiet HEAD -- "${FILES[@]}" && [ -z "$(git ls-files --others --exclude-standard -- "${FILES[@]}")" ]; then echo "SKIP: nothing to commit"; exit 0; fi
-if [ -n "$VERIFY_REF" ]; then
-  REF="$(git rev-parse --verify "$VERIFY_REF^{commit}")" || exit 2
-  verify "$REF" >/dev/null || { verify "$REF"; echo "PRECHECK: restore each ok:false file above, take it out of FILES, run again"; exit 1; }
-fi
-PRE="$(git rev-parse HEAD)"
-git add -- "${FILES[@]}" || exit 2
-if ! git commit -q --only $HOOKS -m "$MSG" -m "$BODY" -- "${FILES[@]}"; then
-  git restore --staged -- .
-  [ "$(git rev-parse HEAD)" = "$PRE" ] || { echo "STOP: HEAD moved although the commit failed"; exit 5; }
-  echo "HOOK: the commit was refused and nothing was committed"; exit 3
-fi
-undo() {
-  git reset -q --soft "$PRE" && git restore --staged -- .
-  [ -z "$VERIFY_REF" ] || git restore --source=HEAD --worktree -- "${FILES[@]}"
-  echo "UNDONE: $1"; exit 4
-}
-[ "$(git rev-parse HEAD~1)" = "$PRE" ] || { echo "STOP: more than one new commit"; exit 5; }
-EXCL=(); for f in "${FILES[@]}"; do EXCL+=(":(exclude,literal)$f"); done
-EXTRA="$(git diff-tree -r --no-commit-id --name-only --no-renames HEAD -- . "${EXCL[@]}")"
-[ -z "$EXTRA" ] || undo "the commit also held $(echo $EXTRA)"
-git diff --quiet HEAD -- "${FILES[@]}" || undo "the work tree differs from the commit (a hook changed files)"
-if [ -n "$VERIFY_REF" ]; then verify "$REF" >/dev/null || { verify "$REF"; undo "the committed files are not comment-only against $REF"; }; fi
-echo "OK $(git rev-parse --short HEAD)"
-COMMIT
+PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --verify-against HEAD \
+  -m "docs(<module id>): add explanatory comments" \
+  -m "Comment-only change, verified by document-repo verify." \
+  -- <path> <path> ...
 ```
 
-`VERIFY_REF` is `HEAD` for a Phase 2 comment commit, so the files are verified against the commit they are about to sit on. It is the base sha (`$RUN_DIR/base.txt`) for a restore commit, whose files must equal the base. It is empty for Markdown and `explorer/`, which the verifier does not judge. Those commits still get every other check.
+- `--repo` is the literal target path Setup printed. It must be the top level of the work tree. An empty value is refused.
+- Exactly one of `--verify-against REF` and `--no-content-check` is required. There is no default and no empty form.
+  - `--verify-against HEAD` for a Phase 2 comment commit: the files are verified against the commit they are about to sit on.
+  - `--verify-against <base sha>` for a restore commit, whose files must equal the base. Paste the sha from `$RUN_DIR/base.txt` as a literal.
+  - `--no-content-check` for Markdown and `explorer/`, which the verifier does not judge. Those commits still get every other check.
+- `-m` is the subject. A second `-m` adds the body. Each message is one argv element, so quotes, backticks and `$` in it are text. Write it in single quotes when it holds a backtick or `$`.
+- After `--`, list the paths relative to the target, each quoted when it holds a space. A directory (`explorer`) commits everything under it. List only paths that exist, or that HEAD has and the work tree deleted. A path that is neither is a fill error, and the command exits 2 without touching anything.
+- `--skip-hooks` passes `--no-verify` to git. Add it only after the user chose it (see "Hooks").
+
+The command prints JSON: `{"status", "detail", "sha", "paths", "verify", "restored", "strays", "git_output"}`. `paths` are the paths the commit holds (or would have held). `verify` lists the failing verifier results. `restored` lists the listed paths it reset in the work tree. `strays` lists paths outside the list that changed in the work tree while the commit ran, which only a hook can do.
 
 ## What each result means
 
-| Output (exit) | Meaning | Action |
-|---------------|---------|--------|
-| `OK <sha>` (0) | Committed and proven | Go on |
-| `SKIP` (0) | No file exists, or none differs from HEAD | Record the module as "nothing to commit". No commit is made. |
-| `PRECHECK` (1) | A file changed after the batch verify, for example by a command | Restore each listed file with `git -C "$TARGET" checkout HEAD -- <path>`, record it with its `detail`, take it out of `FILES` and run the block again |
-| `HOOK` (3) | A hook refused the commit. Nothing was committed, the index is empty | See "Hooks" below |
-| `UNDONE` (4) | The commit failed a check and was taken back. With `VERIFY_REF` set, the files were also restored from HEAD | Record the module as reverted with the printed reason. Treat any extra path it names as a stray (SKILL.md). See "Hooks" below. |
-| `STOP` (5) | History moved in a way the block did not cause | Stop the run and show the user `git -C "$TARGET" log --oneline -5` |
-| any other non-zero | A git or tool error | Read it, fix the cause, run again |
+| `status` (exit) | Meaning | Action |
+|-----------------|---------|--------|
+| `ok` (0) | Committed and proven | Go on. Apply the stray rules (SKILL.md) to every path in `strays`, recording "commit hook" as the cause. |
+| `skip` (0) | Nothing under the listed paths differs from HEAD | Record the module as "nothing to commit". No commit was made. |
+| `precheck` (1) | A listed file is not comment-only against the ref, for example because a command changed it after the batch verify. Nothing was committed and the index is empty. The work tree is untouched. | Restore each file in `verify` with `git -C "$TARGET" checkout HEAD -- <path>`, record it with its `detail`, take it out of the list and run the command again |
+| `commit-failed` (1) | `git commit` itself failed. Nothing was committed and the index is empty. Any listed file that changed during the attempt (a hook that fixes, then exits 1) was reset to the bytes that were staged and is in `restored`. `detail` names the cause: the commit hooks that ran, or a signing failure. | A hook: see "Hooks". A signing failure (`commit.gpgsign` with a missing key or a pinentry that cannot prompt): stop and tell the user, because skipping hooks does not help. Anything else: show `git_output` to the user. Apply the stray rules to `strays`. |
+| `undone` (1) | The commit failed a post-commit check and was taken back with `git reset --soft`. With `--verify-against`, the listed paths were reset to the old HEAD, so the module's change is gone. With `--no-content-check`, they were reset to the bytes that were staged, so the docs survive and only a hook's change is gone. | Record the module as reverted with `detail`. Apply the stray rules to `strays` and to any extra path `detail` names. See "Hooks". |
+| `stop` (1) | History moved in a way the command did not cause (a hook made its own commit), or an undo could not restore a listed path | Stop the run and show the user `detail` and `git -C "$TARGET" log --oneline -5` |
+| (2) | Bad input: the repo is not a top level, a path is missing or outside it, the ref does not resolve, the message is empty. Nothing was touched. stderr says which. | Fix the command line and run it again. Never fix it by switching to `--no-content-check`. |
 
 ## Why the undo is `reset --soft`
 
-The bad commit is HEAD and its parent is `PRE`, which the block checked. `git reset --soft "$PRE"` moves only the branch pointer. The index and the work tree keep every byte. `git restore --staged -- .` then empties the index, and with `VERIFY_REF` set, `git restore --source=HEAD --worktree` resets only the committed files to the parent. Nothing outside `FILES` is touched.
+The bad commit is HEAD and its parent is the old HEAD, which the command checked. `git reset --soft <old HEAD>` moves only the branch pointer. The index and the work tree keep every byte. The command then empties the index and resets only the listed paths. Edits to other paths stay as they are, so the other modules of the batch keep their uncommitted comments.
 
 - `git reset --hard HEAD~1` would also wipe the uncommitted edits of every other module in the batch, and every file a stray rule has not yet looked at.
 - `git revert` keeps the unverified commit in history, makes a second commit that hooks can rewrite too, and needs its own verification.
 
-The same reasoning replaces `git revert` everywhere in this skill. To take back a commit that is no longer HEAD, check its files out of the base (`git -C "$TARGET" checkout <base sha> -- <files>`) and run the block with `VERIFY_REF` set to the base sha. That makes a new commit whose files equal the base, and the block proves it.
+The same reasoning replaces `git revert` everywhere in this skill. To take back a commit that is no longer HEAD, check its files out of the base (`git -C "$TARGET" checkout <base sha> -- <files>`) and run `document_repo commit` with `--verify-against <base sha>`. That makes a new commit whose files equal the base, and the command proves it. A file the branch deleted comes back the same way: `checkout <base sha>` puts it back in the work tree and the index, and the verifier compares it with the base.
 
 ## Hooks
 
-The block runs the target's hooks by default, because they are the owner's rules. The post-commit checks catch any hook that rewrites a file. A hook that only formats Python code can pass, because the Python check compares syntax trees. A hook that changes a string, strips trailing whitespace inside one, or reformats a language checked line by line fails.
+The command runs the target's hooks by default, because they are the owner's rules. The post-commit checks catch any hook that rewrites a file. A hook that only formats Python code can pass, because the Python check compares syntax trees. A hook that changes a string, strips trailing whitespace inside one, or reformats a language checked line by line fails.
 
-After the second module that ends in `HOOK` or in `UNDONE` caused by a hook, ask the user once with AskUserQuestion:
+After the second module that ends in `commit-failed` caused by a hook, or in `undone` caused by a hook, ask the user once with AskUserQuestion:
 
-- **Skip hooks for document-repo commits** (recommended when the hook only formats). The block then runs with `HOOKS="--no-verify"`, and the commit holds exactly the verified bytes. Every post-commit check still runs.
+- **Skip hooks for document-repo commits** (recommended when the hook only formats). Later commits then run with `--skip-hooks`, and each commit holds exactly the verified bytes. Every post-commit check still runs.
 - **Keep the hooks.** Every module the hook rewrites is reverted and reported.
 
-Never pass `--no-verify` without that answer. Record the choice in the report.
+Never pass `--skip-hooks` without that answer. Record the choice in the report. A module that ended in `commit-failed` keeps its verified edits in the work tree, so after the user chooses to skip hooks, run its command again with `--skip-hooks`. A module that ended in `undone` with `--verify-against` was reset to HEAD; record it as reverted.
 
 ## Batch snapshot
 
@@ -112,15 +85,20 @@ Take this before and after every command run, in Phase 0 and in Phase 2:
 If the two values differ, the command wrote to the tree. Look at `git -C "$TARGET" status --porcelain -uall`.
 
 - **Only new untracked files** (`.coverage`, `junit.xml`, `coverage/`): delete them with `git -C "$TARGET" clean -fdq`, record them as "created by `<command>`", and keep the command.
-- **A tracked file changed:** the command rewrites files. Take it out of `commands.json` and record it. In Phase 0, run `git -C "$TARGET" checkout HEAD -- .` and `git -C "$TARGET" clean -fdq`. In Phase 2, restore the batch snapshot.
+- **A tracked file changed:** the command rewrites files. Take it out of `commands.json` and record it. Then put the tree back:
+  - In Phase 0, and for a slow command run after the last batch, the tree should equal HEAD: run `git -C "$TARGET" checkout HEAD -- .` and `git -C "$TARGET" clean -fdq`. After the last batch every module is committed, so a batch snapshot no longer applies (`git apply` fails on every file).
+  - For a command run on a batch, restore that batch's snapshot as above.
 
 ## Branch backstop
 
-The per-commit checks cover each commit. The backstop covers the branch as a whole, the restore commits included:
+The per-commit checks cover each commit. The backstop covers the branch as a whole, the restore commits included. Paste the base sha from `$RUN_DIR/base.txt` as a literal:
 
 ```bash
-PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo "$TARGET" --before "$(cat "$RUN_DIR/base.txt")" --changed
-git -C "$TARGET" status --porcelain -uall
+PYTHONPATH="$TOOL_SRC" python3 -m document_repo backstop --repo "$TARGET" --base <base sha>
 ```
 
-`verify` must exit 0, with `"ok": true` for every entry. `status` must print nothing. For a file that fails `verify`, check it out of the base and run the block with `VERIFY_REF` set to the base sha. A failing path that is not in the base was added on the branch: stop and show the user. Handle anything `status` lists with the stray rules in SKILL.md. Then run the backstop again until it passes.
+It verifies every path that differs from the base (Markdown and `explorer/` excepted) and lists `git status --porcelain -uall`. It prints `{"ok", "base", "verify", "status"}`.
+
+- Exit 0: `ok` is true. Every entry in `verify` passed and `status` is empty.
+- Exit 1: a file in `verify` has `"ok": false`, or `status` lists paths. For a failing file that the base has, check it out of the base and commit it with `--verify-against <base sha>` and `-m "revert(<module id>): <reason>"`. A failing file that the base does not have was added on the branch: stop and show the user. Handle anything `status` lists with the stray rules in SKILL.md. Then run the backstop again until it exits 0.
+- Exit 2: the base is empty, does not resolve, or is not an ancestor of HEAD, or the repo is not a top level. stderr says which. Fix the command line. Never skip the backstop.
