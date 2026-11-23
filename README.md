@@ -38,7 +38,7 @@ You can install to different scopes:
 
 ### personal-plugin
 
-23 commands and 29 skills for productivity workflows, code review, document processing, and security analysis.
+23 commands and 30 skills for productivity workflows, code review, document processing, and security analysis.
 
 **23 Commands:**
 | Command | Description |
@@ -67,7 +67,7 @@ You can install to different scopes:
 | [`/test-project`](plugins/personal-plugin/commands/test-project.md) | Ensure 90%+ test coverage, run all tests with sub-agents, fix failures, then create PR (merge onl... |
 | [`/validate-plugin`](plugins/personal-plugin/commands/validate-plugin.md) | Validate plugin structure, frontmatter, and content for consistency and correctness (supports `--... |
 
-**29 Skills:**
+**30 Skills:**
 | Skill | Description |
 |-------|-------------|
 | [`/accessibility-annotator`](plugins/personal-plugin/skills/accessibility-annotator/SKILL.md) | Analyze technical documents for CS/ML concepts a smart non-CS reader wouldn't understand, recomme... |
@@ -76,6 +76,7 @@ You can install to different scopes:
 | [`/brain-entry`](plugins/personal-plugin/skills/brain-entry/SKILL.md) | Send a capture to Open Brain. |
 | [`/clear-prep`](plugins/personal-plugin/skills/clear-prep/SKILL.md) | Prepare a project for a context clear (/clear) or compaction with zero loss of state. |
 | [`/create-wiki`](plugins/personal-plugin/skills/create-wiki/SKILL.md) | Set up a persistent, LLM-maintained wiki inside any project. |
+| [`/document-repo`](plugins/personal-plugin/skills/document-repo/SKILL.md) | Document an entire repository for junior developers and AI agents — adds explanatory comments to... |
 | [`/evaluate-pipeline-output`](plugins/personal-plugin/skills/evaluate-pipeline-output/SKILL.md) | Thoroughly evaluate contact-center-lab pipeline output quality against input, checking sanitizati... |
 | [`/explain-project`](plugins/personal-plugin/skills/explain-project/SKILL.md) | Generate a comprehensive, annotated technical overview document for any project/repo, written for... |
 | [`/fleet-health`](plugins/personal-plugin/skills/fleet-health/SKILL.md) | One-shot, read-only health snapshot across the personal fleet (DGX Spark, Jetson Orin Nano, homes... |

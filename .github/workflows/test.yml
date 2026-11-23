@@ -232,6 +232,47 @@ jobs:
         run: |
           mypy src/ --ignore-missing-imports
 
+  # NON-REQUIRED for now, following the task-sync / research-sse precedent: a
+  # required check cannot exist before the PR that creates it. Promote both
+  # matrix legs to required once the job has proven green.
+  document-repo:
+    name: Document Repo Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: plugins/personal-plugin/tools/document-repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install TypeScript for the ts-printer verifier
+        run: npm install -g typescript@5.6.3
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v -n auto --cov=document_repo --cov-branch --cov-report=term-missing
+
+      - name: Type check
+        run: |
+          mypy src/ --ignore-missing-imports
+
   # Advisory (NON-required) Python 3.10/3.12 compatibility check. All three
   # tools declare requires-python >=3.10 but CI otherwise only exercises 3.11.
   # This is a SEPARATE job with distinct check names ("Python Compat (3.10)")
@@ -287,6 +328,17 @@ jobs:
 
       - name: research-sse tests
         working-directory: plugins/personal-plugin/tools/research-sse
+        run: |
+          pip install -e ".[dev]"
+          pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
+
+      # GitHub sets CI=true, and the document-repo tests FAIL (not skip) when the
+      # TypeScript compiler is missing, so install it before the tests run.
+      - name: Install TypeScript for the document-repo ts-printer verifier
+        run: npm install -g typescript@5.6.3
+
+      - name: document-repo tests
+        working-directory: plugins/personal-plugin/tools/document-repo
         run: |
           pip install -e ".[dev]"
           pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
