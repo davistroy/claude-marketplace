@@ -1314,4 +1314,144 @@ def test_a_refusal_after_a_partial_build_says_how_to_recover(tmp_path: Path, cap
     model.write_text(FIXTURE.read_text())
     assert _build_cli(explorer, model, build.TEMPLATE_DIR) == 2
     err = capsys.readouterr().err
-    assert "git checkout HEAD -- explorer" in err, err
+    assert "git clean -fdq -- explorer" in err and "stopped partway" in err, err
+
+
+# --- round 4: the ownership check stays small however big model.json is ------------------------
+
+
+def _big_model(path: Path, size: int) -> None:
+    """A valid JSON model of about ``size`` bytes, written in chunks."""
+    row = b'"' + b"x" * 1000 + b'",\n'
+    with open(path, "wb") as fh:
+        fh.write(b'{"rows": [\n')
+        for _ in range(size // len(row)):
+            fh.write(row)
+        fh.write(b'"end"]}\n')
+
+
+def test_a_foreign_model_is_never_parsed(tmp_path: Path, monkeypatch) -> None:
+    # r4/big: a non-build state.json must be rejected before model.json is read as JSON.
+    explorer = tmp_path / "explorer"
+    (explorer / "data").mkdir(parents=True)
+    (explorer / "data" / "model.json").write_text('{"rows": []}\n')
+    (explorer / "data" / "state.json").write_text('{"ui": 2}\n')
+    real = json.loads
+    parsed: list[int] = []
+
+    def spy(text, *args, **kwargs):
+        parsed.append(len(text))
+        return real(text, *args, **kwargs)
+
+    monkeypatch.setattr(build.json, "loads", spy)
+    assert not build.is_our_explorer(explorer)
+    assert parsed == [len(b'{"ui": 2}\n')], "only state.json was parsed"
+
+
+def test_a_matching_raw_hash_needs_no_parse(tmp_path: Path, monkeypatch) -> None:
+    explorer = _built(tmp_path)
+    real = json.loads
+    parsed: list[int] = []
+
+    def spy(text, *args, **kwargs):
+        parsed.append(len(text))
+        return real(text, *args, **kwargs)
+
+    monkeypatch.setattr(build.json, "loads", spy)
+    assert build.is_our_explorer(explorer)
+    state_size = (explorer / "data" / "state.json").stat().st_size
+    assert parsed == [state_size], "the clean checkout is decided by the streamed hash"
+
+
+@pytest.mark.parametrize("state_kind", ["foreign", "build-shaped"])
+def test_a_large_model_is_checked_in_bounded_memory(tmp_path: Path, state_kind: str) -> None:
+    import tracemalloc
+
+    explorer = tmp_path / "explorer"
+    (explorer / "data").mkdir(parents=True)
+    model = explorer / "data" / "model.json"
+    _big_model(model, build.CANONICAL_PARSE_CAP + (4 << 20))
+    if state_kind == "foreign":
+        (explorer / "data" / "state.json").write_text('{"ui": 2}\n')
+    else:  # a build's state whose hash does not match: above the cap it is never parsed
+        state = {k: "0" * 64 if k == "model_hash" else "x" for k in build.STATE_KEYS}
+        (explorer / "data" / "state.json").write_text(json.dumps(state))
+    tracemalloc.start()
+    try:
+        assert not build.is_our_explorer(explorer)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert peak < 8 << 20, f"peak {peak} bytes"
+
+
+def test_a_large_model_in_our_explorer_is_ours_by_its_raw_hash(tmp_path: Path) -> None:
+    import tracemalloc
+
+    explorer = tmp_path / "explorer"
+    (explorer / "data").mkdir(parents=True)
+    model = explorer / "data" / "model.json"
+    _big_model(model, build.CANONICAL_PARSE_CAP + (4 << 20))
+    digest = hashlib.sha256(model.read_bytes()).hexdigest()
+    state = {"source_commit": "0" * 40, "schema_version": 1, "model_hash": digest}
+    state["generated_at"] = "2026-01-01T00:00:00Z"
+    (explorer / "data" / "state.json").write_text(json.dumps(state))
+    tracemalloc.start()
+    try:
+        assert build.is_our_explorer(explorer)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert peak < 8 << 20, f"peak {peak} bytes"
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        '{"ui": 2}',
+        "[1]",
+        '{"source_commit": 1, "schema_version": 1, "model_hash": 5, "generated_at": 1}',
+    ],
+    ids=["foreign-keys", "not-an-object", "hash-not-a-string"],
+)
+def test_a_state_of_the_wrong_shape_is_foreign(tmp_path: Path, state: str) -> None:
+    explorer = _built(tmp_path)
+    (explorer / "data" / "state.json").write_text(state)
+    assert not build.is_our_explorer(explorer)
+
+
+def test_an_oversized_state_is_foreign_without_being_read(tmp_path: Path) -> None:
+    explorer = _built(tmp_path)
+    with open(explorer / "data" / "state.json", "ab") as fh:
+        fh.write(b" " * (build.STATE_SIZE_CAP + 1))
+    assert not build.is_our_explorer(explorer)
+
+
+# --- round 4: refusals say which case they are -----------------------------------------------
+
+
+def test_a_partial_build_is_named_as_one(tmp_path: Path) -> None:
+    explorer = _built(tmp_path)
+    install_template(build.TEMPLATE_DIR, explorer)
+    (explorer / "data" / "model.json").write_text('{"half": "written"}\n')
+    with pytest.raises(ValueError, match="stopped partway") as info:
+        build.ensure_installable(build.TEMPLATE_DIR, explorer)
+    assert "git clean -fdq -- explorer" in str(info.value)
+    assert "if HEAD has" in str(info.value)
+
+
+def test_own_files_are_not_called_a_partial_build(tmp_path: Path) -> None:
+    explorer = tmp_path / "explorer"
+    explorer.mkdir()
+    (explorer / "app.js").write_text("mine")
+    with pytest.raises(ValueError) as info:
+        build.ensure_installable(build.TEMPLATE_DIR, explorer)
+    assert "stopped partway" not in str(info.value)
+    assert "move them aside" in str(info.value)
+
+
+def test_a_regular_file_named_explorer_is_not_called_a_symlink(tmp_path: Path) -> None:
+    (tmp_path / "explorer").write_text("not a directory")
+    with pytest.raises(ValueError, match="is not a directory") as info:
+        build.ensure_installable(build.TEMPLATE_DIR, tmp_path / "explorer")
+    assert "symlink" not in str(info.value)

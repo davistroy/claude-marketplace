@@ -322,39 +322,75 @@ def _model_json_bytes(model: Any) -> bytes:
     return (json.dumps(model, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
+#: A ``model.json`` larger than this is never parsed to check ownership; only its raw hash can
+#: match. ``build`` writes models of a few MB; a parse costs 15 to 20 times the file size in
+#: memory, and the tool's ceiling is 1.5 GB per process.
+CANONICAL_PARSE_CAP = 64 << 20
+#: A build's ``state.json`` is about 250 bytes; a bigger file is not one.
+STATE_SIZE_CAP = 64 << 10
+_HASH_CHUNK = 1 << 20
+
+
+def _build_state(data: Path) -> dict[str, Any] | None:
+    """``data/state.json`` when it has a build's shape (exactly ``STATE_KEYS``), else None."""
+    path = data / STATE_FILE
+    try:
+        if path.lstat().st_size > STATE_SIZE_CAP:
+            return None
+        state = json.loads(path.read_bytes())
+    except (OSError, ValueError, RecursionError):
+        return None
+    if not (isinstance(state, dict) and set(state) == STATE_KEYS):
+        return None
+    return state if isinstance(state["model_hash"], str) else None
+
+
+def _raw_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(_HASH_CHUNK), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def is_our_explorer(explorer_dir: Path) -> bool:
     """True when ``explorer_dir`` was made by ``build``, judged by content, not by a file name.
 
     A build leaves ``data/state.json`` as a JSON object with exactly ``STATE_KEYS``, whose
     ``model_hash`` is the sha256 of ``data/model.json`` as the build serialised it. A target's
     own ``state.json`` (UI state for an app that happens to be called "explorer") does not have
-    that shape.
+    that shape. The checks run cheapest first, so a foreign directory costs almost nothing
+    however big its files are:
 
-    The hash is taken over the model re-serialised as the build writes it, not over the bytes on
-    disk, so a CRLF checkout (Git for Windows' ``core.autocrlf``) or a commit hook that re-indents
-    JSON leaves the explorer ours. A change to the model itself, or to its key order, does not.
-    A ``model.json`` that does not parse is not ours. The model is read whole: it is a few MB at
-    most, written by ``build`` from the analysis.
+    1. ``state.json`` must have a build's shape (and be under ``STATE_SIZE_CAP``).
+    2. The raw bytes of ``model.json``, hashed in 1 MiB chunks, match: a clean checkout.
+    3. Otherwise, and only for a ``model.json`` under ``CANONICAL_PARSE_CAP``, the model parsed
+       and serialised again as ``build`` writes it matches. This keeps a CRLF checkout (Git for
+       Windows' ``core.autocrlf``) or a commit hook that re-indents JSON ours. A change to the
+       model's values or key order, or a file that does not parse, does not match.
 
     The directory, ``data/``, ``state.json`` and ``model.json`` must be real (no symlinks), so
     the check reads the files the commit holds and not something they point at. Anything else is
-    not ours: every file in the directory is then judged, and ``install_template`` refuses it.
+    not ours: every file in the directory is then judged, and ``build`` refuses it.
     """
     data = explorer_dir / DATA_DIR
     if not (_real_directory(explorer_dir) and _real_directory(data)):
         return False
     if not (_regular_file(data / STATE_FILE) and _regular_file(data / MODEL_FILE)):
         return False
+    state = _build_state(data)
+    if state is None:
+        return False
+    model = data / MODEL_FILE
     try:
-        state = json.loads((data / STATE_FILE).read_bytes())
-        canonical = _model_json_bytes(json.loads((data / MODEL_FILE).read_bytes()))
+        if _raw_sha256(model) == state["model_hash"]:
+            return True
+        if model.lstat().st_size > CANONICAL_PARSE_CAP:
+            return False
+        canonical = _model_json_bytes(json.loads(model.read_bytes()))
     except (OSError, ValueError, RecursionError):
         return False
-    return (
-        isinstance(state, dict)
-        and set(state) == STATE_KEYS
-        and state["model_hash"] == hashlib.sha256(canonical).hexdigest()
-    )
+    return bool(hashlib.sha256(canonical).hexdigest() == state["model_hash"])
 
 
 def foreign_files(template_dir: Path, explorer_dir: Path) -> list[str]:
@@ -399,6 +435,17 @@ def foreign_files(template_dir: Path, explorer_dir: Path) -> list[str]:
     return sorted(foreign)
 
 
+def _looks_like_a_partial_build(explorer_dir: Path, foreign: list[str]) -> bool:
+    """True when every foreign path is a file a build writes and ``state.json`` is a build's.
+
+    That is what ``write_explorer_data`` leaves when it stops after replacing ``model.json``:
+    the old ``state.json`` no longer matches, so the directory is not ours, but nothing in it is
+    the repository's own.
+    """
+    names = template_files(TEMPLATE_DIR) | {f"{DATA_DIR}/{n}" for n in DATA_FILES}
+    return _build_state(explorer_dir / DATA_DIR) is not None and set(foreign) <= names
+
+
 def ensure_installable(template_dir: Path, explorer_dir: Path) -> None:
     """Raise ``ValueError`` unless ``build`` may write into ``explorer_dir``.
 
@@ -406,23 +453,35 @@ def ensure_installable(template_dir: Path, explorer_dir: Path) -> None:
     that would ride into the commit unjudged, or a symlink a write would go through. ``build``
     runs this before it writes anything, with or without ``--template``: writing the data alone
     into a foreign directory would make its marker valid and every template-named file in it
-    exempt.
+    exempt. Each case has its own message, so the agent can tell a partial build (retry after
+    restoring) from the repository's own files (stop and ask).
     """
     foreign = foreign_files(template_dir, explorer_dir)
     if not foreign:
         return
-    links = [f for f in foreign if f == "." or os.path.islink(explorer_dir / f)]
+    if foreign == ["."]:
+        what = "a symlink" if os.path.islink(explorer_dir) else "not a directory"
+        raise ValueError(
+            f"{explorer_dir} is {what}; build writes only into a real directory. "
+            "Move it aside, then run again"
+        )
+    links = [f for f in foreign if os.path.islink(explorer_dir / f)]
+    if links:
+        raise ValueError(
+            f"{explorer_dir} holds symlinks, which build never follows or writes through: "
+            f"{', '.join(links)}. Move them aside, then run again"
+        )
+    if _looks_like_a_partial_build(explorer_dir, foreign):
+        raise ValueError(
+            f"{explorer_dir} looks like a build that stopped partway: data/state.json is a "
+            f"build's, but these no longer match it: {', '.join(foreign)}. Restore what is "
+            "committed with `git clean -fdq -- explorer`, then `git checkout HEAD -- explorer` "
+            "if HEAD has an explorer/ (a first run's does not), and build again"
+        )
     raise ValueError(
         f"{explorer_dir} was not made by document-repo, or holds what a build does not write: "
-        f"{', '.join(foreign)}"
-        + (
-            f" (a symlink is never followed or written through: {', '.join(links)})"
-            if links
-            else ""
-        )
-        + ". If they are the repository's own files, move them aside, then run again. If an "
-        "earlier build in this run stopped partway, restore the committed explorer with "
-        "`git checkout HEAD -- explorer` and `git clean -fdq -- explorer`, then build again"
+        f"{', '.join(foreign)}. These may be the repository's own files: move them aside, "
+        "then run again"
     )
 
 

@@ -20,6 +20,10 @@ makes one commit of exactly the listed paths and proves it, failing closed at ev
    in it; without a ref, no path in it outside the exempt set; the work tree equal to it for the
    listed paths; with a ref, the committed files verified again. Hooks run between 4 and 5, which
    is why 5 exists: a hook can rewrite, re-stage, add files, or make a commit of its own.
+   When every check passes, ``git reset -q`` sets the index to HEAD: under ``--only`` the real
+   index keeps the listed paths' pre-hook bytes after a hook re-stages them, and the work tree
+   already equals the commit, so only those stale staged bytes go. A failure of that reset is
+   noted in ``detail``; the outcome stays ``ok``.
 6. **Undo.** When a check in 5 fails, ``git reset --soft`` moves the branch back to the old HEAD,
    the index is emptied, and only the listed paths are restored: to the old HEAD with a ref (the
    change is dropped), to the bytes that were staged without one (the work is kept, a hook's
