@@ -1,12 +1,17 @@
 # Explorer contract
 
-The explorer is a fixed app in the skill's `templates/explorer/`. `build --template` copies it into `<target>/explorer/` (everything except the top-level `data/`) and then writes `explorer/data/`. Every run that reaches Phase 4 copies it again. `build` first refuses (exit 2) a directory it did not make. It accepts one whose `data/state.json` is exactly the file a build writes (below) with a `model_hash` that matches `model.json`, or one that holds only byte-for-byte copies of template files. It also refuses any file in `data/` other than the three below and Markdown, and any symlink. Phase 0 runs the same check with `explorer-status`. Never edit it inside a target repo: change the template in the plugin and run again.
+The explorer is a fixed app in the skill's `templates/explorer/`. `build --template` copies it into `<target>/explorer/` (everything except the top-level `data/`) and then writes `explorer/data/`. Every run that reaches Phase 4 copies it again. `build` first refuses (exit 2) a directory it did not make. It accepts one whose `data/state.json` is exactly the file a build writes (below) with a `model_hash` that matches `model.json`, or one that holds only byte-for-byte copies of template files. It also refuses any file in `data/` other than the three below and Markdown, and any symlink. `build` makes this check before it writes anything, with or without `--template`. Phase 0 runs the same check with `explorer-status`.
+
+Ownership is decided by content. `model_hash` is compared with the hash of `model.json` parsed and serialised again as `build` writes it, so a CRLF checkout (Git for Windows' `core.autocrlf`) or a hook that re-indents JSON keeps the explorer ours. A change to the model's values or key order does not: then `state.json` no longer vouches for the directory, nothing in it is exempt, and `build` refuses it. Two cases end there, and both fail closed:
+
+- A merge that takes `model.json` from one side and `state.json` from the other. Restore both from one side (`git checkout <side> -- explorer/data`), or move `explorer/` aside and run a full rebuild.
+- A file the repository's owner customised under a template file's name (`explorer/app.js`, say). The next build overwrites it, and it is exempt from verification like the rest of the app. Never customise those files; keep the repository's own files under other names, where they are judged and never overwritten. Never edit it inside a target repo: change the template in the plugin and run again.
 
 | File in `explorer/data/` | Written by | Holds |
 |--------------------------|------------|-------|
 | `model.json` | `build` | The canonical model. Agents read this one. |
 | `model.js` | `build` | `window.PROJECT_MODEL = {...};`, the same model with every non-ASCII character escaped. The page loads it with `<script src>`, because a browser will not `fetch` a JSON file from a page opened over `file://`. |
-| `state.json` | `build` | `source_commit`, `schema_version`, `model_hash` (SHA-256 of the `model.json` bytes), `generated_at`. `changes` reads it in update mode. |
+| `state.json` | `build` | `source_commit`, `schema_version`, `model_hash` (SHA-256 of `model.json` as `build` serialises it: two-space indent, non-ASCII kept, one final newline), `generated_at`. `changes` reads it in update mode. |
 
 ## What each view reads
 

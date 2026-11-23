@@ -2,7 +2,7 @@
 
 Use when Phase 0's `explorer-status` prints `ours` and the code changed after the commit it names. An update re-analyses only the modules whose files changed, rewrites only the doc sections that depend on them, and leaves every existing comment alone.
 
-The inputs are in `$TARGET/explorer/data/`: `state.json` (`source_commit`, the commit the docs describe) and `model.json` (the base model). If either is missing, there is nothing to update from: offer a full run.
+The inputs are in `$TARGET/explorer/data/`: `state.json` (`source_commit`, the commit the docs describe) and `model.json` (the base model). If either is missing, there is nothing to update from: offer a full run. If Phase 0 says `foreign` after a merge that took `model.json` and `state.json` from different sides, explorer-contract.md says how to recover.
 
 Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for brevity. Shell variables do not persist between Bash calls, so set each one again at the top of every command, or write the literal paths. Step 1 prints `RUN_DIR`: use that literal path from then on, because the timestamp in it cannot be rebuilt.
 
