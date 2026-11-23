@@ -167,7 +167,8 @@ plugins/
                        # adr-template.md, agents-md-template.md, anti-patterns.md,
                        # …plus extraction references (validation-output-examples, ship-output-templates, etc.) and hooks/patterns/templates/ subdirs
     hooks/hooks.json
-    tools/             # feedback-docx-generator, visual-explainer
+    tools/             # document-repo, feedback-docx-generator, research-sse, task-sync,
+                       # visual-explainer
 
   bpmn-plugin/
     .claude-plugin/plugin.json

@@ -2,6 +2,7 @@ import copy
 import hashlib
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -684,6 +685,13 @@ def test_write_bytes_atomic_creates_a_new_file(tmp_path: Path) -> None:
     assert [p.name for p in tmp_path.iterdir()] == ["new.json"]
 
 
+needs_posix_modes = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="os.chmod on Windows only toggles the read-only flag, so st_mode never reads back 0o644",
+)
+
+
+@needs_posix_modes
 def test_write_bytes_atomic_keeps_an_existing_file_mode(tmp_path: Path) -> None:
     path = tmp_path / "f.json"
     path.write_bytes(b"old")

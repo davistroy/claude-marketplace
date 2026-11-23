@@ -1,4 +1,5 @@
 import json
+import sys
 
 import pytest
 
@@ -1101,6 +1102,13 @@ def test_changed_files_lists_non_markdown_text_files(make_repo) -> None:
 
 
 # D4: a change of file mode (executable bit, symlink) is a behaviour change.
+needs_posix_modes = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows has no executable bit: os.chmod cannot set it, and git runs with filemode off",
+)
+
+
+@needs_posix_modes
 def test_executable_bit_added_fails(make_repo) -> None:
     import os
 
@@ -1111,6 +1119,7 @@ def test_executable_bit_added_fails(make_repo) -> None:
     assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
 
 
+@needs_posix_modes
 def test_executable_bit_removed_fails(make_repo, git) -> None:
     import os
 
@@ -1123,6 +1132,7 @@ def test_executable_bit_removed_fails(make_repo, git) -> None:
     assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
 
 
+@needs_posix_modes
 def test_unchanged_executable_bit_passes(make_repo, git) -> None:
     import os
 
@@ -1191,6 +1201,7 @@ def test_executable_bit_staged_only_fails_by_default(make_repo, git) -> None:
     assert not r.ok and "file mode changed" in r.detail, (r.method, r.detail)
 
 
+@needs_posix_modes
 def test_executable_bit_dropped_in_index_only_fails(make_repo, git) -> None:
     import os
 

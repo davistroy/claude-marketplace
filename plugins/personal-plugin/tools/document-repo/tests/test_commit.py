@@ -10,6 +10,7 @@ import json
 import os
 import stat
 import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -176,6 +177,12 @@ def test_restore_commit_against_base(make_repo, git, commit_files, capsys) -> No
     assert git(repo, "diff", base, "HEAD") == ""
 
 
+needs_symlinks = pytest.mark.skipif(
+    sys.platform == "win32", reason="creating a symlink needs a privilege on Windows"
+)
+
+
+@needs_symlinks
 def test_untracked_symlink_stray_is_hashed(make_repo, capsys) -> None:
     repo = make_repo({"m.py": M})
     (repo / "m.py").write_text(M_COMMENTED)
@@ -219,6 +226,7 @@ def test_ignored_file_exit_2(make_repo, capsys) -> None:
     assert code == 2 and "ignored" in out["_err"]
 
 
+@needs_symlinks
 def test_symlinked_parent_outside_repo_exit_2(make_repo, tmp_path, capsys) -> None:
     repo = make_repo({"m.py": M})
     outside = tmp_path / "outside"
@@ -825,6 +833,7 @@ def test_backstop_corrupt_index_exit_2_minor2(make_repo, git, capsys) -> None:
     assert code == 2 and "backstop:" in out["_err"], out
 
 
+@needs_symlinks
 def test_path_through_in_repo_symlink_exit_2_minor3(make_repo, git, capsys) -> None:
     repo = make_repo({"b/n.py": N, "a/m.py": M})
     (repo / "a/bl").symlink_to("../b")

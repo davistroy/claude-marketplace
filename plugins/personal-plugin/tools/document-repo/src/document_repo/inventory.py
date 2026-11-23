@@ -238,7 +238,7 @@ def _package_json_entries(root: Path, rel: str) -> list[dict[str, str]]:
 
 
 def _pyproject_entries(root: Path, rel: str) -> list[dict[str, str]]:
-    if tomllib is None:  # pragma: no cover - Python 3.10
+    if tomllib is None:  # Python 3.10: no TOML reader, so no console scripts
         return []
     try:
         data = tomllib.loads((root / rel).read_text(encoding="utf-8"))

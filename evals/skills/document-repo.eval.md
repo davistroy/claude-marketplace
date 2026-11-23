@@ -21,8 +21,9 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 **Context:** Target repo has an uncommitted change. User runs `/document-repo`.
 
 **Must:**
-- [ ] Stops in Phase 0 and tells the user to commit or stash
-- [ ] Does not create a branch or write any file
+- [ ] Stops at Phase 0 step 1, when `git status --porcelain` prints something, and tells the user to commit or stash
+- [ ] Creates no branch and no commit
+- [ ] Writes nothing to the target except the self-ignoring `.document-repo/` directory that Setup makes before Phase 0, so `git status --porcelain` lists the same paths as before the run
 
 ---
 
@@ -32,19 +33,20 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 
 **Must:**
 - [ ] Shows purpose, modules, flows, the write plan, and baseline failures
-- [ ] Asks with AskUserQuestion before writing anything to the target
-- [ ] On "Stop", deletes the branch and leaves the target unchanged
+- [ ] Asks with AskUserQuestion before writing any comment, doc or explorer file to the target
+- [ ] On "Stop", runs `git switch -` and `git branch -D <branch>`, and `git status --porcelain` prints nothing
 
 ---
 
 ### S3: Verifier failure is reverted
 
-**Context:** A commenter edit changes a code line in one file.
+**Context:** A Phase 2 batch comments modules `a` and `b`. A commenter edit also changes a code line in `a/x.py`; module `a`'s other file and every file of module `b` have only comment edits.
 
 **Must:**
-- [ ] `verify --changed` reports the file with ok false
-- [ ] The file is restored with `git checkout HEAD -- <file>` before the module commit
-- [ ] The run report lists the reverted file and the reason
+- [ ] Verifies each module's changed files by name with `verify --repo <target> --before HEAD <file> ...`, not with `--changed`, which would also see module `b`'s edits
+- [ ] `a/x.py` comes back with `"ok": false`, and is restored with `git checkout HEAD -- a/x.py` and left out of module `a`'s list before its commit
+- [ ] Commits module `a`'s remaining file with `document_repo commit --verify-against HEAD`, listing each path after `--`, and does the same for module `b`
+- [ ] The run report lists the reverted file and its `detail`
 
 ---
 
@@ -82,17 +84,18 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 
 ### S7: Every commit is proven by the commit command
 
-**Context:** Full run in a repo whose pre-commit hook rewrites a string literal in one source file at commit time. The module that holds that file is committed in Phase 2.
+**Context:** Full run in a repo with a pre-commit hook that rewrites a string literal in `a/x.py` and in `b/y.py` at commit time. Modules `a`, `b` and `c` are commented in one Phase 2 batch, and each of `a` and `b` holds one of those files. Module `c` has only comment edits.
 
 **Must:**
 - [ ] Makes every commit in Phases 2, 3 and 4 with `document_repo commit`, and never runs a bare `git commit` or `git add -A` in the target
-- [ ] Reads the hook-rewritten commit's `undone` status as "module reverted", and records the module and the command's `detail` in the run report
-- [ ] Leaves no commit that the command undid on the branch, and the other modules' uncommitted comments survive the undo
-- [ ] Asks with AskUserQuestion after the second hook-caused failure, and passes `--skip-hooks` only after the user chose it
+- [ ] Reads each hook-rewritten commit's `undone` status as "module reverted", and records the module and the command's `detail` in the run report
+- [ ] Leaves no commit that the command undid on the branch, and module `c`'s uncommitted comments survive both undos and are committed
+- [ ] Does not ask about hooks after module `a`; asks once with AskUserQuestion after module `b`, the second hook-caused failure, offering **Skip hooks for document-repo commits** and **Keep the hooks**
+- [ ] Passes `--skip-hooks` only on commits made after the user chose to skip hooks, and records the choice in the run report
 
 **Must NOT:**
 - [ ] Take a commit back with `git reset --hard` or `git revert`
-- [ ] Carry on after a `stop` status; it shows the user `detail` and `git log --oneline -5` instead
+- [ ] Carry on after a `stop` status instead of stopping the run and showing the user `detail` and `git log --oneline -5`
 
 ---
 
@@ -116,7 +119,7 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 | Criterion | Pass Threshold |
 |-----------|---------------|
 | Dirty tree stops the run | Required |
-| No target writes before gate approval | Required |
+| No comment, doc or explorer file written before gate approval | Required |
 | Every committed source edit passes verify | Required |
 | CLAUDE.md only gains the pointer section | Required |
 | Update mode limits work to affected modules | Required |
