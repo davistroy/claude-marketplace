@@ -104,13 +104,13 @@ def test_comment_chunk_block_end_must_close_line() -> None:
     assert not ok and "code after" in why
 
 
-def test_changed_files(make_repo) -> None:
+def test_changed_files(make_repo, marker) -> None:
     repo = make_repo(
         {
             "a.py": "x = 1\n",
             "README.md": "# r\n",
             "explorer/app.js": "x\n",
-            "explorer/data/state.json": "{}\n",
+            **marker,
             "b.py": "y = 1\n",
         }
     )
@@ -897,7 +897,7 @@ def test_nested_block_flag_is_set_for_sql_and_rust_only() -> None:
 
 
 # Item 2: verify --changed covers every changed or untracked file but docs and explorer output.
-def _changed_repo(make_repo):
+def _changed_repo(make_repo, marker):
     repo = make_repo(
         {
             "package.json": "{}\n",
@@ -905,7 +905,7 @@ def _changed_repo(make_repo):
             "README.md": "# r\n",
             "docs/x.md": "# x\n",
             "explorer/app.js": "x\n",
-            "explorer/data/state.json": "{}\n",
+            **marker,
             "keep.py": "k = 1\n",
             "gone.py": "g = 1\n",
             ".gitignore": "ignored.py\nbuild/\n",
@@ -916,7 +916,7 @@ def _changed_repo(make_repo):
     (repo / "README.md").write_text("# r2\n")
     (repo / "docs/x.md").write_text("# x2\n")
     (repo / "explorer/app.js").write_text("y\n")
-    (repo / "explorer/data/new.json").write_text("{}\n")
+    (repo / "explorer/data/model.js").write_text("var m;\n")
     (repo / "gone.py").unlink()
     (repo / "conftest.py").write_text("import pytest\n")
     (repo / "ignored.py").write_text("i = 1\n")
@@ -926,10 +926,10 @@ def _changed_repo(make_repo):
     return repo
 
 
-def test_changed_files_lists_every_changed_or_untracked_file(make_repo) -> None:
+def test_changed_files_lists_every_changed_or_untracked_file(make_repo, marker) -> None:
     import document_repo.verify as verify_mod
 
-    repo = _changed_repo(make_repo)
+    repo = _changed_repo(make_repo, marker)
     assert verify_mod.changed_files(repo, "HEAD") == [
         "a.rb",
         "conftest.py",
@@ -953,8 +953,8 @@ def test_doc_suffixes_constant() -> None:
     assert verify_mod.DOC_SUFFIXES == (".md",)
 
 
-def test_cli_verify_changed_fails_unknown_and_untracked_files(make_repo, capsys) -> None:
-    repo = _changed_repo(make_repo)
+def test_cli_verify_changed_fails_unknown_and_untracked_files(make_repo, marker, capsys) -> None:
+    repo = _changed_repo(make_repo, marker)
     capsys.readouterr()
     assert main(["verify", "--repo", str(repo), "--changed"]) == 1
     results = {r["path"]: r for r in json.loads(capsys.readouterr().out)}
@@ -1339,7 +1339,14 @@ def test_go_new_block_output_comment_fails(make_repo, chunk: str) -> None:
     assert not r.ok and DIRECTIVE in r.detail, (r.method, r.detail)
 
 
-# --- the exempt set is the installed explorer app and explorer/data/, not all of explorer/ ------
+# --- the exempt set: the explorer files a build writes, only in an explorer a build made ---------
+
+
+def _put(root: Path, files: dict) -> None:
+    for rel, content in files.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content if isinstance(content, bytes) else content.encode("utf-8"))
 
 
 @pytest.mark.parametrize(
@@ -1350,8 +1357,12 @@ def test_go_new_block_output_comment_fails(make_repo, chunk: str) -> None:
         ("explorer/styles.css", True),
         ("explorer/vendor/mermaid.min.js", True),
         ("explorer/data/model.json", True),
+        ("explorer/data/model.js", True),
+        ("explorer/data/state.json", True),
         ("explorer/data/run-report.md", True),
-        ("explorer/data/anything/else.bin", True),
+        ("explorer/data/loader.js", False),
+        ("explorer/data/x.js", False),
+        ("explorer/data/sub/model.json", False),
         ("explorer/app.py", False),
         ("explorer/server/main.go", False),
         ("explorer/vendor/other.js", False),
@@ -1361,34 +1372,89 @@ def test_go_new_block_output_comment_fails(make_repo, chunk: str) -> None:
         ("NOTES.md", True),
     ],
 )
-def test_is_exempt_covers_only_the_template_and_its_data(
-    tmp_path: Path, path: str, exempt: bool
+def test_is_exempt_in_an_explorer_a_build_made(
+    tmp_path: Path, marker, path: str, exempt: bool
 ) -> None:
     from document_repo.verify import is_exempt
 
-    (tmp_path / "explorer/data").mkdir(parents=True)
-    (tmp_path / "explorer/data/state.json").write_text("{}\n")
+    _put(tmp_path, marker)
     assert is_exempt(path, tmp_path) is exempt
 
 
+FOREIGN_MARKERS = {
+    "no-state": {"explorer/data/model.json": "{}\n"},
+    "ui-state": {"explorer/data/state.json": '{"saved": "ui state"}\n'},
+    "extra-key": "extra",
+    "missing-key": "missing",
+    "hash-mismatch": "mismatch",
+    "not-json": {"explorer/data/state.json": "not json\n", "explorer/data/model.json": "{}\n"},
+    "a-list": {"explorer/data/state.json": "[]\n", "explorer/data/model.json": "{}\n"},
+    "no-model": "no-model",
+}
+
+
+def _foreign_marker(kind: str, marker: dict) -> dict:
+    spec = FOREIGN_MARKERS[kind]
+    if isinstance(spec, dict):
+        return spec
+    state = json.loads(marker["explorer/data/state.json"])
+    files = dict(marker)
+    if spec == "extra":
+        state["saved"] = "ui"
+    elif spec == "missing":
+        del state["generated_at"]
+    elif spec == "mismatch":
+        files["explorer/data/model.json"] = b'{"other": 1}\n'
+    elif spec == "no-model":
+        del files["explorer/data/model.json"]
+    files["explorer/data/state.json"] = json.dumps(state) + "\n"
+    return files
+
+
+@pytest.mark.parametrize("kind", sorted(FOREIGN_MARKERS))
 @pytest.mark.parametrize(
-    "path,exempt",
+    "path",
     [
-        ("explorer/app.js", False),
-        ("explorer/index.html", False),
-        ("explorer/data/model.json", True),
-        ("NOTES.md", True),
+        "explorer/app.js",
+        "explorer/index.html",
+        "explorer/data/model.json",
+        "explorer/data/state.json",
     ],
 )
-def test_without_a_build_marker_template_names_are_judged(
-    tmp_path: Path, path: str, exempt: bool
+def test_nothing_under_explorer_is_exempt_without_a_trusted_state(
+    tmp_path: Path, marker, kind: str, path: str
 ) -> None:
     from document_repo.verify import is_exempt
 
-    assert is_exempt(path, tmp_path) is exempt
+    _put(tmp_path, _foreign_marker(kind, marker))
+    assert not is_exempt(path, tmp_path)
+    assert is_exempt("explorer/data/run-report.md", tmp_path)  # Markdown, wherever it is
 
 
-def test_the_exempt_set_is_read_from_the_template_directory(tmp_path: Path) -> None:
+def test_a_symlinked_state_is_not_trusted(tmp_path: Path, marker) -> None:
+    from document_repo.build import is_our_explorer
+    from document_repo.verify import is_exempt
+
+    _put(tmp_path, marker)
+    real = tmp_path / "elsewhere.json"
+    state = tmp_path / "explorer/data/state.json"
+    real.write_bytes(state.read_bytes())
+    state.unlink()
+    state.symlink_to(real)
+    assert not is_our_explorer(tmp_path / "explorer")
+    assert not is_exempt("explorer/app.js", tmp_path)
+
+
+def test_a_symlinked_data_directory_is_not_trusted(tmp_path: Path, marker) -> None:
+    from document_repo.build import is_our_explorer
+
+    _put(tmp_path / "real", marker)
+    (tmp_path / "explorer").mkdir()
+    (tmp_path / "explorer/data").symlink_to(tmp_path / "real/explorer/data")
+    assert not is_our_explorer(tmp_path / "explorer")
+
+
+def test_the_exempt_set_is_read_from_the_template_directory(tmp_path: Path, marker) -> None:
     from document_repo.build import TEMPLATE_DIR, template_files
     from document_repo.verify import is_exempt
 
@@ -1399,34 +1465,48 @@ def test_the_exempt_set_is_read_from_the_template_directory(tmp_path: Path) -> N
         if p.is_file() and p.relative_to(TEMPLATE_DIR).parts[0] != "data"
     }
     assert installed == on_disk and "app.js" in installed
-    (tmp_path / "explorer/data").mkdir(parents=True)
-    (tmp_path / "explorer/data/state.json").write_text("{}\n")
+    _put(tmp_path, marker)
     assert all(is_exempt("explorer/" + rel, tmp_path) for rel in installed)
 
 
-def test_a_target_file_under_explorer_is_verified(make_repo) -> None:
+def test_a_target_file_under_explorer_is_verified(make_repo, marker) -> None:
     repo = make_repo({"explorer/app.py": "x = 1\n", "explorer/app.js": "var a;\n"})
     (repo / "explorer/app.py").write_text("x = 2\n")
     (repo / "explorer/app.js").write_text("var b;\n")
-    # No explorer/data/state.json: the target's own app.js is judged despite its name.
+    # No trusted state.json: the target's own app.js is judged despite its name.
     assert changed_files(repo, "HEAD") == ["explorer/app.js", "explorer/app.py"]
-    (repo / "explorer/data").mkdir()
-    (repo / "explorer/data/state.json").write_text("{}\n")
+    _put(repo, marker)
     assert changed_files(repo, "HEAD") == ["explorer/app.py"]
     r = verify_file(repo, "explorer/app.py")
     assert not r.ok and "syntax tree changed" in r.detail, r.detail
 
 
-def test_without_the_template_only_explorer_data_is_exempt(monkeypatch, tmp_path) -> None:
+def test_target_code_under_explorer_data_is_verified(make_repo, marker) -> None:
+    # r2/p3: the target's own explorer/data/loader.js, with or without a trusted state.
+    repo = make_repo({"explorer/data/loader.js": "export const f = () => 1;\n"})
+    (repo / "explorer/data/loader.js").write_text("export const f = () => 2;\n")
+    assert changed_files(repo, "HEAD") == ["explorer/data/loader.js"]
+    _put(repo, marker)
+    assert "explorer/data/loader.js" in changed_files(repo, "HEAD")
+
+
+def test_a_stray_under_explorer_data_is_verified(make_repo, marker) -> None:
+    # r2/p4: a new file next to the data a build writes is judged, and fails as not in base.
+    repo = make_repo(dict(marker))
+    (repo / "explorer/data/x.js").write_text("x\n")
+    assert changed_files(repo, "HEAD") == ["explorer/data/x.js"]
+    assert not verify_file(repo, "explorer/data/x.js").ok
+
+
+def test_without_the_template_only_the_data_files_are_exempt(monkeypatch, tmp_path, marker) -> None:
     from document_repo import build
     from document_repo import verify as verify_mod
 
     monkeypatch.setattr(build, "TEMPLATE_DIR", tmp_path / "missing")
-    verify_mod._installed_app.cache_clear()
+    verify_mod._skill_output.cache_clear()
     try:
-        (tmp_path / "explorer/data").mkdir(parents=True)
-        (tmp_path / "explorer/data/state.json").write_text("{}\n")
+        _put(tmp_path, marker)
         assert not verify_mod.is_exempt("explorer/app.js", tmp_path)
         assert verify_mod.is_exempt("explorer/data/model.json", tmp_path)
     finally:
-        verify_mod._installed_app.cache_clear()
+        verify_mod._skill_output.cache_clear()

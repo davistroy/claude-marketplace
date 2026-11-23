@@ -127,12 +127,18 @@ def test_deletion_with_content_check_is_a_precheck_failure(make_repo, git, capsy
     assert head(git, repo) == pre and staged(git, repo) == ""
 
 
-def test_directory_with_new_files(make_repo, capsys) -> None:
+def _put(root: Path, files: dict) -> None:
+    for rel, content in files.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content if isinstance(content, bytes) else content.encode("utf-8"))
+
+
+def test_directory_with_new_files(make_repo, marker, capsys) -> None:
     repo = make_repo({"src.py": M})
     (repo / "explorer/data").mkdir(parents=True)
     (repo / "explorer/index.html").write_text("<p>hi</p>\n")
-    (repo / "explorer/data/model.json").write_text("{}\n")
-    (repo / "explorer/data/state.json").write_text("{}\n")
+    _put(repo, marker)
     code, out = commit(capsys, repo, "explorer", ref=None)
     assert code == 0, out
     assert out["paths"] == [
@@ -151,6 +157,42 @@ def test_no_content_check_refuses_a_template_name_without_a_build_marker(
     (repo / "explorer/app.js").write_text("var mine = 2;\n")
     code, out = commit(capsys, repo, "explorer", ref=None)
     assert code == 2 and "explorer/app.js" in out["_err"], out
+    assert head(git, repo) == pre and staged(git, repo) == ""
+
+
+def test_no_content_check_refuses_a_template_name_behind_a_foreign_state(
+    make_repo, git, capsys
+) -> None:
+    # r2/p1: the target's own state.json is not the build's marker.
+    repo = make_repo(
+        {
+            "explorer/app.js": "export function realCode() { return 42; }\n",
+            "explorer/data/state.json": '{"saved": "ui state"}\n',
+        }
+    )
+    pre = head(git, repo)
+    (repo / "explorer/app.js").write_text("export function realCode() { return 0; }\n")
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 2 and "explorer/app.js" in out["_err"], out
+    assert head(git, repo) == pre and staged(git, repo) == ""
+
+
+@pytest.mark.parametrize("trusted", [False, True])
+def test_no_content_check_refuses_target_code_under_explorer_data(
+    make_repo, git, capsys, marker, trusted: bool
+) -> None:
+    # r2/p3 (no marker) and r2/p4 (a stray next to a build's data).
+    repo = make_repo({"explorer/data/loader.js": "export const f = () => 1;\n"})
+    if trusted:
+        _put(repo, marker)
+        git(repo, "add", "-A")
+        git(repo, "commit", "-q", "-m", "build")
+    pre = head(git, repo)
+    (repo / "explorer/data/loader.js").write_text("export const f = () => 2;\n")
+    (repo / "explorer/data/x.js").write_text("x\n")
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 2 and "explorer/data/loader.js" in out["_err"], out
+    assert "explorer/data/x.js" in out["_err"]
     assert head(git, repo) == pre and staged(git, repo) == ""
 
 
@@ -415,11 +457,12 @@ def test_hook_adds_a_file_docs_commit_keeps_the_work(make_repo, git, capsys) -> 
     assert (repo / "README.md").read_text() == "new docs\n", "docs work kept"
 
 
-def test_hook_rewrites_docs_without_staging_restores_staged_bytes(make_repo, git, capsys) -> None:
+def test_hook_rewrites_docs_without_staging_restores_staged_bytes(
+    make_repo, git, capsys, marker
+) -> None:
     repo = make_repo({"README.md": "old\n"})
     hook(repo, "pre-commit", "printf 'hooked\\n' > README.md\necho junk > explorer/data/x.txt\n")
-    (repo / "explorer/data").mkdir(parents=True)
-    (repo / "explorer/data/state.json").write_text("{}\n")
+    _put(repo, marker)
     (repo / "explorer/index.html").write_text("a\n")
     (repo / "README.md").write_text("new docs\n")
     code, out = commit(capsys, repo, "README.md", "explorer", ref=None)

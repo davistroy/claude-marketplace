@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import itertools
+import json
 import os
 import subprocess
 from collections.abc import Callable
@@ -73,3 +75,23 @@ def commit_files(git: Callable[..., str]) -> Callable[[Path, dict[str, str | byt
         return git(repo, "rev-parse", "HEAD").strip()
 
     return _commit
+
+
+def explorer_marker(model: bytes = b"{}\n") -> dict[str, str | bytes]:
+    """The data files a build leaves: a model.json and a state.json whose model_hash matches it."""
+    state = {
+        "source_commit": "0" * 40,
+        "schema_version": 1,
+        "model_hash": hashlib.sha256(model).hexdigest(),
+        "generated_at": "2026-01-01T00:00:00Z",
+    }
+    return {
+        "explorer/data/model.json": model,
+        "explorer/data/state.json": json.dumps(state, indent=2) + "\n",
+    }
+
+
+@pytest.fixture
+def marker() -> dict[str, str | bytes]:
+    """Files that make ``explorer/`` one a build made (see ``build.is_our_explorer``)."""
+    return explorer_marker()

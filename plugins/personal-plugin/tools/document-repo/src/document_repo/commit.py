@@ -362,8 +362,9 @@ def _refuse_source(top: Path, changed: list[str]) -> None:
     source = [p for p in changed if not is_exempt(p, top)]
     if source:
         raise InputError(
-            "--no-content-check commits only Markdown, the explorer app's own files and "
-            f"explorer/data/, and these changed paths are none of those: {', '.join(source)}. "
+            "--no-content-check commits only Markdown and the files a build writes in an "
+            "explorer it made (the app, data/model.json, model.js, state.json), and these "
+            f"changed paths are none of those: {', '.join(source)}. "
             "Commit them with --verify-against"
         )
 
@@ -378,8 +379,8 @@ def commit_paths(
     """Commit exactly ``paths`` and prove the commit; see the module docstring.
 
     ``verify_against`` is the ref every changed path must be comment-only against, or None for
-    docs mode: only paths ``is_exempt`` accepts (Markdown, the explorer app's own files and
-    ``explorer/data/``), content not checked.
+    docs mode: only paths ``is_exempt`` accepts (Markdown, and the files a build writes in an
+    explorer it made), content not checked.
     Raises ``InputError`` on bad input, before the repo is touched. Once ``git commit`` has run,
     nothing raises: every failure is an ``Outcome``.
     """

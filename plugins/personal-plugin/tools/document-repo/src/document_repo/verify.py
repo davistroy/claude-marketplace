@@ -525,29 +525,37 @@ DOC_SUFFIXES = (".md",)
 
 
 @functools.lru_cache(maxsize=1)
-def _installed_app() -> frozenset[str]:
-    """The explorer app's own files, as ``explorer/<rel>``, read once from the template."""
-    from .build import TEMPLATE_DIR, template_files
+def _skill_output() -> frozenset[str]:
+    """Every path a build writes under ``explorer/``: the app's own files, read once from the
+    template, and the data files ``write_explorer_data`` writes."""
+    from .build import DATA_DIR, DATA_FILES, TEMPLATE_DIR, template_files
 
-    return frozenset(f"{OUTPUT_DIR}/{rel}" for rel in template_files(TEMPLATE_DIR))
+    app = {f"{OUTPUT_DIR}/{rel}" for rel in template_files(TEMPLATE_DIR)}
+    return frozenset(app | {f"{OUTPUT_DIR}/{DATA_DIR}/{name}" for name in DATA_FILES})
 
 
 def is_exempt(path: str, top: Path) -> bool:
-    """True for a path the verifier never judges: the skill's own explorer output and Markdown.
+    """True for a path the verifier never judges: Markdown, and the skill's own explorer output.
 
-    ``path`` is relative to ``top``, the top level of the work tree. The explorer output is
-    everything under ``explorer/data/``, plus the app's own files exactly as
-    ``build.install_template`` copies them from the template, and those only while
-    ``explorer/data/state.json`` exists in the work tree: a target's own ``explorer/app.js`` is
-    not ours because of its name, and with no build marker it is judged like any source file.
-    Every other path under ``explorer/`` is the target's and is always judged. The test is by
-    name only: a symlink or any other entry named ``*.md`` is exempt whatever it holds or points
-    at. This is the one definition of the exempt set: ``changed_files`` and ``changes`` leave
-    these paths out, and ``commit --no-content-check`` refuses every other path.
+    ``path`` is relative to ``top``, the top level of the work tree. The explorer output is the
+    app's own files exactly as ``build.install_template`` copies them from the template, plus
+    the three files ``build.write_explorer_data`` writes into ``explorer/data/``, and only while
+    ``build.is_our_explorer`` holds for ``top/explorer``: its ``state.json`` has exactly the
+    keys a build writes and the hash of the ``model.json`` beside it. A target's own
+    ``explorer/app.js`` or ``state.json`` is not ours because of its name. Every other path
+    under ``explorer/`` (``explorer/data/loader.js``, say) is the target's and is always judged.
+    Markdown is exempt anywhere, by name only: a symlink or any other entry named ``*.md`` is
+    exempt whatever it holds or points at. This is the one definition of the exempt set:
+    ``changed_files`` and ``changes`` leave these paths out, and ``commit --no-content-check``
+    refuses every other path.
     """
-    if path.lower().endswith(DOC_SUFFIXES) or path.startswith(f"{OUTPUT_DIR}/data/"):
+    if path.lower().endswith(DOC_SUFFIXES):
         return True
-    return path in _installed_app() and (top / OUTPUT_DIR / "data" / "state.json").is_file()
+    if path not in _skill_output():
+        return False
+    from .build import is_our_explorer
+
+    return is_our_explorer(top / OUTPUT_DIR)
 
 
 def _git_paths(repo: Path, *args: str) -> list[str]:

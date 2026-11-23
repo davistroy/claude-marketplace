@@ -17,6 +17,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -231,6 +232,14 @@ def assemble_model(
     return {k: parts[k] for k in MODEL_KEY_ORDER}, notes
 
 
+#: The files ``write_explorer_data`` writes into ``explorer/data/``, and the keys of its state.
+MODEL_FILE = "model.json"
+MODEL_JS_FILE = "model.js"
+STATE_FILE = "state.json"
+DATA_FILES = (MODEL_FILE, MODEL_JS_FILE, STATE_FILE)
+STATE_KEYS = frozenset({"source_commit", "schema_version", "model_hash", "generated_at"})
+
+
 def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
     """Validate, then write model.json, model.js and state.json into ``out_dir``.
 
@@ -253,7 +262,7 @@ def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
         model_js = (JS_PREFIX + json.dumps(model, ensure_ascii=True) + ";\n").encode("ascii")
     except UnicodeEncodeError as exc:
         raise ValueError(f"model cannot be encoded as UTF-8: {exc}") from exc
-    state = {
+    state: dict[str, Any] = {
         "source_commit": model["meta"]["source_commit"],
         "schema_version": SCHEMA_VERSION,
         "model_hash": hashlib.sha256(model_json).hexdigest(),
@@ -261,9 +270,9 @@ def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
     }
     state_json = (json.dumps(state, indent=2) + "\n").encode("utf-8")
     out_dir.mkdir(parents=True, exist_ok=True)
-    write_bytes_atomic(out_dir / "model.json", model_json)
-    write_bytes_atomic(out_dir / "model.js", model_js)
-    write_bytes_atomic(out_dir / "state.json", state_json)
+    write_bytes_atomic(out_dir / MODEL_FILE, model_json)
+    write_bytes_atomic(out_dir / MODEL_JS_FILE, model_js)
+    write_bytes_atomic(out_dir / STATE_FILE, state_json)
     return state
 
 
@@ -272,20 +281,19 @@ def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
 #: beside it. ``verify.is_exempt`` reads its file list from here.
 TEMPLATE_DIR = Path(__file__).resolve().parents[4] / "skills/document-repo/templates/explorer"
 
-#: The directory inside the explorer that holds the target's own model and the run report. It is
-#: never copied from the template, and everything in it is written by the skill.
+#: The directory inside the explorer that holds the model, its state and the run report. It is
+#: never copied from the template.
 DATA_DIR = "data"
 
-#: Written by every build; its presence marks an explorer directory as one this skill made.
-STATE_FILE = "state.json"
+_HASH_CHUNK = 1 << 20
 
 
 def template_files(template_dir: Path) -> frozenset[str]:
     """Every file ``install_template`` copies, relative to the explorer directory, "/"-separated.
 
     This is the one list of the app's own files: the install copies exactly these, and
-    ``verify.is_exempt`` exempts exactly these (plus ``data/``). A missing template lists nothing,
-    so nothing outside ``data/`` is exempt and every file there is judged.
+    ``verify.is_exempt`` exempts exactly these (plus the ``DATA_FILES``) in an explorer a build
+    made. A missing template lists nothing, so no app file is exempt and every one is judged.
     """
     found: set[str] = set()
     for directory, dirs, files in os.walk(template_dir, followlinks=True):
@@ -296,21 +304,92 @@ def template_files(template_dir: Path) -> frozenset[str]:
     return frozenset(found)
 
 
-def _foreign_files(template_dir: Path, explorer_dir: Path) -> list[str]:
-    """Files in ``explorer_dir`` (outside ``data/``) that the template would not have put there.
+def _regular_file(path: Path) -> os.stat_result | None:
+    """``lstat`` of ``path`` when it is a regular file (not a symlink), else None."""
+    try:
+        st = path.lstat()
+    except OSError:
+        return None
+    return st if stat.S_ISREG(st.st_mode) else None
 
-    A file the template does not have is foreign, and so is a file with a template name whose
-    bytes differ: a target's own ``explorer/app.js`` must not be mistaken for ours by its name.
+
+def _real_directory(path: Path) -> bool:
+    try:
+        return stat.S_ISDIR(path.lstat().st_mode)
+    except OSError:
+        return False
+
+
+def is_our_explorer(explorer_dir: Path) -> bool:
+    """True when ``explorer_dir`` was made by ``build``, judged by content, not by a file name.
+
+    A build leaves ``data/state.json`` as a JSON object with exactly ``STATE_KEYS``, whose
+    ``model_hash`` is the sha256 of ``data/model.json``. A target's own ``state.json`` (UI state
+    for an app that happens to be called "explorer") does not have that shape. The directory,
+    ``data/``, ``state.json`` and ``model.json`` must be real (no symlinks), so the check reads
+    the files the commit holds and not something they point at. Anything else is not ours: every
+    file in the directory is then judged, and ``install_template`` refuses it.
     """
+    data = explorer_dir / DATA_DIR
+    if not (_real_directory(explorer_dir) and _real_directory(data)):
+        return False
+    state_st = _regular_file(data / STATE_FILE)
+    model_st = _regular_file(data / MODEL_FILE)
+    if state_st is None or model_st is None:
+        return False
+    try:
+        state = json.loads((data / STATE_FILE).read_bytes())
+        digest = hashlib.sha256()
+        with open(data / MODEL_FILE, "rb") as fh:
+            for chunk in iter(lambda: fh.read(_HASH_CHUNK), b""):
+                digest.update(chunk)
+    except (OSError, ValueError):
+        return False
+    return (
+        isinstance(state, dict)
+        and set(state) == STATE_KEYS
+        and state["model_hash"] == digest.hexdigest()
+    )
+
+
+def foreign_files(template_dir: Path, explorer_dir: Path) -> list[str]:
+    """Paths in ``explorer_dir`` a build would not have put there, relative to it, "/"-separated.
+
+    Any symlink is foreign (``"."`` for the directory itself): the install would write through
+    it, and the checks would read past it. In ``data/`` only the ``DATA_FILES`` and Markdown (the
+    run report) belong, and only in an explorer a build made. Outside ``data/``, an explorer a
+    build made may hold any app file (an older template's, say); any other explorer may hold
+    only files byte-identical to the template's, as a half-finished install leaves them. A
+    target's own ``explorer/app.js`` is foreign by its bytes, whatever its name.
+    """
+    if not os.path.lexists(explorer_dir):
+        return []
+    if not _real_directory(explorer_dir):
+        return ["."]
+    ours = is_our_explorer(explorer_dir)
     installed = template_files(template_dir)
     foreign = []
     for directory, dirs, files in os.walk(explorer_dir):
-        if Path(directory) == explorer_dir and DATA_DIR in dirs:
-            dirs.remove(DATA_DIR)
+        here = Path(directory)
+        rel_dir = here.relative_to(explorer_dir)
+        for name in [*dirs, *files]:
+            if (here / name).is_symlink():
+                foreign.append((rel_dir / name).as_posix())
+        dirs[:] = [d for d in dirs if not (here / d).is_symlink()]
         for name in files:
-            path = Path(directory) / name
-            rel = path.relative_to(explorer_dir).as_posix()
-            if rel not in installed or path.read_bytes() != (template_dir / rel).read_bytes():
+            path = here / name
+            rel = (rel_dir / name).as_posix()
+            if path.is_symlink():
+                continue
+            if rel_dir.parts[:1] == (DATA_DIR,):
+                ok = ours and (
+                    len(rel_dir.parts) == 1 and (name in DATA_FILES or name.lower().endswith(".md"))
+                )
+            elif ours:
+                ok = True
+            else:
+                ok = rel in installed and path.read_bytes() == (template_dir / rel).read_bytes()
+            if not ok:
                 foreign.append(rel)
     return sorted(foreign)
 
@@ -321,18 +400,23 @@ def install_template(template_dir: Path, explorer_dir: Path) -> None:
     Only the top-level ``data/`` is skipped: it holds the target's own model, and a ``data``
     directory deeper in the app (inside a vendored library, say) is part of the app.
 
-    An explorer directory with no ``data/state.json`` was not made by a build. If it holds any
-    file the template would not have put there, it is the target's own code, and copying over it
-    would replace that code with a file the verifier never judges: refuse with ``ValueError``.
-    With ``state.json`` the directory is ours, and an older app is overwritten.
+    Before copying, ``foreign_files`` must be empty. Otherwise the directory holds the target's
+    own code, a file that would ride into the commit unjudged, or a symlink the copy would write
+    through: refuse with ``ValueError`` and touch nothing.
     """
-    if not (explorer_dir / DATA_DIR / STATE_FILE).is_file():
-        foreign = _foreign_files(template_dir, explorer_dir)
-        if foreign:
-            raise ValueError(
-                f"{explorer_dir} was not made by document-repo (no {DATA_DIR}/{STATE_FILE}) and "
-                f"holds files of its own: {', '.join(foreign)}. Move it aside, then run again"
+    foreign = foreign_files(template_dir, explorer_dir)
+    if foreign:
+        links = [f for f in foreign if f == "." or os.path.islink(explorer_dir / f)]
+        raise ValueError(
+            f"{explorer_dir} was not made by document-repo, or holds what a build does not "
+            f"write: {', '.join(foreign)}"
+            + (
+                f" (a symlink is never followed or written through: {', '.join(links)})"
+                if links
+                else ""
             )
+            + ". Move them aside, then run again"
+        )
 
     def skip_top_level_data(directory: str, names: list[str]) -> set[str]:
         return {DATA_DIR}.intersection(names) if Path(directory) == template_dir else set()

@@ -123,7 +123,7 @@ def _setup(make_repo, git):
     return repo, state, model
 
 
-def test_compute_changes(make_repo, commit_files, git) -> None:
+def test_compute_changes(make_repo, commit_files, git, marker) -> None:
     repo, state, model = _setup(make_repo, git)
     commit_files(
         repo,
@@ -132,6 +132,7 @@ def test_compute_changes(make_repo, commit_files, git) -> None:
             "web/w.py": "# comment only\nw = 1\n",
             "README.md": "# docs\n",
             "explorer/data/model.js": "x\n",
+            **marker,
             "tools/new.py": "z = 1\n",
         },
     )
@@ -241,14 +242,14 @@ def test_code_renamed_into_a_doc_marks_the_module_it_left(make_repo, git) -> Non
     assert result["unmapped_files"] == []
 
 
-def test_docs_and_explorer_output_are_ignored(make_repo, commit_files, git) -> None:
+def test_docs_and_explorer_output_are_ignored(make_repo, commit_files, git, marker) -> None:
     repo, state, model = _setup(make_repo, git)
     commit_files(
         repo,
         {
             "README.md": "# r\n",
             "src/GUIDE.MD": "# g\n",
-            "explorer/data/state.json": "{}\n",
+            **marker,
             "explorer/app.js": "var a;\n",
         },
     )
@@ -265,11 +266,23 @@ def test_explorer_is_ignored_only_at_the_repo_root(make_repo, commit_files, git)
     assert result["affected_modules"] == ["root", "src"]
 
 
-def test_a_target_file_under_explorer_is_a_change(make_repo, commit_files, git) -> None:
+def test_a_target_file_under_explorer_is_a_change(make_repo, commit_files, git, marker) -> None:
     repo, state, model = _setup(make_repo, git)
-    commit_files(repo, {"explorer/app.py": "x = 1\n"})
-    result = compute_changes(repo, state, model)
-    assert {"status": "A", "path": "explorer/app.py"} in result["changed_files"]
+    commit_files(
+        repo, {"explorer/app.py": "x = 1\n", "explorer/data/loader.js": "var f;\n", **marker}
+    )
+    paths = [c["path"] for c in compute_changes(repo, state, model)["changed_files"]]
+    assert "explorer/app.py" in paths and "explorer/data/loader.js" in paths
+    assert "explorer/data/state.json" not in paths
+
+
+def test_a_foreign_state_does_not_hide_explorer_changes(make_repo, commit_files, git) -> None:
+    repo, state, model = _setup(make_repo, git)
+    commit_files(
+        repo, {"explorer/app.js": "var a;\n", "explorer/data/state.json": '{"saved": "ui"}\n'}
+    )
+    paths = [c["path"] for c in compute_changes(repo, state, model)["changed_files"]]
+    assert paths == ["explorer/app.js", "explorer/data/state.json"]
 
 
 def test_a_deleted_unmapped_file_is_removed_but_not_unmapped(make_repo, commit_files, git) -> None:

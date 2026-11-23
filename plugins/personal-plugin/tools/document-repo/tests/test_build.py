@@ -165,11 +165,24 @@ def test_install_template_keeps_existing_data(tmp_path: Path) -> None:
     (template / "data").mkdir()
     (template / "data" / "model.js").write_text("TEMPLATE")
     explorer = tmp_path / "repo" / "explorer"
-    (explorer / "data").mkdir(parents=True)
+    _write_marker(explorer)
     (explorer / "data" / "model.js").write_text("REAL")
     install_template(template, explorer)
     assert (explorer / "index.html").exists() and (explorer / "vendor" / "m.js").exists()
     assert (explorer / "data" / "model.js").read_text() == "REAL"
+
+
+def _write_marker(explorer: Path, model: bytes = b"{}\n") -> None:
+    """Make ``explorer`` one a build made: model.json plus a state.json that hashes it."""
+    (explorer / "data").mkdir(parents=True, exist_ok=True)
+    (explorer / "data" / "model.json").write_bytes(model)
+    state = {
+        "source_commit": "0" * 40,
+        "schema_version": 1,
+        "model_hash": hashlib.sha256(model).hexdigest(),
+        "generated_at": "2026-01-01T00:00:00Z",
+    }
+    (explorer / "data" / "state.json").write_text(json.dumps(state))
 
 
 def _tiny_template(tmp_path: Path) -> Path:
@@ -226,13 +239,125 @@ def test_install_template_reinstalls_over_its_own_directory(tmp_path: Path) -> N
     install_template(template, explorer)
     # A half-made explorer (template files only, no data yet) is ours.
     install_template(template, explorer)
-    # With state.json, an explorer from an older template is ours too.
+    # With a trusted state.json, an explorer from an older template is ours too, and the data
+    # files a build writes (and Markdown) may sit in data/.
     (explorer / "old.js").write_text("// removed from the template since")
     (explorer / "app.js").write_text("// older app")
-    (explorer / "data").mkdir()
-    (explorer / "data" / "state.json").write_text("{}\n")
+    _write_marker(explorer)
+    (explorer / "data" / "model.js").write_text("var m;")
+    (explorer / "data" / "run-report.md").write_text("# r")
     install_template(template, explorer)
     assert (explorer / "app.js").read_text() == "// app"
+
+
+def test_is_our_explorer_trusts_what_write_explorer_data_writes(tmp_path: Path) -> None:
+    model = json.loads(FIXTURE.read_text())
+    write_explorer_data(model, tmp_path / "explorer" / "data")
+    assert build.is_our_explorer(tmp_path / "explorer")
+    (tmp_path / "explorer" / "data" / "model.json").write_text("{}\n")
+    assert not build.is_our_explorer(tmp_path / "explorer"), "model edited after the build"
+    assert not build.is_our_explorer(tmp_path / "absent")
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        {"saved": "ui state"},
+        "extra-key",
+        "missing-key",
+        "wrong-hash",
+        "not-an-object",
+        "not-json",
+    ],
+)
+def test_is_our_explorer_rejects_a_state_a_build_did_not_write(tmp_path: Path, state) -> None:
+    explorer = tmp_path / "explorer"
+    _write_marker(explorer)
+    path = explorer / "data" / "state.json"
+    good = json.loads(path.read_text())
+    if state == "extra-key":
+        path.write_text(json.dumps({**good, "saved": 1}))
+    elif state == "missing-key":
+        path.write_text(json.dumps({k: v for k, v in good.items() if k != "schema_version"}))
+    elif state == "wrong-hash":
+        path.write_text(json.dumps({**good, "model_hash": "0" * 64}))
+    elif state == "not-an-object":
+        path.write_text(json.dumps(list(good)))
+    elif state == "not-json":
+        path.write_bytes(b"\xff{")
+    else:
+        path.write_text(json.dumps(state))
+    assert not build.is_our_explorer(explorer)
+
+
+def test_install_template_refuses_behind_a_foreign_state(tmp_path: Path) -> None:
+    # r2/p1: the target's own state.json does not make its explorer/ ours.
+    template = _tiny_template(tmp_path)
+    explorer = tmp_path / "explorer"
+    (explorer / "data").mkdir(parents=True)
+    (explorer / "app.js").write_text("export function realCode(){return 42}\n")
+    (explorer / "data" / "state.json").write_text('{"saved":"ui state"}\n')
+    with pytest.raises(ValueError, match="not made by document-repo"):
+        install_template(template, explorer)
+    assert (explorer / "app.js").read_text() == "export function realCode(){return 42}\n"
+
+
+@pytest.mark.parametrize("trusted", [False, True])
+def test_install_template_refuses_other_files_in_data(tmp_path: Path, trusted: bool) -> None:
+    # r2/p3 (no marker) and r2/p4 (a stray next to a build's data).
+    template = _tiny_template(tmp_path)
+    explorer = tmp_path / "explorer"
+    if trusted:
+        _write_marker(explorer)
+    (explorer / "data").mkdir(parents=True, exist_ok=True)
+    (explorer / "data" / "loader.js").write_text("export const f = () => 1;\n")
+    with pytest.raises(ValueError, match="data/loader.js"):
+        install_template(template, explorer)
+    assert not (explorer / "index.html").exists()
+
+
+@pytest.mark.parametrize("trusted", [False, True])
+@pytest.mark.parametrize("where", ["vendor", "data", "."])
+def test_install_template_refuses_symlinks(tmp_path: Path, trusted: bool, where: str) -> None:
+    template = _tiny_template(tmp_path)
+    explorer = tmp_path / "explorer"
+    explorer.mkdir()
+    if trusted:
+        _write_marker(explorer)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "keep.js").write_text("keep")
+    link = explorer / where / "lib" if where != "." else explorer / "lib"
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.symlink_to(outside)
+    with pytest.raises(ValueError, match="symlink"):
+        install_template(template, explorer)
+    assert sorted(p.name for p in outside.iterdir()) == ["keep.js"]
+
+
+def test_install_template_refuses_a_symlinked_explorer_dir(tmp_path: Path) -> None:
+    template = _tiny_template(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    explorer = tmp_path / "explorer"
+    explorer.symlink_to(outside)
+    with pytest.raises(ValueError, match="symlink"):
+        install_template(template, explorer)
+    assert list(outside.iterdir()) == []
+
+
+def test_install_template_refuses_a_vendor_symlink_the_template_would_write_through(
+    tmp_path: Path,
+) -> None:
+    template = _tiny_template(tmp_path)
+    explorer = tmp_path / "explorer"
+    _write_marker(explorer)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (explorer / "vendor").symlink_to(outside)
+    with pytest.raises(ValueError, match="symlink"):
+        install_template(template, explorer)
+    assert list(outside.iterdir()) == []
 
 
 def test_cli_build_refuses_a_foreign_explorer(tmp_path: Path, capsys) -> None:
@@ -868,8 +993,7 @@ def test_install_template_overwrites_stale_app_files(tmp_path: Path) -> None:
     template.mkdir()
     (template / "index.html").write_text("new")
     explorer = tmp_path / "explorer"
-    (explorer / "data").mkdir(parents=True)
-    (explorer / "data" / "state.json").write_text("{}\n")  # a build made this explorer
+    _write_marker(explorer)  # a build made this explorer
     (explorer / "index.html").write_text("old")
     install_template(template, explorer)
     assert (explorer / "index.html").read_text() == "new"
@@ -1017,3 +1141,65 @@ def test_cli_build_missing_template_exits_2(tmp_path: Path, capsys) -> None:
     ]
     assert main(args) == 2
     assert "no-template" in capsys.readouterr().err
+
+
+# --- explorer-status: Phase 0's ownership check ---------------------------------------------
+
+
+def _status(capsys, repo: Path) -> tuple[int, dict]:
+    code = main(["explorer-status", "--repo", str(repo)])
+    out = capsys.readouterr().out
+    return code, (json.loads(out) if out.strip() else {})
+
+
+def test_explorer_status_absent(make_repo, capsys) -> None:
+    repo = make_repo({"main.py": "x = 1\n"})
+    assert _status(capsys, repo) == (0, {"explorer": "absent", "foreign_files": []})
+
+
+def test_explorer_status_ours(make_repo, capsys, marker) -> None:
+    repo = make_repo({"main.py": "x = 1\n", **marker})
+    install_template(build.TEMPLATE_DIR, repo / "explorer")
+    assert _status(capsys, repo) == (0, {"explorer": "ours", "foreign_files": []})
+
+
+@pytest.mark.parametrize(
+    "files,foreign",
+    [
+        ({"explorer/app.js": "var a;\n"}, ["app.js"]),  # C2: no marker
+        (  # r2/p1: a state.json the build did not write
+            {"explorer/app.js": "var a;\n", "explorer/data/state.json": '{"saved": "ui"}\n'},
+            ["app.js", "data/state.json"],
+        ),
+        ({"explorer/data/loader.js": "var f;\n"}, ["data/loader.js"]),  # r2/p3
+        ({"explorer/data/x.js": "x\n", "MARKER": ""}, ["data/x.js"]),  # r2/p4
+    ],
+)
+def test_explorer_status_foreign(make_repo, capsys, marker, files, foreign) -> None:
+    if files.pop("MARKER", None) is not None:
+        files.update(marker)
+    repo = make_repo({"main.py": "x = 1\n", **files})
+    assert _status(capsys, repo) == (0, {"explorer": "foreign", "foreign_files": foreign})
+
+
+def test_explorer_status_needs_a_repo(tmp_path: Path, capsys) -> None:
+    assert main(["explorer-status", "--repo", str(tmp_path / "nope")]) == 2
+
+
+def test_explorer_status_needs_the_top_level(make_repo, capsys) -> None:
+    repo = make_repo({"sub/x.py": "x = 1\n"})
+    assert main(["explorer-status", "--repo", str(repo / "sub")]) == 2
+    assert "top level" in capsys.readouterr().err
+
+
+def test_install_template_refuses_a_symlinked_file(tmp_path: Path) -> None:
+    # The copy would write the template's app.js through the link, into the file it names.
+    template = _tiny_template(tmp_path)
+    explorer = tmp_path / "explorer"
+    _write_marker(explorer)
+    outside = tmp_path / "outside.js"
+    outside.write_text("mine")
+    (explorer / "app.js").symlink_to(outside)
+    with pytest.raises(ValueError, match="symlink.*app.js"):
+        install_template(template, explorer)
+    assert outside.read_text() == "mine"

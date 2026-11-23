@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -343,6 +344,35 @@ def _register_backstop(sub: Any) -> None:
     p.set_defaults(func=_cmd_backstop)
 
 
+def _cmd_explorer_status(args: argparse.Namespace) -> int:
+    from .build import TEMPLATE_DIR, foreign_files, is_our_explorer
+    from .inventory import OUTPUT_DIR
+    from .verify import toplevel
+
+    top = toplevel(args.repo)
+    if top is None or top.resolve() != args.repo.resolve():
+        sys.stderr.write(f"explorer-status: not the top level of a git work tree: {args.repo}\n")
+        return 2
+    explorer = top / OUTPUT_DIR
+    foreign = foreign_files(TEMPLATE_DIR, explorer)
+    if not os.path.lexists(explorer):
+        status = "absent"
+    elif not foreign and is_our_explorer(explorer):
+        status = "ours"
+    else:
+        status = "foreign"
+    emit({"explorer": status, "foreign_files": foreign})
+    return 0
+
+
+def _register_explorer_status(sub: Any) -> None:
+    p = sub.add_parser(
+        "explorer-status", help="is REPO/explorer absent, made by a build (ours), or foreign"
+    )
+    p.add_argument("--repo", type=_repo_arg, required=True, help="top level of the git work tree")
+    p.set_defaults(func=_cmd_explorer_status)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -360,6 +390,7 @@ def build_parser() -> argparse.ArgumentParser:
     _register_changes(sub)
     _register_commit(sub)
     _register_backstop(sub)
+    _register_explorer_status(sub)
     return parser
 
 
