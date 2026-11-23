@@ -30,9 +30,8 @@ import subprocess
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .inventory import OUTPUT_DIR
 from .languages import detect
-from .verify import DOC_SUFFIXES, toplevel, verify_file
+from .verify import is_exempt, toplevel, verify_file
 
 #: A SHA-1 or SHA-256 object name. ``HEAD`` or a branch would diff a commit against itself (or
 #: against a moving target) and report that nothing changed, so only a full hash is accepted.
@@ -109,7 +108,7 @@ def _git_out(top: Path, *args: str) -> bytes:
 
 def _ignored(path: str) -> bool:
     """Output the skill writes itself (the explorer, at the repo root) and markdown docs."""
-    return path.startswith(OUTPUT_DIR + "/") or path.lower().endswith(DOC_SUFFIXES)
+    return is_exempt(path)
 
 
 def _text(field: bytes) -> str:

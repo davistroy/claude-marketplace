@@ -620,3 +620,305 @@ def test_hook_deleting_another_file_is_a_stray(make_repo, capsys) -> None:
     (repo / "m.py").write_text(M_COMMENTED)
     code, out = commit(capsys, repo, "m.py")
     assert code == 0 and out["strays"] == ["other.py"], out
+
+
+# --- task-13b review fixes -----------------------------------------------------------------------
+
+
+def test_no_content_check_refuses_source_edit_i1(make_repo, git, capsys) -> None:
+    repo = make_repo({"a/m.py": M, "b/n.py": N})
+    pre = head(git, repo)
+    (repo / "a/m.py").write_text("x = 999\n")
+    (repo / "b/n.py").write_text(N_COMMENTED)
+    git(repo, "add", "b/n.py")
+    code, out = commit(capsys, repo, "a/m.py", ref=None)
+    assert code == 2 and "a/m.py" in out["_err"] and "--no-content-check" in out["_err"], out
+    assert head(git, repo) == pre
+    assert staged(git, repo) == "b/n.py\n", "refused before the index is touched"
+
+
+def test_no_content_check_refuses_rename_i1(make_repo, git, capsys) -> None:
+    repo = make_repo({"a/m.py": M})
+    pre = head(git, repo)
+    git(repo, "mv", "a/m.py", "a/k.py")
+    code, out = commit(capsys, repo, "a/m.py", "a/k.py", ref=None)
+    assert code == 2 and "a/k.py" in out["_err"], out
+    assert head(git, repo) == pre
+
+
+def test_no_content_check_refuses_gitlink_i1(make_repo, git, capsys) -> None:
+    repo = make_repo({"m.py": M})
+    sub = repo / "sub"
+    sub.mkdir()
+    git(sub, "init", "-q", "-b", "main")
+    (sub / "s.txt").write_text("1\n")
+    git(sub, "add", "s.txt")
+    git(sub, "commit", "-q", "-m", "one")
+    git(repo, "add", "sub")
+    git(repo, "commit", "-q", "-m", "add gitlink")
+    pre = head(git, repo)
+    (sub / "s.txt").write_text("2\n")
+    git(sub, "commit", "-q", "-am", "two")
+    code, out = commit(capsys, repo, "sub", ref=None)
+    assert code == 2 and "sub" in out["_err"], out
+    assert head(git, repo) == pre
+
+
+def test_no_content_check_ok_detail_says_not_checked_i1(make_repo, capsys) -> None:
+    repo = make_repo({"README.md": "old\n"})
+    (repo / "README.md").write_text("new\n")
+    code, out = commit(capsys, repo, "README.md", ref=None)
+    assert code == 0 and out["status"] == "ok"
+    assert out["detail"] == "committed (content not checked: docs only)"
+
+
+def test_no_content_check_hook_adds_source_under_listed_dir_is_undone_i1(
+    make_repo, git, capsys
+) -> None:
+    repo = make_repo({"docs/a.md": "old\n"})
+    pre = head(git, repo)
+    hook(repo, "pre-commit", "printf 'x = 1\\n' > docs/x.py\ngit add docs/x.py\n")
+    (repo / "docs/a.md").write_text("new\n")
+    code, out = commit(capsys, repo, "docs", ref=None)
+    assert code == 1 and out["status"] == "undone", out
+    assert "docs/x.py" in out["detail"]
+    assert head(git, repo) == pre
+    assert not (repo / "docs/x.py").exists() and (repo / "docs/a.md").read_text() == "new\n"
+
+
+def test_corrupt_index_after_commit_is_stop_i2(make_repo, git, capsys) -> None:
+    """The reviewer's r/gx: HEAD held x = 9 and the result was exit 2, status error."""
+    repo = make_repo({"m.py": M})
+    pre = head(git, repo)
+    hook(repo, "pre-commit", "printf 'x = 9\\n' > m.py\ngit add m.py\n")
+    hook(repo, "post-commit", ": > .git/index\n")
+    (repo / "m.py").write_text(M_COMMENTED)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "stop", out
+    assert out["pre"] == pre and out["sha"] and "after git commit ran" in out["detail"]
+
+
+def test_exception_after_commit_is_stop_and_undone_i2(make_repo, git, capsys, monkeypatch) -> None:
+    repo = make_repo({"m.py": M, "other.py": N})
+    pre = head(git, repo)
+    (repo / "m.py").write_text(M_COMMENTED)
+    (repo / "other.py").write_text(N_COMMENTED)
+    real = commit_mod.verify_file
+    calls: list[str] = []
+
+    def flaky(*args: Any, **kwargs: Any) -> Any:
+        calls.append(args[1])
+        if len(calls) > 1:
+            raise KeyboardInterrupt("killed by the Bash timeout")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(commit_mod, "verify_file", flaky)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "stop", out
+    assert "killed by the Bash timeout" in out["detail"] and "undone" in out["detail"]
+    assert out["pre"] == pre and out["sha"] != pre
+    assert head(git, repo) == pre and staged(git, repo) == ""
+    assert (repo / "m.py").read_text() == M, "with a ref the change is dropped"
+    assert (repo / "other.py").read_text() == N_COMMENTED
+
+
+def test_exception_after_failed_commit_is_stop_i2(make_repo, git, capsys, monkeypatch) -> None:
+    repo = make_repo({"m.py": M})
+    pre = head(git, repo)
+    hook(repo, "pre-commit", "exit 1\n")
+    (repo / "m.py").write_text(M_COMMENTED)
+
+    def boom(*args: Any) -> list[str]:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(commit_mod, "_restore", boom)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "stop" and "disk full" in out["detail"], out
+    assert head(git, repo) == pre and out["pre"] == pre
+
+
+def test_undo_failure_in_emergency_is_reported_i2(make_repo, git, capsys, monkeypatch) -> None:
+    repo = make_repo({"m.py": M})
+    (repo / "m.py").write_text(M_COMMENTED)
+    calls: list[str] = []
+    real = commit_mod.verify_file
+
+    def flaky(*args: Any, **kwargs: Any) -> Any:
+        calls.append(args[1])
+        if len(calls) > 1:
+            raise RuntimeError("verifier crashed")
+        return real(*args, **kwargs)
+
+    def stuck(*args: Any) -> list[str]:
+        raise commit_mod.GitError("could not restore m.py")
+
+    monkeypatch.setattr(commit_mod, "verify_file", flaky)
+    monkeypatch.setattr(commit_mod, "_restore", stuck)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "stop", out
+    assert "verifier crashed" in out["detail"] and "could not restore" in out["detail"]
+
+
+def test_error_before_commit_is_exit_2_status_error_i2(make_repo, git, capsys, monkeypatch) -> None:
+    repo = make_repo({"m.py": M})
+    pre = head(git, repo)
+    (repo / "m.py").write_text(M_COMMENTED)
+
+    def boom(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("verifier crashed")
+
+    monkeypatch.setattr(commit_mod, "verify_file", boom)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 2 and out["status"] == "error" and "nothing was committed" in out["detail"]
+    assert head(git, repo) == pre
+
+
+def test_emit_non_utf8_text_minor1(capsysbinary) -> None:
+    from document_repo.cli import emit
+
+    emit({"p": os.fsdecode(b"\xff.md")})
+    assert b'"\xff.md"' in capsysbinary.readouterr().out
+
+
+def test_emit_non_utf8_text_to_file_minor1(tmp_path) -> None:
+    from document_repo.cli import emit
+
+    emit({"p": os.fsdecode(b"\xff.md")}, tmp_path / "o.json")
+    assert b'"\xff.md"' in (tmp_path / "o.json").read_bytes()
+
+
+def test_non_utf8_path_deletion_reports_json_minor1(make_repo, git, capsysbinary) -> None:
+    repo = make_repo({"keep.md": "k\n"})
+    blob = git(repo, "hash-object", "-w", "keep.md").strip()
+    name = b"\xff.md"
+    subprocess.run(
+        [b"git", b"-C", os.fsencode(repo), b"update-index", b"--add", b"--cacheinfo"]
+        + [b"100644," + blob.encode() + b"," + name],
+        check=True,
+    )
+    git(repo, "commit", "-q", "-m", "odd name")
+    pre = head(git, repo)
+    code = main(
+        ["commit", "--repo", str(repo), "--no-content-check", "-m", "del", "--"]
+        + [os.fsdecode(name)]
+    )
+    out = json.loads(capsysbinary.readouterr().out.decode("utf-8", "surrogateescape"))
+    assert code == 0 and out["status"] == "ok" and out["paths"] == [os.fsdecode(name)], out
+    assert git(repo, "rev-parse", "HEAD~1").strip() == pre
+
+
+def test_backstop_git_failure_exit_2_minor2(make_repo, git, capsys, monkeypatch) -> None:
+    repo = make_repo({"m.py": M})
+
+    def boom(*args: Any) -> list[str]:
+        raise subprocess.CalledProcessError(128, ["git", "diff"], stderr=b"fatal: index corrupt")
+
+    monkeypatch.setattr(commit_mod, "changed_files", boom)
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", head(git, repo))
+    assert code == 2 and "index corrupt" in out["_err"], out
+
+
+def test_backstop_corrupt_index_exit_2_minor2(make_repo, git, capsys) -> None:
+    repo = make_repo({"m.py": M})
+    (repo / ".git" / "index").write_bytes(b"")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", head(git, repo))
+    assert code == 2 and "backstop:" in out["_err"], out
+
+
+def test_path_through_in_repo_symlink_exit_2_minor3(make_repo, git, capsys) -> None:
+    repo = make_repo({"b/n.py": N, "a/m.py": M})
+    (repo / "a/bl").symlink_to("../b")
+    git(repo, "add", "a/bl")
+    git(repo, "commit", "-q", "-m", "link")
+    (repo / "b/n.py").write_text(N_COMMENTED)
+    code, out = commit(capsys, repo, "a/bl/n.py")
+    assert code == 2 and "symlink" in out["_err"], out
+
+
+def test_path_inside_submodule_exit_2_minor3(make_repo, git, capsys) -> None:
+    repo = make_repo({"m.py": M})
+    sub = repo / "sub"
+    (sub / "a").mkdir(parents=True)
+    git(sub, "init", "-q", "-b", "main")
+    (sub / "a/m.py").write_text(M)
+    git(sub, "add", "a/m.py")
+    git(sub, "commit", "-q", "-m", "one")
+    git(repo, "add", "sub")
+    git(repo, "commit", "-q", "-m", "add gitlink")
+    (sub / "a/m.py").write_text(M_COMMENTED)
+    code, out = commit(capsys, repo, "sub/a/m.py")
+    assert code == 2 and "sub/a/m.py" in out["_err"], out
+
+
+def test_case_mismatched_path_exit_2_minor3(make_repo, capsys) -> None:
+    repo = make_repo({"a/m.py": M})
+    (repo / "a/m.py").write_text(M_COMMENTED)
+    code, out = commit(capsys, repo, "A/M.py")
+    assert code == 2, out
+
+
+def test_directory_git_knows_nothing_under_exit_2_minor3(make_repo, capsys) -> None:
+    repo = make_repo({".gitignore": "*.log\n", "m.py": M})
+    (repo / "logs").mkdir()
+    (repo / "logs/x.log").write_text("log\n")
+    code, out = commit(capsys, repo, "logs", ref=None)
+    assert code == 2 and "git knows no file" in out["_err"], out
+
+
+def test_nfd_spelling_of_a_path_commits_minor4(make_repo, git, capsys) -> None:
+    import unicodedata
+
+    repo = make_repo({"keep.md": "k\n"})
+    nfd = unicodedata.normalize("NFD", "café.md")
+    (repo / nfd).write_text("docs\n")
+    code, out = commit(capsys, repo, nfd, ref=None)
+    assert code == 0 and out["status"] == "ok", out
+    assert len(out["paths"]) == 1
+    assert unicodedata.normalize("NFC", out["paths"][0]) == "café.md"
+
+
+def test_verify_against_must_be_an_ancestor_minor5(make_repo, git, commit_files, capsys) -> None:
+    repo = make_repo({"m.py": M})
+    git(repo, "switch", "-q", "-c", "side")
+    side = commit_files(repo, {"m.py": "x = 7\n"}, "side")
+    git(repo, "switch", "-q", "main")
+    pre = head(git, repo)
+    (repo / "m.py").write_text("x = 7\n")
+    code, out = commit(capsys, repo, "m.py", ref=side)
+    assert code == 2 and "ancestor" in out["_err"], out
+    assert head(git, repo) == pre
+
+
+def test_stop_reports_the_old_head_minor6(make_repo, git, capsys) -> None:
+    repo = make_repo({"m.py": M})
+    pre = head(git, repo)
+    hook(repo, "post-commit", GUARD + "git commit -q --allow-empty --no-verify -m sneaky\n")
+    (repo / "m.py").write_text(M_COMMENTED)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "stop" and out["pre"] == pre, out
+
+
+def test_directory_deletion_is_staged_minor10(make_repo, git, capsys) -> None:
+    repo = make_repo({"docs/old.md": "x\n", "docs/new.md": "y\n"})
+    (repo / "docs/old.md").unlink()
+    (repo / "docs/new.md").write_text("z\n")
+    code, out = commit(capsys, repo, "docs", ref=None)
+    assert code == 0 and out["paths"] == ["docs/new.md", "docs/old.md"], out
+    assert git(repo, "ls-files", "docs") == "docs/new.md\n"
+
+
+def test_exception_with_foreign_commit_on_head_leaves_history_i2(
+    make_repo, git, capsys, monkeypatch
+) -> None:
+    repo = make_repo({"m.py": M})
+    pre = head(git, repo)
+    hook(repo, "post-commit", GUARD + "git commit -q --allow-empty --no-verify -m sneaky\n")
+    (repo / "m.py").write_text(M_COMMENTED)
+
+    def boom(*args: Any) -> Any:
+        raise RuntimeError("checks crashed")
+
+    monkeypatch.setattr(commit_mod, "_after_commit", boom)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "stop" and "history was not touched" in out["detail"]
+    assert out["pre"] == pre and git(repo, "log", "-1", "--format=%s").strip() == "sneaky"

@@ -524,6 +524,16 @@ def _method_result(repo: Path, rel: str, before: str, after: str, lang: Lang) ->
 DOC_SUFFIXES = (".md",)
 
 
+def is_exempt(path: str) -> bool:
+    """True for a path the verifier never judges: the explorer output and Markdown.
+
+    ``path`` is relative to the top level of the work tree. This is the one definition of the
+    exempt set: ``changed_files`` leaves these paths out, and ``commit --no-content-check``
+    refuses every other path.
+    """
+    return path.startswith(OUTPUT_DIR + "/") or path.lower().endswith(DOC_SUFFIXES)
+
+
 def _git_paths(repo: Path, *args: str) -> list[str]:
     out = subprocess.run(
         ["git", "-C", str(repo), *args], capture_output=True, check=True
@@ -546,8 +556,4 @@ def changed_files(repo: Path, ref: str) -> list[str]:
         raise NotADirectoryError(f"not inside a git work tree: {repo}")
     tracked = _git_paths(top, "diff", "--name-only", "--no-renames", "-z", ref, "--")
     untracked = _git_paths(top, "ls-files", "--others", "--exclude-standard", "-z")
-    return sorted(
-        p
-        for p in set(tracked) | set(untracked)
-        if not p.startswith(OUTPUT_DIR + "/") and not p.lower().endswith(DOC_SUFFIXES)
-    )
+    return sorted(p for p in set(tracked) | set(untracked) if not is_exempt(p))

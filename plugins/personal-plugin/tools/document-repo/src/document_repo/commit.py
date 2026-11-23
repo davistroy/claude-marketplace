@@ -4,21 +4,30 @@
 makes one commit of exactly the listed paths and proves it, failing closed at every step:
 
 1. **Inputs.** ``repo`` must be the top level of a git work tree with a commit. Every path must
-   lie inside it and exist, unless HEAD has it (a deletion). An empty list, a path outside the
-   repo, the repo itself or a ref that does not resolve is bad input (``InputError``).
-2. **Index.** The index is reset to HEAD, so no path staged by someone else can ride along.
-3. **Precheck.** With a ref, every changed path under the list is verified comment-only against
-   it before anything is staged.
-4. **Commit.** The paths are staged and committed with ``git commit --only``. The message is an
-   argv element: no shell sees it.
+   lie inside it, not pass through a symlink, and exist (unless HEAD has it: a deletion) as a
+   path git knows. An empty list, a path outside the repo, the repo itself, a ref that does not
+   resolve or is not an ancestor of HEAD is bad input (``InputError``). Without a ref (docs
+   mode), a changed path outside the exempt set of ``verify.is_exempt`` is bad input too.
+2. **Index.** ``git reset -q`` empties the index of every other path, so nothing staged by
+   someone else can ride along. It also discards content of other paths that was staged and
+   never written to the work tree; the work tree keeps its bytes. The skill never stages, so a
+   run does not reach that case.
+3. **Stage, then precheck.** The paths are staged (``git add``, which stages deletions too), and
+   with a ref every changed path under the list is verified comment-only against it.
+4. **Commit.** ``git commit --only`` of the listed paths. The message is an argv element: no
+   shell sees it.
 5. **Post-commit checks.** Exactly one new commit on top of the old HEAD; no path outside the list
-   in it; the work tree equal to it for the listed paths; with a ref, the committed files verified
-   again. Hooks run between 4 and 5, which is why 5 exists: a hook can rewrite, re-stage, add
-   files, or make a commit of its own.
+   in it; without a ref, no path in it outside the exempt set; the work tree equal to it for the
+   listed paths; with a ref, the committed files verified again. Hooks run between 4 and 5, which
+   is why 5 exists: a hook can rewrite, re-stage, add files, or make a commit of its own.
 6. **Undo.** When a check in 5 fails, ``git reset --soft`` moves the branch back to the old HEAD,
    the index is emptied, and only the listed paths are restored: to the old HEAD with a ref (the
    change is dropped), to the bytes that were staged without one (the work is kept, a hook's
    rewrite is dropped). Edits to other paths stay as they are.
+7. **Anything else after the commit ran.** An exception of any kind (a git failure, a crash in
+   the verifier, an interrupt) once ``git commit`` has run is a ``stop`` outcome: the commit is
+   undone as in 6 if it is ours, and the result says whether that worked. Only failures before
+   the commit reach the caller as exceptions.
 
 Every git call takes an argv list and literal pathspecs (``:(literal)``), so a path with spaces or
 glob characters means itself.
@@ -30,13 +39,15 @@ import hashlib
 import os
 import posixpath
 import subprocess
+import sys
 import tempfile
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from .changes import work_tree
-from .verify import changed_files, verify_file
+from .verify import changed_files, is_exempt, verify_file
 
 #: Hooks ``git commit`` runs unless ``--no-verify`` is given (``post-commit`` cannot refuse).
 COMMIT_HOOKS = ("pre-commit", "prepare-commit-msg", "commit-msg")
@@ -58,6 +69,9 @@ class Outcome:
 
     status: str
     detail: str
+    #: The commit HEAD named before the command ran. After ``stop``, commits above it were not
+    #: verified by this command.
+    pre: str | None = None
     sha: str | None = None
     paths: list[str] = field(default_factory=list)
     verify: list[dict[str, Any]] = field(default_factory=list)
@@ -69,6 +83,7 @@ class Outcome:
         return {
             "status": self.status,
             "detail": self.detail,
+            "pre": self.pre,
             "sha": self.sha,
             "paths": self.paths,
             "verify": self.verify,
@@ -122,11 +137,44 @@ def _in_tree(top: Path, tree: str, rel: str) -> bool:
     return bool(_paths(top, "ls-tree", "-r", "-z", "--name-only", tree, "--", *_spec([rel])))
 
 
+def _precomposes(top: Path) -> bool:
+    """True when git stores this repo's paths precomposed (NFC), as git on macOS can."""
+    if sys.platform != "darwin":
+        return False
+    proc = _run(top, "config", "--bool", "--get", "core.precomposeunicode")
+    return proc.stdout.strip() == b"true"
+
+
+def _symlink_component(top: Path, rel: str) -> str | None:
+    """The first directory on the way to ``rel`` that is a symlink, or None."""
+    parts = rel.split("/")[:-1]
+    for i in range(1, len(parts) + 1):
+        prefix = "/".join(parts[:i])
+        if os.path.islink(os.path.join(top, prefix)):
+            return prefix
+    return None
+
+
+def _git_knows(top: Path, rel: str) -> bool:
+    """Whether git tracks, or would add, some path at or under ``rel``."""
+    proc = _run(
+        top, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", *_spec([rel])
+    )
+    return proc.returncode == 0 and bool(proc.stdout.strip(b"\0"))
+
+
 def normalize_paths(top: Path, raw: list[str]) -> list[str]:
-    """Each path relative to ``top``, in posix form, checked to exist (or to be a deletion)."""
+    """Each path relative to ``top``, in posix form and git's spelling, checked to be real.
+
+    A path must exist (or be a deletion of a path in HEAD) and be one git knows. Paths through a
+    symlinked directory, inside a submodule, spelled in the wrong case on a case-insensitive
+    filesystem, or holding only ignored files are refused: git would match nothing for them, and
+    the module's work would be lost without a signal.
+    """
     if not raw:
         raise InputError("no paths given: list at least one file or directory after --")
     real_top = os.path.realpath(top)
+    precompose = _precomposes(top)
     out: list[str] = []
     for item in raw:
         if not item.strip():
@@ -134,6 +182,9 @@ def normalize_paths(top: Path, raw: list[str]) -> list[str]:
         absolute = item if os.path.isabs(item) else os.path.join(top, item)
         rel = os.path.relpath(os.path.normpath(absolute), top).replace(os.sep, "/")
         rel = posixpath.normpath(rel)
+        if precompose:
+            # git precomposes its own argv here, so it records and reports the NFC spelling.
+            rel = unicodedata.normalize("NFC", rel)
         if rel == ".":
             raise InputError(f"{item!r} names the whole repository; list the paths to commit")
         if rel == ".." or rel.startswith("../"):
@@ -143,11 +194,20 @@ def normalize_paths(top: Path, raw: list[str]) -> list[str]:
         parent = os.path.realpath(os.path.join(top, posixpath.dirname(rel)))
         if parent != real_top and not parent.startswith(real_top + os.sep):
             raise InputError(f"{item!r} resolves outside the repository {top} (a symlink?)")
-        if not os.path.lexists(os.path.join(top, rel)) and not _in_tree(top, "HEAD", rel):
+        link = _symlink_component(top, rel)
+        if link is not None:
+            raise InputError(f"{item!r} passes through the symlink {link!r}: list the real path")
+        exists = os.path.lexists(os.path.join(top, rel))
+        if not exists and not _in_tree(top, "HEAD", rel):
             raise InputError(f"{item!r} does not exist and is not in HEAD (a wrong path?)")
-        if os.path.lexists(os.path.join(top, rel)) and not _in_tree(top, "HEAD", rel):
+        if exists and not _in_tree(top, "HEAD", rel):
             if _run(top, "check-ignore", "-q", "--no-index", "--", rel).returncode == 0:
                 raise InputError(f"{item!r} is ignored by git and cannot be committed")
+        if exists and not _git_knows(top, rel):
+            raise InputError(
+                f"{item!r} exists but git knows no file under it (a case mismatch, a path "
+                "inside a submodule, or only ignored files?)"
+            )
         if rel not in out:
             out.append(rel)
     return out
@@ -264,6 +324,16 @@ def _commit_failure(top: Path, output: str, skip_hooks: bool) -> str:
     return "git commit failed and no commit hook ran. Read git_output"
 
 
+def _refuse_source(changed: list[str]) -> None:
+    """``--no-content-check`` is for docs: refuse any changed path the verifier would judge."""
+    source = [p for p in changed if not is_exempt(p)]
+    if source:
+        raise InputError(
+            "--no-content-check commits only Markdown and explorer/, and these changed paths "
+            f"are neither: {', '.join(source)}. Commit them with --verify-against"
+        )
+
+
 def commit_paths(
     repo: Path,
     paths: list[str],
@@ -273,9 +343,10 @@ def commit_paths(
 ) -> Outcome:
     """Commit exactly ``paths`` and prove the commit; see the module docstring.
 
-    ``verify_against`` is the ref every changed path must be comment-only against, or None to skip
-    the content check (Markdown, ``explorer/``). Raises ``InputError`` on bad input, before the
-    repo is touched.
+    ``verify_against`` is the ref every changed path must be comment-only against, or None for
+    docs mode: only paths ``is_exempt`` accepts (Markdown, ``explorer/``), content not checked.
+    Raises ``InputError`` on bad input, before the repo is touched. Once ``git commit`` has run,
+    nothing raises: every failure is an ``Outcome``.
     """
     top = _top(repo)
     if not messages or not all(m.strip() for m in messages):
@@ -284,16 +355,24 @@ def commit_paths(
     ref = None
     if verify_against is not None:
         ref = _resolve_commit(top, verify_against, "--verify-against")
+        if _run(top, "merge-base", "--is-ancestor", ref, pre).returncode != 0:
+            raise InputError(
+                f"--verify-against {verify_against!r} is not an ancestor of HEAD "
+                "(use HEAD, or the base sha for a restore commit)"
+            )
     roots = normalize_paths(top, paths)
+    if ref is None:
+        _refuse_source(_changed(top, "HEAD", roots))
 
     _out(top, "reset", "-q")
     changed = _changed(top, "HEAD", roots)
     if not changed:
-        return Outcome("skip", "nothing under the listed paths differs from HEAD")
+        return Outcome("skip", "nothing under the listed paths differs from HEAD", pre=pre)
 
     # Stage first, then verify: the verifier also checks the index mode against the ref, so it
-    # judges exactly what will be committed (a restored file is in the index again).
-    _out(top, "add", "-A", "--", *_spec(roots))
+    # judges exactly what will be committed (a restored file is in the index again). In git 2.x
+    # ``git add <pathspec>`` stages deletions too.
+    _out(top, "add", "--", *_spec(roots))
     if ref is not None:
         checks = [verify_file(top, rel, ref).to_dict() for rel in changed]
         if not all(r["ok"] for r in checks):
@@ -301,6 +380,7 @@ def commit_paths(
             return Outcome(
                 "precheck",
                 f"a file is not comment-only against {ref[:12]}; nothing was committed",
+                pre=pre,
                 paths=changed,
                 verify=[r for r in checks if not r["ok"]],
             )
@@ -312,27 +392,51 @@ def commit_paths(
     for message in messages:
         argv += ["-m", message]
     proc = _run(top, *argv, "--", *_spec(roots))
-    output = (proc.stdout + proc.stderr).decode("utf-8", "replace").strip()
+    run = _Run(top, pre, ref, staged, roots, before, changed, skip_hooks)
+    try:
+        return _after_commit(run, proc)
+    except BaseException as exc:  # any failure here may leave a commit on HEAD
+        return _after_exception(run, exc)
 
+
+@dataclass
+class _Run:
+    """The state of one ``commit_paths`` call once ``git commit`` has run."""
+
+    top: Path
+    pre: str
+    ref: str | None
+    staged: str
+    roots: list[str]
+    before: dict[str, str | None]
+    changed: list[str]
+    skip_hooks: bool
+
+
+def _after_commit(run: _Run, proc: subprocess.CompletedProcess[bytes]) -> Outcome:
+    top, pre, ref, roots = run.top, run.pre, run.ref, run.roots
+    output = (proc.stdout + proc.stderr).decode("utf-8", "replace").strip()
     head = _resolve_commit(top, "HEAD", "HEAD")
     if proc.returncode != 0:
         if head != pre:
             return Outcome(
                 "stop",
                 "git commit failed but HEAD moved; history was not touched",
+                pre=pre,
                 sha=head,
                 git_output=output,
             )
         _out(top, "reset", "-q")
-        restored = _restore(top, staged, roots)
+        restored = _restore(top, run.staged, roots)
         return Outcome(
             "commit-failed",
-            _commit_failure(top, output, skip_hooks)
+            _commit_failure(top, output, run.skip_hooks)
             + "; nothing was committed and the index is empty"
             + ("; the listed files were reset to the bytes that were staged" if restored else ""),
-            paths=changed,
+            pre=pre,
+            paths=run.changed,
             restored=restored,
-            strays=_strays(before, _dirty_snapshot(top, roots)),
+            strays=_strays(run.before, _dirty_snapshot(top, roots)),
             git_output=output,
         )
 
@@ -342,6 +446,7 @@ def commit_paths(
             "stop",
             "the commit is not exactly one new commit on the old HEAD (a hook made a commit?); "
             "history was not touched",
+            pre=pre,
             sha=head,
             git_output=output,
         )
@@ -351,11 +456,19 @@ def commit_paths(
     problem = None
     results: list[dict[str, Any]] = []
     extra = [p for p in committed if not _under(p, roots)]
+    source = [p for p in committed if not is_exempt(p)] if ref is None else []
+    differs = _changed(top, "HEAD", roots)
     if extra:
         problem = f"the commit also held {', '.join(extra)} (added by a hook?)"
-    elif _changed(top, "HEAD", roots):
+    elif source:
         problem = (
-            "the work tree differs from the commit (a hook changed files without staging them)"
+            f"the commit held {', '.join(source)}, which is not Markdown or explorer/ "
+            "(added by a hook?)"
+        )
+    elif differs:
+        problem = (
+            f"the work tree differs from the commit at {', '.join(differs)} (a hook changed "
+            "files without staging them)"
         )
     elif ref is not None:
         results = [verify_file(top, rel, ref).to_dict() for rel in committed]
@@ -367,53 +480,79 @@ def commit_paths(
     if problem is None:
         return Outcome(
             "ok",
-            "committed and verified",
+            "committed and verified" if ref else "committed (content not checked: docs only)",
+            pre=pre,
             sha=head,
             paths=committed,
-            strays=_strays(before, _dirty_snapshot(top, roots)),
+            strays=_strays(run.before, _dirty_snapshot(top, roots)),
             git_output=output,
         )
-    return _undo(top, pre, ref, staged, roots, before, problem, committed, results, output)
+    return _undo(run, problem, committed, results, output)
+
+
+def _take_back(run: _Run) -> list[str]:
+    """Undo the commit on HEAD (checked to be ours) and restore the listed paths."""
+    _out(run.top, "reset", "-q", "--soft", run.pre)
+    _out(run.top, "reset", "-q")
+    return _restore(run.top, run.pre if run.ref else run.staged, run.roots)
 
 
 def _undo(
-    top: Path,
-    pre: str,
-    ref: str | None,
-    staged: str,
-    roots: list[str],
-    before: dict[str, str | None],
+    run: _Run,
     problem: str,
     committed: list[str],
     results: list[dict[str, Any]],
     output: str,
 ) -> Outcome:
-    bad = _resolve_commit(top, "HEAD", "HEAD")
-    _out(top, "reset", "-q", "--soft", pre)
-    _out(top, "reset", "-q")
-    target = pre if ref else staged
+    bad = _resolve_commit(run.top, "HEAD", "HEAD")
     try:
-        restored = _restore(top, target, roots)
+        restored = _take_back(run)
     except GitError as exc:
         return Outcome(
             "stop",
             f"{problem}; the commit was undone but {exc}",
+            pre=run.pre,
             sha=bad,
             paths=committed,
             verify=results,
             git_output=output,
         )
-    to = "the old HEAD (the change is dropped)" if ref else "the bytes that were staged"
+    to = "the old HEAD (the change is dropped)" if run.ref else "the bytes that were staged"
     return Outcome(
         "undone",
         f"{problem}; commit {bad[:12]} was undone and the listed paths reset to {to}",
+        pre=run.pre,
         sha=bad,
         paths=committed,
         verify=results,
         restored=restored,
-        strays=_strays(before, _dirty_snapshot(top, roots)),
+        strays=_strays(run.before, _dirty_snapshot(run.top, run.roots)),
         git_output=output,
     )
+
+
+def _after_exception(run: _Run, exc: BaseException) -> Outcome:
+    """Any failure once ``git commit`` ran: take our commit back if it is on HEAD, then ``stop``.
+
+    The result is ``stop`` even when the undo worked, because the command could not finish its
+    checks. ``detail`` says what happened to HEAD.
+    """
+    why = f"{type(exc).__name__}: {exc}"
+    sha: str | None = None
+    try:
+        sha = _resolve_commit(run.top, "HEAD", "HEAD")
+        parents = _out(run.top, "rev-list", "--parents", "-n", "1", sha).split()[1:]
+        if sha == run.pre:
+            _out(run.top, "reset", "-q")
+            note = "HEAD did not move; nothing was committed and the index is empty"
+        elif parents == [run.pre]:
+            _take_back(run)
+            note = f"commit {sha[:12]} was undone and the listed paths reset"
+        else:
+            note = "HEAD is not one new commit on the old HEAD, so history was not touched"
+    except BaseException as inner:  # report, never raise, after the commit
+        note = f"the undo failed too ({type(inner).__name__}: {inner}); HEAD may hold the commit"
+    return Outcome("stop", f"an error after git commit ran ({why}); {note}", pre=run.pre, sha=sha)
 
 
 def backstop(repo: Path, base: str) -> dict[str, Any]:
@@ -425,7 +564,12 @@ def backstop(repo: Path, base: str) -> dict[str, Any]:
     sha = _resolve_commit(top, base, "--base")
     if _run(top, "merge-base", "--is-ancestor", sha, "HEAD").returncode != 0:
         raise InputError(f"--base {base!r} is not an ancestor of HEAD")
-    results = [verify_file(top, rel, sha).to_dict() for rel in changed_files(top, sha)]
+    try:
+        files = changed_files(top, sha)
+    except subprocess.CalledProcessError as exc:
+        why = (exc.stderr or b"").decode("utf-8", "replace").strip() or str(exc)
+        raise GitError(f"git failed while listing the branch's changes: {why}") from exc
+    results = [verify_file(top, rel, sha).to_dict() for rel in files]
     raw = _out(top, "status", "--porcelain=v1", "-z", "-uall")
     status = [e for e in raw.split("\0") if e]
     ok = all(r["ok"] for r in results) and not status

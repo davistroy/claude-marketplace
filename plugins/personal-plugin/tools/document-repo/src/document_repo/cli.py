@@ -18,7 +18,12 @@ from . import __version__
 
 
 def emit(obj: Any, out: Path | None = None) -> None:
-    """Write ``obj`` as pretty JSON to ``out``, or to stdout when ``out`` is None."""
+    """Write ``obj`` as pretty JSON to ``out``, or to stdout when ``out`` is None.
+
+    A path that is not valid UTF-8 reaches here as a surrogate escape (git output is decoded
+    with ``surrogateescape``). It is written back as its original bytes rather than crashing the
+    writer after the work is done.
+    """
     text = json.dumps(obj, indent=2, ensure_ascii=False) + "\n"
     if out is None:
         # Write UTF-8 bytes directly: a Windows console may use a legacy code page that cannot
@@ -27,13 +32,13 @@ def emit(obj: Any, out: Path | None = None) -> None:
         if buffer is not None:
             # Flush text already buffered on the text layer so output stays in order.
             sys.stdout.flush()
-            buffer.write(text.encode("utf-8"))
+            buffer.write(text.encode("utf-8", "surrogateescape"))
             buffer.flush()
         else:
             sys.stdout.write(text)
         return
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(text, encoding="utf-8")
+    out.write_text(text, encoding="utf-8", errors="surrogateescape")
 
 
 def load_json(path: Path) -> Any:
@@ -269,7 +274,7 @@ def _repo_arg(value: str) -> Path:
 
 
 def _cmd_commit(args: argparse.Namespace) -> int:
-    from .commit import GitError, InputError, commit_paths
+    from .commit import InputError, commit_paths
 
     try:
         outcome = commit_paths(
@@ -282,9 +287,12 @@ def _cmd_commit(args: argparse.Namespace) -> int:
     except InputError as exc:
         sys.stderr.write(f"commit: {exc}\n")
         return 2
-    except GitError as exc:
-        sys.stderr.write(f"commit: {exc}\n")
-        emit({"status": "error", "detail": str(exc)})
+    except Exception as exc:
+        # ``commit_paths`` turns every failure after ``git commit`` ran into a ``stop`` outcome,
+        # so an exception that reaches here was raised before the commit: nothing was committed.
+        detail = f"{type(exc).__name__}: {exc}; nothing was committed"
+        sys.stderr.write(f"commit: error: {detail}\n")
+        emit({"status": "error", "detail": detail})
         return 2
     emit(outcome.to_dict())
     if outcome.exit_code:
@@ -321,7 +329,7 @@ def _cmd_backstop(args: argparse.Namespace) -> int:
 
     try:
         result = backstop(args.repo, args.base)
-    except (InputError, GitError) as exc:
+    except (InputError, GitError, OSError) as exc:
         sys.stderr.write(f"backstop: {exc}\n")
         return 2
     emit(result)
