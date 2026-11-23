@@ -258,7 +258,7 @@ def write_explorer_data(model: dict[str, Any], out_dir: Path) -> dict[str, Any]:
     if errors:
         raise ValueError("model is invalid:\n" + "\n".join(errors))
     try:
-        model_json = (json.dumps(model, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+        model_json = _model_json_bytes(model)
         model_js = (JS_PREFIX + json.dumps(model, ensure_ascii=True) + ";\n").encode("ascii")
     except UnicodeEncodeError as exc:
         raise ValueError(f"model cannot be encoded as UTF-8: {exc}") from exc
@@ -285,8 +285,6 @@ TEMPLATE_DIR = Path(__file__).resolve().parents[4] / "skills/document-repo/templ
 #: never copied from the template.
 DATA_DIR = "data"
 
-_HASH_CHUNK = 1 << 20
-
 
 def template_files(template_dir: Path) -> frozenset[str]:
     """Every file ``install_template`` copies, relative to the explorer directory, "/"-separated.
@@ -304,13 +302,12 @@ def template_files(template_dir: Path) -> frozenset[str]:
     return frozenset(found)
 
 
-def _regular_file(path: Path) -> os.stat_result | None:
-    """``lstat`` of ``path`` when it is a regular file (not a symlink), else None."""
+def _regular_file(path: Path) -> bool:
+    """True when ``path`` is a regular file, not a symlink."""
     try:
-        st = path.lstat()
+        return stat.S_ISREG(path.lstat().st_mode)
     except OSError:
-        return None
-    return st if stat.S_ISREG(st.st_mode) else None
+        return False
 
 
 def _real_directory(path: Path) -> bool:
@@ -320,35 +317,43 @@ def _real_directory(path: Path) -> bool:
         return False
 
 
+def _model_json_bytes(model: Any) -> bytes:
+    """``model.json`` exactly as ``write_explorer_data`` writes it, and ``model_hash`` hashes."""
+    return (json.dumps(model, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+
 def is_our_explorer(explorer_dir: Path) -> bool:
     """True when ``explorer_dir`` was made by ``build``, judged by content, not by a file name.
 
     A build leaves ``data/state.json`` as a JSON object with exactly ``STATE_KEYS``, whose
-    ``model_hash`` is the sha256 of ``data/model.json``. A target's own ``state.json`` (UI state
-    for an app that happens to be called "explorer") does not have that shape. The directory,
-    ``data/``, ``state.json`` and ``model.json`` must be real (no symlinks), so the check reads
-    the files the commit holds and not something they point at. Anything else is not ours: every
-    file in the directory is then judged, and ``install_template`` refuses it.
+    ``model_hash`` is the sha256 of ``data/model.json`` as the build serialised it. A target's
+    own ``state.json`` (UI state for an app that happens to be called "explorer") does not have
+    that shape.
+
+    The hash is taken over the model re-serialised as the build writes it, not over the bytes on
+    disk, so a CRLF checkout (Git for Windows' ``core.autocrlf``) or a commit hook that re-indents
+    JSON leaves the explorer ours. A change to the model itself, or to its key order, does not.
+    A ``model.json`` that does not parse is not ours. The model is read whole: it is a few MB at
+    most, written by ``build`` from the analysis.
+
+    The directory, ``data/``, ``state.json`` and ``model.json`` must be real (no symlinks), so
+    the check reads the files the commit holds and not something they point at. Anything else is
+    not ours: every file in the directory is then judged, and ``install_template`` refuses it.
     """
     data = explorer_dir / DATA_DIR
     if not (_real_directory(explorer_dir) and _real_directory(data)):
         return False
-    state_st = _regular_file(data / STATE_FILE)
-    model_st = _regular_file(data / MODEL_FILE)
-    if state_st is None or model_st is None:
+    if not (_regular_file(data / STATE_FILE) and _regular_file(data / MODEL_FILE)):
         return False
     try:
         state = json.loads((data / STATE_FILE).read_bytes())
-        digest = hashlib.sha256()
-        with open(data / MODEL_FILE, "rb") as fh:
-            for chunk in iter(lambda: fh.read(_HASH_CHUNK), b""):
-                digest.update(chunk)
-    except (OSError, ValueError):
+        canonical = _model_json_bytes(json.loads((data / MODEL_FILE).read_bytes()))
+    except (OSError, ValueError, RecursionError):
         return False
     return (
         isinstance(state, dict)
         and set(state) == STATE_KEYS
-        and state["model_hash"] == digest.hexdigest()
+        and state["model_hash"] == hashlib.sha256(canonical).hexdigest()
     )
 
 
@@ -394,29 +399,41 @@ def foreign_files(template_dir: Path, explorer_dir: Path) -> list[str]:
     return sorted(foreign)
 
 
+def ensure_installable(template_dir: Path, explorer_dir: Path) -> None:
+    """Raise ``ValueError`` unless ``build`` may write into ``explorer_dir``.
+
+    ``foreign_files`` must be empty. Otherwise the directory holds the target's own code, a file
+    that would ride into the commit unjudged, or a symlink a write would go through. ``build``
+    runs this before it writes anything, with or without ``--template``: writing the data alone
+    into a foreign directory would make its marker valid and every template-named file in it
+    exempt.
+    """
+    foreign = foreign_files(template_dir, explorer_dir)
+    if not foreign:
+        return
+    links = [f for f in foreign if f == "." or os.path.islink(explorer_dir / f)]
+    raise ValueError(
+        f"{explorer_dir} was not made by document-repo, or holds what a build does not write: "
+        f"{', '.join(foreign)}"
+        + (
+            f" (a symlink is never followed or written through: {', '.join(links)})"
+            if links
+            else ""
+        )
+        + ". If they are the repository's own files, move them aside, then run again. If an "
+        "earlier build in this run stopped partway, restore the committed explorer with "
+        "`git checkout HEAD -- explorer` and `git clean -fdq -- explorer`, then build again"
+    )
+
+
 def install_template(template_dir: Path, explorer_dir: Path) -> None:
     """Copy the fixed explorer app into the target, never touching data/.
 
     Only the top-level ``data/`` is skipped: it holds the target's own model, and a ``data``
-    directory deeper in the app (inside a vendored library, say) is part of the app.
-
-    Before copying, ``foreign_files`` must be empty. Otherwise the directory holds the target's
-    own code, a file that would ride into the commit unjudged, or a symlink the copy would write
-    through: refuse with ``ValueError`` and touch nothing.
+    directory deeper in the app (inside a vendored library, say) is part of the app. Refuses with
+    ``ValueError``, touching nothing, unless ``ensure_installable`` passes.
     """
-    foreign = foreign_files(template_dir, explorer_dir)
-    if foreign:
-        links = [f for f in foreign if f == "." or os.path.islink(explorer_dir / f)]
-        raise ValueError(
-            f"{explorer_dir} was not made by document-repo, or holds what a build does not "
-            f"write: {', '.join(foreign)}"
-            + (
-                f" (a symlink is never followed or written through: {', '.join(links)})"
-                if links
-                else ""
-            )
-            + ". Move them aside, then run again"
-        )
+    ensure_installable(template_dir, explorer_dir)
 
     def skip_top_level_data(directory: str, names: list[str]) -> set[str]:
         return {DATA_DIR}.intersection(names) if Path(directory) == template_dir else set()

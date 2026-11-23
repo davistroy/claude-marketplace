@@ -47,7 +47,8 @@ from pathlib import Path
 from typing import Any
 
 from .changes import work_tree
-from .verify import changed_files, is_exempt, verify_file
+from .inventory import OUTPUT_DIR
+from .verify import changed_files, is_exempt, is_explorer_output_name, verify_file
 
 #: Hooks ``git commit`` runs unless ``--no-verify`` is given (``post-commit`` cannot refuse).
 COMMIT_HOOKS = ("pre-commit", "prepare-commit-msg", "commit-msg")
@@ -357,16 +358,37 @@ def _commit_failure(top: Path, output: str, skip_hooks: bool) -> str:
     return "git commit failed and no commit hook ran. Read git_output"
 
 
+def _not_ours(top: Path, source: list[str]) -> list[str]:
+    """The paths in ``source`` that would be exempt if ``explorer/`` were one a build made.
+
+    Non-empty means the refusal is about ownership, not about those files: ``data/state.json``
+    no longer holds the hash of ``data/model.json`` (or is missing), so nothing there is exempt.
+    """
+    from .build import is_our_explorer
+
+    named = [p for p in source if is_explorer_output_name(p)]
+    return named if named and not is_our_explorer(top / OUTPUT_DIR) else []
+
+
+OWNERSHIP_LOST = (
+    "explorer/ no longer reads as one a build made: data/state.json must be the file build "
+    "wrote, with the hash of data/model.json's model"
+)
+
+
 def _refuse_source(top: Path, changed: list[str]) -> None:
     """``--no-content-check`` is for docs: refuse any changed path the verifier would judge."""
     source = [p for p in changed if not is_exempt(p, top)]
-    if source:
-        raise InputError(
-            "--no-content-check commits only Markdown and the files a build writes in an "
-            "explorer it made (the app, data/model.json, model.js, state.json), and these "
-            f"changed paths are none of those: {', '.join(source)}. "
-            "Commit them with --verify-against"
-        )
+    if not source:
+        return
+    lost = _not_ours(top, source)
+    why = f"{OWNERSHIP_LOST}, so these are not exempt: {', '.join(lost)}. " if lost else ""
+    raise InputError(
+        why + "--no-content-check commits only Markdown and the files a build writes in an "
+        "explorer it made (the app, data/model.json, model.js, state.json), and these "
+        f"changed paths are none of those: {', '.join(source)}. "
+        "Commit them with --verify-against"
+    )
 
 
 def commit_paths(
@@ -497,6 +519,12 @@ def _after_commit(run: _Run, proc: subprocess.CompletedProcess[bytes]) -> Outcom
     differs = _changed(top, "HEAD", roots)
     if extra:
         problem = f"the commit also held {', '.join(extra)} (added by a hook?)"
+    elif source and _not_ours(top, source):
+        data = [p for p in committed if p.startswith(f"{OUTPUT_DIR}/data/")]
+        problem = (
+            f"the commit changed {', '.join(data) or 'explorer/data/'}, so {OWNERSHIP_LOST} "
+            "(a hook reformatted or rewrote the model?). The other explorer files are fine"
+        )
     elif source:
         problem = (
             f"the commit held {', '.join(source)}, which is not Markdown or explorer output "
@@ -515,9 +543,17 @@ def _after_commit(run: _Run, proc: subprocess.CompletedProcess[bytes]) -> Outcom
             )
             results = [r for r in results if not r["ok"]]
     if problem is None:
+        detail = "committed and verified" if ref else "committed (content not checked: docs only)"
+        # A hook that re-stages a file under ``git commit --only`` changes the commit, and the
+        # real index keeps the bytes staged before the hook. The work tree equals the commit
+        # (checked above), so the index is set to HEAD as well, leaving the tree clean.
+        try:
+            _out(top, "reset", "-q")
+        except GitError as exc:
+            detail += f"; the index could not be reset to HEAD ({exc})"
         return Outcome(
             "ok",
-            "committed and verified" if ref else "committed (content not checked: docs only)",
+            detail,
             pre=pre,
             sha=head,
             paths=committed,

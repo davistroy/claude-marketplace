@@ -1510,3 +1510,26 @@ def test_without_the_template_only_the_data_files_are_exempt(monkeypatch, tmp_pa
         assert verify_mod.is_exempt("explorer/data/model.json", tmp_path)
     finally:
         verify_mod._skill_output.cache_clear()
+
+
+def test_a_crlf_checkout_keeps_the_explorer_exempt(make_repo, git, tmp_path) -> None:
+    # r3/e2e/crlf: Git for Windows checks text out with CRLF (core.autocrlf=true).
+    import json as _json
+
+    from document_repo.build import TEMPLATE_DIR, install_template, write_explorer_data
+
+    repo = make_repo({"main.py": "x = 1\n"})
+    install_template(TEMPLATE_DIR, repo / "explorer")
+    fixture = Path(__file__).parent / "fixtures" / "sample_model.json"
+    write_explorer_data(_json.loads(fixture.read_text()), repo / "explorer" / "data")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "explorer")
+    git(repo, "config", "core.autocrlf", "true")
+    import shutil as _shutil
+
+    _shutil.rmtree(repo / "explorer")
+    git(repo, "checkout", "HEAD", "--", "explorer")
+    assert b"\r\n" in (repo / "explorer/data/model.json").read_bytes()
+    assert git(repo, "status", "--porcelain") == ""
+    (repo / "explorer/app.js").write_bytes((repo / "explorer/app.js").read_bytes() + b"\r\n")
+    assert changed_files(repo, "HEAD") == []

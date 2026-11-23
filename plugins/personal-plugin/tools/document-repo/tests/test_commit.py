@@ -1123,3 +1123,73 @@ def test_undo_failure_before_reset_says_head_may_hold_it_r2m1(
     monkeypatch.setattr(commit_mod, "_resolve_commit", real_resolve)
     assert code == 1 and out["status"] == "stop", out
     assert "may be on HEAD" in out["detail"] and "reset failed" in out["detail"]
+
+
+# --- round 3: a hook that reformats the explorer's JSON ------------------------------------------
+
+REFORMAT_JSON = (
+    "for f in $(git diff --cached --name-only --diff-filter=AM | grep '\\.json$'); do\n"
+    f'  {sys.executable} -c "import json,sys;p=sys.argv[1];d=json.load(open(p));'
+    'open(p,\'w\').write(json.dumps(d,indent=4)+\'\\n\')" "$f"; git add "$f"\n'
+    "done\n"
+)
+
+
+def _built_explorer(repo: Path) -> None:
+    from document_repo.build import TEMPLATE_DIR, install_template, write_explorer_data
+
+    fixture = Path(__file__).parent / "fixtures" / "sample_model.json"
+    install_template(TEMPLATE_DIR, repo / "explorer")
+    write_explorer_data(json.loads(fixture.read_text()), repo / "explorer" / "data")
+
+
+def test_a_hook_that_reformats_json_keeps_the_explorer_ours(make_repo, git, capsys) -> None:
+    # r3/hk: lint-staged / pretty-format-json re-indents model.json and state.json.
+    repo = make_repo({"main.py": "x = 1\n"})
+    hook(repo, "pre-commit", REFORMAT_JSON)
+    _built_explorer(repo)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 0 and out["status"] == "ok", out
+    assert b"    " in (repo / "explorer/data/state.json").read_bytes(), "the hook did run"
+    # git commit --only leaves the pre-hook bytes in the index; the commit resets it to HEAD.
+    assert git(repo, "status", "--porcelain", "-uall") == ""
+
+
+def test_undone_names_the_ownership_failure(make_repo, git, capsys) -> None:
+    # A hook that changes the model's content: the app files are not the problem, the marker is.
+    repo = make_repo({"main.py": "x = 1\n"})
+    hook(
+        repo,
+        "pre-commit",
+        f"{sys.executable} -c \"import json;p='explorer/data/model.json';d=json.load(open(p));"
+        "d['meta']['generated_at']='x';open(p,'w').write(json.dumps(d))\"\n"
+        "git add explorer/data/model.json\n",
+    )
+    _built_explorer(repo)
+    pre = head(git, repo)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 1 and out["status"] == "undone", out
+    assert "no longer reads as one a build made" in out["detail"], out["detail"]
+    assert "explorer/data/model.json" in out["detail"]
+    assert head(git, repo) == pre
+
+
+def test_a_failed_index_reset_after_the_commit_is_reported_not_raised(
+    make_repo, git, capsys, monkeypatch
+) -> None:
+    repo = make_repo({"README.md": "old\n"})
+    (repo / "README.md").write_text("new\n")
+    real = commit_mod._out
+    calls = {"reset": 0}
+
+    def flaky(top, *args):
+        if args == ("reset", "-q"):
+            calls["reset"] += 1
+            if calls["reset"] > 1:  # the first empties the index before staging
+                raise commit_mod.GitError("git reset -q failed: index.lock exists")
+        return real(top, *args)
+
+    monkeypatch.setattr(commit_mod, "_out", flaky)
+    code, out = commit(capsys, repo, "README.md", ref=None)
+    assert code == 0 and out["status"] == "ok", out
+    assert "index could not be reset" in out["detail"], out["detail"]

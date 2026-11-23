@@ -534,6 +534,11 @@ def _skill_output() -> frozenset[str]:
     return frozenset(app | {f"{OUTPUT_DIR}/{DATA_DIR}/{name}" for name in DATA_FILES})
 
 
+def is_explorer_output_name(path: str) -> bool:
+    """True for a path a build writes under ``explorer/``, whoever owns the directory."""
+    return path in _skill_output()
+
+
 def is_exempt(path: str, top: Path) -> bool:
     """True for a path the verifier never judges: Markdown, and the skill's own explorer output.
 
@@ -551,7 +556,7 @@ def is_exempt(path: str, top: Path) -> bool:
     """
     if path.lower().endswith(DOC_SUFFIXES):
         return True
-    if path not in _skill_output():
+    if not is_explorer_output_name(path):
         return False
     from .build import is_our_explorer
 

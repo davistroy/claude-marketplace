@@ -1203,3 +1203,115 @@ def test_install_template_refuses_a_symlinked_file(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="symlink.*app.js"):
         install_template(template, explorer)
     assert outside.read_text() == "mine"
+
+
+# --- round 3: build without --template, line endings and reformatting, empty directories ---------
+
+
+def _build_cli(explorer: Path, model: Path, template: Path | None = None) -> int:
+    argv = ["build", "--model", str(model), "--explorer-dir", str(explorer)]
+    return main(argv + (["--template", str(template)] if template else []))
+
+
+def test_cli_build_without_template_refuses_a_foreign_explorer(make_repo, tmp_path, capsys) -> None:
+    # r3/nt: without --template, build used to write a valid marker into the target's explorer/.
+    repo = make_repo({"explorer/app.js": "export function realCode(){return 42}\n"})
+    model = tmp_path / "model.json"
+    model.write_text(FIXTURE.read_text())
+    assert _build_cli(repo / "explorer", model) == 2
+    assert "not made by document-repo" in capsys.readouterr().err
+    assert not (repo / "explorer" / "data").exists()
+    assert _status(capsys, repo) == (0, {"explorer": "foreign", "foreign_files": ["app.js"]})
+
+
+def test_cli_build_without_template_refuses_a_stray_in_data(tmp_path: Path, capsys) -> None:
+    explorer = tmp_path / "explorer"
+    _write_marker(explorer)
+    (explorer / "data" / "loader.js").write_text("var f;\n")
+    model = tmp_path / "model.json"
+    model.write_text(FIXTURE.read_text())
+    assert _build_cli(explorer, model) == 2
+    assert "data/loader.js" in capsys.readouterr().err
+    assert (explorer / "data" / "model.json").read_bytes() == b"{}\n"
+
+
+def _built(tmp_path: Path) -> Path:
+    explorer = tmp_path / "explorer"
+    write_explorer_data(json.loads(FIXTURE.read_text()), explorer / "data")
+    return explorer
+
+
+def test_ownership_survives_a_crlf_checkout(tmp_path: Path) -> None:
+    explorer = _built(tmp_path)
+    for name in ("model.json", "state.json"):
+        path = explorer / "data" / name
+        path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+    assert build.is_our_explorer(explorer)
+
+
+@pytest.mark.parametrize(
+    "dumps",
+    [
+        lambda m: json.dumps(m, indent=4) + "\n",  # pretty-format-json, ensure_ascii on
+        lambda m: json.dumps(m, separators=(",", ":")),  # minified, no final newline
+        lambda m: json.dumps(m, indent="\t", ensure_ascii=False),
+    ],
+    ids=["indent-4-ascii", "minified", "tabs"],
+)
+def test_ownership_survives_json_reformatting(tmp_path: Path, dumps) -> None:
+    explorer = _built(tmp_path)
+    for name in ("model.json", "state.json"):
+        path = explorer / "data" / name
+        path.write_text(dumps(json.loads(path.read_text(encoding="utf-8"))), encoding="utf-8")
+    assert build.is_our_explorer(explorer)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda m: {k: m[k] for k in reversed(list(m))},  # key order is part of the model's form
+        lambda m: {**m, "extra": 1},
+        "not json",
+    ],
+    ids=["keys-reordered", "value-changed", "not-json"],
+)
+def test_ownership_fails_when_the_model_itself_changed(tmp_path: Path, change) -> None:
+    explorer = _built(tmp_path)
+    path = explorer / "data" / "model.json"
+    if isinstance(change, str):
+        path.write_text(change)
+    else:
+        path.write_text(json.dumps(change(json.loads(path.read_text(encoding="utf-8")))))
+    assert not build.is_our_explorer(explorer)
+
+
+@pytest.mark.parametrize("layout", ["empty", "empty-data", "template-only"])
+def test_explorer_status_reads_an_installable_directory_as_absent(
+    make_repo, capsys, layout: str
+) -> None:
+    # r3/em: what moving files aside or an interrupted install leaves. build accepts it, so
+    # Phase 0 must not stop on it (and "Check again" must not loop on an empty list).
+    repo = make_repo({"main.py": "x = 1\n"})
+    explorer = repo / "explorer"
+    explorer.mkdir()
+    if layout == "empty-data":
+        (explorer / "data").mkdir()
+    elif layout == "template-only":
+        install_template(build.TEMPLATE_DIR, explorer)
+    assert _status(capsys, repo) == (0, {"explorer": "absent", "foreign_files": []})
+    model = repo.parent / "model.json"
+    model.write_text(FIXTURE.read_text())
+    assert _build_cli(explorer, model, build.TEMPLATE_DIR) == 0
+    capsys.readouterr()
+    assert _status(capsys, repo)[1]["explorer"] == "ours"
+
+
+def test_a_refusal_after_a_partial_build_says_how_to_recover(tmp_path: Path, capsys) -> None:
+    # write_explorer_data replaced model.json and stopped: the old state no longer matches.
+    explorer = _built(tmp_path)
+    (explorer / "data" / "model.json").write_text('{"half": "written"}\n')
+    model = tmp_path / "model.json"
+    model.write_text(FIXTURE.read_text())
+    assert _build_cli(explorer, model, build.TEMPLATE_DIR) == 2
+    err = capsys.readouterr().err
+    assert "git checkout HEAD -- explorer" in err, err

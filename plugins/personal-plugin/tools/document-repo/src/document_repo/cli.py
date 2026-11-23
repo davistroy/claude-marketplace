@@ -148,7 +148,13 @@ def _register_assemble(sub: Any) -> None:
 
 
 def _cmd_build(args: argparse.Namespace) -> int:
-    from .build import install_template, read_json, write_explorer_data
+    from .build import (
+        TEMPLATE_DIR,
+        ensure_installable,
+        install_template,
+        read_json,
+        write_explorer_data,
+    )
     from .schema import validate
 
     try:
@@ -164,6 +170,9 @@ def _cmd_build(args: argparse.Namespace) -> int:
     if args.validate_only:
         return 0
     try:
+        # Before any write, with or without --template: data written into a directory the
+        # skill did not make would turn its marker valid (see build.ensure_installable).
+        ensure_installable(args.template or TEMPLATE_DIR, args.explorer_dir)
         if args.template:
             install_template(args.template, args.explorer_dir)
         state = write_explorer_data(model, args.explorer_dir / "data")
@@ -355,19 +364,22 @@ def _cmd_explorer_status(args: argparse.Namespace) -> int:
         return 2
     explorer = top / OUTPUT_DIR
     foreign = foreign_files(TEMPLATE_DIR, explorer)
-    if not os.path.lexists(explorer):
-        status = "absent"
-    elif not foreign and is_our_explorer(explorer):
+    # "absent" covers a directory build would accept but that is not (yet) ours: an empty one,
+    # what moving files aside leaves, or an install that stopped before data/ was written.
+    if foreign:
+        status = "foreign"
+    elif os.path.lexists(explorer) and is_our_explorer(explorer):
         status = "ours"
     else:
-        status = "foreign"
+        status = "absent"
     emit({"explorer": status, "foreign_files": foreign})
     return 0
 
 
 def _register_explorer_status(sub: Any) -> None:
     p = sub.add_parser(
-        "explorer-status", help="is REPO/explorer absent, made by a build (ours), or foreign"
+        "explorer-status",
+        help="is REPO/explorer ours (a build made it), foreign, or absent (build may write it)",
     )
     p.add_argument("--repo", type=_repo_arg, required=True, help="top level of the git work tree")
     p.set_defaults(func=_cmd_explorer_status)
