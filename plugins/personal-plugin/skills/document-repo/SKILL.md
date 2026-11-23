@@ -11,7 +11,7 @@ description: >
   --phase to re-run comments, docs or explorer alone.
 argument-hint: "[path] [--update] [--phase comments|docs|explorer]"
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash
+allowed-tools: Read, Write, Edit, Glob, Grep, Agent, SendMessage, AskUserQuestion, Bash, mcp__claude-in-chrome
 ---
 
 # document-repo
@@ -20,7 +20,10 @@ Comment, document, and build an explorer for a target repo. The design is in
 `docs/plans/2026-11-22-document-repo-design.md` in the marketplace repo.
 
 **Prime rule: never change behaviour.** Every source edit is an insertion of
-comment lines. The verifier proves it before each commit.
+comment lines. The verifier proves it immediately before each commit and again
+on the commit itself, and the branch as a whole is checked against its base
+before Phase 3 and before Finish. No unverified source change may stay on the
+branch.
 
 ## Setup
 
@@ -35,6 +38,7 @@ PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT:-$(find ~ -path '*/plugins/personal-plugin' -ty
 TOOL_SRC="$PLUGIN_DIR/tools/document-repo/src"
 SKILL_DIR="$PLUGIN_DIR/skills/document-repo"
 TARGET="$(git -C "<path>" rev-parse --show-toplevel)"
+[ -n "$TARGET" ] || { echo "<path> is not inside a git repository"; exit 1; }
 test -d "$TOOL_SRC/document_repo" || { echo "document_repo tool not found under $PLUGIN_DIR"; exit 1; }
 mkdir -p "$TARGET/.document-repo"
 printf '*\n' > "$TARGET/.document-repo/.gitignore"
@@ -68,7 +72,7 @@ preamble, fill every placeholder, and pass the prompt to the Agent tool
 | `{TARGET}`, `{RUN_DIR}`, `{TOOL_SRC}`, `{SKILL_DIR}` | The literal paths Setup printed |
 | `{id}`, `{path}`, `{files}` | One entry of `$RUN_DIR/modules.final.json`. For a Commenter, `{files}` drops skipped JS/TS files (Phase 0 step 5) and, in an update run, files that update-mode.md step 10 leaves out. |
 | `{all_module_ids}` | Every `id` in `modules.final.json` |
-| `{entry_candidates_in_module}` | The `entry_candidates` in `$RUN_DIR/inventory.json` whose `path` is in `{files}`, as `path (why)` |
+| `{entry_candidates_in_module}` | The `entry_candidates` in `$RUN_DIR/inventory.json` whose `path` is in `{files}`, as `path (why)`. A manifest hint (`package.json`, `pyproject.toml`) belongs to no module, so also give a module each hint whose target, the path after `->` in `why` resolved from the manifest's directory, is in `{files}`. Give a hint whose target is no file (an npm script command) to the module with path `.`, if there is one. "none" when nothing matches. |
 | `{header_only_files}` | The files in `{files}` whose inventory entry has `header_only` true, or "none" |
 | `{ids}` | One batch of module ids (Phase 3) |
 | `{UPDATE_LINE}` | Empty in a full run. In an update run, the line printed under that prompt in agent-prompts.md, with its own placeholders filled. |
@@ -84,7 +88,7 @@ except the JSON shapes the prompt itself shows.
 1. `git -C "$TARGET" status --porcelain` must print nothing. Otherwise stop and tell the user to commit or stash.
 2. If `explorer/data/state.json` exists and neither `--update` nor `--phase` was given, ask with AskUserQuestion: **Update** (recommended, only changed modules) or **Full rebuild**. Update switches to update mode.
 3. Record the base: `git -C "$TARGET" rev-parse HEAD > "$RUN_DIR/base.txt"`.
-4. Branch: `git -C "$TARGET" switch -c docs/document-repo`. In update mode use `docs/document-repo-update-$(date +%Y%m%d)`. If the branch exists, stop and ask.
+4. Branch: `git -C "$TARGET" switch -c docs/document-repo`. In update mode use `docs/document-repo-update-$(date +%Y%m%d)`. If the branch exists, stop and ask. In update mode, run update-mode.md step 3 (`changes`) now, before the baseline: it refuses a dirty tree, and a test run can leave artifacts.
 5. Inventory, used by every later phase (Phase 3 reads its `entry_candidates`):
 
    ```bash
@@ -92,8 +96,8 @@ except the JSON shapes the prompt itself shows.
    ```
 
    If `summary.by_lang` has `javascript` or `typescript` and Phase 2 will run, check the TypeScript printer: `PYTHONPATH="$TOOL_SRC" python3 -c "from pathlib import Path; from document_repo.verify import typescript_available as t; print(t(Path('$TARGET')))"`. Only that printer can verify JS/TS edits. On `False`, ask with AskUserQuestion: **Install TypeScript** (recommended: `npm install -g typescript`, then check again) or **Skip JS/TS files** (they get no comments and are listed in the report).
-6. Find the verification commands. Look in package.json `scripts` (test, lint, typecheck or type-check), pyproject.toml, pytest.ini and tox.ini (pytest), Makefile targets (test, lint), and CI workflow files. Write `$RUN_DIR/commands.json` as `{"test": [...], "lint": [...], "typecheck": [...]}`.
-7. Baseline: run each command with a 10-minute timeout. Record its exit code, duration and last 40 lines in `$RUN_DIR/baseline.json`. Never install dependencies without asking. A command that cannot run is recorded as `not_runnable`. Failing or not-runnable commands do not block the run. They go in the gate summary and the report.
+6. Find the verification commands. Skip steps 6 and 7 with `--phase docs` or `--phase explorer`: no source file changes. Look in package.json `scripts` (test, lint, typecheck or type-check), pyproject.toml, pytest.ini and tox.ini (pytest), Makefile targets (test, lint), and CI workflow files. Leave out any command that writes files: `--fix`, `--write`, `format` or `fmt`, `-u`, `--update-snapshot`, `--snapshot-update`. Use the check-only form when there is one (`ruff check` without `--fix`, `prettier --check`). Write `$RUN_DIR/commands.json` as `{"test": [...], "lint": [...], "typecheck": [...]}`.
+7. Baseline: run each command with a 10-minute timeout, with the command fingerprint in `$SKILL_DIR/references/commit-protocol.md` taken before and after. Record its exit code, duration and last 40 lines in `$RUN_DIR/baseline.json`. Never install dependencies without asking. A command that cannot run is recorded as `not_runnable`. Failing or not-runnable commands do not block the run. They go in the gate summary and the report. After each command, `git -C "$TARGET" status --porcelain -uall` must print nothing. If it lists files, follow the fingerprint rules: delete new artifacts, and drop a command that changed a tracked file.
 
 ## Phase 1 — Analyze
 
@@ -106,7 +110,7 @@ runs this phase in full, because commenters need fresh module records.
 2. Review the proposal. Merge a module with fewer than 3 files into a sibling or parent with a related job. Split a module with more than 150 files or 20,000 lines by the next path segment. Write the result to `$RUN_DIR/modules.final.json`, in the same shape. Every non-skipped file must belong to exactly one module. Ids match `^[a-z0-9]+(-[a-z0-9]+)*$`.
 3. Dispatch one **Module analyst** per module (prompt 1), up to 6 at a time. If an analyst fails or writes invalid JSON, retry it once. After a second failure, leave its record absent. `assemble` then makes a `not_analyzed` stub.
 4. Dispatch one **Synthesizer** (prompt 2).
-5. Assemble and validate: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo assemble --run-dir "$RUN_DIR" --repo "$TARGET"`. On exit 1, fix the listed errors in the module records or `system.json`, then run it again. Repeat until it exits 0. Never build from a model that failed.
+5. Assemble and validate: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo assemble --run-dir "$RUN_DIR" --repo "$TARGET"`. On exit 1, fix the listed errors in the module records or `system.json`, then run it again. Exit 2 means a record has the wrong shape or names an unknown module id, and stderr says which: fix that record, or delete it so it becomes a `not_analyzed` stub, then run it again. Repeat until it exits 0. Never build from a model that failed.
 
 ## Gate — owner approval
 
@@ -126,41 +130,60 @@ the target before approval.
 
 Skip this phase when `--phase` is `docs` or `explorer`.
 
+Read `$SKILL_DIR/references/commit-protocol.md` first. Every commit in this
+phase, and in Phases 3 and 4, goes through its block.
+
+**Stray rules.** A stray is a path in `git -C "$TARGET" status --porcelain -uall`
+that the current step does not own. For a tracked stray, run
+`git -C "$TARGET" checkout HEAD -- <path>`. Delete an untracked stray. Record
+each one with its cause: an agent, a command (the fingerprint names it), or a
+commit hook. The tree was clean at preflight, so the run made every stray.
+
 Work in batches of up to 4 modules with status `analyzed`. Modules own
 disjoint files, so parallel Commenters (prompt 3) never touch the same file.
 Skip a module whose `{files}` list is empty. Dispatch the whole batch, wait
 for every agent, then:
 
-1. **Verify each module** with an explicit file list. Do not use `--changed` here: the other modules' edits are in the tree too.
+1. **Clean up.** Empty the index with `git -C "$TARGET" restore --staged -- .`, because agents must not stage. Apply the stray rules to every listed path that is not in the `{files}` of a batch module.
+2. **Verify each module.** A module's list is the files in its `{files}` that differ from HEAD: `git -C "$TARGET" diff --name-only HEAD -- <its files>`. Do not use `--changed` here, because the other modules' edits are in the tree too.
 
    ```bash
    PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo "$TARGET" --before HEAD <file> <file> ...
    ```
 
-   For every result with `"ok": false`, restore the file with `git -C "$TARGET" checkout HEAD -- <path>` and record it with its `detail`.
-2. **Test the batch.** Run each command in `commands.json` that passed at baseline in under 5 minutes. A regression is a command that passed at baseline and fails now. On a regression, take the batch's modules out one at a time, and re-test after each. To take a module out, copy its changed files to `$RUN_DIR/hold/<id>/` and restore them from HEAD. When the regression is gone, the last module taken out caused it. Put the others back one at a time, re-testing after each, and keep out any whose return brings the failure back. Record every module kept out.
-3. **Commit each surviving module separately,** naming its files:
+   For every result with `"ok": false`, restore the file with `git -C "$TARGET" checkout HEAD -- <path>`, take it out of the list, and record it with its `detail`. A module with an empty list has nothing to commit.
+3. **Snapshot the batch** as "Batch snapshot" in commit-protocol.md describes: one patch for the batch and one per module in `$RUN_DIR/hold/`.
+4. **Test the batch.** Run each command in `commands.json` that passed at baseline in under 5 minutes, with the fingerprint before and after. If the command wrote to the tree, follow the fingerprint rules. A regression is a command that passed at baseline and fails now. On a regression:
+   1. Run the command once more. If it passes, it is flaky: record it and go on.
+   2. Take the batch's modules out one at a time, and re-run after each. commit-protocol.md says how to take a module out and put it back. When the failure is gone, the last module taken out caused it. Put the others back one at a time, re-running after each, and keep out any whose return brings the failure back. A module kept out stays restored from HEAD and is recorded.
+   3. If the failure remains with every module out, the tree equals HEAD and the batch did not cause it. Record the command as unstable, put every module back, and do not run that command for later batches.
+5. **Commit each surviving module separately** with the commit-protocol block: `FILES` is its list from step 2, `MSG` is `docs(<module id>): add explanatory comments`, `BODY` is `Comment-only change, verified by document-repo verify.`, and `VERIFY_REF` is `HEAD`. Act on the result as its table says.
+6. **Check that the batch is done.** `git -C "$TARGET" status --porcelain -uall` must print nothing. Apply the stray rules to anything it lists.
 
-   ```bash
-   git -C "$TARGET" add -- <file> <file> ...
-   git -C "$TARGET" commit -m "docs(<module id>): add explanatory comments" -m "Comment-only change, verified by document-repo verify."
-   ```
-
-4. **Check for stray edits.** `PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo "$TARGET" --before HEAD --changed` must print `[]`. Restore any tracked file it lists from HEAD. Delete any untracked file it lists: the tree was clean at preflight, so an agent made it. Record both.
-
-Never `git add -A` in the target.
+Never `git add -A` in the target, and never make a commit outside the block.
 
 A command that passed at baseline in 5 minutes or more runs once, after the
-last batch. On a regression there, revert module commits one at a time with
-`git -C "$TARGET" revert --no-edit <sha>`, newest first, until it passes.
+last batch, with the fingerprint. On a regression, run it once more, as in
+step 4. Then find the cause in the work tree, as in step 4: take a module out
+with `git -C "$TARGET" checkout <base sha> -- <its files>`, and put it back
+with `git -C "$TARGET" checkout HEAD -- <its files>`. For each module that
+caused it, check its files out of the base and run the block with `VERIFY_REF`
+set to the base sha and `MSG` set to `revert(<module id>): remove comments that broke <command>`.
+If the failure remains with every module out, record the command as unstable
+and put every module back.
 
-After the last commit, move the model's line numbers to the commented code:
+**Branch backstop.** Run "Branch backstop" in commit-protocol.md. It must pass
+before anything else happens.
+
+After the backstop, move the model's line numbers to the commented code:
 
 ```bash
 PYTHONPATH="$TOOL_SRC" python3 -m document_repo remap --model "$RUN_DIR/model.json" --repo "$TARGET" --to HEAD
 ```
 
-It prints `{"warnings": [...]}`. Put every warning in the report.
+It prints `{"warnings": [...]}`. Put every warning in the report. Exit 2
+means the model is invalid or its `source_commit` is not in history. The model
+was assembled in this run, so either one is a bug: stop and report stderr.
 
 ## Phase 3 — Docs
 
@@ -176,32 +199,35 @@ Skip this phase when `--phase` is `comments` or `explorer`. Follow
    Exit 2 prints the reason on stderr. Fix the body and run it again. If the reason is an unclosed fence in the existing file, leave that file alone and report it.
 2. **Module READMEs.** Dispatch **Module docs writers** (prompt 4) in batches of up to 6 module ids.
 3. **CLAUDE.md.** Only if it already exists and does not resolve to the same file as `AGENTS.md`, upsert section `agents-pointer`. Never create `CLAUDE.md`.
-4. Confirm that no source file changed: `verify --repo "$TARGET" --before HEAD --changed` must print `[]`.
-5. Commit the doc files by name, never with `-A`: `git -C "$TARGET" add -- README.md AGENTS.md docs/ARCHITECTURE.md docs/GLOSSARY.md <each module README> [CLAUDE.md]`, then `git -C "$TARGET" commit -m "docs: add READMEs, AGENTS.md, architecture and glossary"`.
+4. Confirm that no source file changed: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo "$TARGET" --before HEAD --changed` must print `[]`. Apply the stray rules to every path it lists, then run it again until it prints `[]`.
+5. Commit the doc files with the commit-protocol block: `FILES` is `README.md AGENTS.md docs/ARCHITECTURE.md docs/GLOSSARY.md`, each module README and, if it was written, `CLAUDE.md`. `MSG` is `docs: add READMEs, AGENTS.md, architecture and glossary` and `VERIFY_REF` is empty. Then `git -C "$TARGET" status --porcelain -uall` must print nothing. A path it lists is a stray, for example a Markdown file an agent made.
 
 ## Phase 4 — Explorer
 
 Skip this phase when `--phase` is `comments` or `docs`.
 
 1. Remap to HEAD again: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo remap --model "$RUN_DIR/model.json" --repo "$TARGET" --to HEAD`. After Phase 2 only Markdown changed, so no line moves. It matters with `--phase explorer`: the copied model points at an older commit, and comment-only edits since then move lines exactly. A warning there means code changed in other ways. Report it and suggest `--update`. Exit 2 means the model is invalid or its `source_commit` is not in history: stop and offer a full run.
-2. Build: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo build --model "$RUN_DIR/model.json" --explorer-dir "$TARGET/explorer" --template "$SKILL_DIR/templates/explorer"`
+2. Build: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo build --model "$RUN_DIR/model.json" --explorer-dir "$TARGET/explorer" --template "$SKILL_DIR/templates/explorer"`. Exit 1 lists validation errors. With `--phase explorer`, the committed model fails today's schema, so offer a full run. Otherwise it is a bug: stop and report. Exit 2 means the model or template could not be read or written: report stderr and stop.
 3. No-network check: `grep -rIlE "https?://" "$TARGET/explorer" --exclude-dir=vendor --exclude=model.json --exclude=model.js` must print nothing. The model files are left out because they hold text from the repo. The page's Content-Security-Policy blocks every request they could name.
 4. If the claude-in-chrome tools are available, open `file://$TARGET/explorer/index.html` and run the acceptance list in `$SKILL_DIR/references/explorer-contract.md`: 0 console errors, every view renders, every diagram draws, only `file://` requests. Otherwise tell the user to open it.
 5. **Comprehension check.** Dispatch the **Examiner** (prompt 5). Write `$RUN_DIR/quiz-questions.json` from `quiz.json` as `[{"q": str}]`, the same questions in the same order. Dispatch a fresh **Student** (prompt 6). Then send the **Grader** prompt (7) to the Examiner with SendMessage, or to a fresh agent if that fails. The score is the count of correct answers, 0 to 10. The target is 9. If it is lower, list the missed topics in the report as doc gaps. Do not loop.
-6. Write `$TARGET/explorer/data/run-report.md`: counts (files commented, reverted, READMEs), reverted files with reasons, modules kept out for test regressions, suspect existing comments (from `$RUN_DIR/comments/*.json`), skipped JS/TS files, `not_analyzed` modules, baseline versus after-run results, remap warnings, and the quiz score with missed topics.
-7. Commit the explorer: `git -C "$TARGET" add -- explorer && git -C "$TARGET" commit -m "docs: add interactive project explorer"`.
+6. Write `$TARGET/explorer/data/run-report.md`: counts (files commented, reverted, READMEs), reverted files with reasons, modules kept out for test regressions, suspect existing comments (from `$RUN_DIR/comments/*.json`), skipped JS/TS files, `not_analyzed` modules, baseline versus after-run results, commands dropped because they write files or marked unstable, strays and their causes, commits the commit protocol undid and the hook choice, the Phase 2 backstop result, remap warnings, and the quiz score with missed topics.
+7. Commit the explorer with the commit-protocol block: `FILES` is `explorer`, `MSG` is `docs: add interactive project explorer`, and `VERIFY_REF` is empty.
 
 When Phase 4 is skipped, write the same report to `$RUN_DIR/run-report.md`
 and leave it uncommitted.
 
 ## Finish
 
+Run "Branch backstop" in commit-protocol.md one last time. It must pass before
+you tell the user anything else.
+
 Tell the user:
 
 - The branch name and the commit list: `git -C "$TARGET" log --oneline "$(cat "$RUN_DIR/base.txt")"..HEAD`.
-- The report path and its headline numbers.
+- The report path and its headline numbers, and that the final backstop passed.
 - How to view the result: open `explorer/index.html`.
-- After `--phase comments`, the committed explorer still has the old line numbers. Suggest `--phase explorer`.
+- After `--phase comments`, the committed explorer still holds the previous analysis and its old line numbers. The fresh analysis from this run is in `$RUN_DIR/model.json` and nothing uses it. Suggest `--phase explorer`, which moves the committed model's line numbers to the new code exactly because the new commits are comment-only, or a full run to publish the fresh analysis.
 - That nothing was pushed. Suggest `git push -u origin <branch>` and a PR.
 
 Never push, open a PR, or merge on your own initiative.

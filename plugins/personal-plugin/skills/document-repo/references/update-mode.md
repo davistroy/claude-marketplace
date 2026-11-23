@@ -18,7 +18,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
    echo "$RUN_DIR"
    ```
 
-2. **Preflight as usual.** The tree must be clean. Create the branch `docs/document-repo-update-<YYYYMMDD>`, then record the baseline. Do this before step 3: `changes` refuses a dirty tree.
+2. **Preflight as usual.** The tree must be clean. Create the branch `docs/document-repo-update-<YYYYMMDD>`, run step 3 at once, and only then find the commands and record the baseline. `changes` reads only committed state, but it refuses a dirty tree, and a test run can leave artifacts behind.
 
 3. **Find the changes.**
 
@@ -45,7 +45,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
    | `affected_modules` | Every module that owns a changed path. Modules that share a path are all listed. A rename lists the module it left and the one it entered. |
    | `unmapped_files` | Added or modified files that no module path claims, a rename by its new path. This includes a modified file in a directory the model never covered. The root module (path `.`) claims top-level files only. |
 
-4. **If `affected_modules` and `unmapped_files` are both empty and `removed_files` is empty**, no module needs analysis. If `comment_only_files` is non-empty, people edited comments by hand, so line numbers moved: do steps 5 and 8 with no module records and no `system.json` (`files` is not needed in step 5), then step 12. Otherwise tell the user the docs are current and stop.
+4. **If `affected_modules` and `unmapped_files` are both empty and `removed_files` is empty**, no module needs analysis. If `comment_only_files` is non-empty, people edited comments by hand, so line numbers moved: do steps 5 and 8 with no module records and no `system.json` (`files` is not needed in step 5), then the gate in step 9, then step 12. Nothing is written before the gate approves. Otherwise tell the user the docs are current and stop.
 
 5. **Write `$RUN_DIR/modules.final.json`** from the base model's `modules[]`: one `{"id", "path", "files"}` entry each, with the same `id` and `path`. Set `files` to the non-skipped files in a fresh inventory that the module owns by longest path prefix. Use the inventory from preflight (Phase 0), and run `modules` on it as in a full run.
 
@@ -70,7 +70,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
 
 9. **Gate.** The plan lists only the affected and new modules, the files to comment, the doc sections to rewrite, and any module documented from the previous run. Ask for approval before any write.
 
-10. **Comments** (Phase 2). Comment the files in `changed_files` whose status is not `D` and that belong to an affected or new module, plus every file of a new module. Skip `comment_only_files`. Give each commenter `since` from `changes.json`, so it comments only items that are new or whose code changed. Existing comments are never touched. Verify and commit per module, as in a full run. After the last module commit, remap `$RUN_DIR/model.json` to HEAD, as in a full run.
+10. **Comments** (Phase 2). Comment the files in `changed_files` whose status is not `D` and that belong to an affected or new module, plus every file of a new module. Skip `comment_only_files`. Give each commenter `since` from `changes.json`, so it comments only items that are new or whose code changed. Existing comments are never touched. Verify, test and commit per module through the commit protocol (`references/commit-protocol.md`), and run the branch backstop, as in a full run. After the backstop, remap `$RUN_DIR/model.json` to HEAD, as in a full run.
 
 11. **Docs** (Phase 3). Write these sections and no others:
 
@@ -90,4 +90,4 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
     PYTHONPATH="$TOOL_SRC" python3 -m document_repo build --model "$RUN_DIR/model.json" --explorer-dir "$TARGET/explorer" --template "$SKILL_DIR/templates/explorer"
     ```
 
-    `build` writes a new `state.json` whose `source_commit` is that commit, so the next update starts from here. Then run the no-network check, commit `explorer/`, and finish as in a full run.
+    `build` writes a new `state.json` whose `source_commit` is that commit, so the next update starts from here. Then run the no-network check, commit `explorer/` through the commit protocol, and finish as in a full run, final backstop included.

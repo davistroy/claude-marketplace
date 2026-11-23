@@ -9,7 +9,7 @@ Fill the `{placeholders}`, prepend the preamble, and pass each prompt to the Age
 | `{SKILL_DIR}`, `{TOOL_SRC}` | The skill directory, and `tools/document-repo/src` in the plugin |
 | `{id}`, `{path}`, `{files}` | One entry of `modules.final.json`: the module id, its path, and the files it owns |
 | `{all_module_ids}` | Every module id in `modules.final.json` |
-| `{entry_candidates_in_module}` | The inventory's `entry_candidates` whose path is in `{files}` |
+| `{entry_candidates_in_module}` | The inventory's `entry_candidates` whose path is in `{files}`, plus each manifest hint (`package.json`, `pyproject.toml`) whose target after `->` is in `{files}`. SKILL.md gives the full rule. |
 | `{header_only_files}` | The files in `{files}` with `header_only` true in the inventory |
 | `{ids}` | A batch of module ids |
 | `{UPDATE_LINE}` | Empty in a full run. In an update run, the line given in the prompt. |
