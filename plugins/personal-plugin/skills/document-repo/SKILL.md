@@ -86,7 +86,7 @@ except the JSON shapes the prompt itself shows.
 ## Phase 0 — Preflight
 
 1. `git -C "$TARGET" status --porcelain` must print nothing. Otherwise stop and tell the user to commit or stash.
-2. The skill writes its explorer to `explorer/` and never judges its own files there, so check who owns that directory: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo explorer-status --repo "$TARGET"`. It prints `{"explorer", "foreign_files"}`. `absent` (no `explorer/`, or one `build` may write into: empty, or only unchanged template files) and `ours` (a build made it, judged by the content of `data/state.json`, not its name) go on. On `foreign`, or any exit other than 0, stop. Ask with AskUserQuestion: **Stop** (recommended: move the listed files, or the whole `explorer/`, aside, then run again) or **Check again** (rerun this step after the user moved them). Never go on while it says `foreign`. `build` refuses that directory too.
+2. The skill writes its explorer to `explorer/` and never judges its own files there, so check who owns that directory: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo explorer-status --repo "$TARGET"`. It prints `{"explorer", "foreign_files", "ignored", "ignored_by"}`. `absent` (no `explorer/`, or one `build` may write into: empty, or only unchanged template files) and `ours` (a build made it, judged by the content of `data/state.json`, not its name) go on. On `foreign`, or any exit other than 0, stop. Ask with AskUserQuestion: **Stop** (recommended: move the listed files, or the whole `explorer/`, aside, then run again) or **Check again** (rerun this step after the user moved them). Never go on while it says `foreign`. `build` refuses that directory too. `ignored` lists the explorer files a `.gitignore` rule would keep out of a commit (the app, and `explorer/data/model.json`, `model.js`, `state.json` and `run-report.md`), whether or not they exist yet, and `ignored_by` names each rule as `file:line:pattern`. Both are empty when no rule matches. Git skips an ignored file without a word, so `document_repo commit` refuses (exit 2) to commit `explorer/` while one would be left out. If `ignored` is not empty, carry both lists to the Gate. If `ignored_by` is only `explorer/.gitignore:1:*`, an earlier run kept the explorer local (Phase 4 step 7): carry that as the owner's choice, and do not ask again.
 3. If step 2 printed `ours` and neither `--update` nor `--phase` was given, ask with AskUserQuestion: **Update** (recommended, only changed modules) or **Full rebuild**. Update switches to update mode.
 4. Record the base: `git -C "$TARGET" rev-parse HEAD > "$RUN_DIR/base.txt"`.
 5. Branch: `git -C "$TARGET" switch -c docs/document-repo`. In update mode use `docs/document-repo-update-$(date +%Y%m%d)`. If the branch exists, stop and ask. In update mode, run update-mode.md step 3 (`changes`) now, before the baseline: it refuses a dirty tree, and a test run can leave artifacts.
@@ -120,12 +120,23 @@ Show a short summary:
 - The purpose (2 sentences), the module list (id, path, file count, status), and the flow titles.
 - **Write plan:** the files that will get comments (count, plus the header-only count), the READMEs to create or update, the root doc files, whether `CLAUDE.md` gets a pointer, and the explorer views.
 - Baseline failures, `not_analyzed` modules, skipped JS/TS files, and skipped files by reason (counts).
+- When `ignored` is not empty, one line: the rule (`file:line:pattern` from `ignored_by`) and what it keeps out of git, for example "`.gitignore:30:data/` keeps `explorer/data/` out of git, so the explorer cannot be committed whole".
 
 Then ask with AskUserQuestion. The options are **Approve and write**
 (recommended), **Change the plan** (take notes, adjust, and ask again), and
 **Stop**. On Stop, run `git -C "$TARGET" switch -` and
 `git -C "$TARGET" branch -D <branch>`. Nothing was written. Do not write to
 the target before approval.
+
+When `ignored` is not empty and Phase 4 will run (not with `--phase comments` or
+`--phase docs`), put a second question in the same call, with two options.
+Overriding an ignore rule is the owner's decision (it may be a privacy guard),
+so never force-add the files and never edit the owner's `.gitignore`:
+
+- **Keep the explorer local** (recommended): build and check it, but do not commit `explorer/`. Phase 4 steps 6 and 7 say how. `--update` then works only on this machine.
+- **Stop so I can change .gitignore**: print the exact negation lines to add, then stop as for **Stop**. For a rule that ignores a directory (its pattern ends in `/`), the line is `!` plus the directory that holds the ignored files, placed after that rule in that file: `!explorer/data/` after `data/`. For a rule that names files (`*.js`), one `!<path>` line per ignored file. A negation has no effect while a parent directory is itself ignored.
+
+**Stop** on the first question overrides this one.
 
 ## Phase 2 — Comments
 
@@ -229,8 +240,8 @@ Skip this phase when `--phase` is `comments` or `docs`.
 
    Read the port from the task's output file. Load the claude-in-chrome tools with one ToolSearch call. Open `http://127.0.0.1:<port>/index.html` in a new tab and run the acceptance list in `$SKILL_DIR/references/explorer-contract.md`. Close the tab. If the tools are missing or fail twice, tell the user to open `explorer/index.html` and record "browser check not run" with the reason.
 5. **Comprehension check.** Dispatch the **Examiner** (prompt 5). Write `$RUN_DIR/quiz-questions.json` from `quiz.json` as `[{"q": str}]`, the same questions in the same order. Dispatch a fresh **Student** (prompt 6). Then send the **Grader** prompt (7) to the Examiner with SendMessage, or to a fresh agent if that fails. The score is the count of correct answers, 0 to 10. The target is 9. If it is lower, list the missed topics in the report as doc gaps. Do not loop.
-6. Write `$TARGET/explorer/data/run-report.md`: counts (files commented, reverted, READMEs), reverted files with reasons, modules kept out for test regressions, suspect existing comments (from `$RUN_DIR/comments/*.json`), skipped JS/TS files, `not_analyzed` modules, baseline versus after-run results, commands dropped because they write files or marked unstable, strays and their causes, commits the commit protocol undid and the hook choice, the Phase 2 backstop result, remap warnings, the browser check result (passed, failed with what, or not run and why), and the quiz score with missed topics.
-7. Commit the explorer: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --no-content-check -m "docs: add interactive project explorer" -- explorer`.
+6. Write `$TARGET/explorer/data/run-report.md`: counts (files commented, reverted, READMEs), reverted files with reasons, modules kept out for test regressions, suspect existing comments (from `$RUN_DIR/comments/*.json`), skipped JS/TS files, `not_analyzed` modules, baseline versus after-run results, commands dropped because they write files or marked unstable, strays and their causes, commits the commit protocol undid and the hook choice, the Phase 2 backstop result, remap warnings, the browser check result (passed, failed with what, or not run and why), and the quiz score with missed topics. When the explorer is kept local, add the line `explorer kept local: <file:line:pattern>` with each rule from `ignored_by`.
+7. Commit the explorer: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --no-content-check -m "docs: add interactive project explorer" -- explorer`. Skip this step when the explorer is kept local (the owner chose it at the gate, or an earlier run did). Instead write the file `$TARGET/explorer/.gitignore` with the single line `*`, the same self-ignoring file Setup writes in `.document-repo/`. Without it the app's files sit untracked, the final backstop exits 1 on them, and the stray rules would delete the explorer. It is not the owner's `.gitignore` and it overrides no rule of theirs: it keeps the directory out of git on this machine only. Then `git -C "$TARGET" status --porcelain -uall` must print nothing.
 
 When Phase 4 is skipped, write the same report to `$RUN_DIR/run-report.md`
 and leave it uncommitted.
@@ -246,6 +257,7 @@ Tell the user:
 - The report path and its headline numbers, and that the final backstop passed.
 - How to view the result: open `explorer/index.html`.
 - After `--phase comments`, the committed explorer still holds the previous analysis and its old line numbers. The fresh analysis from this run is in `$RUN_DIR/model.json` and nothing uses it. Suggest `--phase explorer`, which moves the committed model's line numbers to the new code exactly because the new commits are comment-only, or a full run to publish the fresh analysis.
+- When the explorer was kept local: that `explorer/` is not in any commit, so a fresh clone has no explorer and `--update` works only on this machine, and the rule that caused it. To publish it, the owner adds the negation lines from the gate to `.gitignore` and deletes `explorer/.gitignore`. Then `document_repo commit --no-content-check ... -- explorer` makes the commit, as in Phase 4 step 7.
 - That nothing was pushed. Suggest `git push -u origin <branch>` and a PR.
 
 Never push, open a PR, or merge on your own initiative.

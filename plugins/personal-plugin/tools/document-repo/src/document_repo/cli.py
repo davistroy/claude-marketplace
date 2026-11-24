@@ -354,7 +354,8 @@ def _register_backstop(sub: Any) -> None:
 
 
 def _cmd_explorer_status(args: argparse.Namespace) -> int:
-    from .build import TEMPLATE_DIR, foreign_files, is_our_explorer
+    from .build import TEMPLATE_DIR, explorer_output, foreign_files, is_our_explorer
+    from .commit import GitError, left_out
     from .inventory import OUTPUT_DIR
     from .verify import toplevel
 
@@ -372,7 +373,21 @@ def _cmd_explorer_status(args: argparse.Namespace) -> int:
         status = "ours"
     else:
         status = "absent"
-    emit({"explorer": status, "foreign_files": foreign})
+    # Ask git before the gate: a rule such as ``data/`` would keep the build's own files out of
+    # the commit, and ``git add`` would not say so. Exists or not, git answers for the path.
+    try:
+        ignored = left_out(top, explorer_output(TEMPLATE_DIR))
+    except GitError as exc:
+        sys.stderr.write(f"explorer-status: {exc}\n")
+        return 2
+    emit(
+        {
+            "explorer": status,
+            "foreign_files": foreign,
+            "ignored": sorted(ignored),
+            "ignored_by": sorted(set(ignored.values())),
+        }
+    )
     return 0
 
 

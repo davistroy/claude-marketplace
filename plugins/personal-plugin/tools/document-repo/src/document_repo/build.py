@@ -25,6 +25,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from .fsutil import write_bytes_atomic
+from .inventory import OUTPUT_DIR
 from .schema import ID_HINT, ID_PATTERN, SCHEMA_VERSION, validate
 
 SYSTEM_KEYS = ("project", "architecture", "flows", "glossary", "paths", "agent_notes")
@@ -300,6 +301,23 @@ def template_files(template_dir: Path) -> frozenset[str]:
         rel_dir = Path(directory).relative_to(template_dir)
         found.update((rel_dir / name).as_posix() for name in files)
     return frozenset(found)
+
+
+#: The report Phase 4 of the skill writes into ``explorer/data/``. ``build`` does not write it.
+RUN_REPORT_FILE = "run-report.md"
+
+
+def explorer_output(template_dir: Path) -> list[str]:
+    """Every path a run puts under ``explorer/``, relative to the repo root, sorted.
+
+    The app's own files (``template_files``), the three ``DATA_FILES`` and the run report. The
+    list does not depend on what exists: ``explorer-status`` asks git about these paths before
+    any of them is written, to warn when an ignore rule would keep them out of the commit.
+    """
+    names = template_files(template_dir) | {
+        f"{DATA_DIR}/{name}" for name in (*DATA_FILES, RUN_REPORT_FILE)
+    }
+    return sorted(f"{OUTPUT_DIR}/{name}" for name in names)
 
 
 def _regular_file(path: Path) -> bool:

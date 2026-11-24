@@ -29,6 +29,13 @@ FIXTURE = Path(__file__).parent / "fixtures" / "sample_model.json"
 SYSTEM_KEYS = ("project", "architecture", "flows", "glossary", "paths", "agent_notes")
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_git(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tool runs plain ``git``: a developer's global ignore rules must not reach the tests."""
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+
 @pytest.mark.parametrize(
     "url,expected",
     [
@@ -1152,15 +1159,21 @@ def _status(capsys, repo: Path) -> tuple[int, dict]:
     return code, (json.loads(out) if out.strip() else {})
 
 
+NOT_IGNORED: dict[str, Any] = {"ignored": [], "ignored_by": []}
+
+
 def test_explorer_status_absent(make_repo, capsys) -> None:
     repo = make_repo({"main.py": "x = 1\n"})
-    assert _status(capsys, repo) == (0, {"explorer": "absent", "foreign_files": []})
+    assert _status(capsys, repo) == (
+        0,
+        {"explorer": "absent", "foreign_files": [], **NOT_IGNORED},
+    )
 
 
 def test_explorer_status_ours(make_repo, capsys, marker) -> None:
     repo = make_repo({"main.py": "x = 1\n", **marker})
     install_template(build.TEMPLATE_DIR, repo / "explorer")
-    assert _status(capsys, repo) == (0, {"explorer": "ours", "foreign_files": []})
+    assert _status(capsys, repo) == (0, {"explorer": "ours", "foreign_files": [], **NOT_IGNORED})
 
 
 @pytest.mark.parametrize(
@@ -1179,7 +1192,129 @@ def test_explorer_status_foreign(make_repo, capsys, marker, files, foreign) -> N
     if files.pop("MARKER", None) is not None:
         files.update(marker)
     repo = make_repo({"main.py": "x = 1\n", **files})
-    assert _status(capsys, repo) == (0, {"explorer": "foreign", "foreign_files": foreign})
+    assert _status(capsys, repo) == (
+        0,
+        {"explorer": "foreign", "foreign_files": foreign, **NOT_IGNORED},
+    )
+
+
+# --- explorer-status: build output that .gitignore would keep out of the commit -------------
+
+#: The files a run writes into explorer/data/, which no template file covers.
+DATA_OUTPUT = [
+    "explorer/data/model.js",
+    "explorer/data/model.json",
+    "explorer/data/run-report.md",
+    "explorer/data/state.json",
+]
+
+
+def test_explorer_status_reports_ignored_output_before_any_build(make_repo, capsys) -> None:
+    # open-brain's .gitignore says ``data/``; nothing is built yet, so none of these exist.
+    repo = make_repo({".gitignore": "data/\n", "main.py": "x = 1\n"})
+    assert not (repo / "explorer").exists()
+    code, out = _status(capsys, repo)
+    assert code == 0 and out["explorer"] == "absent" and out["foreign_files"] == []
+    assert out["ignored"] == DATA_OUTPUT
+    assert out["ignored_by"] == [".gitignore:1:data/"]
+
+
+def test_explorer_status_ignored_is_empty_without_a_rule(make_repo, capsys) -> None:
+    repo = make_repo({".gitignore": "*.log\n", "main.py": "x = 1\n"})
+    code, out = _status(capsys, repo)
+    assert code == 0 and out["ignored"] == [] and out["ignored_by"] == []
+
+
+def test_explorer_status_ignored_honours_a_global_excludes_file(
+    make_repo, git, capsys, tmp_path
+) -> None:
+    exclude = tmp_path / "global-ignore"
+    exclude.write_text("# mine\ndata/\n")
+    repo = make_repo({"main.py": "x = 1\n"})
+    git(repo, "config", "core.excludesFile", str(exclude))
+    code, out = _status(capsys, repo)
+    assert code == 0 and out["ignored"] == DATA_OUTPUT
+    assert out["ignored_by"] == [f"{exclude}:2:data/"]
+
+
+def test_explorer_status_ignored_lists_template_files_a_rule_catches(make_repo, capsys) -> None:
+    # The template carries explorer/vendor/, which a ``vendor/`` rule drops.
+    repo = make_repo({".gitignore": "vendor/\n", "main.py": "x = 1\n"})
+    code, out = _status(capsys, repo)
+    expected = sorted(
+        f"explorer/{p}" for p in build.template_files(build.TEMPLATE_DIR) if "vendor/" in p
+    )
+    assert expected and code == 0 and out["ignored"] == expected, out
+
+
+def test_explorer_status_ignored_leaves_out_a_negated_rule(make_repo, capsys) -> None:
+    repo = make_repo({".gitignore": "data/\n!explorer/data/\n", "main.py": "x = 1\n"})
+    assert _status(capsys, repo) == (
+        0,
+        {"explorer": "absent", "foreign_files": [], **NOT_IGNORED},
+    )
+
+
+def test_explorer_status_ignored_leaves_out_tracked_files(make_repo, git, capsys, marker) -> None:
+    # Force-added once: git keeps tracking those, so only the files still to be created are at risk.
+    repo = make_repo({".gitignore": "data/\n", "main.py": "x = 1\n"})
+    for rel, content in marker.items():
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(content if isinstance(content, str) else content.decode())
+        git(repo, "add", "-f", rel)
+    git(repo, "commit", "-q", "-m", "explorer data, force-added")
+    code, out = _status(capsys, repo)
+    assert code == 0 and out["explorer"] == "ours"
+    assert out["ignored"] == ["explorer/data/model.js", "explorer/data/run-report.md"], out
+    assert out["ignored_by"] == [".gitignore:1:data/"]
+
+
+def test_explorer_status_ignored_names_each_rule_once(make_repo, capsys) -> None:
+    repo = make_repo({".gitignore": "vendor/\ndata/\n", "main.py": "x = 1\n"})
+    code, out = _status(capsys, repo)
+    assert code == 0
+    assert out["ignored_by"] == [".gitignore:1:vendor/", ".gitignore:2:data/"]
+
+
+def test_explorer_status_stops_when_git_cannot_say_what_is_ignored(
+    make_repo, capsys, monkeypatch
+) -> None:
+    import document_repo.commit as commit_mod
+
+    def broken(top: Path, paths: list[str]) -> dict[str, str]:
+        raise commit_mod.GitError("git check-ignore failed: fatal")
+
+    monkeypatch.setattr(commit_mod, "left_out", broken)
+    repo = make_repo({"main.py": "x = 1\n"})
+    assert main(["explorer-status", "--repo", str(repo)]) == 2
+    cap = capsys.readouterr()
+    assert "explorer-status:" in cap.err and "check-ignore" in cap.err and cap.out == ""
+
+
+def test_explorer_output_is_the_template_plus_the_files_a_run_writes(tmp_path: Path) -> None:
+    template = tmp_path / "template"
+    (template / "vendor").mkdir(parents=True)
+    (template / "data").mkdir()
+    (template / "index.html").write_text("x")
+    (template / "vendor" / "lib.js").write_text("x")
+    (template / "data" / "never-copied.json").write_text("x")
+    assert build.explorer_output(template) == [
+        "explorer/data/model.js",
+        "explorer/data/model.json",
+        "explorer/data/run-report.md",
+        "explorer/data/state.json",
+        "explorer/index.html",
+        "explorer/vendor/lib.js",
+    ]
+
+
+def test_explorer_output_covers_everything_the_commit_exempts() -> None:
+    # One list: what is exempt when committing, and what explorer-status checks for rules.
+    from document_repo.verify import is_explorer_output_name
+
+    listed = build.explorer_output(build.TEMPLATE_DIR)
+    assert all(is_explorer_output_name(p) or p.endswith(".md") for p in listed)
+    assert {f"explorer/data/{n}" for n in build.DATA_FILES} <= set(listed)
 
 
 def test_explorer_status_needs_a_repo(tmp_path: Path, capsys) -> None:
@@ -1221,7 +1356,10 @@ def test_cli_build_without_template_refuses_a_foreign_explorer(make_repo, tmp_pa
     assert _build_cli(repo / "explorer", model) == 2
     assert "not made by document-repo" in capsys.readouterr().err
     assert not (repo / "explorer" / "data").exists()
-    assert _status(capsys, repo) == (0, {"explorer": "foreign", "foreign_files": ["app.js"]})
+    assert _status(capsys, repo) == (
+        0,
+        {"explorer": "foreign", "foreign_files": ["app.js"], **NOT_IGNORED},
+    )
 
 
 def test_cli_build_without_template_refuses_a_stray_in_data(tmp_path: Path, capsys) -> None:
@@ -1298,7 +1436,10 @@ def test_explorer_status_reads_an_installable_directory_as_absent(
         (explorer / "data").mkdir()
     elif layout == "template-only":
         install_template(build.TEMPLATE_DIR, explorer)
-    assert _status(capsys, repo) == (0, {"explorer": "absent", "foreign_files": []})
+    assert _status(capsys, repo) == (
+        0,
+        {"explorer": "absent", "foreign_files": [], **NOT_IGNORED},
+    )
     model = repo.parent / "model.json"
     model.write_text(FIXTURE.read_text())
     assert _build_cli(explorer, model, build.TEMPLATE_DIR) == 0

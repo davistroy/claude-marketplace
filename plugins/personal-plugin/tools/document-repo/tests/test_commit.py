@@ -1193,3 +1193,309 @@ def test_a_failed_index_reset_after_the_commit_is_reported_not_raised(
     code, out = commit(capsys, repo, "README.md", ref=None)
     assert code == 0 and out["status"] == "ok", out
     assert "index could not be reset" in out["detail"], out["detail"]
+
+
+# --- acceptance fix 1: ignored files under a listed directory ------------------------------------
+#
+# open-brain's .gitignore has ``data/``. ``git add -- explorer`` skipped explorer/data/*, the
+# commit said ``ok``, and the branch held an explorer with no data. The commit now refuses first.
+
+
+def _snapshot(git: Callable[..., str], repo: Path) -> tuple[str, str, str]:
+    """HEAD, the index (modes, shas, paths) and the work tree: what a refusal must not change."""
+    return (
+        head(git, repo),
+        git(repo, "ls-files", "-s"),
+        git(repo, "status", "--porcelain", "-uall", "--ignored"),
+    )
+
+
+def _ignoring_data(repo_files: dict | None = None, rule: str = "data/\n") -> dict:
+    return {".gitignore": rule, "main.py": M, **(repo_files or {})}
+
+
+def test_a_commit_that_would_drop_ignored_explorer_data_is_refused(make_repo, git, capsys) -> None:
+    repo = make_repo(_ignoring_data())
+    _built_explorer(repo)
+    (repo / "main.py").write_text(M_CHANGED)
+    git(repo, "add", "main.py")  # someone else's staged work: a refusal must leave it staged
+    before = _snapshot(git, repo)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    err = out["_err"]
+    assert code == 2 and "status" not in out, out
+    for name in ("model.json", "model.js", "state.json"):
+        assert f"explorer/data/{name} (.gitignore:1:data/)" in err, err
+    assert "ignored by git" in err and "left out of the commit" in err, err
+    assert (
+        "negation rule" in err and "`!explorer/data/`" in err and "keep the directory local" in err
+    )
+    assert _snapshot(git, repo) == before
+    assert staged(git, repo) == "main.py\n"
+
+
+def test_a_negation_rule_lets_the_whole_explorer_commit(make_repo, git, capsys) -> None:
+    repo = make_repo(_ignoring_data(rule="data/\n!explorer/data/\n"))
+    _built_explorer(repo)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 0 and out["status"] == "ok", out
+    for name in ("model.json", "model.js", "state.json"):
+        assert f"explorer/data/{name}" in out["paths"], out["paths"]
+    assert git(repo, "ls-files", "explorer/data").split() == [
+        "explorer/data/model.js",
+        "explorer/data/model.json",
+        "explorer/data/state.json",
+    ]
+    assert git(repo, "status", "--porcelain", "-uall") == ""
+
+
+def test_ignored_build_output_in_the_template_is_refused_too(make_repo, git, capsys) -> None:
+    # The template holds explorer/vendor/. A ``vendor/`` rule drops it, and ``vendor`` is a
+    # directory the inventory skips, but this is the skill's own output: it must be carried.
+    repo = make_repo(_ignoring_data(rule="vendor/\n"))
+    _built_explorer(repo)
+    pre = head(git, repo)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    err = out["_err"]
+    assert code == 2, out
+    assert "explorer/vendor/mermaid.min.js (.gitignore:1:vendor/)" in err, err
+    assert "explorer/vendor/README.md (.gitignore:1:vendor/)" in err, err
+    assert head(git, repo) == pre and staged(git, repo) == ""
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        {"explorer/.DS_Store": "x", "explorer/data/.DS_Store": "x"},
+        {"explorer/__pycache__/x.pyc": "x", "explorer/data/helper.pyc": "x"},
+        {"explorer/node_modules/pkg/index.js": "x", "explorer/node_modules/pkg/README.md": "x"},
+        {"explorer/data/.model.json.swp": "x", "explorer/index.html~": "x"},
+        {"explorer/dist/bundle.js": "x", "explorer/.venv/lib/README.md": "x"},
+    ],
+)
+def test_ignored_junk_under_a_listed_directory_does_not_stop_the_commit(
+    make_repo, git, capsys, files: dict
+) -> None:
+    rules = ".DS_Store\n__pycache__/\n*.pyc\nnode_modules/\n*.swp\n*~\ndist/\n.venv/\n"
+    repo = make_repo(_ignoring_data(rule=rules))
+    _built_explorer(repo)
+    _put(repo, files)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 0 and out["status"] == "ok", out
+    tracked = git(repo, "ls-files").split("\n")
+    assert not [p for p in tracked if p in files], tracked
+
+
+def test_ignored_markdown_in_a_dependency_directory_is_junk(make_repo, git, capsys) -> None:
+    # A docs site keeps its dependencies under docs/: hundreds of READMEs, none of them ours.
+    repo = make_repo({".gitignore": "node_modules/\n", "main.py": M})
+    _put(repo, {"docs/guide.md": "# g\n", "docs/node_modules/x/README.md": "# x\n"})
+    code, out = commit(capsys, repo, "docs", ref=None)
+    assert code == 0 and out["paths"] == ["docs/guide.md"], out
+
+
+def test_an_ignored_readme_under_a_listed_docs_directory_is_refused(make_repo, git, capsys) -> None:
+    repo = make_repo({".gitignore": "internal/\n", "main.py": M})
+    _put(repo, {"docs/guide.md": "# g\n", "docs/internal/README.md": "# i\n"})
+    before = _snapshot(git, repo)
+    code, out = commit(capsys, repo, "docs", ref=None)
+    err = out["_err"]
+    assert code == 2 and "docs/internal/README.md (.gitignore:1:internal/)" in err, out
+    assert "docs/guide.md" not in err, "only the files left out are named"
+    assert _snapshot(git, repo) == before
+
+
+def test_the_directory_you_list_is_not_judged_by_its_own_name(make_repo, git, capsys) -> None:
+    # ``vendor`` is above the listed root, so it is not a dependency directory under it.
+    repo = make_repo({".gitignore": "private/\n", "main.py": M})
+    _put(repo, {"vendor/docs/guide.md": "# g\n", "vendor/docs/private/README.md": "# p\n"})
+    code, out = commit(capsys, repo, "vendor/docs", ref=None)
+    assert code == 2 and "vendor/docs/private/README.md" in out["_err"], out
+
+
+@pytest.mark.parametrize(
+    "where,rule,source",
+    [
+        (".gitignore", "NOTES.md\n", ".gitignore:1:NOTES.md"),
+        ("docs/.gitignore", "NOTES.md\n", "docs/.gitignore:1:NOTES.md"),
+        (".git/info/exclude", "# local\nNOTES.md\n", ".git/info/exclude:2:NOTES.md"),
+    ],
+)
+def test_the_refusal_names_the_file_line_and_pattern_of_the_rule(
+    make_repo, capsys, where: str, rule: str, source: str
+) -> None:
+    files = {"main.py": M, "docs/guide.md": "# g\n"}
+    if not where.startswith(".git/"):
+        files[where] = rule  # a tracked rule file is not a change under docs/
+    repo = make_repo(files)
+    if where.startswith(".git/"):
+        (repo / where).write_text(rule)
+    _put(repo, {"docs/guide.md": "# g2\n", "docs/NOTES.md": "# n\n"})
+    code, out = commit(capsys, repo, "docs", ref=None)
+    assert code == 2 and f"docs/NOTES.md ({source})" in out["_err"], out
+
+
+def test_a_global_excludes_file_is_honoured(make_repo, git, capsys, tmp_path) -> None:
+    exclude = tmp_path / "global-ignore"
+    exclude.write_text("data/\n")
+    repo = make_repo({"main.py": M})
+    git(repo, "config", "core.excludesFile", str(exclude))
+    _built_explorer(repo)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 2 and f"explorer/data/state.json ({exclude}:1:data/)" in out["_err"], out
+
+
+def test_a_tracked_file_that_matches_a_rule_is_not_left_out(make_repo, git, capsys) -> None:
+    # Git keeps tracking a file that matches an ignore rule: only untracked ones are dropped.
+    repo = make_repo(_ignoring_data())
+    _put(repo, {"docs/data/old.md": "old\n"})
+    git(repo, "add", "-f", "docs/data/old.md")
+    git(repo, "commit", "-q", "-m", "force-added")
+    (repo / "docs/data/old.md").write_text("new\n")
+    code, out = commit(capsys, repo, "docs", ref=None)
+    assert code == 0 and out["paths"] == ["docs/data/old.md"], out
+
+
+def test_an_ignored_source_file_is_not_the_skills_to_carry(make_repo, git, capsys) -> None:
+    # The inventory never lists an ignored file, so the skill never comments one: a local
+    # settings file or a virtualenv under a module is not work the commit would lose. Only
+    # Markdown and the skill's own explorer output are expected in a commit (``is_exempt``).
+    repo = make_repo({".gitignore": "local_settings.py\nenv/\n", "src/m.py": M})
+    _put(repo, {"src/local_settings.py": "SECRET = 1\n", "src/env/lib/site.py": "x = 1\n"})
+    (repo / "src/m.py").write_text(M_COMMENTED)
+    code, out = commit(capsys, repo, "src")
+    assert code == 0 and out["paths"] == ["src/m.py"], out
+
+
+def test_a_long_list_of_ignored_files_is_cut_and_counted(make_repo, git, capsys) -> None:
+    extra = 5
+    total = commit_mod.IGNORED_SHOWN + extra
+    repo = make_repo({".gitignore": "gen/\n", "main.py": M})
+    _put(repo, {"docs/guide.md": "# g\n"})
+    _put(repo, {f"docs/gen/{i:03}.md": "# x\n" for i in range(total)})
+    code, out = commit(capsys, repo, "docs", ref=None)
+    err = out["_err"]
+    assert code == 2, out
+    assert err.count(".md (.gitignore:1:gen/)") == commit_mod.IGNORED_SHOWN, err
+    assert f"and {extra} more" in err, err
+
+
+def test_nested_listed_directories_count_each_ignored_file_once(make_repo, git, capsys) -> None:
+    repo = make_repo({".gitignore": "gen/\n", "main.py": M})
+    _put(repo, {"docs/sub/a.md": "# a\n", "docs/sub/gen/x.md": "# x\n"})
+    code, out = commit(capsys, repo, "docs", "docs/sub", ref=None)
+    err = out["_err"]
+    assert code == 2 and err.count("docs/sub/gen/x.md") == 1, err
+    assert "more" not in err, err
+
+
+def test_listing_only_files_never_asks_git_about_ignored_files(
+    make_repo, git, capsys, monkeypatch
+) -> None:
+    def boom(argv: list[str]) -> Any:
+        raise AssertionError(f"unexpected scan: {argv}")
+
+    repo = make_repo(_ignoring_data({"a/m.py": M}))
+    (repo / "a/m.py").write_text(M_COMMENTED)
+    monkeypatch.setattr(commit_mod, "_stream", boom)
+    code, out = commit(capsys, repo, "a/m.py")
+    assert code == 0 and out["status"] == "ok", out
+
+
+def test_a_git_failure_while_looking_for_ignored_files_commits_nothing(
+    make_repo, git, capsys, monkeypatch
+) -> None:
+    def fail(argv: list[str]) -> Any:
+        raise commit_mod.GitError("git ls-files failed: index file corrupt")
+        yield  # pragma: no cover - makes this a generator, like the real one
+
+    repo = make_repo(_ignoring_data())
+    _built_explorer(repo)
+    (repo / "main.py").write_text(M_CHANGED)
+    git(repo, "add", "main.py")
+    before = _snapshot(git, repo)
+    monkeypatch.setattr(commit_mod, "_stream", fail)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 2 and out["status"] == "error", out
+    assert "nothing was committed" in out["detail"] and "index file corrupt" in out["detail"]
+    assert _snapshot(git, repo) == before
+
+
+# The streaming reader, on commands that are not git so every edge can be built exactly.
+
+
+def _printf(payload: bytes, code: int = 0, err: str = "") -> list[str]:
+    script = (
+        "import sys; sys.stdout.buffer.write(%r); sys.stdout.buffer.flush(); "
+        "sys.stderr.write(%r); sys.exit(%d)" % (payload, err, code)
+    )
+    return [sys.executable, "-c", script]
+
+
+def test_stream_yields_each_nul_separated_path() -> None:
+    got = list(commit_mod._stream(_printf(b"a/b.md\0c d.md\0\0e.md\0")))
+    assert got == ["a/b.md", "c d.md", "e.md"]
+
+
+def test_stream_joins_a_path_split_across_reads(monkeypatch) -> None:
+    monkeypatch.setattr(commit_mod, "_CHUNK", 3)
+    got = list(commit_mod._stream(_printf("dir/ünï.md\0second.md\0".encode())))
+    assert got == ["dir/ünï.md", "second.md"]
+
+
+def test_stream_keeps_a_last_path_that_has_no_terminator() -> None:
+    assert list(commit_mod._stream(_printf(b"a.md\0b.md"))) == ["a.md", "b.md"]
+
+
+def test_stream_keeps_bytes_that_are_not_utf8() -> None:
+    (got,) = commit_mod._stream(_printf(b"a\xffb.md\0"))
+    assert got.encode("utf-8", "surrogateescape") == b"a\xffb.md"
+
+
+def test_stream_raises_when_git_fails_so_a_short_list_never_reads_as_complete() -> None:
+    with pytest.raises(commit_mod.GitError, match="boom"):
+        list(commit_mod._stream(_printf(b"a.md\0", code=128, err="fatal: boom")))
+
+
+def test_stream_stops_the_command_when_the_reader_stops() -> None:
+    script = "import sys,time\nwhile True: sys.stdout.write('a\\0'*5000); sys.stdout.flush()\n"
+    gen = commit_mod._stream([sys.executable, "-c", script])
+    assert next(gen) == "a"
+    gen.close()  # must not hang: the writer gets SIGPIPE once the pipe is closed
+
+
+# ignore_rules: the rule git names for each path, negations left out.
+
+
+def test_ignore_rules_names_source_line_and_pattern(make_repo) -> None:
+    repo = make_repo({".gitignore": "# c\n*.log\n!keep.log\ndata/\n", "x.py": M})
+    got = commit_mod.ignore_rules(
+        repo, ["a.log", "keep.log", "x.py", "explorer/data/state.json", "gone/none.log"]
+    )
+    assert got == {
+        "a.log": ".gitignore:2:*.log",
+        "explorer/data/state.json": ".gitignore:4:data/",
+        "gone/none.log": ".gitignore:2:*.log",
+    }
+
+
+def test_ignore_rules_with_no_paths_runs_nothing(tmp_path) -> None:
+    assert commit_mod.ignore_rules(tmp_path / "not-a-repo", []) == {}
+
+
+def test_ignore_rules_fails_loudly_when_git_does(tmp_path) -> None:
+    with pytest.raises(commit_mod.GitError, match="check-ignore"):
+        commit_mod.ignore_rules(tmp_path, ["a.md"])
+
+
+def test_left_out_drops_paths_git_tracks(make_repo, git) -> None:
+    repo = make_repo(_ignoring_data())
+    _put(repo, {"explorer/data/state.json": "{}\n"})
+    git(repo, "add", "-f", "explorer/data/state.json")
+    paths = ["explorer/data/state.json", "explorer/data/model.js"]
+    assert commit_mod.ignore_rules(repo, paths).keys() == set(paths)
+    assert commit_mod.left_out(repo, paths) == {"explorer/data/model.js": ".gitignore:1:data/"}
+
+
+def test_left_out_is_empty_when_nothing_is_ignored(make_repo) -> None:
+    repo = make_repo({"main.py": M})
+    assert commit_mod.left_out(repo, ["explorer/data/state.json"]) == {}

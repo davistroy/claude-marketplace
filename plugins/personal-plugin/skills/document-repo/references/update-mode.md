@@ -90,4 +90,4 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
     PYTHONPATH="$TOOL_SRC" python3 -m document_repo build --model "$RUN_DIR/model.json" --explorer-dir "$TARGET/explorer" --template "$SKILL_DIR/templates/explorer"
     ```
 
-    `build` writes a new `state.json` whose `source_commit` is that commit, so the next update starts from here. Then run the no-network check, commit `explorer/` through the commit protocol, and finish as in a full run, final backstop included.
+    `build` writes a new `state.json` whose `source_commit` is that commit, so the next update starts from here. Then run the no-network check, commit `explorer/` through the commit protocol (skip the commit when the explorer is kept local, as Phase 4 steps 6 and 7 in SKILL.md say), and finish as in a full run, final backstop included.

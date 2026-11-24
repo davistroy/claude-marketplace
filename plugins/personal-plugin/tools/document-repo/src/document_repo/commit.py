@@ -7,7 +7,10 @@ makes one commit of exactly the listed paths and proves it, failing closed at ev
    lie inside it, not pass through a symlink, and exist (unless HEAD has it: a deletion) as a
    path git knows. An empty list, a path outside the repo, the repo itself, a ref that does not
    resolve or is not an ancestor of HEAD is bad input (``InputError``). Without a ref (docs
-   mode), a changed path outside the exempt set of ``verify.is_exempt`` is bad input too.
+   mode), a changed path outside the exempt set of ``verify.is_exempt`` is bad input too. So is
+   a listed directory that holds an untracked file git ignores which the commit is expected to
+   carry (see ``_refuse_ignored``): ``git add`` skips it without a word, so the commit would be
+   partial and still say ``ok``.
 2. **Index.** ``git reset -q`` empties the index of every other path, so nothing staged by
    someone else can ride along. It also discards content of other paths that was staged and
    never written to the work tree; the work tree keeps its bytes. The skill never stages, so a
@@ -46,18 +49,24 @@ import subprocess
 import sys
 import tempfile
 import unicodedata
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from .changes import work_tree
-from .inventory import OUTPUT_DIR
+from .inventory import OUTPUT_DIR, SKIP_DIRS
 from .verify import changed_files, is_exempt, is_explorer_output_name, verify_file
 
 #: Hooks ``git commit`` runs unless ``--no-verify`` is given (``post-commit`` cannot refuse).
 COMMIT_HOOKS = ("pre-commit", "prepare-commit-msg", "commit-msg")
 #: Phrases git prints when it cannot sign a commit (gpg, ssh and x509 formats).
 SIGNING_MARKERS = ("gpg failed to sign", "failed to sign", "signing failed", "gpg.program")
+#: The most ignored files the refusal names; it counts the rest.
+IGNORED_SHOWN = 20
+#: Bytes read from a git listing at a time. A directory with a million ignored files costs no
+#: more memory than one with ten.
+_CHUNK = 1 << 16
 
 
 class InputError(ValueError):
@@ -395,6 +404,139 @@ def _refuse_source(top: Path, changed: list[str]) -> None:
     )
 
 
+def _stream(argv: list[str]) -> Iterator[str]:
+    """The NUL-separated paths ``argv`` prints, one at a time.
+
+    ``GitError`` after the last path when the command fails: a list cut short must not read as a
+    complete one. A reader that stops early ends the command (the pipe closes, the writer gets
+    SIGPIPE).
+    """
+    with tempfile.TemporaryFile() as err:
+        proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=err)
+        assert proc.stdout is not None
+        try:
+            tail = b""
+            while chunk := proc.stdout.read(_CHUNK):
+                *whole, tail = (tail + chunk).split(b"\0")
+                for raw in whole:
+                    if raw:
+                        yield raw.decode("utf-8", "surrogateescape")
+            if tail:
+                yield tail.decode("utf-8", "surrogateescape")
+        finally:
+            proc.stdout.close()
+            code = proc.wait()
+        if code != 0:
+            err.seek(0)
+            msg = err.read().decode("utf-8", "replace").strip()
+            raise GitError(f"{argv[0]} failed with exit {code}: {msg}")
+
+
+def ignore_rules(top: Path, paths: list[str]) -> dict[str, str]:
+    """The rule that ignores each of ``paths``, as ``{path: "source:line:pattern"}``.
+
+    ``git check-ignore --no-index -v``: ``source`` is the file the rule is in (``.gitignore``,
+    ``docs/.gitignore``, ``.git/info/exclude``, or the absolute path of ``core.excludesFile``),
+    ``line`` its line there. The index is not consulted, so a tracked path is judged by the rules
+    like any other, and a path that does not exist yet like one that does. A path no rule
+    ignores, or that a negated rule (``!pattern``) lets back in, is left out. ``GitError`` when
+    git itself fails.
+    """
+    if not paths:
+        return {}
+    given = b"".join(p.encode("utf-8", "surrogateescape") + b"\0" for p in paths)
+    argv = ["git", "-C", str(top), "check-ignore", "--no-index", "-v", "-z", "--stdin"]
+    proc = subprocess.run(argv, input=given, capture_output=True, check=False)
+    if proc.returncode not in (0, 1):  # 1: none of them is ignored
+        msg = proc.stderr.decode("utf-8", "replace").strip()
+        raise GitError(f"git check-ignore failed: {msg}")
+    fields = proc.stdout.decode("utf-8", "surrogateescape").split("\0")
+    rules: dict[str, str] = {}
+    for i in range(0, len(fields) - 1, 4):  # source, line, pattern, path; one NUL after each
+        source, line, pattern, path = fields[i : i + 4]
+        if not pattern.startswith("!"):
+            rules[path] = f"{source}:{line}:{pattern}"
+    return rules
+
+
+def left_out(top: Path, paths: list[str]) -> dict[str, str]:
+    """``ignore_rules`` for the paths ``git add`` would skip: ignored and not tracked.
+
+    Git keeps tracking a file that matches an ignore rule (a force-added one), and stages its
+    changes, so a tracked path is not at risk.
+    """
+    rules = ignore_rules(top, paths)
+    if not rules:
+        return {}
+    tracked = set(_paths(top, "ls-files", "-z", "--cached", "--", *_spec(list(rules))))
+    return {p: rule for p, rule in rules.items() if p not in tracked}
+
+
+def _carried(top: Path, path: str, below: str) -> bool:
+    """Whether a commit of the listed directory is expected to carry this ignored file.
+
+    ``below`` is ``path`` relative to the listed directory. The commit is expected to carry what
+    ``verify.is_exempt`` accepts: Markdown, and the files a build writes in an explorer it made.
+    Source files are left out on purpose. The inventory lists with ``--exclude-standard``, so
+    the skill never comments an ignored file, and ``local_settings.py`` or a virtualenv under a
+    module is not work the commit would lose. A file under a dependency or build directory
+    (``inventory.SKIP_DIRS``: ``node_modules``, ``.venv``, ``dist``, ``__pycache__``...) below the
+    listed one is junk, Markdown included; the skill's own output is never junk, whatever it
+    sits under (the template's ``explorer/vendor/``). ``.DS_Store``, ``*.pyc`` and swap files
+    are not Markdown or build output at all.
+    """
+    junk = any(part in SKIP_DIRS for part in below.split("/")[:-1])
+    return is_exempt(path, top) and (is_explorer_output_name(path) or not junk)
+
+
+def _ignored_in(top: Path, roots: list[str]) -> tuple[list[str], int]:
+    """The ignored, untracked files under the listed directories that a commit should carry.
+
+    Returns the first ``IGNORED_SHOWN`` of them and the count of all. Listed files are skipped:
+    ``normalize_paths`` already refused an ignored one, and a tracked one is never ignored by
+    git. Streamed, so a huge ignored tree (``node_modules``) is read and dropped, not held.
+    """
+    dirs = [r for r in roots if os.path.isdir(top / r) and not os.path.islink(top / r)]
+    shown: list[str] = []
+    total = 0
+    done: list[str] = []
+    for root in dirs:
+        argv = ["git", "-C", str(top), "ls-files", "--others", "--ignored", "--exclude-standard"]
+        for path in _stream([*argv, "-z", "--", *_spec([root])]):
+            if _under(path, done) or not _carried(top, path, path[len(root) + 1 :]):
+                continue  # counted under a directory listed before it, or not ours to carry
+            total += 1
+            if len(shown) < IGNORED_SHOWN:
+                shown.append(path)
+        done.append(root)
+    return shown, total
+
+
+def _refuse_ignored(top: Path, roots: list[str]) -> None:
+    """Refuse to commit a directory when git would leave part of it out, and say which part.
+
+    ``git add -- explorer`` skips untracked files that match an ignore rule and does not say so:
+    with ``data/`` in .gitignore, the explorer's ``data/model.json``, ``model.js`` and
+    ``state.json`` stay out and the commit still reports ``ok``. The tool fails closed: nothing
+    is staged, and the error names each file with the rule that ignores it
+    (``source:line:pattern``). It never forces the file in (``git add -f``) and never edits
+    .gitignore: a rule may be a privacy guard, so overriding it is the owner's decision.
+    ``_carried`` says which ignored files count.
+    """
+    shown, total = _ignored_in(top, roots)
+    if not total:
+        return
+    rules = ignore_rules(top, shown)
+    named = ", ".join(f"{p} ({rules.get(p, 'rule not found')})" for p in shown)
+    more = f" and {total - len(shown)} more" if total > len(shown) else ""
+    example = f"!{posixpath.dirname(shown[0])}/"
+    raise InputError(
+        f"these files are ignored by git and would be left out of the commit: {named}{more}. "
+        f"Add a negation rule (e.g. `{example}`) after the ignoring rule, or keep the directory "
+        "local. This command does not edit .gitignore or force files in: that is the owner's call"
+    )
+
+
 def commit_paths(
     repo: Path,
     paths: list[str],
@@ -407,7 +549,9 @@ def commit_paths(
     ``verify_against`` is the ref every changed path must be comment-only against, or None for
     docs mode: only paths ``is_exempt`` accepts (Markdown, and the files a build writes in an
     explorer it made), content not checked.
-    Raises ``InputError`` on bad input, before the repo is touched. Once ``git commit`` has run,
+    Raises ``InputError`` on bad input, before the repo is touched (an untracked file that git
+    ignores under a listed directory, which ``git add`` would leave out, is bad input too). Once
+    ``git commit`` has run,
     nothing raises: every failure is an ``Outcome``.
     """
     top = _top(repo)
@@ -425,6 +569,7 @@ def commit_paths(
     roots = normalize_paths(top, paths)
     if ref is None:
         _refuse_source(top, _changed(top, "HEAD", roots))
+    _refuse_ignored(top, roots)
 
     _out(top, "reset", "-q")
     changed = _changed(top, "HEAD", roots)

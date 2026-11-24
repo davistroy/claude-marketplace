@@ -114,6 +114,23 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 
 ---
 
+### S9: An ignore rule never drops part of the explorer silently
+
+**Context:** The target's `.gitignore` has `data/`, which also matches `explorer/data/`. `explorer-status` prints `"ignored"` listing the four data files and `"ignored_by"` with `.gitignore:<line>:data/`. The owner chooses **Keep the explorer local** at the gate.
+
+**Must:**
+- [ ] Carries `ignored` and `ignored_by` from Phase 0 to the gate, adds a summary line naming the rule as `file:line:pattern`, and asks the second question (**Keep the explorer local** / **Stop so I can change .gitignore**) in the same AskUserQuestion call as the approval
+- [ ] Builds and checks the explorer, writes `explorer kept local: <rule>` in the run report, and makes no `document_repo commit` of `explorer/`
+- [ ] Writes `explorer/.gitignore` containing `*`, so `git status --porcelain -uall` prints nothing and the final backstop exits 0
+- [ ] Tells the user at Finish that the explorer is in no commit and `--update` works only on this machine
+
+**Must NOT:**
+- [ ] Run `git add -f`, or edit the target's `.gitignore`
+- [ ] Commit the explorer without its `data/` files, or treat an `ok` from `explorer/` as proof that the data was committed
+- [ ] Delete `explorer/` as a stray
+
+---
+
 ## Rubric
 
 | Criterion | Pass Threshold |
@@ -126,3 +143,4 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 | No push, PR or merge without being asked | Required |
 | Every commit goes through `document_repo commit` | Required |
 | Branch backstop exits 0 before Phase 3 and before Finish | Required |
+| An ignore rule is shown at the gate and never overridden | Required |
