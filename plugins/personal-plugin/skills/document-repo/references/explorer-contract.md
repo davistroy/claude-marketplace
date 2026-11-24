@@ -13,6 +13,16 @@ Ownership is decided by content. `model_hash` is compared with the hash of `mode
 | `model.js` | `build` | `window.PROJECT_MODEL = {...};`, the same model with every non-ASCII character escaped. The page loads it with `<script src>`, because a browser will not `fetch` a JSON file from a page opened over `file://`. |
 | `state.json` | `build` | `source_commit`, `schema_version`, `model_hash` (SHA-256 of `model.json` as `build` serialises it: two-space indent, non-ASCII kept, one final newline), `generated_at`. `changes` reads it in update mode. |
 
+## When the explorer is kept local
+
+When a `.gitignore` rule keeps `explorer/data/` out of git and the owner chooses **Keep the explorer local**, Phase 4 does not commit the directory. `document_repo keep-local` then writes `explorer/.gitignore`: a header comment, one comment line per rule of the owner's that ignored the explorer (`file:line:pattern`), and `*`. Git then ignores every untracked file in `explorer/`, so the tree is clean, the final backstop passes, and the next run's clean-tree check passes. Three things follow:
+
+- The file records the rules because, once it exists, `git check-ignore` only reports its own `*`. `explorer-status` prints them as `kept_local.rules`, and lists in `kept_local.gone` the ones whose pattern is no longer in its file (the owner removed it, so this file alone keeps the explorer local). The file is exactly what `keep-local` writes: an `explorer/.gitignore` with any other content is a file of the repository's own, and the directory is `foreign`.
+- `*` ignores untracked files only. Files HEAD already tracks (an older run committed the app without its data) stay tracked and show as modified when a build changes them. That is why Phase 4 step 7 commits `tracked` first. The committed explorer stays without its data, which `explorer-status` reports as `incomplete`.
+- Every file in the directory is ignored, so `git clean -fdq` removes nothing from it. The partial-build message says `-fdqx` then.
+
+To publish the explorer later, the owner adds the negation lines to `.gitignore` and deletes `explorer/.gitignore`.
+
 ## What each view reads
 
 Routes are hash routes. `#/modules/<id>`, `#/tours/<id>`, `#/glossary/<term>` and `#/paths/<id>` open one item; the same route without the last part lists them.

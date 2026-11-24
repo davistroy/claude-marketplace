@@ -45,6 +45,7 @@ from __future__ import annotations
 import hashlib
 import os
 import posixpath
+import re
 import subprocess
 import sys
 import tempfile
@@ -459,6 +460,36 @@ def ignore_rules(top: Path, paths: list[str]) -> dict[str, str]:
     return rules
 
 
+#: ``source:line:pattern``, the form ``ignore_rules`` returns. A source path may hold colons.
+_RULE = re.compile(r"(?P<source>.+?):(?P<line>\d+):(?P<pattern>.*)", re.DOTALL)
+
+
+def tracked_paths(top: Path, paths: list[str]) -> set[str]:
+    """The ones among ``paths`` that the index holds (a path that does not exist can be one)."""
+    if not paths:
+        return set()
+    held = _paths(top, "ls-files", "-z", "--cached", "--", *_spec(paths))
+    return set(held) & set(paths)
+
+
+def rule_in_place(top: Path, rule: str) -> bool:
+    """Whether the rule ``source:line:pattern`` is still in its file.
+
+    The pattern is looked for on every line, so a rule whose line moved is found. A negation the
+    owner added after it is not noticed: this says the rule was not deleted, not that it still
+    ignores the path. ``source`` is relative to ``top`` or absolute (``core.excludesFile``).
+    """
+    found = _RULE.fullmatch(rule)
+    if found is None:
+        return False
+    pattern = found["pattern"].rstrip()
+    try:
+        with open(top / found["source"], encoding="utf-8") as fh:
+            return any(line.rstrip("\r\n").rstrip() == pattern for line in fh)
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
 def left_out(top: Path, paths: list[str]) -> dict[str, str]:
     """``ignore_rules`` for the paths ``git add`` would skip: ignored and not tracked.
 
@@ -468,7 +499,7 @@ def left_out(top: Path, paths: list[str]) -> dict[str, str]:
     rules = ignore_rules(top, paths)
     if not rules:
         return {}
-    tracked = set(_paths(top, "ls-files", "-z", "--cached", "--", *_spec(list(rules))))
+    tracked = tracked_paths(top, list(rules))
     return {p: rule for p, rule in rules.items() if p not in tracked}
 
 
@@ -512,6 +543,27 @@ def _ignored_in(top: Path, roots: list[str]) -> tuple[list[str], int]:
     return shown, total
 
 
+def _negation(top: Path, path: str, rule: str) -> str:
+    """The line that lets ``path`` back in, and the file it goes in: "`!docs/gen/` in `.gitignore`".
+
+    A negation cannot re-include a file whose directory is ignored, so when some directory above
+    ``path`` is ignored (a ``gen/`` rule), the line names the shallowest one. Otherwise it names
+    the file (a ``NOTES.md`` rule). The line is relative to the directory of the file it goes in:
+    ``docs/.gitignore`` holds ``!gen/``, while ``.gitignore``, ``.git/info/exclude`` and a global
+    excludes file hold the path from the repository root.
+    """
+    parts = path.split("/")
+    dirs = ["/".join(parts[:i]) + "/" for i in range(1, len(parts))]
+    found = ignore_rules(top, [*dirs, path])
+    target = next((d for d in dirs if d in found), path)
+    owner = _RULE.fullmatch(found.get(target, rule))
+    assert owner is not None  # ``ignore_rules`` and the caller only make ``source:line:pattern``
+    source = owner["source"]
+    local = posixpath.basename(source) == ".gitignore" and not os.path.isabs(source)
+    base = posixpath.dirname(source) if local else ""
+    return f"`!{target[len(base) + 1 :] if base else target}` in `{source}`"
+
+
 def _refuse_ignored(top: Path, roots: list[str]) -> None:
     """Refuse to commit a directory when git would leave part of it out, and say which part.
 
@@ -529,11 +581,25 @@ def _refuse_ignored(top: Path, roots: list[str]) -> None:
     rules = ignore_rules(top, shown)
     named = ", ".join(f"{p} ({rules.get(p, 'rule not found')})" for p in shown)
     more = f" and {total - len(shown)} more" if total > len(shown) else ""
-    example = f"!{posixpath.dirname(shown[0])}/"
+    # ``keep-local`` writes explorer/.gitignore. Its ``*`` is then the deciding rule for every file,
+    # and a negation placed in it would let in one file, not the explorer.
+    from .build import LOCAL_MARKER
+
+    marker = f"{OUTPUT_DIR}/{LOCAL_MARKER}"
+    kept = [p for p in shown if rules.get(p, "").startswith(marker + ":")]
+    first = next((p for p in shown if p in rules and p not in kept), None)
+    line = f" ({_negation(top, first, rules[first])})" if first is not None else ""
+    local = (
+        f" {marker} keeps this explorer local (`document_repo keep-local` wrote it): to commit "
+        f"the explorer, delete {marker} first."
+        if kept
+        else ""
+    )
     raise InputError(
         f"these files are ignored by git and would be left out of the commit: {named}{more}. "
-        f"Add a negation rule (e.g. `{example}`) after the ignoring rule, or keep the directory "
-        "local. This command does not edit .gitignore or force files in: that is the owner's call"
+        f"Add a negation rule{line} after the ignoring rule, or keep the directory "
+        f"local.{local} This command does not edit .gitignore or force files in: that is the "
+        "owner's call"
     )
 
 

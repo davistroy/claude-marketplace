@@ -1159,42 +1159,75 @@ def _status(capsys, repo: Path) -> tuple[int, dict]:
     return code, (json.loads(out) if out.strip() else {})
 
 
-NOT_IGNORED: dict[str, Any] = {"ignored": [], "ignored_by": []}
+#: What explorer-status adds to ``explorer``/``foreign_files`` when git has nothing to say: no
+#: rule ignores the output, HEAD holds none of it, and no run kept it local.
+NOTHING_TO_SAY: dict[str, Any] = {
+    "ignored": [],
+    "ignored_by": [],
+    "tracked": [],
+    "incomplete": [],
+    "kept_local": None,
+}
+
+
+def _git_view(tracked: list[str]) -> dict[str, Any]:
+    """What explorer-status says about git when no rule ignores the output and none is kept local.
+
+    ``tracked`` are the build-output paths HEAD holds (the repo's own committed files count: the
+    tool goes by name). The report is not required, so HEAD holding only it is not partial.
+    """
+    required = set(build.explorer_output(build.TEMPLATE_DIR)) - {"explorer/data/run-report.md"}
+    held = sorted(tracked)
+    return {
+        **NOTHING_TO_SAY,
+        "tracked": held,
+        "incomplete": sorted(required - set(held)) if required & set(held) else [],
+    }
 
 
 def test_explorer_status_absent(make_repo, capsys) -> None:
     repo = make_repo({"main.py": "x = 1\n"})
     assert _status(capsys, repo) == (
         0,
-        {"explorer": "absent", "foreign_files": [], **NOT_IGNORED},
+        {"explorer": "absent", "foreign_files": [], **NOTHING_TO_SAY},
     )
 
 
 def test_explorer_status_ours(make_repo, capsys, marker) -> None:
     repo = make_repo({"main.py": "x = 1\n", **marker})
     install_template(build.TEMPLATE_DIR, repo / "explorer")
-    assert _status(capsys, repo) == (0, {"explorer": "ours", "foreign_files": [], **NOT_IGNORED})
+    # The marker files are committed, the app is not: HEAD holds part of the output.
+    held = ["explorer/data/model.json", "explorer/data/state.json"]
+    assert _status(capsys, repo) == (
+        0,
+        {"explorer": "ours", "foreign_files": [], **_git_view(held)},
+    )
 
 
 @pytest.mark.parametrize(
-    "files,foreign",
+    "files,foreign,held",
     [
-        ({"explorer/app.js": "var a;\n"}, ["app.js"]),  # C2: no marker
+        ({"explorer/app.js": "var a;\n"}, ["app.js"], ["explorer/app.js"]),  # C2: no marker
         (  # r2/p1: a state.json the build did not write
             {"explorer/app.js": "var a;\n", "explorer/data/state.json": '{"saved": "ui"}\n'},
             ["app.js", "data/state.json"],
+            ["explorer/app.js", "explorer/data/state.json"],
         ),
-        ({"explorer/data/loader.js": "var f;\n"}, ["data/loader.js"]),  # r2/p3
-        ({"explorer/data/x.js": "x\n", "MARKER": ""}, ["data/x.js"]),  # r2/p4
+        ({"explorer/data/loader.js": "var f;\n"}, ["data/loader.js"], []),  # r2/p3
+        (  # r2/p4
+            {"explorer/data/x.js": "x\n", "MARKER": ""},
+            ["data/x.js"],
+            ["explorer/data/model.json", "explorer/data/state.json"],
+        ),
     ],
 )
-def test_explorer_status_foreign(make_repo, capsys, marker, files, foreign) -> None:
+def test_explorer_status_foreign(make_repo, capsys, marker, files, foreign, held) -> None:
     if files.pop("MARKER", None) is not None:
         files.update(marker)
     repo = make_repo({"main.py": "x = 1\n", **files})
     assert _status(capsys, repo) == (
         0,
-        {"explorer": "foreign", "foreign_files": foreign, **NOT_IGNORED},
+        {"explorer": "foreign", "foreign_files": foreign, **_git_view(held)},
     )
 
 
@@ -1251,7 +1284,7 @@ def test_explorer_status_ignored_leaves_out_a_negated_rule(make_repo, capsys) ->
     repo = make_repo({".gitignore": "data/\n!explorer/data/\n", "main.py": "x = 1\n"})
     assert _status(capsys, repo) == (
         0,
-        {"explorer": "absent", "foreign_files": [], **NOT_IGNORED},
+        {"explorer": "absent", "foreign_files": [], **NOTHING_TO_SAY},
     )
 
 
@@ -1358,7 +1391,7 @@ def test_cli_build_without_template_refuses_a_foreign_explorer(make_repo, tmp_pa
     assert not (repo / "explorer" / "data").exists()
     assert _status(capsys, repo) == (
         0,
-        {"explorer": "foreign", "foreign_files": ["app.js"], **NOT_IGNORED},
+        {"explorer": "foreign", "foreign_files": ["app.js"], **_git_view(["explorer/app.js"])},
     )
 
 
@@ -1438,7 +1471,7 @@ def test_explorer_status_reads_an_installable_directory_as_absent(
         install_template(build.TEMPLATE_DIR, explorer)
     assert _status(capsys, repo) == (
         0,
-        {"explorer": "absent", "foreign_files": [], **NOT_IGNORED},
+        {"explorer": "absent", "foreign_files": [], **NOTHING_TO_SAY},
     )
     model = repo.parent / "model.json"
     model.write_text(FIXTURE.read_text())
@@ -1596,3 +1629,330 @@ def test_a_regular_file_named_explorer_is_not_called_a_symlink(tmp_path: Path) -
     with pytest.raises(ValueError, match="is not a directory") as info:
         build.ensure_installable(build.TEMPLATE_DIR, tmp_path / "explorer")
     assert "symlink" not in str(info.value)
+
+
+# --- fix round 1: keeping the explorer local ---------------------------------------------------
+#
+# "Keep the explorer local" writes explorer/.gitignore (``*``) so the untracked app files do not
+# fail the backstop. The tool writes it, records the rules it hides, and reads it back.
+
+RULES = [".gitignore:30:data/", "docs/.gitignore:2:*.md"]
+
+
+def test_the_marker_round_trips() -> None:
+    text = build.marker_text(RULES)
+    assert text.endswith("\n*\n") and text.splitlines()[0].startswith("# document-repo:")
+    assert build.parse_marker(text) == RULES
+    assert build.parse_marker(build.marker_text([])) == []
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda t: "*\n",  # what a hand-written file holds
+        lambda t: t.replace("# document-repo:", "# somebody:"),  # not our header
+        lambda t: t[:-1],  # no final newline
+        lambda t: t.replace("\n", "\r\n"),
+        lambda t: t.replace("# .gitignore:30", ".gitignore:30"),  # a rule line that is a pattern
+        lambda t: t.replace("*\n", "*\n!keep.md\n"),  # anything after the star
+        lambda t: t.replace("*\n", "*.js\n"),  # not the star
+        lambda t: "\n" + t,
+        lambda t: t + "\n",
+    ],
+)
+def test_anything_but_the_exact_marker_is_not_one(mutate) -> None:
+    assert build.parse_marker(build.marker_text(RULES)) == RULES
+    assert build.parse_marker(mutate(build.marker_text(RULES))) is None
+
+
+def _kept_local(explorer: Path, rules: list[str] | None = None) -> None:
+    (explorer / build.LOCAL_MARKER).write_text(build.marker_text(rules or RULES))
+
+
+def test_read_marker(tmp_path: Path) -> None:
+    explorer = _built(tmp_path)
+    assert build.read_marker(explorer) is None
+    _kept_local(explorer)
+    assert build.read_marker(explorer) == RULES
+    (explorer / build.LOCAL_MARKER).write_bytes(b"\xff\xfe")
+    assert build.read_marker(explorer) is None
+    (explorer / build.LOCAL_MARKER).write_text(
+        build.marker_text(RULES) + "#" * build.MARKER_SIZE_CAP
+    )
+    assert build.read_marker(explorer) is None, "an oversized file is never read"
+    (explorer / build.LOCAL_MARKER).unlink()
+    (explorer / build.LOCAL_MARKER).mkdir()
+    assert build.read_marker(explorer) is None
+
+
+def test_the_marker_is_not_a_foreign_file(tmp_path: Path) -> None:
+    # A build that stopped partway is not ours, and then every file must be a template file.
+    explorer = tmp_path / "explorer"
+    install_template(build.TEMPLATE_DIR, explorer)
+    assert build.foreign_files(build.TEMPLATE_DIR, explorer) == []
+    _kept_local(explorer)
+    assert not build.is_our_explorer(explorer)
+    assert build.foreign_files(build.TEMPLATE_DIR, explorer) == []
+
+
+@pytest.mark.parametrize("where", ["", "data/", "vendor/"])
+def test_only_the_exact_marker_at_the_top_is_welcome(tmp_path: Path, where: str) -> None:
+    explorer = tmp_path / "explorer"
+    install_template(build.TEMPLATE_DIR, explorer)
+    (explorer / "data").mkdir(exist_ok=True)
+    target = explorer / where / build.LOCAL_MARKER
+    target.write_text("*\n")  # an ordinary ignore file, not the one document-repo writes
+    assert build.foreign_files(build.TEMPLATE_DIR, explorer) == [f"{where}.gitignore"]
+    target.write_text(build.marker_text(RULES))
+    welcome = [] if where == "" else [f"{where}.gitignore"]
+    assert build.foreign_files(build.TEMPLATE_DIR, explorer) == welcome
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="needs symlinks")
+def test_a_symlinked_marker_is_foreign(tmp_path: Path) -> None:
+    explorer = tmp_path / "explorer"
+    install_template(build.TEMPLATE_DIR, explorer)
+    real = tmp_path / "elsewhere"
+    real.write_text(build.marker_text(RULES))
+    (explorer / build.LOCAL_MARKER).symlink_to(real)
+    assert build.foreign_files(build.TEMPLATE_DIR, explorer) == [".gitignore"]
+
+
+def test_a_partial_build_in_a_kept_local_explorer_is_still_named_and_cleans_ignored_files(
+    tmp_path: Path,
+) -> None:
+    # Everything in a kept-local explorer is ignored, so ``git clean -fdq`` removes nothing.
+    explorer = _built(tmp_path)
+    install_template(build.TEMPLATE_DIR, explorer)
+    _kept_local(explorer)
+    (explorer / "data" / "model.json").write_text('{"half": "written"}\n')
+    with pytest.raises(ValueError, match="stopped partway") as info:
+        build.ensure_installable(build.TEMPLATE_DIR, explorer)
+    assert "git clean -fdqx -- explorer" in str(info.value)
+    assert "kept local" in str(info.value)
+
+
+def test_a_partial_build_in_a_committed_explorer_keeps_the_plain_clean(tmp_path: Path) -> None:
+    explorer = _built(tmp_path)
+    install_template(build.TEMPLATE_DIR, explorer)
+    (explorer / "data" / "model.json").write_text('{"half": "written"}\n')
+    with pytest.raises(ValueError) as info:
+        build.ensure_installable(build.TEMPLATE_DIR, explorer)
+    assert "git clean -fdq -- explorer" in str(info.value)
+    assert "-fdqx" not in str(info.value)
+
+
+# --- fix round 1: explorer-status says what HEAD already holds ---------------------------------
+
+
+def _output_paths() -> list[str]:
+    return build.explorer_output(build.TEMPLATE_DIR)
+
+
+APP = [p for p in _output_paths() if not p.startswith("explorer/data/")]
+DATA = [
+    "explorer/data/model.js",
+    "explorer/data/model.json",
+    "explorer/data/state.json",
+]
+REPORT = "explorer/data/run-report.md"
+
+
+def _track(repo: Path, git, paths: list[str]) -> None:
+    """Commit these output paths the way an old run did: the files exist, ``git add -f`` them."""
+    for rel in paths:
+        path = repo / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"{rel}\n")
+        git(repo, "add", "-f", rel)
+    git(repo, "commit", "-q", "-m", "explorer")
+
+
+def test_explorer_status_tracked_and_incomplete_are_empty_when_nothing_is_committed(
+    make_repo, capsys
+) -> None:
+    repo = make_repo({"main.py": "x = 1\n"})
+    code, out = _status(capsys, repo)
+    assert code == 0 and out["tracked"] == [] and out["incomplete"] == []
+    assert out["kept_local"] is None
+
+
+def test_explorer_status_reports_a_committed_app_without_its_data(make_repo, git, capsys) -> None:
+    # open-brain's state: the old commit took the app files and skipped explorer/data/*.
+    repo = make_repo({".gitignore": "data/\n", "main.py": "x = 1\n"})
+    _track(repo, git, APP)
+    code, out = _status(capsys, repo)
+    assert code == 0
+    assert out["tracked"] == sorted(APP)
+    assert out["incomplete"] == DATA, "the report is not required: a run writes it last"
+    assert out["ignored"] == sorted([*DATA, REPORT])
+
+
+def test_explorer_status_a_complete_committed_explorer_is_not_incomplete(
+    make_repo, git, capsys
+) -> None:
+    repo = make_repo({"main.py": "x = 1\n"})
+    _track(repo, git, [*APP, *DATA])  # no run report yet
+    code, out = _status(capsys, repo)
+    assert code == 0 and out["incomplete"] == []
+    assert out["tracked"] == sorted([*APP, *DATA])
+
+
+def test_explorer_status_a_missing_app_file_is_incomplete_too(make_repo, git, capsys) -> None:
+    repo = make_repo({".gitignore": "vendor/\n", "main.py": "x = 1\n"})
+    kept = [p for p in [*APP, *DATA] if "/vendor/" not in p]
+    _track(repo, git, kept)
+    code, out = _status(capsys, repo)
+    assert out["incomplete"] == sorted(p for p in APP if "/vendor/" in p)
+
+
+def test_explorer_status_only_a_report_in_head_is_not_a_partial_explorer(
+    make_repo, git, capsys
+) -> None:
+    repo = make_repo({"main.py": "x = 1\n"})
+    _track(repo, git, [REPORT])
+    code, out = _status(capsys, repo)
+    assert out["tracked"] == [REPORT] and out["incomplete"] == []
+
+
+def test_explorer_status_kept_local_lists_the_recorded_rules(make_repo, capsys) -> None:
+    repo = make_repo({".gitignore": "data/\n", "main.py": "x = 1\n"})
+    (repo / "explorer").mkdir()
+    (repo / "explorer" / build.LOCAL_MARKER).write_text(
+        build.marker_text([".gitignore:1:data/", ".gitignore:9:gone/"])
+    )
+    code, out = _status(capsys, repo)
+    assert code == 0 and out["explorer"] == "absent" and out["foreign_files"] == []
+    assert out["kept_local"] == {
+        "rules": [".gitignore:1:data/", ".gitignore:9:gone/"],
+        "gone": [".gitignore:9:gone/"],
+    }
+
+
+def test_explorer_status_an_ordinary_explorer_gitignore_is_not_the_marker(
+    make_repo, capsys
+) -> None:
+    repo = make_repo({"main.py": "x = 1\n", "explorer/app.js": "mine\n"})
+    (repo / "explorer" / ".gitignore").write_text("*\n")
+    code, out = _status(capsys, repo)
+    assert out["explorer"] == "foreign" and out["foreign_files"] == [".gitignore", "app.js"]
+    assert out["kept_local"] is None
+
+
+# --- fix round 1: keep-local -----------------------------------------------------------------
+
+
+def _keep_local(capsys, repo: Path) -> tuple[int, dict, str]:
+    code = main(["keep-local", "--repo", str(repo)])
+    cap = capsys.readouterr()
+    return code, (json.loads(cap.out) if cap.out.strip() else {}), cap.err
+
+
+def _built_repo(make_repo, rule: str = "data/\n") -> Path:
+    repo = make_repo({".gitignore": rule, "main.py": "x = 1\n"})
+    install_template(build.TEMPLATE_DIR, repo / "explorer")
+    write_explorer_data(json.loads(FIXTURE.read_text()), repo / "explorer" / "data")
+    return repo
+
+
+def test_keep_local_hides_the_explorer_and_records_the_rule(make_repo, git, capsys) -> None:
+    repo = _built_repo(make_repo)
+    assert git(repo, "status", "--porcelain", "-uall") != ""
+    code, out, err = _keep_local(capsys, repo)
+    assert code == 0 and out == {"written": True, "rules": [".gitignore:1:data/"]}, (out, err)
+    assert git(repo, "status", "--porcelain", "-uall") == ""
+    assert build.read_marker(repo / "explorer") == [".gitignore:1:data/"]
+    # The directory is still the skill's: ours, not foreign, and the rule is still named.
+    code, status = _status(capsys, repo)
+    assert status["explorer"] == "ours" and status["foreign_files"] == []
+    assert status["kept_local"] == {"rules": [".gitignore:1:data/"], "gone": []}
+
+
+def test_keep_local_is_idempotent_and_keeps_the_first_rules(make_repo, capsys) -> None:
+    repo = _built_repo(make_repo)
+    assert _keep_local(capsys, repo)[0] == 0
+    before = (repo / "explorer" / ".gitignore").read_bytes()
+    code, out, err = _keep_local(capsys, repo)
+    # The marker now ignores everything, so a second look would only see itself.
+    assert code == 0 and out == {"written": False, "rules": [".gitignore:1:data/"]}, (out, err)
+    assert (repo / "explorer" / ".gitignore").read_bytes() == before
+
+
+def test_keep_local_records_every_distinct_rule(make_repo, capsys) -> None:
+    repo = _built_repo(make_repo, rule="data/\nvendor/\n")
+    code, out, err = _keep_local(capsys, repo)
+    assert code == 0 and out["rules"] == [".gitignore:1:data/", ".gitignore:2:vendor/"], err
+
+
+def test_keep_local_with_nothing_ignored_refuses(make_repo, git, capsys) -> None:
+    repo = _built_repo(make_repo, rule="*.log\n")
+    code, out, err = _keep_local(capsys, repo)
+    assert code == 2 and out == {} and "nothing to keep local" in err, err
+    assert not (repo / "explorer" / ".gitignore").exists()
+
+
+def test_keep_local_never_overwrites_an_ignore_file_it_did_not_write(make_repo, capsys) -> None:
+    repo = _built_repo(make_repo)
+    (repo / "explorer" / ".gitignore").write_text("*.map\n")
+    code, out, err = _keep_local(capsys, repo)
+    assert code == 2 and "explorer/.gitignore" in err, err
+    assert (repo / "explorer" / ".gitignore").read_text() == "*.map\n"
+
+
+def test_keep_local_refuses_a_foreign_explorer(make_repo, capsys) -> None:
+    repo = make_repo({".gitignore": "data/\n", "explorer/app.js": "mine\n"})
+    code, out, err = _keep_local(capsys, repo)
+    assert code == 2 and "app.js" in err, err
+    assert not (repo / "explorer" / ".gitignore").exists()
+
+
+def test_keep_local_needs_an_explorer(make_repo, capsys) -> None:
+    repo = make_repo({".gitignore": "data/\n", "main.py": "x = 1\n"})
+    code, out, err = _keep_local(capsys, repo)
+    assert code == 2 and "no explorer" in err, err
+    assert not (repo / "explorer").exists()
+
+
+def test_keep_local_needs_the_top_level(make_repo, capsys, tmp_path: Path) -> None:
+    repo = make_repo({"sub/x.py": "x = 1\n"})
+    code, out, err = _keep_local(capsys, repo / "sub")
+    assert code == 2 and "top level" in err, err
+    code, out, err = _keep_local(capsys, tmp_path / "nope")
+    assert code == 2 and "top level" in err, err
+
+
+def test_keep_local_stops_when_git_cannot_say_what_is_ignored(
+    make_repo, capsys, monkeypatch
+) -> None:
+    import document_repo.commit as commit_mod
+
+    def broken(top: Path, paths: list[str]) -> dict[str, str]:
+        raise commit_mod.GitError("git check-ignore failed: fatal")
+
+    repo = _built_repo(make_repo)
+    monkeypatch.setattr(commit_mod, "left_out", broken)
+    code, out, err = _keep_local(capsys, repo)
+    assert code == 2 and "keep-local:" in err and "check-ignore" in err, err
+    assert not (repo / "explorer" / ".gitignore").exists()
+
+
+def test_keep_local_write_failure_leaves_nothing_behind(make_repo, capsys, monkeypatch) -> None:
+    repo = _built_repo(make_repo)
+
+    def broken(path: Path, data: bytes) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(build, "write_bytes_atomic", broken)
+    code, out, err = _keep_local(capsys, repo)
+    assert code == 2 and "disk full" in err, err
+    assert not (repo / "explorer" / ".gitignore").exists()
+
+
+def test_a_marker_over_the_size_cap_is_never_read(tmp_path: Path) -> None:
+    # Well formed, so only the cap can keep it out: a few hundred thousand rule lines.
+    explorer = tmp_path / "explorer"
+    explorer.mkdir()
+    text = build.marker_text(["r"] * (build.MARKER_SIZE_CAP // 2))
+    assert len(text) > build.MARKER_SIZE_CAP and build.parse_marker(text) is not None
+    (explorer / build.LOCAL_MARKER).write_text(text)
+    assert build.read_marker(explorer) is None

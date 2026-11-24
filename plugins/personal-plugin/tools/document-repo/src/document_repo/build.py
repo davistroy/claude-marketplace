@@ -320,6 +320,60 @@ def explorer_output(template_dir: Path) -> list[str]:
     return sorted(f"{OUTPUT_DIR}/{name}" for name in names)
 
 
+#: The file ``keep-local`` writes in the explorer directory, and the header it starts with. It
+#: is a gitignore file: the header and the rule lines are comments, the last line is ``*``, so
+#: every file in the explorer is ignored (an untracked app file would otherwise fail the final
+#: backstop, and the stray rules would delete it). The rule lines record which rules of the
+#: owner's made it necessary, because once this file exists ``git check-ignore`` only sees ``*``.
+LOCAL_MARKER = ".gitignore"
+MARKER_HEADER = (
+    "# document-repo: this explorer is kept local and is never committed. Rules that ignore it:"
+)
+#: A marker is a few hundred bytes; a bigger file is not one and is never read whole.
+MARKER_SIZE_CAP = 64 << 10
+
+
+def marker_text(rules: list[str]) -> str:
+    """The marker file for these rules, each ``source:line:pattern`` as ``check-ignore -v`` says."""
+    return "\n".join([MARKER_HEADER, *(f"# {rule}" for rule in rules), "*", ""])
+
+
+def parse_marker(text: str) -> list[str] | None:
+    """The rules ``text`` records, or None unless ``text`` is exactly what ``marker_text`` makes.
+
+    Fail closed: a file that is nearly the marker, or that adds a line to it (a negation, say),
+    is somebody else's ignore file.
+    """
+    lines = text.split("\n")
+    if len(lines) < 3 or lines[0] != MARKER_HEADER or lines[-2:] != ["*", ""]:
+        return None
+    rules = lines[1:-2]
+    if not all(line.startswith("# ") for line in rules):
+        return None
+    return [line[2:] for line in rules]
+
+
+def read_marker(explorer_dir: Path) -> list[str] | None:
+    """The rules recorded in ``explorer_dir``'s marker, or None when there is no marker.
+
+    A symlink, a directory, a file over ``MARKER_SIZE_CAP`` or any other content is not one.
+    """
+    path = explorer_dir / LOCAL_MARKER
+    if not _regular_file(path):
+        return None
+    try:
+        if path.lstat().st_size > MARKER_SIZE_CAP:
+            return None
+        return parse_marker(path.read_bytes().decode("utf-8"))
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def write_marker(explorer_dir: Path, rules: list[str]) -> None:
+    """Write the marker atomically. ``OSError`` when the directory cannot be written."""
+    write_bytes_atomic(explorer_dir / LOCAL_MARKER, marker_text(rules).encode("utf-8"))
+
+
 def _regular_file(path: Path) -> bool:
     """True when ``path`` is a regular file, not a symlink."""
     try:
@@ -440,6 +494,8 @@ def foreign_files(template_dir: Path, explorer_dir: Path) -> list[str]:
             rel = (rel_dir / name).as_posix()
             if path.is_symlink():
                 continue
+            if rel == LOCAL_MARKER and read_marker(explorer_dir) is not None:
+                continue  # what ``keep-local`` wrote: the skill's own, even in a partial build
             if rel_dir.parts[:1] == (DATA_DIR,):
                 ok = ours and (
                     len(rel_dir.parts) == 1 and (name in DATA_FILES or name.lower().endswith(".md"))
@@ -490,10 +546,15 @@ def ensure_installable(template_dir: Path, explorer_dir: Path) -> None:
             f"{', '.join(links)}. Move them aside, then run again"
         )
     if _looks_like_a_partial_build(explorer_dir, foreign):
+        # Every file of a kept-local explorer is ignored, and ``git clean`` skips ignored files
+        # unless given ``-x``.
+        local = read_marker(explorer_dir) is not None
+        clean = "git clean -fdqx -- explorer" if local else "git clean -fdq -- explorer"
+        note = " (explorer/ is kept local, so its files are ignored)" if local else ""
         raise ValueError(
             f"{explorer_dir} looks like a build that stopped partway: data/state.json is a "
             f"build's, but these no longer match it: {', '.join(foreign)}. Restore what is "
-            "committed with `git clean -fdq -- explorer`, then `git checkout HEAD -- explorer` "
+            f"committed with `{clean}`{note}, then `git checkout HEAD -- explorer` "
             "if HEAD has an explorer/ (a first run's does not), and build again"
         )
     raise ValueError(

@@ -121,13 +121,30 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 **Must:**
 - [ ] Carries `ignored` and `ignored_by` from Phase 0 to the gate, adds a summary line naming the rule as `file:line:pattern`, and asks the second question (**Keep the explorer local** / **Stop so I can change .gitignore**) in the same AskUserQuestion call as the approval
 - [ ] Builds and checks the explorer, writes `explorer kept local: <rule>` in the run report, and makes no `document_repo commit` of `explorer/`
-- [ ] Writes `explorer/.gitignore` containing `*`, so `git status --porcelain -uall` prints nothing and the final backstop exits 0
+- [ ] Runs `document_repo keep-local` (never a hand-typed file), so `explorer/.gitignore` records the rule, `git status --porcelain -uall` prints nothing and the final backstop exits 0
 - [ ] Tells the user at Finish that the explorer is in no commit and `--update` works only on this machine
 
 **Must NOT:**
 - [ ] Run `git add -f`, or edit the target's `.gitignore`
 - [ ] Commit the explorer without its `data/` files, or treat an `ok` from `explorer/` as proof that the data was committed
 - [ ] Delete `explorer/` as a stray
+
+---
+
+### S10: A committed explorer that lacks its data is named, and a kept-local rebuild stays clean
+
+**Context:** An earlier run committed `explorer/` while `.gitignore` had `data/`, so HEAD tracks `index.html`, `app.js`, `styles.css` and `vendor/*` but not `explorer/data/*`. The plugin's template has since changed `app.js`. `explorer-status` prints `"explorer": "ours"`, `"tracked"` listing the app files, `"incomplete"` listing the three data files, and `"ignored_by"` with `.gitignore:<line>:data/`. The owner chooses **Keep the explorer local**.
+
+**Must:**
+- [ ] Shows "the committed explorer is incomplete (no data files)" in the gate summary, with the rule behind it
+- [ ] After the build, commits the tracked files with `document_repo commit --no-content-check` listing each path from `tracked` after `--` (not the directory `explorer`), and then runs `document_repo keep-local`
+- [ ] `git status --porcelain -uall` prints nothing after step 7, and the final backstop exits 0
+- [ ] The run report and the Finish message say that HEAD holds the app without its data, so a fresh clone opens empty, and name the rule
+- [ ] In a later run, `kept_local` is not null: the gate does not ask the keep-local question again, and the report names the recorded rules from `kept_local.rules`
+
+**Must NOT:**
+- [ ] Commit `-- explorer` as a directory, run `git add -f`, or edit the target's `.gitignore`
+- [ ] Leave modified tracked app files uncommitted, or let a stray rule restore them
 
 ---
 
@@ -144,3 +161,4 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 | Every commit goes through `document_repo commit` | Required |
 | Branch backstop exits 0 before Phase 3 and before Finish | Required |
 | An ignore rule is shown at the gate and never overridden | Required |
+| A kept-local or incomplete committed explorer leaves a clean tree and is reported | Required |

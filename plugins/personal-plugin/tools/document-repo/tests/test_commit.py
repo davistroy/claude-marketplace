@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -1499,3 +1501,291 @@ def test_left_out_drops_paths_git_tracks(make_repo, git) -> None:
 def test_left_out_is_empty_when_nothing_is_ignored(make_repo) -> None:
     repo = make_repo({"main.py": M})
     assert commit_mod.left_out(repo, ["explorer/data/state.json"]) == {}
+
+
+# --- fix round 1: the negation line the refusal suggests must work -----------------------------
+
+NEGATION = re.compile(r"\(`(?P<line>![^`]+)` in `(?P<where>[^`]+)`\)")
+
+
+def _suggestion(err: str) -> tuple[str, str]:
+    found = NEGATION.search(err)
+    assert found, f"no negation line in: {err}"
+    return found["line"], found["where"]
+
+
+@pytest.mark.parametrize(
+    "rule_file,rule,left_out_path,expected",
+    [
+        # a directory rule: re-include the directory, not the file
+        (".gitignore", "internal/\n", "docs/internal/README.md", ("!docs/internal/", ".gitignore")),
+        # a file rule: re-include the file. ``!docs/`` would do nothing for ``NOTES.md``
+        (".gitignore", "NOTES.md\n", "docs/NOTES.md", ("!docs/NOTES.md", ".gitignore")),
+        # the rule sits in docs/.gitignore, so the line is relative to docs/
+        ("docs/.gitignore", "NOTES.md\n", "docs/NOTES.md", ("!NOTES.md", "docs/.gitignore")),
+        ("docs/.gitignore", "gen/\n", "docs/gen/a/b.md", ("!gen/", "docs/.gitignore")),
+        # a deep file under an ignored directory: the directory is what to re-include
+        (".gitignore", "internal/\n", "docs/internal/a/b.md", ("!docs/internal/", ".gitignore")),
+        # a glob that names directories
+        (".gitignore", "int*/\n", "docs/internal/a.md", ("!docs/internal/", ".gitignore")),
+        # info/exclude is read relative to the repository root
+        (
+            ".git/info/exclude",
+            "NOTES.md\n",
+            "docs/NOTES.md",
+            ("!docs/NOTES.md", ".git/info/exclude"),
+        ),
+    ],
+)
+def test_the_suggested_negation_line_is_the_one_that_works(
+    make_repo,
+    git,
+    capsys,
+    rule_file: str,
+    rule: str,
+    left_out_path: str,
+    expected: tuple[str, str],
+) -> None:
+    # The ignored file is written before ``add -A``, which skips it: it stays untracked.
+    repo = make_repo(
+        {"main.py": M, "docs/guide.md": "# g\n", rule_file: rule, left_out_path: "# x\n"}
+    )
+    (repo / "docs/guide.md").write_text("# g2\n")
+    code, out = commit(capsys, repo, "docs", ref=None)
+    assert code == 2, out
+    assert _suggestion(out["_err"]) == expected, out["_err"]
+    # Do what it says: append the line after the rule, in that file. The commit then goes through.
+    line, where = _suggestion(out["_err"])
+    with open(repo / where, "a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+    if where.startswith("docs/"):  # a rule file under docs/ is itself a change to commit first
+        git(repo, "add", where)
+        git(repo, "commit", "-q", "-m", "negate")
+    code, out = commit(capsys, repo, "docs", ref=None)
+    assert code == 0 and left_out_path in out["paths"], out
+
+
+def test_no_negation_is_suggested_when_git_names_no_rule(
+    make_repo, git, capsys, monkeypatch
+) -> None:
+    repo = make_repo({".gitignore": "internal/\n", "main.py": M})
+    _put(repo, {"docs/guide.md": "# g\n", "docs/internal/README.md": "# i\n"})
+    monkeypatch.setattr(commit_mod, "ignore_rules", lambda top, paths: {})
+    code, out = commit(capsys, repo, "docs", ref=None)
+    err = out["_err"]
+    assert code == 2 and "docs/internal/README.md (rule not found)" in err, err
+    assert "`!" not in err and "negation rule" in err and "keep the directory local" in err
+
+
+# --- fix round 1: small helpers ------------------------------------------------------------------
+
+
+def test_tracked_paths_lists_only_what_the_index_holds(make_repo, git) -> None:
+    repo = make_repo({"a.md": "a\n", "b/c.md": "c\n"})
+    got = commit_mod.tracked_paths(repo, ["a.md", "b/c.md", "b", "nope.md", "a.md.bak"])
+    assert got == {"a.md", "b/c.md"}
+    assert commit_mod.tracked_paths(repo, []) == set()
+
+
+def test_tracked_paths_reads_the_index_not_the_work_tree(make_repo, git) -> None:
+    repo = make_repo({"a.md": "a\n"})
+    (repo / "a.md").unlink()
+    assert commit_mod.tracked_paths(repo, ["a.md"]) == {"a.md"}
+
+
+@pytest.mark.parametrize(
+    "rule,present",
+    [
+        (".gitignore:1:data/", True),
+        (".gitignore:9:data/", True),  # the line moved: the pattern is what counts
+        (".gitignore:1:  data/", False),  # leading blanks are part of a pattern
+        (".gitignore:1:other/", False),
+        (".gitignore:3:*.log", True),
+        (".git/info/exclude:1:secret/", True),
+        ("sub/.gitignore:1:x", False),  # no such file
+        ("no-colons", False),
+        (".gitignore:one:data/", False),
+    ],
+)
+def test_rule_in_place_looks_for_the_pattern_in_its_file(
+    make_repo, rule: str, present: bool
+) -> None:
+    repo = make_repo({".gitignore": "# c\ndata/\n*.log \n", "main.py": M})
+    (repo / ".git/info/exclude").write_text("secret/\n")
+    assert commit_mod.rule_in_place(repo, rule) is present
+
+
+def test_rule_in_place_reads_an_absolute_source(make_repo, tmp_path) -> None:
+    repo = make_repo({"main.py": M})
+    exclude = tmp_path / "global-ignore"
+    exclude.write_text("data/\n")
+    assert commit_mod.rule_in_place(repo, f"{exclude}:1:data/")
+    assert not commit_mod.rule_in_place(repo, f"{exclude}:1:other/")
+
+
+def test_rule_in_place_survives_a_file_that_is_not_text(make_repo) -> None:
+    repo = make_repo({"main.py": M})
+    (repo / ".gitignore").write_bytes(b"\xff\xfe data/\n")
+    assert not commit_mod.rule_in_place(repo, ".gitignore:1:data/")
+    (repo / ".gitignore").unlink()
+    (repo / ".gitignore").mkdir()
+    assert not commit_mod.rule_in_place(repo, ".gitignore:1:data/")
+
+
+# --- fix round 1: Keep local when HEAD already tracks the app ------------------------------------
+#
+# open-brain's state. A previous run committed index.html, app.js, styles.css and vendor/*, and git
+# skipped explorer/data/*. The recipe in SKILL.md Phase 4 step 7 must leave a clean tree, and the
+# final backstop must pass, with the app files tracked and the data local.
+
+
+def _run_build(capsys, repo: Path, template: Path) -> None:
+    model = repo.parent / "model.json"
+    model.write_text((Path(__file__).parent / "fixtures" / "sample_model.json").read_text())
+    code = main(
+        [
+            "build",
+            "--model",
+            str(model),
+            "--explorer-dir",
+            str(repo / "explorer"),
+            "--template",
+            str(template),
+        ]
+    )
+    capsys.readouterr()
+    assert code == 0
+
+
+def _explorer_status(capsys, repo: Path) -> dict:
+    code, out = run(capsys, "explorer-status", "--repo", str(repo))
+    assert code == 0, out
+    return out
+
+
+def test_keep_local_with_a_committed_app_leaves_a_clean_tree_and_a_passing_backstop(
+    make_repo, git, capsys, tmp_path
+) -> None:
+    from document_repo.build import TEMPLATE_DIR
+
+    repo = make_repo({".gitignore": "data/\n", "main.py": M})
+    base = head(git, repo)
+    # The first run, with the old commit step: plain ``git add -- explorer``, which skipped data/.
+    _run_build(capsys, repo, TEMPLATE_DIR)
+    git(repo, "add", "--", "explorer")
+    git(repo, "commit", "-q", "-m", "docs: add interactive project explorer")
+    assert "explorer/data/state.json" not in git(repo, "ls-files")
+    assert git(repo, "status", "--porcelain", "-uall") == ""
+
+    # A later run on a newer template: the app files change, the data stays local.
+    newer = tmp_path / "newer-template"
+    shutil.copytree(TEMPLATE_DIR, newer)
+    (newer / "app.js").write_text((newer / "app.js").read_text() + "\n// newer template\n")
+    before = _explorer_status(capsys, repo)
+    assert before["explorer"] == "ours" and before["kept_local"] is None
+    assert before["incomplete"] == [
+        "explorer/data/model.js",
+        "explorer/data/model.json",
+        "explorer/data/state.json",
+    ]
+    assert "explorer/app.js" in before["tracked"] and before["ignored_by"] == [".gitignore:1:data/"]
+    _run_build(capsys, repo, newer)
+    assert git(repo, "status", "--porcelain", "-uall").split("\n")[0] == " M explorer/app.js"
+
+    # Step 7, kept local: commit what HEAD tracks (the command skips what did not change) ...
+    code, out = commit(
+        capsys, repo, *before["tracked"], ref=None, msg="docs: update the committed explorer app"
+    )
+    assert code == 0 and out["status"] == "ok" and out["paths"] == ["explorer/app.js"], out
+    # ... then keep the rest local.
+    code, out = run(capsys, "keep-local", "--repo", str(repo))
+    assert code == 0 and out["rules"] == [".gitignore:1:data/"], out
+    assert git(repo, "status", "--porcelain", "-uall") == ""
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 0 and out["ok"] and out["status"] == [], out
+
+    # The next run sees it: ours, kept local, and the same app files are still all that HEAD holds.
+    after = _explorer_status(capsys, repo)
+    assert after["explorer"] == "ours" and after["foreign_files"] == []
+    assert after["kept_local"] == {"rules": [".gitignore:1:data/"], "gone": []}
+    assert after["tracked"] == before["tracked"] and after["incomplete"] == before["incomplete"]
+    # Rebuilding with an unchanged template changes nothing git sees, and committing is a skip.
+    _run_build(capsys, repo, newer)
+    assert git(repo, "status", "--porcelain", "-uall") == ""
+    code, out = commit(capsys, repo, *after["tracked"], ref=None)
+    assert code == 0 and out["status"] == "skip", out
+    assert (repo / "explorer/data/state.json").is_file(), "the local explorer is still there"
+
+
+def test_a_partial_build_in_a_kept_local_explorer_recovers_with_the_command_it_names(
+    make_repo, git, capsys
+) -> None:
+    from document_repo.build import TEMPLATE_DIR
+
+    repo = make_repo({".gitignore": "data/\n", "main.py": M})
+    _run_build(capsys, repo, TEMPLATE_DIR)
+    assert run(capsys, "keep-local", "--repo", str(repo))[0] == 0
+    # write_explorer_data replaced model.json and stopped: the old state no longer matches.
+    (repo / "explorer/data/model.json").write_text('{"half": "written"}\n')
+    model = repo.parent / "model.json"
+    code = main(["build", "--model", str(model), "--explorer-dir", str(repo / "explorer")])
+    err = capsys.readouterr().err
+    assert code == 2 and "stopped partway" in err and "git clean -fdqx -- explorer" in err, err
+    # The plain clean the committed-explorer message gives removes nothing here ...
+    git(repo, "clean", "-fdq", "--", "explorer")
+    assert (repo / "explorer/data/model.json").is_file()
+    # ... the one this message gives does, and the next build is accepted.
+    git(repo, "clean", "-fdqx", "--", "explorer")
+    assert not (repo / "explorer").exists()
+    _run_build(capsys, repo, TEMPLATE_DIR)
+    assert _explorer_status(capsys, repo)["explorer"] == "ours"
+
+
+# --- fix round 1: gaps the mutation run found, and the marker named in a refusal -----------------
+
+
+def test_a_global_excludes_file_named_gitignore_is_not_taken_for_one_in_the_tree(
+    make_repo, git, capsys, tmp_path
+) -> None:
+    # dirname("/home/me/.gitignore") is not a directory of the repository.
+    exclude = tmp_path / "home" / ".gitignore"
+    exclude.parent.mkdir()
+    exclude.write_text("NOTES.md\n")
+    repo = make_repo({"main.py": M, "docs/guide.md": "# g\n"})
+    git(repo, "config", "core.excludesFile", str(exclude))
+    _put(repo, {"docs/guide.md": "# g2\n", "docs/NOTES.md": "# n\n"})
+    code, out = commit(capsys, repo, "docs", ref=None)
+    assert code == 2, out
+    assert _suggestion(out["_err"]) == ("!docs/NOTES.md", str(exclude)), out["_err"]
+
+
+def test_tracked_paths_does_not_list_what_a_directory_pathspec_holds(make_repo) -> None:
+    repo = make_repo({"b/c.md": "c\n"})
+    assert commit_mod.tracked_paths(repo, ["b"]) == set()
+
+
+def test_the_refusal_says_to_delete_the_marker_when_the_marker_is_the_rule(
+    make_repo, git, capsys
+) -> None:
+    from document_repo.build import TEMPLATE_DIR
+
+    repo = make_repo({".gitignore": "data/\n", "main.py": M})
+    _run_build(capsys, repo, TEMPLATE_DIR)
+    git(repo, "add", "--", "explorer")  # HEAD holds the app, as after an old run
+    git(repo, "commit", "-q", "-m", "explorer app")
+    assert run(capsys, "keep-local", "--repo", str(repo))[0] == 0
+    before = _snapshot(git, repo)
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    err = out["_err"]
+    assert code == 2 and "explorer/data/state.json (explorer/.gitignore:" in err, err
+    assert "delete explorer/.gitignore" in err and "keep-local" in err, err
+    assert "`!" not in err, "a negation in the marker would re-include one file, not the explorer"
+    assert _snapshot(git, repo) == before
+    # Deleting it, and adding the negation the owner wants, lets the explorer commit whole.
+    (repo / "explorer/.gitignore").unlink()
+    with open(repo / ".gitignore", "a", encoding="utf-8") as fh:
+        fh.write("!explorer/data/\n")
+    git(repo, "add", ".gitignore")
+    git(repo, "commit", "-q", "-m", "publish the explorer data")
+    code, out = commit(capsys, repo, "explorer", ref=None)
+    assert code == 0 and "explorer/data/state.json" in out["paths"], out

@@ -354,8 +354,16 @@ def _register_backstop(sub: Any) -> None:
 
 
 def _cmd_explorer_status(args: argparse.Namespace) -> int:
-    from .build import TEMPLATE_DIR, explorer_output, foreign_files, is_our_explorer
-    from .commit import GitError, left_out
+    from .build import (
+        DATA_DIR,
+        RUN_REPORT_FILE,
+        TEMPLATE_DIR,
+        explorer_output,
+        foreign_files,
+        is_our_explorer,
+        read_marker,
+    )
+    from .commit import GitError, left_out, rule_in_place, tracked_paths
     from .inventory import OUTPUT_DIR
     from .verify import toplevel
 
@@ -375,17 +383,30 @@ def _cmd_explorer_status(args: argparse.Namespace) -> int:
         status = "absent"
     # Ask git before the gate: a rule such as ``data/`` would keep the build's own files out of
     # the commit, and ``git add`` would not say so. Exists or not, git answers for the path.
+    outputs = explorer_output(TEMPLATE_DIR)
     try:
-        ignored = left_out(top, explorer_output(TEMPLATE_DIR))
+        ignored = left_out(top, outputs)
+        tracked = sorted(tracked_paths(top, outputs))
     except GitError as exc:
         sys.stderr.write(f"explorer-status: {exc}\n")
         return 2
+    # What HEAD holds of the build's output. Holding some but not all (the app without its data,
+    # because a rule skipped it) is an explorer that opens empty on a fresh clone. The run report
+    # is written last and nothing needs it, so it does not count.
+    required = set(outputs) - {f"{OUTPUT_DIR}/{DATA_DIR}/{RUN_REPORT_FILE}"}
+    incomplete = sorted(required - set(tracked)) if required & set(tracked) else []
+    recorded = read_marker(explorer)
     emit(
         {
             "explorer": status,
             "foreign_files": foreign,
             "ignored": sorted(ignored),
             "ignored_by": sorted(set(ignored.values())),
+            "tracked": tracked,
+            "incomplete": incomplete,
+            "kept_local": None
+            if recorded is None
+            else {"rules": recorded, "gone": [r for r in recorded if not rule_in_place(top, r)]},
         }
     )
     return 0
@@ -398,6 +419,68 @@ def _register_explorer_status(sub: Any) -> None:
     )
     p.add_argument("--repo", type=_repo_arg, required=True, help="top level of the git work tree")
     p.set_defaults(func=_cmd_explorer_status)
+
+
+def _cmd_keep_local(args: argparse.Namespace) -> int:
+    from .build import (
+        LOCAL_MARKER,
+        TEMPLATE_DIR,
+        explorer_output,
+        foreign_files,
+        read_marker,
+        write_marker,
+    )
+    from .commit import GitError, left_out
+    from .inventory import OUTPUT_DIR
+    from .verify import toplevel
+
+    top = toplevel(args.repo)
+    if top is None or top.resolve() != args.repo.resolve():
+        sys.stderr.write(f"keep-local: not the top level of a git work tree: {args.repo}\n")
+        return 2
+    explorer = top / OUTPUT_DIR
+    if explorer.is_symlink() or not explorer.is_dir():
+        sys.stderr.write(f"keep-local: no explorer to keep local: {explorer} is not a directory\n")
+        return 2
+    kept = read_marker(explorer)
+    if kept is not None:
+        # Looking again would only see the marker's own ``*``, so the rules it recorded stand.
+        emit({"written": False, "rules": kept})
+        return 0
+    if os.path.lexists(explorer / LOCAL_MARKER):
+        sys.stderr.write(
+            f"keep-local: {explorer / LOCAL_MARKER} exists and is not the file keep-local writes: "
+            "move it aside, then run again\n"
+        )
+        return 2
+    foreign = foreign_files(TEMPLATE_DIR, explorer)
+    if foreign:
+        sys.stderr.write(
+            f"keep-local: {explorer} holds what a build does not write: {', '.join(foreign)}\n"
+        )
+        return 2
+    try:
+        rules = sorted(set(left_out(top, explorer_output(TEMPLATE_DIR)).values()))
+        if not rules:
+            sys.stderr.write(
+                "keep-local: nothing to keep local: no ignore rule keeps the explorer out of git\n"
+            )
+            return 2
+        write_marker(explorer, rules)
+    except (GitError, OSError) as exc:
+        sys.stderr.write(f"keep-local: {exc}\n")
+        return 2
+    emit({"written": True, "rules": rules})
+    return 0
+
+
+def _register_keep_local(sub: Any) -> None:
+    p = sub.add_parser(
+        "keep-local",
+        help="write explorer/.gitignore so a kept-local explorer leaves the tree clean",
+    )
+    p.add_argument("--repo", type=_repo_arg, required=True, help="top level of the git work tree")
+    p.set_defaults(func=_cmd_keep_local)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -418,6 +501,7 @@ def build_parser() -> argparse.ArgumentParser:
     _register_commit(sub)
     _register_backstop(sub)
     _register_explorer_status(sub)
+    _register_keep_local(sub)
     return parser
 
 
