@@ -121,7 +121,7 @@ Show a short summary:
 - **Write plan:** the files that will get comments (count, plus the header-only count), the READMEs to create or update, the root doc files, whether `CLAUDE.md` gets a pointer, and the explorer views.
 - Baseline failures, `not_analyzed` modules, skipped JS/TS files, and skipped files by reason (counts).
 - When `ignored` is not empty, one line: the rule (`file:line:pattern` from `ignored_by`) and what it keeps out of git, for example "`.gitignore:30:data/` keeps `explorer/data/` out of git, so the explorer cannot be committed whole".
-- When `incomplete` is not empty, one line: "the committed explorer is incomplete (no data files)", naming what HEAD lacks and the rule behind it. If `ignored` is empty, say that this run's commit adds the missing files.
+- When `incomplete` is not empty, one line: "the committed explorer is incomplete", naming what HEAD lacks (its data files, or only files the template gained since) and the rule behind it, if any. If `ignored` is empty, say that this run's commit adds the missing files.
 
 Then ask with AskUserQuestion. The options are **Approve and write**
 (recommended), **Change the plan** (take notes, adjust, and ask again), and
