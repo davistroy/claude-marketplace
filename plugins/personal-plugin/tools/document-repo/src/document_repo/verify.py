@@ -94,6 +94,17 @@ def git_show(repo: Path, ref: str, rel: str) -> str | None:
         return None
 
 
+def git_size(repo: Path, ref: str, rel: str) -> int | None:
+    """The size in bytes of ``rel`` at ``ref`` as git stores it, or None if it was not there.
+
+    Cheap: git reads the object header, not the file. ``git_show`` after it reads the whole file.
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "-s", f"{ref}:{rel}"], capture_output=True
+    )
+    return int(proc.stdout) if proc.returncode == 0 else None
+
+
 _DocParent = ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
 _DOC_PARENTS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 

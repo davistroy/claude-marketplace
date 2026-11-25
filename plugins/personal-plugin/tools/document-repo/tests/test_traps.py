@@ -1225,3 +1225,227 @@ def test_the_help_says_where_skipped_files_go_and_what_no_before_means(capsys) -
     text = " ".join(capsys.readouterr().out.split())
     assert "Without --before" in text and "every" in text and "tracked" in text
     assert "over the size limit" in text and "stderr" in text and "stdout" in text
+
+
+# --- review round 1: a trap inside an existing block comment (JS/TS) ----------------------------
+
+OWNER_JSDOC = "/**\n * Role: thing.\n */\nexport const a = 1;\n"
+
+
+@pytest.mark.parametrize("path", ["a.js", "a.ts", "a.tsx", "a.mjs", "a.jsx", "a.cts"])
+def test_a_trap_added_inside_an_owner_block_comment_is_found(
+    path: str, make_repo, commit_files, git
+) -> None:
+    """The TypeScript printer accepts this edit, so a verified branch can hold it."""
+    after = (
+        "/**\n * Role: thing.\n * Traps: a bare call loses data.\n *   continued.\n */\n"
+        "export const a = 1;\n"
+    )
+    repo, sha = branch(make_repo, commit_files, git, {path: OWNER_JSDOC}, {path: after})
+    assert found(repo, sha) == [(path, 3, "a bare call loses data. continued.")]
+
+
+def test_a_trap_inside_an_owner_block_comment_does_not_absorb_the_owners_lines(
+    make_repo, commit_files, git
+) -> None:
+    base = "/**\n * Role: thing.\n * owner text after.\n */\nexport const a = 1;\n"
+    after = "/**\n * Role: thing.\n * Traps: new.\n * owner text after.\n */\nexport const a = 1;\n"
+    repo, sha = branch(make_repo, commit_files, git, {"a.js": base}, {"a.js": after})
+    assert found(repo, sha) == [("a.js", 3, "new.")]
+
+
+def test_an_owner_trap_inside_a_block_comment_is_not_reported_in_before_mode(
+    make_repo, commit_files, git
+) -> None:
+    base = "/**\n * Traps: owner.\n */\nexport const a = 1;\n"
+    after = "/**\n * Traps: owner.\n * Traps: mine.\n */\nexport const a = 1;\n"
+    repo, sha = branch(make_repo, commit_files, git, {"a.js": base}, {"a.js": after})
+    assert found(repo, sha) == [("a.js", 3, "mine.")]
+
+
+def test_a_line_comment_trap_added_inside_a_block_comment_is_part_of_it_not_a_line_comment(
+    make_repo, commit_files, git
+) -> None:
+    base = "/*\n * Role: x.\n */\nexport const a = 1;\n"
+    after = "/*\n * Role: x.\n// Traps: not a comment here\n */\nexport const a = 1;\n"
+    repo, sha = branch(make_repo, commit_files, git, {"a.js": base}, {"a.js": after})
+    assert found(repo, sha) == []
+
+
+def test_the_repro_repo_shape(make_repo, commit_files, git) -> None:
+    """The reviewer's repro: a JS block insert, a template literal, and an SQL continuation."""
+    repo, sha = branch(
+        make_repo,
+        commit_files,
+        git,
+        {"a.js": OWNER_JSDOC, "q.sql": "-- Role: x\nselect 1;\n"},
+        {
+            "a.js": (
+                "/**\n * Role: thing.\n * Traps: a bare call loses data.\n *   continued.\n */\n"
+                "export const a = 1;\nconst t = `\n// Traps: inside template\n`;\n"
+            ),
+            "q.sql": (
+                "-- Role: x\n-- Traps: returns -1 on miss\n"
+                "--   -1 means not found; !important\nselect 1;\n"
+            ),
+        },
+    )
+    assert found(repo, sha) == [
+        ("a.js", 3, "a bare call loses data. continued."),
+        ("q.sql", 2, "returns -1 on miss -1 means not found; !important"),
+    ]
+
+
+# --- review round 1: a label inside text that only looks like a comment ------------------------
+
+
+@pytest.mark.parametrize("path", ["a.js", "a.ts", "a.tsx"])
+def test_without_before_a_trap_inside_a_template_literal_is_not_listed(
+    path: str, make_repo
+) -> None:
+    text = (
+        "// Traps: real header\n"
+        "export const t = `\n// Traps: inside the template\n`;\n"
+        "/* Traps: real block */\n"
+        "export const u = `\n/* Traps: inside again */\n`;\n"
+    )
+    repo = make_repo({path: text})
+    assert [(t.line, t.text) for t in harvest_traps(repo)] == [
+        (1, "real header"),
+        (5, "real block"),
+    ]
+
+
+def test_with_before_a_trap_inside_an_added_template_literal_is_not_listed(
+    make_repo, commit_files, git
+) -> None:
+    after = "const t = `\n// Traps: inside\n`;\n// Traps: after\nexport const a = 1;\n"
+    repo, sha = branch(
+        make_repo, commit_files, git, {"a.js": "export const a = 1;\n"}, {"a.js": after}
+    )
+    assert found(repo, sha) == [("a.js", 4, "after")]
+
+
+def test_a_trap_after_a_regex_that_holds_a_quote_is_found(make_repo) -> None:
+    text = "const re = /[\"'`]/g;\n// Traps: after the regex\nexport const a = 1;\n"
+    assert [(t.line, t.text) for t in harvest_traps(make_repo({"a.js": text}))] == [
+        (2, "after the regex")
+    ]
+
+
+def test_the_comment_scanner_for_other_languages_is_unchanged_inside_a_heredoc(make_repo) -> None:
+    """Documented limit: outside Python and JS/TS a heredoc line can pass for a comment."""
+    text = "cat <<'EOF'\n# Traps: inside a heredoc\nEOF\n"
+    assert [t.text for t in harvest_traps(make_repo({"run.sh": text}))] == ["inside a heredoc"]
+
+
+# --- review round 1: exactly one comment marker is removed -------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path, text, expected",
+    [
+        ("q.sql", "-- Traps: a\n--   -1 means not found\n", "a -1 means not found"),
+        ("q.sql", "-- Traps: a\n--   --flag is on\n", "a --flag is on"),
+        ("a.js", "// Traps: a\n//   /usr/bin is special\n", "a /usr/bin is special"),
+        ("a.js", "// Traps: a\n// !important\n", "a !important"),
+        ("a.js", "// Traps: a\n//!important\n", "a !important"),
+        ("a.rs", "//! Traps: a\n//!\n//! unrelated\n", "a"),
+        ("a.js", "// Traps: a\n//x y\n", "a x y"),
+        ("run.sh", "# Traps: a\n#x y\n", "a x y"),
+        ("p.html", "<!-- Traps: a\n * not decoration -->\n", "a * not decoration"),
+        ("a.go", "// Traps: a\n//   //nolint is ignored\n", "a //nolint is ignored"),
+        ("run.sh", "# Traps: a\n#   -x flag\n", "a -x flag"),
+        ("run.sh", "# Traps: a\n#   #hash tag\n", "a #hash tag"),
+        ("a.py", "# Traps: a\n#   #hash tag\n#   -1 is a miss\n", "a #hash tag -1 is a miss"),
+        ("a.js", "/**\n * Traps: a\n *   *bold* text\n */\n", "a *bold* text"),
+        ("a.js", "/**\n * Traps: a\n *   * b\n */\n", "a * b"),
+    ],
+    ids=[
+        "sql-minus-one",
+        "sql-double-dash",
+        "slashes-path",
+        "bang",
+        "bang-adjacent",
+        "rust-empty-doc-line",
+        "letter-then-space",
+        "shell-letter-then-space",
+        "html-star-is-text",
+        "go-nolint",
+        "shell-flag",
+        "shell-hash",
+        "python-hash",
+        "jsdoc-bold",
+        "block-star",
+    ],
+)
+def test_only_one_marker_is_removed_from_a_continuation(
+    path: str, text: str, expected: str, make_repo
+) -> None:
+    assert [t.text for t in harvest_traps(make_repo({path: text}))] == [expected]
+
+
+@pytest.mark.parametrize(
+    "path, text",
+    [
+        ("a.rs", "//! Traps: a\n//!   b\n"),
+        ("a.rs", "/// Traps: a\n///   b\n"),
+        ("run.sh", "## Traps: a\n##   b\n"),
+        ("q.sql", "--- Traps: a\n---   b\n"),
+    ],
+    ids=["rust-inner", "rust-outer", "double-hash", "triple-dash"],
+)
+def test_a_doc_comment_marker_is_one_marker(path: str, text: str, make_repo) -> None:
+    assert [t.text for t in harvest_traps(make_repo({path: text}))] == ["a b"]
+
+
+# --- review round 1: the base blob is capped too ----------------------------------------------
+
+
+def test_a_base_over_the_cap_is_named_and_not_read(
+    make_repo, commit_files, git, capsys, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    big_base = "x = 1\n" + "# filler line\n" * 10
+    repo, sha = branch(
+        make_repo,
+        commit_files,
+        git,
+        {"a.py": big_base},
+        {"a.py": "# Traps: shrunk below the cap\nx = 1\n"},
+    )
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 60)
+    asked: list[str] = []
+    real = traps_mod.git_show
+    monkeypatch.setattr(traps_mod, "git_show", lambda *a: asked.append(a[2]) or real(*a))
+    code, out, err = run_traps(capsys, repo, sha)
+    assert (code, out) == (0, [])
+    assert asked == []
+    assert harvest_traps(repo, sha) == []  # without a list to fill, the file is still not read
+    assert (
+        err == f"traps: skipped a.py: {len(big_base.encode())} bytes is over the 60-byte limit, "
+        "not read\n"
+    )
+
+
+def test_a_base_exactly_at_the_cap_is_read(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = "x = 1\n" + "# filler\n" * 3
+    repo, sha = branch(
+        make_repo, commit_files, git, {"a.py": base}, {"a.py": "# Traps: a\nx = 1\n"}
+    )
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", len(base.encode()))
+    skipped: list[Skipped] = []
+    assert [t.text for t in harvest_traps(repo, sha, skipped)] == ["a"]
+    assert skipped == []
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", len(base.encode()) - 1)
+    assert harvest_traps(repo, sha, skipped) == []
+    assert skipped == [Skipped("a.py", len(base.encode()), len(base.encode()) - 1)]
+
+
+def test_a_new_file_has_no_base_to_cap(make_repo, git, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = make_repo({"a.py": "x = 1\n"})
+    sha = head(git, repo)
+    (repo / "new.py").write_text("# Traps: new\n")
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 40)
+    assert [t.path for t in harvest_traps(repo, sha)] == ["new.py"]

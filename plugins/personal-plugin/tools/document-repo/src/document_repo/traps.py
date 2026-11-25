@@ -9,27 +9,41 @@ the orchestrator can fold the ones that matter beyond their own file into the mo
 way ``verify --changed`` does (``verify.changed_files``: everything but Markdown and the skill's
 own explorer output), and returns one ``Trap`` for each ``Traps:`` label on a line the branch
 added. A label that existed at ``before`` is the owner's: the analysts already read it in the
-source. Only lines of a comment count, found with the same classifier the verifier uses
-(``verify.comment_scan`` and, for Python, the docstring rule of ``verify.docstring_stmts`` plus
-the tokenizer, which tells a ``#`` line from a ``#`` inside a string). A label inside code
-(``print("Traps: x")``) is not a trap.
+source. Only lines of a comment count. How a comment is told from text that looks like one
+depends on the language, and is exact only where a real tokenizer is used:
+
+- Python is scanned whole with the tokenizer (a ``#`` inside a string is not a comment) and the
+  verifier's docstring rule (``verify.docstring_stmts``).
+- JavaScript and TypeScript are scanned whole with ``jscomments``, a lexer that knows strings,
+  template literals and regular expressions. The whole file, not just the added lines, because the
+  TypeScript printer accepts a ``Traps:`` line inserted into an owner's existing ``/** ... */``,
+  and an added line alone cannot be seen to be inside a block comment. The result is masked by
+  the added lines.
+- Every other language is scanned one added run of lines at a time with the verifier's own chunk
+  scanner (``verify.comment_scan``). That is what the verifier proves for them: an added run must
+  be whole comments. Without ``before`` the run is the whole file, which is not proven, so a
+  ``# Traps:`` line inside a shell heredoc or a multi-line string can pass for a comment there.
+  The orchestrator filters the list; SKILL.md says so.
+
+A label inside code (``print("Traps: x")``) is not a trap.
 
 What a trap's text is: the label's text, then the lines after it that are comment lines of the
 same comment (the same ``//`` or ``#`` run, the same block comment, the same docstring), were
-added too, are not blank, and do not start another header label. Comment markers, a block
-comment's leading ``*``, and runs of whitespace are removed, and the lines are joined with one
-space. Lines are numbered as an editor shows them (``remap.split_lines``): a form feed does not
-start a line.
+added too, are not blank, and do not start another header label. Exactly one comment marker is
+removed from each line (``//``, ``///`` and ``//!`` are each one; so are ``#`` and ``##``), and in
+a block comment one leading ``*``. What follows is kept, so ``--   -1 means`` stays ``-1 means``.
+Runs of whitespace become one space and the lines are joined with one. Lines are numbered as an
+editor shows them (``remap.split_lines``): a form feed does not start a line.
 
 Without ``before``, the files are every tracked, non-exempt one and every ``Traps:`` comment in
 them counts, the owner's included. A ``--phase docs`` run needs this: its commenters ran in an
 earlier run, so no base separates their traps from the owner's.
 
 Files are read one at a time and the result is a generator underneath, so memory stays at one
-file. A file over ``MAX_BYTES`` (``MAX_PYTHON_BYTES`` for Python) is not read and is reported in
-the ``skipped`` list. One that is not UTF-8, a symlink, anything that is not a regular file, and
-a Python file that does not parse (the verifier would have failed it) are skipped without a
-report: none of them can hold a trap the skill wrote.
+file. A file over ``MAX_BYTES`` (``MAX_PYTHON_BYTES`` for Python), or whose version at ``before``
+is, is not read and is reported in the ``skipped`` list. A file that is not UTF-8, a symlink,
+anything that is not a regular file, and a Python file that does not parse (the verifier would
+have failed it) are skipped without a report: none of them can hold a trap the skill wrote.
 """
 
 from __future__ import annotations
@@ -48,6 +62,7 @@ from pathlib import Path
 from typing import Any
 
 from .commit import GitError, _resolve_commit, _top
+from .jscomments import comment_lines
 from .languages import Lang, detect
 from .remap import split_lines
 from .verify import (
@@ -56,6 +71,7 @@ from .verify import (
     comment_scan,
     docstring_stmts,
     git_show,
+    git_size,
     tracked_files,
 )
 
@@ -65,11 +81,14 @@ HEADER_LABELS = ("Role", "Used by", "Inputs", "Outputs", "Side effects", "Invari
 TRAPS_LABEL = "Traps:"
 _ANY_LABEL = re.compile("(?:" + "|".join(re.escape(name) for name in HEADER_LABELS) + "):")
 
-#: A file larger than this is skipped, so memory stays bounded at one file's worth. Measured on a
-#: 9 MB Python file: its syntax tree peaks near 1 GB, a shell file of 7 MB needs about 0.1 GB.
+#: A file larger than this (or whose base version is) is not read, so memory stays at one file's
+#: worth. Peak RSS measured on this machine: a 16 MiB JavaScript file 213 MB, a 7 MB shell file
+#: about 0.1 GB.
 MAX_BYTES = 16 * 1024 * 1024
-#: The same limit for Python, whose syntax tree is what costs the memory (about 110 times the
-#: file). 4 MiB peaks near 0.5 GB, inside the 1.5 GB ceiling.
+#: The same limit for Python, whose syntax tree costs about 110 times the file. Measured: a 9.4 MB
+#: Python file peaked at 1.6 GB RSS with a list of every token and at 1.1 GB with the tokens
+#: streamed, which is why the limit is lower; a 4 MiB Python file and a 16 MiB shell file in one run
+#: peaked at 518 MB, inside the 1.5 GB ceiling.
 MAX_PYTHON_BYTES = 4 * 1024 * 1024
 
 BOM = "\ufeff"
@@ -125,13 +144,22 @@ def _read(path: Path, limit: int) -> str | None:
 
 
 def _clean(text: str, key: int, lang: Lang) -> str:
-    """Comment text without its decoration (``//!``, ``##``, a block's ``*``), one space apart."""
-    text = text.strip()
+    """Comment text with exactly one marker's decoration removed, one space between words.
+
+    ``text`` has lost its line marker (``//``, ``#``, ``--``) or block opener already. A doc
+    comment marker, ``///`` or ``//!`` or ``##``, is one marker: its extra character goes only when
+    it follows the marker with nothing between and is followed by a space or the end. So ``//
+    /usr/bin`` and ``--   -1 means``, which have a space first, keep their first character. In a
+    block comment, one leading ``*`` goes (the decoration of ``/** ... */``).
+    """
     if key == LINE_COMMENT:
-        # What a line comment repeats after its marker: `///`, `//!`, `##`, `---`, `;;`.
-        text = text.lstrip("".join(m[-1] for m in lang.line) + "!")
-    elif any(start == "/*" for start, _ in lang.block):
-        text = text.lstrip("*")
+        extra = "".join(m[-1] for m in lang.line) + "!"
+        if text[:1] and text[0] in extra and (len(text) == 1 or text[1].isspace()):
+            text = text[1:]
+    else:
+        text = text.strip()
+        if text.startswith("*") and any(start == "/*" for start, _ in lang.block):
+            text = text[1:]
     return " ".join(text.split())
 
 
@@ -193,11 +221,27 @@ def _added_ranges(before: str, after: list[str]) -> list[tuple[int, int]]:
     ]
 
 
+def _js_entries(text: str, lang: Lang) -> list[Entry]:
+    return [(n, key, _clean(t, key, lang)) for n, key, t in comment_lines(text)]
+
+
 def _entries_on_added_lines(
     after: str, lines: list[str], added: list[tuple[int, int]], lang: Lang
 ) -> list[Entry]:
-    if lang.verify_method == "python-ast":
-        every = _python_entries(after, lines, lang)
+    """Every comment entry on an added line, with adjacent entries of one comment sharing a key.
+
+    Python and JS/TS are scanned whole and masked by the added lines, because an added line can
+    sit inside a comment that was already there (a ``Traps:`` line inserted into an owner's
+    ``/** ... */``, which the TypeScript printer accepts) and a chunk of added lines alone cannot
+    tell. The others are scanned one added chunk at a time with the verifier's chunk scanner, which
+    is what the verifier proves for them: an added chunk must be whole comments.
+    """
+    if lang.verify_method in ("python-ast", "ts-printer"):
+        every = (
+            _python_entries(after, lines, lang)
+            if lang.verify_method == "python-ast"
+            else _js_entries(after, lang)
+        )
         if every is None:
             return []
         mask = bytearray(len(lines) + 1)
@@ -251,8 +295,14 @@ def _file_traps(
         return
     # Without the mark, on both sides, a comment on line 1 is still the first thing on its line.
     after = after.removeprefix(BOM)
-    # No base: every line of the file counts as added.
-    before = (git_show(top, sha, rel) or "").removeprefix(BOM) if sha else ""
+    before = ""  # no base: every line of the file counts as added
+    if sha:
+        base_size = git_size(top, sha, rel)  # the base is read whole too, so it has the same cap
+        if base_size is not None and base_size > limit:
+            if skipped is not None:
+                skipped.append(Skipped(rel, base_size, limit))
+            return
+        before = (git_show(top, sha, rel) or "").removeprefix(BOM)
     lines = split_lines(after)
     added = _added_ranges(before, lines)
     yield from _traps_in(_entries_on_added_lines(after, lines, added, lang), rel)
