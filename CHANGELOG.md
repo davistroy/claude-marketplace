@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [personal-plugin v11.11.1] - 2026-11-25
+
+### Security
+- `visual-explainer` lock file: six pins bumped past known CVEs that failed the required Dependency Security Audit — pillow 12.3.0 → 13.0.0, cryptography 49.0.0 → 50.0.2, urllib3 2.7.0 → 2.8.0, anyio 4.14.1 → 4.16.0, certifi 2026.6.17 → 2026.11.20, pyasn1 0.6.4 → 0.6.5. All 913 tool tests pass on pillow 13.
+
 ## [personal-plugin v11.11.0] - 2026-11-23
 
 New skill — `document-repo`.
