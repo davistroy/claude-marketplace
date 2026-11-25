@@ -20,6 +20,7 @@ own: a ``/* ... */`` after code, and ``{/* ... */}`` in JSX, are not headers and
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 
 # One token at a time. Order matters: a line comment before the slash, a closed block comment before
 # an unclosed one, a string before the lone-character fallback that catches a quote with no partner.
@@ -52,6 +53,8 @@ _REGEX = re.compile(
     r"/(?![/*])[^/\\\n\[]*(?:(?:\\.|\[[^\]\\\n]*(?:\\.[^\]\\\n]*)*\])[^/\\\n\[]*)*/[A-Za-z]*"
 )
 _TRAILING_WORD = re.compile(r"[A-Za-z_$][\w$]*$")
+# The blanks a line starts with. A comment is on its own line when they run up to it.
+_INDENT = re.compile(r"\s*")
 
 #: A slash after one of these starts a regular expression: it cannot be a division.
 _REGEX_AFTER_CHARS = frozenset("(,=:[!&|?{};+-*%<>~^")
@@ -78,19 +81,25 @@ _REGEX_AFTER_WORDS = frozenset(
 LINE_COMMENT = 0
 
 
-def comment_lines(text: str) -> list[tuple[int, int, str]]:
+def comment_lines(text: str) -> Iterator[tuple[int, int, str]]:
     """``(1-based line, key, text)`` for each line of each comment that starts on its own line.
+
+    A generator: nothing is kept per comment line, so a 16 MiB file of comments costs the text.
 
     ``key`` is ``LINE_COMMENT`` for a ``//`` comment and the block's number for a ``/* */``
     comment. ``text`` is what is inside the comment on that line, with only the opening and closing
     marker removed (``// x`` gives `` x``; a block line keeps its leading ``*``). Lines end at
-    ``\\n``, and a ``\\r`` before it is not part of the text. Nothing is read twice, so the cost is
-    linear.
+    ``\\n``, and a ``\\r`` before it is not part of the text. Nothing is read twice, and the line a
+    comment is on is found from the last one, so the cost is linear in the text even for one long
+    minified line with thousands of comments.
     """
-    found: list[tuple[int, int, str]] = []
     size = len(text)
     pos = 0
-    line_no, line_pos = 1, 0
+    scanned, line_no, line_begin = (
+        0,
+        1,
+        0,
+    )  # text[:scanned] is counted; the line starts at line_begin
     blocks = 0
     open_braces: list[int] = []  # one per open ``${``: the ``{`` not yet closed inside it
     in_template = False
@@ -117,21 +126,24 @@ def comment_lines(text: str) -> list[tuple[int, int, str]]:
         assert token is not None  # the last alternative matches any one character
         kind, start, pos = token.lastgroup, token.start(), token.end()
         if kind in ("line", "block", "open"):
-            if text[text.rfind("\n", 0, start) + 1 : start].strip():
+            newline = text.rfind("\n", scanned, start)
+            if newline >= 0:
+                line_begin = newline + 1
+            line_no += text.count("\n", scanned, start)
+            scanned = start
+            indent = _INDENT.match(text, line_begin)
+            assert indent is not None  # the pattern can match nothing, so it always matches
+            if indent.end() != start:
                 continue  # code comes first on this line: not a header
-            line_no += text.count("\n", line_pos, start)
-            line_pos = start
             body = token.group()
             if kind == "line":
-                found.append((line_no, LINE_COMMENT, body[2:].removesuffix("\r")))
+                yield (line_no, LINE_COMMENT, body[2:].removesuffix("\r"))
                 continue
             blocks += 1
             # An unclosed comment ends at the end of the text: a final newline ends its last line.
             inner = body[2:-2] if kind == "block" else body[2:].removesuffix("\n")
-            found.extend(
-                (line_no + offset, blocks, part.removesuffix("\r"))
-                for offset, part in enumerate(inner.split("\n"))
-            )
+            for offset, part in enumerate(inner.split("\n")):
+                yield (line_no + offset, blocks, part.removesuffix("\r"))
         elif kind == "template":
             in_template = True
         elif kind == "brace":
@@ -158,4 +170,3 @@ def comment_lines(text: str) -> list[tuple[int, int, str]]:
                 prev, word = tail[-1], found_word.group() if found_word else ""
         else:  # a string, or a lone character such as a quote that never closes on its line
             prev, word = token.group()[-1], ""
-    return found

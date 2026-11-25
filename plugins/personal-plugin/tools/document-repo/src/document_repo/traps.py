@@ -40,8 +40,14 @@ them counts, the owner's included. A ``--phase docs`` run needs this: its commen
 earlier run, so no base separates their traps from the owner's.
 
 Files are read one at a time and the result is a generator underneath, so memory stays at one
-file. A file over ``MAX_BYTES`` (``MAX_PYTHON_BYTES`` for Python), or whose version at ``before``
-is, is not read and is reported in the ``skipped`` list. A file that is not UTF-8, a symlink,
+file; each file's own state is freed when its traps are returned. Within a file nothing is kept per
+comment line: entries are produced lazily and only a ``Traps:`` line and the lines after it are
+held, up to ``MAX_TRAP_CHARS`` characters, after which the text is cut and ends in " ...". The
+added lines come from difflib, as the verifier finds them, unless the file is big or full of equal
+lines (``MAX_DIFF_LINES``, ``MAX_DIFF_PAIRS``), where difflib does work in proportion to the
+pairs of equal lines and git's diff does not; with no base no diff is run. A file over
+``MAX_BYTES`` (``MAX_PYTHON_BYTES`` for Python), or whose version at ``before`` is, is not read
+and is reported in the ``skipped`` list. A file that is not UTF-8, a symlink,
 anything that is not a regular file, and a Python file that does not parse (the verifier would
 have failed it) are skipped without a report: none of them can hold a trap the skill wrote.
 """
@@ -50,13 +56,17 @@ from __future__ import annotations
 
 import ast
 import difflib
+import heapq
 import io
 import os
 import re
 import stat
 import subprocess
+import tempfile
 import tokenize
-from collections.abc import Iterator
+from bisect import bisect_right
+from collections import Counter
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -68,10 +78,10 @@ from .remap import split_lines
 from .verify import (
     LINE_COMMENT,
     changed_files,
-    comment_scan,
     docstring_stmts,
     git_show,
     git_size,
+    iter_comment_scan,
     tracked_files,
 )
 
@@ -81,15 +91,28 @@ HEADER_LABELS = ("Role", "Used by", "Inputs", "Outputs", "Side effects", "Invari
 TRAPS_LABEL = "Traps:"
 _ANY_LABEL = re.compile("(?:" + "|".join(re.escape(name) for name in HEADER_LABELS) + "):")
 
-#: A file larger than this (or whose base version is) is not read, so memory stays at one file's
-#: worth. Peak RSS measured on this machine: a 16 MiB JavaScript file 213 MB, a 7 MB shell file
-#: about 0.1 GB.
+#: A file larger than this (or whose base version is) is not read. Peak RSS of the real CLI on this
+#: machine for a file of that size (a header and then nothing but comment lines, the worst case
+#: for a scanner), alone: 16 MiB of JavaScript 105 MB with ``--before`` and 59 MB without; 16 MiB of
+#: shell 317 MB, mostly its list of lines. All three probes below in one run took 570 MB, so the
+#: files do not add up: each file's memory is freed before the next is read.
 MAX_BYTES = 16 * 1024 * 1024
-#: The same limit for Python, whose syntax tree costs about 110 times the file. Measured: a 9.4 MB
-#: Python file peaked at 1.6 GB RSS with a list of every token and at 1.1 GB with the tokens
-#: streamed, which is why the limit is lower; a 4 MiB Python file and a 16 MiB shell file in one run
-#: peaked at 518 MB, inside the 1.5 GB ceiling.
+#: The same limit for Python, whose syntax tree costs about 110 times the file. A 4 MiB Python file
+#: of code peaked at 486 MB (a 9.4 MB one at 1.1 GB, and 1.6 GB while the tokens were kept in a
+#: list), which is why Python has the lower limit. Together with the 16 MiB JavaScript and shell
+#: files the whole run peaked at 570 MB, inside the 1.5 GB ceiling.
 MAX_PYTHON_BYTES = 4 * 1024 * 1024
+#: A trap's text is cut here and ends in " ...". A trap is one or two sentences; a header that
+#: runs on for thousands of comment lines is not one, and its text would be the file.
+MAX_TRAP_CHARS = 2000
+
+#: Above this many lines, both sides together, git finds the added lines, not difflib.
+MAX_DIFF_LINES = 200_000
+#: difflib (as the verifier calls it, without its popular-line shortcut) does work in proportion to
+#: the pairs of equal lines between the two sides: about 50 ns each on this machine, so 25 million
+#: pairs is 1.3 s and 400 million is 25 s. A file of identical comment lines against its base has
+#: that many pairs and ran over 150 s. Above this many pairs git finds the added lines instead.
+MAX_DIFF_PAIRS = 25_000_000
 
 BOM = "\ufeff"
 
@@ -163,13 +186,10 @@ def _clean(text: str, key: int, lang: Lang) -> str:
     return " ".join(text.split())
 
 
-def _chunk_entries(lines: list[str], first: int, lang: Lang) -> list[Entry]:
-    found, _why = comment_scan(lines, lang)
-    return [
-        (first + i, hit[0], _clean(hit[1], hit[0], lang))
-        for i, hit in enumerate(found)
-        if hit is not None
-    ]
+def _chunk_entries(lines: list[str], first: int, lang: Lang) -> Iterator[Entry]:
+    for i, hit in enumerate(iter_comment_scan(lines, lang)):
+        if hit is not None:
+            yield (first + i, hit[0], _clean(hit[1], hit[0], lang))
 
 
 def _cut(line: str, start: int, end: int | None) -> str:
@@ -190,44 +210,135 @@ def _docstring_text(lines: list[str], stmt: ast.Expr) -> list[str]:
     return body
 
 
-def _python_entries(text: str, lines: list[str], lang: Lang) -> list[Entry] | None:
-    """Every ``#`` comment on a line of its own and every docstring line, or None if it won't parse.
-
-    The tokenizer is what tells a comment from a ``#`` inside a string, and the syntax tree is what
-    tells a docstring from any other string statement.
-    """
-    found: list[Entry] = []
+def _python_comments(text: str, lang: Lang) -> Iterator[Entry]:
+    """Every ``#`` comment on a line of its own, from the tokenizer, in line order."""
     try:
-        tree = ast.parse(text.encode("utf-8"))
-        # Streamed: a list of every token of a large file would hold as much memory as the tree.
         for tok in tokenize.generate_tokens(io.StringIO(text).readline):
             if tok.type == tokenize.COMMENT and not tok.line[: tok.start[1]].strip():
-                found.append(
-                    (tok.start[0], LINE_COMMENT, _clean(tok.string[1:], LINE_COMMENT, lang))
-                )
+                yield (tok.start[0], LINE_COMMENT, _clean(tok.string[1:], LINE_COMMENT, lang))
     except (SyntaxError, tokenize.TokenError, ValueError):
-        return None
-    for n, stmt in enumerate(docstring_stmts(tree), start=1):
-        body = _docstring_text(lines, stmt)
-        found.extend((stmt.lineno + i, n, " ".join(line.split())) for i, line in enumerate(body))
-    return sorted(found)
+        return  # the parser accepted the file, so this is rare: keep what was read
 
 
-def _added_ranges(before: str, after: list[str]) -> list[tuple[int, int]]:
-    """The 0-based, half-open ranges of ``after`` that the base does not have."""
-    matcher = difflib.SequenceMatcher(a=split_lines(before), b=after, autojunk=False)
+def _python_entries(text: str, lines: list[str], lang: Lang) -> Iterator[Entry]:
+    """Every ``#`` comment on a line of its own and every docstring line, in line order.
+
+    Nothing if the file does not parse. The tokenizer is what tells a comment from a ``#`` inside
+    a string, and the syntax tree is what tells a docstring from any other string statement.
+    """
+    try:
+        tree = ast.parse(text.encode("utf-8"))
+    except (SyntaxError, ValueError):
+        return
+    stmts = sorted(docstring_stmts(tree), key=lambda stmt: (stmt.lineno, stmt.col_offset))
+    del tree  # the tree is most of the memory (about 110 times the file) and is not read again
+    docstrings = (
+        (stmt.lineno + i, n, " ".join(line.split()))
+        for n, stmt in enumerate(stmts, start=1)
+        for i, line in enumerate(_docstring_text(lines, stmt))
+    )
+    yield from heapq.merge(_python_comments(text, lang), docstrings)
+
+
+def _js_entries(text: str, lang: Lang) -> Iterator[Entry]:
+    for n, key, line in comment_lines(text):
+        yield (n, key, _clean(line, key, lang))
+
+
+def _line_count(text: str) -> int:
+    """How many lines ``split_lines`` would make of ``text``, without making them."""
+    return text.count("\n") + (1 if text and not text.endswith("\n") else 0)
+
+
+def _difflib_ranges(before: list[str], after: list[str]) -> list[tuple[int, int]]:
+    """The 0-based, half-open ranges of ``after`` that ``before`` does not have."""
+    matcher = difflib.SequenceMatcher(a=before, b=after, autojunk=False)
     return [
         (j1, j2) for tag, _i1, _i2, j1, j2 in matcher.get_opcodes() if tag in ("insert", "replace")
     ]
 
 
-def _js_entries(text: str, lang: Lang) -> list[Entry]:
-    return [(n, key, _clean(t, key, lang)) for n, key, t in comment_lines(text)]
+_HUNK = re.compile(rb"^@@ -[0-9]+(?:,[0-9]+)? \+([0-9]+)(?:,([0-9]+))? @@")
+
+
+def _git_added_ranges(top: Path, sha: str, rel: str) -> list[tuple[int, int]]:
+    """The same ranges from ``git diff -U0`` of the work tree against ``sha``.
+
+    Git's diff does not slow down on many equal lines, and nothing of the file is held here: the
+    output is read a line at a time and only the ``@@`` headers are kept. A file with a diff driver
+    or an attribute that says binary is still diffed as text. ``GitError`` if git fails.
+
+    For an insert the ranges are difflib's, with one exception: when the base's last line has no
+    newline and lines follow it, git calls that line changed (``c`` and ``c`` + newline differ),
+    which difflib does not. A trap on that one line would be listed as added.
+    """
+    argv = ["git", "--literal-pathspecs", "-C", str(top), "diff", "-U0", "--no-ext-diff"]
+    argv += ["--no-textconv", "--no-color", "--no-renames", "--text", sha, "--", rel]
+    found: list[tuple[int, int]] = []
+    with tempfile.TemporaryFile() as err:
+        proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=err)
+        assert proc.stdout is not None
+        try:
+            for raw in proc.stdout:
+                hunk = _HUNK.match(raw)
+                if hunk:
+                    start = int(hunk.group(1)) - 1
+                    count = int(hunk.group(2)) if hunk.group(2) is not None else 1
+                    if count:  # a hunk with no added lines only deleted some
+                        found.append((start, start + count))
+        finally:
+            proc.stdout.close()
+            code = proc.wait()
+        if code != 0:
+            err.seek(0)
+            why = err.read().decode("utf-8", "replace").strip()
+            raise GitError(f"git diff failed with exit {code} for {rel}: {why}")
+    return found
+
+
+def _matching_pairs(before: list[str], after: list[str]) -> int:
+    """How many pairs of equal lines there are between the two sides: difflib's cost."""
+    counts = Counter(after)
+    return sum(n * counts[line] for line, n in Counter(before).items() if line in counts)
+
+
+def _added_ranges(
+    top: Path, sha: str | None, rel: str, before: str, after: str
+) -> list[tuple[int, int]]:
+    """The 0-based, half-open line ranges of ``after`` that ``before`` does not have.
+
+    ``before`` empty means there is nothing to compare with (no ``sha``, a new file, or an empty
+    base), so every line is new and no diff is run. Otherwise difflib, which is what the verifier
+    uses, unless the files are big or full of equal lines (``MAX_DIFF_LINES``, ``MAX_DIFF_PAIRS``),
+    where git finds the same ranges for an insert and does not slow down.
+    """
+    new_lines = _line_count(after)
+    if not before:
+        return [(0, new_lines)] if new_lines else []
+    assert sha is not None  # a base exists only when there is a commit to read it from
+    old_lines = _line_count(before)
+    if old_lines + new_lines > MAX_DIFF_LINES:
+        return _git_added_ranges(top, sha, rel)
+    old, new = split_lines(before), split_lines(after)
+    if old_lines * new_lines > MAX_DIFF_PAIRS and _matching_pairs(old, new) > MAX_DIFF_PAIRS:
+        return _git_added_ranges(top, sha, rel)
+    return _difflib_ranges(old, new)
+
+
+def _is_added(added: list[tuple[int, int]]) -> Callable[[int], bool]:
+    """A test for "is this 1-based line in one of the sorted, disjoint 0-based ranges"."""
+    starts = [start for start, _ in added]
+
+    def test(line: int) -> bool:
+        i = bisect_right(starts, line - 1) - 1
+        return i >= 0 and line - 1 < added[i][1]
+
+    return test
 
 
 def _entries_on_added_lines(
-    after: str, lines: list[str], added: list[tuple[int, int]], lang: Lang
-) -> list[Entry]:
+    after: str, added: list[tuple[int, int]], lang: Lang
+) -> Iterator[Entry]:
     """Every comment entry on an added line, with adjacent entries of one comment sharing a key.
 
     Python and JS/TS are scanned whole and masked by the added lines, because an added line can
@@ -235,64 +346,86 @@ def _entries_on_added_lines(
     ``/** ... */``, which the TypeScript printer accepts) and a chunk of added lines alone cannot
     tell. The others are scanned one added chunk at a time with the verifier's chunk scanner, which
     is what the verifier proves for them: an added chunk must be whole comments.
+
+    A generator, and a chunk is scanned lazily too: no entry is kept once it is read.
     """
-    if lang.verify_method in ("python-ast", "ts-printer"):
-        every = (
-            _python_entries(after, lines, lang)
-            if lang.verify_method == "python-ast"
-            else _js_entries(after, lang)
-        )
-        if every is None:
-            return []
-        mask = bytearray(len(lines) + 1)
+    if lang.verify_method == "python-ast":
+        is_added = _is_added(added)
+        yield from (e for e in _python_entries(after, split_lines(after), lang) if is_added(e[0]))
+    elif lang.verify_method == "ts-printer":
+        is_added = _is_added(added)
+        yield from (e for e in _js_entries(after, lang) if is_added(e[0]))
+    else:
+        lines = split_lines(after)
+        # A chunk is one run of added lines, and two runs are never adjacent (an unchanged line
+        # sits between them), so a block-comment number repeated in two chunks cannot join them.
         for j1, j2 in added:
-            mask[j1:j2] = b"\x01" * (j2 - j1)
-        return [entry for entry in every if mask[entry[0] - 1]]
-    # A chunk is one run of added lines, and two runs are never adjacent (an unchanged line sits
-    # between them), so a block-comment number repeated in two chunks cannot join them.
-    return [e for j1, j2 in added for e in _chunk_entries(lines[j1:j2], j1 + 1, lang)]
+            yield from _chunk_entries(lines[j1:j2], j1 + 1, lang)
 
 
-def _traps_in(entries: list[Entry], path: str) -> Iterator[Trap]:
-    i = 0
-    while i < len(entries):
-        line, key, body = entries[i]
-        if not body.startswith(TRAPS_LABEL):
-            i += 1
-            continue
-        parts = [body[len(TRAPS_LABEL) :].strip()]
-        i += 1
-        while i < len(entries):
-            next_line, next_key, next_body = entries[i]
-            if (
-                next_line != entries[i - 1][0] + 1
-                or next_key != key
-                or not next_body
-                or _ANY_LABEL.match(next_body)
-            ):
-                break
-            parts.append(next_body)
-            i += 1
-        text = " ".join(part for part in parts if part)
-        if text:
-            yield Trap(path, line, text)
+def _finish(path: str, line: int, parts: list[str], cut: bool) -> Trap | None:
+    text = " ".join(part for part in parts if part)
+    if cut or len(text) > MAX_TRAP_CHARS:
+        text = text[:MAX_TRAP_CHARS].rstrip() + " ..."
+    return Trap(path, line, text) if text else None
 
 
-def _file_traps(
-    top: Path, sha: str | None, rel: str, skipped: list[Skipped] | None
-) -> Iterator[Trap]:
+def _traps_in(entries: Iterable[Entry], path: str) -> Iterator[Trap]:
+    """One ``Trap`` per ``Traps:`` entry, read from ``entries`` one at a time.
+
+    A trap goes on over the entries after it that are on the next line, in the same comment, not
+    empty and not another header label. Once its text reaches ``MAX_TRAP_CHARS`` the rest of its
+    lines are read and dropped, and the text ends in " ...".
+    """
+    line = key = last = size = 0
+    parts: list[str] = []
+    cut = collecting = False
+    for n, k, body in entries:
+        if collecting:
+            if n == last + 1 and k == key and body and not _ANY_LABEL.match(body):
+                last = n
+                if size < MAX_TRAP_CHARS:
+                    parts.append(body)
+                    size += len(body) + 1
+                else:
+                    cut = True
+                continue
+            collecting = False
+            trap = _finish(path, line, parts, cut)
+            if trap:
+                yield trap
+        if body.startswith(TRAPS_LABEL):
+            first = body[len(TRAPS_LABEL) :].strip()
+            line, key, last, size, parts, cut, collecting = (
+                n,
+                k,
+                n,
+                len(first),
+                [first],
+                False,
+                True,
+            )
+    if collecting:
+        trap = _finish(path, line, parts, cut)
+        if trap:
+            yield trap
+
+
+def _file_traps(top: Path, sha: str | None, rel: str, skipped: list[Skipped] | None) -> list[Trap]:
+    """The traps of one file. A list, not a generator: everything else this builds is freed on
+    return, before the next file is read."""
     lang = detect(rel)
     if lang is None:
-        return
+        return []
     limit = MAX_PYTHON_BYTES if lang.verify_method == "python-ast" else MAX_BYTES
     try:
         after = _read(top / rel, limit)
     except _TooLarge as big:
         if skipped is not None:
             skipped.append(Skipped(rel, big.size, limit))
-        return
+        return []
     if after is None or TRAPS_LABEL not in after:
-        return
+        return []
     # Without the mark, on both sides, a comment on line 1 is still the first thing on its line.
     after = after.removeprefix(BOM)
     before = ""  # no base: every line of the file counts as added
@@ -301,11 +434,11 @@ def _file_traps(
         if base_size is not None and base_size > limit:
             if skipped is not None:
                 skipped.append(Skipped(rel, base_size, limit))
-            return
+            return []
         before = (git_show(top, sha, rel) or "").removeprefix(BOM)
-    lines = split_lines(after)
-    added = _added_ranges(before, lines)
-    yield from _traps_in(_entries_on_added_lines(after, lines, added, lang), rel)
+    added = _added_ranges(top, sha, rel, before, after)
+    del before  # not needed again: the scan below holds the file once, not the base too
+    return list(_traps_in(_entries_on_added_lines(after, added, lang), rel))
 
 
 def iter_traps(top: Path, sha: str | None, skipped: list[Skipped] | None = None) -> Iterator[Trap]:

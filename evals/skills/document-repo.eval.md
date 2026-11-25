@@ -161,6 +161,7 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 - [ ] In a `--phase docs` run, where every commenter trap is already on the branch, runs `traps` without `--before` (with `--before` it would list nothing), so `traps.json` still lists the `pyproject.toml` trap, and a trap `agent_notes.traps` already holds is merged, not added again
 - [ ] In an `--update` run the same step also runs without `--before`, and the `agents` section is rewritten when the fold-in added a trap or changed one
 - [ ] A file `traps` skipped for the size limit is named on stderr (path and size), and the run report lists it
+- [ ] A trap in `traps.json` whose text ends in ` ...` was cut at 2000 characters: the orchestrator reads the file at `path:line` before it writes the trap to the model
 - [ ] In a `--phase docs` run, the run report and Finish say that `AGENTS.md` has the folded traps and the committed explorer model does not, and that `--phase explorer` would lose them
 - [ ] A JS/TS `Traps:` line added inside an owner's existing block comment is in `traps.json` (the printer accepts that edit), and one inside a template literal is not
 

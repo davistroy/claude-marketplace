@@ -14,7 +14,7 @@ LINE = 0  # the key of a line comment (verify.LINE_COMMENT)
 
 
 def found(text: str) -> list[tuple[int, int, str]]:
-    return comment_lines(text)
+    return list(comment_lines(text))
 
 
 def test_line_comments_on_their_own_line_with_their_numbers() -> None:
@@ -194,3 +194,48 @@ def test_braces_inside_and_after_several_templates_stay_balanced() -> None:
 @pytest.mark.parametrize("text", ["const s = `abc\\", "const s = `abc$", "const s = `abc"])
 def test_a_template_that_ends_the_text_inside_an_escape_or_a_dollar(text: str) -> None:
     assert found(text) == []
+
+
+# --- review round 2: linear in the length of a line, and lazy -----------------------------------
+
+
+def test_comment_lines_is_lazy() -> None:
+    stream = comment_lines("// a\n" * 1_000_000)
+    assert next(stream) == (1, LINE, " a")  # the other 999,999 are not read yet
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("  \t// indented\n", [(1, LINE, " indented")]),
+        ("\u00a0// no-break space\n", [(1, LINE, " no-break space")]),
+        ("/* a */ // b\n", [(1, 1, " a ")]),
+        ("x; /* a */\n// b\n", [(2, LINE, " b")]),
+        ("/* a\nb */ // c\n", [(1, 1, " a"), (2, 1, "b ")]),
+        ("/* a\n*/ /* b */\n", [(1, 1, " a"), (2, 1, "")]),
+        ("a\n\n  /* x */\n\t// y\n", [(3, 1, " x "), (4, LINE, " y")]),
+    ],
+    ids=[
+        "indent",
+        "nbsp",
+        "after-block",
+        "after-code",
+        "after-multiline-block",
+        "two-blocks",
+        "blank-lines",
+    ],
+)
+def test_a_comment_is_on_its_own_line_only_when_nothing_but_space_comes_first(
+    text: str, expected: list[tuple[int, int, str]]
+) -> None:
+    assert found(text) == expected
+
+
+def test_many_comments_on_one_long_line_cost_time_linear_in_the_line() -> None:
+    """One minified line with 100,000 trailing comments: each used to re-scan the line so far."""
+    import time
+
+    text = "// header\n" + "x=1;/*c*/" * 100_000 + "\n"
+    start = time.perf_counter()
+    assert found(text) == [(1, LINE, " header")]
+    assert time.perf_counter() - start < 3.0

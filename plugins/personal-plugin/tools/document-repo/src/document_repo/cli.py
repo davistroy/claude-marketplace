@@ -512,6 +512,7 @@ def _register_traps(sub: Any) -> None:
             "With --before, only the labels on lines added since that commit. "
             "Without --before, every Traps: comment in the tracked, non-exempt files of the work "
             "tree, the owner's included. "
+            "A trap's text is cut at 2000 characters and ends in ' ...'. "
             "A file over the size limit is not read: its path and size are written to stderr, "
             "one line per file, and stdout stays the JSON list."
         ),

@@ -1225,6 +1225,7 @@ def test_the_help_says_where_skipped_files_go_and_what_no_before_means(capsys) -
     text = " ".join(capsys.readouterr().out.split())
     assert "Without --before" in text and "every" in text and "tracked" in text
     assert "over the size limit" in text and "stderr" in text and "stdout" in text
+    assert f"cut at {traps_mod.MAX_TRAP_CHARS} characters" in text
 
 
 # --- review round 1: a trap inside an existing block comment (JS/TS) ----------------------------
@@ -1449,3 +1450,458 @@ def test_a_new_file_has_no_base_to_cap(make_repo, git, monkeypatch: pytest.Monke
     (repo / "new.py").write_text("# Traps: new\n")
     monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 40)
     assert [t.path for t in harvest_traps(repo, sha)] == ["new.py"]
+
+
+# --- review round 2: memory, the diff guard and the size of a trap -------------------------------
+
+
+def _peak_bytes(call) -> int:
+    """The most memory Python allocated, in bytes, while ``call`` ran."""
+    import gc
+    import tracemalloc
+
+    gc.collect()
+    tracemalloc.start()
+    try:
+        call()
+        return tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+
+
+def test_traps_in_reads_its_entries_one_at_a_time() -> None:
+    pulled: list[int] = []
+
+    def source():
+        for n in (1, 2, 10):
+            pulled.append(n)
+            yield (n, 1, "Traps: a" if n == 1 else "more")
+        for n in range(11, 1_000_000):  # never reached when the reader stops early
+            pulled.append(n)
+            yield (n, 1, "x")
+
+    stream = traps_mod._traps_in(source(), "p")
+    assert next(stream) == Trap("p", 1, "a more")
+    assert pulled == [1, 2, 10]
+
+
+def test_a_trap_is_cut_at_the_cap_and_ends_in_dots() -> None:
+    cap = traps_mod.MAX_TRAP_CHARS
+    entries = [(1, 1, "Traps: start")]
+    entries += [(n, 1, "word " * 20) for n in range(2, 3000)]
+    entries += [(3000, 1, "Traps: next")]
+    found_traps = list(traps_mod._traps_in(iter(entries), "p"))
+    assert [t.line for t in found_traps] == [1, 3000]
+    first = found_traps[0].text
+    assert first.startswith("start word word") and first.endswith(" ...")
+    assert len(first) <= cap + 4
+    assert found_traps[1].text == "next"
+
+
+@pytest.mark.parametrize("extra, dots", [(0, False), (1, True)])
+def test_a_trap_of_exactly_the_cap_is_not_cut(extra: int, dots: bool) -> None:
+    cap = traps_mod.MAX_TRAP_CHARS
+    text = "w" * (cap + extra)
+    [only] = traps_mod._traps_in(iter([(1, 1, "Traps: " + text)]), "p")
+    assert only.text.endswith("...") is dots
+    assert len(only.text) <= cap + 4
+
+
+def test_a_long_run_of_comment_lines_after_a_trap_gives_one_short_trap(make_repo) -> None:
+    repo = make_repo({"a.js": "// Traps: first\n" + "// word\n" * 5000 + "// Traps: second\n"})
+    got = harvest_traps(repo)
+    assert [t.line for t in got] == [1, 5002]
+    assert got[0].text.endswith(" ...") and len(got[0].text) <= traps_mod.MAX_TRAP_CHARS + 4
+    assert got[1].text == "second"
+
+
+@pytest.mark.parametrize("path, unit", [("a.js", "// a\n"), ("b.sh", "# a\n"), ("c.py", "# a\n")])
+def test_memory_stays_a_small_multiple_of_the_file_for_a_file_of_comment_lines(
+    path: str, unit: str, make_repo, git
+) -> None:
+    """16 MiB of comment lines took 1.1 to 1.3 GB: a tuple and a string for every line, twice."""
+    size = 1024 * 1024
+    head = "// Traps: x\n//\n" if path.endswith(".js") else "# Traps: x\n#\n"
+    repo = make_repo({path: "x = 1\n"})
+    sha = head_sha = git(repo, "rev-parse", "HEAD").strip()
+    (repo / path).write_text(head + unit * (size // len(unit)))
+    assert head_sha == sha
+    whole = _peak_bytes(lambda: harvest_traps(repo))
+    since = _peak_bytes(lambda: harvest_traps(repo, sha))
+    # JS keeps only the text; the line-based paths keep the lines too (about 13 bytes a byte).
+    bound = (6 if path.endswith(".js") else 24) * size
+    assert whole < bound, f"whole-tree peak {whole / size:.1f} x the file"
+    assert since < bound, f"--before peak {since / size:.1f} x the file"
+
+
+def test_one_files_memory_is_freed_before_the_next_file_is_read(make_repo) -> None:
+    size = 512 * 1024
+    body = "// Traps: x\n//\n" + "// a\n" * (size // 5)
+    one = make_repo({"a.js": body})
+    two = make_repo({"a.js": body, "b.js": body, "c.js": body})
+    peak_one = _peak_bytes(lambda: harvest_traps(one))
+    peak_three = _peak_bytes(lambda: harvest_traps(two))
+    assert peak_three < peak_one * 1.5, (peak_one, peak_three)
+
+
+# --- the diff guard (Minor 1) -----------------------------------------------------------------
+
+IDENTICAL = "// a\n" * 60
+
+
+class _NoDifflib:
+    """Stands in for ``difflib`` in traps.py: using the matcher fails the test."""
+
+    class SequenceMatcher:
+        def __init__(self, *args, **kwargs) -> None:
+            raise AssertionError("difflib was used where the guard should have sent git")
+
+
+def _identical_lines_branch(make_repo, commit_files, git):
+    return branch(
+        make_repo,
+        commit_files,
+        git,
+        {"a.js": IDENTICAL},
+        {"a.js": "// Traps: x\n//\n" + IDENTICAL},
+    )
+
+
+def test_many_matching_lines_are_diffed_by_git_not_difflib(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = _identical_lines_branch(make_repo, commit_files, git)
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_PAIRS", 100)
+    monkeypatch.setattr(traps_mod, "difflib", _NoDifflib)
+    assert found(repo, sha) == [("a.js", 1, "x")]
+
+
+def test_too_many_lines_are_diffed_by_git_not_difflib(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = branch(
+        make_repo,
+        commit_files,
+        git,
+        {"a.sh": "".join(f"echo {n}\n" for n in range(50))},
+        {"a.sh": "# Traps: x\n" + "".join(f"echo {n}\n" for n in range(50))},
+    )
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_LINES", 10)
+    monkeypatch.setattr(traps_mod, "difflib", _NoDifflib)
+    assert found(repo, sha) == [("a.sh", 1, "x")]
+
+
+def test_an_ordinary_file_is_still_diffed_by_difflib(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = _identical_lines_branch(make_repo, commit_files, git)
+    monkeypatch.setattr(traps_mod, "difflib", _NoDifflib)
+    with pytest.raises(AssertionError, match="difflib was used"):
+        harvest_traps(repo, sha)
+
+
+def test_the_pair_count_is_only_taken_when_the_product_could_exceed_the_limit(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = _identical_lines_branch(make_repo, commit_files, git)
+
+    def no_counter(*args, **kwargs):
+        raise AssertionError("counted lines of a small file")
+
+    monkeypatch.setattr(traps_mod, "Counter", no_counter)
+    assert found(repo, sha) == [("a.js", 1, "x")]
+
+
+def test_whole_tree_mode_never_builds_a_matcher(make_repo, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With no base every line is added: the matcher's index of the file was most of the memory."""
+    repo = make_repo({"a.js": "// Traps: x\n", "b.sh": "# Traps: y\n", "c.py": "# Traps: z\n"})
+    monkeypatch.setattr(traps_mod, "difflib", _NoDifflib)
+    assert [t.text for t in harvest_traps(repo)] == ["x", "y", "z"]
+
+
+@pytest.mark.parametrize(
+    "base, after",
+    [
+        ("a\nb\nc\n", "# Traps: x\na\nb\nc\n"),
+        ("a\nb\nc\n", "a\nb\n# Traps: x\nc\n"),
+        ("a\nb\nc\n", "a\nb\nc\n# Traps: x\n"),
+        ("a\nb\nc\n", "# Traps: x\n#\na\n# Traps: y\nb\nc\n# end\n"),
+        ("a\r\nb\r\n", "a\r\n# Traps: x\r\nb\r\n"),
+        ("", "# Traps: x\n"),
+        ("a\n", "a\n\n\n# Traps: x\n\n"),
+    ],
+    ids=[
+        "top",
+        "middle",
+        "end",
+        "several-hunks",
+        "crlf",
+        "empty-base",
+        "blank-lines",
+    ],
+)
+def test_git_and_difflib_agree_on_what_a_comment_only_insert_added(
+    base: str, after: str, make_repo, commit_files, git
+) -> None:
+    repo, sha = branch(make_repo, commit_files, git, {"a.sh": base}, {"a.sh": after})
+    from document_repo.remap import split_lines
+
+    expected = traps_mod._difflib_ranges(split_lines(base), split_lines(after))
+    assert traps_mod._git_added_ranges(repo, sha, "a.sh") == expected
+
+
+def test_git_counts_an_unterminated_last_line_as_changed_when_lines_follow_it(
+    make_repo, commit_files, git
+) -> None:
+    """The one place git and difflib differ for an insert: ``c`` and ``c`` + newline differ."""
+    repo, sha = branch(
+        make_repo, commit_files, git, {"a.sh": "a\nb\nc"}, {"a.sh": "a\nb\nc\n# Traps: x\n"}
+    )
+    from document_repo.remap import split_lines
+
+    assert traps_mod._difflib_ranges(
+        split_lines("a\nb\nc"), split_lines("a\nb\nc\n# Traps: x\n")
+    ) == [(3, 4)]
+    assert traps_mod._git_added_ranges(repo, sha, "a.sh") == [(2, 4)]
+
+
+def test_git_ranges_leave_out_a_pure_deletion(make_repo, commit_files, git) -> None:
+    repo, sha = branch(
+        make_repo, commit_files, git, {"a.sh": "a\nb\nc\n"}, {"a.sh": "a\nc\n# Traps: x\n"}
+    )
+    assert traps_mod._git_added_ranges(repo, sha, "a.sh") == [(2, 3)]
+
+
+def test_git_ranges_use_git_even_when_the_file_has_a_diff_driver_or_looks_binary(
+    make_repo, commit_files, git
+) -> None:
+    repo = make_repo({"a.sh": "a\n", ".gitattributes": "a.sh -diff\n"})
+    sha = head(git, repo)
+    commit_files(repo, {"a.sh": "a\n# Traps: x\n"}, "branch")
+    assert traps_mod._git_added_ranges(repo, sha, "a.sh") == [(1, 2)]
+
+
+def test_git_ranges_name_a_failure(make_repo) -> None:
+    from document_repo.commit import GitError
+
+    repo = make_repo({"a.sh": "a\n"})
+    with pytest.raises(GitError, match="git diff"):
+        traps_mod._git_added_ranges(repo, "0" * 40, "a.sh")
+
+
+def test_the_guarded_and_unguarded_paths_find_the_same_traps(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    files = {
+        "a.js": OWNER_JSDOC,
+        "b.sh": "echo hi\n",
+        "c.py": "x = 1\n",
+        "d.sql": "select 1;\n",
+    }
+    changed = {
+        "a.js": (
+            "/**\n * Role: thing.\n * Traps: in a block.\n */\n"
+            "export const a = 1;\n// Traps: tail\n"
+        ),
+        "b.sh": "# Traps: shell\n#   more\necho hi\n",
+        "c.py": '"""Mod.\n\nTraps: doc.\n"""\n# Traps: hash\nx = 1\n',
+        "d.sql": "-- Traps: sql\nselect 1;\n",
+    }
+    repo, sha = branch(make_repo, commit_files, git, files, changed)
+    plain = found(repo, sha)
+    assert len(plain) == 6
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_LINES", 0)
+    assert found(repo, sha) == plain
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_LINES", 10**9)
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_PAIRS", 0)
+    assert found(repo, sha) == plain
+
+
+@pytest.mark.parametrize(
+    "text, count",
+    [("", 0), ("a", 1), ("a\n", 1), ("a\n\n", 2), ("\n", 1), ("a\nb", 2), ("a\r\nb\r\n", 2)],
+)
+def test_line_count_is_the_number_of_editor_lines(text: str, count: int) -> None:
+    from document_repo.remap import split_lines
+
+    assert traps_mod._line_count(text) == count == len(split_lines(text))
+
+
+def test_iter_comment_scan_is_comment_scan_without_the_list() -> None:
+    from itertools import islice
+
+    from document_repo.verify import comment_scan, iter_comment_scan
+
+    lang = detect("x.sh")
+    assert lang is not None
+    lines = ["# a", "", "code", "/* x", "# b"]
+    assert list(iter_comment_scan(iter(lines), lang)) == comment_scan(lines, lang)[0]
+    assert list(iter_comment_scan(islice(lines, 1, 3), lang)) == comment_scan(lines[1:3], lang)[0]
+    stream = iter_comment_scan(iter(["# a"] * 1_000_000), lang)
+    assert next(stream) == (0, " a")
+
+
+def test_harvest_raises_git_error_when_the_fallback_diff_fails(
+    make_repo, commit_files, git, capsys, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = branch(make_repo, commit_files, git, {"a.sh": "a\n"}, {"a.sh": "# Traps: x\na\n"})
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_LINES", 0)
+
+    def broken(top, ref, rel):
+        from document_repo.commit import GitError
+
+        raise GitError("git diff failed: boom")
+
+    monkeypatch.setattr(traps_mod, "_git_added_ranges", broken)
+    code, out, err = run_traps(capsys, repo, sha)
+    assert (code, out) == (2, None) and "boom" in err
+
+
+def test_a_tokenizer_that_fails_midway_keeps_what_it_read(
+    make_repo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import tokenize
+
+    real = tokenize.generate_tokens
+
+    def flaky(readline):
+        seen = 0
+        for tok in real(readline):
+            if tok.type == tokenize.COMMENT:
+                seen += 1
+                if seen == 2:
+                    raise tokenize.TokenError("boom")
+            yield tok
+
+    monkeypatch.setattr(traps_mod.tokenize, "generate_tokens", flaky)
+    repo = make_repo({"a.py": "# Traps: a\nx = 1\n# Traps: b\ny = 2\n"})
+    assert [t.text for t in harvest_traps(repo)] == ["a"]
+
+
+@pytest.mark.parametrize(
+    "line, expected",
+    [
+        (0, False),
+        (1, True),
+        (2, True),
+        (3, False),
+        (4, False),
+        (5, False),
+        (6, True),
+        (7, True),
+        (8, False),
+    ],
+)
+def test_is_added_reads_one_based_lines_against_zero_based_half_open_ranges(
+    line: int, expected: bool
+) -> None:
+    assert traps_mod._is_added([(0, 2), (5, 7)])(line) is expected
+    assert traps_mod._is_added([])(line) is False
+
+
+def _line_counts(base: str, after: str) -> tuple[int, int]:
+    return traps_mod._line_count(base), traps_mod._line_count(after)
+
+
+def test_the_line_limit_is_inclusive(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, after = IDENTICAL, "// Traps: x\n//\n" + IDENTICAL
+    repo, sha = branch(make_repo, commit_files, git, {"a.js": base}, {"a.js": after})
+    total = sum(_line_counts(base, after))
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_LINES", total)  # exactly at the limit: difflib
+    assert [t.text for t in harvest_traps(repo, sha)] == ["x"]
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_LINES", total - 1)  # one over: git
+    monkeypatch.setattr(traps_mod, "difflib", _NoDifflib)
+    assert [t.text for t in harvest_traps(repo, sha)] == ["x"]
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_LINES", total)
+    with pytest.raises(AssertionError, match="difflib was used"):
+        harvest_traps(repo, sha)
+
+
+def test_the_pair_limit_is_inclusive(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, after = IDENTICAL, "// Traps: x\n//\n" + IDENTICAL
+    repo, sha = branch(make_repo, commit_files, git, {"a.js": base}, {"a.js": after})
+    pairs = traps_mod._matching_pairs(base.splitlines(), after.splitlines())
+    assert pairs == 60 * 60 + 0  # every line of the base equals 60 lines of the new file
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_PAIRS", pairs)  # exactly at the limit: difflib
+    monkeypatch.setattr(traps_mod, "difflib", _NoDifflib)
+    with pytest.raises(AssertionError, match="difflib was used"):
+        harvest_traps(repo, sha)
+    monkeypatch.setattr(traps_mod, "MAX_DIFF_PAIRS", pairs - 1)  # one over: git
+    assert [t.text for t in harvest_traps(repo, sha)] == ["x"]
+
+
+@pytest.mark.parametrize(
+    "before, after, pairs",
+    [
+        (["a", "a"], ["a", "a", "a"], 6),
+        (["a", "b"], ["b", "b", "c"], 2),
+        (["a"], ["b"], 0),
+        ([], ["a"], 0),
+        (["x"] * 3, ["x"] * 4, 12),
+    ],
+)
+def test_matching_pairs_is_the_sum_of_count_products(before, after, pairs) -> None:
+    assert traps_mod._matching_pairs(before, after) == pairs
+
+
+def test_a_trap_holds_no_more_than_the_cap_however_long_its_comment_runs() -> None:
+    """The text is cut at the cap, but the lines past it must not be kept on the way there."""
+
+    def entries():
+        yield (1, 1, "Traps: start")
+        for n in range(2, 300_000):
+            yield (n, 1, "word " * 4)
+
+    holder: list[Trap] = []
+    peak = _peak_bytes(lambda: holder.extend(traps_mod._traps_in(entries(), "p")))
+    assert len(holder) == 1 and holder[0].text.endswith(" ...")
+    assert peak < 200_000, f"{peak} bytes held for one trap"
+
+
+def test_added_ranges_of_an_empty_file_is_empty(make_repo) -> None:
+    repo = make_repo({"a.py": "x = 1\n"})
+    assert traps_mod._added_ranges(repo, None, "a.py", "", "") == []
+    assert traps_mod._added_ranges(repo, "0" * 40, "a.py", "", "") == []
+
+
+def test_a_new_file_in_before_mode_never_builds_a_matcher(
+    make_repo, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No base means every line is new: the matcher's index of the file is memory for nothing."""
+    repo = make_repo({"a.py": "x = 1\n"})
+    sha = head(git, repo)
+    (repo / "new.js").write_text("// Traps: new\n" + "// a\n" * 50)
+    (repo / "new.sh").write_text("# Traps: new\n" + "# a\n" * 50)
+    monkeypatch.setattr(traps_mod, "difflib", _NoDifflib)
+    assert [t.path for t in harvest_traps(repo, sha)] == ["new.js", "new.sh"]
+
+
+def test_python_entries_come_out_in_line_order_with_comments_and_docstrings_mixed() -> None:
+    from document_repo.remap import split_lines
+
+    text = (
+        '"""Module.\n\nTraps: one.\n"""\n'  # 1-4
+        "# Traps: two.\n"  # 5
+        "class C:\n"  # 6
+        '    """Class doc.\n    Traps: three.\n    """\n'  # 7-9
+        "    # comment in the class\n"  # 10
+        "    def m(self):\n"  # 11
+        '        """Method doc.\n        Traps: four.\n        """\n'  # 12-14
+        "        # Traps: five.\n"  # 15
+        "        return 1\n"
+    )
+    lang = detect("x.py")
+    assert lang is not None
+    got = list(traps_mod._python_entries(text, split_lines(text), lang))
+    assert [line for line, _key, _text in got] == sorted(line for line, _key, _text in got)
+    assert [(line, body) for line, _key, body in got if body.startswith("Traps")] == [
+        (3, "Traps: one."),
+        (5, "Traps: two."),
+        (8, "Traps: three."),
+        (13, "Traps: four."),
+        (15, "Traps: five."),
+    ]

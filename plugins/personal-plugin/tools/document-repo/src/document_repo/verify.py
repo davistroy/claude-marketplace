@@ -43,6 +43,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -226,22 +227,26 @@ def _block_close(text: str, start: str, end: str, depth: int, nested: bool) -> t
 LINE_COMMENT = 0
 
 
-def comment_scan(lines: list[str], lang: Lang) -> tuple[list[tuple[int, str] | None], str]:
-    """Classify each line of an inserted chunk as blank, a comment, or something else.
+def iter_comment_scan(
+    lines: Iterable[str], lang: Lang, problems: list[str] | None = None
+) -> Iterator[tuple[int, str] | None]:
+    """Classify each line of an inserted chunk as blank, a comment, or something else, lazily.
 
-    Returns ``(found, why)``. ``found[i]`` is None for a blank line or any line that is not
-    comment, else ``(key, text)``: ``key`` is ``LINE_COMMENT`` for a line comment, or the number of
-    the block comment the line belongs to. ``text`` is what is inside the comment on that line,
-    with the opening and closing marker removed and nothing else (``// x`` gives `` x``; a
-    block line inside ``/** ... */`` keeps its leading ``*``). ``why`` is "" when every line is
-    blank or comment, else the first reason one is not.
+    Yields one item per line. It is None for a blank line or any line that is not comment, else
+    ``(key, text)``: ``key`` is ``LINE_COMMENT`` for a line comment, or the number of the block
+    comment the line belongs to. ``text`` is what is inside the comment on that line, with the
+    opening and closing marker removed and nothing else (``// x`` gives `` x``; a block line
+    inside ``/** ... */`` keeps its leading ``*``).
+
+    ``problems``, when given, receives the first reason the chunk is not all blank and comment
+    lines, once the scan has read far enough to know it (an unterminated block comment is known at
+    the end). Nothing is kept per line, so a reader that handles one item at a time needs memory
+    for one.
 
     For ``lang.nested_block`` languages the block-comment depth is counted, so ``/* a /* b */``
     is still open; a chunk must end at depth 0 with nothing but blanks after the final close.
     This is the one definition of "a comment line" that ``comment_chunk_ok`` and ``traps`` share.
     """
-    found: list[tuple[int, str] | None] = []
-    why = ""
     block: tuple[str, str] | None = None
     depth = 0
     key = LINE_COMMENT
@@ -249,29 +254,39 @@ def comment_scan(lines: list[str], lang: Lang) -> tuple[list[tuple[int, str] | N
         s = raw.strip()
         if block is None:
             if not s:
-                found.append(None)
+                yield None
                 continue
             marker = next((m for m in lang.line if s.startswith(m)), None)
             if marker is not None:
-                found.append((LINE_COMMENT, s[len(marker) :]))
+                yield (LINE_COMMENT, s[len(marker) :])
                 continue
             block = next(((b, e) for b, e in lang.block if s.startswith(b)), None)
             if block is None:
-                found.append(None)
-                why = why or f"non-comment line added: {raw!r}"
+                if problems is not None and not problems:
+                    problems.append(f"non-comment line added: {raw!r}")
+                yield None
                 continue
             s, depth, key = s[len(block[0]) :], 1, key + 1
         depth, close = _block_close(s, block[0], block[1], depth, lang.nested_block)
         if close < 0:
-            found.append((key, s))
+            yield (key, s)
             continue
-        found.append((key, s[: close - len(block[1])]))
-        if s[close:].strip():
-            why = why or f"code after block-comment end: {raw!r}"
+        if s[close:].strip() and problems is not None and not problems:
+            problems.append(f"code after block-comment end: {raw!r}")
+        yield (key, s[: close - len(block[1])])
         block = None
-    if block is not None:
-        why = why or "unterminated block comment in inserted lines"
-    return found, why
+    if block is not None and problems is not None and not problems:
+        problems.append("unterminated block comment in inserted lines")
+
+
+def comment_scan(lines: list[str], lang: Lang) -> tuple[list[tuple[int, str] | None], str]:
+    """``iter_comment_scan`` as a list and the first reason the chunk is not all comment, or "".
+
+    Returns ``(found, why)``. ``found[i]`` is the item for ``lines[i]``.
+    """
+    problems: list[str] = []
+    found = list(iter_comment_scan(lines, lang, problems))
+    return found, problems[0] if problems else ""
 
 
 def comment_chunk_ok(lines: list[str], lang: Lang) -> tuple[bool, str]:
