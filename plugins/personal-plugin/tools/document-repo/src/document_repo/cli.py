@@ -483,6 +483,30 @@ def _register_keep_local(sub: Any) -> None:
     p.set_defaults(func=_cmd_keep_local)
 
 
+def _cmd_traps(args: argparse.Namespace) -> int:
+    from .commit import GitError, InputError
+    from .traps import harvest_traps
+
+    try:
+        found = harvest_traps(args.repo, args.before)
+    except (InputError, GitError, OSError) as exc:
+        sys.stderr.write(f"traps: {exc}\n")
+        return 2
+    emit([trap.to_dict() for trap in found], args.out)
+    return 0
+
+
+def _register_traps(sub: Any) -> None:
+    p = sub.add_parser(
+        "traps",
+        help="list the Traps: labels the branch added to comments since --before",
+    )
+    p.add_argument("--repo", type=_repo_arg, required=True, help="top level of the git work tree")
+    p.add_argument("--before", required=True, help="the commit the branch started from")
+    p.add_argument("--out", type=Path, help="write the JSON list here instead of stdout")
+    p.set_defaults(func=_cmd_traps)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="document_repo", description="Helpers for the document-repo skill."
@@ -502,6 +526,7 @@ def build_parser() -> argparse.ArgumentParser:
     _register_backstop(sub)
     _register_explorer_status(sub)
     _register_keep_local(sub)
+    _register_traps(sub)
     return parser
 
 

@@ -69,7 +69,7 @@ All `file` and `path` values are relative to the git top level, with `/` separat
 | `flows[]` | `id`, `title`, `summary` (lens), `steps` | 3 to 6 flows that matter most to a user. 3 to 10 steps each, in execution order. Each step has `title`, `text` (lens), `file`, `line_start`, `line_end` and optional `snippet`. A step with a snippet spans at most 30 lines. The snippet is copied exactly from those lines. |
 | `glossary[]` | `term`, `definition`, `kind`, `module_ids` | Every domain term used anywhere in the model or the docs, plus tech terms a junior might not know. `module_ids` may be `[]`. |
 | `paths[]` | `id`, `audience`, `title`, `steps` | Reading orders. Each step has `ref_type`, `ref_id` and `note`; a `doc` step names a file such as `README.md` or `docs/ARCHITECTURE.md`. Convention (not validated): include `new-dev` ("New developer, day 1"), `ai-agent` ("AI agent, first read") and `change-x` ("I need to change something"). |
-| `agent_notes` | `rules`, `traps`, `do_not_touch`, `commands` | `rules`: conventions an agent must follow. `traps`: things that look safe and are not. `do_not_touch[]` holds `path` and `reason`: generated, vendored or production-critical paths. `commands[]` holds `label` and `command`: build, test, lint, copied exactly. |
+| `agent_notes` | `rules`, `traps`, `do_not_touch`, `commands` | `rules`: conventions an agent must follow. `traps`: things that look safe and are not (rules in "Notes on `agent_notes.traps`" below). `do_not_touch[]` holds `path` and `reason`: generated, vendored or production-critical paths. `commands[]` holds `label` and `command`: build, test, lint, copied exactly. |
 
 ### Notes on `project`
 
@@ -88,6 +88,15 @@ All `file` and `path` values are relative to the git top level, with `/` separat
 - `invariants` are testable statements ("every note has a non-empty body"), never vague ones ("the code is clean").
 - `dependencies.internal` holds module ids. `dependencies.external` holds package names.
 - `key_files` lists the 3 to 8 files a newcomer opens first.
+
+### Notes on `agent_notes.traps`
+
+- Write each trap in one or two sentences with three parts: what looks safe, what actually happens, and what to do instead. A trap that only says what the code does ("omits `ko_return` when there is one path") leaves the reader to guess the consequence and the fix. State both.
+- Example: "A bare `pytest` skips slow tests: `pyproject.toml` addopts adds `-m "not slow"`. Run `pytest -m slow` or `pytest -m ""` for the full suite. (`pyproject.toml:42`)"
+- Name the file as `path:line` at the end. The line is where the trap is written or where the code it describes starts, at the commit the run ends on. The path stays right when the line drifts.
+- A trap belongs here when it matters beyond its own file: how to build, run, test or deploy; a config default that changes what a bare command does; behaviour across modules; data loss or a wrong result that looks safe. A trap that matters only to someone editing one file stays in that file's `Traps:` header.
+- Sources, in this order: a trap the owner already documents, a config default found by reading the tool's configuration (agent-prompts.md prompt 2), and the `Traps:` lines the commenters added, which SKILL.md Phase 3 step 1 folds in with `traps`. Merge two entries that describe the same thing and keep the fuller consequence.
+- Never put a secret, token or real credential in a trap. Inline code in single backticks, as everywhere in the model.
 
 ## Module record
 

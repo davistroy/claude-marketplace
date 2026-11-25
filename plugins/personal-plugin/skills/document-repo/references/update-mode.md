@@ -72,13 +72,13 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
 
 10. **Comments** (Phase 2). Comment the files in `changed_files` whose status is not `D` and that belong to an affected or new module, plus every file of a new module. Skip `comment_only_files`. Give each commenter `since` from `changes.json`, so it comments only items that are new or whose code changed. Existing comments are never touched. Verify, test and commit per module through the commit protocol (`references/commit-protocol.md`), and run the branch backstop, as in a full run. After the backstop, remap `$RUN_DIR/model.json` to HEAD, as in a full run.
 
-11. **Docs** (Phase 3). Write these sections and no others:
+11. **Docs** (Phase 3). First fold in the traps, as Phase 3 step 1 of SKILL.md says. `$RUN_DIR/base.txt` is this update run's base (Phase 0 step 4 wrote it before the branch was made), so `traps` lists only the `Traps:` lines this run's commenters added. The traps of earlier runs are already in the base model's `agent_notes.traps`, which `assemble` reuses when there is no `system.json` and the synthesizer keeps when it runs (step 7). Write these sections and no others:
 
     | Section | Rewrite when |
     |---------|--------------|
     | `module` in an affected or new module's README | always |
     | `repo-map` in the root README | a module was added or removed, or a re-analysed module's purpose changed |
-    | `agents` in `AGENTS.md` | synthesis ran, a module was added or removed, or a re-analysed module's purpose or entry points changed |
+    | `agents` in `AGENTS.md` | synthesis ran, a module was added or removed, a re-analysed module's purpose or entry points changed, or the fold-in added or merged a trap |
     | `overview`, `quick-start` and `explorer` in the root README; `architecture`; `glossary` | synthesis ran |
 
     Writing a section whose text did not change produces no git diff, so an uncertain case costs nothing. A removed module leaves its README behind, because the tool cannot delete a section. List it in the report as stale.

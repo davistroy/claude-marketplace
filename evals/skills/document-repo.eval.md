@@ -148,6 +148,25 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 
 ---
 
+### S11: A trap a commenter found reaches AGENTS.md
+
+**Context:** Full run on a Python repo whose `pyproject.toml` sets `addopts = "-m \"not slow\""`, so a bare `pytest` skips the tests marked `slow`. The Synthesizer's `agent_notes.traps` does not mention it. The `pyproject.toml` commenter writes a `Traps:` header line saying so, and Phase 2 commits it. The file already carried another `Traps:` line before the branch.
+
+**Must:**
+- [ ] Runs `document_repo traps --repo <target> --before <base sha> --out <run dir>/traps.json` as the first step of Phase 3, before writing any root file, with the sha read from `$RUN_DIR/base.txt`
+- [ ] `traps.json` lists the new `pyproject.toml` trap with its `path`, `line` and `text`, and does not list the `Traps:` line that was already there
+- [ ] Adds the trap to `agent_notes.traps` in `$RUN_DIR/model.json` with the three parts (a bare `pytest` looks like the full suite, it skips slow tests because `addopts` adds `-m "not slow"`, run `pytest -m slow` or `pytest -m ""` for all of them) and its `pyproject.toml:<line>` reference; adds at most 12; merges a harvested trap that restates an existing entry instead of adding a duplicate
+- [ ] Checks the edited model with `build --validate-only` and fixes what it lists before Phase 3 goes on, and does not run `assemble` again
+- [ ] The `## Traps` section of `AGENTS.md` carries the trap whole, with its consequence, its fix and its `path:line`, so the Student can answer "What do you miss with a bare `pytest`?" from `AGENTS.md` alone
+- [ ] In an `--update` run the same step reads that run's own `$RUN_DIR/base.txt`, lists only that run's additions, and the `agents` section is rewritten when it folded a trap in
+
+**Must NOT:**
+- [ ] Copy every harvested trap: one that matters only to someone editing its own file stays in that file's header
+- [ ] Write a trap that says only what the code does, with no consequence and no fix
+- [ ] Run `traps` after Phase 3 has written documents, or edit a `Traps:` line in the source
+
+---
+
 ## Rubric
 
 | Criterion | Pass Threshold |
@@ -162,3 +181,4 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 | Branch backstop exits 0 before Phase 3 and before Finish | Required |
 | An ignore rule is shown at the gate and never overridden | Required |
 | A kept-local or incomplete committed explorer leaves a clean tree and is reported | Required |
+| A trap a commenter finds and that matters beyond its file reaches AGENTS.md with its consequence | Required |

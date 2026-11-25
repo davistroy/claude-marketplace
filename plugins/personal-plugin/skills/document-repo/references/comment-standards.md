@@ -107,6 +107,7 @@ These are not mechanical, and they decide whether the comments are worth keeping
 18. Keep each doc comment to 12 lines. If it needs more, the module README is the place.
 19. Write plain English. Follow `~/.claude/styles/WRITING_RULES.md` when it exists.
 20. In Rust doc comments (`///`, `//!`), fence an example as `text`. An unmarked fence is compiled and run as a test by `cargo test`, and the verifier does not look inside it.
+21. Write a `Traps:` line as what looks safe, what actually happens, and what to do instead, in one or two sentences. "Omits `ko_return` for one path" leaves out the consequence and the fix. Before you write one about a bare command, read the configuration the tool reads (a pyproject `addopts`, `package.json` scripts, a Makefile default): a default that changes what the command does is a trap. The orchestrator copies the ones that matter beyond the file into AGENTS.md.
 
 ## Formats
 

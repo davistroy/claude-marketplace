@@ -214,17 +214,24 @@ was assembled in this run, so either one is a bug: stop and report stderr.
 Skip this phase when `--phase` is `comments` or `explorer`. Follow
 `$SKILL_DIR/references/doc-templates.md` for every body.
 
-1. **Root files.** Write each section body for the root `README.md` (`overview`, `quick-start`, `repo-map`, `explorer`), `AGENTS.md` (`agents`), `docs/ARCHITECTURE.md` (`architecture`) and `docs/GLOSSARY.md` (`glossary`). Use `$RUN_DIR/model.json` and the `entry_candidates` in `$RUN_DIR/inventory.json`. Save each body as `$RUN_DIR/docs/_<file>-<section>.md`; the underscore keeps it apart from module ids. Then write it:
+1. **Fold in the traps the commenters found.** Phase 1 wrote `agent_notes.traps` before any commenter read a file, and a `Traps:` line a commenter wrote in a file header reaches no doc on its own. Harvest them before writing any body:
+
+   ```bash
+   PYTHONPATH="$TOOL_SRC" python3 -m document_repo traps --repo "$TARGET" --before "$(cat "$RUN_DIR/base.txt")" --out "$RUN_DIR/traps.json"
+   ```
+
+   It writes `[{"path", "line", "text"}]`, one entry per `Traps:` label the branch added (a label the source already had is not listed), sorted by path and line. With `--phase docs` nothing was commented in this run, so the list is empty: go to step 2. Exit 2 is a bad repo or ref and stderr says which: stop and report. `base.txt` is this run's base in every mode, so an update run lists only what its own commenters added: the traps of earlier runs are already in the base model. Pick the traps that matter beyond their own file: how to build, run, test or deploy, a config default that changes a bare command, behaviour across modules, and data loss or a wrong result that looks safe. A trap that matters only to someone editing that file stays in its header. Add at most 12 to `agent_notes.traps` in `$RUN_DIR/model.json`, each written as "Notes on `agent_notes.traps`" in model-schema.md says and naming its file as `path:line`. When one describes what an existing trap already does, merge them and keep the fuller consequence. Edit `model.json` itself and never run `assemble` again, because it would rebuild the file from the records and drop the edit. Then check it: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo build --model "$RUN_DIR/model.json" --explorer-dir "$TARGET/explorer" --validate-only` (it writes nothing). On exit 1, fix the listed errors and run it again until it exits 0.
+2. **Root files.** Write each section body for the root `README.md` (`overview`, `quick-start`, `repo-map`, `explorer`), `AGENTS.md` (`agents`), `docs/ARCHITECTURE.md` (`architecture`) and `docs/GLOSSARY.md` (`glossary`). Use `$RUN_DIR/model.json` and the `entry_candidates` in `$RUN_DIR/inventory.json`. Save each body as `$RUN_DIR/docs/_<file>-<section>.md`; the underscore keeps it apart from module ids. Then write it:
 
    ```bash
    PYTHONPATH="$TOOL_SRC" python3 -m document_repo upsert-section --file "$TARGET/README.md" --section overview --content-file "$RUN_DIR/docs/_readme-overview.md"
    ```
 
    Exit 2 prints the reason on stderr. Fix the body and run it again. If the reason is an unclosed fence in the existing file, leave that file alone and report it.
-2. **Module READMEs.** Dispatch **Module docs writers** (prompt 4) in batches of up to 6 module ids.
-3. **CLAUDE.md.** Only if it already exists and does not resolve to the same file as `AGENTS.md`, upsert section `agents-pointer`. Never create `CLAUDE.md`.
-4. Confirm that no source file changed: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo "$TARGET" --before HEAD --changed` must print `[]`. Apply the stray rules to every path it lists, then run it again until it prints `[]`.
-5. Commit the doc files: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --no-content-check -m "docs: add READMEs, AGENTS.md, architecture and glossary" -- README.md AGENTS.md docs/ARCHITECTURE.md docs/GLOSSARY.md <module READMEs>`. List each module README that was written and `CLAUDE.md` only if it was written: a path that does not exist exits 2. Then `git -C "$TARGET" status --porcelain -uall` must print nothing. A path it lists is a stray, for example a Markdown file an agent made.
+3. **Module READMEs.** Dispatch **Module docs writers** (prompt 4) in batches of up to 6 module ids.
+4. **CLAUDE.md.** Only if it already exists and does not resolve to the same file as `AGENTS.md`, upsert section `agents-pointer`. Never create `CLAUDE.md`.
+5. Confirm that no source file changed: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo verify --repo "$TARGET" --before HEAD --changed` must print `[]`. Apply the stray rules to every path it lists, then run it again until it prints `[]`.
+6. Commit the doc files: `PYTHONPATH="$TOOL_SRC" python3 -m document_repo commit --repo "$TARGET" --no-content-check -m "docs: add READMEs, AGENTS.md, architecture and glossary" -- README.md AGENTS.md docs/ARCHITECTURE.md docs/GLOSSARY.md <module READMEs>`. List each module README that was written and `CLAUDE.md` only if it was written: a path that does not exist exits 2. Then `git -C "$TARGET" status --porcelain -uall` must print nothing. A path it lists is a stray, for example a Markdown file an agent made.
 
 ## Phase 4 — Explorer
 

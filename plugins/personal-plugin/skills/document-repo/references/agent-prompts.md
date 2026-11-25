@@ -70,7 +70,7 @@ python3 -c "import json;d=json.load(open('{RUN_DIR}/modules/{id}.json'));assert 
 ```text
 Read every {RUN_DIR}/modules/*.json, {RUN_DIR}/inventory.json, and the root
 README and docs of {TARGET} if present. Read source files only to confirm a
-flow.
+flow, and the configuration files the commands rule below names.
 Field guide: {SKILL_DIR}/references/model-schema.md.
 Explorer rules: {SKILL_DIR}/references/explorer-contract.md. Read its
 "Diagrams" section before you draw anything.
@@ -95,6 +95,16 @@ Rules:
   snippet has at most 30 lines.
 - Copy run commands exactly from the repo (README, package.json, Makefile,
   compose file). Never invent one.
+- For each command in agent_notes.commands, read the configuration the tool
+  reads and record every default that changes what the bare command does as a
+  trap: pyproject.toml addopts and its other tool sections, pytest.ini,
+  setup.cfg, package.json scripts and tool sections, Makefile default targets
+  and variables, tsconfig.json, .npmrc. Example: addopts adds -m "not slow",
+  so a bare pytest skips slow tests.
+- Write each trap as one or two sentences: what looks safe, what actually
+  happens, what to do instead, then the file as path:line. A trap with no
+  consequence and no fix is not finished. The guide's "Notes on
+  agent_notes.traps" has an example.
 - The glossary has one entry per term, ignoring case. A path step that names a
   term uses its exact spelling.
 - paths must include ids new-dev, ai-agent and change-x. A step with

@@ -31,7 +31,7 @@ class RemapError(ValueError):
     """
 
 
-def _split_lines(text: str) -> list[str]:
+def split_lines(text: str) -> list[str]:
     """Lines of ``text`` as an editor numbers them, without their line endings."""
     lines = text.split("\n")
     if lines[-1] == "":
@@ -134,8 +134,8 @@ def remap_model(
                 )
                 cache[path] = None
             else:
-                after_lines = _split_lines(after)
-                mapping, exact = _diff_map(_split_lines(before), after_lines)
+                after_lines = split_lines(after)
+                mapping, exact = _diff_map(split_lines(before), after_lines)
                 if not exact:
                     warn(f"{path}: changed by more than inserted lines; numbers are approximate")
                 cache[path] = (mapping, after_lines)

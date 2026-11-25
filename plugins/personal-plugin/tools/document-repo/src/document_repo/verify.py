@@ -94,17 +94,41 @@ def git_show(repo: Path, ref: str, rel: str) -> str | None:
         return None
 
 
+_DocParent = ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
+_DOC_PARENTS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+
+
+def _docstring_stmt(node: _DocParent) -> ast.Expr | None:
+    """The statement that is ``node``'s docstring, or None. The one definition of a docstring."""
+    body = node.body
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        return body[0]
+    return None
+
+
 def _strip_docstrings(tree: ast.AST) -> None:
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-            body = node.body
-            if (
-                body
-                and isinstance(body[0], ast.Expr)
-                and isinstance(body[0].value, ast.Constant)
-                and isinstance(body[0].value.value, str)
-            ):
-                node.body = body[1:] or [ast.Pass()]
+        if isinstance(node, _DOC_PARENTS) and _docstring_stmt(node) is not None:
+            node.body = node.body[1:] or [ast.Pass()]
+
+
+def docstring_stmts(tree: ast.AST) -> list[ast.Expr]:
+    """Every docstring statement in ``tree``, in tree order (not line order).
+
+    A docstring is what ``_strip_docstrings`` removes, so the two cannot disagree about which
+    string statements are comments.
+    """
+    found = []
+    for node in ast.walk(tree):
+        stmt = _docstring_stmt(node) if isinstance(node, _DOC_PARENTS) else None
+        if stmt is not None:
+            found.append(stmt)
+    return found
 
 
 _DOC_OWNERS = (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
@@ -187,31 +211,62 @@ def _block_close(text: str, start: str, end: str, depth: int, nested: bool) -> t
     return depth, -1
 
 
-def comment_chunk_ok(lines: list[str], lang: Lang) -> tuple[bool, str]:
-    """True when every line in an inserted chunk is blank or a comment.
+#: The ``comment_scan`` key of a line comment. A block comment is numbered from 1 in its chunk.
+LINE_COMMENT = 0
+
+
+def comment_scan(lines: list[str], lang: Lang) -> tuple[list[tuple[int, str] | None], str]:
+    """Classify each line of an inserted chunk as blank, a comment, or something else.
+
+    Returns ``(found, why)``. ``found[i]`` is None for a blank line or any line that is not
+    comment, else ``(key, text)``: ``key`` is ``LINE_COMMENT`` for a line comment, or the number of
+    the block comment the line belongs to. ``text`` is what is inside the comment on that line,
+    with the opening and closing marker removed and nothing else (``// x`` gives `` x``; a
+    block line inside ``/** ... */`` keeps its leading ``*``). ``why`` is "" when every line is
+    blank or comment, else the first reason one is not.
 
     For ``lang.nested_block`` languages the block-comment depth is counted, so ``/* a /* b */``
     is still open; a chunk must end at depth 0 with nothing but blanks after the final close.
+    This is the one definition of "a comment line" that ``comment_chunk_ok`` and ``traps`` share.
     """
+    found: list[tuple[int, str] | None] = []
+    why = ""
     block: tuple[str, str] | None = None
     depth = 0
+    key = LINE_COMMENT
     for raw in lines:
         s = raw.strip()
         if block is None:
-            if not s or any(s.startswith(m) for m in lang.line):
+            if not s:
+                found.append(None)
+                continue
+            marker = next((m for m in lang.line if s.startswith(m)), None)
+            if marker is not None:
+                found.append((LINE_COMMENT, s[len(marker) :]))
                 continue
             block = next(((b, e) for b, e in lang.block if s.startswith(b)), None)
             if block is None:
-                return False, f"non-comment line added: {raw!r}"
-            s, depth = s[len(block[0]) :], 1
+                found.append(None)
+                why = why or f"non-comment line added: {raw!r}"
+                continue
+            s, depth, key = s[len(block[0]) :], 1, key + 1
         depth, close = _block_close(s, block[0], block[1], depth, lang.nested_block)
-        if close >= 0:
-            if s[close:].strip():
-                return False, f"code after block-comment end: {raw!r}"
-            block = None
+        if close < 0:
+            found.append((key, s))
+            continue
+        found.append((key, s[: close - len(block[1])]))
+        if s[close:].strip():
+            why = why or f"code after block-comment end: {raw!r}"
+        block = None
     if block is not None:
-        return False, "unterminated block comment in inserted lines"
-    return True, ""
+        why = why or "unterminated block comment in inserted lines"
+    return found, why
+
+
+def comment_chunk_ok(lines: list[str], lang: Lang) -> tuple[bool, str]:
+    """True when every line in an inserted chunk is blank or a comment (see ``comment_scan``)."""
+    why = comment_scan(lines, lang)[1]
+    return not why, why
 
 
 def _comment_lines(rel: str, before: str, after: str, lang: Lang) -> Result:
