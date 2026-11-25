@@ -5,6 +5,20 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.11.0] - 2026-11-23
+
+New skill — `document-repo`.
+
+### Added
+- **`/document-repo`** — comments a target repo for junior developers and AI agents, writes READMEs at module boundaries plus `AGENTS.md`, `docs/ARCHITECTURE.md` and `docs/GLOSSARY.md`, and builds an offline interactive explorer in `explorer/`, all from one project model (D73). One approval gate after analysis; work lands on a new branch with one commit per module; nothing is pushed. `--update` re-documents only the modules whose code changed; `--phase` re-runs one phase.
+- **New bundled tool `document-repo`** — stdlib-only. Inventory, module proposal, model assembly/validation, line remapping, marker-section upserts, update-mode change detection, and the **comment-only verifier**: Python by syntax-tree comparison, JS/TS by TypeScript-printer comparison, everything else by an insert-only comment-line diff. Every verifier method has negative tests. Wired into CI as a **non-required** job first.
+- **`commit` and `backstop` subcommands (D76).** `commit` makes one commit of exactly the listed paths and proves it: it empties the index, stages the paths, verifies them, commits only them, then checks the commit it made (one new commit on the old HEAD, no other path in it, the work tree equal to it, every source file comment-only against the ref) and undoes it with `git reset --soft` when a check fails. It replaced a hand-filled shell block that skipped verification when a variable expanded to empty and committed in the wrong repo after `cd ""`. It closes three ways an unverified change reached a commit after the verifier said yes: a command that rewrites files between verify and commit, another file already in the index, and a pre-commit hook that rewrites and re-stages. `backstop` verifies every path that differs from the branch base and requires a clean tree; the skill runs it after Phase 2 and again at Finish, and neither step proceeds until it exits 0.
+- Explorer template with Mermaid 11.17.2 vendored, so it works offline and makes no network requests.
+- **`traps` subcommand.** Lists every `Traps:` comment label (with its continuation lines) that a run added, or every one in the repo without `--before`. Phase 3 folds up to 12 cross-module traps into `AGENTS.md`, each with its `path:line`. Each trap states what looks safe, what happens and what to do instead. Bounded in memory and time on huge files; size-skipped files are named on stderr.
+- **`keep-local` subcommand and an ignored-file refusal.** `commit` refuses (exit 2, nothing touched) a listed directory whose build output or Markdown git ignores, names the rule and a negation that fixes it, and never force-adds or edits `.gitignore`. `explorer-status` reports the ignored paths before the gate, which offers **Keep local** or **Stop to change .gitignore**.
+- The browser check serves `explorer/` on 127.0.0.1 (stdlib server, port 0, stops after 600 s), because the Chrome extension refuses `file://`.
+- `evals/skills/document-repo.eval.md` — eleven scenarios: dirty-tree stop, the approval gate, verifier-failure revert, the single `CLAUDE.md` pointer, scoped update mode, no push, every commit through `document_repo commit`, the branch backstop gating Phase 3 and Finish, an ignore rule never dropping part of the explorer, a committed explorer without its data, and a commenter-found trap reaching `AGENTS.md`.
+
 ## [11.10.0] - 2026-07-31
 
 Plan v14 — the remainder of the E052 audit backlog (#200, #199, #238, #216, #198). A large fraction of the filed issue text was wrong; three of the corrections below invert what was filed.

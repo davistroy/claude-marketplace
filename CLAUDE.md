@@ -152,12 +152,13 @@ plugins/
                        # remove-ip, review-arch, review-intent, scaffold-plugin, test-project,
                        # validate-plugin
     deprecated/        # Archived commands
-    skills/ (29)       # accessibility-annotator, arch-review, archive-project, brain-entry,
-                       # clear-prep, create-wiki, evaluate-pipeline-output, explain-project,
-                       # fleet-health, jetson-audit, jetson-recon, lab-notebook, leak-risk-audit,
-                       # new-project, plan-gate, prime, release-plugin, research-topic,
-                       # security-analysis, ship, spark-audit, spark-recon, spec-to-prototype,
-                       # summarize-feedback, task-sync, ultra-plan, unlock, visual-explainer, wiki
+    skills/ (30)       # accessibility-annotator, arch-review, archive-project, brain-entry,
+                       # clear-prep, create-wiki, document-repo, evaluate-pipeline-output,
+                       # explain-project, fleet-health, jetson-audit, jetson-recon, lab-notebook,
+                       # leak-risk-audit, new-project, plan-gate, prime, release-plugin,
+                       # research-topic, security-analysis, ship, spark-audit, spark-recon,
+                       # spec-to-prototype, summarize-feedback, task-sync, ultra-plan, unlock,
+                       # visual-explainer, wiki
     agents/ (10)       # data-architect, integration-architect, performance-engineer,
                        # platform-engineer, qa-architect, risk-compliance, security-architect,
                        # software-engineer, solutions-architect, sre-operator
@@ -166,7 +167,8 @@ plugins/
                        # adr-template.md, agents-md-template.md, anti-patterns.md,
                        # …plus extraction references (validation-output-examples, ship-output-templates, etc.) and hooks/patterns/templates/ subdirs
     hooks/hooks.json
-    tools/             # feedback-docx-generator, visual-explainer
+    tools/             # document-repo, feedback-docx-generator, research-sse, task-sync,
+                       # visual-explainer
 
   bpmn-plugin/
     .claude-plugin/plugin.json

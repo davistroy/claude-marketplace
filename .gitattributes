@@ -12,3 +12,6 @@
 
 # Binary files — never touch
 *.zip  binary
+
+# Vendored Mermaid is checksummed (vendor/README.md): no line-ending conversion on any platform
+plugins/personal-plugin/skills/document-repo/templates/explorer/vendor/mermaid.min.js binary

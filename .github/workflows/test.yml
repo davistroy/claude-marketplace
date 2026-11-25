@@ -232,8 +232,68 @@ jobs:
         run: |
           mypy src/ --ignore-missing-imports
 
-  # Advisory (NON-required) Python 3.10/3.12 compatibility check. All three
-  # tools declare requires-python >=3.10 but CI otherwise only exercises 3.11.
+  # NON-REQUIRED for now, following the task-sync / research-sse precedent: a
+  # required check cannot exist before the PR that creates it. Promote the leg
+  # ("Document Repo Tests (ubuntu-latest)") to required once the job has proven green.
+  #
+  # Ubuntu only, deliberately. The suite has never run on Windows and no Windows host was
+  # available to run it on. Emulating Windows text mode (CRLF from Path.write_text) on macOS
+  # already fails 45 tests (git hook scripts whose shebang gains a CR, JS/TS tests that edit
+  # with LF bytes over a CRLF base), on top of the POSIX-only file-mode and symlink tests that
+  # now carry a skipif. A red leg would say "untested", not "broken". Add windows-latest back to
+  # the matrix once those tests are ported on a real Windows host. The tool code has no
+  # POSIX-only path; it defers modes and symlinks to git.
+  #
+  # The tests fail, not skip, when CI is set and Node or TypeScript is missing, so a runner
+  # image that loses either cannot turn the TypeScript and explorer coverage into silent skips.
+  document-repo:
+    name: Document Repo Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    defaults:
+      run:
+        working-directory: plugins/personal-plugin/tools/document-repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Install TypeScript for the ts-printer verifier
+        run: npm install -g typescript@5.6.3
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        env:
+          CI: 'true'
+        run: |
+          pytest tests/ -v -n auto --cov=document_repo --cov-branch --cov-report=term-missing
+
+      - name: Type check
+        run: |
+          mypy src/ --ignore-missing-imports
+
+  # Advisory (NON-required) Python 3.10/3.12 compatibility check. Every bundled
+  # Python tool declares requires-python >=3.10 but CI otherwise only exercises
+  # 3.11.
   # This is a SEPARATE job with distinct check names ("Python Compat (3.10)")
   # so it is NOT one of the branch-protection required contexts: expanding the
   # required Run Tests / tool-test matrices would rename their check names and
@@ -241,10 +301,14 @@ jobs:
   # LAB_NOTEBOOK D28 / #130). Failures here surface on the PR but do not block.
   # ubuntu-only: compatibility is a Python-version concern; the required jobs
   # already cover Windows on 3.11.
+  #
+  # The timeout is 25 minutes because six tool suites run one after another in
+  # each leg and the document-repo suite alone is 1500+ tests that spawn git and
+  # node per test; it runs with -n auto for that reason.
   python-compat:
     name: Python Compat (${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -290,6 +354,24 @@ jobs:
         run: |
           pip install -e ".[dev]"
           pytest tests/ -q -p no:cacheprovider --cov-fail-under=0
+
+      # The document-repo tests FAIL (not skip) when CI is set and Node or the
+      # TypeScript compiler is missing, so pin both before the tests run.
+      - name: Set up Node.js for document-repo
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Install TypeScript for the document-repo ts-printer verifier
+        run: npm install -g typescript@5.6.3
+
+      - name: document-repo tests
+        working-directory: plugins/personal-plugin/tools/document-repo
+        env:
+          CI: 'true'
+        run: |
+          pip install -e ".[dev]"
+          pytest tests/ -q -n auto -p no:cacheprovider --cov-fail-under=0
 
   # pip-audit scans installed Python packages for known CVEs.
   # It checks the NIST NVD and PyPI advisory databases.

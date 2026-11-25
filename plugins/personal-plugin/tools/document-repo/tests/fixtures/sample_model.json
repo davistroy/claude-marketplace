@@ -1,0 +1,55 @@
+{
+  "meta": {"schema_version": 1, "generated_at": "2026-11-22T12:00:00+00:00", "source_commit": "0123456789abcdef0123456789abcdef01234567", "repo_name": "demo", "repo_url": "https://github.com/example/demo"},
+  "project": {
+    "name": "Demo",
+    "tagline": "A tiny service that stores notes.",
+    "purpose": {"functional": "Lets you save a note and find it later.", "technical": "A FastAPI app over Postgres with a `notes` table."},
+    "users": ["Note takers", "Developers extending the API"],
+    "capabilities": [{"title": "Save notes", "functional": "Type a note and keep it.", "technical": "`POST /notes` inserts a row."}],
+    "tech_stack": [{"name": "Python 3.12", "role": "API runtime"}, {"name": "PostgreSQL", "role": "Storage"}],
+    "run": {"setup": ["pip install -e ."], "commands": [{"label": "Start the API", "command": "uvicorn demo.app:app"}]}
+  },
+  "architecture": {
+    "summary": {"functional": "One app saves notes in one database.", "technical": "Stateless HTTP API; Postgres is the only state."},
+    "components": [
+      {"id": "api", "name": "API", "kind": "service", "module_ids": ["src-api"], "description": {"functional": "Takes requests.", "technical": "FastAPI routers."}},
+      {"id": "db", "name": "Database", "kind": "datastore", "module_ids": ["db"], "description": {"functional": "Keeps notes.", "technical": "Postgres 16."}}
+    ],
+    "connections": [{"from": "api", "to": "db", "label": "SQL over asyncpg"}],
+    "diagrams": [{"id": "overview", "title": "System overview", "mermaid": "flowchart LR\n  api[API] --> db[(Database)]"}]
+  },
+  "modules": [
+    {
+      "id": "db", "name": "Database schema", "path": "db", "status": "analyzed",
+      "purpose": {"functional": "Defines where notes live.", "technical": "SQL migrations for the notes table."},
+      "interface": [], "invariants": ["Migrations are append-only."],
+      "dependencies": {"internal": [], "external": ["PostgreSQL"]},
+      "key_files": [{"path": "db/migrations/001_init.sql", "role": "Creates the notes table"}]
+    },
+    {
+      "id": "src-api", "name": "HTTP API", "path": "src/api", "status": "analyzed",
+      "purpose": {"functional": "Receives notes from users.", "technical": "FastAPI routes and request models."},
+      "interface": [{"name": "create_note", "kind": "function", "signature": "async def create_note(body: NoteIn) -> NoteOut", "description": "Stores one note.", "file": "src/api/routes.py", "line": 12}],
+      "invariants": ["Every note has a non-empty body."],
+      "dependencies": {"internal": ["db"], "external": ["fastapi", "asyncpg"]},
+      "key_files": [{"path": "src/api/routes.py", "role": "Route handlers"}]
+    }
+  ],
+  "flows": [
+    {
+      "id": "save-note", "title": "Save a note",
+      "summary": {"functional": "What happens when you save a note.", "technical": "Request path from router to INSERT."},
+      "steps": [
+        {"title": "Request arrives", "text": {"functional": "The app gets your note.", "technical": "FastAPI validates `NoteIn`."}, "file": "src/api/routes.py", "line_start": 12, "line_end": 14, "snippet": "async def create_note(body: NoteIn) -> NoteOut:\n    row = await db.insert(body)\n    return NoteOut.from_row(row)"}
+      ]
+    }
+  ],
+  "glossary": [{"term": "Note", "definition": "One saved piece of text.", "kind": "domain", "module_ids": ["src-api"]}],
+  "paths": [{"id": "new-dev", "audience": "New developer", "title": "Day 1", "steps": [
+    {"ref_type": "doc", "ref_id": "README.md", "note": "Start with the overview."},
+    {"ref_type": "module", "ref_id": "src-api", "note": "Then the API."},
+    {"ref_type": "flow", "ref_id": "save-note", "note": "Follow one request."},
+    {"ref_type": "glossary", "ref_id": "Note", "note": "Learn the one domain term."}
+  ]}],
+  "agent_notes": {"rules": ["Never edit applied migrations."], "traps": ["Tests need a running Postgres."], "do_not_touch": [{"path": "db/migrations", "reason": "Applied in production"}], "commands": [{"label": "Test", "command": "pytest"}]}
+}
