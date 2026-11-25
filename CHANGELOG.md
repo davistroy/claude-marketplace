@@ -14,6 +14,7 @@ New skill — `document-repo`.
 ### Added
 - **`/document-repo`** comments a target repo for junior developers and AI agents, writes READMEs at module boundaries plus `AGENTS.md`, `docs/ARCHITECTURE.md` and `docs/GLOSSARY.md`, and builds an offline interactive explorer in `explorer/`, all from one project model. One approval gate after analysis; work lands on a new branch with one commit per module; nothing is pushed.
 - **New bundled tool `document-repo`** (stdlib-only) with a comment-only verifier (Python by syntax-tree comparison, JS/TS by TypeScript-printer comparison, everything else by an insert-only comment-line diff), plus `commit` and `backstop` subcommands that prove every commit and the whole branch against its base. Wired into CI as a **non-required** job first.
+- `traps` and `keep-local` subcommands: commenter-found traps reach `AGENTS.md`; git-ignored explorer files are refused, not dropped silently. The browser check serves the explorer on 127.0.0.1.
 - `evals/skills/document-repo.eval.md`.
 
 ## [personal-plugin v11.10.0] - 2026-07-31
