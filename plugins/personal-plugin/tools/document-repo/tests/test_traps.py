@@ -1905,3 +1905,16 @@ def test_python_entries_come_out_in_line_order_with_comments_and_docstrings_mixe
         (13, "Traps: four."),
         (15, "Traps: five."),
     ]
+
+
+def test_git_ranges_ignore_a_user_inter_hunk_context(make_repo, commit_files, git) -> None:
+    """``diff.interHunkContext`` would merge two inserts and report the owner's line as added."""
+    repo, sha = branch(
+        make_repo,
+        commit_files,
+        git,
+        {"a.sh": "a\n# Traps: owner\nb\n"},
+        {"a.sh": "a\n# x\n# Traps: owner\nb\n# y\n"},
+    )
+    git(repo, "config", "diff.interHunkContext", "100")
+    assert traps_mod._git_added_ranges(repo, sha, "a.sh") == [(1, 2), (4, 5)]

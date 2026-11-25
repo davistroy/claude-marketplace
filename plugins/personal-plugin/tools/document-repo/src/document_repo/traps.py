@@ -272,7 +272,8 @@ def _git_added_ranges(top: Path, sha: str, rel: str) -> list[tuple[int, int]]:
     newline and lines follow it, git calls that line changed (``c`` and ``c`` + newline differ),
     which difflib does not. A trap on that one line would be listed as added.
     """
-    argv = ["git", "--literal-pathspecs", "-C", str(top), "diff", "-U0", "--no-ext-diff"]
+    argv = ["git", "--literal-pathspecs", "-C", str(top), "diff", "-U0", "--inter-hunk-context=0"]
+    argv += ["--no-ext-diff"]
     argv += ["--no-textconv", "--no-color", "--no-renames", "--text", sha, "--", rel]
     found: list[tuple[int, int]] = []
     with tempfile.TemporaryFile() as err:
