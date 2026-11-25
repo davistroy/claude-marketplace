@@ -22,8 +22,8 @@ from document_repo import languages
 from document_repo.cli import main
 from document_repo.commit import InputError
 from document_repo.languages import Lang, detect
-from document_repo.traps import HEADER_LABELS, Trap, harvest_traps, iter_traps
-from document_repo.verify import comment_chunk_ok, comment_scan
+from document_repo.traps import HEADER_LABELS, Skipped, Trap, harvest_traps, iter_traps
+from document_repo.verify import comment_chunk_ok, comment_scan, tracked_files
 
 TOOL_SRC = Path(__file__).resolve().parents[1] / "src"
 
@@ -731,7 +731,7 @@ def test_a_non_utf8_path_survives_the_output(
     """Git hands such a name over as surrogate escapes. ``--out`` writes the original bytes."""
     repo = make_repo({"a.py": "x = 1\n"})
     odd = Trap(b"caf\xe9.py".decode("utf-8", "surrogateescape"), 1, "odd name")
-    monkeypatch.setattr(traps_mod, "harvest_traps", lambda repo, before: [odd])
+    monkeypatch.setattr(traps_mod, "harvest_traps", lambda repo, before, skipped=None: [odd])
     target = tmp_path / "t.json"
     assert main(["traps", "--repo", str(repo), "--before", "HEAD", "--out", str(target)]) == 0
     assert b'"path": "caf\xe9.py"' in target.read_bytes()
@@ -781,8 +781,9 @@ def test_an_empty_repo_argument_exits_2(capsys) -> None:
     assert "--repo is empty" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("argv", [["--repo", "."], ["--before", "HEAD"], []])
-def test_repo_and_before_are_required(argv: list[str], capsys) -> None:
+@pytest.mark.parametrize("argv", [["--before", "HEAD"], []])
+def test_repo_is_required(argv: list[str], capsys) -> None:
+    """``--before`` became optional (see "without --before" below); ``--repo`` did not."""
     with pytest.raises(SystemExit) as exc:
         main(["traps", *argv])
     assert exc.value.code == 2
@@ -957,3 +958,270 @@ def test_comment_chunk_ok_is_the_reference_on_every_short_chunk(name: str) -> No
                 name,
                 chunk,
             )
+
+
+# --- without --before: every Traps: line in the tracked files ----------------------------------
+
+
+def run_all(capsys: pytest.CaptureFixture[str], repo: Path, *extra: str) -> tuple[int, Any, str]:
+    """Run ``traps`` with no ``--before``."""
+    capsys.readouterr()
+    code = main(["traps", "--repo", str(repo), *extra])
+    cap = capsys.readouterr()
+    return code, (json.loads(cap.out) if cap.out.strip() else None), cap.err
+
+
+def test_without_before_every_trap_in_the_tracked_files_is_listed(make_repo, capsys) -> None:
+    repo = make_repo(
+        {
+            "a.py": "# Traps: owner one\n#   continued\nx = 1\n",
+            "src/b.js": "/**\n * Traps: owner two\n */\nexport const b = 1;\n",
+            "c.sql": "-- Role: t\n-- Traps: owner three\nselect 1;\n",
+            "d.py": '"""Mod.\n\nTraps: owner four\n"""\n',
+            "README.md": "<!-- Traps: markdown -->\n",
+            "notes.txt": "# Traps: no comment syntax\n",
+        }
+    )
+    code, out, err = run_all(capsys, repo)
+    assert (code, err) == (0, "")
+    assert [(t["path"], t["line"], t["text"]) for t in out] == [
+        ("a.py", 1, "owner one continued"),
+        ("c.sql", 2, "owner three"),
+        ("d.py", 3, "owner four"),
+        ("src/b.js", 2, "owner two"),
+    ]
+    assert all(list(t) == ["path", "line", "text"] for t in out)
+
+
+def test_without_before_the_branchs_traps_and_uncommitted_ones_are_in_it_too(
+    make_repo, commit_files, git
+) -> None:
+    repo = make_repo({"a.py": "# Traps: owner\nx = 1\n", "b.py": "y = 1\n", "c.py": "z = 1\n"})
+    commit_files(repo, {"b.py": "# Traps: committed\ny = 1\n"}, "branch")
+    (repo / "c.py").write_text("# Traps: uncommitted\nz = 1\n")
+    assert [(t.path, t.text) for t in harvest_traps(repo)] == [
+        ("a.py", "owner"),
+        ("b.py", "committed"),
+        ("c.py", "uncommitted"),
+    ]
+
+
+def test_with_before_is_a_subset_of_without(make_repo, commit_files, git) -> None:
+    repo = make_repo({"a.py": "# Traps: owner\nx = 1\n", "b.py": "y = 1\n"})
+    sha = head(git, repo)
+    commit_files(repo, {"b.py": "# Traps: mine\ny = 1\n"}, "branch")
+    since = set(harvest_traps(repo, sha))
+    everything = set(harvest_traps(repo))
+    assert since == {Trap("b.py", 1, "mine")}
+    assert since < everything and Trap("a.py", 1, "owner") in everything
+
+
+def test_without_before_an_untracked_file_is_not_listed_but_a_staged_one_is(make_repo, git) -> None:
+    repo = make_repo({"a.py": "x = 1\n"})
+    (repo / "staged.py").write_text("# Traps: staged\n")
+    git(repo, "add", "staged.py")
+    (repo / "loose.py").write_text("# Traps: untracked\n")
+    assert [t.path for t in harvest_traps(repo)] == ["staged.py"]
+
+
+def test_without_before_the_skills_own_explorer_output_is_not_listed(make_repo, marker) -> None:
+    repo = make_repo(
+        {"a.py": "x = 1\n", **marker, "explorer/index.html": "<!-- Traps: ours -->\n<p/>\n"}
+    )
+    assert harvest_traps(repo) == []
+
+
+def test_without_before_a_tracked_file_deleted_from_the_work_tree_is_skipped(make_repo) -> None:
+    repo = make_repo({"a.py": "# Traps: gone\nx = 1\n", "b.py": "# Traps: here\ny = 1\n"})
+    (repo / "a.py").unlink()
+    assert [t.path for t in harvest_traps(repo)] == ["b.py"]
+
+
+@pytest.mark.parametrize(
+    "path, text",
+    [
+        ("a.py", 'print("Traps: x")\n'),
+        ("a.py", "x = 1  # Traps: inline\n"),
+        ("a.py", 's = """\nTraps: in a string\n"""\n'),
+        ("a.js", 'console.log("Traps: x");\n'),
+        ("run.sh", 'echo "Traps: x"\n'),
+    ],
+)
+def test_without_before_a_label_inside_code_is_still_not_a_trap(make_repo, path, text) -> None:
+    assert harvest_traps(make_repo({path: text})) == []
+
+
+def test_without_before_a_symlink_and_a_non_utf8_file_are_skipped(make_repo, tmp_path) -> None:
+    outside = tmp_path / "outside.py"
+    outside.write_text("# Traps: outside the repo\n")
+    repo = make_repo({"bad.py": b"# Traps: \xff\n", "ok.py": "# Traps: fine\n"})
+    try:
+        (repo / "link.py").symlink_to(outside)
+    except OSError:
+        pytest.skip("symlinks are not available")
+    assert [t.path for t in harvest_traps(repo)] == ["ok.py"]
+
+
+def test_an_empty_before_is_still_an_error_not_the_whole_tree(make_repo, capsys) -> None:
+    """``--before "$(cat base.txt)"`` with a missing base.txt must not quietly list everything."""
+    repo = make_repo({"a.py": "# Traps: owner\nx = 1\n"})
+    capsys.readouterr()
+    assert main(["traps", "--repo", str(repo), "--before="]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("traps: ") and "--before is empty" in err
+
+
+def test_without_before_a_subdirectory_or_a_non_repo_exits_2(make_repo, tmp_path, capsys) -> None:
+    repo = make_repo({"sub/a.py": "# Traps: x\n"})
+    assert run_all(capsys, repo / "sub")[0] == 2
+    assert run_all(capsys, tmp_path)[0] == 2
+
+
+def test_without_before_files_are_read_one_at_a_time(
+    make_repo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = make_repo({"a.py": "# Traps: a\n", "b.py": "# Traps: b\n"})
+    asked: list[str] = []
+    real = traps_mod._read
+
+    def spy(path: Path, limit: int) -> str | None:
+        asked.append(path.name)
+        return real(path, limit)
+
+    monkeypatch.setattr(traps_mod, "_read", spy)
+    stream = iter_traps(repo, None)
+    assert next(stream).path == "a.py"
+    assert asked == ["a.py"]
+    assert [t.path for t in stream] == ["b.py"]
+
+
+def test_tracked_files_are_sorted_and_leave_out_what_is_exempt(make_repo, marker, git) -> None:
+    repo = make_repo(
+        {
+            ".gitignore": "ignored.py\n",
+            "z.py": "x = 1\n",
+            "a/b.py": "x = 1\n",
+            "README.md": "# r\n",
+            "explorer/app.js": "x\n",
+            **marker,
+        }
+    )
+    (repo / "untracked.py").write_text("x = 1\n")
+    (repo / "ignored.py").write_text("x = 1\n")
+    assert tracked_files(repo) == [".gitignore", "a/b.py", "z.py"]
+
+
+def test_tracked_files_outside_a_work_tree_is_an_error(tmp_path) -> None:
+    with pytest.raises(NotADirectoryError):
+        tracked_files(tmp_path)
+
+
+# --- a file over the size cap is named on stderr -----------------------------------------------
+
+LONG = "# Traps: " + "long " * 20 + "\nx = 1\n"
+
+
+def test_a_file_over_the_cap_is_named_on_stderr_with_its_size(
+    make_repo, commit_files, git, capsys, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = branch(
+        make_repo,
+        commit_files,
+        git,
+        {"big.py": "x = 1\n", "small.py": "x = 1\n"},
+        {"big.py": LONG, "small.py": "# Traps: short\nx = 1\n"},
+    )
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 40)
+    code, out, err = run_traps(capsys, repo, sha)
+    size = len(LONG.encode("utf-8"))
+    assert code == 0
+    assert out == [{"path": "small.py", "line": 1, "text": "short"}]  # still a plain list
+    assert err == f"traps: skipped big.py: {size} bytes is over the 40-byte limit, not read\n"
+
+
+def test_each_skipped_file_gets_one_line_in_path_order(
+    make_repo, commit_files, git, capsys, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = branch(
+        make_repo,
+        commit_files,
+        git,
+        {"z.py": "x = 1\n", "a.py": "x = 1\n", "m.sh": "x=1\n", "ok.py": "x = 1\n"},
+        {"z.py": LONG, "a.py": LONG, "m.sh": LONG, "ok.py": "# Traps: ok\nx = 1\n"},
+    )
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 40)
+    monkeypatch.setattr(traps_mod, "MAX_BYTES", 40)
+    code, out, err = run_traps(capsys, repo, sha)
+    assert code == 0 and [t["path"] for t in out] == ["ok.py"]
+    assert [line.split(":")[1].strip() for line in err.splitlines()] == [
+        "skipped a.py",
+        "skipped m.sh",
+        "skipped z.py",
+    ]
+
+
+def test_python_and_other_files_are_judged_by_their_own_cap(
+    make_repo, commit_files, git, capsys, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = branch(
+        make_repo,
+        commit_files,
+        git,
+        {"a.py": "x = 1\n", "a.sh": "x=1\n"},
+        {"a.py": LONG, "a.sh": LONG},
+    )
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 40)
+    monkeypatch.setattr(traps_mod, "MAX_BYTES", 400)
+    code, out, err = run_traps(capsys, repo, sha)
+    assert [t["path"] for t in out] == ["a.sh"]
+    assert err.count("\n") == 1 and "a.py" in err and "40-byte limit" in err
+
+
+def test_nothing_is_said_when_nothing_was_skipped(make_repo, commit_files, git, capsys) -> None:
+    repo, sha = branch(make_repo, commit_files, git, {"a.py": "x = 1\n"}, {"a.py": LONG})
+    assert run_traps(capsys, repo, sha)[2] == ""
+
+
+def test_a_big_file_is_named_even_though_it_was_never_read(
+    make_repo, commit_files, git, capsys, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The cap is checked before the file is opened, so the note cannot say it had a label."""
+    repo, sha = branch(
+        make_repo, commit_files, git, {"a.py": "x = 1\n"}, {"a.py": "# no label here\n" * 10}
+    )
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 40)
+    code, out, err = run_traps(capsys, repo, sha)
+    assert (code, out) == (0, []) and err.startswith("traps: skipped a.py: ")
+
+
+def test_skipped_files_are_reported_with_out_and_without_before(
+    make_repo, capsys, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = make_repo({"big.py": LONG, "small.py": "# Traps: short\n"})
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 40)
+    target = tmp_path / "t.json"
+    code, out, err = run_all(capsys, repo, "--out", str(target))
+    assert (code, out) == (0, None)
+    assert json.loads(target.read_text(encoding="utf-8")) == [
+        {"path": "small.py", "line": 1, "text": "short"}
+    ]
+    assert err.startswith("traps: skipped big.py: ") and err.count("\n") == 1
+
+
+def test_harvest_fills_the_skipped_list(
+    make_repo, commit_files, git, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, sha = branch(make_repo, commit_files, git, {"a.py": "x = 1\n"}, {"a.py": LONG})
+    monkeypatch.setattr(traps_mod, "MAX_PYTHON_BYTES", 40)
+    skipped: list[Skipped] = []
+    assert harvest_traps(repo, sha, skipped) == []
+    assert skipped == [Skipped("a.py", len(LONG.encode("utf-8")), 40)]
+
+
+def test_the_help_says_where_skipped_files_go_and_what_no_before_means(capsys) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["traps", "--help"])
+    assert exc.value.code == 0
+    text = " ".join(capsys.readouterr().out.split())
+    assert "Without --before" in text and "every" in text and "tracked" in text
+    assert "over the size limit" in text and "stderr" in text and "stdout" in text

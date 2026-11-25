@@ -158,12 +158,14 @@ None. Each scenario uses a small throwaway git repo created in the scenario's co
 - [ ] Adds the trap to `agent_notes.traps` in `$RUN_DIR/model.json` with the three parts (a bare `pytest` looks like the full suite, it skips slow tests because `addopts` adds `-m "not slow"`, run `pytest -m slow` or `pytest -m ""` for all of them) and its `pyproject.toml:<line>` reference; adds at most 12; merges a harvested trap that restates an existing entry instead of adding a duplicate
 - [ ] Checks the edited model with `build --validate-only` and fixes what it lists before Phase 3 goes on, and does not run `assemble` again
 - [ ] The `## Traps` section of `AGENTS.md` carries the trap whole, with its consequence, its fix and its `path:line`, so the Student can answer "What do you miss with a bare `pytest`?" from `AGENTS.md` alone
-- [ ] In an `--update` run the same step reads that run's own `$RUN_DIR/base.txt`, lists only that run's additions, and the `agents` section is rewritten when it folded a trap in
+- [ ] In a `--phase docs` run, where every commenter trap is already on the branch, runs `traps` without `--before` (with `--before` it would list nothing), so `traps.json` still lists the `pyproject.toml` trap, and a trap `agent_notes.traps` already holds is merged, not added again
+- [ ] In an `--update` run the same step also runs without `--before`, and the `agents` section is rewritten when the fold-in added a trap or changed one
+- [ ] A file `traps` skipped for the size limit is named on stderr (path and size), and the run report lists it
 
 **Must NOT:**
 - [ ] Copy every harvested trap: one that matters only to someone editing its own file stays in that file's header
 - [ ] Write a trap that says only what the code does, with no consequence and no fix
-- [ ] Run `traps` after Phase 3 has written documents, or edit a `Traps:` line in the source
+- [ ] Run `traps` after Phase 3 has written documents, edit a `Traps:` line in the source, or pass `--before` in a `--phase docs` run
 
 ---
 

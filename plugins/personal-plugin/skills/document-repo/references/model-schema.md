@@ -95,7 +95,7 @@ All `file` and `path` values are relative to the git top level, with `/` separat
 - Example: "A bare `pytest` skips slow tests: `pyproject.toml` addopts adds `-m "not slow"`. Run `pytest -m slow` or `pytest -m ""` for the full suite. (`pyproject.toml:42`)"
 - Name the file as `path:line` at the end. The line is where the trap is written or where the code it describes starts, at the commit the run ends on. The path stays right when the line drifts.
 - A trap belongs here when it matters beyond its own file: how to build, run, test or deploy; a config default that changes what a bare command does; behaviour across modules; data loss or a wrong result that looks safe. A trap that matters only to someone editing one file stays in that file's `Traps:` header.
-- Sources, in this order: a trap the owner already documents, a config default found by reading the tool's configuration (agent-prompts.md prompt 2), and the `Traps:` lines the commenters added, which SKILL.md Phase 3 step 1 folds in with `traps`. Merge two entries that describe the same thing and keep the fuller consequence.
+- Sources, in this order: a trap the owner already documents, a config default found by reading the tool's configuration (agent-prompts.md prompt 2), and the `Traps:` lines in file headers, which SKILL.md Phase 3 step 1 folds in with `traps`. Merge two entries that describe the same thing and keep the fuller consequence.
 - Never put a secret, token or real credential in a trap. Inline code in single backticks, as everywhere in the model.
 
 ## Module record

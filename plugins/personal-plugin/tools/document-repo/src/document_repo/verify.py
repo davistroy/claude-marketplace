@@ -641,3 +641,17 @@ def changed_files(repo: Path, ref: str) -> list[str]:
     tracked = _git_paths(top, "diff", "--name-only", "--no-renames", "-z", ref, "--")
     untracked = _git_paths(top, "ls-files", "--others", "--exclude-standard", "-z")
     return sorted(p for p in set(tracked) | set(untracked) if not is_exempt(p, top))
+
+
+def tracked_files(repo: Path) -> list[str]:
+    """Every tracked path that is not exempt, sorted: what ``changed_files`` would list for a base
+    that has none of them.
+
+    Paths are relative to the top level of the work tree that contains ``repo``. A tracked file
+    deleted from the work tree is listed (the index still has it); the reader decides what to do
+    with it. Untracked and ignored files are not.
+    """
+    top = toplevel(repo)
+    if top is None:
+        raise NotADirectoryError(f"not inside a git work tree: {repo}")
+    return sorted(p for p in set(_git_paths(top, "ls-files", "-z")) if not is_exempt(p, top))

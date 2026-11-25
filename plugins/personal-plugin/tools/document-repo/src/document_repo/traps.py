@@ -21,10 +21,15 @@ comment's leading ``*``, and runs of whitespace are removed, and the lines are j
 space. Lines are numbered as an editor shows them (``remap.split_lines``): a form feed does not
 start a line.
 
+Without ``before``, the files are every tracked, non-exempt one and every ``Traps:`` comment in
+them counts, the owner's included. A ``--phase docs`` run needs this: its commenters ran in an
+earlier run, so no base separates their traps from the owner's.
+
 Files are read one at a time and the result is a generator underneath, so memory stays at one
-file. A file over ``MAX_BYTES`` (``MAX_PYTHON_BYTES`` for Python), one that is not UTF-8, a
-symlink, anything that is not a regular file, and a Python file that does not parse (the verifier
-would have failed it) are skipped.
+file. A file over ``MAX_BYTES`` (``MAX_PYTHON_BYTES`` for Python) is not read and is reported in
+the ``skipped`` list. One that is not UTF-8, a symlink, anything that is not a regular file, and
+a Python file that does not parse (the verifier would have failed it) are skipped without a
+report: none of them can hold a trap the skill wrote.
 """
 
 from __future__ import annotations
@@ -45,7 +50,14 @@ from typing import Any
 from .commit import GitError, _resolve_commit, _top
 from .languages import Lang, detect
 from .remap import split_lines
-from .verify import LINE_COMMENT, changed_files, comment_scan, docstring_stmts, git_show
+from .verify import (
+    LINE_COMMENT,
+    changed_files,
+    comment_scan,
+    docstring_stmts,
+    git_show,
+    tracked_files,
+)
 
 #: The labels comment-standards.md has headers use. A trap ends where the next one starts.
 HEADER_LABELS = ("Role", "Used by", "Inputs", "Outputs", "Side effects", "Invariants", "Traps")
@@ -81,12 +93,32 @@ class Trap:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class Skipped:
+    """A file that was not read because it is over the size limit."""
+
+    path: str
+    size: int
+    limit: int
+
+
+class _TooLarge(Exception):
+    def __init__(self, size: int) -> None:
+        super().__init__(size)
+        self.size = size
+
+
 def _read(path: Path, limit: int) -> str | None:
-    """The text of a regular, readable, UTF-8 file of at most ``limit`` bytes, else None."""
+    """The text of a regular, readable, UTF-8 file of at most ``limit`` bytes, else None.
+
+    ``_TooLarge`` for a regular file over ``limit``, so the caller can say it was not read.
+    """
     try:
         st = os.lstat(path)
-        if not stat.S_ISREG(st.st_mode) or st.st_size > limit:
+        if not stat.S_ISREG(st.st_mode):
             return None
+        if st.st_size > limit:
+            raise _TooLarge(st.st_size)
         return path.read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError):
         return None
@@ -202,41 +234,60 @@ def _traps_in(entries: list[Entry], path: str) -> Iterator[Trap]:
             yield Trap(path, line, text)
 
 
-def _file_traps(top: Path, sha: str, rel: str) -> Iterator[Trap]:
+def _file_traps(
+    top: Path, sha: str | None, rel: str, skipped: list[Skipped] | None
+) -> Iterator[Trap]:
     lang = detect(rel)
     if lang is None:
         return
-    after = _read(top / rel, MAX_PYTHON_BYTES if lang.verify_method == "python-ast" else MAX_BYTES)
+    limit = MAX_PYTHON_BYTES if lang.verify_method == "python-ast" else MAX_BYTES
+    try:
+        after = _read(top / rel, limit)
+    except _TooLarge as big:
+        if skipped is not None:
+            skipped.append(Skipped(rel, big.size, limit))
+        return
     if after is None or TRAPS_LABEL not in after:
         return
     # Without the mark, on both sides, a comment on line 1 is still the first thing on its line.
     after = after.removeprefix(BOM)
-    before = (git_show(top, sha, rel) or "").removeprefix(BOM)
+    # No base: every line of the file counts as added.
+    before = (git_show(top, sha, rel) or "").removeprefix(BOM) if sha else ""
     lines = split_lines(after)
     added = _added_ranges(before, lines)
     yield from _traps_in(_entries_on_added_lines(after, lines, added, lang), rel)
 
 
-def iter_traps(top: Path, sha: str) -> Iterator[Trap]:
-    """The traps the work tree at ``top`` added to ``sha``, one file at a time, in path order.
+def iter_traps(top: Path, sha: str | None, skipped: list[Skipped] | None = None) -> Iterator[Trap]:
+    """The traps in the work tree at ``top``, one file at a time, in path order.
 
-    ``top`` is the top level of the work tree and ``sha`` a commit that exists: ``harvest_traps``
-    checks both.
+    With a commit ``sha``, the ones added to it (the files ``verify --changed`` would check). With
+    ``sha`` None, every ``Traps:`` comment in the tracked, non-exempt files. ``top`` is the top
+    level of the work tree and ``sha`` a commit that exists: ``harvest_traps`` checks both. A file
+    over its size limit is appended to ``skipped`` when a list is given.
     """
-    for rel in changed_files(top, sha):
-        yield from _file_traps(top, sha, rel)
+    for rel in changed_files(top, sha) if sha else tracked_files(top):
+        yield from _file_traps(top, sha, rel, skipped)
 
 
-def harvest_traps(repo: Path, before: str) -> list[Trap]:
+def harvest_traps(
+    repo: Path, before: str | None = None, skipped: list[Skipped] | None = None
+) -> list[Trap]:
     """Every ``Traps:`` label added since ``before``, sorted by path then line.
 
+    With ``before`` None, every ``Traps:`` comment in the tracked files at the work tree, the
+    owner's included: a ``--phase docs`` run has no base to compare with, because its commenters
+    ran in an earlier run. An empty ``before`` is an error, not "no base", so an unset variable
+    cannot turn a narrow question into a whole-tree one. Files over the size limit go to
+    ``skipped``.
+
     ``InputError`` when ``repo`` is not the top level of a work tree or ``before`` does not name a
-    commit; ``GitError`` when git fails while listing the changes.
+    commit; ``GitError`` when git fails while listing files.
     """
     top = _top(repo)
-    sha = _resolve_commit(top, before, "--before")
+    sha = None if before is None else _resolve_commit(top, before, "--before")
     try:
-        return sorted(iter_traps(top, sha), key=lambda t: (t.path, t.line))
+        return sorted(iter_traps(top, sha, skipped), key=lambda t: (t.path, t.line))
     except subprocess.CalledProcessError as exc:
         why = (exc.stderr or b"").decode("utf-8", "replace").strip() or str(exc)
-        raise GitError(f"git failed while listing the branch's changes: {why}") from exc
+        raise GitError(f"git failed while listing the files to read: {why}") from exc

@@ -485,13 +485,20 @@ def _register_keep_local(sub: Any) -> None:
 
 def _cmd_traps(args: argparse.Namespace) -> int:
     from .commit import GitError, InputError
-    from .traps import harvest_traps
+    from .traps import Skipped, harvest_traps
 
+    skipped: list[Skipped] = []
     try:
-        found = harvest_traps(args.repo, args.before)
+        found = harvest_traps(args.repo, args.before, skipped)
     except (InputError, GitError, OSError) as exc:
         sys.stderr.write(f"traps: {exc}\n")
         return 2
+    # stdout stays a plain list of traps, so a skipped file is said on stderr only.
+    for item in skipped:
+        sys.stderr.write(
+            f"traps: skipped {item.path}: {item.size} bytes is over the {item.limit}-byte limit, "
+            "not read\n"
+        )
     emit([trap.to_dict() for trap in found], args.out)
     return 0
 
@@ -499,10 +506,21 @@ def _cmd_traps(args: argparse.Namespace) -> int:
 def _register_traps(sub: Any) -> None:
     p = sub.add_parser(
         "traps",
-        help="list the Traps: labels the branch added to comments since --before",
+        help="list the Traps: labels in comments (those the branch added, or all of them)",
+        description=(
+            "List the Traps: labels in comments, as a JSON list of {path, line, text}. "
+            "With --before, only the labels on lines added since that commit. "
+            "Without --before, every Traps: comment in the tracked, non-exempt files of the work "
+            "tree, the owner's included. "
+            "A file over the size limit is not read: its path and size are written to stderr, "
+            "one line per file, and stdout stays the JSON list."
+        ),
     )
     p.add_argument("--repo", type=_repo_arg, required=True, help="top level of the git work tree")
-    p.add_argument("--before", required=True, help="the commit the branch started from")
+    p.add_argument(
+        "--before",
+        help="the commit the branch started from; an empty value is an error, not 'no base'",
+    )
     p.add_argument("--out", type=Path, help="write the JSON list here instead of stdout")
     p.set_defaults(func=_cmd_traps)
 
