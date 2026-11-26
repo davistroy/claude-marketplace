@@ -602,6 +602,41 @@ def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
         after = (top / rel).read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         return Result(rel, "none", False, f"cannot read edited file: {exc}")
+    return _judge(top, rel, before, after, lang)
+
+
+def verify_blobs(repo: Path, base: str, head: str, rel: str) -> Result:
+    """Compare ``rel`` as committed at ``head`` with ``base``, reading both from git objects.
+
+    The work tree, the index and ``git status`` play no part, so an ``assume-unchanged`` or
+    ``skip-worktree`` flag, a stale stat cache or a filesystem monitor cannot make a committed
+    change look like the comment-only bytes on disk (SE-H1). Both sides are read the way
+    ``verify_file`` reads its base, through ``cat-file --filters``, so line endings and
+    attributes match what a checkout of each commit writes. The mode check is the committed one:
+    a symlink on either side, or any mode that differs between the two commits, fails.
+    """
+    lang = detect(rel)
+    if lang is None:
+        return Result(rel, "none", False, "no known comment syntax for this file type")
+    top = toplevel(repo)
+    if top is None:
+        return Result(rel, "none", False, f"not inside a git work tree: {repo}")
+    before = git_show(top, base, rel)
+    if before is None:
+        return Result(rel, "none", False, f"file is not in {base} (or is not UTF-8)")
+    after = git_show(top, head, rel)
+    if after is None:
+        return Result(rel, "none", False, f"file is not in {head} (or is not UTF-8)")
+    old, new = _base_mode(top, base, rel), _base_mode(top, head, rel)
+    if _SYMLINK in (old, new):
+        return Result(rel, "none", False, f"symlink: file mode {old} in base, {new} in {head}")
+    if old != new:
+        return Result(rel, "none", False, f"file mode changed: {old} -> {new} (committed)")
+    return _judge(top, rel, before, after, lang)
+
+
+def _judge(top: Path, rel: str, before: str, after: str, lang: Lang) -> Result:
+    """The language's proof, then the guards every method shares (and comment-lines' own)."""
     result = _method_result(top, rel, before, after, lang)
     if not result.ok:
         return result

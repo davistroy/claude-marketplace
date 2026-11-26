@@ -186,7 +186,7 @@ def _require_clean(top: Path) -> None:
         )
 
 
-def _require_plain_index_entry(top: Path, path: str) -> None:
+def require_plain_index_entry(top: Path, path: str) -> None:
     """Refuse a file that git is told not to look at (``assume-unchanged``, ``skip-worktree``).
 
     ``git status`` reports such a file as clean whatever is on disk. ``git ls-files -v`` shows an
@@ -215,7 +215,7 @@ def _require_plain_index_entry(top: Path, path: str) -> None:
     )
 
 
-def _require_matches_head(top: Path, head: str, path: str) -> None:
+def require_matches_head(top: Path, head: str, path: str) -> None:
     """Refuse a file whose work-tree bytes are not HEAD's blob, whatever ``git status`` says.
 
     ``git status`` is only as good as the stat cache, flags and filesystem monitor behind it. The
@@ -238,13 +238,13 @@ def _comment_only(top: Path, head: str, since: str, path: str) -> bool:
     The proof reads the work tree, so the work tree must first be shown to be HEAD's file; a file
     that cannot be shown that way raises ``ValueError`` instead of being guessed at.
     """
-    _require_plain_index_entry(top, path)
+    require_plain_index_entry(top, path)
     full = top / path
     if full.is_symlink() or not full.is_file():
         # Not hashable as a file (``hash-object`` would follow the link and hash its target), and
         # never comment-only: a symlink or a submodule directory has no comments.
         return False
-    _require_matches_head(top, head, path)
+    require_matches_head(top, head, path)
     return verify_file(top, path, since).ok
 
 

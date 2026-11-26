@@ -12,10 +12,10 @@ import pytest
 from document_repo import changes
 from document_repo.changes import (
     _parse_name_status,
-    _require_plain_index_entry,
     compute_changes,
     module_for,
     modules_for,
+    require_plain_index_entry,
 )
 from document_repo.cli import main
 from document_repo.verify import Result, typescript_available
@@ -921,7 +921,7 @@ def test_a_flagged_file_that_cannot_be_comment_only_is_reported_not_refused(
 def test_an_entry_that_is_not_a_plain_tracked_file_is_refused(make_repo, git) -> None:
     repo, _, _ = _setup(make_repo, git)
     with pytest.raises(ValueError, match=r"nope\.py.*unexpected index state"):
-        _require_plain_index_entry(repo, "nope.py")
+        require_plain_index_entry(repo, "nope.py")
 
 
 def test_a_flag_on_a_glob_sibling_is_not_mistaken_for_the_file(
