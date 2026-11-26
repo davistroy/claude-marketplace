@@ -199,7 +199,7 @@ def _attr_file_problem(top: Path, rel: str) -> str | None:
     return None
 
 
-def attribute_source_problem(top: Path, rel: str | None = None) -> str | None:
+def attribute_source_problem(top: Path, rel: str | Iterable[str] | None = None) -> str | None:
     """Refuse when attributes that no commit holds could decide how a file is read (review fix 1).
 
     Attributes pick line-ending conversion and filters, so they decide what ``git_show``,
@@ -207,9 +207,11 @@ def attribute_source_problem(top: Path, rel: str | None = None) -> str | None:
     are trusted. Refused: a ``.git/info/attributes``, per-user (``core.attributesFile``) or
     system attributes file with any rule; ``attr.tree`` or ``GIT_ATTR_SOURCE`` (attributes read
     from another tree); and a ``.gitattributes`` (any case) that is untracked, ignored, flagged
-    ``assume-unchanged`` / ``skip-worktree`` or differs from HEAD. With ``rel`` only the
-    directories that hold ``rel`` are looked at (the files git reads for it); without it, the
-    whole repository, ignored directories included.
+    ``assume-unchanged`` / ``skip-worktree`` or differs from HEAD. With ``rel`` (one path or
+    several) only the directories that hold those paths are looked at: git reads a
+    ``.gitattributes`` only for paths at or below its own directory, so one inside an ignored
+    ``node_modules/pkg/`` cannot change how a judged file is read. Without ``rel``, the whole
+    repository, ignored directories included.
     """
     outside = _outside_attr_files(top)
     if outside is None:
@@ -234,9 +236,11 @@ def attribute_source_problem(top: Path, rel: str | None = None) -> str | None:
                 return "attributes cannot be checked: git failed listing .gitattributes files"
             names.update(os.fsdecode(p) for p in proc.stdout.split(b"\0") if p)
     else:
-        parts = Path(rel).parts[:-1]
-        for depth in range(len(parts) + 1):
-            here = "/".join(parts[:depth])
+        dirs: set[str] = set()
+        for one in [rel] if isinstance(rel, str) else rel:
+            parts = Path(one).parts[:-1]
+            dirs.update("/".join(parts[:depth]) for depth in range(len(parts) + 1))
+        for here in sorted(dirs):
             names.add(f"{here}/{GITATTRIBUTES}" if here else GITATTRIBUTES)
             try:
                 entries = os.listdir(top / here)

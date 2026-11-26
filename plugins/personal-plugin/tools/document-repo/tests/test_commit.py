@@ -629,6 +629,28 @@ def test_backstop_ok(make_repo, git, commit_files, capsys) -> None:
     assert [r["path"] for r in out["verify"]] == ["m.py"]
 
 
+def test_backstop_ignores_attributes_in_unrelated_ignored_dirs(
+    make_repo, git, commit_files, capsys
+) -> None:
+    """An ignored node_modules package's .gitattributes applies to no judged path."""
+    repo = make_repo({"m.py": M, ".gitignore": "node_modules/\n"})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
+    pkg = repo / "node_modules" / "pkg"
+    pkg.mkdir(parents=True)
+    (pkg / ".gitattributes").write_text("* text eol=crlf\n")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 0 and out["ok"], out
+    # The same file in a directory that holds a judged path is refused.
+    commit_files(repo, {"src/n.py": M}, "add n")
+    (repo / "src" / ".gitattributes").write_text("* text eol=crlf\n")
+    with open(repo / ".git" / "info" / "exclude", "a") as fh:
+        fh.write("src/.gitattributes\n")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"]
+    assert any("src/.gitattributes is not tracked" in r["detail"] for r in out["verify"]), out
+
+
 def test_backstop_catches_code_change(make_repo, git, commit_files, capsys) -> None:
     repo = make_repo({"m.py": M})
     base = head(git, repo)
@@ -1977,30 +1999,29 @@ def test_backstop_fails_a_last_line_crlf_change(make_repo, git, commit_files, ca
 
 
 @pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
-def test_backstop_refuses_a_flagged_gitattributes_anywhere(
+def test_backstop_refuses_a_flagged_gitattributes_over_a_judged_path(
     make_repo, git, commit_files, capsys, flag
 ) -> None:
-    # Review fix 6: a .gitattributes no judged path sits under still counts.
-    repo = make_repo({"m.py": M, "other/.gitattributes": "# none\n"})
+    # Review fix 6: a .gitattributes the branch never touched still counts when git reads it
+    # for a judged path (here other/m.py).
+    repo = make_repo({"other/m.py": M, "other/.gitattributes": "# none\n"})
     base = head(git, repo)
-    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
+    commit_files(repo, {"other/m.py": M_COMMENTED}, "docs")
     git(repo, "update-index", flag, "other/.gitattributes")
     code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
     assert code == 1 and not out["ok"], out
     bad = [r for r in out["verify"] if not r["ok"]]
-    assert bad and bad[0]["path"] == ".gitattributes", out
-    assert "other/.gitattributes is flagged" in bad[0]["detail"], out
+    assert any("other/.gitattributes is flagged" in r["detail"] for r in bad), out
 
 
-def test_backstop_refuses_an_untracked_ignored_gitattributes_anywhere(
+def test_backstop_refuses_an_untracked_ignored_gitattributes_over_a_judged_path(
     make_repo, git, commit_files, capsys
 ) -> None:
-    repo = make_repo({"m.py": M})
+    repo = make_repo({"vendor/m.py": M})
     base = head(git, repo)
-    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
-    (repo / "vendor").mkdir()
+    commit_files(repo, {"vendor/m.py": M_COMMENTED}, "docs")
     (repo / "vendor" / ".gitattributes").write_text("* text eol=crlf\n")
-    _exclude(repo, "vendor/")
+    _exclude(repo, "vendor/.gitattributes")
     code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
     assert code == 1 and "vendor/.gitattributes is not tracked" in json.dumps(out), out
 
@@ -2019,11 +2040,11 @@ def test_backstop_allows_a_sparse_flag_on_an_unrelated_file(
 
 def test_precheck_refuses_attributes_outside_the_commit(make_repo, git, capsys) -> None:
     # Review fix 7: the pre-commit precheck refuses what the post-commit proof would.
-    repo = make_repo({"m.py": M, "other/.gitattributes": "# none\n"})
+    repo = make_repo({"other/m.py": M, "other/.gitattributes": "# none\n"})
     git(repo, "update-index", "--assume-unchanged", "other/.gitattributes")
-    (repo / "m.py").write_text(M_COMMENTED)
+    (repo / "other" / "m.py").write_text(M_COMMENTED)
     pre = head(git, repo)
-    code, out = commit(capsys, repo, "m.py")
+    code, out = commit(capsys, repo, "other/m.py")
     assert code == 1 and out["status"] == "precheck", out
     assert "other/.gitattributes is flagged" in json.dumps(out["verify"]), out
     assert head(git, repo) == pre

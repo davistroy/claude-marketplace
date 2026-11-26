@@ -658,9 +658,9 @@ def commit_paths(
     # ``git add <pathspec>`` stages deletions too.
     _out(top, "add", "--", *_spec(roots))
     if ref is not None:
-        # The repository-wide attribute check is the backstop's (review fix 7): the precheck
-        # refuses what the proofs after the commit would, not less.
-        attrs = attribute_source_problem(top)
+        # The same attribute check as the backstop's (review fix 7), over the directories that
+        # hold the changed paths: the precheck refuses what the proofs after the commit would.
+        attrs = attribute_source_problem(top, changed)
         checks = [Result(GITATTRIBUTES, "none", False, attrs).to_dict()] if attrs else []
         checks += [verify_file(top, rel, ref).to_dict() for rel in changed]
         if not all(r["ok"] for r in checks):
@@ -917,10 +917,12 @@ def backstop(repo: Path, base: str) -> dict[str, Any]:
         ).to_dict()
         for rel in sorted(committed | set(on_disk))
     ]
-    # Every .gitattributes in the repository, not only the judged paths' (review fix 6): a
-    # flagged or uncommitted one changes how git reads files. Flags on other files (a sparse
-    # checkout) are not refused here; a judged path with a flag fails in committed_proof.
-    attrs = attribute_source_problem(top)
+    # Every .gitattributes git reads for a judged path (review fix 6): a flagged or uncommitted
+    # one changes how git reads files. One in an unrelated directory (an ignored node_modules
+    # package) applies to no judged path, so it is not refused. Flags on other files (a sparse
+    # checkout) are not refused either; a judged path with a flag fails in committed_proof.
+    judged = sorted(committed | set(on_disk))
+    attrs = attribute_source_problem(top, judged) if judged else None
     if attrs:
         results.append(Result(GITATTRIBUTES, "none", False, attrs).to_dict())
     raw = _out(top, "status", "--porcelain=v1", "-z", "-uall")
