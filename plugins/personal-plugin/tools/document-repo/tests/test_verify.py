@@ -1063,7 +1063,7 @@ def test_python_transcoding_docstring_on_line_one_passes(make_repo) -> None:
 
 TS_MISSING = (
     "TypeScript compiler not available; JS/TS files cannot be verified "
-    "(install with: npm install -g typescript)"
+    "(install with: npm install -g typescript@5.6.3)"
 )
 
 

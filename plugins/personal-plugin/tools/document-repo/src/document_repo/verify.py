@@ -10,7 +10,8 @@ each file it compares the version at a base git ref with the working tree:
   ``.jsx`` JSX; see ts_print.js). A parse error in either version fails the file, because
   TypeScript skips the tokens it cannot parse. Layout a comment changes without changing
   the code is normalised first (empty blocks, JSX children the compiler discards). The
-  compiler is found from explicit candidates only (``ts_search_paths``), and its version is
+  compiler is found from explicit candidates only (``ts_search_paths``), must be the pinned
+  ``TS_VERSION`` with a known ``lib/typescript.js`` hash, and its version and location are
   recorded in the passing result. There is no fallback: without
   node and typescript a JS/TS file fails, because no line-based check can
   tell a comment from text inside a template literal, regex or JSX.
@@ -311,6 +312,17 @@ def _comment_lines(rel: str, before: str, after: str, lang: Lang) -> Result:
 
 TS_SCRIPT = Path(__file__).with_name("ts_print.js")
 
+#: The one TypeScript compiler the printer trusts (SEC-01): its ``package.json`` must say name
+#: ``typescript`` and this version, and ``lib/typescript.js`` must hash to ``TS_SHA256``. npm
+#: tarballs are deterministic, so every install of 5.6.3 holds these bytes. Mirrored in
+#: ``ts_print.js``, which checks them before running any of the package; a test keeps the two
+#: in step.
+TS_VERSION = "5.6.3"
+TS_SHA256 = "f316520790d4db220a10d890c5f85310e26a1bd3c104b8d3b5eb62ba0491651b"
+
+#: Set to exactly ``1`` to let the printer also look in the target repo's own directories.
+TS_ALLOW_REPO_ENV = "DOCUMENT_REPO_TS_ALLOW_REPO"
+
 #: Seconds one printer run may take, and the V8 heap (MB) it may use. A run that exceeds either
 #: fails the file instead of hanging or growing past the per-process memory ceiling.
 TS_TIMEOUT = 120
@@ -366,31 +378,37 @@ def _dirs_up_to(start: Path, root: Path) -> list[Path]:
 def ts_search_paths(repo: Path, rel: str | None = None) -> list[str]:
     """Candidate locations for the typescript package, in the order ``ts_print.js`` tries them.
 
-    ``ts_print.js`` loads the first candidate that holds the package and never looks anywhere
-    else: it does not walk up from a candidate, so nothing above the repo root can be executed.
-    A candidate is a project directory (it holds ``node_modules/typescript``), a ``node_modules``
-    directory, or the package directory itself. In order:
+    ``ts_print.js`` loads the first candidate that holds the pinned compiler (name
+    ``typescript``, version ``TS_VERSION``, ``lib/typescript.js`` hashing to ``TS_SHA256``) and
+    skips, without running, any candidate holding something else. It never walks up from a
+    candidate. A candidate is a project directory (it holds ``node_modules/typescript``), a
+    ``node_modules`` directory, or the package directory itself. In order:
 
-    1. every directory from the one holding ``repo / rel`` up to and including ``repo``, nearest
-       first, so in a monorepo ``packages/web/node_modules`` beats the root's. Never above
-       ``repo``; a ``rel`` that leaves the work tree contributes nothing. Without ``rel`` this
-       is just ``repo``.
-    2. each entry of ``DOCUMENT_REPO_TS_PATHS`` (an ``os.pathsep``-separated list).
-    3. the npm global root, asked from a neutral directory so a repo ``.npmrc`` cannot steer it.
+    1. each entry of ``DOCUMENT_REPO_TS_PATHS`` (an ``os.pathsep``-separated list).
+    2. the npm global root, asked from a neutral directory so a repo ``.npmrc`` cannot steer it.
+    3. only when ``DOCUMENT_REPO_TS_ALLOW_REPO=1``: every directory from the one holding
+       ``repo / rel`` up to and including ``repo``, nearest first. Never above ``repo``; a
+       ``rel`` that leaves the work tree contributes nothing. Without ``rel`` this is just
+       ``repo``. The target's own directories come last and only on request because whatever
+       they hold is the code being judged (SEC-01): a ``typescript`` there is untrusted even
+       when it passes the pin, so it never outranks a tool-owned one.
 
     A directory that repeats an earlier one is dropped, keeping its first place.
     """
-    root = Path(os.path.normpath(repo))
-    ordered = [str(root)]
-    if rel is not None:
-        own = Path(os.path.normpath(root / rel)).parent
-        ordered[:0] = [str(d) for d in _dirs_up_to(own, root)]
+    ordered: list[str] = []
     extra = os.environ.get("DOCUMENT_REPO_TS_PATHS")
     if extra:
         ordered.extend(p for p in extra.split(os.pathsep) if p)
     global_root = _npm_global_root()
     if global_root:
         ordered.append(global_root)
+    if os.environ.get(TS_ALLOW_REPO_ENV) == "1":
+        root = Path(os.path.normpath(repo))
+        local = [str(root)]
+        if rel is not None:
+            own = Path(os.path.normpath(root / rel)).parent
+            local = [str(d) for d in _dirs_up_to(own, root)] or local
+        ordered.extend(local)
     seen: set[str] = set()
     unique: list[str] = []
     for candidate in ordered:
@@ -441,11 +459,12 @@ def typescript_available(repo: Path) -> bool:
     return proc is not None and proc.returncode == 0
 
 
-def _printer_verdict(stdout: str) -> tuple[bool, int, int, str] | None:
-    """Parse ``ts_print.js`` output into ``(equal, before_errors, after_errors, version)``.
+def _printer_verdict(stdout: str) -> tuple[bool, int, int, str, str] | None:
+    """Parse ``ts_print.js`` output into ``(equal, before_errors, after_errors, version, where)``.
 
-    None when any of the four is missing or of the wrong type. ``version`` is the compiler's own
-    ``ts.version``: output that does not say which compiler ran is not trusted.
+    None when any of the five is missing or of the wrong type, or the version is not
+    ``TS_VERSION``. ``version`` is the compiler's own ``ts.version`` and ``where`` the package
+    directory it was loaded from: output that does not say which compiler ran is not trusted.
     """
     try:
         data = json.loads(stdout)
@@ -453,17 +472,18 @@ def _printer_verdict(stdout: str) -> tuple[bool, int, int, str] | None:
         return None
     if not isinstance(data, dict):
         return None
-    equal, before_errors, after_errors, version = (
-        data.get(key) for key in ("equal", "before_errors", "after_errors", "version")
+    equal, before_errors, after_errors, version, where = (
+        data.get(key) for key in ("equal", "before_errors", "after_errors", "version", "location")
     )
     if (
         isinstance(equal, bool)
         and type(before_errors) is int
         and type(after_errors) is int
-        and isinstance(version, str)
-        and version
+        and version == TS_VERSION
+        and isinstance(where, str)
+        and where
     ):
-        return equal, before_errors, after_errors, version
+        return equal, before_errors, after_errors, version, where
     return None
 
 
@@ -478,7 +498,7 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
     verdict = _printer_verdict(proc.stdout)
     if verdict is None:
         return Result(rel, "ts-printer", False, "printer returned unreadable output")
-    equal, before_errors, after_errors, version = verdict
+    equal, before_errors, after_errors, version, where = verdict
     if before_errors or after_errors:
         # TypeScript skips the tokens it cannot parse, so two broken versions can print equal
         # while the code differs. Neither side may have a parse error.
@@ -488,7 +508,7 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
         )
         return Result(rel, "ts-printer", False, why)
     if equal:
-        return Result(rel, "ts-printer", True, f"ts-printer (typescript {version})")
+        return Result(rel, "ts-printer", True, f"ts-printer (typescript {version} from {where})")
     return Result(
         rel, "ts-printer", False, "code changed (printed output differs with comments removed)"
     )
@@ -496,7 +516,7 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
 
 TS_MISSING = (
     "TypeScript compiler not available; JS/TS files cannot be verified "
-    "(install with: npm install -g typescript)"
+    f"(install with: npm install -g typescript@{TS_VERSION})"
 )
 
 _SYMLINK = "120000"

@@ -188,7 +188,7 @@ def test_comment_only_edit_is_not_a_change_but_a_code_edit_in_the_same_file_is(
 def test_comment_only_typescript_edit_is_not_a_change(make_repo, commit_files, git) -> None:
     repo = make_repo({"web/i.ts": "export const a = 1;\n"})
     if not typescript_available(repo):
-        message = "node + typescript not available (install with: npm install -g typescript)"
+        message = "node + typescript not available (install with: npm install -g typescript@5.6.3)"
         if os.environ.get("CI"):
             pytest.fail(message)
         pytest.skip(message)

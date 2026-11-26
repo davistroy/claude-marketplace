@@ -7,18 +7,32 @@
 // this table does not know is an error, never a guess.
 //
 // The compiler is never searched for. The caller passes an ordered list of candidates and the
-// first one that holds a typescript package is loaded; nothing walks up from a candidate, so a
-// stray node_modules above the repository cannot be picked up (see findTypescript).
+// first one that holds the pinned typescript package is loaded; nothing walks up from a
+// candidate, so a stray node_modules above the repository cannot be picked up (see
+// findTypescript). "Pinned" means package.json says name "typescript" and version TS_VERSION,
+// and lib/typescript.js hashes to TS_SHA256 (SEC-01). A candidate that fails any check is
+// skipped without running a line of it. The hashed bytes are the bytes that run: they are read
+// once and compiled here, with a require that serves only Node built-ins, so neither the
+// package's "main" nor anything else on disk can substitute other code.
 //
 // Usage: node ts_print.js <candidates-json> <before-file> <after-file> <virtual-name>
-// Prints JSON {equal, before_errors, after_errors, version}; `version` is the compiler's own.
+// Prints JSON {equal, before_errors, after_errors, version, location}; `version` is the
+// compiler's own and `location` the package directory it was loaded from.
 // Exit 0 = printed, 2 = could not print (message on stderr), 3 = typescript not found.
 'use strict';
+const crypto = require('crypto');
 const fs = require('fs');
+const Module = require('module');
 const path = require('path');
+const vm = require('vm');
 
 const EXIT_FAILED = 2;
 const EXIT_NOT_FOUND = 3;
+
+// Mirrored in verify.py (TS_VERSION, TS_SHA256); a test keeps the two in step. npm tarballs are
+// deterministic, so every install of this version holds exactly these bytes.
+const TS_VERSION = '5.6.3';
+const TS_SHA256 = 'f316520790d4db220a10d890c5f85310e26a1bd3c104b8d3b5eb62ba0491651b';
 
 function isDirectory(dir) {
   try {
@@ -52,12 +66,62 @@ function packageDirOf(candidate) {
   return isTypescriptPackage(candidate) ? candidate : null;
 }
 
+// Why the package at `dir` is not the pinned compiler, or null when it is. On success the
+// verified source is stored in `found.source`, so the bytes hashed are the bytes compiled.
+function untrusted(dir, found) {
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  } catch (err) {
+    return 'unreadable package.json';
+  }
+  if (manifest === null || typeof manifest !== 'object') return 'unreadable package.json';
+  if (manifest.name !== 'typescript') return `package name ${JSON.stringify(manifest.name)}`;
+  if (manifest.version !== TS_VERSION) {
+    return `version ${JSON.stringify(manifest.version)}, need ${TS_VERSION}`;
+  }
+  const file = path.join(dir, 'lib', 'typescript.js');
+  let source;
+  try {
+    source = fs.readFileSync(file);
+  } catch (err) {
+    return 'no lib/typescript.js';
+  }
+  const digest = crypto.createHash('sha256').update(source).digest('hex');
+  if (digest !== TS_SHA256) return `lib/typescript.js sha256 ${digest} is not the pinned one`;
+  found.file = file;
+  found.source = source.toString('utf8');
+  return null;
+}
+
+// The first candidate that holds the pinned compiler, as {dir, file, source}, or null. Every
+// candidate that holds some other package is reported on stderr and skipped.
 function findTypescript(candidates) {
   for (const candidate of candidates) {
     const dir = packageDirOf(path.resolve(candidate));
-    if (dir !== null) return dir;
+    if (dir === null) continue;
+    const found = { dir };
+    const why = untrusted(dir, found);
+    if (why === null) return found;
+    process.stderr.write(`skipped typescript at ${dir}: ${why}\n`);
   }
   return null;
+}
+
+// Run the verified compiler source as a CommonJS module. Its require serves Node built-ins only:
+// the compiler needs nothing else to parse and print, and a lookup on disk could load a module
+// the target repository controls (lib/typescript.js tries "source-map-support", for one).
+function loadCompiler(found) {
+  const builtins = new Set(Module.builtinModules);
+  const onlyBuiltins = (id) => {
+    if (builtins.has(id.replace(/^node:/, ''))) return require(id);
+    throw new Error(`module ${id} is not a Node built-in`);
+  };
+  const module = { exports: {} };
+  const params = ['exports', 'require', 'module', '__filename', '__dirname'];
+  const fn = vm.compileFunction(found.source, params, { filename: found.file });
+  fn.call(module.exports, module.exports, onlyBuiltins, module, found.file, path.dirname(found.file));
+  return module.exports;
 }
 
 // Layout the parser records but the printer honours, none of it code:
@@ -186,18 +250,23 @@ function main() {
   if (!Array.isArray(candidates) || !candidates.every((c) => typeof c === 'string')) {
     throw new Error('candidates must be a JSON array of directory paths');
   }
-  const location = findTypescript(candidates);
-  if (location === null) {
+  const found = findTypescript(candidates);
+  if (found === null) {
     process.stdout.write(JSON.stringify({ error: 'typescript-not-found' }));
     return EXIT_NOT_FOUND;
   }
   let ts;
   try {
-    ts = require(location);
+    ts = loadCompiler(found);
   } catch (err) {
-    // The first compiler found is the one that runs. A broken install is an error, not a cue to
-    // try the next candidate, which would make the result depend on what else is installed.
-    throw new Error(`cannot load typescript from ${location}: ${err && err.message ? err.message : err}`);
+    // The first pinned compiler found is the one that runs. One that fails to load is an error,
+    // not a cue to try the next candidate, which would make the result depend on what else is
+    // installed.
+    const why = err && err.message ? err.message : err;
+    throw new Error(`cannot load typescript from ${found.dir}: ${why}`);
+  }
+  if (ts.version !== TS_VERSION) {
+    throw new Error(`typescript at ${found.dir} reports version ${ts.version}, need ${TS_VERSION}`);
   }
 
   const kinds = new Map([
@@ -237,6 +306,7 @@ function main() {
       before_errors: a.errors,
       after_errors: b.errors,
       version: ts.version,
+      location: found.dir,
     }),
   );
   return 0;

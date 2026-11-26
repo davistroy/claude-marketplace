@@ -23,7 +23,7 @@ BASE = "export function add(a: number, b: number): number {\n  return a + b;\n}\
 TSX_BASE = "export const C = () => <div>hi</div>;\n"
 TS_MISSING = (
     "TypeScript compiler not available; JS/TS files cannot be verified "
-    "(install with: npm install -g typescript)"
+    "(install with: npm install -g typescript@5.6.3)"
 )
 
 
@@ -39,7 +39,9 @@ def ts_repo(make_repo):
         {"m.ts": BASE, "c.tsx": TSX_BASE, "j.js": "const x = 1;\n", "a.ts": "export const x = 1;\n"}
     )
     if not typescript_available(repo):
-        _unavailable("node + typescript not available (install with: npm install -g typescript)")
+        _unavailable(
+            "node + typescript not available (install with: npm install -g typescript@5.6.3)"
+        )
     return repo
 
 
@@ -166,36 +168,59 @@ def test_search_paths_order_and_env_split(make_repo, monkeypatch, tmp_path) -> N
     first, second = tmp_path / "one", tmp_path / "two"
     monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", os.pathsep.join([str(first), "", str(second)]))
     monkeypatch.setattr(verify, "_npm_global_root", lambda: "/global/root")
-    assert verify.ts_search_paths(repo) == [str(repo), str(first), str(second), "/global/root"]
+    assert verify.ts_search_paths(repo) == [str(first), str(second), "/global/root"]
 
 
 def test_search_paths_without_env_or_global(make_repo, monkeypatch) -> None:
     repo = make_repo({"m.ts": BASE})
     monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
     monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
-    assert verify.ts_search_paths(repo) == [str(repo)]
+    assert verify.ts_search_paths(repo) == []
+    assert verify.ts_search_paths(repo, "a/b.ts") == []
+
+
+@pytest.mark.parametrize("value", [None, "", "0", "true", "yes", " 1"])
+def test_search_paths_leave_out_the_repo_unless_opted_in(make_repo, monkeypatch, value) -> None:
+    # SEC-01: the target's own directories hold the code being judged, so its node_modules is
+    # not searched by default. Only the exact value "1" opts in.
+    repo = make_repo({"pkg/m.ts": BASE})
+    monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
+    monkeypatch.setattr(verify, "_npm_global_root", lambda: "/global/root")
+    if value is None:
+        monkeypatch.delenv(verify.TS_ALLOW_REPO_ENV, raising=False)
+    else:
+        monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, value)
+    assert verify.ts_search_paths(repo, "pkg/m.ts") == ["/global/root"]
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
+    assert verify.ts_search_paths(repo, "pkg/m.ts") == [
+        "/global/root",
+        str(repo / "pkg"),
+        str(repo),
+    ]
 
 
 def test_search_paths_walk_from_the_files_directory_up_to_the_repo_root(
     make_repo, monkeypatch, tmp_path
 ) -> None:
-    # packages/web/src/a.ts finds packages/web/node_modules before the repo root's own, and
-    # every directory in between is a candidate: nearest first, ending at the root.
+    # Opted in, packages/web/src/a.ts finds packages/web/node_modules before the repo root's
+    # own, and every directory in between is a candidate: nearest first, ending at the root,
+    # and all of them after the tool-owned candidates.
     repo = make_repo({"packages/web/src/a.ts": BASE})
     env = tmp_path / "env"
     monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(env))
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
     monkeypatch.setattr(verify, "_npm_global_root", lambda: "/global/root")
     paths = verify.ts_search_paths(repo, "packages/web/src/a.ts")
     assert paths == [
+        str(env),
+        "/global/root",
         str(repo / "packages/web/src"),
         str(repo / "packages/web"),
         str(repo / "packages"),
         str(repo),
-        str(env),
-        "/global/root",
     ]
     # The old one-argument call is unchanged.
-    assert verify.ts_search_paths(repo) == [str(repo), str(env), "/global/root"]
+    assert verify.ts_search_paths(repo) == [str(env), "/global/root", str(repo)]
     assert verify.ts_search_paths(repo, None) == verify.ts_search_paths(repo)
 
 
@@ -203,32 +228,24 @@ def test_search_paths_do_not_repeat_the_repo_root(make_repo, monkeypatch) -> Non
     # A file at the top of the work tree has the repo root as its own directory.
     repo = make_repo({"a.ts": BASE})
     monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
     monkeypatch.setattr(verify, "_npm_global_root", lambda: "/global/root")
-    assert verify.ts_search_paths(repo, "a.ts") == [str(repo), "/global/root"]
+    assert verify.ts_search_paths(repo, "a.ts") == ["/global/root", str(repo)]
 
 
-def test_nested_compiler_is_found_from_the_files_directory(make_repo, monkeypatch) -> None:
-    # End to end: the only compiler reachable is packages/web/node_modules/typescript (a stub
-    # that delegates to the real one). The env var and the global root are switched off, so
-    # only the file's own directory can find it.
-    global_root = verify._npm_global_root()
-    real = Path(global_root, "typescript") if global_root else None
-    if real is None or not real.is_dir() or verify.node_binary() is None:
-        _unavailable("node + typescript not available (install with: npm install -g typescript)")
-    stub = {
-        "packages/web/node_modules/typescript/package.json": json.dumps(
-            {"name": "typescript", "version": "0.0.0", "main": "index.js"}
-        ),
-        "packages/web/node_modules/typescript/index.js": (
-            f"module.exports = require({json.dumps(str(real))});\n"
-        ),
-        "packages/web/src/a.ts": BASE,
-    }
-    repo = make_repo(stub)
-    monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
-    monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
+def test_nested_compiler_is_found_from_the_files_directory(make_repo, real_ts, monkeypatch) -> None:
+    # End to end, opted in: the only pinned compiler reachable is a copy at
+    # packages/web/node_modules/typescript. The env var and the global root are switched off,
+    # so only the file's own directory can find it. A stub at the root that delegates to the
+    # real compiler is not the pinned package and is skipped without being run.
+    repo = make_repo({"packages/web/src/a.ts": BASE})
+    _genuine_typescript(real_ts, repo / "packages/web")
+    _impostor(repo, version="0.0.0", main=f"module.exports = require({json.dumps(str(real_ts))});")
+    _only_explicit_candidates(monkeypatch)
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
     r = _edit(repo, "packages/web/src/a.ts", "// note\n" + BASE)
     assert r.ok and r.method == "ts-printer", (r.method, r.detail)
+    assert r.detail.endswith(f"from {repo / 'packages/web/node_modules/typescript'})"), r.detail
     changed = _edit(repo, "packages/web/src/a.ts", BASE.replace("a + b", "a - b"))
     assert not changed.ok and "code changed" in changed.detail, changed.detail
 
@@ -326,7 +343,8 @@ KIND_CASES = [
 @pytest.mark.parametrize("rel,text", KIND_CASES, ids=[c[0] for c in KIND_CASES])
 def test_script_kind_follows_the_extension(ts_repo, rel: str, text: str) -> None:
     data = _printer_json(ts_repo, rel, text, "// c\n" + text)
-    assert isinstance(data.pop("version"), str), data
+    assert data.pop("version") == verify.TS_VERSION, data
+    assert isinstance(data.pop("location"), str), data
     assert data == {"equal": True, "before_errors": 0, "after_errors": 0}, data
 
 
@@ -455,6 +473,11 @@ def test_printer_crash_fails_closed(ts_repo, monkeypatch, tmp_path) -> None:
         '{"equal": true, "before_errors": 0, "after_errors": 0}',
         '{"equal": true, "before_errors": 0, "after_errors": 0, "version": ""}',
         '{"equal": true, "before_errors": 0, "after_errors": 0, "version": 5}',
+        '{"equal": true, "before_errors": 0, "after_errors": 0, "version": "5.6.3"}',
+        '{"equal": true, "before_errors": 0, "after_errors": 0, "version": "5.6.3", '
+        '"location": ""}',
+        '{"equal": true, "before_errors": 0, "after_errors": 0, "version": "9.9.9", '
+        '"location": "/x"}',
     ],
     ids=[
         "garbage",
@@ -465,6 +488,9 @@ def test_printer_crash_fails_closed(ts_repo, monkeypatch, tmp_path) -> None:
         "missing-version",
         "empty-version",
         "wrong-version-type",
+        "missing-location",
+        "empty-location",
+        "unpinned-version",
     ],
 )
 def test_unreadable_printer_output_fails_closed(ts_repo, monkeypatch, tmp_path, stdout) -> None:
@@ -917,12 +943,16 @@ def test_a_comment_that_keeps_rendered_jsx_text_passes(
 
 @pytest.fixture
 def real_ts() -> Path:
-    """The installed typescript package, which the fake compilers below wrap."""
+    """The installed, pinned typescript package, which the copies below are made from."""
     root = verify._npm_global_root()
     real = Path(root, "typescript") if root else None
     if real is None or not real.is_dir() or verify.node_binary() is None:
-        _unavailable("node + typescript not available (install with: npm install -g typescript)")
+        _unavailable(
+            "node + typescript not available (install with: npm install -g typescript@5.6.3)"
+        )
     assert real is not None
+    if _version_of(real) != verify.TS_VERSION:
+        _unavailable(f"the global typescript is not {verify.TS_VERSION}")
     return real
 
 
@@ -930,42 +960,219 @@ def _version_of(package: Path) -> str:
     return json.loads((package / "package.json").read_text(encoding="utf-8"))["version"]
 
 
-#: Makes every pair of files print equal: a compiler that would pass any code change.
-ALWAYS_EQUAL = "ts.createPrinter = () => ({ printFile: () => '' });"
+def _genuine_typescript(real: Path, where: Path, manifest: dict | None = None) -> Path:
+    """Write ``where/node_modules/typescript``: a byte copy of the pinned compiler.
 
-
-def _fake_typescript(real: Path, where: Path, version: str, patch: str = "") -> Path:
-    """Write ``where/node_modules/typescript``: the real compiler, relabelled and patched.
-
-    Returns ``where``, the candidate directory that holds it.
+    ``manifest`` replaces the real ``package.json``. Returns the package directory.
     """
     package = where / "node_modules" / "typescript"
-    package.mkdir(parents=True)
-    manifest = {"name": "typescript", "version": version, "main": "index.js"}
-    (package / "package.json").write_text(json.dumps(manifest), encoding="utf-8")
-    (package / "index.js").write_text(
-        f"const ts = Object.assign({{}}, require({json.dumps(str(real))}));\n"
-        f"ts.version = {json.dumps(version)};\n"
-        f"{patch}\n"
-        "module.exports = ts;\n",
-        encoding="utf-8",
+    (package / "lib").mkdir(parents=True)
+    shutil.copyfile(real / "lib" / "typescript.js", package / "lib" / "typescript.js")
+    if manifest is None:
+        shutil.copyfile(real / "package.json", package / "package.json")
+    else:
+        (package / "package.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return package
+
+
+#: Code a planted compiler runs on load: it leaves a marker file, then claims every pair of
+#: files prints equal, so it would pass any code change (the review's SEC-01 PoC).
+def _evil_js(marker: Path, version: str) -> str:
+    return (
+        f"require('fs').writeFileSync({json.dumps(str(marker))}, 'ran');\n"
+        f"module.exports = {{ version: {json.dumps(version)}, ScriptKind: {{TS: 3}},\n"
+        "  ScriptTarget: {}, NewLineKind: {}, createPrinter: () => ({ printFile: () => '' }),\n"
+        "  createSourceFile: () => ({ parseDiagnostics: [] }), factory: {},\n"
+        "  transform: (sf) => ({ transformed: [sf], dispose() {} }) };\n"
     )
-    return where
+
+
+def _impostor(
+    where: Path,
+    *,
+    name: str = "typescript",
+    version: str = "9.9.9",
+    main: str | None = None,
+    marker: Path | None = None,
+) -> Path:
+    """Write ``where/node_modules/typescript``, a package that is not the pinned compiler.
+
+    Both its ``main`` and its ``lib/typescript.js`` hold ``main`` (by default code that writes
+    ``marker`` and passes every edit). Returns the package directory.
+    """
+    package = where / "node_modules" / "typescript"
+    (package / "lib").mkdir(parents=True)
+    code = main if main is not None else _evil_js(marker or where / "marker", version)
+    manifest = {"name": name, "version": version, "main": "lib/typescript.js"}
+    (package / "package.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (package / "lib" / "typescript.js").write_text(code, encoding="utf-8")
+    return package
 
 
 def _only_explicit_candidates(monkeypatch) -> None:
     monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
+    monkeypatch.delenv(verify.TS_ALLOW_REPO_ENV, raising=False)
     monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
+
+
+def _wrap_printer(monkeypatch, tmp_path: Path, on_load: str) -> None:
+    """Run the real ``ts_print.js`` with ``on_load`` (JS) applied to the compiler it loads.
+
+    ``on_load`` sees ``ts`` (a writable copy of the compiler's exports, which becomes what
+    ``ts_print.js`` uses) and ``req`` (the require the compiler was given).
+
+    The pinned compiler cannot be patched on disk (its hash is checked), so the wrapper hooks
+    ``vm.compileFunction``, which ``ts_print.js`` uses to run the verified bytes.
+    """
+    script = tmp_path / "wrapped_printer.js"
+    script.write_text(
+        "const vm = require('vm');\n"
+        "const compile = vm.compileFunction;\n"
+        "vm.compileFunction = (...args) => {\n"
+        "  const fn = compile(...args);\n"
+        "  return function (exports, req, module, ...rest) {\n"
+        "    fn.call(this, exports, req, module, ...rest);\n"
+        "    const ts = Object.assign({}, module.exports);\n"
+        f"    {on_load}\n"
+        "    module.exports = ts;\n"
+        "  };\n"
+        "};\n"
+        f"require({json.dumps(str(verify.TS_SCRIPT))});\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(verify, "TS_SCRIPT", script)
+
+
+def test_the_pinned_constants_are_mirrored_in_ts_print() -> None:
+    script = verify.TS_SCRIPT.read_text(encoding="utf-8")
+    assert f"const TS_VERSION = '{verify.TS_VERSION}';" in script
+    assert f"const TS_SHA256 = '{verify.TS_SHA256}';" in script
+
+
+def test_the_pinned_hash_matches_the_installed_compiler(real_ts) -> None:
+    import hashlib
+
+    digest = hashlib.sha256((real_ts / "lib" / "typescript.js").read_bytes()).hexdigest()
+    assert digest == verify.TS_SHA256
+
+
+def test_a_planted_repo_compiler_is_never_run(make_repo, real_ts, monkeypatch, tmp_path) -> None:
+    # SEC-01 PoC: the target ships node_modules/typescript 9.9.9 whose printer says "equal".
+    # Before the fix it was loaded first, wrote its marker and passed a code change.
+    repo = make_repo({"m.ts": BASE})
+    marker = tmp_path / "marker"
+    _impostor(repo, marker=marker)
+    monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
+    monkeypatch.delenv(verify.TS_ALLOW_REPO_ENV, raising=False)
+    monkeypatch.setattr(verify, "_npm_global_root", lambda: str(real_ts.parent))
+    r = _edit(repo, "m.ts", BASE.replace("a + b", "a - b"))
+    assert not r.ok and "code changed" in r.detail, (r.method, r.detail)
+    assert typescript_available(repo)
+    # Opted in, the repo is searched, but the planted package fails the pin and is skipped.
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
+    r = _edit(repo, "m.ts", BASE.replace("a + b", "a - b"))
+    assert not r.ok and "code changed" in r.detail, (r.method, r.detail)
+    monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
+    r = _edit(repo, "m.ts", BASE.replace("a + b", "a - b"))
+    assert not r.ok and r.method == "none" and r.detail == TS_MISSING, (r.method, r.detail)
+    assert not typescript_available(repo)
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"name": "typescript-evil", "version": "5.6.3"},
+        {"name": "typescript", "version": "5.6.2"},
+        {"name": "typescript", "version": "9.9.9"},
+        {"name": "typescript", "version": "5.6.3"},  # right label, wrong lib/typescript.js hash
+    ],
+    ids=["wrong-name", "wrong-version", "future-version", "wrong-hash"],
+)
+def test_an_unpinned_compiler_is_skipped_without_running(
+    make_repo, monkeypatch, tmp_path, kwargs
+) -> None:
+    if verify.node_binary() is None:
+        _unavailable("node not available")
+    repo = make_repo({"m.ts": BASE})
+    marker = tmp_path / "marker"
+    where = tmp_path / "env"
+    package = _impostor(where, marker=marker, **kwargs)
+    _only_explicit_candidates(monkeypatch)
+    for candidate in (where, package, package.parent):  # each candidate form
+        monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(candidate))
+        r = _edit(repo, "m.ts", BASE.replace("a + b", "a - b"))
+        assert not r.ok and r.method == "none" and r.detail == TS_MISSING, (r.method, r.detail)
+        proc = verify._run_printer(repo, "m.ts", "", "")
+        assert proc is not None and proc.returncode == 3, proc
+        # A package directory named directly is only recognised by its name.
+        if candidate != package or kwargs["name"] == "typescript":
+            assert f"skipped typescript at {package}" in proc.stderr, proc.stderr
+    assert not marker.exists()
+
+
+def test_a_skipped_candidate_falls_through_to_the_pinned_one(
+    make_repo, real_ts, monkeypatch, tmp_path
+) -> None:
+    repo = make_repo({"m.ts": BASE})
+    marker = tmp_path / "marker"
+    bad = tmp_path / "bad"
+    _impostor(bad, version="5.6.3", marker=marker)
+    _only_explicit_candidates(monkeypatch)
+    monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", os.pathsep.join([str(bad), str(real_ts)]))
+    r = _edit(repo, "m.ts", "// note\n" + BASE)
+    assert r.ok and r.detail == f"ts-printer (typescript 5.6.3 from {real_ts})", r.detail
+    assert not marker.exists()
+
+
+def test_the_hashed_bytes_are_what_runs_not_the_package_main(
+    make_repo, real_ts, monkeypatch, tmp_path
+) -> None:
+    # A genuine lib/typescript.js with a package.json "main" pointing elsewhere: the printer
+    # runs the file it hashed, never the main.
+    repo = make_repo({"m.ts": BASE})
+    marker = tmp_path / "marker"
+    manifest = json.loads((real_ts / "package.json").read_text(encoding="utf-8"))
+    manifest["main"] = "evil.js"
+    package = _genuine_typescript(real_ts, tmp_path / "env", manifest)
+    (package / "evil.js").write_text(_evil_js(marker, "5.6.3"), encoding="utf-8")
+    _only_explicit_candidates(monkeypatch)
+    monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(tmp_path / "env"))
+    changed = _edit(repo, "m.ts", BASE.replace("a + b", "a - b"))
+    assert not changed.ok and "code changed" in changed.detail, changed.detail
+    ok = _edit(repo, "m.ts", "// note\n" + BASE)
+    assert ok.ok and ok.detail == f"ts-printer (typescript 5.6.3 from {package})", ok.detail
+    assert not marker.exists()
+
+
+def test_the_compiler_can_require_only_node_builtins(
+    make_repo, real_ts, monkeypatch, tmp_path
+) -> None:
+    # lib/typescript.js tries require("source-map-support"); a lookup on disk would let the
+    # target supply it. The require handed to the compiler serves built-ins only.
+    repo = make_repo({"m.ts": BASE})
+    _only_explicit_candidates(monkeypatch)
+    monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(real_ts))
+    _wrap_printer(
+        monkeypatch,
+        tmp_path,
+        "req('fs');\n"
+        "    try { req('source-map-support'); }\n"
+        "    catch (e) { throw new Error('blocked: ' + e.message); }",
+    )
+    r = _edit(repo, "m.ts", "// c\n" + BASE)
+    assert not r.ok and "blocked: module source-map-support is not a Node built-in" in r.detail
 
 
 def test_a_compiler_above_the_repo_root_is_never_executed(
     make_repo, real_ts, monkeypatch, tmp_path
 ) -> None:
-    # tmp_path is the repo's parent. Node's require.resolve would walk up into it and run a
-    # compiler that says every edit is comment-only.
+    # tmp_path is the repo's parent. Node's require.resolve would walk up into it. Even opted
+    # in, and even for the pinned compiler, nothing above the work tree is a candidate.
     repo = make_repo({"m.ts": BASE})
-    _fake_typescript(real_ts, tmp_path, "0.0.0-above-the-root", ALWAYS_EQUAL)
+    _genuine_typescript(real_ts, tmp_path)
     _only_explicit_candidates(monkeypatch)
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
     r = _edit(repo, "m.ts", BASE.replace("a + b", "a - b"))
     assert not r.ok and r.method == "none" and r.detail == TS_MISSING, (r.method, r.detail)
     assert not typescript_available(repo)
@@ -975,7 +1182,7 @@ def test_an_explicit_path_outranks_a_compiler_above_the_repo_root(
     make_repo, real_ts, monkeypatch, tmp_path
 ) -> None:
     repo = make_repo({"m.ts": BASE})
-    _fake_typescript(real_ts, tmp_path, "0.0.0-above-the-root", ALWAYS_EQUAL)
+    _impostor(tmp_path, version="5.6.3")
     monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(real_ts))  # the package directory itself
     monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
     changed = _edit(repo, "m.ts", BASE.replace("a + b", "a - b"))
@@ -985,44 +1192,60 @@ def test_an_explicit_path_outranks_a_compiler_above_the_repo_root(
 
 def test_the_nearest_compiler_wins(make_repo, real_ts, monkeypatch) -> None:
     repo = make_repo({"packages/web/src/a.ts": BASE, "packages/api/b.ts": BASE})
-    _fake_typescript(real_ts, repo, "0.0.1-root")
-    _fake_typescript(real_ts, repo / "packages/web", "0.0.2-web")
+    root_pkg = _genuine_typescript(real_ts, repo)
+    web_pkg = _genuine_typescript(real_ts, repo / "packages/web")
     _only_explicit_candidates(monkeypatch)
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
     web = _edit(repo, "packages/web/src/a.ts", "// note\n" + BASE)
-    assert web.ok and web.detail == "ts-printer (typescript 0.0.2-web)", (web.method, web.detail)
+    assert web.ok and web.detail == f"ts-printer (typescript 5.6.3 from {web_pkg})", web.detail
     api = _edit(repo, "packages/api/b.ts", "// note\n" + BASE)
-    assert api.ok and api.detail == "ts-printer (typescript 0.0.1-root)", (api.method, api.detail)
+    assert api.ok and api.detail == f"ts-printer (typescript 5.6.3 from {root_pkg})", api.detail
 
 
-def test_candidates_are_tried_repo_then_env_then_global(
+def test_candidates_are_tried_env_then_global_then_repo(
     make_repo, real_ts, monkeypatch, tmp_path
 ) -> None:
     repo = make_repo({"m.ts": BASE})
-    env = _fake_typescript(real_ts, tmp_path / "env", "0.0.3-env")
-    in_repo = _fake_typescript(real_ts, repo, "0.0.1-root")
-    monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(env))
-    # The global root is the real compiler's own directory, so its version is the real one.
+    env_pkg = _genuine_typescript(real_ts, tmp_path / "env")
+    repo_pkg = _genuine_typescript(real_ts, repo)
+    monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(tmp_path / "env"))
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
     monkeypatch.setattr(verify, "_npm_global_root", lambda: str(real_ts.parent))
-    assert _edit(repo, "m.ts", "// a\n" + BASE).detail == "ts-printer (typescript 0.0.1-root)"
-    shutil.rmtree(in_repo / "node_modules")
-    assert _edit(repo, "m.ts", "// b\n" + BASE).detail == "ts-printer (typescript 0.0.3-env)"
-    shutil.rmtree(env / "node_modules")
+    first = _edit(repo, "m.ts", "// a\n" + BASE)
+    assert first.detail == f"ts-printer (typescript 5.6.3 from {env_pkg})", first.detail
+    shutil.rmtree(tmp_path / "env")
+    second = _edit(repo, "m.ts", "// b\n" + BASE)
+    assert second.detail == f"ts-printer (typescript 5.6.3 from {real_ts})", second.detail
+    monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
     last = _edit(repo, "m.ts", "// c\n" + BASE)
-    assert last.detail == f"ts-printer (typescript {_version_of(real_ts)})", last.detail
+    assert last.detail == f"ts-printer (typescript 5.6.3 from {repo_pkg})", last.detail
 
 
 def test_a_compiler_that_cannot_load_is_an_error_not_a_fall_through(
-    make_repo, real_ts, monkeypatch
+    make_repo, real_ts, monkeypatch, tmp_path
 ) -> None:
-    # The nearest compiler is broken and a good one is still reachable (the global root): the
-    # run must fail, not quietly use the other one.
+    # The first pinned compiler fails to load and a good one is still reachable (the global
+    # root): the run must fail, not quietly use the other one.
     repo = make_repo({"m.ts": BASE})
-    _fake_typescript(real_ts, repo, "0.0.0-broken", "throw new Error('broken install');")
-    monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
+    _genuine_typescript(real_ts, tmp_path / "env")
+    monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(tmp_path / "env"))
     monkeypatch.setattr(verify, "_npm_global_root", lambda: str(real_ts.parent))
+    _wrap_printer(monkeypatch, tmp_path, "throw new Error('broken install');")
     r = _edit(repo, "m.ts", "// c\n" + BASE)
     assert not r.ok and r.method == "ts-printer", (r.method, r.detail)
     assert "broken install" in r.detail and "printer failed" in r.detail, r.detail
+    assert "cannot load typescript from" in r.detail, r.detail
+
+
+def test_a_compiler_reporting_another_version_fails(
+    make_repo, real_ts, monkeypatch, tmp_path
+) -> None:
+    repo = make_repo({"m.ts": BASE})
+    monkeypatch.setenv("DOCUMENT_REPO_TS_PATHS", str(real_ts))
+    monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
+    _wrap_printer(monkeypatch, tmp_path, "ts.version = 'x';")
+    r = _edit(repo, "m.ts", "// c\n" + BASE)
+    assert not r.ok and "reports version x, need 5.6.3" in r.detail, r.detail
 
 
 def test_a_directory_that_is_not_the_typescript_package_is_never_loaded(
@@ -1053,6 +1276,7 @@ def test_a_directory_that_is_not_the_typescript_package_is_never_loaded(
 def test_search_paths_never_go_above_the_repo_root(make_repo, monkeypatch) -> None:
     repo = make_repo({"a/b/c.ts": BASE})
     monkeypatch.delenv("DOCUMENT_REPO_TS_PATHS", raising=False)
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
     monkeypatch.setattr(verify, "_npm_global_root", lambda: None)
     assert verify.ts_search_paths(repo, "a/b/c.ts") == [
         str(repo / "a/b"),
@@ -1075,7 +1299,8 @@ def test_search_paths_drop_repeats_and_keep_the_first_place(
         os.pathsep.join([str(repo), str(env), str(repo / "pkg"), str(env)]),
     )
     monkeypatch.setattr(verify, "_npm_global_root", lambda: str(env))
-    assert verify.ts_search_paths(repo, "pkg/a.ts") == [str(repo / "pkg"), str(repo), str(env)]
+    monkeypatch.setenv(verify.TS_ALLOW_REPO_ENV, "1")
+    assert verify.ts_search_paths(repo, "pkg/a.ts") == [str(repo), str(env), str(repo / "pkg")]
 
 
 # --- the global npm root is asked from a neutral directory --------------------------------------
@@ -1135,7 +1360,7 @@ def test_global_root_falls_back_to_the_tool_directory_without_a_home(monkeypatch
 def test_the_compiler_version_is_recorded_on_success(ts_repo, real_ts) -> None:
     r = _edit(ts_repo, "m.ts", "// note\n" + BASE)
     assert r.ok and r.method == "ts-printer"
-    assert r.detail == f"ts-printer (typescript {_version_of(real_ts)})", r.detail
+    assert r.detail == f"ts-printer (typescript {verify.TS_VERSION} from {real_ts})", r.detail
     assert _printer_json(ts_repo, "m.ts", BASE, BASE)["version"] == _version_of(real_ts)
 
 
@@ -1164,14 +1389,15 @@ def test_a_compiler_without_a_diagnostics_array_fails_closed(
     # A future compiler may rename or reshape parseDiagnostics. Anything that is not an array
     # must fail the run: `.length` of an array-like or a string reads as "no errors".
     repo = make_repo({"m.ts": BASE})
-    fake = _fake_typescript(
-        real_ts,
-        tmp_path / "fake",
-        "0.0.0-no-diagnostics",
+    monkeypatch.setattr(verify, "ts_search_paths", lambda repo, rel=None: [str(real_ts)])
+    _wrap_printer(
+        monkeypatch,
+        tmp_path,
         "const create = ts.createSourceFile;\n"
-        f"ts.createSourceFile = (...args) => {{ const sf = create(...args); {patch} return sf; }};",
+        "    ts.createSourceFile = (...args) => {\n"
+        f"      const sf = create(...args); {patch} return sf;\n"
+        "    };",
     )
-    monkeypatch.setattr(verify, "ts_search_paths", lambda repo, rel=None: [str(fake)])
     r = _edit(repo, "m.ts", "// c\n" + BASE)
     assert not r.ok and r.method == "ts-printer", (r.method, r.detail)
     assert "does not expose parseDiagnostics" in r.detail, r.detail
