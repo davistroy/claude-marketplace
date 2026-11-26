@@ -348,6 +348,22 @@ FALSE_PASSES = [
         "k: a long\n\n  plain scalar\nj: 1\n",
         VERBATIM,
     ),
+    # SE-H2: a plain scalar in a sequence entry continues on any line deeper than its dash.
+    ("yaml-seq-plain-multiline", "c.yml", "- foo\n  bar\n", "- foo\n# c\n  bar\n", VERBATIM),
+    (
+        "yaml-nested-seq-plain-multiline",
+        "c.yml",
+        "a:\n  - foo\n    bar\n",
+        "a:\n  - foo\n  # c\n    bar\n",
+        VERBATIM,
+    ),
+    (
+        "yaml-seq-plain-multiline-shallow",
+        "c.yml",
+        "- foo\n bar\n",
+        "- foo\n # c\n bar\n",
+        VERBATIM,
+    ),
     ("sql-string", "q.sql", "select 'a\nb';\n", "select 'a\n-- c\nb';\n", VERBATIM),
     (
         "sql-dollar",

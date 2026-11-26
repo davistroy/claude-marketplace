@@ -591,9 +591,10 @@ def _yaml_scan(lines: list[str]) -> tuple[set[int], dict[int, _BlockTail]]:
             continue
         col = _indent(line)
         body = line[col:]
+        dash = -1  # the column of the innermost "- " on the line, -1 for none
         while re.match(r"-(\s|$)", body):
             step = len(body) - len(body[1:].lstrip(" "))
-            col, body = col + step, body[step:]
+            dash, col, body = col, col + step, body[step:]
         m = _YAML_KEY.match(body)
         value = body[m.end() :] if m else body
         value = re.sub(r"^(?:\s*[!&]\S*)*", "", value).strip()
@@ -604,6 +605,17 @@ def _yaml_scan(lines: list[str]) -> tuple[set[int], dict[int, _BlockTail]]:
             if _yaml_quote_end(value, 1, value[0]) < 0:
                 quote = value[0]
                 out.add(i)
+        # A plain scalar continues on every following line indented deeper than the node that
+        # holds it (SE-H2). For ``key: value`` that is the key's column (the mapping's indent).
+        # For a bare sequence entry (``- foo``) it is the dash's column, not the content's:
+        # ``- foo`` then ``  bar`` is one scalar, "foo bar". A bare scalar at column 0 is held by
+        # nothing (a document scalar), so any line continues it; a marker (``---``, ``...``,
+        # ``%YAML``) is not a scalar. Any other bare line keeps its own indent: it continues an
+        # earlier scalar, whose run was already marked.
+        if not m and dash >= 0:
+            col = dash
+        elif not m and col == 0 and not body.startswith(("---", "...", "%")):
+            col = -1
         last_cont, j = -1, i + 1
         while j < n:
             nxt = lines[j].strip()

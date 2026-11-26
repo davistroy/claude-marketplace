@@ -102,6 +102,13 @@ def test_make_scanner() -> None:
         ("k: [a,\n  b]\nj: 1\n", {1}),  # multi-line flow collection fails closed
         ("k: a\n  # c\n  b\n", set()),  # comment ends the plain scalar
         ("k: 'open\n", {1}),  # unterminated quote at EOF fails closed
+        ("- foo\n  bar\n", {1}),  # SE-H2: continues past the dash column, not the content's
+        ("- foo\n bar\n", {1}),  # one column deeper than the dash is enough
+        ("a:\n  - foo\n    bar\nb: 1\n", {2}),
+        ("- - foo\n    bar\n", {1}),  # the innermost dash decides
+        ("- k: foo\n  j: 1\n", set()),  # a key in the entry: its own column still decides
+        ("foo\nbar\n", {1}),  # a bare top-level scalar continues at any indent
+        ("---\nk: 1\n", set()),  # a document marker is not a scalar
     ],
 )
 def test_yaml_scanner(text: str, expected: set[int]) -> None:
