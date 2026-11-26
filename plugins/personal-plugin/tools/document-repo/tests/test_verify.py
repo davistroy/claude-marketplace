@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -1644,3 +1645,229 @@ def test_verify_blobs_fails_a_committed_symlink(make_repo, commit_files) -> None
     subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "link"], check=True)
     r = verify_blobs(repo, base, "HEAD", "a.sh")
     assert not r.ok and "symlink" in r.detail, r.detail
+
+
+# --- review fix 1: committed blobs are judged raw; attributes outside a commit are refused -----
+
+SH = 'echo hi\nrm -rf "$X"\n'
+SH_COMMENTED = "# remove the scratch dir\n" + SH
+
+
+def _store_raw(repo: Path, rel: str, data: bytes) -> str:
+    """Commit ``data`` at ``rel`` byte for byte (no clean filter, no eol conversion)."""
+    blob = (
+        subprocess.run(
+            ["git", "-C", str(repo), "hash-object", "-w", "--no-filters", "--stdin"],
+            input=data,
+            capture_output=True,
+            check=True,
+        )
+        .stdout.decode()
+        .strip()
+    )
+    subprocess.run(
+        ["git", "-C", str(repo), "update-index", "--cacheinfo", f"100644,{blob},{rel}"],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-q",
+            "-m",
+            "raw",
+        ],
+        check=True,
+    )
+    return subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+
+
+def test_verify_blobs_judges_stored_bytes_not_filtered_ones(make_repo, git) -> None:
+    # A committed .gitattributes converts both sides to CRLF on checkout, so filtered texts are
+    # equal; the stored blobs show the committed LF -> CRLF change, which must fail.
+    repo = make_repo({".gitattributes": "* text=auto eol=crlf\n", "m.sh": SH})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    head = _store_raw(repo, "m.sh", SH_COMMENTED.replace("\n", "\r\n").encode())
+    r = verify_blobs(repo, base, head, "m.sh")
+    assert not r.ok and "line endings" in r.detail, r.detail
+
+
+def test_verify_blobs_passes_a_committed_comment_under_committed_attributes(
+    make_repo, commit_files, git
+) -> None:
+    repo = make_repo({".gitattributes": "* text eol=crlf\n", "m.sh": SH})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    head = commit_files(repo, {"m.sh": SH_COMMENTED.replace("\n", "\r\n")}, "docs")
+    assert verify_blobs(repo, base, head, "m.sh").ok
+
+
+def _exclude(repo: Path, line: str) -> None:
+    with open(repo / ".git" / "info" / "exclude", "a") as fh:
+        fh.write(line + "\n")
+
+
+def _attr_info(repo: Path, git, monkeypatch) -> None:
+    (repo / ".git" / "info" / "attributes").write_text("* text=auto eol=crlf\n")
+
+
+def _attr_untracked_ignored(repo: Path, git, monkeypatch) -> None:
+    (repo / ".gitattributes").write_text("* text=auto eol=crlf\n")
+    _exclude(repo, ".gitattributes")
+
+
+def _attr_untracked_in_subdir(repo: Path, git, monkeypatch) -> None:
+    (repo / "sub" / ".gitattributes").write_text("*.sh text eol=crlf\n")
+
+
+def _attr_other_case(repo: Path, git, monkeypatch) -> None:
+    (repo / "sub" / ".GitAttributes").write_text("*.sh text eol=crlf\n")
+
+
+def _attr_modified(repo: Path, git, monkeypatch) -> None:
+    (repo / ".gitattributes").write_text("# none yet\n* text eol=crlf\n")
+
+
+def _attr_staged(repo: Path, git, monkeypatch) -> None:
+    (repo / ".gitattributes").write_text("* text eol=crlf\n")
+    git(repo, "add", ".gitattributes")
+    (repo / ".gitattributes").write_text("# none yet\n")
+
+
+def _attr_assume_unchanged(repo: Path, git, monkeypatch) -> None:
+    git(repo, "update-index", "--assume-unchanged", ".gitattributes")
+
+
+def _attr_skip_worktree(repo: Path, git, monkeypatch) -> None:
+    git(repo, "update-index", "--skip-worktree", ".gitattributes")
+
+
+def _attr_global(repo: Path, git, monkeypatch) -> None:
+    home = repo.parent / "xdg"
+    (home / "git").mkdir(parents=True)
+    (home / "git" / "attributes").write_text("* text eol=crlf\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+
+
+def _attr_config_file(repo: Path, git, monkeypatch) -> None:
+    (repo.parent / "attrs").write_text("* text eol=crlf\n")
+    git(repo, "config", "core.attributesFile", str(repo.parent / "attrs"))
+
+
+def _attr_tree(repo: Path, git, monkeypatch) -> None:
+    git(repo, "config", "attr.tree", "HEAD")
+
+
+def _attr_source_env(repo: Path, git, monkeypatch) -> None:
+    monkeypatch.setenv("GIT_ATTR_SOURCE", "HEAD")
+
+
+def _attr_info_unreadable(repo: Path, git, monkeypatch) -> None:
+    (repo / ".git" / "info" / "attributes").mkdir()
+
+
+@pytest.mark.parametrize(
+    "setup",
+    [
+        _attr_info,
+        _attr_untracked_ignored,
+        _attr_untracked_in_subdir,
+        _attr_other_case,
+        _attr_modified,
+        _attr_staged,
+        _attr_assume_unchanged,
+        _attr_skip_worktree,
+        _attr_global,
+        _attr_config_file,
+        _attr_tree,
+        _attr_source_env,
+        _attr_info_unreadable,
+    ],
+)
+def test_attribute_sources_outside_the_commit_are_refused(
+    make_repo, git, commit_files, monkeypatch, setup
+) -> None:
+    # Review fix 1: uncommitted attributes decide eol conversion, so they decide what is judged.
+    repo = make_repo({".gitattributes": "# none yet\n", "sub/m.sh": SH})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    head = commit_files(repo, {"sub/m.sh": SH_COMMENTED}, "docs")
+    setup(repo, git, monkeypatch)
+    for r in (verify_blobs(repo, base, head, "sub/m.sh"), verify_file(repo, "sub/m.sh", base)):
+        assert not r.ok and "attributes outside any commit" in r.detail, r.detail
+
+
+def test_committed_attributes_and_comment_only_info_file_pass(make_repo, git, commit_files) -> None:
+    repo = make_repo({".gitattributes": "* text=auto\n", "sub/m.sh": SH})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    head = commit_files(repo, {"sub/m.sh": SH_COMMENTED}, "docs")
+    (repo / ".git" / "info" / "attributes").write_text("# nothing here\n\n")
+    assert verify_blobs(repo, base, head, "sub/m.sh").ok
+    assert verify_file(repo, "sub/m.sh", base).ok
+
+
+def test_attribute_check_falls_back_when_git_var_is_missing(make_repo, git, monkeypatch) -> None:
+    # git < 2.42 has no "git var GIT_ATTR_*": the per-user file is derived from the config and
+    # XDG, and the usual system paths are read.
+    import document_repo.verify as verify_mod
+
+    repo = make_repo({"m.sh": SH})
+    real = verify_mod._git_plain
+
+    def no_var(top: Path, *args: str):
+        if args[0] == "var":
+            return subprocess.CompletedProcess(args, 1, b"", b"usage")
+        return real(top, *args)
+
+    monkeypatch.setattr(verify_mod, "_git_plain", no_var)
+    monkeypatch.delenv("GIT_ATTR_NOSYSTEM", raising=False)
+    files = verify_mod._outside_attr_files(repo)
+    assert files is not None and any(str(f) == "/etc/gitattributes" for f in files)
+    monkeypatch.setenv("GIT_ATTR_NOSYSTEM", "1")
+    (repo.parent / "attrs").write_text("* -text\n")
+    git(repo, "config", "core.attributesFile", str(repo.parent / "attrs"))
+    files = verify_mod._outside_attr_files(repo)
+    assert files is not None and repo.parent / "attrs" in files
+    assert not any(str(f) == "/etc/gitattributes" for f in files)
+    why = verify_mod.attribute_source_problem(repo, "m.sh")
+    assert why and "attrs sets rules" in why, why
+
+
+def test_attribute_check_whole_repo(make_repo, git, monkeypatch) -> None:
+    import document_repo.verify as verify_mod
+
+    repo = make_repo({"a/.gitattributes": "# none\n", "m.sh": SH})
+    assert verify_mod.attribute_source_problem(repo) is None
+    assert verify_mod.attribute_source_problem(repo, "gone/dir/x.sh") is None
+    (repo / "deep" / "er").mkdir(parents=True)
+    (repo / "deep" / "er" / ".gitattributes").write_text("* text eol=crlf\n")
+    _exclude(repo, "deep/")
+    why = verify_mod.attribute_source_problem(repo)
+    assert why and "deep/er/.gitattributes is not tracked" in why, why
+    real = verify_mod._git_plain
+    monkeypatch.setattr(
+        verify_mod,
+        "_git_plain",
+        lambda top, *a: subprocess.CompletedProcess(a, 128, b"", b"x")
+        if a[0] == "ls-files"
+        else real(top, *a),
+    )
+    assert "git failed" in (verify_mod.attribute_source_problem(repo) or "")
+    monkeypatch.setattr(
+        verify_mod, "_git_plain", lambda top, *a: subprocess.CompletedProcess(a, 128, b"", b"x")
+    )
+    assert "cannot locate" in (verify_mod.attribute_source_problem(repo, "m.sh") or "")
+
+
+def test_git_blob_of_a_non_utf8_file_is_none(make_repo) -> None:
+    import document_repo.verify as verify_mod
+
+    repo = make_repo({"m.sh": b"\xff\xfe\n"})
+    assert verify_mod.git_blob(repo, "HEAD", "m.sh") is None

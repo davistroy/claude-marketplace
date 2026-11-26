@@ -1912,3 +1912,118 @@ def test_backstop_fails_a_passing_commit_whose_work_tree_differs_unseen(
     assert code == 1 and not out["ok"], out
     (bad,) = out["verify"]
     assert bad["method"] == "python-ast" and "differs from HEAD" in bad["detail"], bad
+
+
+# --- review fix 1/6/7: attributes outside the commit ----------------------------------------------
+
+SH = 'echo hi\nrm -rf "$X"\n'
+SH_COMMENTED = "# remove the scratch dir\n" + SH
+
+
+def _exclude(repo: Path, line: str) -> None:
+    with open(repo / ".git" / "info" / "exclude", "a") as fh:
+        fh.write(line + "\n")
+
+
+def _recheckout(git: Callable[..., str], repo: Path, rel: str) -> None:
+    (repo / rel).unlink()
+    git(repo, "checkout", "--", rel)
+
+
+def test_backstop_fails_a_crlf_commit_hidden_by_untracked_eol_crlf(
+    make_repo, git, commit_files, capsys
+) -> None:
+    # Reviewer PoC b3: the commit turns an LF script into CRLF and adds a comment. An untracked,
+    # excluded `* text eol=crlf` made both sides read as CRLF, so the change passed.
+    repo = make_repo({"m.sh": SH})
+    base = head(git, repo)
+    commit_files(repo, {"m.sh": SH_COMMENTED.replace("\n", "\r\n").encode()}, "change")
+    (repo / ".gitattributes").write_text("* text eol=crlf\n")
+    _exclude(repo, ".gitattributes")
+    _recheckout(git, repo, "m.sh")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    details = " ".join(r["detail"] for r in out["verify"])
+    assert "attributes outside any commit" in details, out
+    # With the attribute file gone, the stored blobs still show the line-ending change.
+    (repo / ".gitattributes").unlink()
+    _recheckout(git, repo, "m.sh")
+    assert git(repo, "status", "--porcelain") == ""
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and "line endings" in out["verify"][0]["detail"], out
+
+
+def test_backstop_fails_under_info_attributes(make_repo, git, commit_files, capsys) -> None:
+    # Reviewer PoC b2: the same change, hidden by .git/info/attributes.
+    repo = make_repo({"m.sh": SH})
+    base = head(git, repo)
+    commit_files(repo, {"m.sh": SH_COMMENTED.replace("\n", "\r\n").encode()}, "change")
+    (repo / ".git" / "info" / "attributes").write_text("* text=auto eol=crlf\n")
+    _recheckout(git, repo, "m.sh")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    assert "info/attributes sets rules" in json.dumps(out["verify"]), out
+
+
+def test_backstop_fails_a_last_line_crlf_change(make_repo, git, commit_files, capsys) -> None:
+    # Reviewer PoC b1: only the last line gains a CR, under an untracked text=auto eol=crlf.
+    repo = make_repo({"m.sh": SH})
+    base = head(git, repo)
+    commit_files(repo, {"m.sh": SH_COMMENTED[:-1].encode() + b"\r\n"}, "change")
+    (repo / ".gitattributes").write_text("* text=auto eol=crlf\n")
+    _exclude(repo, ".gitattributes")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+
+
+@pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
+def test_backstop_refuses_a_flagged_gitattributes_anywhere(
+    make_repo, git, commit_files, capsys, flag
+) -> None:
+    # Review fix 6: a .gitattributes no judged path sits under still counts.
+    repo = make_repo({"m.py": M, "other/.gitattributes": "# none\n"})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
+    git(repo, "update-index", flag, "other/.gitattributes")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    bad = [r for r in out["verify"] if not r["ok"]]
+    assert bad and bad[0]["path"] == ".gitattributes", out
+    assert "other/.gitattributes is flagged" in bad[0]["detail"], out
+
+
+def test_backstop_refuses_an_untracked_ignored_gitattributes_anywhere(
+    make_repo, git, commit_files, capsys
+) -> None:
+    repo = make_repo({"m.py": M})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
+    (repo / "vendor").mkdir()
+    (repo / "vendor" / ".gitattributes").write_text("* text eol=crlf\n")
+    _exclude(repo, "vendor/")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and "vendor/.gitattributes is not tracked" in json.dumps(out), out
+
+
+def test_backstop_allows_a_sparse_flag_on_an_unrelated_file(
+    make_repo, git, commit_files, capsys
+) -> None:
+    # A sparse checkout's skip-worktree on a file the branch did not touch is not refused.
+    repo = make_repo({"m.py": M, "far/data.bin": "x\n"})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
+    git(repo, "update-index", "--skip-worktree", "far/data.bin")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 0 and out["ok"], out
+
+
+def test_precheck_refuses_attributes_outside_the_commit(make_repo, git, capsys) -> None:
+    # Review fix 7: the pre-commit precheck refuses what the post-commit proof would.
+    repo = make_repo({"m.py": M, "other/.gitattributes": "# none\n"})
+    git(repo, "update-index", "--assume-unchanged", "other/.gitattributes")
+    (repo / "m.py").write_text(M_COMMENTED)
+    pre = head(git, repo)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "precheck", out
+    assert "other/.gitattributes is flagged" in json.dumps(out["verify"]), out
+    assert head(git, repo) == pre

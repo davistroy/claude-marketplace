@@ -35,6 +35,7 @@ Every command below uses `$TARGET`, `$TOOL_SRC`, `$SKILL_DIR` and `$RUN_DIR` for
    | `working tree is not clean` | Commit or stash, then run again. |
    | `repo must be the top level` | Pass the directory from `git rev-parse --show-toplevel`. |
    | `assume-unchanged`, `skip-worktree`, or `differs from HEAD although git status reports a clean tree` | Git is hiding edits to a file. The message gives the git command that clears it. Run it, then run `changes` again. |
+   | `attributes outside any commit` | An attributes file no commit holds (`.git/info/attributes`, an untracked, flagged or edited `.gitattributes`, a per-user one) would decide how files are read. Show the user the file it names; run again once it is committed, restored or removed. |
 
    | Report key | Meaning |
    |------------|---------|

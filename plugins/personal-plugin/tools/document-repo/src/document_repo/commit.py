@@ -60,7 +60,9 @@ from typing import Any
 from .changes import require_matches_head, require_plain_index_entry, work_tree
 from .inventory import OUTPUT_DIR, SKIP_DIRS
 from .verify import (
+    GITATTRIBUTES,
     Result,
+    attribute_source_problem,
     changed_files,
     is_exempt,
     is_explorer_output_name,
@@ -656,7 +658,11 @@ def commit_paths(
     # ``git add <pathspec>`` stages deletions too.
     _out(top, "add", "--", *_spec(roots))
     if ref is not None:
-        checks = [verify_file(top, rel, ref).to_dict() for rel in changed]
+        # The repository-wide attribute check is the backstop's (review fix 7): the precheck
+        # refuses what the proofs after the commit would, not less.
+        attrs = attribute_source_problem(top)
+        checks = [Result(GITATTRIBUTES, "none", False, attrs).to_dict()] if attrs else []
+        checks += [verify_file(top, rel, ref).to_dict() for rel in changed]
         if not all(r["ok"] for r in checks):
             _out(top, "reset", "-q")
             return Outcome(
@@ -911,6 +917,12 @@ def backstop(repo: Path, base: str) -> dict[str, Any]:
         ).to_dict()
         for rel in sorted(committed | set(on_disk))
     ]
+    # Every .gitattributes in the repository, not only the judged paths' (review fix 6): a
+    # flagged or uncommitted one changes how git reads files. Flags on other files (a sparse
+    # checkout) are not refused here; a judged path with a flag fails in committed_proof.
+    attrs = attribute_source_problem(top)
+    if attrs:
+        results.append(Result(GITATTRIBUTES, "none", False, attrs).to_dict())
     raw = _out(top, "status", "--porcelain=v1", "-z", "-uall")
     status = [e for e in raw.split("\0") if e]
     ok = all(r["ok"] for r in results) and not status

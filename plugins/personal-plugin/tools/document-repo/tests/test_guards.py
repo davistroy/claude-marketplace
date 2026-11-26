@@ -120,6 +120,7 @@ def test_make_scanner() -> None:
         ("k: v\n  [a]\n", {1}),  # a bare next line may always be a continuation
         ("k: 1\n# c\nj: 2\n", set()),  # keys and comments are new nodes
         ("- a\n- b\n", set()),
+        ("  foo\n  bar\n", {1}),  # an indented first scalar has no parent: any line continues
     ],
 )
 def test_yaml_scanner(text: str, expected: set[int]) -> None:
