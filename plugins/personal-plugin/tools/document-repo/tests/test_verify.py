@@ -395,6 +395,15 @@ FALSE_PASSES = [
     ),
     ("cs-verbatim", "A.cs", 'var s = @"a\nb";\n', 'var s = @"a\n// c\nb";\n', VERBATIM),
     ("cpp-raw", "a.cpp", 'auto s = R"x(a\nb)x";\n', 'auto s = R"x(a\n// c\nb)x";\n', VERBATIM),
+    # SE-C1: a C++ header is lexed as C++, so a multi-line raw string in it is data, not code.
+    (
+        "h-cpp-raw",
+        "q.h",
+        'static const char* kQuery = R"(\nSELECT id\nFROM users\n)";\n',
+        'static const char* kQuery = R"(\nSELECT id\n// Only active users are selected here.\n'
+        'FROM users\n)";\n',
+        VERBATIM,
+    ),
     ("rust-raw-hash", "a.rs", 'let s = r#"a\nb"#;\n', 'let s = r#"a\n// c\nb"#;\n', VERBATIM),
     ("rust-plain-multiline", "a.rs", 'let s = "a\nb";\n', 'let s = "a\n// c\nb";\n', VERBATIM),
     (
@@ -552,6 +561,12 @@ POSITIVE_CASES = [
         "m.c",
         "#include <stdio.h>\nint main(void) {\n  return 0;\n}\n",
         "/* Entry point. */\n#include <stdio.h>\nint main(void) {\n  // Done.\n  return 0;\n}\n",
+    ),
+    (
+        "c-header",
+        "m.h",
+        "#ifndef M_H\n#define M_H\nint add(int a, int b);\n#endif\n",
+        "#ifndef M_H\n#define M_H\n/* Add two ints. */\nint add(int a, int b);\n// end\n#endif\n",
     ),
     (
         "cpp",

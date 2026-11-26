@@ -76,7 +76,8 @@ EXT: dict[str, Lang] = {
     ".rs": C_LIKE["rust"],
     ".java": C_LIKE["java"],
     ".c": C_LIKE["c"],
-    ".h": C_LIKE["c"],
+    # C++ lexer for headers: a .h may be C++ (raw strings), and C never contains R"( (SE-C1).
+    ".h": C_LIKE["cpp"],
     ".cpp": C_LIKE["cpp"],
     ".hpp": C_LIKE["cpp"],
     ".cs": C_LIKE["csharp"],
