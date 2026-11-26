@@ -103,7 +103,7 @@ These are not mechanical, and they decide whether the comments are worth keeping
 
 15. Explain why and intent. Do not restate what the code says (`# increment i` is forbidden).
 16. No TODOs, no opinions about code quality, no names of people, no secrets, and no example values copied from real data.
-17. SQL migration files (`header_only` in the inventory) get a file header only. A migration is applied history.
+17. SQL migration files get no comments at all: the inventory skips them (`skip: "migration"`), so they are never in a commenter's file list. A migration is applied history, and migration tools checksum it: one header comment makes Flyway refuse to migrate, Prisma offer a database reset and sqlx refuse to run. That covers any `.sql` under a `migrations/`, `migration/` or `migrate/` directory (Prisma's `migrations/<name>/migration.sql` included) and Flyway's `V<n>__*.sql`, `U<n>__*.sql` and `R__*.sql` anywhere.
 18. Keep each doc comment to 12 lines. If it needs more, the module README is the place.
 19. Write plain English. Follow `~/.claude/styles/WRITING_RULES.md` when it exists.
 20. In Rust doc comments (`///`, `//!`), fence an example as `text`. An unmarked fence is compiled and run as a test by `cargo test`, and the verifier does not look inside it.

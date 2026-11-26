@@ -43,7 +43,6 @@ def test_inventory_classifies_files(make_repo) -> None:
         "lines": 2,
         "bytes": 25,
         "skip": None,
-        "header_only": False,
     }
     assert by["node_modules/pkg/index.js"]["skip"] == "skipped-dir"
     assert by["explorer/app.js"]["skip"] == "skipped-dir"
@@ -52,16 +51,15 @@ def test_inventory_classifies_files(make_repo) -> None:
     assert by["img.png"]["skip"] == "binary"
     assert by["data.json"]["skip"] == "no-comment-syntax"
     assert by["gen/api.ts"]["skip"] == "generated"
-    assert by["db/migrations/001_init.sql"]["header_only"] is True
+    assert by["db/migrations/001_init.sql"]["skip"] == "migration"
     assert {f["skip"] for f in inv["files"]} <= SKIP_REASONS | {None}
     assert inv["summary"]["by_lang"] == {
         "dockerfile": 1,
         "python": 2,
-        "sql": 1,
         "toml": 1,
         "typescript": 1,
     }
-    assert inv["summary"]["source_files"] == 6
+    assert inv["summary"]["source_files"] == 5
     assert "package.json" in inv["manifests"] and "pyproject.toml" in inv["manifests"]
 
 
@@ -300,3 +298,42 @@ def test_package_json_with_non_dict_scripts_and_string_bin(make_repo) -> None:
         make_repo({"package.json": json.dumps({"scripts": "start", "bin": "bin/t.js"})})
     )
     assert inv["entry_candidates"] == [{"path": "package.json", "why": "package bin -> bin/t.js"}]
+
+
+#: SEC-03: migration tools checksum applied files, so even a header comment breaks a deploy.
+MIGRATIONS = [
+    "db/migrations/001_init.sql",  # the directory rule (sqlx, golang-migrate, plain)
+    "db/Migration/002.SQL",
+    "migrate/003_x.sql",
+    "prisma/migrations/20240101000000_init/migration.sql",  # Prisma
+    "src/main/resources/db/V1__init.sql",  # Flyway versioned, anywhere
+    "sql/V2_1__add_index.sql",
+    "sql/V3.1.2__more.sql",
+    "R__refresh_views.sql",  # Flyway repeatable
+    "sql/U2__undo.sql",  # Flyway undo
+]
+NOT_MIGRATIONS = [
+    "sql/queries.sql",
+    "sql/V2_notes.sql",  # no "__" after the version
+    "sql/Vx__x.sql",  # not a version
+    "app/migrations/0001_initial.py",  # Django: not checksummed, commented like any code
+    "R__script.sh",
+]
+
+
+@pytest.mark.parametrize("rel", MIGRATIONS)
+def test_migration_sql_is_skipped(make_repo, rel: str) -> None:
+    repo = make_repo({rel: "create table t (id int);\n"})
+    assert skip_reason(repo, rel) == "migration"
+    (entry,) = build_inventory(repo)["files"]
+    assert entry["skip"] == "migration" and "header_only" not in entry
+
+
+@pytest.mark.parametrize("rel", NOT_MIGRATIONS)
+def test_other_files_are_not_migrations(make_repo, rel: str) -> None:
+    repo = make_repo({rel: "x = 1\n"})
+    assert skip_reason(repo, rel) != "migration"
+
+
+def test_migration_is_a_known_skip_reason() -> None:
+    assert "migration" in SKIP_REASONS

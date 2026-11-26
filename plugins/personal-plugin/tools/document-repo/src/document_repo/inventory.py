@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path, PurePosixPath
@@ -26,7 +27,15 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 has no tomllib
     tomllib = None  # type: ignore[assignment]
 
 SKIP_REASONS = frozenset(
-    {"skipped-dir", "lock-file", "minified", "binary", "no-comment-syntax", "generated"}
+    {
+        "skipped-dir",
+        "lock-file",
+        "minified",
+        "migration",
+        "binary",
+        "no-comment-syntax",
+        "generated",
+    }
 )
 SKIP_DIRS = frozenset(
     {
@@ -114,7 +123,13 @@ ENTRY_NAMES = frozenset(
         "main.go",
     }
 )
+#: SQL migrations are never commented (SEC-03). Migration tools checksum the files they have
+#: applied, so a header comment makes Flyway refuse to migrate, Prisma offer a database reset and
+#: sqlx refuse to run. A ``.sql`` file is one when a directory above it is named here (sqlx,
+#: golang-migrate, Prisma's ``migrations/<name>/migration.sql``) or its name is a Flyway
+#: versioned, undo or repeatable migration (``V1__x.sql``, ``U1__x.sql``, ``R__x.sql``) anywhere.
 MIGRATION_DIRS = frozenset({"migrations", "migration", "migrate"})
+_FLYWAY_NAME = re.compile(r"(?:[VU]\d+(?:[._]\d+)*|R)__.*\.sql", re.IGNORECASE)
 HEAD_BYTES = 8192
 #: Largest single read count_lines makes, so memory stays flat however big the file is.
 CHUNK_BYTES = 1 << 20
@@ -176,6 +191,8 @@ def skip_reason(root: Path, rel: str) -> str | None:
         return "lock-file"
     if name.endswith(MINIFIED_SUFFIXES):
         return "minified"
+    if _is_migration(rel):
+        return "migration"
     try:
         with (root / rel).open("rb") as fh:
             head = fh.read(HEAD_BYTES)
@@ -209,7 +226,13 @@ def count_lines(path: Path) -> int:
 
 
 def _is_migration(rel: str) -> bool:
-    return any(p.lower() in MIGRATION_DIRS for p in PurePosixPath(rel).parts[:-1])
+    """True for a SQL migration file; see ``MIGRATION_DIRS``."""
+    p = PurePosixPath(rel)
+    if p.suffix.lower() != ".sql":
+        return False
+    return bool(_FLYWAY_NAME.fullmatch(p.name)) or any(
+        part.lower() in MIGRATION_DIRS for part in p.parts[:-1]
+    )
 
 
 def _package_json_entries(root: Path, rel: str) -> list[dict[str, str]]:
@@ -294,12 +317,6 @@ def build_inventory(root: Path) -> dict[str, Any]:
                 "lines": 0 if reason == "binary" else count_lines(root / rel),
                 "bytes": (root / rel).stat().st_size,
                 "skip": reason,
-                "header_only": bool(
-                    reason is None
-                    and lang is not None
-                    and lang.name == "sql"
-                    and _is_migration(rel)
-                ),
             }
         )
         if reason is None and lang is not None:

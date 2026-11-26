@@ -73,7 +73,6 @@ preamble, fill every placeholder, and pass the prompt to the Agent tool
 | `{id}`, `{path}`, `{files}` | One entry of `$RUN_DIR/modules.final.json`. For a Commenter, `{files}` drops skipped JS/TS files (Phase 0 step 6) and, in an update run, files that update-mode.md step 10 leaves out. |
 | `{all_module_ids}` | Every `id` in `modules.final.json` |
 | `{entry_candidates_in_module}` | The `entry_candidates` in `$RUN_DIR/inventory.json` whose `path` is in `{files}`, as `path (why)`. A manifest hint (`package.json`, `pyproject.toml`) belongs to no module, so also give a module each hint whose target, the path after `->` in `why` resolved from the manifest's directory, is in `{files}`. Give a hint whose target is no file (an npm script command) to the module with path `.`, if there is one. "none" when nothing matches. |
-| `{header_only_files}` | The files in `{files}` whose inventory entry has `header_only` true, or "none" |
 | `{ids}` | One batch of module ids (Phase 3) |
 | `{UPDATE_LINE}` | Empty in a full run. In an update run, the line printed under that prompt in agent-prompts.md, with its own placeholders filled. |
 | `{SINCE}` | `since` from `$RUN_DIR/changes.json` (update runs only) |
