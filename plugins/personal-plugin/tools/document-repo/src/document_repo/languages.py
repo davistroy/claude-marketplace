@@ -75,8 +75,10 @@ EXT: dict[str, Lang] = {
     ".go": C_LIKE["go"],
     ".rs": C_LIKE["rust"],
     ".java": C_LIKE["java"],
+    # ``.c`` and ``.C`` (detect lowercases suffixes; GCC reads ``.C`` as C++) and ``.h`` are
+    # scanned with the C and C++ readings unioned (guards._C_FAMILY), so a raw string R"( is
+    # data in any of them (SE-C1, review fix 4).
     ".c": C_LIKE["c"],
-    # C++ lexer for headers: a .h may be C++ (raw strings), and C never contains R"( (SE-C1).
     ".h": C_LIKE["cpp"],
     ".cpp": C_LIKE["cpp"],
     ".hpp": C_LIKE["cpp"],

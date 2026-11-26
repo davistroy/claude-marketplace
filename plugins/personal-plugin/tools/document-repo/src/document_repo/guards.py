@@ -1057,10 +1057,20 @@ _SCANNERS: dict[str, Callable[[list[str]], set[int]]] = {
 }
 
 
+#: Languages lexed with every C-family reading at once (``_verbatim_points``).
+_C_FAMILY = ("c", "cpp")
+
+
 def _verbatim_points(lines: list[str], lang: Lang) -> set[int]:
     scan = _SCANNERS.get(lang.name)
     if scan is not None:
         inside = scan(lines)
+    elif lang.name in _C_FAMILY:
+        # Both readings, unioned (review fix 4): a .c (or .C, C++ to GCC) may hold R"( raw
+        # strings, which only the C++ reading sees, while R"(" with R a macro is a plain string
+        # the C++ reading mistakes for a raw one, so it can miss a block comment the C reading
+        # sees. Each reading only adds unsafe positions, so the union is at least as strict.
+        inside = set().union(*(_scan_clike(lines, _SYNTAX[name]) for name in _C_FAMILY))
     elif lang.name in _SYNTAX:
         inside = _scan_clike(lines, _SYNTAX[lang.name])
     else:

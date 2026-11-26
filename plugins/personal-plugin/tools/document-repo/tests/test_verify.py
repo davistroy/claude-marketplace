@@ -422,6 +422,30 @@ FALSE_PASSES = [
         'FROM users\n)";\n',
         VERBATIM,
     ),
+    # Review fix 4: .c (and .C, which detect lowercases) may hold GNU C++-style R"( strings.
+    (
+        "c-raw",
+        "q.c",
+        'static const char* kQuery = R"(\nSELECT id\nFROM users\n)";\n',
+        'static const char* kQuery = R"(\nSELECT id\n// x\nFROM users\n)";\n',
+        VERBATIM,
+    ),
+    (
+        "upper-C-raw",
+        "q.C",
+        'static const char* kQuery = R"(\nSELECT id\nFROM users\n)";\n',
+        'static const char* kQuery = R"(\nSELECT id\n// x\nFROM users\n)";\n',
+        VERBATIM,
+    ),
+    # And the C reading still counts: here C sees a block comment the raw-string reading
+    # misses (R is a macro, so R"(" is the string "(" and /* opens a comment).
+    (
+        "c-block-after-fake-raw",
+        "q.c",
+        '#define R\nchar *s = R"(";  /* open\n  )" still a comment\n*/\nint x;\n',
+        '#define R\nchar *s = R"(";  /* open\n  )" still a comment\n// c */\n*/\nint x;\n',
+        VERBATIM,
+    ),
     ("rust-raw-hash", "a.rs", 'let s = r#"a\nb"#;\n', 'let s = r#"a\n// c\nb"#;\n', VERBATIM),
     ("rust-plain-multiline", "a.rs", 'let s = "a\nb";\n', 'let s = "a\n// c\nb";\n', VERBATIM),
     (
