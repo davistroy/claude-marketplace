@@ -1626,15 +1626,14 @@ def test_verify_blobs_runs_the_guards(make_repo, commit_files) -> None:
 
 
 def test_verify_blobs_fails_closed_on_missing_sides_and_bad_input(
-    make_repo, commit_files, tmp_path
+    make_repo, commit_files, git, tmp_path
 ) -> None:
     repo, base, head = _two_commits(make_repo, commit_files, "m.py", BASE_PY, BASE_PY + "# c\n")
     assert "not in" in verify_blobs(repo, base, head, "new.py").detail
     commit_files(repo, {"new.py": "x = 1\n"}, "add")
     assert f"not in {base}" in verify_blobs(repo, base, "HEAD", "new.py").detail
-    git_rm = ["git", "-C", str(repo), "rm", "-q", "m.py"]
-    subprocess.run(git_rm, check=True)
-    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "rm"], check=True)
+    git(repo, "rm", "-q", "m.py")
+    git(repo, "commit", "-q", "-m", "rm")
     assert "not in HEAD" in verify_blobs(repo, base, "HEAD", "m.py").detail
     assert not verify_blobs(repo, base, head, "d.json").ok
     outside = tmp_path / "not-a-repo"
@@ -1642,16 +1641,16 @@ def test_verify_blobs_fails_closed_on_missing_sides_and_bad_input(
     assert "not inside a git work tree" in verify_blobs(outside, base, head, "m.py").detail
 
 
-def test_verify_blobs_fails_a_committed_mode_change(make_repo, commit_files) -> None:
+def test_verify_blobs_fails_a_committed_mode_change(make_repo, commit_files, git) -> None:
     repo, base, _ = _two_commits(make_repo, commit_files, "a.sh", "echo a\n", "echo a\n# c\n")
     (repo / "a.sh").chmod(0o755)
-    subprocess.run(["git", "-C", str(repo), "add", "--chmod=+x", "a.sh"], check=True)
-    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "x"], check=True)
+    git(repo, "add", "--chmod=+x", "a.sh")
+    git(repo, "commit", "-q", "-m", "x")
     r = verify_blobs(repo, base, "HEAD", "a.sh")
     assert not r.ok and "100644 -> 100755" in r.detail, r.detail
 
 
-def test_verify_blobs_fails_a_committed_symlink(make_repo, commit_files) -> None:
+def test_verify_blobs_fails_a_committed_symlink(make_repo, commit_files, git) -> None:
     repo, base, _ = _two_commits(make_repo, commit_files, "a.sh", "echo a\n", "echo a\n# c\n")
     blob = (
         subprocess.run(
@@ -1666,7 +1665,7 @@ def test_verify_blobs_fails_a_committed_symlink(make_repo, commit_files) -> None
     subprocess.run(
         ["git", "-C", str(repo), "update-index", "--cacheinfo", f"120000,{blob},a.sh"], check=True
     )
-    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "link"], check=True)
+    git(repo, "commit", "-q", "-m", "link")
     r = verify_blobs(repo, base, "HEAD", "a.sh")
     assert not r.ok and "symlink" in r.detail, r.detail
 

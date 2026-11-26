@@ -1592,4 +1592,8 @@ The banner carries the Rule 4 bidirectional pointer: v13's outcome, its merge SH
 
 **Known trade-offs (accepted, all fail closed):** TypeScript must be exactly 5.6.3 (else JS/TS files are "not available"); a comment directly above a bare YAML scalar value now fails; any per-user/system attributes file with rules blocks verify; `.cc`/`.cxx`/`.hh` still unmapped; Atlas timestamp migrations outside `migrations/` not detected; SKILL Setup `.document-repo` symlink check not done (SEC-02 tail).
 
-**Remaining for A29:** H-GATE (make `Document Repo Tests (ubuntu-latest)` required; protection backup in scratchpad `main-protection-backup.json`), then PR and merge.
+**PR #267 CI, run 1:** 3 new `verify_blobs` tests called `git commit` through bare `subprocess.run`, outside the `git` fixture's identity env. CI has no git identity, so they failed with "Author identity unknown" in Document Repo Tests and Python Compat 3.10/3.12. Locally the global git identity hid it. Fix: use the `git` fixture. Confirmed with `HOME=/nonexistent` (the 8 `verify_blobs` tests pass); the full suite passes (2375).
+
+**H-GATE done:** `Document Repo Tests (ubuntu-latest)` added to main's required checks (17 contexts now).
+
+**Remaining for A29 (was):** H-GATE (make `Document Repo Tests (ubuntu-latest)` required; protection backup in scratchpad `main-protection-backup.json`), then PR and merge.
