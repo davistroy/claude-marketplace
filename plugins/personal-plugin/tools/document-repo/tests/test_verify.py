@@ -1895,3 +1895,27 @@ def test_git_blob_of_a_non_utf8_file_is_none(make_repo) -> None:
 
     repo = make_repo({"m.sh": b"\xff\xfe\n"})
     assert verify_mod.git_blob(repo, "HEAD", "m.sh") is None
+
+
+# --- review fix 5: verify refuses migrations, the same predicate as the inventory --------------
+
+
+@pytest.mark.parametrize(
+    "rel", ["V1__init.sql", "db/migrations/001.sql", "sql/001_init.up.sql", "B1__base.sql"]
+)
+def test_verify_refuses_a_comment_in_a_migration(make_repo, commit_files, git, rel) -> None:
+    # Reviewer PoC m2: a header comment on V1__init.sql passed verify.
+    body = "create table t (id int);\n"
+    repo = make_repo({rel: body})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    (repo / rel).write_text("-- Creates t.\n" + body)
+    r = verify_file(repo, rel)
+    assert not r.ok and "migration" in r.detail, r.detail
+    head = commit_files(repo, {rel: "-- Creates t.\n" + body}, "docs")
+    r = verify_blobs(repo, base, head, rel)
+    assert not r.ok and "migration" in r.detail, r.detail
+
+
+def test_verify_still_passes_a_plain_sql_comment(make_repo) -> None:
+    r = _run(make_repo, "sql/queries.sql", "select 1;\n", "-- One.\nselect 1;\n")
+    assert r.ok, r.detail

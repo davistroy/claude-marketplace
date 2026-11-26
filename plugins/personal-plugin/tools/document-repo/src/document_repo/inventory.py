@@ -126,11 +126,25 @@ ENTRY_NAMES = frozenset(
 )
 #: SQL migrations are never commented (SEC-03). Migration tools checksum the files they have
 #: applied, so a header comment makes Flyway refuse to migrate, Prisma offer a database reset and
-#: sqlx refuse to run. A ``.sql`` file is one when a directory above it is named here (sqlx,
-#: golang-migrate, Prisma's ``migrations/<name>/migration.sql``) or its name is a Flyway
-#: versioned, undo or repeatable migration (``V1__x.sql``, ``U1__x.sql``, ``R__x.sql``) anywhere.
-MIGRATION_DIRS = frozenset({"migrations", "migration", "migrate"})
-_FLYWAY_NAME = re.compile(r"(?:[VU]\d+(?:[._]\d+)*|R)__.*\.sql", re.IGNORECASE)
+#: sqlx refuse to run. A ``.sql`` file is one when a directory above it is named here, in any
+#: case (sqlx, golang-migrate, Prisma's ``migrations/<name>/migration.sql``, Rails-style
+#: ``schema_migrations``, Liquibase's ``db/changelog/**``), when its name is a Flyway versioned,
+#: undo, baseline or repeatable migration (``V1__x.sql``, ``U1__x.sql``, ``B1__x.sql``,
+#: ``R__x.sql``) anywhere, or when it is a golang-migrate ``*.up.sql`` / ``*.down.sql`` anywhere.
+MIGRATION_DIRS = frozenset(
+    {
+        "migrations",
+        "migration",
+        "migrate",
+        "db_migrations",
+        "schema-migrations",
+        "schema_migrations",
+        "changelog",
+        "changelogs",
+    }
+)
+_FLYWAY_NAME = re.compile(r"(?:[VUB]\d+(?:[._]\d+)*|R)__.*\.sql", re.IGNORECASE)
+_UP_DOWN_NAME = re.compile(r".+\.(?:up|down)\.sql", re.IGNORECASE)
 HEAD_BYTES = 8192
 #: Largest single read count_lines makes, so memory stays flat however big the file is.
 CHUNK_BYTES = 1 << 20
@@ -211,7 +225,7 @@ def skip_reason(root: Path, rel: str) -> str | None:
         return "lock-file"
     if name.endswith(MINIFIED_SUFFIXES):
         return "minified"
-    if _is_migration(rel):
+    if is_migration(rel):
         return "migration"
     try:
         with (root / rel).open("rb") as fh:
@@ -245,14 +259,18 @@ def count_lines(path: Path) -> int:
     return newlines + (1 if last and last != b"\n" else 0)
 
 
-def _is_migration(rel: str) -> bool:
-    """True for a SQL migration file; see ``MIGRATION_DIRS``."""
+def is_migration(rel: str) -> bool:
+    """True for a SQL migration file; see ``MIGRATION_DIRS``.
+
+    The one definition: the inventory skips these and ``verify`` fails them (review fix 5), so
+    ``commit`` and ``backstop`` refuse them too.
+    """
     p = PurePosixPath(rel)
     if p.suffix.lower() != ".sql":
         return False
-    return bool(_FLYWAY_NAME.fullmatch(p.name)) or any(
-        part.lower() in MIGRATION_DIRS for part in p.parts[:-1]
-    )
+    if _FLYWAY_NAME.fullmatch(p.name) or _UP_DOWN_NAME.fullmatch(p.name):
+        return True
+    return any(part.lower() in MIGRATION_DIRS for part in p.parts[:-1])
 
 
 def _package_json_entries(root: Path, rel: str) -> list[dict[str, str]]:

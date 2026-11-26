@@ -312,6 +312,20 @@ MIGRATIONS = [
     "sql/V3.1.2__more.sql",
     "R__refresh_views.sql",  # Flyway repeatable
     "sql/U2__undo.sql",  # Flyway undo
+    # Review fix 5.
+    "B1__baseline.sql",  # Flyway baseline
+    "sql/B2_1__baseline.sql",
+    "sql/001_init.up.sql",  # golang-migrate, anywhere
+    "sql/001_init.down.sql",
+    "db_migrations/001.sql",
+    "schema-migrations/1.sql",
+    "schema_migrations/1.sql",
+    "Migrations/1.sql",  # directory names match in any case
+    "DB_Migrations/2.sql",
+    "db/changelog/001.sql",  # Liquibase
+    "db/changelog/changes/2024/002.sql",
+    "src/main/resources/changelog/003.sql",
+    "db/migration/V1__x.SQL",
 ]
 NOT_MIGRATIONS = [
     "sql/queries.sql",
@@ -319,6 +333,9 @@ NOT_MIGRATIONS = [
     "sql/Vx__x.sql",  # not a version
     "app/migrations/0001_initial.py",  # Django: not checksummed, commented like any code
     "R__script.sh",
+    "sql/Bx__x.sql",  # not a version
+    "sql/setup.sql",
+    "docs/changelog.sql",  # a file named changelog, not a changelog directory
 ]
 
 
@@ -383,3 +400,11 @@ def test_walk_fallback_skips_symlinks(tmp_path: Path) -> None:
 
 def test_symlink_is_a_known_skip_reason() -> None:
     assert "symlink" in SKIP_REASONS
+
+
+def test_one_migration_predicate_is_shared() -> None:
+    # Review fix 5: verify (and so commit and backstop) judges with the inventory's predicate.
+    import document_repo.inventory as inventory_mod
+    import document_repo.verify as verify_mod
+
+    assert verify_mod.is_migration is inventory_mod.is_migration

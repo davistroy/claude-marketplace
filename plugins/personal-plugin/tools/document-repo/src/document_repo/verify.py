@@ -52,7 +52,7 @@ from pathlib import Path
 from typing import Any
 
 from .guards import common_guards, context_guard
-from .inventory import OUTPUT_DIR
+from .inventory import OUTPUT_DIR, is_migration
 from .languages import Lang, detect
 
 
@@ -739,14 +739,34 @@ def _mode_guard(top: Path, ref: str, rel: str) -> str | None:
     )
 
 
-def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
-    """Compare the working-tree ``rel`` with ``before_ref``. See module docstring.
+MIGRATION = (
+    "SQL migration: never commented, because migration tools checksum applied files (restore it)"
+)
 
-    ``rel`` is relative to the top level of the work tree that contains ``repo``.
+
+def _judgeable(rel: str) -> Lang | Result:
+    """The language of ``rel``, or the failure for a path no method may judge.
+
+    No method judges a file with no known comment syntax, or a SQL migration.
     """
     lang = detect(rel)
     if lang is None:
         return Result(rel, "none", False, "no known comment syntax for this file type")
+    if is_migration(rel):
+        return Result(rel, "none", False, MIGRATION)
+    return lang
+
+
+def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
+    """Compare the working-tree ``rel`` with ``before_ref``. See module docstring.
+
+    ``rel`` is relative to the top level of the work tree that contains ``repo``. A SQL
+    migration (``inventory.is_migration``) always fails: the inventory never offers one, and a
+    comment in it breaks the tools that checksum it.
+    """
+    lang = _judgeable(rel)
+    if isinstance(lang, Result):
+        return lang
     top = toplevel(repo)
     if top is None:
         return Result(rel, "none", False, f"not inside a git work tree: {repo}")
@@ -780,9 +800,9 @@ def verify_blobs(repo: Path, base: str, head: str, rel: str) -> Result:
     mode check is the committed one: a symlink on either side, or any mode that differs between
     the two commits, fails.
     """
-    lang = detect(rel)
-    if lang is None:
-        return Result(rel, "none", False, "no known comment syntax for this file type")
+    lang = _judgeable(rel)
+    if isinstance(lang, Result):
+        return lang
     top = toplevel(repo)
     if top is None:
         return Result(rel, "none", False, f"not inside a git work tree: {repo}")
