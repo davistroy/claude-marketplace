@@ -163,7 +163,7 @@ For each module id in {ids}, write the body of the `module` section for
 README" template, and the "Rules for every body" in
 {SKILL_DIR}/references/doc-templates.md.
 For each id, write the body to {RUN_DIR}/docs/<id>.md, then run:
-PYTHONPATH="{TOOL_SRC}" python3 -m document_repo upsert-section --file "{TARGET}/<module.path>/README.md" --section module --content-file "{RUN_DIR}/docs/<id>.md"
+PYTHONPATH="{TOOL_SRC}" python3 -m document_repo upsert-section --repo "{TARGET}" --file "{TARGET}/<module.path>/README.md" --section module --content-file "{RUN_DIR}/docs/<id>.md"
 Skip the root module (path ".") and any module whose status is not_analyzed:
 the root README is written separately. If upsert-section exits 2, do not retry.
 Copy its message into your reply. Never edit README text outside the markers.

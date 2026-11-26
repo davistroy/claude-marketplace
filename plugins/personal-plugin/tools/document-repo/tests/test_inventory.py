@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -337,3 +338,48 @@ def test_other_files_are_not_migrations(make_repo, rel: str) -> None:
 
 def test_migration_is_a_known_skip_reason() -> None:
     assert "migration" in SKIP_REASONS
+
+
+needs_symlinks = pytest.mark.skipif(
+    sys.platform == "win32", reason="symlinks need elevated rights on Windows"
+)
+
+
+@needs_symlinks
+def test_tracked_symlinks_are_skipped(make_repo, git, tmp_path: Path) -> None:
+    # H-SYM: a commenter's write follows a link, so a link leaving the repo would edit a file
+    # git cannot restore, and one inside it would give two modules the same inode.
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "deploy.sh").write_text("echo deploy\n")
+    (outside / "lib").mkdir()
+    (outside / "lib" / "x.py").write_text("x = 1\n")
+    repo = make_repo({"src/real.py": "x = 1\n", "src/pkg/m.py": "y = 1\n"})
+    (repo / "deploy.sh").symlink_to("../outside/deploy.sh")
+    (repo / "alias.py").symlink_to("src/real.py")
+    (repo / "linked").symlink_to("src/pkg")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "links")
+    by = {f["path"]: f for f in build_inventory(repo)["files"]}
+    assert by["deploy.sh"]["skip"] == "symlink"
+    assert by["alias.py"]["skip"] == "symlink"
+    assert by["src/real.py"]["skip"] is None and by["src/pkg/m.py"]["skip"] is None
+    # A tracked directory symlink is one git entry (not listed as a file); a file that git
+    # lists under a symlinked directory is skipped for its component.
+    assert "linked" not in by
+    assert skip_reason(repo, "linked/m.py") == "symlink"
+    # Nothing behind a link is read: sizes are the link's own, lines are not counted.
+    assert by["deploy.sh"]["lines"] == 0
+    assert by["deploy.sh"]["bytes"] == len("../outside/deploy.sh")
+
+
+@needs_symlinks
+def test_walk_fallback_skips_symlinks(tmp_path: Path) -> None:
+    (tmp_path / "real.py").write_text("x = 1\n")
+    (tmp_path / "alias.py").symlink_to("real.py")
+    by = {f["path"]: f for f in build_inventory(tmp_path)["files"]}
+    assert by["alias.py"]["skip"] == "symlink" and by["real.py"]["skip"] is None
+
+
+def test_symlink_is_a_known_skip_reason() -> None:
+    assert "symlink" in SKIP_REASONS

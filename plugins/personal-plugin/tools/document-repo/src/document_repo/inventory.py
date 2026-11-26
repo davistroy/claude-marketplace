@@ -28,6 +28,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 has no tomllib
 
 SKIP_REASONS = frozenset(
     {
+        "symlink",
         "skipped-dir",
         "lock-file",
         "minified",
@@ -181,9 +182,28 @@ def list_files(root: Path) -> list[str]:
     return sorted({n for n in names if n and (root / n).is_file()})
 
 
+def _through_symlink(root: Path, parts: tuple[str, ...]) -> bool:
+    """True when ``root / parts`` is a symlink or sits under one (``lstat`` of each component).
+
+    A commenter's write follows a link (H-SYM): one leaving the repo edits a file git cannot
+    restore, and one inside it gives two modules the same file, so parallel commenters race.
+    """
+    path = root
+    for part in parts:
+        path = path / part
+        if path.is_symlink():
+            return True
+    return False
+
+
 def skip_reason(root: Path, rel: str) -> str | None:
-    """Return why ``rel`` must not be commented, or None when it should be."""
+    """Return why ``rel`` must not be commented, or None when it should be.
+
+    A symlink is decided first and nothing behind it is opened.
+    """
     parts = PurePosixPath(rel).parts
+    if _through_symlink(root, parts):
+        return "symlink"
     if _in_skipped_dir(parts):
         return "skipped-dir"
     name = parts[-1]
@@ -310,12 +330,13 @@ def build_inventory(root: Path) -> dict[str, Any]:
     for rel in rels:
         reason = skip_reason(root, rel)
         lang = detect(rel)
+        unread = reason in ("binary", "symlink")
         files.append(
             {
                 "path": rel,
                 "lang": lang.name if lang else None,
-                "lines": 0 if reason == "binary" else count_lines(root / rel),
-                "bytes": (root / rel).stat().st_size,
+                "lines": 0 if unread else count_lines(root / rel),
+                "bytes": (root / rel).lstat().st_size,
                 "skip": reason,
             }
         )

@@ -223,7 +223,7 @@ Skip this phase when `--phase` is `comments` or `explorer`. Follow
 2. **Root files.** Write each section body for the root `README.md` (`overview`, `quick-start`, `repo-map`, `explorer`), `AGENTS.md` (`agents`), `docs/ARCHITECTURE.md` (`architecture`) and `docs/GLOSSARY.md` (`glossary`). Use `$RUN_DIR/model.json` and the `entry_candidates` in `$RUN_DIR/inventory.json`. Save each body as `$RUN_DIR/docs/_<file>-<section>.md`; the underscore keeps it apart from module ids. Then write it:
 
    ```bash
-   PYTHONPATH="$TOOL_SRC" python3 -m document_repo upsert-section --file "$TARGET/README.md" --section overview --content-file "$RUN_DIR/docs/_readme-overview.md"
+   PYTHONPATH="$TOOL_SRC" python3 -m document_repo upsert-section --repo "$TARGET" --file "$TARGET/README.md" --section overview --content-file "$RUN_DIR/docs/_readme-overview.md"
    ```
 
    Exit 2 prints the reason on stderr. Fix the body and run it again. If the reason is an unclosed fence in the existing file, leave that file alone and report it.

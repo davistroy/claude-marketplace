@@ -223,7 +223,7 @@ def _cmd_upsert_section(args: argparse.Namespace) -> int:
 
     try:
         body = args.content_file.read_text(encoding="utf-8")
-        upsert_file(args.file, args.section, body)
+        upsert_file(args.file, args.section, body, args.repo)
     except (OSError, ValueError) as exc:
         sys.stderr.write(f"upsert-section: {exc}\n")
         return 2
@@ -235,6 +235,12 @@ def _register_upsert_section(sub: Any) -> None:
     p.add_argument("--file", type=Path, required=True)
     p.add_argument("--section", required=True)
     p.add_argument("--content-file", type=Path, required=True)
+    p.add_argument(
+        "--repo",
+        type=Path,
+        help="top level of the git work tree the file must resolve into "
+        "(default: the work tree that holds --file)",
+    )
     p.set_defaults(func=_cmd_upsert_section)
 
 

@@ -3,12 +3,12 @@
 Every generated block of documentation sits between two marker lines and is written with `upsert-section`:
 
 ```bash
-PYTHONPATH="{TOOL_SRC}" python3 -m document_repo upsert-section --file <file> --section <name> --content-file <tmp.md>
+PYTHONPATH="{TOOL_SRC}" python3 -m document_repo upsert-section --repo "{TARGET}" --file <file> --section <name> --content-file <tmp.md>
 ```
 
 Run the command as written in your prompt, with `{TOOL_SRC}` already filled in. Do not rely on a `$TOOL_SRC` variable: a subagent's shell does not have it, and no shell keeps variables between Bash calls.
 
-Write the body to a temporary file under the run directory first. The command prints nothing and exits 0 on success. On failure it prints `upsert-section: <reason>` to stderr and exits 2.
+Write the body to a temporary file under the run directory first. The command prints nothing and exits 0 on success. On failure it prints `upsert-section: <reason>` to stderr and exits 2. `--repo` names the target's work-tree top level; without it the command uses the work tree that holds `--file`.
 
 The tool replaces only the text between `<!-- document-repo:start:<name> -->` and `<!-- document-repo:end:<name> -->`. When the markers are absent it appends the section at the end of the file after one blank line. It creates a missing file and its parent directories. Every byte outside the markers, including CRLF line endings and trailing blank lines, comes back unchanged. Never merge or rewrite human text yourself.
 
@@ -36,7 +36,7 @@ Write a module README for every module with status `analyzed`, except the root m
 5. **Keep the H1 when the file is new or already holds this section's start marker.** Each template below starts with its H1 where it has one. A file with the marker was made by an earlier run, so keep the H1 and each run writes the same text. Drop the H1 only when the file exists with its own title and has no start marker for this section.
 6. **Do not cite line numbers.** Lines shift with every code change, and nothing rewrites the docs when they do. Cite file paths. The explorer carries the line links. The one exception is an `agent_notes.traps` item, which keeps the `path:line` the model gives it.
 7. **Links are relative to the file you are writing.** From the root, `src/api/README.md`. From `docs/`, `../src/api/README.md`. From `src/api/README.md` to the `db` module, `../../db/README.md`. Link to a module README only when that module has one; otherwise write its name without a link.
-8. **Write through symlinks knowingly.** `upsert-section` resolves a symlink and writes the target, so `CLAUDE.md -> AGENTS.md` would receive the pointer inside `AGENTS.md` itself. Check `CLAUDE.md` first. If it resolves to the same file as `AGENTS.md`, skip `agents-pointer`.
+8. **Write through symlinks knowingly.** `upsert-section` resolves a symlink and writes the target only when the target stays inside the `--repo` work tree and outside `.git`; a link that leaves the repo, or a dangling link, exits 2 and writes nothing (report the file and move on, never write it another way). An in-repo link is written through, so `CLAUDE.md -> AGENTS.md` would receive the pointer inside `AGENTS.md` itself. Check `CLAUDE.md` first. If it resolves to the same file as `AGENTS.md`, skip `agents-pointer`.
 9. Inline code in the model uses single backticks. Keep them.
 
 ## Root README
