@@ -609,3 +609,104 @@ def test_a_stray_git_entry_that_is_not_a_top_level_is_refused(tmp_path: Path) ->
     with pytest.raises(ValueError, match="not a work-tree top level"):
         upsert_file(tmp_path / "sub" / "README.md", "a", "gen")
     assert not (tmp_path / "sub" / "README.md").exists()
+
+
+# --- review fix 3: .git in any case, and the real git directory wherever it is ------------------
+
+
+def _git_dir_init(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    return repo
+
+
+@needs_symlinks
+@pytest.mark.parametrize(
+    "link,target",
+    [
+        ("CLAUDE.md", ".Git/config"),
+        ("README.md", ".GIT/hooks/pre-commit"),
+        ("AGENTS.md", ".git/./config"),
+    ],
+)
+def test_a_link_into_the_git_directory_in_any_case_is_refused(
+    tmp_path: Path, link: str, target: str
+) -> None:
+    # Reviewer PoC s1: on a case-insensitive file system .Git/config is .git/config.
+    repo = _git_dir_init(tmp_path)
+    config = (repo / ".git" / "config").read_bytes()
+    (repo / link).symlink_to(target)
+    with pytest.raises(ValueError):
+        upsert_file(repo / link, "a", "gen", repo)
+    assert (repo / ".git" / "config").read_bytes() == config
+    assert not (repo / ".git" / "hooks" / "pre-commit").exists()
+
+
+@needs_symlinks
+def test_a_directory_link_into_the_git_directory_in_any_case_is_refused(tmp_path: Path) -> None:
+    # Reviewer PoC s2: docs -> .GIT, then docs/x.md.
+    repo = _git_dir_init(tmp_path)
+    (repo / "docs").symlink_to(".GIT")
+    with pytest.raises(ValueError):
+        upsert_file(repo / "docs" / "x.md", "a", "gen", repo)
+    assert not (repo / ".git" / "x.md").exists()
+
+
+def test_a_path_spelled_with_another_case_git_is_refused(tmp_path: Path) -> None:
+    repo = _git_dir_init(tmp_path)
+    with pytest.raises(ValueError, match=r"\.git"):
+        upsert_file(repo / ".GIT" / "description", "a", "gen", repo)
+
+
+@needs_symlinks
+def test_a_separate_git_dir_inside_the_work_tree_is_refused(tmp_path: Path) -> None:
+    # `.git` is a file (gitdir: pointer) and the real git directory has another name.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "init", "-q", f"--separate-git-dir={repo / 'gd'}", str(repo)], check=True
+    )
+    assert (repo / ".git").is_file()
+    config = (repo / "gd" / "config").read_bytes()
+    (repo / "CLAUDE.md").symlink_to("gd/config")
+    with pytest.raises(ValueError, match="git directory"):
+        upsert_file(repo / "CLAUDE.md", "a", "gen", repo)
+    with pytest.raises(ValueError, match="git directory"):
+        upsert_file(repo / "gd" / "new.md", "a", "gen", repo)
+    with pytest.raises(ValueError, match=r"\.git"):
+        upsert_file(repo / ".git", "a", "gen", repo)
+    assert (repo / "gd" / "config").read_bytes() == config
+
+
+@needs_symlinks
+def test_a_worktree_link_into_the_common_git_dir_is_refused(tmp_path: Path) -> None:
+    # A linked worktree inside the main work tree: its common git directory is the main .git.
+    main = _git_dir_init(tmp_path)
+    git = ["git", "-C", str(main), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "i"], check=True)
+    subprocess.run([*git, "worktree", "add", "-q", str(main / "wt")], check=True)
+    wt = main / "wt"
+    (wt / "README.md").symlink_to("../.git/config")
+    with pytest.raises(ValueError):
+        upsert_file(wt / "README.md", "a", "gen", wt)
+    (main / "NOTES.md").symlink_to(".git/worktrees/wt/HEAD")
+    with pytest.raises(ValueError):
+        upsert_file(main / "NOTES.md", "a", "gen", main)
+
+
+def test_an_unknown_git_directory_fails_closed(tmp_path: Path, monkeypatch) -> None:
+    import document_repo.docs as docs_mod
+
+    repo = _git_dir_init(tmp_path)
+    real_run = subprocess.run
+
+    def no_git_dir(cmd, *a, **k):
+        if "--git-common-dir" in cmd:
+            return subprocess.CompletedProcess(cmd, 128, b"", b"fatal")
+        return real_run(cmd, *a, **k)
+
+    monkeypatch.setattr(docs_mod.subprocess, "run", no_git_dir)
+    with pytest.raises(ValueError, match="cannot locate the git directory"):
+        upsert_file(repo / "README.md", "a", "gen", repo)
+    assert not (repo / "README.md").exists()

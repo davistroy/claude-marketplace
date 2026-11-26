@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
@@ -244,9 +245,36 @@ def contained_target(path: Path, repo: Path | None = None) -> Path:
     target = os.path.realpath(lexical)
     if target == real_top or not _is_under(target, real_top):
         raise ValueError(f"{path} resolves to {target}, outside the work tree {real_top}")
-    if ".git" in Path(os.path.relpath(target, real_top)).parts:
+    # Case-folded: on a case-insensitive file system ``.Git/config`` is ``.git/config`` and
+    # realpath keeps the spelling it was given (review fix 3).
+    if any(p.casefold() == ".git" for p in Path(os.path.relpath(target, real_top)).parts):
         raise ValueError(f"{path} resolves to {target}, inside the .git directory")
+    for git_dir in _git_dirs(Path(real_top)):
+        step = Path(target)
+        while True:
+            if os.path.exists(step) and os.path.samefile(step, git_dir):
+                raise ValueError(f"{path} resolves to {target}, inside the git directory {git_dir}")
+            if str(step) == real_top or step.parent == step:
+                break
+            step = step.parent
     return Path(target)
+
+
+def _git_dirs(top: Path) -> list[Path]:
+    """The real git directory and common directory of the work tree ``top``.
+
+    A ``.git`` file (``gitdir:`` pointer, a linked worktree, ``--separate-git-dir``) can put
+    them anywhere, under any name, so they are compared by identity (``samefile``), not by name.
+    ``ValueError`` when git cannot say (fail closed).
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(top), "rev-parse", "--git-dir", "--git-common-dir"],
+        capture_output=True,
+    )
+    found = [line for line in os.fsdecode(proc.stdout).splitlines() if line]
+    if proc.returncode != 0 or len(found) != 2:
+        raise ValueError(f"cannot locate the git directory of {top}")
+    return [top / d for d in found if os.path.exists(top / d)]
 
 
 def upsert_file(path: Path, name: str, body: str, repo: Path | None = None) -> None:
