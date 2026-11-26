@@ -10,7 +10,8 @@ each file it compares the version at a base git ref with the working tree:
   ``.jsx`` JSX; see ts_print.js). A parse error in either version fails the file, because
   TypeScript skips the tokens it cannot parse. Layout a comment changes without changing
   the code is normalised first (empty blocks, JSX children the compiler discards). The
-  compiler is found from explicit candidates only (``ts_search_paths``), and its version is
+  compiler is found from explicit candidates only (``ts_search_paths``), must be the pinned
+  ``TS_VERSION`` with a known ``lib/typescript.js`` hash, and its version and location are
   recorded in the passing result. There is no fallback: without
   node and typescript a JS/TS file fails, because no line-based check can
   tell a comment from text inside a template literal, regex or JSX.
@@ -20,7 +21,9 @@ each file it compares the version at a base git ref with the working tree:
 Before any method, git must report no mode change against the base (``_mode_guard``): neither
 ``git diff --raw`` (work tree) nor ``git diff --cached --raw`` (index) may show one, so git's
 own ``core.fileMode`` rule decides what counts, and neither side may be a symlink. A new
-executable bit changes behaviour without changing one line.
+executable bit changes behaviour without changing one line. Before that, no attribute source
+outside the commit may apply (``attribute_source_problem``): attributes decide line-ending
+conversion and filters, so an uncommitted one would decide what is judged.
 
 After a method passes, ``guards.common_guards`` runs for every method (directives, line
 endings, protected headers, continuations). comment-lines also runs ``guards.context_guard``
@@ -49,7 +52,7 @@ from pathlib import Path
 from typing import Any
 
 from .guards import common_guards, context_guard
-from .inventory import OUTPUT_DIR
+from .inventory import OUTPUT_DIR, is_migration
 from .languages import Lang, detect
 
 
@@ -93,6 +96,167 @@ def git_show(repo: Path, ref: str, rel: str) -> str | None:
         return proc.stdout.decode("utf-8")
     except UnicodeDecodeError:
         return None
+
+
+def git_blob(repo: Path, ref: str, rel: str) -> str | None:
+    """Return ``rel`` at ``ref`` exactly as git stores it (no filters), or None if it was not there.
+
+    What a commit changed is the difference between two stored blobs. Read through
+    ``--filters``, both sides would be converted by whatever attributes the work tree holds
+    today, which need not be the commit's (review fix 1): an untracked ``* text eol=crlf`` turns a
+    committed LF -> CRLF change into two equal CRLF texts.
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "blob", f"{ref}:{rel}"], capture_output=True
+    )
+    if proc.returncode != 0:
+        return None
+    try:
+        return proc.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+#: The name git reads per-directory attributes from. Compared case-insensitively: on a
+#: case-insensitive file system ``.GitAttributes`` is opened as ``.gitattributes``.
+GITATTRIBUTES = ".gitattributes"
+
+#: Pathspec for every ``.gitattributes`` in the repository, in any case.
+_ATTR_PATHSPEC = ":(glob,icase)**/.gitattributes"
+
+#: Directories git falls back to for the system attributes file when ``git var`` cannot say.
+_SYSTEM_ATTR_FALLBACK = ("/etc/gitattributes", "/usr/local/etc/gitattributes")
+
+
+def _git_plain(top: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
+    """Run git with pathspec magic on, whatever the caller's environment says."""
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("GIT_LITERAL_PATHSPECS", "GIT_NOGLOB_PATHSPECS", "GIT_GLOB_PATHSPECS")
+    }
+    return subprocess.run(["git", "-C", str(top), *args], capture_output=True, env=env)
+
+
+def _has_rules(path: Path) -> bool:
+    """True when the attributes file ``path`` holds any line that is not blank or a comment.
+
+    A file that exists but cannot be read counts as holding rules (fail closed). Read a line at a
+    time, so a huge file costs one line of memory.
+    """
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return any(line.strip() and not line.lstrip().startswith("#") for line in fh)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return path.exists()
+
+
+def _outside_attr_files(top: Path) -> list[Path] | None:
+    """The attribute files git reads that no commit holds: info, per-user and system-wide.
+
+    None when git cannot say where the repository's ``info/attributes`` is (fail closed).
+    """
+    proc = _git_plain(top, "rev-parse", "--git-path", "info/attributes")
+    if proc.returncode != 0:
+        return None
+    info = Path(os.fsdecode(proc.stdout.strip()))
+    files = [info if info.is_absolute() else top / info]
+    for var in ("GIT_ATTR_GLOBAL", "GIT_ATTR_SYSTEM"):
+        proc = _git_plain(top, "var", var)
+        if proc.returncode == 0 and proc.stdout.strip():
+            files.append(Path(os.fsdecode(proc.stdout.strip())))
+        elif proc.returncode != 0 and var == "GIT_ATTR_GLOBAL":
+            # Older git (< 2.42) has no ``git var GIT_ATTR_*``: derive the per-user file.
+            conf = _git_plain(top, "config", "--path", "--get", "core.attributesFile")
+            if conf.returncode == 0 and conf.stdout.strip():
+                files.append(Path(os.fsdecode(conf.stdout.strip())).expanduser())
+            xdg = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+            files.append(Path(xdg, "git", "attributes"))
+        elif proc.returncode != 0 and not os.environ.get("GIT_ATTR_NOSYSTEM"):
+            files.extend(Path(p) for p in _SYSTEM_ATTR_FALLBACK)
+    return files
+
+
+def _attr_file_problem(top: Path, rel: str) -> str | None:
+    """Why the ``.gitattributes`` at ``rel`` is not exactly HEAD's, or None when it is.
+
+    It must be tracked, carry no ``assume-unchanged`` / ``skip-worktree`` flag, and match HEAD
+    in both the index and the work tree. A file in neither the index nor the work tree is fine.
+    """
+    tag = _git_plain(top, "--literal-pathspecs", "ls-files", "-v", "-z", "--", rel).stdout[:1]
+    if not tag:
+        if os.path.lexists(top / rel):
+            return f"{rel} is not tracked"
+        return None
+    if tag != b"H":
+        return f"{rel} is flagged assume-unchanged or skip-worktree"
+    for extra in ((), ("--cached",)):
+        proc = _git_plain(top, "--literal-pathspecs", "diff", "--quiet", *extra, "HEAD", "--", rel)
+        if proc.returncode != 0:
+            return f"{rel} differs from HEAD"
+    return None
+
+
+def attribute_source_problem(top: Path, rel: str | Iterable[str] | None = None) -> str | None:
+    """Refuse when attributes that no commit holds could decide how a file is read (review fix 1).
+
+    Attributes pick line-ending conversion and filters, so they decide what ``git_show``,
+    ``git add`` and ``hash-object --path`` see. Only attributes committed at HEAD and unchanged
+    are trusted. Refused: a ``.git/info/attributes``, per-user (``core.attributesFile``) or
+    system attributes file with any rule; ``attr.tree`` or ``GIT_ATTR_SOURCE`` (attributes read
+    from another tree); and a ``.gitattributes`` (any case) that is untracked, ignored, flagged
+    ``assume-unchanged`` / ``skip-worktree`` or differs from HEAD. With ``rel`` (one path or
+    several) only the directories that hold those paths are looked at: git reads a
+    ``.gitattributes`` only for paths at or below its own directory, so one inside an ignored
+    ``node_modules/pkg/`` cannot change how a judged file is read. Without ``rel``, the whole
+    repository, ignored directories included.
+    """
+    outside = _outside_attr_files(top)
+    if outside is None:
+        return "attributes cannot be checked: git cannot locate info/attributes"
+    for path in outside:
+        if _has_rules(path):
+            return f"attributes outside any commit: {path} sets rules"
+    if os.environ.get("GIT_ATTR_SOURCE"):
+        return "attributes outside any commit: GIT_ATTR_SOURCE is set"
+    if _git_plain(top, "config", "--get", "attr.tree").returncode == 0:
+        return "attributes outside any commit: attr.tree is configured"
+    names: set[str] = set()
+    if rel is None:
+        for args in (
+            ("ls-files", "-z"),
+            ("ls-files", "-z", "--others"),
+            ("diff", "--name-only", "-z", "HEAD"),
+            ("diff", "--name-only", "-z", "--cached", "HEAD"),
+        ):
+            proc = _git_plain(top, *args, "--", _ATTR_PATHSPEC)
+            if proc.returncode != 0:
+                return "attributes cannot be checked: git failed listing .gitattributes files"
+            names.update(os.fsdecode(p) for p in proc.stdout.split(b"\0") if p)
+    else:
+        dirs: set[str] = set()
+        for one in [rel] if isinstance(rel, str) else rel:
+            parts = Path(one).parts[:-1]
+            dirs.update("/".join(parts[:depth]) for depth in range(len(parts) + 1))
+        for here in sorted(dirs):
+            names.add(f"{here}/{GITATTRIBUTES}" if here else GITATTRIBUTES)
+            try:
+                entries = os.listdir(top / here)
+            except OSError:
+                continue
+            names.update(
+                f"{here}/{e}" if here else e for e in entries if e.lower() == GITATTRIBUTES
+            )
+    for name in sorted(names):
+        why = _attr_file_problem(top, name)
+        if why:
+            return (
+                f"attributes outside any commit: {why}, so line endings and filters would not "
+                "be the commit's. Commit, restore or remove it and run again"
+            )
+    return None
 
 
 def git_size(repo: Path, ref: str, rel: str) -> int | None:
@@ -311,6 +475,17 @@ def _comment_lines(rel: str, before: str, after: str, lang: Lang) -> Result:
 
 TS_SCRIPT = Path(__file__).with_name("ts_print.js")
 
+#: The one TypeScript compiler the printer trusts (SEC-01): its ``package.json`` must say name
+#: ``typescript`` and this version, and ``lib/typescript.js`` must hash to ``TS_SHA256``. npm
+#: tarballs are deterministic, so every install of 5.6.3 holds these bytes. Mirrored in
+#: ``ts_print.js``, which checks them before running any of the package; a test keeps the two
+#: in step.
+TS_VERSION = "5.6.3"
+TS_SHA256 = "f316520790d4db220a10d890c5f85310e26a1bd3c104b8d3b5eb62ba0491651b"
+
+#: Set to exactly ``1`` to let the printer also look in the target repo's own directories.
+TS_ALLOW_REPO_ENV = "DOCUMENT_REPO_TS_ALLOW_REPO"
+
 #: Seconds one printer run may take, and the V8 heap (MB) it may use. A run that exceeds either
 #: fails the file instead of hanging or growing past the per-process memory ceiling.
 TS_TIMEOUT = 120
@@ -366,31 +541,37 @@ def _dirs_up_to(start: Path, root: Path) -> list[Path]:
 def ts_search_paths(repo: Path, rel: str | None = None) -> list[str]:
     """Candidate locations for the typescript package, in the order ``ts_print.js`` tries them.
 
-    ``ts_print.js`` loads the first candidate that holds the package and never looks anywhere
-    else: it does not walk up from a candidate, so nothing above the repo root can be executed.
-    A candidate is a project directory (it holds ``node_modules/typescript``), a ``node_modules``
-    directory, or the package directory itself. In order:
+    ``ts_print.js`` loads the first candidate that holds the pinned compiler (name
+    ``typescript``, version ``TS_VERSION``, ``lib/typescript.js`` hashing to ``TS_SHA256``) and
+    skips, without running, any candidate holding something else. It never walks up from a
+    candidate. A candidate is a project directory (it holds ``node_modules/typescript``), a
+    ``node_modules`` directory, or the package directory itself. In order:
 
-    1. every directory from the one holding ``repo / rel`` up to and including ``repo``, nearest
-       first, so in a monorepo ``packages/web/node_modules`` beats the root's. Never above
-       ``repo``; a ``rel`` that leaves the work tree contributes nothing. Without ``rel`` this
-       is just ``repo``.
-    2. each entry of ``DOCUMENT_REPO_TS_PATHS`` (an ``os.pathsep``-separated list).
-    3. the npm global root, asked from a neutral directory so a repo ``.npmrc`` cannot steer it.
+    1. each entry of ``DOCUMENT_REPO_TS_PATHS`` (an ``os.pathsep``-separated list).
+    2. the npm global root, asked from a neutral directory so a repo ``.npmrc`` cannot steer it.
+    3. only when ``DOCUMENT_REPO_TS_ALLOW_REPO=1``: every directory from the one holding
+       ``repo / rel`` up to and including ``repo``, nearest first. Never above ``repo``; a
+       ``rel`` that leaves the work tree contributes nothing. Without ``rel`` this is just
+       ``repo``. The target's own directories come last and only on request because whatever
+       they hold is the code being judged (SEC-01): a ``typescript`` there is untrusted even
+       when it passes the pin, so it never outranks a tool-owned one.
 
     A directory that repeats an earlier one is dropped, keeping its first place.
     """
-    root = Path(os.path.normpath(repo))
-    ordered = [str(root)]
-    if rel is not None:
-        own = Path(os.path.normpath(root / rel)).parent
-        ordered[:0] = [str(d) for d in _dirs_up_to(own, root)]
+    ordered: list[str] = []
     extra = os.environ.get("DOCUMENT_REPO_TS_PATHS")
     if extra:
         ordered.extend(p for p in extra.split(os.pathsep) if p)
     global_root = _npm_global_root()
     if global_root:
         ordered.append(global_root)
+    if os.environ.get(TS_ALLOW_REPO_ENV) == "1":
+        root = Path(os.path.normpath(repo))
+        local = [str(root)]
+        if rel is not None:
+            own = Path(os.path.normpath(root / rel)).parent
+            local = [str(d) for d in _dirs_up_to(own, root)] or local
+        ordered.extend(local)
     seen: set[str] = set()
     unique: list[str] = []
     for candidate in ordered:
@@ -441,11 +622,12 @@ def typescript_available(repo: Path) -> bool:
     return proc is not None and proc.returncode == 0
 
 
-def _printer_verdict(stdout: str) -> tuple[bool, int, int, str] | None:
-    """Parse ``ts_print.js`` output into ``(equal, before_errors, after_errors, version)``.
+def _printer_verdict(stdout: str) -> tuple[bool, int, int, str, str] | None:
+    """Parse ``ts_print.js`` output into ``(equal, before_errors, after_errors, version, where)``.
 
-    None when any of the four is missing or of the wrong type. ``version`` is the compiler's own
-    ``ts.version``: output that does not say which compiler ran is not trusted.
+    None when any of the five is missing or of the wrong type, or the version is not
+    ``TS_VERSION``. ``version`` is the compiler's own ``ts.version`` and ``where`` the package
+    directory it was loaded from: output that does not say which compiler ran is not trusted.
     """
     try:
         data = json.loads(stdout)
@@ -453,17 +635,18 @@ def _printer_verdict(stdout: str) -> tuple[bool, int, int, str] | None:
         return None
     if not isinstance(data, dict):
         return None
-    equal, before_errors, after_errors, version = (
-        data.get(key) for key in ("equal", "before_errors", "after_errors", "version")
+    equal, before_errors, after_errors, version, where = (
+        data.get(key) for key in ("equal", "before_errors", "after_errors", "version", "location")
     )
     if (
         isinstance(equal, bool)
         and type(before_errors) is int
         and type(after_errors) is int
-        and isinstance(version, str)
-        and version
+        and version == TS_VERSION
+        and isinstance(where, str)
+        and where
     ):
-        return equal, before_errors, after_errors, version
+        return equal, before_errors, after_errors, version, where
     return None
 
 
@@ -478,7 +661,7 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
     verdict = _printer_verdict(proc.stdout)
     if verdict is None:
         return Result(rel, "ts-printer", False, "printer returned unreadable output")
-    equal, before_errors, after_errors, version = verdict
+    equal, before_errors, after_errors, version, where = verdict
     if before_errors or after_errors:
         # TypeScript skips the tokens it cannot parse, so two broken versions can print equal
         # while the code differs. Neither side may have a parse error.
@@ -488,7 +671,7 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
         )
         return Result(rel, "ts-printer", False, why)
     if equal:
-        return Result(rel, "ts-printer", True, f"ts-printer (typescript {version})")
+        return Result(rel, "ts-printer", True, f"ts-printer (typescript {version} from {where})")
     return Result(
         rel, "ts-printer", False, "code changed (printed output differs with comments removed)"
     )
@@ -496,7 +679,7 @@ def _ts_verify(repo: Path, rel: str, before: str, after: str) -> Result | None:
 
 TS_MISSING = (
     "TypeScript compiler not available; JS/TS files cannot be verified "
-    "(install with: npm install -g typescript)"
+    f"(install with: npm install -g typescript@{TS_VERSION})"
 )
 
 _SYMLINK = "120000"
@@ -560,17 +743,40 @@ def _mode_guard(top: Path, ref: str, rel: str) -> str | None:
     )
 
 
-def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
-    """Compare the working-tree ``rel`` with ``before_ref``. See module docstring.
+MIGRATION = (
+    "SQL migration: never commented, because migration tools checksum applied files (restore it)"
+)
 
-    ``rel`` is relative to the top level of the work tree that contains ``repo``.
+
+def _judgeable(rel: str) -> Lang | Result:
+    """The language of ``rel``, or the failure for a path no method may judge.
+
+    No method judges a file with no known comment syntax, or a SQL migration.
     """
     lang = detect(rel)
     if lang is None:
         return Result(rel, "none", False, "no known comment syntax for this file type")
+    if is_migration(rel):
+        return Result(rel, "none", False, MIGRATION)
+    return lang
+
+
+def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
+    """Compare the working-tree ``rel`` with ``before_ref``. See module docstring.
+
+    ``rel`` is relative to the top level of the work tree that contains ``repo``. A SQL
+    migration (``inventory.is_migration``) always fails: the inventory never offers one, and a
+    comment in it breaks the tools that checksum it.
+    """
+    lang = _judgeable(rel)
+    if isinstance(lang, Result):
+        return lang
     top = toplevel(repo)
     if top is None:
         return Result(rel, "none", False, f"not inside a git work tree: {repo}")
+    why = attribute_source_problem(top, rel)
+    if why:
+        return Result(rel, "none", False, why)
     before = git_show(top, before_ref, rel)
     if before is None:
         return Result(rel, "none", False, f"file is not in {before_ref} (or is not UTF-8)")
@@ -582,6 +788,47 @@ def verify_file(repo: Path, rel: str, before_ref: str = "HEAD") -> Result:
         after = (top / rel).read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         return Result(rel, "none", False, f"cannot read edited file: {exc}")
+    return _judge(top, rel, before, after, lang)
+
+
+def verify_blobs(repo: Path, base: str, head: str, rel: str) -> Result:
+    """Compare ``rel`` as committed at ``head`` with ``base``, reading both from git objects.
+
+    The work tree, the index and ``git status`` play no part, so an ``assume-unchanged`` or
+    ``skip-worktree`` flag, a stale stat cache or a filesystem monitor cannot make a committed
+    change look like the comment-only bytes on disk (SE-H1). Both sides are the blobs exactly as
+    git stores them (``git_blob``, no filters): the change a commit makes is the change between
+    stored bytes, and attributes the work tree holds today cannot convert it away, so a committed
+    LF -> CRLF change fails the line-ending guard (review fix 1). The attribute sources are
+    checked as ``verify_file`` checks them, so the two judges refuse the same repositories. The
+    mode check is the committed one: a symlink on either side, or any mode that differs between
+    the two commits, fails.
+    """
+    lang = _judgeable(rel)
+    if isinstance(lang, Result):
+        return lang
+    top = toplevel(repo)
+    if top is None:
+        return Result(rel, "none", False, f"not inside a git work tree: {repo}")
+    why = attribute_source_problem(top, rel)
+    if why:
+        return Result(rel, "none", False, why)
+    before = git_blob(top, base, rel)
+    if before is None:
+        return Result(rel, "none", False, f"file is not in {base} (or is not UTF-8)")
+    after = git_blob(top, head, rel)
+    if after is None:
+        return Result(rel, "none", False, f"file is not in {head} (or is not UTF-8)")
+    old, new = _base_mode(top, base, rel), _base_mode(top, head, rel)
+    if _SYMLINK in (old, new):
+        return Result(rel, "none", False, f"symlink: file mode {old} in base, {new} in {head}")
+    if old != new:
+        return Result(rel, "none", False, f"file mode changed: {old} -> {new} (committed)")
+    return _judge(top, rel, before, after, lang)
+
+
+def _judge(top: Path, rel: str, before: str, after: str, lang: Lang) -> Result:
+    """The language's proof, then the guards every method shares (and comment-lines' own)."""
     result = _method_result(top, rel, before, after, lang)
     if not result.ok:
         return result

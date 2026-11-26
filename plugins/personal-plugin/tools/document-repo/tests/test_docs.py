@@ -1,5 +1,6 @@
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -9,6 +10,14 @@ from document_repo.cli import main
 from document_repo.docs import marker_pair, upsert_file, upsert_section
 
 START, END = marker_pair("a")
+
+
+@pytest.fixture(autouse=True)
+def _tmp_is_a_work_tree(tmp_path: Path) -> None:
+    """upsert_file writes only inside a git work tree (H-SYM), so every tmp_path is one."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+
+
 START_B, END_B = marker_pair("b")
 
 
@@ -294,6 +303,7 @@ needs_symlinks = pytest.mark.skipif(
 
 @needs_symlinks
 def test_symlink_is_written_through_and_kept(tmp_path: Path) -> None:
+    # The in-repo CLAUDE.md -> AGENTS.md layout keeps working.
     real = tmp_path / "AGENTS.md"
     original = "# Agents\r\n\r\nHuman.\r\n"
     real.write_bytes(original.encode())
@@ -306,12 +316,137 @@ def test_symlink_is_written_through_and_kept(tmp_path: Path) -> None:
 
 
 @needs_symlinks
-def test_dangling_symlink_creates_its_target(tmp_path: Path) -> None:
+def test_in_repo_symlinked_directory_is_written_through(tmp_path: Path) -> None:
+    (tmp_path / "real").mkdir()
+    (tmp_path / "docs").symlink_to("real")
+    upsert_file(tmp_path / "docs" / "GLOSSARY.md", "a", "gen")
+    assert (tmp_path / "real" / "GLOSSARY.md").read_text().count("gen") == 1
+
+
+@needs_symlinks
+def test_dangling_symlink_is_refused(tmp_path: Path) -> None:
+    # Before H-SYM the link's target was created. A dangling link is refused, even in the repo.
     link = tmp_path / "CLAUDE.md"
     link.symlink_to("AGENTS.md")
-    upsert_file(link, "a", "gen")
-    assert link.is_symlink()
-    assert (tmp_path / "AGENTS.md").read_bytes() == f"{START}\ngen\n{END}\n".encode()
+    with pytest.raises(ValueError, match="dangling symlink"):
+        upsert_file(link, "a", "gen")
+    assert link.is_symlink() and not (tmp_path / "AGENTS.md").exists()
+
+
+def _outside_layout(tmp_path: Path) -> tuple[Path, Path]:
+    """``tmp_path/repo`` (a work tree) next to ``tmp_path/shared`` (not part of it)."""
+    repo, shared = tmp_path / "repo", tmp_path / "shared"
+    repo.mkdir()
+    shared.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    return repo, shared
+
+
+@needs_symlinks
+def test_symlink_out_of_the_repo_is_refused(tmp_path: Path) -> None:
+    # The review's PoC: README.md -> ../shared/x appended the section to the shared file.
+    repo, shared = _outside_layout(tmp_path)
+    (shared / "x").write_text("# Shared\n")
+    (repo / "README.md").symlink_to("../shared/x")
+    with pytest.raises(ValueError, match="outside the work tree"):
+        upsert_file(repo / "README.md", "a", "gen")
+    assert (shared / "x").read_text() == "# Shared\n"
+
+
+@needs_symlinks
+def test_dangling_symlink_out_of_the_repo_creates_nothing(tmp_path: Path) -> None:
+    repo, shared = _outside_layout(tmp_path)
+    (repo / "README.md").symlink_to("../shared/newdir/README.md")
+    with pytest.raises(ValueError):
+        upsert_file(repo / "README.md", "a", "gen")
+    assert not (shared / "newdir").exists()
+
+
+@needs_symlinks
+def test_directory_symlink_out_of_the_repo_is_refused(tmp_path: Path) -> None:
+    # The review's PoC: docs -> ../victim, then docs/ARCHITECTURE.md.
+    repo, _ = _outside_layout(tmp_path)
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    (repo / "docs").symlink_to("../victim")
+    with pytest.raises(ValueError, match="outside the work tree"):
+        upsert_file(repo / "docs" / "ARCHITECTURE.md", "a", "gen")
+    assert list(victim.iterdir()) == []
+
+
+@needs_symlinks
+def test_dangling_directory_symlink_is_refused(tmp_path: Path) -> None:
+    repo, _ = _outside_layout(tmp_path)
+    (repo / "docs").symlink_to("../victim")
+    with pytest.raises(ValueError):
+        upsert_file(repo / "docs" / "ARCHITECTURE.md", "a", "gen")
+    assert not (tmp_path / "victim").exists()
+
+
+@needs_symlinks
+def test_a_link_into_the_git_directory_is_refused(tmp_path: Path) -> None:
+    # Inside the work tree by path, but .git/hooks is code git runs.
+    (tmp_path / ".git" / "hooks").mkdir(exist_ok=True)
+    (tmp_path / "README.md").symlink_to(".git/hooks/pre-commit")
+    with pytest.raises(ValueError):
+        upsert_file(tmp_path / "README.md", "a", "gen")
+    assert not (tmp_path / ".git" / "hooks" / "pre-commit").exists()
+    with pytest.raises(ValueError, match=r"\.git"):
+        upsert_file(tmp_path / ".git" / "README.md", "a", "gen")
+
+
+@needs_symlinks
+def test_a_work_tree_reached_through_a_symlink_is_not_the_repo(tmp_path: Path) -> None:
+    # repo/a -> ../other, where other/sub is some other work tree: a file under repo/a/sub must
+    # not be judged against other/sub just because that is the nearest .git.
+    repo, _ = _outside_layout(tmp_path)
+    other = tmp_path / "other"
+    (other / "sub").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(other / "sub")], check=True)
+    (repo / "a").symlink_to("../other")
+    with pytest.raises(ValueError, match="symlink"):
+        upsert_file(repo / "a" / "sub" / "README.md", "a", "gen")
+    assert not (other / "sub" / "README.md").exists()
+    # Named explicitly, the repo decides, and the path leaves it.
+    with pytest.raises(ValueError, match="outside the work tree"):
+        upsert_file(repo / "a" / "sub" / "README.md", "a", "gen", repo=repo)
+
+
+def test_a_file_outside_any_work_tree_is_refused(tmp_path: Path) -> None:
+    subprocess.run(["rm", "-rf", str(tmp_path / ".git")], check=True)
+    with pytest.raises(ValueError, match="not inside a git work tree"):
+        upsert_file(tmp_path / "README.md", "a", "gen")
+    assert not (tmp_path / "README.md").exists()
+
+
+def test_explicit_repo_must_be_a_top_level_that_holds_the_file(tmp_path: Path) -> None:
+    repo, shared = _outside_layout(tmp_path)
+    (repo / "sub").mkdir()
+    with pytest.raises(ValueError, match="top level"):
+        upsert_file(repo / "README.md", "a", "gen", repo=repo / "sub")
+    with pytest.raises(ValueError, match="not under"):
+        upsert_file(shared / "README.md", "a", "gen", repo=repo)
+    upsert_file(repo / "README.md", "a", "gen", repo=repo)
+    assert "gen" in (repo / "README.md").read_text()
+
+
+@needs_symlinks
+def test_cli_refuses_a_link_out_of_the_repo_with_exit_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo, shared = _outside_layout(tmp_path)
+    (shared / "x").write_text("# Shared\n")
+    (repo / "README.md").symlink_to("../shared/x")
+    content = tmp_path / "c.md"
+    content.write_text("Hello")
+    assert _cli(repo / "README.md", "overview", content) == 2
+    assert "outside the work tree" in capsys.readouterr().err
+    argv = ["--repo", str(repo)]
+    assert _cli(repo / "README.md", "overview", content, *argv) == 2
+    assert (shared / "x").read_text() == "# Shared\n"
+    (repo / "README.md").unlink()
+    assert _cli(repo / "README.md", "overview", content, *argv) == 0
+    assert "Hello" in (repo / "README.md").read_text()
 
 
 # --- 5. No overlapping or nested sections -----------------------------------------------------
@@ -391,7 +526,7 @@ def test_non_utf8_file_raises_value_error(tmp_path: Path) -> None:
     assert target.read_bytes() == b"# Latin-1 \xe9 text\n"
 
 
-def _cli(target: Path, section: str, content: Path) -> int:
+def _cli(target: Path, section: str, content: Path, *extra: str) -> int:
     return main(
         [
             "upsert-section",
@@ -401,6 +536,7 @@ def _cli(target: Path, section: str, content: Path) -> int:
             section,
             "--content-file",
             str(content),
+            *extra,
         ]
     )
 
@@ -464,3 +600,113 @@ def test_cli_non_utf8_target_exits_2(tmp_path: Path, capsys: pytest.CaptureFixtu
     assert _cli(target, "overview", content) == 2
     assert "upsert-section: " in capsys.readouterr().err
     assert target.read_bytes() == b"\xff\xfe bad\n"
+
+
+def test_a_stray_git_entry_that_is_not_a_top_level_is_refused(tmp_path: Path) -> None:
+    # sub/.git is an empty directory, not a repository: git says the top is tmp_path, so the
+    # nearest .git does not name a work tree and nothing is written.
+    (tmp_path / "sub" / ".git").mkdir(parents=True)
+    with pytest.raises(ValueError, match="not a work-tree top level"):
+        upsert_file(tmp_path / "sub" / "README.md", "a", "gen")
+    assert not (tmp_path / "sub" / "README.md").exists()
+
+
+# --- review fix 3: .git in any case, and the real git directory wherever it is ------------------
+
+
+def _git_dir_init(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    return repo
+
+
+@needs_symlinks
+@pytest.mark.parametrize(
+    "link,target",
+    [
+        ("CLAUDE.md", ".Git/config"),
+        ("README.md", ".GIT/hooks/pre-commit"),
+        ("AGENTS.md", ".git/./config"),
+    ],
+)
+def test_a_link_into_the_git_directory_in_any_case_is_refused(
+    tmp_path: Path, link: str, target: str
+) -> None:
+    # Reviewer PoC s1: on a case-insensitive file system .Git/config is .git/config.
+    repo = _git_dir_init(tmp_path)
+    config = (repo / ".git" / "config").read_bytes()
+    (repo / link).symlink_to(target)
+    with pytest.raises(ValueError):
+        upsert_file(repo / link, "a", "gen", repo)
+    assert (repo / ".git" / "config").read_bytes() == config
+    assert not (repo / ".git" / "hooks" / "pre-commit").exists()
+
+
+@needs_symlinks
+def test_a_directory_link_into_the_git_directory_in_any_case_is_refused(tmp_path: Path) -> None:
+    # Reviewer PoC s2: docs -> .GIT, then docs/x.md.
+    repo = _git_dir_init(tmp_path)
+    (repo / "docs").symlink_to(".GIT")
+    with pytest.raises(ValueError):
+        upsert_file(repo / "docs" / "x.md", "a", "gen", repo)
+    assert not (repo / ".git" / "x.md").exists()
+
+
+def test_a_path_spelled_with_another_case_git_is_refused(tmp_path: Path) -> None:
+    repo = _git_dir_init(tmp_path)
+    with pytest.raises(ValueError, match=r"\.git"):
+        upsert_file(repo / ".GIT" / "description", "a", "gen", repo)
+
+
+@needs_symlinks
+def test_a_separate_git_dir_inside_the_work_tree_is_refused(tmp_path: Path) -> None:
+    # `.git` is a file (gitdir: pointer) and the real git directory has another name.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "init", "-q", f"--separate-git-dir={repo / 'gd'}", str(repo)], check=True
+    )
+    assert (repo / ".git").is_file()
+    config = (repo / "gd" / "config").read_bytes()
+    (repo / "CLAUDE.md").symlink_to("gd/config")
+    with pytest.raises(ValueError, match="git directory"):
+        upsert_file(repo / "CLAUDE.md", "a", "gen", repo)
+    with pytest.raises(ValueError, match="git directory"):
+        upsert_file(repo / "gd" / "new.md", "a", "gen", repo)
+    with pytest.raises(ValueError, match=r"\.git"):
+        upsert_file(repo / ".git", "a", "gen", repo)
+    assert (repo / "gd" / "config").read_bytes() == config
+
+
+@needs_symlinks
+def test_a_worktree_link_into_the_common_git_dir_is_refused(tmp_path: Path) -> None:
+    # A linked worktree inside the main work tree: its common git directory is the main .git.
+    main = _git_dir_init(tmp_path)
+    git = ["git", "-C", str(main), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "i"], check=True)
+    subprocess.run([*git, "worktree", "add", "-q", str(main / "wt")], check=True)
+    wt = main / "wt"
+    (wt / "README.md").symlink_to("../.git/config")
+    with pytest.raises(ValueError):
+        upsert_file(wt / "README.md", "a", "gen", wt)
+    (main / "NOTES.md").symlink_to(".git/worktrees/wt/HEAD")
+    with pytest.raises(ValueError):
+        upsert_file(main / "NOTES.md", "a", "gen", main)
+
+
+def test_an_unknown_git_directory_fails_closed(tmp_path: Path, monkeypatch) -> None:
+    import document_repo.docs as docs_mod
+
+    repo = _git_dir_init(tmp_path)
+    real_run = subprocess.run
+
+    def no_git_dir(cmd, *a, **k):
+        if "--git-common-dir" in cmd:
+            return subprocess.CompletedProcess(cmd, 128, b"", b"fatal")
+        return real_run(cmd, *a, **k)
+
+    monkeypatch.setattr(docs_mod.subprocess, "run", no_git_dir)
+    with pytest.raises(ValueError, match="cannot locate the git directory"):
+        upsert_file(repo / "README.md", "a", "gen", repo)
+    assert not (repo / "README.md").exists()

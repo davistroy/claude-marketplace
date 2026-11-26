@@ -1,4 +1,6 @@
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -6,7 +8,7 @@ import pytest
 
 from document_repo.cli import main
 from document_repo.languages import detect
-from document_repo.verify import changed_files, comment_chunk_ok, verify_file
+from document_repo.verify import changed_files, comment_chunk_ok, verify_blobs, verify_file
 
 BASE_PY = "def add(a, b):\n    return a + b\n"
 
@@ -347,6 +349,22 @@ FALSE_PASSES = [
         "k: a long\n\n  plain scalar\nj: 1\n",
         VERBATIM,
     ),
+    # SE-H2: a plain scalar in a sequence entry continues on any line deeper than its dash.
+    ("yaml-seq-plain-multiline", "c.yml", "- foo\n  bar\n", "- foo\n# c\n  bar\n", VERBATIM),
+    (
+        "yaml-nested-seq-plain-multiline",
+        "c.yml",
+        "a:\n  - foo\n    bar\n",
+        "a:\n  - foo\n  # c\n    bar\n",
+        VERBATIM,
+    ),
+    (
+        "yaml-seq-plain-multiline-shallow",
+        "c.yml",
+        "- foo\n bar\n",
+        "- foo\n # c\n bar\n",
+        VERBATIM,
+    ),
     ("sql-string", "q.sql", "select 'a\nb';\n", "select 'a\n-- c\nb';\n", VERBATIM),
     (
         "sql-dollar",
@@ -395,6 +413,39 @@ FALSE_PASSES = [
     ),
     ("cs-verbatim", "A.cs", 'var s = @"a\nb";\n', 'var s = @"a\n// c\nb";\n', VERBATIM),
     ("cpp-raw", "a.cpp", 'auto s = R"x(a\nb)x";\n', 'auto s = R"x(a\n// c\nb)x";\n', VERBATIM),
+    # SE-C1: a C++ header is lexed as C++, so a multi-line raw string in it is data, not code.
+    (
+        "h-cpp-raw",
+        "q.h",
+        'static const char* kQuery = R"(\nSELECT id\nFROM users\n)";\n',
+        'static const char* kQuery = R"(\nSELECT id\n// Only active users are selected here.\n'
+        'FROM users\n)";\n',
+        VERBATIM,
+    ),
+    # Review fix 4: .c (and .C, which detect lowercases) may hold GNU C++-style R"( strings.
+    (
+        "c-raw",
+        "q.c",
+        'static const char* kQuery = R"(\nSELECT id\nFROM users\n)";\n',
+        'static const char* kQuery = R"(\nSELECT id\n// x\nFROM users\n)";\n',
+        VERBATIM,
+    ),
+    (
+        "upper-C-raw",
+        "q.C",
+        'static const char* kQuery = R"(\nSELECT id\nFROM users\n)";\n',
+        'static const char* kQuery = R"(\nSELECT id\n// x\nFROM users\n)";\n',
+        VERBATIM,
+    ),
+    # And the C reading still counts: here C sees a block comment the raw-string reading
+    # misses (R is a macro, so R"(" is the string "(" and /* opens a comment).
+    (
+        "c-block-after-fake-raw",
+        "q.c",
+        '#define R\nchar *s = R"(";  /* open\n  )" still a comment\n*/\nint x;\n',
+        '#define R\nchar *s = R"(";  /* open\n  )" still a comment\n// c */\n*/\nint x;\n',
+        VERBATIM,
+    ),
     ("rust-raw-hash", "a.rs", 'let s = r#"a\nb"#;\n', 'let s = r#"a\n// c\nb"#;\n', VERBATIM),
     ("rust-plain-multiline", "a.rs", 'let s = "a\nb";\n', 'let s = "a\n// c\nb";\n', VERBATIM),
     (
@@ -552,6 +603,12 @@ POSITIVE_CASES = [
         "m.c",
         "#include <stdio.h>\nint main(void) {\n  return 0;\n}\n",
         "/* Entry point. */\n#include <stdio.h>\nint main(void) {\n  // Done.\n  return 0;\n}\n",
+    ),
+    (
+        "c-header",
+        "m.h",
+        "#ifndef M_H\n#define M_H\nint add(int a, int b);\n#endif\n",
+        "#ifndef M_H\n#define M_H\n/* Add two ints. */\nint add(int a, int b);\n// end\n#endif\n",
     ),
     (
         "cpp",
@@ -1048,7 +1105,7 @@ def test_python_transcoding_docstring_on_line_one_passes(make_repo) -> None:
 
 TS_MISSING = (
     "TypeScript compiler not available; JS/TS files cannot be verified "
-    "(install with: npm install -g typescript)"
+    "(install with: npm install -g typescript@5.6.3)"
 )
 
 
@@ -1533,3 +1590,331 @@ def test_a_crlf_checkout_keeps_the_explorer_exempt(make_repo, git, tmp_path) -> 
     assert git(repo, "status", "--porcelain") == ""
     (repo / "explorer/app.js").write_bytes((repo / "explorer/app.js").read_bytes() + b"\r\n")
     assert changed_files(repo, "HEAD") == []
+
+
+# --- verify_blobs: both sides read from commits (SE-H1) ----------------------------------------
+
+
+def _two_commits(make_repo, commit_files, rel: str, before: str, after: str):
+    repo = make_repo({rel: before})
+    base = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+    head = commit_files(repo, {rel: after}, "edit")
+    return repo, base, head
+
+
+def test_verify_blobs_passes_a_committed_comment(make_repo, commit_files) -> None:
+    repo, base, head = _two_commits(make_repo, commit_files, "m.py", BASE_PY, "# c\n" + BASE_PY)
+    (repo / "m.py").write_text("x = 'the work tree is not read'\n")
+    r = verify_blobs(repo, base, head, "m.py")
+    assert r.ok and r.method == "python-ast", r.detail
+
+
+def test_verify_blobs_fails_a_committed_code_change(make_repo, commit_files) -> None:
+    after = BASE_PY.replace("a + b", "a - b")
+    repo, base, head = _two_commits(make_repo, commit_files, "m.py", BASE_PY, after)
+    (repo / "m.py").write_text("# c\n" + BASE_PY)  # a comment-only work tree changes nothing
+    assert not verify_blobs(repo, base, head, "m.py").ok
+
+
+def test_verify_blobs_runs_the_guards(make_repo, commit_files) -> None:
+    before, after = "cat <<EOF\nhi\nEOF\n", "cat <<EOF\n# c\nhi\nEOF\n"
+    repo, base, head = _two_commits(make_repo, commit_files, "a.sh", before, after)
+    r = verify_blobs(repo, base, head, "a.sh")
+    assert not r.ok and r.method == "comment-lines", r.detail
+
+
+def test_verify_blobs_fails_closed_on_missing_sides_and_bad_input(
+    make_repo, commit_files, git, tmp_path
+) -> None:
+    repo, base, head = _two_commits(make_repo, commit_files, "m.py", BASE_PY, BASE_PY + "# c\n")
+    assert "not in" in verify_blobs(repo, base, head, "new.py").detail
+    commit_files(repo, {"new.py": "x = 1\n"}, "add")
+    assert f"not in {base}" in verify_blobs(repo, base, "HEAD", "new.py").detail
+    git(repo, "rm", "-q", "m.py")
+    git(repo, "commit", "-q", "-m", "rm")
+    assert "not in HEAD" in verify_blobs(repo, base, "HEAD", "m.py").detail
+    assert not verify_blobs(repo, base, head, "d.json").ok
+    outside = tmp_path / "not-a-repo"
+    outside.mkdir()
+    assert "not inside a git work tree" in verify_blobs(outside, base, head, "m.py").detail
+
+
+def test_verify_blobs_fails_a_committed_mode_change(make_repo, commit_files, git) -> None:
+    repo, base, _ = _two_commits(make_repo, commit_files, "a.sh", "echo a\n", "echo a\n# c\n")
+    (repo / "a.sh").chmod(0o755)
+    git(repo, "add", "--chmod=+x", "a.sh")
+    git(repo, "commit", "-q", "-m", "x")
+    r = verify_blobs(repo, base, "HEAD", "a.sh")
+    assert not r.ok and "100644 -> 100755" in r.detail, r.detail
+
+
+def test_verify_blobs_fails_a_committed_symlink(make_repo, commit_files, git) -> None:
+    repo, base, _ = _two_commits(make_repo, commit_files, "a.sh", "echo a\n", "echo a\n# c\n")
+    blob = (
+        subprocess.run(
+            ["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+            input=b"a.sh.real",
+            capture_output=True,
+            check=True,
+        )
+        .stdout.decode()
+        .strip()
+    )
+    subprocess.run(
+        ["git", "-C", str(repo), "update-index", "--cacheinfo", f"120000,{blob},a.sh"], check=True
+    )
+    git(repo, "commit", "-q", "-m", "link")
+    r = verify_blobs(repo, base, "HEAD", "a.sh")
+    assert not r.ok and "symlink" in r.detail, r.detail
+
+
+# --- review fix 1: committed blobs are judged raw; attributes outside a commit are refused -----
+
+SH = 'echo hi\nrm -rf "$X"\n'
+SH_COMMENTED = "# remove the scratch dir\n" + SH
+
+
+def _store_raw(repo: Path, rel: str, data: bytes) -> str:
+    """Commit ``data`` at ``rel`` byte for byte (no clean filter, no eol conversion)."""
+    blob = (
+        subprocess.run(
+            ["git", "-C", str(repo), "hash-object", "-w", "--no-filters", "--stdin"],
+            input=data,
+            capture_output=True,
+            check=True,
+        )
+        .stdout.decode()
+        .strip()
+    )
+    subprocess.run(
+        ["git", "-C", str(repo), "update-index", "--cacheinfo", f"100644,{blob},{rel}"],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-q",
+            "-m",
+            "raw",
+        ],
+        check=True,
+    )
+    return subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+
+
+def test_verify_blobs_judges_stored_bytes_not_filtered_ones(make_repo, git) -> None:
+    # A committed .gitattributes converts both sides to CRLF on checkout, so filtered texts are
+    # equal; the stored blobs show the committed LF -> CRLF change, which must fail.
+    repo = make_repo({".gitattributes": "* text=auto eol=crlf\n", "m.sh": SH})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    head = _store_raw(repo, "m.sh", SH_COMMENTED.replace("\n", "\r\n").encode())
+    r = verify_blobs(repo, base, head, "m.sh")
+    assert not r.ok and "line endings" in r.detail, r.detail
+
+
+def test_verify_blobs_passes_a_committed_comment_under_committed_attributes(
+    make_repo, commit_files, git
+) -> None:
+    repo = make_repo({".gitattributes": "* text eol=crlf\n", "m.sh": SH})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    head = commit_files(repo, {"m.sh": SH_COMMENTED.replace("\n", "\r\n")}, "docs")
+    assert verify_blobs(repo, base, head, "m.sh").ok
+
+
+def _exclude(repo: Path, line: str) -> None:
+    with open(repo / ".git" / "info" / "exclude", "a") as fh:
+        fh.write(line + "\n")
+
+
+def _attr_info(repo: Path, git, monkeypatch) -> None:
+    (repo / ".git" / "info" / "attributes").write_text("* text=auto eol=crlf\n")
+
+
+def _attr_untracked_ignored(repo: Path, git, monkeypatch) -> None:
+    (repo / ".gitattributes").write_text("* text=auto eol=crlf\n")
+    _exclude(repo, ".gitattributes")
+
+
+def _attr_untracked_in_subdir(repo: Path, git, monkeypatch) -> None:
+    (repo / "sub" / ".gitattributes").write_text("*.sh text eol=crlf\n")
+
+
+def _attr_other_case(repo: Path, git, monkeypatch) -> None:
+    (repo / "sub" / ".GitAttributes").write_text("*.sh text eol=crlf\n")
+
+
+def _attr_modified(repo: Path, git, monkeypatch) -> None:
+    (repo / ".gitattributes").write_text("# none yet\n* text eol=crlf\n")
+
+
+def _attr_staged(repo: Path, git, monkeypatch) -> None:
+    (repo / ".gitattributes").write_text("* text eol=crlf\n")
+    git(repo, "add", ".gitattributes")
+    (repo / ".gitattributes").write_text("# none yet\n")
+
+
+def _attr_assume_unchanged(repo: Path, git, monkeypatch) -> None:
+    git(repo, "update-index", "--assume-unchanged", ".gitattributes")
+
+
+def _attr_skip_worktree(repo: Path, git, monkeypatch) -> None:
+    git(repo, "update-index", "--skip-worktree", ".gitattributes")
+
+
+def _attr_global(repo: Path, git, monkeypatch) -> None:
+    home = repo.parent / "xdg"
+    (home / "git").mkdir(parents=True)
+    (home / "git" / "attributes").write_text("* text eol=crlf\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+
+
+def _attr_config_file(repo: Path, git, monkeypatch) -> None:
+    (repo.parent / "attrs").write_text("* text eol=crlf\n")
+    git(repo, "config", "core.attributesFile", str(repo.parent / "attrs"))
+
+
+def _attr_tree(repo: Path, git, monkeypatch) -> None:
+    git(repo, "config", "attr.tree", "HEAD")
+
+
+def _attr_source_env(repo: Path, git, monkeypatch) -> None:
+    monkeypatch.setenv("GIT_ATTR_SOURCE", "HEAD")
+
+
+def _attr_info_unreadable(repo: Path, git, monkeypatch) -> None:
+    (repo / ".git" / "info" / "attributes").mkdir()
+
+
+@pytest.mark.parametrize(
+    "setup",
+    [
+        _attr_info,
+        _attr_untracked_ignored,
+        _attr_untracked_in_subdir,
+        _attr_other_case,
+        _attr_modified,
+        _attr_staged,
+        _attr_assume_unchanged,
+        _attr_skip_worktree,
+        _attr_global,
+        _attr_config_file,
+        _attr_tree,
+        _attr_source_env,
+        _attr_info_unreadable,
+    ],
+)
+def test_attribute_sources_outside_the_commit_are_refused(
+    make_repo, git, commit_files, monkeypatch, setup
+) -> None:
+    # Review fix 1: uncommitted attributes decide eol conversion, so they decide what is judged.
+    repo = make_repo({".gitattributes": "# none yet\n", "sub/m.sh": SH})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    head = commit_files(repo, {"sub/m.sh": SH_COMMENTED}, "docs")
+    setup(repo, git, monkeypatch)
+    for r in (verify_blobs(repo, base, head, "sub/m.sh"), verify_file(repo, "sub/m.sh", base)):
+        assert not r.ok and "attributes outside any commit" in r.detail, r.detail
+
+
+def test_committed_attributes_and_comment_only_info_file_pass(make_repo, git, commit_files) -> None:
+    repo = make_repo({".gitattributes": "* text=auto\n", "sub/m.sh": SH})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    head = commit_files(repo, {"sub/m.sh": SH_COMMENTED}, "docs")
+    (repo / ".git" / "info" / "attributes").write_text("# nothing here\n\n")
+    assert verify_blobs(repo, base, head, "sub/m.sh").ok
+    assert verify_file(repo, "sub/m.sh", base).ok
+
+
+def test_attribute_check_falls_back_when_git_var_is_missing(make_repo, git, monkeypatch) -> None:
+    # git < 2.42 has no "git var GIT_ATTR_*": the per-user file is derived from the config and
+    # XDG, and the usual system paths are read.
+    import document_repo.verify as verify_mod
+
+    repo = make_repo({"m.sh": SH})
+    real = verify_mod._git_plain
+
+    def no_var(top: Path, *args: str):
+        if args[0] == "var":
+            return subprocess.CompletedProcess(args, 1, b"", b"usage")
+        return real(top, *args)
+
+    monkeypatch.setattr(verify_mod, "_git_plain", no_var)
+    monkeypatch.delenv("GIT_ATTR_NOSYSTEM", raising=False)
+    files = verify_mod._outside_attr_files(repo)
+    assert files is not None and any(str(f) == "/etc/gitattributes" for f in files)
+    monkeypatch.setenv("GIT_ATTR_NOSYSTEM", "1")
+    (repo.parent / "attrs").write_text("* -text\n")
+    git(repo, "config", "core.attributesFile", str(repo.parent / "attrs"))
+    files = verify_mod._outside_attr_files(repo)
+    assert files is not None and repo.parent / "attrs" in files
+    assert not any(str(f) == "/etc/gitattributes" for f in files)
+    why = verify_mod.attribute_source_problem(repo, "m.sh")
+    assert why and "attrs sets rules" in why, why
+
+
+def test_attribute_check_whole_repo(make_repo, git, monkeypatch) -> None:
+    import document_repo.verify as verify_mod
+
+    repo = make_repo({"a/.gitattributes": "# none\n", "m.sh": SH})
+    assert verify_mod.attribute_source_problem(repo) is None
+    assert verify_mod.attribute_source_problem(repo, "gone/dir/x.sh") is None
+    (repo / "deep" / "er").mkdir(parents=True)
+    (repo / "deep" / "er" / ".gitattributes").write_text("* text eol=crlf\n")
+    _exclude(repo, "deep/")
+    why = verify_mod.attribute_source_problem(repo)
+    assert why and "deep/er/.gitattributes is not tracked" in why, why
+    real = verify_mod._git_plain
+    monkeypatch.setattr(
+        verify_mod,
+        "_git_plain",
+        lambda top, *a: subprocess.CompletedProcess(a, 128, b"", b"x")
+        if a[0] == "ls-files"
+        else real(top, *a),
+    )
+    assert "git failed" in (verify_mod.attribute_source_problem(repo) or "")
+    monkeypatch.setattr(
+        verify_mod, "_git_plain", lambda top, *a: subprocess.CompletedProcess(a, 128, b"", b"x")
+    )
+    assert "cannot locate" in (verify_mod.attribute_source_problem(repo, "m.sh") or "")
+
+
+def test_git_blob_of_a_non_utf8_file_is_none(make_repo) -> None:
+    import document_repo.verify as verify_mod
+
+    repo = make_repo({"m.sh": b"\xff\xfe\n"})
+    assert verify_mod.git_blob(repo, "HEAD", "m.sh") is None
+
+
+# --- review fix 5: verify refuses migrations, the same predicate as the inventory --------------
+
+
+@pytest.mark.parametrize(
+    "rel", ["V1__init.sql", "db/migrations/001.sql", "sql/001_init.up.sql", "B1__base.sql"]
+)
+def test_verify_refuses_a_comment_in_a_migration(make_repo, commit_files, git, rel) -> None:
+    # Reviewer PoC m2: a header comment on V1__init.sql passed verify.
+    body = "create table t (id int);\n"
+    repo = make_repo({rel: body})
+    base = git(repo, "rev-parse", "HEAD").strip()
+    (repo / rel).write_text("-- Creates t.\n" + body)
+    r = verify_file(repo, rel)
+    assert not r.ok and "migration" in r.detail, r.detail
+    head = commit_files(repo, {rel: "-- Creates t.\n" + body}, "docs")
+    r = verify_blobs(repo, base, head, rel)
+    assert not r.ok and "migration" in r.detail, r.detail
+
+
+def test_verify_still_passes_a_plain_sql_comment(make_repo) -> None:
+    r = _run(make_repo, "sql/queries.sql", "select 1;\n", "-- One.\nselect 1;\n")
+    assert r.ok, r.detail

@@ -73,7 +73,6 @@ preamble, fill every placeholder, and pass the prompt to the Agent tool
 | `{id}`, `{path}`, `{files}` | One entry of `$RUN_DIR/modules.final.json`. For a Commenter, `{files}` drops skipped JS/TS files (Phase 0 step 6) and, in an update run, files that update-mode.md step 10 leaves out. |
 | `{all_module_ids}` | Every `id` in `modules.final.json` |
 | `{entry_candidates_in_module}` | The `entry_candidates` in `$RUN_DIR/inventory.json` whose `path` is in `{files}`, as `path (why)`. A manifest hint (`package.json`, `pyproject.toml`) belongs to no module, so also give a module each hint whose target, the path after `->` in `why` resolved from the manifest's directory, is in `{files}`. Give a hint whose target is no file (an npm script command) to the module with path `.`, if there is one. "none" when nothing matches. |
-| `{header_only_files}` | The files in `{files}` whose inventory entry has `header_only` true, or "none" |
 | `{ids}` | One batch of module ids (Phase 3) |
 | `{UPDATE_LINE}` | Empty in a full run. In an update run, the line printed under that prompt in agent-prompts.md, with its own placeholders filled. |
 | `{SINCE}` | `since` from `$RUN_DIR/changes.json` (update runs only) |
@@ -96,7 +95,7 @@ except the JSON shapes the prompt itself shows.
    PYTHONPATH="$TOOL_SRC" python3 -m document_repo inventory "$TARGET" --out "$RUN_DIR/inventory.json"
    ```
 
-   If `summary.by_lang` has `javascript` or `typescript` and Phase 2 will run, check the TypeScript printer: `PYTHONPATH="$TOOL_SRC" python3 -c "import sys; from pathlib import Path; from document_repo.verify import typescript_available as t; print(t(Path(sys.argv[1])))" "$TARGET"`. Only that printer can verify JS/TS edits. On `False`, ask with AskUserQuestion: **Install TypeScript** (recommended: `npm install -g typescript`, then check again) or **Skip JS/TS files** (they get no comments and are listed in the report).
+   If `summary.by_lang` has `javascript` or `typescript` and Phase 2 will run, check the TypeScript printer: `PYTHONPATH="$TOOL_SRC" python3 -c "import sys; from pathlib import Path; from document_repo.verify import typescript_available as t; print(t(Path(sys.argv[1])))" "$TARGET"`. Only that printer can verify JS/TS edits. On `False`, ask with AskUserQuestion: **Install TypeScript** (recommended: `npm install -g typescript@5.6.3`, the only version the verifier trusts, then check again) or **Skip JS/TS files** (they get no comments and are listed in the report).
 7. Find the verification commands. Skip steps 7 and 8 with `--phase docs` or `--phase explorer`: no source file changes. Look in package.json `scripts` (test, lint, typecheck or type-check), pyproject.toml, pytest.ini and tox.ini (pytest), Makefile targets (test, lint), and CI workflow files. Leave out any command that writes files: `--fix`, `--write`, `format` or `fmt`, `-u`, `--update-snapshot`, `--snapshot-update`. Use the check-only form when there is one (`ruff check` without `--fix`, `prettier --check`). Write `$RUN_DIR/commands.json` as `{"test": [...], "lint": [...], "typecheck": [...]}`.
 8. Baseline: run each command with a 10-minute timeout, with the command fingerprint in `$SKILL_DIR/references/commit-protocol.md` taken before and after. Record its exit code, duration and last 40 lines in `$RUN_DIR/baseline.json`. Never install dependencies without asking. A command that cannot run is recorded as `not_runnable`. Failing or not-runnable commands do not block the run. They go in the gate summary and the report. After each command, `git -C "$TARGET" status --porcelain -uall` must print nothing. If it lists files, follow the fingerprint rules: delete new artifacts, and drop a command that changed a tracked file.
 
@@ -224,7 +223,7 @@ Skip this phase when `--phase` is `comments` or `explorer`. Follow
 2. **Root files.** Write each section body for the root `README.md` (`overview`, `quick-start`, `repo-map`, `explorer`), `AGENTS.md` (`agents`), `docs/ARCHITECTURE.md` (`architecture`) and `docs/GLOSSARY.md` (`glossary`). Use `$RUN_DIR/model.json` and the `entry_candidates` in `$RUN_DIR/inventory.json`. Save each body as `$RUN_DIR/docs/_<file>-<section>.md`; the underscore keeps it apart from module ids. Then write it:
 
    ```bash
-   PYTHONPATH="$TOOL_SRC" python3 -m document_repo upsert-section --file "$TARGET/README.md" --section overview --content-file "$RUN_DIR/docs/_readme-overview.md"
+   PYTHONPATH="$TOOL_SRC" python3 -m document_repo upsert-section --repo "$TARGET" --file "$TARGET/README.md" --section overview --content-file "$RUN_DIR/docs/_readme-overview.md"
    ```
 
    Exit 2 prints the reason on stderr. Fix the body and run it again. If the reason is an unclosed fence in the existing file, leave that file alone and report it.

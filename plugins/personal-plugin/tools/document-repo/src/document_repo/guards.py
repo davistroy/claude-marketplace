@@ -48,6 +48,10 @@ against the inserted lines themselves:
 - after a YAML block scalar: the position directly below its last line is unsafe only for an
   inserted line indented deeper than the ``key: |`` line (it would join the block), or a blank
   line under keep chomping (``|+``). A comment level with the next key is fine.
+- YAML plain scalars: a multi-line plain scalar continues on every line deeper than the node
+  holding it, so no line may go between its lines (a comment ends it, a blank line turns a folded
+  space into a newline). As a backstop, no line may go directly above a line that is not
+  plainly a new node (``key:``, ``- ``, a comment or a document marker).
 """
 
 from __future__ import annotations
@@ -591,9 +595,10 @@ def _yaml_scan(lines: list[str]) -> tuple[set[int], dict[int, _BlockTail]]:
             continue
         col = _indent(line)
         body = line[col:]
+        dash = -1  # the column of the innermost "- " on the line, -1 for none
         while re.match(r"-(\s|$)", body):
             step = len(body) - len(body[1:].lstrip(" "))
-            col, body = col + step, body[step:]
+            dash, col, body = col, col + step, body[step:]
         m = _YAML_KEY.match(body)
         value = body[m.end() :] if m else body
         value = re.sub(r"^(?:\s*[!&]\S*)*", "", value).strip()
@@ -604,6 +609,23 @@ def _yaml_scan(lines: list[str]) -> tuple[set[int], dict[int, _BlockTail]]:
             if _yaml_quote_end(value, 1, value[0]) < 0:
                 quote = value[0]
                 out.add(i)
+        # A plain scalar continues on every following line indented deeper than the node that
+        # holds it (SE-H2). For ``key: value`` that is the key's column (the mapping's indent).
+        # For a bare sequence entry (``- foo``) it is the dash's column, not the content's:
+        # ``- foo`` then ``  bar`` is one scalar, "foo bar". A scalar on a document marker line
+        # (``--- foo``) or a bare one at column 0 is held by nothing (a document scalar), so any
+        # line continues it; a marker alone (``---``, ``...``, ``%YAML``) is not a scalar. Any
+        # other bare line (``key:`` then ``  foo``) is held by the node above it, so it continues
+        # to that node's column, not its own: the nearest earlier line indented less is taken,
+        # whose indent is never deeper than the holder's.
+        if not m and dash >= 0:
+            col = dash
+        elif not m and re.match(r"---[ \t]", body):
+            col = -1
+        elif not m and col == 0 and not body.startswith(("---", "...", "%")):
+            col = -1
+        elif not m and col > 0:
+            col = _yaml_parent_indent(lines, i, col)
         last_cont, j = -1, i + 1
         while j < n:
             nxt = lines[j].strip()
@@ -616,7 +638,60 @@ def _yaml_scan(lines: list[str]) -> tuple[set[int], dict[int, _BlockTail]]:
             j += 1
         out.update(range(i, last_cont))
         i += 1
-    return out, tails
+    return out | _yaml_bare_points(lines), tails
+
+
+def _yaml_parent_indent(lines: list[str], i: int, col: int) -> int:
+    """The indent of the nearest line above ``lines[i]`` indented less than ``col``, else -1.
+
+    A document marker (``---``, ``...``) holds nothing, so a scalar under it is a document scalar
+    and continues at any indent: -1.
+    """
+    for k in range(i - 1, -1, -1):
+        s = lines[k].strip()
+        if s and not s.startswith("#") and _indent(lines[k]) < col:
+            return -1 if lines[k].startswith(("---", "...")) else _indent(lines[k])
+    return -1
+
+
+def _yaml_new_node(line: str) -> bool:
+    """True when ``line`` (not blank) cannot be the continuation of a plain scalar above it.
+
+    A comment ends any plain scalar, a document marker or directive at column 0 ends the
+    document, and a ``key:`` line cannot continue a scalar in valid YAML (``: `` is not allowed
+    in a multi-line plain scalar). A ``- `` line can continue one (``k: foo`` then ``  - bar`` is
+    "foo - bar"), so it is left to the indent rule in ``_yaml_scan``. Everything else, a bare word,
+    ``[``, ``{``, ``?``, ``!``, ``*``, ``|`` and the rest, may be a continuation and is not
+    called a new node.
+    """
+    body = line.lstrip(" ")
+    if body.startswith("#") or re.match(r"-(\s|$)", body):
+        return True
+    if line.startswith(("---", "...", "%")):
+        return True
+    return bool(_YAML_KEY.match(body))
+
+
+def _yaml_bare_points(lines: list[str]) -> set[int]:
+    """Base lines after which a new line is unsafe because the next content line is bare.
+
+    A conservative backstop to the indent rule (review round): a line that is not a new node
+    (``_yaml_new_node``) may continue a plain scalar from an earlier line, and an inserted comment
+    would end that scalar while an inserted blank line turns a folded space into a newline. So
+    every position between the previous non-blank, non-comment line and a bare line is refused,
+    whatever the indentation says. A bare first content line has nothing above it to continue.
+    """
+    out: set[int] = set()
+    prev = -1
+    for idx, line in enumerate(lines):
+        s = line.strip()
+        if not s:
+            continue
+        if prev >= 0 and not _yaml_new_node(line):
+            out.update(range(prev, idx))
+        if not s.startswith("#"):
+            prev = idx
+    return out
 
 
 # --- sql -------------------------------------------------------------------
@@ -982,10 +1057,20 @@ _SCANNERS: dict[str, Callable[[list[str]], set[int]]] = {
 }
 
 
+#: Languages lexed with every C-family reading at once (``_verbatim_points``).
+_C_FAMILY = ("c", "cpp")
+
+
 def _verbatim_points(lines: list[str], lang: Lang) -> set[int]:
     scan = _SCANNERS.get(lang.name)
     if scan is not None:
         inside = scan(lines)
+    elif lang.name in _C_FAMILY:
+        # Both readings, unioned (review fix 4): a .c (or .C, C++ to GCC) may hold R"( raw
+        # strings, which only the C++ reading sees, while R"(" with R a macro is a plain string
+        # the C++ reading mistakes for a raw one, so it can miss a block comment the C reading
+        # sees. Each reading only adds unsafe positions, so the union is at least as strict.
+        inside = set().union(*(_scan_clike(lines, _SYNTAX[name]) for name in _C_FAMILY))
     elif lang.name in _SYNTAX:
         inside = _scan_clike(lines, _SYNTAX[lang.name])
     else:

@@ -5,6 +5,20 @@ All notable changes to personal-plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.11.2] - 2026-11-25
+
+### Security
+- `document-repo` comment-only verifier: four confirmed false passes closed (architecture review E071, fixes E072).
+  - C-family files (`.c`, `.C`, `.h`, `.cpp`, `.hpp`) are scanned with the C and C++ readings combined, so a `//` line inside a raw string `R"(...)"` now fails.
+  - The JS/TS printer no longer loads the target repo's `node_modules/typescript` first. It accepts only `typescript` 5.6.3 with a pinned SHA-256 of `lib/typescript.js`, checked before loading. Repo-local search is opt-in (`DOCUMENT_REPO_TS_ALLOW_REPO=1`). Install with `npm install -g typescript@5.6.3`.
+  - `backstop` and the post-commit proof judge blobs as git stores them, and refuse paths flagged `assume-unchanged` or `skip-worktree`. `verify`, `commit` and `backstop` refuse attributes that no commit holds (`info/attributes`, per-user or system attribute files, `attr.tree`, or an untracked, flagged or changed `.gitattributes` over a judged path), because they decide line endings and filters.
+  - YAML: an inserted comment or blank line that could split a plain scalar now fails (sequence entries, bare scalar lines, tags, anchors, `--- foo`). Checked by a PyYAML differential test (dev extra only). Side effect: a comment directly above a bare scalar value now fails (a false failure, never a false pass).
+- SQL migrations are skipped (`skip: migration`) instead of header-commented, since a comment changes their checksum. One shared predicate is used by `inventory` and `verify`, so `commit` and `backstop` refuse them too. It covers `migrations/`-style directories, Flyway `V`/`R`/`B` files, Prisma, golang-migrate `*.up.sql`/`*.down.sql` and Liquibase changelogs.
+- Symlinks: `inventory` skips a path that is or passes through a symlink (`skip: symlink`). `upsert-section` takes `--repo` and refuses a target whose real path is outside the work tree or is the git directory (any letter case), and refuses dangling links.
+
+### Changed
+- `Document Repo Tests (ubuntu-latest)` is now a required check.
+
 ## [11.11.1] - 2026-11-25
 
 ### Security

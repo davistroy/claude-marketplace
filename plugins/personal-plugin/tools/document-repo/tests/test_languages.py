@@ -22,6 +22,8 @@ from document_repo.languages import EXT, NAMES, VERIFY_METHODS, detect
         ("Makefile", "make"),
         ("s.css", "css"),
         ("p.html", "html"),
+        ("m.h", "cpp"),  # SE-C1: headers use the C++ lexer (raw strings)
+        ("m.c", "c"),
     ],
 )
 def test_detect_known(path: str, name: str) -> None:

@@ -21,8 +21,10 @@ makes one commit of exactly the listed paths and proves it, failing closed at ev
    shell sees it.
 5. **Post-commit checks.** Exactly one new commit on top of the old HEAD; no path outside the list
    in it; without a ref, no path in it outside the exempt set; the work tree equal to it for the
-   listed paths; with a ref, the committed files verified again. Hooks run between 4 and 5, which
-   is why 5 exists: a hook can rewrite, re-stage, add files, or make a commit of its own.
+   listed paths; with a ref, the committed files verified again, from the commit's own blobs
+   (``committed_proof``), so a work tree git is told not to look at cannot stand in for them.
+   Hooks run between 4 and 5, which is why 5 exists: a hook can rewrite, re-stage, add files,
+   or make a commit of its own.
    When every check passes, ``git reset -q`` sets the index to HEAD: under ``--only`` the real
    index keeps the listed paths' pre-hook bytes after a hook re-stages them, and the work tree
    already equals the commit, so only those stale staged bytes go. A failure of that reset is
@@ -55,9 +57,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .changes import work_tree
+from .changes import require_matches_head, require_plain_index_entry, work_tree
 from .inventory import OUTPUT_DIR, SKIP_DIRS
-from .verify import changed_files, is_exempt, is_explorer_output_name, verify_file
+from .verify import (
+    GITATTRIBUTES,
+    Result,
+    attribute_source_problem,
+    changed_files,
+    is_exempt,
+    is_explorer_output_name,
+    verify_blobs,
+    verify_file,
+)
 
 #: Hooks ``git commit`` runs unless ``--no-verify`` is given (``post-commit`` cannot refuse).
 COMMIT_HOOKS = ("pre-commit", "prepare-commit-msg", "commit-msg")
@@ -647,7 +658,11 @@ def commit_paths(
     # ``git add <pathspec>`` stages deletions too.
     _out(top, "add", "--", *_spec(roots))
     if ref is not None:
-        checks = [verify_file(top, rel, ref).to_dict() for rel in changed]
+        # The same attribute check as the backstop's (review fix 7), over the directories that
+        # hold the changed paths: the precheck refuses what the proofs after the commit would.
+        attrs = attribute_source_problem(top, changed)
+        checks = [Result(GITATTRIBUTES, "none", False, attrs).to_dict()] if attrs else []
+        checks += [verify_file(top, rel, ref).to_dict() for rel in changed]
         if not all(r["ok"] for r in checks):
             _out(top, "reset", "-q")
             return Outcome(
@@ -751,7 +766,7 @@ def _after_commit(run: _Run, proc: subprocess.CompletedProcess[bytes]) -> Outcom
             "files without staging them)"
         )
     elif ref is not None:
-        results = [verify_file(top, rel, ref).to_dict() for rel in committed]
+        results = [committed_proof(top, ref, head, rel) for rel in committed]
         if not all(r["ok"] for r in results):
             problem = (
                 f"a committed file is not comment-only against {ref[:12]} (a hook rewrote it?)"
@@ -849,21 +864,67 @@ def _after_exception(run: _Run, exc: BaseException) -> Outcome:
     return Outcome("stop", f"an error after git commit ran ({why}); {note}", pre=run.pre, sha=sha)
 
 
+def committed_proof(top: Path, base: str, head: str, rel: str) -> dict[str, Any]:
+    """Prove ``rel`` as committed at ``head`` is comment-only against ``base`` (SE-H1).
+
+    The proof reads both sides from git objects (``verify.verify_blobs``), never the work tree.
+    A path git is told not to look at (``assume-unchanged``, ``skip-worktree``) fails first, and
+    a passing path whose work-tree bytes are not ``head``'s blob fails after: either way the
+    "work tree equals the commit" that the clean-status checks around this rely on is not true,
+    so the result cannot be trusted. Both checks are ``changes.py``'s, not copies.
+    """
+    try:
+        require_plain_index_entry(top, rel)
+    except ValueError as exc:
+        return Result(rel, "none", False, str(exc)).to_dict()
+    result = verify_blobs(top, base, head, rel)
+    if result.ok:
+        try:
+            require_matches_head(top, head, rel)
+        except ValueError as exc:
+            return Result(rel, result.method, False, str(exc)).to_dict()
+    return result.to_dict()
+
+
 def backstop(repo: Path, base: str) -> dict[str, Any]:
     """Verify every change on the branch since ``base`` and check the tree is clean.
 
+    Every path committed since ``base`` is judged from the commits (``committed_proof``), not
+    from the work tree. A path that differs from ``base`` only in the work tree (one ``git
+    status`` was told to hide, or an untracked file) fails too: nothing committed explains it.
     Returns ``{"ok", "base", "verify", "status"}``. ``InputError`` for a bad repo or base.
     """
     top = _top(repo)
     sha = _resolve_commit(top, base, "--base")
     if _run(top, "merge-base", "--is-ancestor", sha, "HEAD").returncode != 0:
         raise InputError(f"--base {base!r} is not an ancestor of HEAD")
+    tip = _resolve_commit(top, "HEAD", "HEAD")
     try:
-        files = changed_files(top, sha)
+        on_disk = changed_files(top, sha)
     except subprocess.CalledProcessError as exc:
         why = (exc.stderr or b"").decode("utf-8", "replace").strip() or str(exc)
         raise GitError(f"git failed while listing the branch's changes: {why}") from exc
-    results = [verify_file(top, rel, sha).to_dict() for rel in files]
+    committed = {
+        p
+        for p in _paths(top, "diff", "--name-only", "-z", "--no-renames", sha, tip, "--")
+        if not is_exempt(p, top)
+    }
+    results = [
+        committed_proof(top, sha, tip, rel)
+        if rel in committed
+        else Result(
+            rel, "none", False, f"differs from {sha[:12]} in the work tree but not in any commit"
+        ).to_dict()
+        for rel in sorted(committed | set(on_disk))
+    ]
+    # Every .gitattributes git reads for a judged path (review fix 6): a flagged or uncommitted
+    # one changes how git reads files. One in an unrelated directory (an ignored node_modules
+    # package) applies to no judged path, so it is not refused. Flags on other files (a sparse
+    # checkout) are not refused either; a judged path with a flag fails in committed_proof.
+    judged = sorted(committed | set(on_disk))
+    attrs = attribute_source_problem(top, judged) if judged else None
+    if attrs:
+        results.append(Result(GITATTRIBUTES, "none", False, attrs).to_dict())
     raw = _out(top, "status", "--porcelain=v1", "-z", "-uall")
     status = [e for e in raw.split("\0") if e]
     ok = all(r["ok"] for r in results) and not status

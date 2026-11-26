@@ -12,10 +12,10 @@ import pytest
 from document_repo import changes
 from document_repo.changes import (
     _parse_name_status,
-    _require_plain_index_entry,
     compute_changes,
     module_for,
     modules_for,
+    require_plain_index_entry,
 )
 from document_repo.cli import main
 from document_repo.verify import Result, typescript_available
@@ -188,7 +188,7 @@ def test_comment_only_edit_is_not_a_change_but_a_code_edit_in_the_same_file_is(
 def test_comment_only_typescript_edit_is_not_a_change(make_repo, commit_files, git) -> None:
     repo = make_repo({"web/i.ts": "export const a = 1;\n"})
     if not typescript_available(repo):
-        message = "node + typescript not available (install with: npm install -g typescript)"
+        message = "node + typescript not available (install with: npm install -g typescript@5.6.3)"
         if os.environ.get("CI"):
             pytest.fail(message)
         pytest.skip(message)
@@ -921,7 +921,7 @@ def test_a_flagged_file_that_cannot_be_comment_only_is_reported_not_refused(
 def test_an_entry_that_is_not_a_plain_tracked_file_is_refused(make_repo, git) -> None:
     repo, _, _ = _setup(make_repo, git)
     with pytest.raises(ValueError, match=r"nope\.py.*unexpected index state"):
-        _require_plain_index_entry(repo, "nope.py")
+        require_plain_index_entry(repo, "nope.py")
 
 
 def test_a_flag_on_a_glob_sibling_is_not_mistaken_for_the_file(

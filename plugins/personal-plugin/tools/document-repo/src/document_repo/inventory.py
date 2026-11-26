@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path, PurePosixPath
@@ -26,7 +27,16 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 has no tomllib
     tomllib = None  # type: ignore[assignment]
 
 SKIP_REASONS = frozenset(
-    {"skipped-dir", "lock-file", "minified", "binary", "no-comment-syntax", "generated"}
+    {
+        "symlink",
+        "skipped-dir",
+        "lock-file",
+        "minified",
+        "migration",
+        "binary",
+        "no-comment-syntax",
+        "generated",
+    }
 )
 SKIP_DIRS = frozenset(
     {
@@ -114,7 +124,27 @@ ENTRY_NAMES = frozenset(
         "main.go",
     }
 )
-MIGRATION_DIRS = frozenset({"migrations", "migration", "migrate"})
+#: SQL migrations are never commented (SEC-03). Migration tools checksum the files they have
+#: applied, so a header comment makes Flyway refuse to migrate, Prisma offer a database reset and
+#: sqlx refuse to run. A ``.sql`` file is one when a directory above it is named here, in any
+#: case (sqlx, golang-migrate, Prisma's ``migrations/<name>/migration.sql``, Rails-style
+#: ``schema_migrations``, Liquibase's ``db/changelog/**``), when its name is a Flyway versioned,
+#: undo, baseline or repeatable migration (``V1__x.sql``, ``U1__x.sql``, ``B1__x.sql``,
+#: ``R__x.sql``) anywhere, or when it is a golang-migrate ``*.up.sql`` / ``*.down.sql`` anywhere.
+MIGRATION_DIRS = frozenset(
+    {
+        "migrations",
+        "migration",
+        "migrate",
+        "db_migrations",
+        "schema-migrations",
+        "schema_migrations",
+        "changelog",
+        "changelogs",
+    }
+)
+_FLYWAY_NAME = re.compile(r"(?:[VUB]\d+(?:[._]\d+)*|R)__.*\.sql", re.IGNORECASE)
+_UP_DOWN_NAME = re.compile(r".+\.(?:up|down)\.sql", re.IGNORECASE)
 HEAD_BYTES = 8192
 #: Largest single read count_lines makes, so memory stays flat however big the file is.
 CHUNK_BYTES = 1 << 20
@@ -166,9 +196,28 @@ def list_files(root: Path) -> list[str]:
     return sorted({n for n in names if n and (root / n).is_file()})
 
 
+def _through_symlink(root: Path, parts: tuple[str, ...]) -> bool:
+    """True when ``root / parts`` is a symlink or sits under one (``lstat`` of each component).
+
+    A commenter's write follows a link (H-SYM): one leaving the repo edits a file git cannot
+    restore, and one inside it gives two modules the same file, so parallel commenters race.
+    """
+    path = root
+    for part in parts:
+        path = path / part
+        if path.is_symlink():
+            return True
+    return False
+
+
 def skip_reason(root: Path, rel: str) -> str | None:
-    """Return why ``rel`` must not be commented, or None when it should be."""
+    """Return why ``rel`` must not be commented, or None when it should be.
+
+    A symlink is decided first and nothing behind it is opened.
+    """
     parts = PurePosixPath(rel).parts
+    if _through_symlink(root, parts):
+        return "symlink"
     if _in_skipped_dir(parts):
         return "skipped-dir"
     name = parts[-1]
@@ -176,6 +225,8 @@ def skip_reason(root: Path, rel: str) -> str | None:
         return "lock-file"
     if name.endswith(MINIFIED_SUFFIXES):
         return "minified"
+    if is_migration(rel):
+        return "migration"
     try:
         with (root / rel).open("rb") as fh:
             head = fh.read(HEAD_BYTES)
@@ -208,8 +259,18 @@ def count_lines(path: Path) -> int:
     return newlines + (1 if last and last != b"\n" else 0)
 
 
-def _is_migration(rel: str) -> bool:
-    return any(p.lower() in MIGRATION_DIRS for p in PurePosixPath(rel).parts[:-1])
+def is_migration(rel: str) -> bool:
+    """True for a SQL migration file; see ``MIGRATION_DIRS``.
+
+    The one definition: the inventory skips these and ``verify`` fails them (review fix 5), so
+    ``commit`` and ``backstop`` refuse them too.
+    """
+    p = PurePosixPath(rel)
+    if p.suffix.lower() != ".sql":
+        return False
+    if _FLYWAY_NAME.fullmatch(p.name) or _UP_DOWN_NAME.fullmatch(p.name):
+        return True
+    return any(part.lower() in MIGRATION_DIRS for part in p.parts[:-1])
 
 
 def _package_json_entries(root: Path, rel: str) -> list[dict[str, str]]:
@@ -287,19 +348,14 @@ def build_inventory(root: Path) -> dict[str, Any]:
     for rel in rels:
         reason = skip_reason(root, rel)
         lang = detect(rel)
+        unread = reason in ("binary", "symlink")
         files.append(
             {
                 "path": rel,
                 "lang": lang.name if lang else None,
-                "lines": 0 if reason == "binary" else count_lines(root / rel),
-                "bytes": (root / rel).stat().st_size,
+                "lines": 0 if unread else count_lines(root / rel),
+                "bytes": (root / rel).lstat().st_size,
                 "skip": reason,
-                "header_only": bool(
-                    reason is None
-                    and lang is not None
-                    and lang.name == "sql"
-                    and _is_migration(rel)
-                ),
             }
         )
         if reason is None and lang is not None:

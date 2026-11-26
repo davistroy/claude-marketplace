@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
@@ -175,17 +176,120 @@ def _append(text: str, block: str, eol: str) -> str:
     return f"{out}{block}{eol}"
 
 
-def upsert_file(path: Path, name: str, body: str) -> None:
+def _is_under(path: str, top: str) -> bool:
+    return os.path.commonpath([path, top]) == top
+
+
+def _lexical_top(path: Path) -> Path:
+    """The work-tree top that lexically holds ``path``: the default for ``upsert_file``.
+
+    The walk goes up the path as written, never through a link: the first directory that holds
+    a ``.git`` entry and is not itself a symlink is the candidate, and git must agree it is a top
+    level. A candidate reached through a symlink (``repo/a -> ../other`` with a work tree at
+    ``other/sub``) is refused: an enclosing work tree whose real path does not hold the
+    candidate's real path means a link left it, so the caller must say which repo it means.
+    """
+    from .verify import toplevel
+
+    found: Path | None = None
+    d = Path(os.path.abspath(path)).parent
+    while True:
+        if os.path.lexists(d / ".git") and not os.path.islink(d):
+            if found is None:
+                top = toplevel(d)
+                if top is None or not os.path.samefile(top, d):
+                    raise ValueError(f"{path}: {d} holds .git but is not a work-tree top level")
+                found = d
+            elif not _is_under(os.path.realpath(found), os.path.realpath(d)):
+                raise ValueError(
+                    f"{path}: the work tree at {found} is reached through a symlink out of "
+                    f"{d}; pass --repo to name the repository"
+                )
+        if d.parent == d:
+            break
+        d = d.parent
+    if found is None:
+        raise ValueError(f"{path}: not inside a git work tree; pass --repo")
+    return found
+
+
+def _explicit_top(repo: Path) -> Path:
+    from .verify import toplevel
+
+    top = toplevel(repo)
+    if top is None or not os.path.samefile(top, repo):
+        raise ValueError(f"--repo {repo} is not the top level of a git work tree")
+    return Path(os.path.abspath(repo))
+
+
+def contained_target(path: Path, repo: Path | None = None) -> Path:
+    """The real file ``upsert_file`` writes for ``path``; ``ValueError`` when it may not (H-SYM).
+
+    Symlinks are resolved, so ``CLAUDE.md -> AGENTS.md`` names ``AGENTS.md``. The resolved file
+    must lie inside the real path of the work tree (``repo``, or the one that lexically holds
+    ``path``, see ``_lexical_top``) and outside its ``.git`` directory. A dangling symlink
+    anywhere on the way is refused rather than having its target created. A write outside the
+    work tree is invisible to every git check and cannot be undone through git.
+    """
+    top = _explicit_top(repo) if repo is not None else _lexical_top(path)
+    lexical = Path(os.path.abspath(path))
+    rel = os.path.relpath(lexical, top)
+    if rel == os.curdir or rel.split(os.sep)[0] == os.pardir:
+        raise ValueError(f"{path} is not under the repository {top}")
+    step = top
+    for part in Path(rel).parts:
+        step = step / part
+        if os.path.islink(step) and not os.path.exists(step):
+            raise ValueError(f"{path}: {step} is a dangling symlink; refusing to create its target")
+    real_top = os.path.realpath(top)
+    target = os.path.realpath(lexical)
+    if target == real_top or not _is_under(target, real_top):
+        raise ValueError(f"{path} resolves to {target}, outside the work tree {real_top}")
+    # Case-folded: on a case-insensitive file system ``.Git/config`` is ``.git/config`` and
+    # realpath keeps the spelling it was given (review fix 3).
+    if any(p.casefold() == ".git" for p in Path(os.path.relpath(target, real_top)).parts):
+        raise ValueError(f"{path} resolves to {target}, inside the .git directory")
+    for git_dir in _git_dirs(Path(real_top)):
+        step = Path(target)
+        while True:
+            if os.path.exists(step) and os.path.samefile(step, git_dir):
+                raise ValueError(f"{path} resolves to {target}, inside the git directory {git_dir}")
+            if str(step) == real_top or step.parent == step:
+                break
+            step = step.parent
+    return Path(target)
+
+
+def _git_dirs(top: Path) -> list[Path]:
+    """The real git directory and common directory of the work tree ``top``.
+
+    A ``.git`` file (``gitdir:`` pointer, a linked worktree, ``--separate-git-dir``) can put
+    them anywhere, under any name, so they are compared by identity (``samefile``), not by name.
+    ``ValueError`` when git cannot say (fail closed).
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(top), "rev-parse", "--git-dir", "--git-common-dir"],
+        capture_output=True,
+    )
+    found = [line for line in os.fsdecode(proc.stdout).splitlines() if line]
+    if proc.returncode != 0 or len(found) != 2:
+        raise ValueError(f"cannot locate the git directory of {top}")
+    return [top / d for d in found if os.path.exists(top / d)]
+
+
+def upsert_file(path: Path, name: str, body: str, repo: Path | None = None) -> None:
     """Upsert section ``name`` in the file at ``path``, creating the file if needed.
 
-    A symlink is written through: the path is resolved first, so ``CLAUDE.md -> AGENTS.md``
-    updates ``AGENTS.md`` and the link stays a link.
+    A symlink is written through when it stays in the work tree: the path is resolved first, so
+    ``CLAUDE.md -> AGENTS.md`` updates ``AGENTS.md`` and the link stays a link. A path that
+    resolves outside the work tree (``repo``, or the one that holds ``path``), into ``.git``, or
+    through a dangling link raises ``ValueError`` and writes nothing (``contained_target``).
 
     The file is read as bytes and decoded as UTF-8 without translating newlines, so CRLF lines
     outside the markers come back exactly as they were. The write is atomic: a crash leaves
     either the old file or the new one.
     """
-    target = Path(os.path.realpath(path))
+    target = contained_target(path, repo)
     raw = target.read_bytes() if target.exists() else b""
     try:
         text = raw.decode("utf-8")

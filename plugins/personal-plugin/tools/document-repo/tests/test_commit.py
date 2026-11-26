@@ -629,6 +629,28 @@ def test_backstop_ok(make_repo, git, commit_files, capsys) -> None:
     assert [r["path"] for r in out["verify"]] == ["m.py"]
 
 
+def test_backstop_ignores_attributes_in_unrelated_ignored_dirs(
+    make_repo, git, commit_files, capsys
+) -> None:
+    """An ignored node_modules package's .gitattributes applies to no judged path."""
+    repo = make_repo({"m.py": M, ".gitignore": "node_modules/\n"})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
+    pkg = repo / "node_modules" / "pkg"
+    pkg.mkdir(parents=True)
+    (pkg / ".gitattributes").write_text("* text eol=crlf\n")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 0 and out["ok"], out
+    # The same file in a directory that holds a judged path is refused.
+    commit_files(repo, {"src/n.py": M}, "add n")
+    (repo / "src" / ".gitattributes").write_text("* text eol=crlf\n")
+    with open(repo / ".git" / "info" / "exclude", "a") as fh:
+        fh.write("src/.gitattributes\n")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"]
+    assert any("src/.gitattributes is not tracked" in r["detail"] for r in out["verify"]), out
+
+
 def test_backstop_catches_code_change(make_repo, git, commit_files, capsys) -> None:
     repo = make_repo({"m.py": M})
     base = head(git, repo)
@@ -785,16 +807,12 @@ def test_exception_after_commit_is_stop_and_undone_i2(make_repo, git, capsys, mo
     pre = head(git, repo)
     (repo / "m.py").write_text(M_COMMENTED)
     (repo / "other.py").write_text(N_COMMENTED)
-    real = commit_mod.verify_file
-    calls: list[str] = []
 
+    # The precheck runs verify_file; the post-commit proof (committed_proof) is interrupted.
     def flaky(*args: Any, **kwargs: Any) -> Any:
-        calls.append(args[1])
-        if len(calls) > 1:
-            raise KeyboardInterrupt("killed by the Bash timeout")
-        return real(*args, **kwargs)
+        raise KeyboardInterrupt("killed by the Bash timeout")
 
-    monkeypatch.setattr(commit_mod, "verify_file", flaky)
+    monkeypatch.setattr(commit_mod, "committed_proof", flaky)
     code, out = commit(capsys, repo, "m.py")
     assert code == 1 and out["status"] == "stop", out
     assert "killed by the Bash timeout" in out["detail"] and "undone" in out["detail"]
@@ -822,19 +840,14 @@ def test_exception_after_failed_commit_is_stop_i2(make_repo, git, capsys, monkey
 def test_undo_failure_in_emergency_is_reported_i2(make_repo, git, capsys, monkeypatch) -> None:
     repo = make_repo({"m.py": M})
     (repo / "m.py").write_text(M_COMMENTED)
-    calls: list[str] = []
-    real = commit_mod.verify_file
 
     def flaky(*args: Any, **kwargs: Any) -> Any:
-        calls.append(args[1])
-        if len(calls) > 1:
-            raise RuntimeError("verifier crashed")
-        return real(*args, **kwargs)
+        raise RuntimeError("verifier crashed")
 
     def stuck(*args: Any) -> list[str]:
         raise commit_mod.GitError("could not restore m.py")
 
-    monkeypatch.setattr(commit_mod, "verify_file", flaky)
+    monkeypatch.setattr(commit_mod, "committed_proof", flaky)
     monkeypatch.setattr(commit_mod, "_restore", stuck)
     code, out = commit(capsys, repo, "m.py")
     assert code == 1 and out["status"] == "stop", out
@@ -1789,3 +1802,249 @@ def test_the_refusal_says_to_delete_the_marker_when_the_marker_is_the_rule(
     git(repo, "commit", "-q", "-m", "publish the explorer data")
     code, out = commit(capsys, repo, "explorer", ref=None)
     assert code == 0 and "explorer/data/state.json" in out["paths"], out
+
+
+# --- SE-H1: the backstop and the post-commit proof judge committed blobs ------------------------
+
+
+@pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
+def test_backstop_judges_the_commit_not_a_hidden_work_tree(
+    make_repo, git, commit_files, capsys, flag
+) -> None:
+    # The review's PoC: HEAD commits a code change, the work tree holds a comment-only edit of
+    # the base, and a flag makes git status report the tree clean. Judging the work tree passed.
+    repo = make_repo({"m.py": "def f():\n    return 1\n"})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": "def f():\n    return 2\n"}, "change")
+    (repo / "m.py").write_text("# a comment\ndef f():\n    return 1\n")
+    git(repo, "update-index", flag, "m.py")
+    assert git(repo, "status", "--porcelain") == ""
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    (bad,) = out["verify"]
+    assert bad["path"] == "m.py" and not bad["ok"], bad
+    assert flag.lstrip("-") in bad["detail"], bad
+
+
+def test_backstop_fails_a_committed_code_change_even_with_a_matching_flag_cleared(
+    make_repo, git, commit_files, capsys
+) -> None:
+    # Without any flag the committed blob is what is judged: a work tree that git sees as clean
+    # and HEAD's code change fails on the code, not on the flag.
+    repo = make_repo({"m.py": "def f():\n    return 1\n"})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": "def f():\n    return 2\n"}, "change")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"]
+    assert out["verify"][0]["method"] == "python-ast", out
+
+
+def test_backstop_passes_committed_comments_judged_from_blobs(
+    make_repo, git, commit_files, capsys
+) -> None:
+    repo = make_repo({"m.py": M, "q.sql": "select 1;\n"})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": M_COMMENTED, "q.sql": "-- One.\nselect 1;\n"}, "docs")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 0 and out["ok"], out
+    assert [r["path"] for r in out["verify"]] == ["m.py", "q.sql"]
+
+
+def test_backstop_fails_a_path_changed_only_in_the_work_tree(
+    make_repo, git, capsys, monkeypatch
+) -> None:
+    # A path the work-tree listing reports but no commit since base touched has nothing
+    # committed to judge, so it fails rather than being skipped (even if status were blind).
+    repo = make_repo({"m.py": M})
+    base = head(git, repo)
+    (repo / "m.py").write_text(M_COMMENTED)
+    real_out = commit_mod._out
+    monkeypatch.setattr(
+        commit_mod, "_out", lambda top, *a: "" if a[0] == "status" else real_out(top, *a)
+    )
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    assert "in the work tree but not in any commit" in out["verify"][0]["detail"], out
+
+
+def test_post_commit_proof_judges_the_committed_blob(make_repo, git, capsys, monkeypatch) -> None:
+    # A pre-commit hook stages a code change and puts the commented file back in the work tree.
+    # The work-tree comparison is made to miss it (as a stat cache, fsmonitor or an
+    # assume-unchanged flag can), so only a proof of the committed blob catches the change.
+    repo = make_repo({"m.py": M})
+    hook(
+        repo,
+        "pre-commit",
+        GUARD
+        + "printf 'x = 2\\n' > m.py && git add m.py\n"
+        + "printf '# Why: x is the answer.\\nx = 1\\n' > m.py\n",
+    )
+    (repo / "m.py").write_text(M_COMMENTED)
+    real_changed = commit_mod._changed
+    calls: list[int] = []
+
+    def blind_after_the_first(*args: Any) -> list[str]:
+        calls.append(1)
+        return real_changed(*args) if len(calls) == 1 else []
+
+    monkeypatch.setattr(commit_mod, "_changed", blind_after_the_first)
+    pre = head(git, repo)
+    code, out = commit(capsys, repo, "m.py")
+    assert code == 1 and out["status"] == "undone", out
+    assert "not comment-only" in out["detail"], out
+    assert head(git, repo) == pre, "the code change must not stay on HEAD"
+
+
+@pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
+def test_post_commit_proof_refuses_a_flagged_path(
+    make_repo, git, capsys, monkeypatch, flag
+) -> None:
+    # A path git is told not to look at cannot have its work tree trusted: refuse it.
+    repo = make_repo({"m.py": M})
+    (repo / "m.py").write_text(M_COMMENTED)
+    real_paths = commit_mod._paths
+
+    def flag_on_diff_tree(top: Path, *args: str) -> list[str]:
+        if args and args[0] == "diff-tree":
+            git(repo, "update-index", flag, "m.py")
+        return real_paths(top, *args)
+
+    monkeypatch.setattr(commit_mod, "_paths", flag_on_diff_tree)
+    code, out = commit(capsys, repo, "m.py")
+    # skip-worktree also makes the undo's checkout refuse the path, which is a "stop".
+    assert code == 1 and out["status"] in ("undone", "stop"), out
+    assert flag.lstrip("-") in json.dumps(out["verify"]), out
+    assert "not comment-only" in out["detail"], out
+
+
+def test_backstop_fails_a_passing_commit_whose_work_tree_differs_unseen(
+    make_repo, git, commit_files, capsys, monkeypatch
+) -> None:
+    # The commit is comment-only, but the work tree holds other bytes and git status is blind
+    # (a stale stat cache or fsmonitor): the "tree equals HEAD" claim is false, so it fails.
+    repo = make_repo({"m.py": M})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
+    (repo / "m.py").write_text(M_CHANGED)
+    real_out = commit_mod._out
+    monkeypatch.setattr(
+        commit_mod, "_out", lambda top, *a: "" if a[0] == "status" else real_out(top, *a)
+    )
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    (bad,) = out["verify"]
+    assert bad["method"] == "python-ast" and "differs from HEAD" in bad["detail"], bad
+
+
+# --- review fix 1/6/7: attributes outside the commit ----------------------------------------------
+
+SH = 'echo hi\nrm -rf "$X"\n'
+SH_COMMENTED = "# remove the scratch dir\n" + SH
+
+
+def _exclude(repo: Path, line: str) -> None:
+    with open(repo / ".git" / "info" / "exclude", "a") as fh:
+        fh.write(line + "\n")
+
+
+def _recheckout(git: Callable[..., str], repo: Path, rel: str) -> None:
+    (repo / rel).unlink()
+    git(repo, "checkout", "--", rel)
+
+
+def test_backstop_fails_a_crlf_commit_hidden_by_untracked_eol_crlf(
+    make_repo, git, commit_files, capsys
+) -> None:
+    # Reviewer PoC b3: the commit turns an LF script into CRLF and adds a comment. An untracked,
+    # excluded `* text eol=crlf` made both sides read as CRLF, so the change passed.
+    repo = make_repo({"m.sh": SH})
+    base = head(git, repo)
+    commit_files(repo, {"m.sh": SH_COMMENTED.replace("\n", "\r\n").encode()}, "change")
+    (repo / ".gitattributes").write_text("* text eol=crlf\n")
+    _exclude(repo, ".gitattributes")
+    _recheckout(git, repo, "m.sh")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    details = " ".join(r["detail"] for r in out["verify"])
+    assert "attributes outside any commit" in details, out
+    # With the attribute file gone, the stored blobs still show the line-ending change.
+    (repo / ".gitattributes").unlink()
+    _recheckout(git, repo, "m.sh")
+    assert git(repo, "status", "--porcelain") == ""
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and "line endings" in out["verify"][0]["detail"], out
+
+
+def test_backstop_fails_under_info_attributes(make_repo, git, commit_files, capsys) -> None:
+    # Reviewer PoC b2: the same change, hidden by .git/info/attributes.
+    repo = make_repo({"m.sh": SH})
+    base = head(git, repo)
+    commit_files(repo, {"m.sh": SH_COMMENTED.replace("\n", "\r\n").encode()}, "change")
+    (repo / ".git" / "info" / "attributes").write_text("* text=auto eol=crlf\n")
+    _recheckout(git, repo, "m.sh")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    assert "info/attributes sets rules" in json.dumps(out["verify"]), out
+
+
+def test_backstop_fails_a_last_line_crlf_change(make_repo, git, commit_files, capsys) -> None:
+    # Reviewer PoC b1: only the last line gains a CR, under an untracked text=auto eol=crlf.
+    repo = make_repo({"m.sh": SH})
+    base = head(git, repo)
+    commit_files(repo, {"m.sh": SH_COMMENTED[:-1].encode() + b"\r\n"}, "change")
+    (repo / ".gitattributes").write_text("* text=auto eol=crlf\n")
+    _exclude(repo, ".gitattributes")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+
+
+@pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
+def test_backstop_refuses_a_flagged_gitattributes_over_a_judged_path(
+    make_repo, git, commit_files, capsys, flag
+) -> None:
+    # Review fix 6: a .gitattributes the branch never touched still counts when git reads it
+    # for a judged path (here other/m.py).
+    repo = make_repo({"other/m.py": M, "other/.gitattributes": "# none\n"})
+    base = head(git, repo)
+    commit_files(repo, {"other/m.py": M_COMMENTED}, "docs")
+    git(repo, "update-index", flag, "other/.gitattributes")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and not out["ok"], out
+    bad = [r for r in out["verify"] if not r["ok"]]
+    assert any("other/.gitattributes is flagged" in r["detail"] for r in bad), out
+
+
+def test_backstop_refuses_an_untracked_ignored_gitattributes_over_a_judged_path(
+    make_repo, git, commit_files, capsys
+) -> None:
+    repo = make_repo({"vendor/m.py": M})
+    base = head(git, repo)
+    commit_files(repo, {"vendor/m.py": M_COMMENTED}, "docs")
+    (repo / "vendor" / ".gitattributes").write_text("* text eol=crlf\n")
+    _exclude(repo, "vendor/.gitattributes")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 1 and "vendor/.gitattributes is not tracked" in json.dumps(out), out
+
+
+def test_backstop_allows_a_sparse_flag_on_an_unrelated_file(
+    make_repo, git, commit_files, capsys
+) -> None:
+    # A sparse checkout's skip-worktree on a file the branch did not touch is not refused.
+    repo = make_repo({"m.py": M, "far/data.bin": "x\n"})
+    base = head(git, repo)
+    commit_files(repo, {"m.py": M_COMMENTED}, "docs")
+    git(repo, "update-index", "--skip-worktree", "far/data.bin")
+    code, out = run(capsys, "backstop", "--repo", str(repo), "--base", base)
+    assert code == 0 and out["ok"], out
+
+
+def test_precheck_refuses_attributes_outside_the_commit(make_repo, git, capsys) -> None:
+    # Review fix 7: the pre-commit precheck refuses what the post-commit proof would.
+    repo = make_repo({"other/m.py": M, "other/.gitattributes": "# none\n"})
+    git(repo, "update-index", "--assume-unchanged", "other/.gitattributes")
+    (repo / "other" / "m.py").write_text(M_COMMENTED)
+    pre = head(git, repo)
+    code, out = commit(capsys, repo, "other/m.py")
+    assert code == 1 and out["status"] == "precheck", out
+    assert "other/.gitattributes is flagged" in json.dumps(out["verify"]), out
+    assert head(git, repo) == pre

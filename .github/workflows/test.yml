@@ -232,9 +232,9 @@ jobs:
         run: |
           mypy src/ --ignore-missing-imports
 
-  # NON-REQUIRED for now, following the task-sync / research-sse precedent: a
-  # required check cannot exist before the PR that creates it. Promote the leg
-  # ("Document Repo Tests (ubuntu-latest)") to required once the job has proven green.
+  # REQUIRED check: "Document Repo Tests (ubuntu-latest)" is in main's branch protection
+  # (arch-review H-GATE, LAB_NOTEBOOK E072). Renaming the job or the matrix leg changes the
+  # check name and blocks every merge until branch protection is updated to match.
   #
   # Ubuntu only, deliberately. The suite has never run on Windows and no Windows host was
   # available to run it on. Emulating Windows text mode (CRLF from Path.write_text) on macOS

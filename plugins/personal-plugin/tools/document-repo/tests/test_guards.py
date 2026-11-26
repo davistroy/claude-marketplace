@@ -100,8 +100,27 @@ def test_make_scanner() -> None:
         ("k: &a !t |\n  x\nj: 1\n", {1}),  # props before block indicator
         ("--- |\n  x\n", {1}),  # document-level block scalar
         ("k: [a,\n  b]\nj: 1\n", {1}),  # multi-line flow collection fails closed
-        ("k: a\n  # c\n  b\n", set()),  # comment ends the plain scalar
+        ("k: a\n  # c\n  b\n", {1, 2}),  # a bare line after a comment is refused too
         ("k: 'open\n", {1}),  # unterminated quote at EOF fails closed
+        ("- foo\n  bar\n", {1}),  # SE-H2: continues past the dash column, not the content's
+        ("- foo\n bar\n", {1}),  # one column deeper than the dash is enough
+        ("a:\n  - foo\n    bar\nb: 1\n", {2}),
+        ("- - foo\n    bar\n", {1}),  # the innermost dash decides
+        ("- k: foo\n  j: 1\n", set()),  # a key in the entry: its own column still decides
+        ("foo\nbar\n", {1}),  # a bare top-level scalar continues at any indent
+        ("---\nk: 1\n", set()),  # a document marker is not a scalar
+        # A bare scalar on its own line continues past its own column, up to its parent's.
+        ("key:\n  foo\n  bar\n", {1, 2}),
+        ("-\n  foo\n  bar\n", {1, 2}),
+        ("- k: v\n  j:\n    foo\n    bar\n", {2, 3}),
+        ("k: !!str\n  foo\n  bar\n", {1, 2}),
+        ("k: &x\n  foo\n  bar\n", {1, 2}),
+        ("--- foo\nbar\n", {1}),  # a scalar on the marker line is a document scalar
+        ("key:\n  foo\n  - bar\n", {1, 2}),  # a dash line deeper than the parent continues
+        ("k: v\n  [a]\n", {1}),  # a bare next line may always be a continuation
+        ("k: 1\n# c\nj: 2\n", set()),  # keys and comments are new nodes
+        ("- a\n- b\n", set()),
+        ("  foo\n  bar\n", {1}),  # an indented first scalar has no parent: any line continues
     ],
 )
 def test_yaml_scanner(text: str, expected: set[int]) -> None:
@@ -479,7 +498,8 @@ def test_yaml_block_tail_does_not_relax_other_unsafe_positions() -> None:
 def test_yaml_unanchored_block_header_keeps_the_old_rule(before: str, after: str) -> None:
     # Only a "key: |" or "- |" opener tells us the content is indented deeper than that line.
     why = context_guard(before, after, lang("yaml"))
-    assert why and "not a `key: |`" in why, why
+    # Refused either by the tail rule or, when the next line is bare, as a possible continuation.
+    assert why and ("not a `key: |`" in why or "verbatim region" in why), why
 
 
 @pytest.mark.parametrize(
@@ -836,3 +856,37 @@ def test_jinja_comment_opener_is_prose_outside_templates() -> None:
     # "${#x}" (shell string length) in a base does not make the file a template.
     sh = lang("sh")
     assert common_guards("a.sh", "echo ${#x}\n", "# {{ x }} note\necho ${#x}\n", sh) is None
+
+
+@pytest.mark.parametrize(
+    "before,after",
+    [
+        ("a: 1\nb: 2\n", "a: 1\n# c\nb: 2\n"),
+        ("k:\n  - x\n  - y\n", "k:\n  - x\n  # c\n  - y\n"),
+        ("k:\n  - x\n  - y\n", "k:\n  - x\n\n  - y\n"),
+        ("k: a long\n  value\nj: 1\n", "k: a long\n  value\n# c\nj: 1\n"),
+        ("- a: 1\n  b: 2\n", "- a: 1\n  # c\n  b: 2\n"),
+    ],
+)
+def test_yaml_ordinary_comments_still_pass(before: str, after: str) -> None:
+    assert context_guard(before, after, lang("yaml")) is None
+
+
+@pytest.mark.parametrize(
+    "before",
+    [
+        "key:\n  foo\n  bar\n",
+        "-\n  foo\n  bar\n",
+        "- k: v\n  j:\n    foo\n    bar\n",
+        "k: !!str\n  foo\n  bar\n",
+        "k: &x\n  foo\n  bar\n",
+        "--- foo\nbar\n",
+    ],
+)
+@pytest.mark.parametrize("inserted", ["# c", "  # c", ""])
+def test_yaml_insert_between_bare_scalar_lines_fails(before: str, inserted: str) -> None:
+    # Review round: a comment ends the scalar; a blank line turns "foo bar" into "foo\nbar".
+    lines = before.splitlines(keepends=True)
+    at = next(i for i, line in enumerate(lines) if line.strip() == "bar")
+    after = "".join(lines[:at] + [inserted + "\n"] + lines[at:])
+    assert context_guard(before, after, lang("yaml")) is not None
